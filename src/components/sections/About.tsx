@@ -3,10 +3,10 @@ import { Award, Users, Leaf, Clock } from 'lucide-react';
 
 const About = () => {
   const stats = [
-    { icon: Users, value: '10,000+', label: 'Nöjda kunder' },
-    { icon: Award, value: '5 år', label: 'Garanti på allt' },
-    { icon: Leaf, value: '100%', label: 'Grön energi' },
-    { icon: Clock, value: '24/7', label: 'Support' },
+    { icon: Users, value: '5,000+', label: 'Nöjda kunder' },
+    { icon: Award, value: '100%', label: 'Naturligt' },
+    { icon: Leaf, value: 'Giftfritt', label: 'Alla produkter' },
+    { icon: Clock, value: '24/7', label: 'Personlig service' },
   ];
 
   return (
@@ -22,16 +22,17 @@ const About = () => {
           >
             <h2 className="font-display text-3xl md:text-5xl font-bold mb-6">
               Varför välja{' '}
-              <span className="text-gradient">ChargerShop?</span>
+              <span className="text-gradient">PureLife?</span>
             </h2>
             <p className="text-muted-foreground text-lg mb-8 leading-relaxed">
-              Vi har sedan 2018 varit Sveriges ledande leverantör av laddlösningar för elbilar. 
-              Med fokus på kvalitet, innovation och kundservice hjälper vi dig att göra övergången 
-              till eldrift så smidig som möjligt.
+              Vi tror på att leva rent - både för din kropp och för planeten. 
+              Våra produkter är noggrant utvalda för att vara fria från skadliga kemikalier 
+              och tillverkade med respekt för miljön.
             </p>
             <p className="text-muted-foreground text-lg mb-8 leading-relaxed">
-              Vårt team av experter finns tillgängliga för att guida dig genom hela processen - 
-              från val av rätt produkt till professionell installation och ongoing support.
+              Från naturliga kroppsvårdsprodukter som tvål, tandkräm och schampo, 
+              till hållbar teknik och giftfria kläder - vi erbjuder allt du behöver 
+              för ett renare och hälsosammare liv.
             </p>
 
             {/* Stats */}
@@ -70,11 +71,11 @@ const About = () => {
               <div className="relative z-10 w-full h-full rounded-3xl bg-secondary border border-border overflow-hidden flex items-center justify-center">
                 <div className="text-center p-8">
                   <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-primary/20 flex items-center justify-center">
-                    <Award className="w-12 h-12 text-primary" />
+                    <Leaf className="w-12 h-12 text-primary" />
                   </div>
-                  <h3 className="font-display text-xl font-bold mb-2">Kvalitet i fokus</h3>
+                  <h3 className="font-display text-xl font-bold mb-2">Naturligt & Hållbart</h3>
                   <p className="text-muted-foreground text-sm">
-                    Alla våra produkter är noggrant utvalda och testade
+                    Alla våra produkter är noggrant utvalda för att vara giftfria och miljövänliga
                   </p>
                 </div>
               </div>

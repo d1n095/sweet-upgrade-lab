@@ -1,13 +1,13 @@
 import { motion } from 'framer-motion';
-import { ArrowRight, Zap, Shield, Truck, HeadphonesIcon } from 'lucide-react';
+import { ArrowRight, Leaf, Shield, Truck, HeadphonesIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const Hero = () => {
   const features = [
-    { icon: Zap, text: 'Snabbladdning' },
-    { icon: Shield, text: '5 års garanti' },
+    { icon: Leaf, text: 'Giftfria produkter' },
+    { icon: Shield, text: 'Kvalitetsgaranti' },
     { icon: Truck, text: 'Fri frakt' },
-    { icon: HeadphonesIcon, text: 'Expert support' },
+    { icon: HeadphonesIcon, text: 'Personlig service' },
   ];
 
   return (
@@ -26,8 +26,8 @@ const Hero = () => {
             transition={{ delay: 0.1 }}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-sm text-primary mb-8"
           >
-            <Zap className="w-4 h-4" />
-            <span>Nya modeller 2026 finns nu!</span>
+            <Leaf className="w-4 h-4" />
+            <span>Naturligt & Hållbart 2026</span>
           </motion.div>
 
           {/* Headline */}
@@ -37,8 +37,8 @@ const Hero = () => {
             transition={{ delay: 0.2 }}
             className="font-display text-4xl sm:text-5xl md:text-7xl font-bold leading-tight mb-6"
           >
-            Ladda framtiden med{' '}
-            <span className="text-gradient">smart teknik</span>
+            Lev rent med{' '}
+            <span className="text-gradient">PureLife</span>
           </motion.h1>
 
           {/* Subtitle */}
@@ -48,8 +48,8 @@ const Hero = () => {
             transition={{ delay: 0.3 }}
             className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10"
           >
-            Upptäck Sveriges bredaste utbud av laddlösningar för elbilar. 
-            Från smarta hemmaladdare till professionella snabbladdstationer.
+            Upptäck vårt sortiment av giftfria kroppsvårdsprodukter, 
+            hållbar teknik och naturliga kläder. Allt för ett renare liv.
           </motion.p>
 
           {/* CTAs */}
