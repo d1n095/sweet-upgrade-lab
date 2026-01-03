@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingCart, Menu, X, Zap } from 'lucide-react';
+import { ShoppingCart, Menu, X, Leaf } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useCart } from '@/context/CartContext';
-import CartDrawer from '@/components/cart/CartDrawer';
+import { useCartStore } from '@/stores/cartStore';
+import ShopifyCartDrawer from '@/components/cart/ShopifyCartDrawer';
 
 const Header = () => {
-  const { totalItems } = useCart();
+  const items = useCartStore(state => state.items);
+  const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -25,12 +26,12 @@ const Header = () => {
             <a href="/" className="flex items-center gap-2 group">
               <div className="relative">
                 <div className="w-10 h-10 rounded-lg bg-gradient-primary flex items-center justify-center">
-                  <Zap className="w-6 h-6 text-primary-foreground" />
+                  <Leaf className="w-6 h-6 text-primary-foreground" />
                 </div>
                 <div className="absolute inset-0 rounded-lg bg-primary/30 blur-lg opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
               <span className="font-display text-xl font-bold">
-                Charger<span className="text-gradient">Shop</span>
+                Pure<span className="text-gradient">Life</span>
               </span>
             </a>
 
@@ -109,7 +110,7 @@ const Header = () => {
         </AnimatePresence>
       </header>
 
-      <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
+      <ShopifyCartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </>
   );
 };
