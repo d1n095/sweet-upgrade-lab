@@ -1,6 +1,9 @@
 import { Leaf, Mail, Phone, MapPin } from 'lucide-react';
+import { useLanguage } from '@/context/LanguageContext';
 
 const Footer = () => {
+  const { t } = useLanguage();
+  
   return (
     <footer id="contact" className="bg-card border-t border-border">
       <div className="container mx-auto px-4 py-12 md:py-16">
@@ -16,35 +19,35 @@ const Footer = () => {
               </span>
             </a>
             <p className="text-muted-foreground text-sm">
-              Giftfria produkter för ett renare och hälsosammare liv. Naturliga kroppsvårdsprodukter, hållbar teknik och ekologiska kläder.
+              {t('footer.description')}
             </p>
           </div>
 
           {/* Quick Links */}
           <div>
-            <h4 className="font-display font-semibold mb-4">Snabblänkar</h4>
+            <h4 className="font-display font-semibold mb-4">{t('footer.quicklinks')}</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><a href="#products" className="hover:text-foreground transition-colors">Produkter</a></li>
-              <li><a href="#about" className="hover:text-foreground transition-colors">Om oss</a></li>
-              <li><a href="#" className="hover:text-foreground transition-colors">Våra värderingar</a></li>
-              <li><a href="#" className="hover:text-foreground transition-colors">Kundtjänst</a></li>
+              <li><a href="#products" className="hover:text-foreground transition-colors">{t('nav.products')}</a></li>
+              <li><a href="#about" className="hover:text-foreground transition-colors">{t('nav.about')}</a></li>
+              <li><a href="#" className="hover:text-foreground transition-colors">{t('footer.faq')}</a></li>
+              <li><a href="#contact" className="hover:text-foreground transition-colors">{t('footer.customerservice')}</a></li>
             </ul>
           </div>
 
-          {/* Products */}
+          {/* Customer Service */}
           <div>
-            <h4 className="font-display font-semibold mb-4">Kategorier</h4>
+            <h4 className="font-display font-semibold mb-4">{t('footer.customerservice')}</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><a href="#" className="hover:text-foreground transition-colors">Kroppsvård</a></li>
-              <li><a href="#" className="hover:text-foreground transition-colors">Teknikprodukter</a></li>
-              <li><a href="#" className="hover:text-foreground transition-colors">Kläder</a></li>
-              <li><a href="#" className="hover:text-foreground transition-colors">Tillbehör</a></li>
+              <li><a href="#" className="hover:text-foreground transition-colors">{t('footer.shippinginfo')}</a></li>
+              <li><a href="#" className="hover:text-foreground transition-colors">{t('footer.returns')}</a></li>
+              <li><a href="#" className="hover:text-foreground transition-colors">{t('footer.faq')}</a></li>
+              <li><a href="#contact" className="hover:text-foreground transition-colors">{t('footer.contact')}</a></li>
             </ul>
           </div>
 
           {/* Contact */}
           <div>
-            <h4 className="font-display font-semibold mb-4">Kontakt</h4>
+            <h4 className="font-display font-semibold mb-4">{t('footer.contact')}</h4>
             <ul className="space-y-3 text-sm text-muted-foreground">
               <li className="flex items-center gap-2">
                 <Mail className="w-4 h-4 text-primary" />
@@ -67,10 +70,10 @@ const Footer = () => {
         </div>
 
         <div className="mt-12 pt-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
-          <p>© 2026 PureLife. Alla rättigheter reserverade.</p>
+          <p>© 2026 PureLife. {t('footer.rights')}</p>
           <div className="flex items-center gap-6">
-            <a href="#" className="hover:text-foreground transition-colors">Integritetspolicy</a>
-            <a href="#" className="hover:text-foreground transition-colors">Villkor</a>
+            <a href="#" className="hover:text-foreground transition-colors">Privacy Policy</a>
+            <a href="#" className="hover:text-foreground transition-colors">Terms</a>
             <a href="#" className="hover:text-foreground transition-colors">Cookies</a>
           </div>
         </div>

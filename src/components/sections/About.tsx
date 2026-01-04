@@ -1,12 +1,15 @@
 import { motion } from 'framer-motion';
 import { Award, Users, Leaf, Clock } from 'lucide-react';
+import { useLanguage } from '@/context/LanguageContext';
 
 const About = () => {
+  const { t } = useLanguage();
+  
   const stats = [
-    { icon: Users, value: '1,000+', label: 'Nöjda kunder' },
-    { icon: Award, value: '100%', label: 'Naturligt' },
-    { icon: Leaf, value: 'Giftfritt', label: 'Alla produkter' },
-    { icon: Clock, value: '24/7', label: 'Personlig service' },
+    { icon: Users, value: '1,000+', label: t('about.stat.customers') },
+    { icon: Award, value: '100%', label: t('about.stat.natural') },
+    { icon: Leaf, value: t('about.stat.toxinfree') === 'All products' ? 'Toxin-free' : 'Giftfritt', label: t('about.stat.toxinfree') },
+    { icon: Clock, value: '24/7', label: t('about.stat.service') },
   ];
 
   return (
@@ -21,18 +24,14 @@ const About = () => {
             className="order-2 lg:order-1"
           >
             <h2 className="font-display text-3xl md:text-5xl font-bold mb-6">
-              Varför välja{' '}
+              {t('about.title')}{' '}
               <span className="text-gradient">PureLife?</span>
             </h2>
             <p className="text-muted-foreground text-lg mb-8 leading-relaxed">
-              Vi tror på att leva rent - både för din kropp och för planeten. 
-              Våra produkter är noggrant utvalda för att vara fria från skadliga kemikalier 
-              och tillverkade med respekt för miljön.
+              {t('about.description1')}
             </p>
             <p className="text-muted-foreground text-lg mb-8 leading-relaxed">
-              Från naturliga kroppsvårdsprodukter som tvål, tandkräm och schampo, 
-              till hållbar teknik och giftfria kläder - vi erbjuder allt du behöver 
-              för ett renare och hälsosammare liv.
+              {t('about.description2')}
             </p>
 
             {/* Stats */}
@@ -73,9 +72,9 @@ const About = () => {
                   <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-primary/20 flex items-center justify-center">
                     <Leaf className="w-12 h-12 text-primary" />
                   </div>
-                  <h3 className="font-display text-xl font-bold mb-2">Naturligt & Hållbart</h3>
+                  <h3 className="font-display text-xl font-bold mb-2">{t('about.visual.title')}</h3>
                   <p className="text-muted-foreground text-sm">
-                    Alla våra produkter är noggrant utvalda för att vara giftfria och miljövänliga
+                    {t('about.visual.description')}
                   </p>
                 </div>
               </div>

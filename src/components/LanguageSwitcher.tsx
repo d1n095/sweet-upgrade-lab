@@ -1,0 +1,42 @@
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Globe } from 'lucide-react';
+import { useLanguage, Language } from '@/context/LanguageContext';
+
+const languages: { code: Language; name: string; flag: string }[] = [
+  { code: 'sv', name: 'Svenska', flag: '🇸🇪' },
+  { code: 'en', name: 'English', flag: '🇬🇧' },
+];
+
+export const LanguageSwitcher = () => {
+  const { language, setLanguage } = useLanguage();
+  const currentLang = languages.find(l => l.code === language);
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="relative">
+          <Globe className="h-5 w-5" />
+          <span className="sr-only">Change language</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-[140px]">
+        {languages.map((lang) => (
+          <DropdownMenuItem
+            key={lang.code}
+            onClick={() => setLanguage(lang.code)}
+            className={`cursor-pointer ${language === lang.code ? 'bg-accent' : ''}`}
+          >
+            <span className="mr-2">{lang.flag}</span>
+            {lang.name}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};

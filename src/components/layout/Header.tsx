@@ -3,18 +3,21 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingCart, Menu, X, Leaf } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCartStore } from '@/stores/cartStore';
+import { useLanguage } from '@/context/LanguageContext';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import ShopifyCartDrawer from '@/components/cart/ShopifyCartDrawer';
 
 const Header = () => {
+  const { t } = useLanguage();
   const items = useCartStore(state => state.items);
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const navItems = [
-    { name: 'Produkter', href: '#products' },
-    { name: 'Om oss', href: '#about' },
-    { name: 'Kontakt', href: '#contact' },
+    { name: t('nav.products'), href: '#products' },
+    { name: t('nav.about'), href: '#about' },
+    { name: t('nav.contact'), href: '#contact' },
   ];
 
   return (
@@ -50,7 +53,8 @@ const Header = () => {
             </nav>
 
             {/* Actions */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <LanguageSwitcher />
               <Button
                 variant="ghost"
                 size="icon"
