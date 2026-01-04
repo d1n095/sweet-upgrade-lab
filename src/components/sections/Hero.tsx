@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 const Hero = () => {
   const features = [
     { icon: Leaf, text: 'Giftfria produkter' },
-    { icon: Shield, text: 'Kvalitetsgaranti' },
-    { icon: Truck, text: 'Fri frakt' },
+    { icon: Shield, text: 'Kvalitetsprodukter' },
+    { icon: Truck, text: 'Snabb leverans' },
     { icon: HeadphonesIcon, text: 'Personlig service' },
   ];
 
