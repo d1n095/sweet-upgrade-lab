@@ -1,13 +1,16 @@
 import { motion } from 'framer-motion';
 import { ArrowRight, Leaf, Shield, Truck, HeadphonesIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useLanguage } from '@/context/LanguageContext';
 
 const Hero = () => {
+  const { t } = useLanguage();
+  
   const features = [
-    { icon: Leaf, text: 'Giftfria produkter' },
-    { icon: Shield, text: 'Kvalitetsprodukter' },
-    { icon: Truck, text: 'Snabb leverans' },
-    { icon: HeadphonesIcon, text: 'Personlig service' },
+    { icon: Leaf, text: t('hero.feature.toxinfree') },
+    { icon: Shield, text: t('hero.feature.quality') },
+    { icon: Truck, text: t('hero.feature.shipping') },
+    { icon: HeadphonesIcon, text: t('hero.feature.service') },
   ];
 
   return (
@@ -27,7 +30,7 @@ const Hero = () => {
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-sm text-primary mb-8"
           >
             <Leaf className="w-4 h-4" />
-            <span>Naturligt & Hållbart 2026</span>
+            <span>{t('hero.badge')}</span>
           </motion.div>
 
           {/* Headline */}
@@ -37,7 +40,7 @@ const Hero = () => {
             transition={{ delay: 0.2 }}
             className="font-display text-4xl sm:text-5xl md:text-7xl font-bold leading-tight mb-6"
           >
-            Lev rent med{' '}
+            {t('hero.title')}{' '}
             <span className="text-gradient">PureLife</span>
           </motion.h1>
 
@@ -48,8 +51,7 @@ const Hero = () => {
             transition={{ delay: 0.3 }}
             className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10"
           >
-            Upptäck vårt sortiment av giftfria kroppsvårdsprodukter, 
-            hållbar teknik och naturliga kläder. Allt för ett renare liv.
+            {t('hero.subtitle')}
           </motion.p>
 
           {/* CTAs */}
@@ -64,7 +66,7 @@ const Hero = () => {
               className="h-14 px-8 text-base font-semibold gap-2 animate-pulse-glow"
               onClick={() => document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' })}
             >
-              Utforska produkter
+              {t('hero.cta.products')}
               <ArrowRight className="w-5 h-5" />
             </Button>
             <Button
@@ -73,7 +75,7 @@ const Hero = () => {
               className="h-14 px-8 text-base"
               onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}
             >
-              Kontakta oss
+              {t('hero.cta.contact')}
             </Button>
           </motion.div>
 
