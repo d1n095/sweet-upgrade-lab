@@ -3,7 +3,7 @@ import { Award, Users, Leaf, Clock } from 'lucide-react';
 
 const About = () => {
   const stats = [
-    { icon: Users, value: '5,000+', label: 'Nöjda kunder' },
+    { icon: Users, value: '1,000+', label: 'Nöjda kunder' },
     { icon: Award, value: '100%', label: 'Naturligt' },
     { icon: Leaf, value: 'Giftfritt', label: 'Alla produkter' },
     { icon: Clock, value: '24/7', label: 'Personlig service' },
