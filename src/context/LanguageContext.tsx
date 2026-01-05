@@ -23,7 +23,7 @@ export const translations: Translations = {
   'hero.cta.contact': { sv: 'Kontakta oss', en: 'Contact us' },
   'hero.feature.toxinfree': { sv: 'Giftfria produkter', en: 'Toxin-free products' },
   'hero.feature.quality': { sv: 'Kvalitetsprodukter', en: 'Quality products' },
-  'hero.feature.shipping': { sv: 'Snabb leverans', en: 'Fast delivery' },
+  'hero.feature.shipping': { sv: 'Säker betalning', en: 'Secure payment' },
   'hero.feature.service': { sv: 'Personlig service', en: 'Personal service' },
   
   // Products
