@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus, Minus, Trash2, ShoppingBag, ExternalLink, Loader2 } from 'lucide-react';
+import { X, Plus, Minus, Trash2, ShoppingBag, ExternalLink, Loader2, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCartStore } from '@/stores/cartStore';
+import { fetchProducts, ShopifyProduct } from '@/lib/shopify';
+import { useLanguage } from '@/context/LanguageContext';
 
 interface ShopifyCartDrawerProps {
   isOpen: boolean;
@@ -10,20 +12,48 @@ interface ShopifyCartDrawerProps {
 }
 
 const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
+  const { language } = useLanguage();
   const { 
     items, 
     isLoading, 
     updateQuantity, 
     removeItem, 
     createCheckout,
-    checkoutUrl
+    addItem
   } = useCartStore();
   
   const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [recommendations, setRecommendations] = useState<ShopifyProduct[]>([]);
+  const [loadingRecs, setLoadingRecs] = useState(false);
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalPrice = items.reduce((sum, item) => sum + (parseFloat(item.price.amount) * item.quantity), 0);
   const currencyCode = items[0]?.price.currencyCode || 'SEK';
+
+  // Load recommendations when cart opens
+  useEffect(() => {
+    if (isOpen && items.length > 0) {
+      loadRecommendations();
+    }
+  }, [isOpen, items.length]);
+
+  const loadRecommendations = async () => {
+    setLoadingRecs(true);
+    try {
+      // Fetch all products and filter out ones already in cart
+      const allProducts = await fetchProducts(20);
+      const cartProductIds = items.map(item => item.product.node.id);
+      const filtered = allProducts.filter(p => !cartProductIds.includes(p.node.id));
+      
+      // Shuffle and take 3 random recommendations
+      const shuffled = filtered.sort(() => 0.5 - Math.random());
+      setRecommendations(shuffled.slice(0, 3));
+    } catch (err) {
+      console.error('Failed to load recommendations:', err);
+    } finally {
+      setLoadingRecs(false);
+    }
+  };
 
   const formatPrice = (price: number, currency: string) => {
     return new Intl.NumberFormat('sv-SE', {
@@ -47,6 +77,23 @@ const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
     } finally {
       setIsCheckingOut(false);
     }
+  };
+
+  const handleAddRecommendation = (product: ShopifyProduct) => {
+    const variant = product.node.variants.edges[0]?.node;
+    if (!variant) return;
+
+    addItem({
+      product,
+      variantId: variant.id,
+      variantTitle: variant.title,
+      price: variant.price,
+      quantity: 1,
+      selectedOptions: variant.selectedOptions || [],
+    });
+
+    // Remove from recommendations
+    setRecommendations(prev => prev.filter(p => p.node.id !== product.node.id));
   };
 
   return (
@@ -74,7 +121,7 @@ const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
             <div className="flex items-center justify-between p-4 border-b border-border">
               <h2 className="font-display text-xl font-bold flex items-center gap-2">
                 <ShoppingBag className="w-5 h-5 text-primary" />
-                Kundvagn ({totalItems})
+                {language === 'sv' ? 'Kundvagn' : 'Cart'} ({totalItems})
               </h2>
               <Button variant="ghost" size="icon" onClick={onClose}>
                 <X className="w-5 h-5" />
@@ -86,9 +133,11 @@ const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
               {items.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center">
                   <ShoppingBag className="w-16 h-16 text-muted-foreground/30 mb-4" />
-                  <p className="text-muted-foreground">Din kundvagn är tom</p>
+                  <p className="text-muted-foreground">
+                    {language === 'sv' ? 'Din kundvagn är tom' : 'Your cart is empty'}
+                  </p>
                   <Button className="mt-4" onClick={onClose}>
-                    Fortsätt handla
+                    {language === 'sv' ? 'Fortsätt handla' : 'Continue shopping'}
                   </Button>
                 </div>
               ) : (
@@ -149,6 +198,69 @@ const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
                       </div>
                     </motion.div>
                   ))}
+
+                  {/* Recommendations */}
+                  {recommendations.length > 0 && (
+                    <div className="pt-4 mt-4 border-t border-border">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Sparkles className="w-4 h-4 text-primary" />
+                        <h4 className="font-semibold text-sm">
+                          {language === 'sv' ? 'Du kanske också gillar' : 'You might also like'}
+                        </h4>
+                      </div>
+                      <div className="space-y-3">
+                        {recommendations.map((product) => {
+                          const variant = product.node.variants.edges[0]?.node;
+                          const image = product.node.images.edges[0]?.node;
+                          if (!variant) return null;
+
+                          return (
+                            <motion.div
+                              key={product.node.id}
+                              initial={{ opacity: 0, scale: 0.95 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              className="flex gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+                            >
+                              <div className="w-14 h-14 rounded-md bg-muted flex-shrink-0 overflow-hidden">
+                                {image && (
+                                  <img
+                                    src={image.url}
+                                    alt={product.node.title}
+                                    className="w-full h-full object-cover"
+                                  />
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h5 className="font-medium text-sm truncate">{product.node.title}</h5>
+                                <p className="text-primary text-sm font-semibold">
+                                  {formatPrice(parseFloat(variant.price.amount), variant.price.currencyCode)}
+                                </p>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                className="flex-shrink-0 h-8"
+                                onClick={() => handleAddRecommendation(product)}
+                              >
+                                <Plus className="w-4 h-4" />
+                              </Button>
+                            </motion.div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {loadingRecs && items.length > 0 && recommendations.length === 0 && (
+                    <div className="pt-4 mt-4 border-t border-border">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span className="text-sm">
+                          {language === 'sv' ? 'Laddar rekommendationer...' : 'Loading recommendations...'}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -157,7 +269,7 @@ const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
             {items.length > 0 && (
               <div className="p-4 border-t border-border space-y-4 bg-card">
                 <div className="flex items-center justify-between text-lg font-bold">
-                  <span>Totalt</span>
+                  <span>{language === 'sv' ? 'Totalt' : 'Total'}</span>
                   <span className="text-primary">{formatPrice(totalPrice, currencyCode)}</span>
                 </div>
                 <Button 
@@ -168,17 +280,17 @@ const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
                   {isLoading || isCheckingOut ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Skapar kassa...
+                      {language === 'sv' ? 'Skapar kassa...' : 'Creating checkout...'}
                     </>
                   ) : (
                     <>
                       <ExternalLink className="w-4 h-4 mr-2" />
-                      Gå till kassan
+                      {language === 'sv' ? 'Gå till kassan' : 'Go to checkout'}
                     </>
                   )}
                 </Button>
                 <p className="text-xs text-center text-muted-foreground">
-                  Frakt beräknas i kassan
+                  {language === 'sv' ? 'Frakt beräknas i kassan' : 'Shipping calculated at checkout'}
                 </p>
               </div>
             )}
