@@ -1,24 +1,27 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingCart, Menu, X, Leaf } from 'lucide-react';
+import { ShoppingCart, Menu, X, Leaf, ChevronDown, Zap, Square, Battery, Settings, Grid } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCartStore } from '@/stores/cartStore';
 import { useLanguage } from '@/context/LanguageContext';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import ShopifyCartDrawer from '@/components/cart/ShopifyCartDrawer';
 
+const categories = [
+  { id: 'all', name: { sv: 'Alla produkter', en: 'All products' }, icon: Grid },
+  { id: 'ev-chargers', name: { sv: 'EV-laddare', en: 'EV Chargers' }, icon: Zap },
+  { id: 'wall-boxes', name: { sv: 'Wallboxar', en: 'Wall Boxes' }, icon: Square },
+  { id: 'portable', name: { sv: 'Portabla', en: 'Portable' }, icon: Battery },
+  { id: 'accessories', name: { sv: 'Tillbehör', en: 'Accessories' }, icon: Settings },
+];
+
 const Header = () => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const items = useCartStore(state => state.items);
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  const navItems = [
-    { name: t('nav.products'), href: '#products' },
-    { name: t('nav.about'), href: '#about' },
-    { name: t('nav.contact'), href: '#contact' },
-  ];
+  const [isProductsHovered, setIsProductsHovered] = useState(false);
 
   return (
     <>
@@ -40,16 +43,64 @@ const Header = () => {
 
             {/* Desktop Nav */}
             <nav className="hidden md:flex items-center gap-8">
-              {navItems.map((item) => (
+              {/* Products with dropdown */}
+              <div 
+                className="relative"
+                onMouseEnter={() => setIsProductsHovered(true)}
+                onMouseLeave={() => setIsProductsHovered(false)}
+              >
                 <a
-                  key={item.name}
-                  href={item.href}
-                  className="text-muted-foreground hover:text-foreground transition-colors relative group"
+                  href="#products"
+                  className="text-muted-foreground hover:text-foreground transition-colors relative group flex items-center gap-1"
                 >
-                  {item.name}
+                  {t('nav.products')}
+                  <ChevronDown className={`w-4 h-4 transition-transform ${isProductsHovered ? 'rotate-180' : ''}`} />
                   <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all group-hover:w-full" />
                 </a>
-              ))}
+                
+                <AnimatePresence>
+                  {isProductsHovered && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      transition={{ duration: 0.2 }}
+                      className="absolute top-full left-0 mt-2 w-56 rounded-lg bg-card border border-border shadow-xl z-50"
+                    >
+                      <div className="p-2">
+                        {categories.map((category) => {
+                          const Icon = category.icon;
+                          return (
+                            <a
+                              key={category.id}
+                              href={`#products?category=${category.id}`}
+                              className="flex items-center gap-3 px-3 py-2.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                            >
+                              <Icon className="w-4 h-4" />
+                              <span>{category.name[language]}</span>
+                            </a>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              <a
+                href="#about"
+                className="text-muted-foreground hover:text-foreground transition-colors relative group"
+              >
+                {t('nav.about')}
+                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all group-hover:w-full" />
+              </a>
+              <a
+                href="#contact"
+                className="text-muted-foreground hover:text-foreground transition-colors relative group"
+              >
+                {t('nav.contact')}
+                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all group-hover:w-full" />
+              </a>
             </nav>
 
             {/* Actions */}
@@ -97,17 +148,44 @@ const Header = () => {
               exit={{ opacity: 0, height: 0 }}
               className="md:hidden border-t border-border/30"
             >
-              <nav className="container mx-auto px-4 py-4 flex flex-col gap-4">
-                {navItems.map((item) => (
-                  <a
-                    key={item.name}
-                    href={item.href}
-                    className="text-muted-foreground hover:text-foreground transition-colors py-2"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    {item.name}
-                  </a>
-                ))}
+              <nav className="container mx-auto px-4 py-4 flex flex-col gap-2">
+                <a
+                  href="#products"
+                  className="text-muted-foreground hover:text-foreground transition-colors py-2 font-medium"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  {t('nav.products')}
+                </a>
+                <div className="pl-4 flex flex-col gap-1">
+                  {categories.map((category) => {
+                    const Icon = category.icon;
+                    return (
+                      <a
+                        key={category.id}
+                        href={`#products?category=${category.id}`}
+                        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors py-1.5"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        <Icon className="w-4 h-4" />
+                        {category.name[language]}
+                      </a>
+                    );
+                  })}
+                </div>
+                <a
+                  href="#about"
+                  className="text-muted-foreground hover:text-foreground transition-colors py-2"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  {t('nav.about')}
+                </a>
+                <a
+                  href="#contact"
+                  className="text-muted-foreground hover:text-foreground transition-colors py-2"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  {t('nav.contact')}
+                </a>
               </nav>
             </motion.div>
           )}
