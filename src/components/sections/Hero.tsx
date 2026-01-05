@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { ArrowRight, Leaf, Shield, Truck, HeadphonesIcon } from 'lucide-react';
+import { ArrowRight, Leaf, Shield, Lock, HeadphonesIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/context/LanguageContext';
 
@@ -9,7 +9,7 @@ const Hero = () => {
   const features = [
     { icon: Leaf, text: t('hero.feature.toxinfree') },
     { icon: Shield, text: t('hero.feature.quality') },
-    { icon: Truck, text: t('hero.feature.shipping') },
+    { icon: Lock, text: t('hero.feature.shipping') },
     { icon: HeadphonesIcon, text: t('hero.feature.service') },
   ];
 
