@@ -1,19 +1,12 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingCart, Menu, X, Leaf, ChevronDown, Zap, Square, Battery, Settings, Grid } from 'lucide-react';
+import { ShoppingCart, Menu, X, Leaf, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCartStore } from '@/stores/cartStore';
 import { useLanguage } from '@/context/LanguageContext';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import ShopifyCartDrawer from '@/components/cart/ShopifyCartDrawer';
-
-const categories = [
-  { id: 'all', name: { sv: 'Alla produkter', en: 'All products' }, icon: Grid },
-  { id: 'ev-chargers', name: { sv: 'EV-laddare', en: 'EV Chargers' }, icon: Zap },
-  { id: 'wall-boxes', name: { sv: 'Wallboxar', en: 'Wall Boxes' }, icon: Square },
-  { id: 'portable', name: { sv: 'Portabla', en: 'Portable' }, icon: Battery },
-  { id: 'accessories', name: { sv: 'Tillbehör', en: 'Accessories' }, icon: Settings },
-];
+import { categories } from '@/data/categories';
 
 const Header = () => {
   const { t, language } = useLanguage();
