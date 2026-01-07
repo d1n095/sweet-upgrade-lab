@@ -66,7 +66,13 @@ const Header = () => {
                           return (
                             <a
                               key={category.id}
-                              href={`#products?category=${category.id}`}
+                              href={`#products`}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setIsProductsHovered(false);
+                                window.location.hash = `products?category=${category.id}`;
+                                document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' });
+                              }}
                               className="flex items-center gap-3 px-3 py-2.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                             >
                               <Icon className="w-4 h-4" />
@@ -155,9 +161,14 @@ const Header = () => {
                     return (
                       <a
                         key={category.id}
-                        href={`#products?category=${category.id}`}
+                        href={`#products`}
                         className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors py-1.5"
-                        onClick={() => setIsMobileMenuOpen(false)}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setIsMobileMenuOpen(false);
+                          window.location.hash = `products?category=${category.id}`;
+                          document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' });
+                        }}
                       >
                         <Icon className="w-4 h-4" />
                         {category.name[language]}
