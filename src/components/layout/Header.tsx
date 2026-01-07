@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingCart, Menu, X, Leaf, ChevronDown } from 'lucide-react';
+import { ShoppingCart, Menu, X, Leaf, ChevronDown, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useCartStore } from '@/stores/cartStore';
+import { useSearchStore } from '@/stores/searchStore';
 import { useLanguage } from '@/context/LanguageContext';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import ShopifyCartDrawer from '@/components/cart/ShopifyCartDrawer';
@@ -12,6 +14,7 @@ const Header = () => {
   const { t, language } = useLanguage();
   const items = useCartStore(state => state.items);
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
+  const { searchQuery, setSearchQuery } = useSearchStore();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProductsHovered, setIsProductsHovered] = useState(false);
@@ -102,8 +105,19 @@ const Header = () => {
               </a>
             </nav>
 
-            {/* Actions */}
-            <div className="flex items-center gap-2">
+            {/* Search + Actions */}
+            <div className="flex items-center gap-2 md:gap-4">
+              {/* Search Field */}
+              <div className="relative hidden sm:block">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder={language === 'sv' ? 'Sök produkter...' : 'Search products...'}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8 w-40 md:w-56 h-9 bg-card/50 border-border text-sm"
+                />
+              </div>
               <LanguageSwitcher />
               <Button
                 variant="ghost"
