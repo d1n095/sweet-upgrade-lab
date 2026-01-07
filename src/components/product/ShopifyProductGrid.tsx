@@ -1,12 +1,21 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Package, Loader2 } from 'lucide-react';
+import { Package, Loader2, ArrowUpDown } from 'lucide-react';
 import ShopifyProductCard from '@/components/product/ShopifyProductCard';
 import { fetchProducts, ShopifyProduct } from '@/lib/shopify';
 import { categories } from '@/data/categories';
 import { useLanguage } from '@/context/LanguageContext';
 import { cn } from '@/lib/utils';
 import { useSearchStore } from '@/stores/searchStore';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+type SortOption = 'default' | 'price-asc' | 'price-desc' | 'name-asc' | 'name-desc';
 
 const ShopifyProductGrid = () => {
   const { language, t } = useLanguage();
@@ -14,6 +23,7 @@ const ShopifyProductGrid = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState('all');
+  const [sortOption, setSortOption] = useState<SortOption>('default');
   const searchQuery = useSearchStore(state => state.searchQuery);
 
   useEffect(() => {
@@ -48,6 +58,27 @@ const ShopifyProductGrid = () => {
     setActiveCategory(categoryId);
   };
 
+  // Sort products
+  const sortedProducts = useMemo(() => {
+    const sorted = [...products];
+    switch (sortOption) {
+      case 'price-asc':
+        return sorted.sort((a, b) => 
+          parseFloat(a.node.priceRange.minVariantPrice.amount) - parseFloat(b.node.priceRange.minVariantPrice.amount)
+        );
+      case 'price-desc':
+        return sorted.sort((a, b) => 
+          parseFloat(b.node.priceRange.minVariantPrice.amount) - parseFloat(a.node.priceRange.minVariantPrice.amount)
+        );
+      case 'name-asc':
+        return sorted.sort((a, b) => a.node.title.localeCompare(b.node.title));
+      case 'name-desc':
+        return sorted.sort((a, b) => b.node.title.localeCompare(a.node.title));
+      default:
+        return sorted;
+    }
+  }, [products, sortOption]);
+
   // Expose setActiveCategory for external use
   useEffect(() => {
     const handleHashChange = () => {
@@ -65,6 +96,14 @@ const ShopifyProductGrid = () => {
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
+
+  const sortOptions = [
+    { value: 'default', label: language === 'sv' ? 'Standard' : 'Default' },
+    { value: 'price-asc', label: language === 'sv' ? 'Pris: Lågt till högt' : 'Price: Low to High' },
+    { value: 'price-desc', label: language === 'sv' ? 'Pris: Högt till lågt' : 'Price: High to Low' },
+    { value: 'name-asc', label: language === 'sv' ? 'Namn: A-Ö' : 'Name: A-Z' },
+    { value: 'name-desc', label: language === 'sv' ? 'Namn: Ö-A' : 'Name: Z-A' },
+  ];
 
   return (
     <section id="products" className="py-20 md:py-32">
@@ -115,6 +154,29 @@ const ShopifyProductGrid = () => {
           })}
         </motion.div>
 
+        {/* Sort dropdown */}
+        {!isLoading && products.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex justify-end mb-6"
+          >
+            <Select value={sortOption} onValueChange={(value) => setSortOption(value as SortOption)}>
+              <SelectTrigger className="w-[200px] bg-card border-border">
+                <ArrowUpDown className="w-4 h-4 mr-2" />
+                <SelectValue placeholder={language === 'sv' ? 'Sortera' : 'Sort'} />
+              </SelectTrigger>
+              <SelectContent className="bg-card border-border">
+                {sortOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </motion.div>
+        )}
+
         {/* Loading */}
         {isLoading && (
           <div className="flex flex-col items-center justify-center py-20">
@@ -149,10 +211,10 @@ const ShopifyProductGrid = () => {
         )}
 
         {/* Products Grid - Compact 5 columns */}
-        {!isLoading && products.length > 0 && (
+        {!isLoading && sortedProducts.length > 0 && (
           <motion.div layout className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
             <AnimatePresence mode="popLayout">
-              {products.map((product, index) => (
+              {sortedProducts.map((product, index) => (
                 <motion.div
                   key={product.node.id}
                   layout
