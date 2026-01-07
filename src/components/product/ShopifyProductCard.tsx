@@ -9,9 +9,10 @@ import { Link } from 'react-router-dom';
 interface ShopifyProductCardProps {
   product: ShopifyProduct;
   index: number;
+  compact?: boolean;
 }
 
-const ShopifyProductCard = ({ product, index }: ShopifyProductCardProps) => {
+const ShopifyProductCard = ({ product, index, compact = false }: ShopifyProductCardProps) => {
   const addItem = useCartStore(state => state.addItem);
   const [isAdded, setIsAdded] = useState(false);
 
@@ -50,6 +51,67 @@ const ShopifyProductCard = ({ product, index }: ShopifyProductCardProps) => {
   };
 
   const isAvailable = firstVariant?.availableForSale ?? true;
+
+  if (compact) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ delay: index * 0.05, duration: 0.4 }}
+        className="group relative"
+      >
+        <Link to={`/product/${node.handle}`}>
+          <div className="glass-card p-3 h-full flex flex-col transition-all duration-300 hover:border-primary/30 glow-effect">
+            {/* Image */}
+            <div className="relative aspect-square mb-3 rounded-lg overflow-hidden bg-secondary/50">
+              {imageUrl ? (
+                <img
+                  src={imageUrl}
+                  alt={node.title}
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-muted-foreground text-sm">
+                  Ingen bild
+                </div>
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 flex flex-col">
+              <h3 className="font-display font-semibold text-sm mb-1 group-hover:text-primary transition-colors line-clamp-2">
+                {node.title}
+              </h3>
+
+              {/* Price and CTA */}
+              <div className="mt-auto flex items-center justify-between gap-2 pt-2">
+                <span className="text-base font-bold text-primary">
+                  {formatPrice(price, currencyCode)}
+                </span>
+
+                <Button
+                  size="sm"
+                  onClick={handleAddToCart}
+                  disabled={!isAvailable}
+                  className={`h-8 px-3 text-xs transition-all ${isAdded ? 'bg-green-600 hover:bg-green-600' : ''}`}
+                >
+                  {!isAvailable ? (
+                    'Slut'
+                  ) : isAdded ? (
+                    <Check className="w-3 h-3" />
+                  ) : (
+                    <ShoppingCart className="w-3 h-3" />
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </Link>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div

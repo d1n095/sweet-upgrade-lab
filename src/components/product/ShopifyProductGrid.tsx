@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Package, Loader2 } from 'lucide-react';
+import { Package, Loader2, Search } from 'lucide-react';
 import ShopifyProductCard from '@/components/product/ShopifyProductCard';
 import { fetchProducts, ShopifyProduct } from '@/lib/shopify';
 import { categories } from '@/data/categories';
 import { useLanguage } from '@/context/LanguageContext';
 import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
 
 const ShopifyProductGrid = () => {
   const { language, t } = useLanguage();
@@ -13,6 +14,7 @@ const ShopifyProductGrid = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -20,7 +22,14 @@ const ShopifyProductGrid = () => {
         setIsLoading(true);
         setError(null);
         const category = categories.find(c => c.id === activeCategory);
-        const query = category?.query;
+        let query = category?.query;
+        
+        // Add search query if present
+        if (searchQuery.trim()) {
+          const searchFilter = `title:*${searchQuery}*`;
+          query = query ? `${query} AND ${searchFilter}` : searchFilter;
+        }
+        
         const data = await fetchProducts(50, query);
         setProducts(data);
       } catch (err) {
@@ -31,12 +40,31 @@ const ShopifyProductGrid = () => {
       }
     };
 
-    loadProducts();
-  }, [activeCategory, t]);
+    const debounce = setTimeout(loadProducts, 300);
+    return () => clearTimeout(debounce);
+  }, [activeCategory, searchQuery, t]);
 
   const handleCategoryClick = (categoryId: string) => {
     setActiveCategory(categoryId);
   };
+
+  // Expose setActiveCategory for external use
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash;
+      const match = hash.match(/category=([^&]+)/);
+      if (match) {
+        const categoryId = match[1];
+        if (categories.some(c => c.id === categoryId)) {
+          setActiveCategory(categoryId);
+        }
+      }
+    };
+    
+    handleHashChange();
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
   return (
     <section id="products" className="py-20 md:py-32">
@@ -57,6 +85,25 @@ const ShopifyProductGrid = () => {
               : 'Explore our range of sustainable clothing, skincare and hygiene products'
             }
           </p>
+        </motion.div>
+
+        {/* Search Field */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="max-w-md mx-auto mb-6"
+        >
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder={language === 'sv' ? 'Sök produkter...' : 'Search products...'}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 bg-card border-border"
+            />
+          </div>
         </motion.div>
 
         {/* Category Filters */}
@@ -120,9 +167,9 @@ const ShopifyProductGrid = () => {
           </motion.div>
         )}
 
-        {/* Products Grid */}
+        {/* Products Grid - Compact 5 columns */}
         {!isLoading && products.length > 0 && (
-          <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <motion.div layout className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
             <AnimatePresence mode="popLayout">
               {products.map((product, index) => (
                 <motion.div
@@ -131,9 +178,9 @@ const ShopifyProductGrid = () => {
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.9 }}
-                  transition={{ duration: 0.2, delay: index * 0.05 }}
+                  transition={{ duration: 0.2, delay: index * 0.03 }}
                 >
-                  <ShopifyProductCard product={product} index={index} />
+                  <ShopifyProductCard product={product} index={index} compact />
                 </motion.div>
               ))}
             </AnimatePresence>
