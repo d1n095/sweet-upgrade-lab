@@ -29,7 +29,7 @@ const Footer = () => {
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><a href="#products" className="hover:text-foreground transition-colors">{t('nav.products')}</a></li>
               <li><a href="#about" className="hover:text-foreground transition-colors">{t('nav.about')}</a></li>
-              <li><a href="#" className="hover:text-foreground transition-colors">{t('footer.faq')}</a></li>
+              <li><a href="#faq" className="hover:text-foreground transition-colors">{t('footer.faq')}</a></li>
               <li><a href="#contact" className="hover:text-foreground transition-colors">{t('footer.customerservice')}</a></li>
             </ul>
           </div>
@@ -40,7 +40,7 @@ const Footer = () => {
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><a href="#" className="hover:text-foreground transition-colors">{t('footer.shippinginfo')}</a></li>
               <li><a href="#" className="hover:text-foreground transition-colors">{t('footer.returns')}</a></li>
-              <li><a href="#" className="hover:text-foreground transition-colors">{t('footer.faq')}</a></li>
+              <li><a href="#faq" className="hover:text-foreground transition-colors">{t('footer.faq')}</a></li>
               <li><a href="#contact" className="hover:text-foreground transition-colors">{t('footer.contact')}</a></li>
             </ul>
           </div>
