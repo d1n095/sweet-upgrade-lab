@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Package, Loader2, Search } from 'lucide-react';
+import { Package, Loader2 } from 'lucide-react';
 import ShopifyProductCard from '@/components/product/ShopifyProductCard';
 import { fetchProducts, ShopifyProduct } from '@/lib/shopify';
 import { categories } from '@/data/categories';
 import { useLanguage } from '@/context/LanguageContext';
 import { cn } from '@/lib/utils';
-import { Input } from '@/components/ui/input';
+import { useSearchStore } from '@/stores/searchStore';
 
 const ShopifyProductGrid = () => {
   const { language, t } = useLanguage();
@@ -14,7 +14,7 @@ const ShopifyProductGrid = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
+  const searchQuery = useSearchStore(state => state.searchQuery);
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -85,25 +85,6 @@ const ShopifyProductGrid = () => {
               : 'Explore our range of sustainable clothing, skincare and hygiene products'
             }
           </p>
-        </motion.div>
-
-        {/* Search Field */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="max-w-md mx-auto mb-6"
-        >
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder={language === 'sv' ? 'Sök produkter...' : 'Search products...'}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-card border-border"
-            />
-          </div>
         </motion.div>
 
         {/* Category Filters */}
