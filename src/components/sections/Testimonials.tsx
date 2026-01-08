@@ -8,8 +8,8 @@ const testimonials = [
     location: 'Stockholm',
     rating: 5,
     text: {
-      sv: 'Fantastiska produkter! Har testat många naturliga alternativ men PureLife har verkligen levererat. Min hud har aldrig mått bättre.',
-      en: 'Amazing products! I\'ve tried many natural alternatives but PureLife has truly delivered. My skin has never felt better.'
+      sv: 'Fantastiska produkter! Har testat många naturliga alternativ men 4thepeople har verkligen levererat. Min hud har aldrig mått bättre.',
+      en: 'Amazing products! I\'ve tried many natural alternatives but 4thepeople has truly delivered. My skin has never felt better.'
     },
     product: { sv: 'Hudvårdsprodukter', en: 'Skincare products' }
   },
@@ -38,8 +38,8 @@ const testimonials = [
     location: 'Uppsala',
     rating: 5,
     text: {
-      sv: 'Som någon som är känslig för kemikalier har PureLife varit en livräddare. Älskar att allt är naturligt och giftfritt.',
-      en: 'As someone sensitive to chemicals, PureLife has been a lifesaver. Love that everything is natural and toxin-free.'
+      sv: 'Som någon som är känslig för kemikalier har 4thepeople varit en livräddare. Älskar att allt är naturligt och giftfritt.',
+      en: 'As someone sensitive to chemicals, 4thepeople has been a lifesaver. Love that everything is natural and toxin-free.'
     },
     product: { sv: 'Naturlig tvål', en: 'Natural soap' }
   }
@@ -63,8 +63,8 @@ const Testimonials = () => {
           </h2>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
             {language === 'sv' 
-              ? 'Över 1 000+ nöjda kunder har valt PureLife för ett renare liv'
-              : 'Over 1,000+ satisfied customers have chosen PureLife for a cleaner life'
+              ? 'Över 1 000+ nöjda kunder har valt 4thepeople för ett renare liv'
+              : 'Over 1,000+ satisfied customers have chosen 4thepeople for a cleaner life'
             }
           </p>
         </motion.div>

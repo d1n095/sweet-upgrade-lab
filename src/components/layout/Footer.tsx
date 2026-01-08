@@ -15,7 +15,7 @@ const Footer = () => {
                 <Leaf className="w-6 h-6 text-primary-foreground" />
               </div>
               <span className="font-display text-xl font-bold">
-                Pure<span className="text-gradient">Life</span>
+                4the<span className="text-gradient">people</span>
               </span>
             </a>
             <p className="text-muted-foreground text-sm">
@@ -51,8 +51,8 @@ const Footer = () => {
             <ul className="space-y-3 text-sm text-muted-foreground">
               <li className="flex items-center gap-2">
                 <Mail className="w-4 h-4 text-primary" />
-                <a href="mailto:hej@purelife.se" className="hover:text-foreground transition-colors">
-                  hej@purelife.se
+                <a href="mailto:hej@4thepeople.se" className="hover:text-foreground transition-colors">
+                  hej@4thepeople.se
                 </a>
               </li>
               <li className="flex items-center gap-2">
@@ -70,7 +70,7 @@ const Footer = () => {
         </div>
 
         <div className="mt-12 pt-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
-          <p>© 2026 PureLife. {t('footer.rights')}</p>
+          <p>© 2026 4thepeople. {t('footer.rights')}</p>
           <div className="flex items-center gap-6">
             <a href="#" className="hover:text-foreground transition-colors">Privacy Policy</a>
             <a href="#" className="hover:text-foreground transition-colors">Terms</a>
