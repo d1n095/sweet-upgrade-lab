@@ -3,7 +3,7 @@ import Footer from '@/components/layout/Footer';
 import Hero from '@/components/sections/Hero';
 import ShopifyProductGrid from '@/components/product/ShopifyProductGrid';
 import About from '@/components/sections/About';
-import Testimonials from '@/components/sections/Testimonials';
+import TrustBadges from '@/components/sections/TrustBadges';
 import FAQ from '@/components/sections/FAQ';
 import Newsletter from '@/components/sections/Newsletter';
 
@@ -14,7 +14,7 @@ const Index = () => {
       <main>
         <Hero />
         <ShopifyProductGrid />
-        <Testimonials />
+        <TrustBadges />
         <About />
         <FAQ />
         <Newsletter />
