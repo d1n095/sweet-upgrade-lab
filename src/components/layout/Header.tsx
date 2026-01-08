@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingCart, Menu, X, Leaf, ChevronDown, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -18,27 +18,41 @@ const Header = () => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProductsHovered, setIsProductsHovered] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   return (
     <>
-      <header className="fixed top-0 left-0 right-0 z-50 glass-card border-b border-border/30">
+      <header 
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+          isScrolled 
+            ? 'bg-background/95 backdrop-blur-xl shadow-sm border-b border-border/50' 
+            : 'bg-transparent'
+        }`}
+      >
         <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16 md:h-20">
+          <div className="flex items-center justify-between h-18 md:h-20">
             {/* Logo */}
-            <a href="/" className="flex items-center gap-2 group">
+            <a href="/" className="flex items-center gap-3 group">
               <div className="relative">
-                <div className="w-10 h-10 rounded-lg bg-gradient-primary flex items-center justify-center">
-                  <Leaf className="w-6 h-6 text-primary-foreground" />
+                <div className="w-11 h-11 rounded-xl bg-gradient-accent flex items-center justify-center shadow-lg shadow-accent/20">
+                  <Leaf className="w-6 h-6 text-accent-foreground" />
                 </div>
-                <div className="absolute inset-0 rounded-lg bg-primary/30 blur-lg opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
-              <span className="font-display text-xl font-bold">
+              <span className="font-display text-xl font-semibold">
                 4the<span className="text-gradient">people</span>
               </span>
             </a>
 
             {/* Desktop Nav */}
-            <nav className="hidden md:flex items-center gap-8">
+            <nav className="hidden md:flex items-center gap-10">
               {/* Products with dropdown */}
               <div 
                 className="relative"
@@ -47,21 +61,20 @@ const Header = () => {
               >
                 <a
                   href="#products"
-                  className="text-muted-foreground hover:text-foreground transition-colors relative group flex items-center gap-1"
+                  className="text-muted-foreground hover:text-foreground transition-colors relative group flex items-center gap-1.5 font-medium"
                 >
                   {t('nav.products')}
-                  <ChevronDown className={`w-4 h-4 transition-transform ${isProductsHovered ? 'rotate-180' : ''}`} />
-                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all group-hover:w-full" />
+                  <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isProductsHovered ? 'rotate-180' : ''}`} />
                 </a>
                 
                 <AnimatePresence>
                   {isProductsHovered && (
                     <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 10 }}
-                      transition={{ duration: 0.2 }}
-                      className="absolute top-full left-0 mt-2 w-56 rounded-lg bg-card border border-border shadow-xl z-50"
+                      initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.98 }}
+                      transition={{ duration: 0.2, ease: "easeOut" }}
+                      className="absolute top-full left-0 mt-3 w-60 rounded-2xl bg-card border border-border shadow-elevated z-50 overflow-hidden"
                     >
                       <div className="p-2">
                         {categories.map((category) => {
@@ -76,10 +89,12 @@ const Header = () => {
                                 window.location.hash = `products?category=${category.id}`;
                                 document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' });
                               }}
-                              className="flex items-center gap-3 px-3 py-2.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                              className="flex items-center gap-3 px-4 py-3 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all duration-200"
                             >
-                              <Icon className="w-4 h-4" />
-                              <span>{category.name[language]}</span>
+                              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                                <Icon className="w-4 h-4 text-primary" />
+                              </div>
+                              <span className="font-medium">{category.name[language]}</span>
                             </a>
                           );
                         })}
@@ -91,38 +106,36 @@ const Header = () => {
 
               <a
                 href="#about"
-                className="text-muted-foreground hover:text-foreground transition-colors relative group"
+                className="text-muted-foreground hover:text-foreground transition-colors font-medium"
               >
                 {t('nav.about')}
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all group-hover:w-full" />
               </a>
               <a
                 href="#contact"
-                className="text-muted-foreground hover:text-foreground transition-colors relative group"
+                className="text-muted-foreground hover:text-foreground transition-colors font-medium"
               >
                 {t('nav.contact')}
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all group-hover:w-full" />
               </a>
             </nav>
 
             {/* Search + Actions */}
-            <div className="flex items-center gap-2 md:gap-4">
+            <div className="flex items-center gap-3 md:gap-4">
               {/* Search Field */}
               <div className="relative hidden sm:block">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   type="text"
                   placeholder={language === 'sv' ? 'Sök produkter...' : 'Search products...'}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8 w-40 md:w-56 h-9 bg-card/50 border-border text-sm"
+                  className="pl-9 w-44 md:w-56 h-10 bg-secondary/50 border-transparent hover:border-border focus:border-primary/50 rounded-full text-sm transition-all"
                 />
               </div>
               <LanguageSwitcher />
               <Button
                 variant="ghost"
                 size="icon"
-                className="relative"
+                className="relative h-10 w-10 rounded-full hover:bg-secondary"
                 onClick={() => setIsCartOpen(true)}
               >
                 <ShoppingCart className="w-5 h-5" />
@@ -132,7 +145,7 @@ const Header = () => {
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       exit={{ scale: 0 }}
-                      className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center"
+                      className="absolute -top-0.5 -right-0.5 w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center shadow-lg"
                     >
                       {totalItems}
                     </motion.span>
@@ -143,7 +156,7 @@ const Header = () => {
               <Button
                 variant="ghost"
                 size="icon"
-                className="md:hidden"
+                className="md:hidden h-10 w-10 rounded-full"
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               >
                 {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -159,24 +172,25 @@ const Header = () => {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="md:hidden border-t border-border/30"
+              transition={{ duration: 0.3, ease: "easeInOut" }}
+              className="md:hidden bg-background/98 backdrop-blur-xl border-t border-border/50"
             >
-              <nav className="container mx-auto px-4 py-4 flex flex-col gap-2">
+              <nav className="container mx-auto px-4 py-6 flex flex-col gap-1">
                 <a
                   href="#products"
-                  className="text-muted-foreground hover:text-foreground transition-colors py-2 font-medium"
+                  className="text-foreground font-medium py-3 px-4 rounded-xl hover:bg-secondary/50 transition-colors"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   {t('nav.products')}
                 </a>
-                <div className="pl-4 flex flex-col gap-1">
+                <div className="pl-4 flex flex-col gap-1 mb-2">
                   {categories.map((category) => {
                     const Icon = category.icon;
                     return (
                       <a
                         key={category.id}
                         href={`#products`}
-                        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors py-1.5"
+                        className="flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground transition-colors py-2.5 px-4 rounded-xl hover:bg-secondary/30"
                         onClick={(e) => {
                           e.preventDefault();
                           setIsMobileMenuOpen(false);
@@ -184,7 +198,7 @@ const Header = () => {
                           document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' });
                         }}
                       >
-                        <Icon className="w-4 h-4" />
+                        <Icon className="w-4 h-4 text-primary" />
                         {category.name[language]}
                       </a>
                     );
@@ -192,14 +206,14 @@ const Header = () => {
                 </div>
                 <a
                   href="#about"
-                  className="text-muted-foreground hover:text-foreground transition-colors py-2"
+                  className="text-foreground font-medium py-3 px-4 rounded-xl hover:bg-secondary/50 transition-colors"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   {t('nav.about')}
                 </a>
                 <a
                   href="#contact"
-                  className="text-muted-foreground hover:text-foreground transition-colors py-2"
+                  className="text-foreground font-medium py-3 px-4 rounded-xl hover:bg-secondary/50 transition-colors"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   {t('nav.contact')}
