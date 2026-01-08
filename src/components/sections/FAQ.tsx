@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/context/LanguageContext';
+import { HelpCircle } from 'lucide-react';
 import {
   Accordion,
   AccordionContent,
@@ -35,25 +36,33 @@ const faqData = [
 ];
 
 const FAQ = () => {
-  const { language, t } = useLanguage();
+  const { language } = useLanguage();
 
   return (
-    <section id="faq" className="py-20 md:py-32 bg-secondary/20">
-      <div className="container mx-auto px-4">
+    <section id="faq" className="section-padding bg-secondary/30 relative overflow-hidden">
+      {/* Decorative elements */}
+      <div className="decorative-circle w-[400px] h-[400px] bg-primary/5 top-20 -left-32" />
+      <div className="decorative-circle w-[300px] h-[300px] bg-accent/5 bottom-20 -right-20" />
+      
+      <div className="container mx-auto px-4 relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="text-center mb-12"
+          transition={{ duration: 0.6 }}
+          className="text-center mb-16"
         >
-          <h2 className="font-display text-3xl md:text-5xl font-bold mb-4">
-            {language === 'sv' ? 'Vanliga' : 'Frequently Asked'}{' '}
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 mb-6">
+            <HelpCircle className="w-7 h-7 text-primary" />
+          </div>
+          <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-semibold mb-5">
+            {language === 'sv' ? 'Vanliga ' : 'Frequently Asked '}
             <span className="text-gradient">{language === 'sv' ? 'Frågor' : 'Questions'}</span>
           </h2>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
             {language === 'sv' 
-              ? 'Här hittar du svar på de vanligaste frågorna om våra produkter och tjänster'
-              : 'Here you\'ll find answers to the most common questions about our products and services'
+              ? 'Här hittar du svar på de vanligaste frågorna om våra produkter och tjänster.'
+              : 'Here you\'ll find answers to the most common questions about our products and services.'
             }
           </p>
         </motion.div>
@@ -62,7 +71,7 @@ const FAQ = () => {
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ delay: 0.2 }}
+          transition={{ delay: 0.2, duration: 0.6 }}
           className="max-w-3xl mx-auto"
         >
           <Accordion type="single" collapsible className="space-y-4">
@@ -70,12 +79,12 @@ const FAQ = () => {
               <AccordionItem 
                 key={index} 
                 value={`item-${index}`}
-                className="glass-card px-6 border-none"
+                className="card-soft px-6 md:px-8 border-none overflow-hidden"
               >
-                <AccordionTrigger className="text-left font-semibold hover:text-primary transition-colors">
+                <AccordionTrigger className="text-left font-display font-semibold text-base md:text-lg hover:text-primary transition-colors py-5 [&[data-state=open]]:text-primary">
                   {faq.question[language]}
                 </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground">
+                <AccordionContent className="text-muted-foreground pb-5 leading-relaxed">
                   {faq.answer[language]}
                 </AccordionContent>
               </AccordionItem>

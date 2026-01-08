@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Package, Loader2, ArrowUpDown } from 'lucide-react';
+import { Package, Loader2, ArrowUpDown, Sparkles } from 'lucide-react';
 import ShopifyProductCard from '@/components/product/ShopifyProductCard';
 import { fetchProducts, ShopifyProduct } from '@/lib/shopify';
 import { categories } from '@/data/categories';
@@ -34,7 +34,6 @@ const ShopifyProductGrid = () => {
         const category = categories.find(c => c.id === activeCategory);
         let query = category?.query;
         
-        // Add search query if present
         if (searchQuery.trim()) {
           const searchFilter = `title:*${searchQuery}*`;
           query = query ? `${query} AND ${searchFilter}` : searchFilter;
@@ -58,7 +57,6 @@ const ShopifyProductGrid = () => {
     setActiveCategory(categoryId);
   };
 
-  // Sort products
   const sortedProducts = useMemo(() => {
     const sorted = [...products];
     switch (sortOption) {
@@ -79,7 +77,6 @@ const ShopifyProductGrid = () => {
     }
   }, [products, sortOption]);
 
-  // Expose setActiveCategory for external use
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash;
@@ -106,16 +103,24 @@ const ShopifyProductGrid = () => {
   ];
 
   return (
-    <section id="products" className="py-20 md:py-32">
-      <div className="container mx-auto px-4">
+    <section id="products" className="section-padding relative overflow-hidden">
+      {/* Decorative elements */}
+      <div className="decorative-circle w-[500px] h-[500px] bg-accent/5 -top-32 -left-32" />
+      <div className="decorative-circle w-[400px] h-[400px] bg-primary/5 bottom-0 -right-32" />
+      
+      <div className="container mx-auto px-4 relative z-10">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="text-center mb-8 md:mb-12"
+          transition={{ duration: 0.6 }}
+          className="text-center mb-12 md:mb-16"
         >
-          <h2 className="font-display text-3xl md:text-5xl font-bold mb-4">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-accent/10 mb-6">
+            <Sparkles className="w-7 h-7 text-accent" />
+          </div>
+          <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-semibold mb-5">
             {t('products.title').split(' ')[0]} <span className="text-gradient">{t('products.title').split(' ').slice(1).join(' ')}</span>
           </h2>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
@@ -131,7 +136,8 @@ const ShopifyProductGrid = () => {
           initial={{ opacity: 0, y: 10 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="flex flex-wrap justify-center gap-2 md:gap-3 mb-10 md:mb-14"
+          transition={{ delay: 0.1, duration: 0.5 }}
+          className="flex flex-wrap justify-center gap-3 mb-12 md:mb-16"
         >
           {categories.map((category) => {
             const Icon = category.icon;
@@ -141,10 +147,10 @@ const ShopifyProductGrid = () => {
                 key={category.id}
                 onClick={() => handleCategoryClick(category.id)}
                 className={cn(
-                  "flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-medium transition-all duration-200",
+                  "flex items-center gap-2.5 px-5 py-3 rounded-full text-sm font-medium transition-all duration-300",
                   isActive 
                     ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25" 
-                    : "bg-card hover:bg-muted border border-border text-muted-foreground hover:text-foreground"
+                    : "bg-card hover:bg-secondary border border-border/60 text-muted-foreground hover:text-foreground hover:border-border"
                 )}
               >
                 <Icon className="w-4 h-4" />
@@ -159,16 +165,16 @@ const ShopifyProductGrid = () => {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="flex justify-end mb-6"
+            className="flex justify-end mb-8"
           >
             <Select value={sortOption} onValueChange={(value) => setSortOption(value as SortOption)}>
-              <SelectTrigger className="w-[200px] bg-card border-border">
-                <ArrowUpDown className="w-4 h-4 mr-2" />
+              <SelectTrigger className="w-[200px] bg-card border-border/60 rounded-xl h-11">
+                <ArrowUpDown className="w-4 h-4 mr-2 text-muted-foreground" />
                 <SelectValue placeholder={language === 'sv' ? 'Sortera' : 'Sort'} />
               </SelectTrigger>
-              <SelectContent className="bg-card border-border">
+              <SelectContent className="bg-card border-border rounded-xl">
                 {sortOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
+                  <SelectItem key={option.value} value={option.value} className="rounded-lg">
                     {option.label}
                   </SelectItem>
                 ))}
@@ -179,15 +185,17 @@ const ShopifyProductGrid = () => {
 
         {/* Loading */}
         {isLoading && (
-          <div className="flex flex-col items-center justify-center py-20">
-            <Loader2 className="w-10 h-10 text-primary animate-spin mb-4" />
-            <p className="text-muted-foreground">{t('products.loading')}</p>
+          <div className="flex flex-col items-center justify-center py-24">
+            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+              <Loader2 className="w-8 h-8 text-primary animate-spin" />
+            </div>
+            <p className="text-muted-foreground font-medium">{t('products.loading')}</p>
           </div>
         )}
 
         {/* Error */}
         {error && !isLoading && (
-          <div className="text-center py-12 text-destructive">
+          <div className="text-center py-16 text-destructive">
             {error}
           </div>
         )}
@@ -197,10 +205,12 @@ const ShopifyProductGrid = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col items-center justify-center py-20"
+            className="flex flex-col items-center justify-center py-24"
           >
-            <Package className="w-16 h-16 text-muted-foreground/30 mb-4" />
-            <h3 className="text-xl font-semibold mb-2">{t('products.noproducts')}</h3>
+            <div className="w-20 h-20 rounded-2xl bg-secondary flex items-center justify-center mb-6">
+              <Package className="w-10 h-10 text-muted-foreground/40" />
+            </div>
+            <h3 className="font-display text-xl font-semibold mb-3">{t('products.noproducts')}</h3>
             <p className="text-muted-foreground text-center max-w-md">
               {language === 'sv' 
                 ? 'Inga produkter hittades i denna kategori. Prova en annan kategori eller berätta vilka produkter du vill lägga till!'
@@ -210,18 +220,18 @@ const ShopifyProductGrid = () => {
           </motion.div>
         )}
 
-        {/* Products Grid - Compact 5 columns */}
+        {/* Products Grid */}
         {!isLoading && sortedProducts.length > 0 && (
-          <motion.div layout className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          <motion.div layout className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
             <AnimatePresence mode="popLayout">
               {sortedProducts.map((product, index) => (
                 <motion.div
                   key={product.node.id}
                   layout
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  transition={{ duration: 0.2, delay: index * 0.03 }}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.4, delay: index * 0.05, ease: [0.22, 1, 0.36, 1] }}
                 >
                   <ShopifyProductCard product={product} index={index} compact />
                 </motion.div>
