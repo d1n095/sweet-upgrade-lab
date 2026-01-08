@@ -26,7 +26,7 @@ const faqData = [
   },
   {
     question: { sv: 'Hur kontaktar jag kundtjänst?', en: 'How do I contact customer service?' },
-    answer: { sv: 'Du kan nå oss via e-post på hej@purelife.se eller telefon 070-123 45 67. Vi svarar vanligtvis inom 24 timmar på vardagar.', en: 'You can reach us via email at hej@purelife.se or phone 070-123 45 67. We usually respond within 24 hours on weekdays.' }
+    answer: { sv: 'Du kan nå oss via e-post på hej@4thepeople.se eller telefon 070-123 45 67. Vi svarar vanligtvis inom 24 timmar på vardagar.', en: 'You can reach us via email at hej@4thepeople.se or phone 070-123 45 67. We usually respond within 24 hours on weekdays.' }
   },
   {
     question: { sv: 'Skickar ni internationellt?', en: 'Do you ship internationally?' },

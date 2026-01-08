@@ -33,7 +33,7 @@ const Header = () => {
                 <div className="absolute inset-0 rounded-lg bg-primary/30 blur-lg opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
               <span className="font-display text-xl font-bold">
-                Pure<span className="text-gradient">Life</span>
+                4the<span className="text-gradient">people</span>
               </span>
             </a>
 
