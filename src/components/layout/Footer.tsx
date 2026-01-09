@@ -26,7 +26,7 @@ const Footer = () => {
                 <Leaf className="w-6 h-6 text-accent-foreground" />
               </div>
               <span className="font-display text-xl font-semibold">
-                4the<span className="text-gradient">people</span>
+                4The<span className="text-gradient">People</span>
               </span>
             </a>
             <p className="text-muted-foreground text-sm leading-relaxed mb-6">
@@ -104,7 +104,7 @@ const Footer = () => {
         <div className="decorative-line mt-12 mb-8" />
         
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
-          <p>© 2026 4thepeople. {t('footer.rights')}</p>
+          <p>© 2026 4ThePeople. {t('footer.rights')}</p>
           <div className="flex items-center gap-8">
             <a href="#" className="hover:text-foreground transition-colors">{language === 'sv' ? 'Integritetspolicy' : 'Privacy Policy'}</a>
             <a href="#" className="hover:text-foreground transition-colors">{language === 'sv' ? 'Villkor' : 'Terms'}</a>

@@ -45,7 +45,7 @@ const TrustBadges = () => {
       opacity: 1, 
       y: 0,
       scale: 1,
-      transition: { duration: 0.5, ease: "easeOut" }
+      transition: { duration: 0.5 }
     }
   };
 
@@ -65,7 +65,7 @@ const TrustBadges = () => {
         >
           <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-semibold mb-5">
             {language === 'sv' ? 'Varför välja ' : 'Why choose '}
-            <span className="text-gradient">4thepeople</span>?
+            <span className="text-gradient">4ThePeople</span>?
           </h2>
           <p className="text-muted-foreground text-lg max-w-xl mx-auto">
             {language === 'sv' 

@@ -47,7 +47,7 @@ const Header = () => {
                 </div>
               </div>
               <span className="font-display text-xl font-semibold">
-                4the<span className="text-gradient">people</span>
+                4The<span className="text-gradient">People</span>
               </span>
             </a>
 
