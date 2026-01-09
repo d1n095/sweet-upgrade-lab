@@ -39,7 +39,7 @@ const Hero = () => {
     visible: {
       opacity: 1, 
       y: 0,
-      transition: { duration: 0.8, ease: "easeOut" }
+      transition: { duration: 0.8 }
     }
   };
 
@@ -92,7 +92,7 @@ const Hero = () => {
           >
             {t('hero.title')}{' '}
             <span className="text-gradient relative inline-block">
-              4thepeople
+              4ThePeople
             </span>
           </motion.h1>
 

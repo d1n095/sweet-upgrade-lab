@@ -25,7 +25,7 @@ const About = () => {
     visible: { 
       opacity: 1, 
       y: 0,
-      transition: { duration: 0.6, ease: "easeOut" }
+      transition: { duration: 0.6 }
     }
   };
 
@@ -50,7 +50,7 @@ const About = () => {
             </span>
             <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-semibold mb-8 leading-tight">
               {t('about.title')}{' '}
-              <span className="text-gradient">4thepeople?</span>
+              <span className="text-gradient">4ThePeople?</span>
             </h2>
             <p className="text-muted-foreground text-lg mb-6 leading-relaxed">
               {t('about.description1')}
