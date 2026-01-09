@@ -6,6 +6,7 @@ import About from '@/components/sections/About';
 import TrustBadges from '@/components/sections/TrustBadges';
 import FAQ from '@/components/sections/FAQ';
 import Newsletter from '@/components/sections/Newsletter';
+import PromoPopup from '@/components/promo/PromoPopup';
 
 const Index = () => {
   return (
@@ -20,6 +21,7 @@ const Index = () => {
         <Newsletter />
       </main>
       <Footer />
+      <PromoPopup />
     </div>
   );
 };

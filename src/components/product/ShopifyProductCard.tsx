@@ -1,10 +1,14 @@
 import { motion } from 'framer-motion';
-import { ShoppingCart, Check } from 'lucide-react';
+import { ShoppingCart, Check, Crown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { ShopifyProduct } from '@/lib/shopify';
 import { useCartStore } from '@/stores/cartStore';
+import { useMemberPrices } from '@/hooks/useMemberPrices';
+import { useAuth } from '@/hooks/useAuth';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import QuantitySelector from './QuantitySelector';
 
 interface ShopifyProductCardProps {
   product: ShopifyProduct;
@@ -13,14 +17,32 @@ interface ShopifyProductCardProps {
 }
 
 const ShopifyProductCard = ({ product, index, compact = false }: ShopifyProductCardProps) => {
-  const addItem = useCartStore(state => state.addItem);
+  const { items, addItem } = useCartStore();
+  const { getMemberPrice, getVolumeDiscount } = useMemberPrices();
+  const { isMember } = useAuth();
   const [isAdded, setIsAdded] = useState(false);
+  const [quantity, setQuantity] = useState(1);
 
   const { node } = product;
   const firstVariant = node.variants.edges[0]?.node;
   const imageUrl = node.images.edges[0]?.node.url;
-  const price = parseFloat(node.priceRange.minVariantPrice.amount);
+  const regularPrice = parseFloat(node.priceRange.minVariantPrice.amount);
   const currencyCode = node.priceRange.minVariantPrice.currencyCode;
+  
+  // Get member price if exists
+  const memberPrice = firstVariant ? getMemberPrice(firstVariant.id) : null;
+  const displayPrice = (isMember && memberPrice) ? memberPrice : regularPrice;
+  const hasDiscount = isMember && memberPrice && memberPrice < regularPrice;
+
+  // Get volume discount for current quantity
+  const volumeDiscount = getVolumeDiscount(node.id, quantity);
+  const finalPrice = volumeDiscount > 0 
+    ? displayPrice * (1 - volumeDiscount / 100) 
+    : displayPrice;
+
+  // Check how many of this product are in cart
+  const cartItem = items.find(item => item.product.node.id === node.id);
+  const quantityInCart = cartItem?.quantity || 0;
 
   const formatPrice = (amount: number, currency: string) => {
     return new Intl.NumberFormat('sv-SE', {
@@ -40,13 +62,17 @@ const ShopifyProductCard = ({ product, index, compact = false }: ShopifyProductC
       product,
       variantId: firstVariant.id,
       variantTitle: firstVariant.title,
-      price: firstVariant.price,
-      quantity: 1,
+      price: {
+        amount: finalPrice.toString(),
+        currencyCode: currencyCode,
+      },
+      quantity: quantity,
       selectedOptions: firstVariant.selectedOptions || []
     };
     
     addItem(cartItem);
     setIsAdded(true);
+    setQuantity(1);
     setTimeout(() => setIsAdded(false), 1500);
   };
 
@@ -63,6 +89,25 @@ const ShopifyProductCard = ({ product, index, compact = false }: ShopifyProductC
       >
         <Link to={`/product/${node.handle}`}>
           <div className="glass-card p-3 h-full flex flex-col transition-all duration-300 hover:border-primary/30 glow-effect">
+            {/* Cart quantity badge */}
+            {quantityInCart > 0 && (
+              <div className="absolute top-2 right-2 z-10">
+                <Badge className="bg-primary text-primary-foreground text-xs px-2 py-0.5">
+                  {quantityInCart} i korgen
+                </Badge>
+              </div>
+            )}
+
+            {/* Member price badge */}
+            {memberPrice && memberPrice < regularPrice && (
+              <div className="absolute top-2 left-2 z-10">
+                <Badge className="bg-accent text-accent-foreground text-xs px-2 py-0.5">
+                  <Crown className="w-3 h-3 mr-1" />
+                  Medlem
+                </Badge>
+              </div>
+            )}
+
             {/* Image */}
             <div className="relative aspect-square mb-3 rounded-lg overflow-hidden bg-secondary/50">
               {imageUrl ? (
@@ -76,7 +121,6 @@ const ShopifyProductCard = ({ product, index, compact = false }: ShopifyProductC
                   Ingen bild
                 </div>
               )}
-              <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
 
             {/* Content */}
@@ -85,27 +129,36 @@ const ShopifyProductCard = ({ product, index, compact = false }: ShopifyProductC
                 {node.title}
               </h3>
 
-              {/* Price and CTA */}
-              <div className="mt-auto flex items-center justify-between gap-2 pt-2">
+              {/* Price */}
+              <div className="mt-auto flex items-center gap-2 pt-2">
                 <span className="text-base font-bold text-primary">
-                  {formatPrice(price, currencyCode)}
+                  {formatPrice(finalPrice, currencyCode)}
                 </span>
-
-                <Button
-                  size="sm"
-                  onClick={handleAddToCart}
-                  disabled={!isAvailable}
-                  className={`h-8 px-3 text-xs transition-all ${isAdded ? 'bg-green-600 hover:bg-green-600' : ''}`}
-                >
-                  {!isAvailable ? (
-                    'Slut'
-                  ) : isAdded ? (
-                    <Check className="w-3 h-3" />
-                  ) : (
-                    <ShoppingCart className="w-3 h-3" />
-                  )}
-                </Button>
+                {hasDiscount && (
+                  <span className="text-xs text-muted-foreground line-through">
+                    {formatPrice(regularPrice, currencyCode)}
+                  </span>
+                )}
               </div>
+
+              {/* Add to cart */}
+              <Button
+                size="sm"
+                onClick={handleAddToCart}
+                disabled={!isAvailable}
+                className={`mt-2 w-full h-8 text-xs transition-all ${isAdded ? 'bg-green-600 hover:bg-green-600' : ''}`}
+              >
+                {!isAvailable ? (
+                  'Slut'
+                ) : isAdded ? (
+                  <Check className="w-3 h-3" />
+                ) : (
+                  <>
+                    <ShoppingCart className="w-3 h-3 mr-1" />
+                    Lägg i varukorg
+                  </>
+                )}
+              </Button>
             </div>
           </div>
         </Link>
@@ -123,6 +176,25 @@ const ShopifyProductCard = ({ product, index, compact = false }: ShopifyProductC
     >
       <Link to={`/product/${node.handle}`}>
         <div className="glass-card p-4 h-full flex flex-col transition-all duration-300 hover:border-primary/30 glow-effect">
+          {/* Cart quantity badge */}
+          {quantityInCart > 0 && (
+            <div className="absolute top-3 right-3 z-10">
+              <Badge className="bg-primary text-primary-foreground px-2.5 py-1">
+                {quantityInCart} i korgen
+              </Badge>
+            </div>
+          )}
+
+          {/* Member price badge */}
+          {memberPrice && memberPrice < regularPrice && (
+            <div className="absolute top-3 left-3 z-10">
+              <Badge className="bg-accent text-accent-foreground px-2.5 py-1">
+                <Crown className="w-3 h-3 mr-1" />
+                Medlemspris
+              </Badge>
+            </div>
+          )}
+
           {/* Image */}
           <div className="relative aspect-square mb-4 rounded-lg overflow-hidden bg-secondary/50">
             {imageUrl ? (
@@ -136,7 +208,6 @@ const ShopifyProductCard = ({ product, index, compact = false }: ShopifyProductC
                 Ingen bild
               </div>
             )}
-            <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
 
           {/* Content */}
@@ -148,31 +219,53 @@ const ShopifyProductCard = ({ product, index, compact = false }: ShopifyProductC
               {node.description || 'Ingen beskrivning tillgänglig'}
             </p>
 
-            {/* Price and CTA */}
-            <div className="mt-auto flex items-end justify-between gap-4">
-              <span className="text-xl font-bold text-primary">
-                {formatPrice(price, currencyCode)}
-              </span>
-
-              <Button
-                onClick={handleAddToCart}
-                disabled={!isAvailable}
-                className={`transition-all ${isAdded ? 'bg-green-600 hover:bg-green-600' : ''}`}
-              >
-                {!isAvailable ? (
-                  'Slut i lager'
-                ) : isAdded ? (
-                  <>
-                    <Check className="w-4 h-4 mr-1" />
-                    Tillagd
-                  </>
-                ) : (
-                  <>
-                    <ShoppingCart className="w-4 h-4 mr-1" />
-                    Köp
-                  </>
+            {/* Price section */}
+            <div className="mt-auto space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xl font-bold text-primary">
+                  {formatPrice(finalPrice, currencyCode)}
+                </span>
+                {hasDiscount && (
+                  <span className="text-sm text-muted-foreground line-through">
+                    {formatPrice(regularPrice, currencyCode)}
+                  </span>
                 )}
-              </Button>
+              </div>
+
+              {/* Volume discount hint */}
+              {volumeDiscount > 0 && (
+                <p className="text-xs text-accent font-medium">
+                  {volumeDiscount}% rabatt vid {quantity}+ st
+                </p>
+              )}
+
+              {/* Quantity selector and add to cart */}
+              <div className="flex items-center gap-2">
+                <QuantitySelector
+                  quantity={quantity}
+                  onChange={setQuantity}
+                  size="sm"
+                />
+                <Button
+                  onClick={handleAddToCart}
+                  disabled={!isAvailable}
+                  className={`flex-1 transition-all ${isAdded ? 'bg-green-600 hover:bg-green-600' : ''}`}
+                >
+                  {!isAvailable ? (
+                    'Slut i lager'
+                  ) : isAdded ? (
+                    <>
+                      <Check className="w-4 h-4 mr-1" />
+                      Tillagd
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingCart className="w-4 h-4 mr-1" />
+                      Köp
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
         </div>

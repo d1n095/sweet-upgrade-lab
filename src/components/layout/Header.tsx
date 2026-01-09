@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingCart, Menu, X, Leaf, ChevronDown, Search } from 'lucide-react';
+import { ShoppingCart, Menu, X, Leaf, ChevronDown, Search, User, Crown, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCartStore } from '@/stores/cartStore';
@@ -8,14 +8,17 @@ import { useSearchStore } from '@/stores/searchStore';
 import { useLanguage } from '@/context/LanguageContext';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import ShopifyCartDrawer from '@/components/cart/ShopifyCartDrawer';
+import AuthModal from '@/components/auth/AuthModal';
+import { useAuth } from '@/hooks/useAuth';
 import { categories } from '@/data/categories';
-
 const Header = () => {
   const { t, language } = useLanguage();
+  const { user, isMember, signOut, loading: authLoading } = useAuth();
   const items = useCartStore(state => state.items);
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const { searchQuery, setSearchQuery } = useSearchStore();
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProductsHovered, setIsProductsHovered] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -132,6 +135,37 @@ const Header = () => {
                 />
               </div>
               <LanguageSwitcher />
+
+              {/* Auth button */}
+              {user ? (
+                <div className="hidden sm:flex items-center gap-2">
+                  {isMember && (
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-accent/10 border border-accent/20">
+                      <Crown className="w-4 h-4 text-accent" />
+                      <span className="text-xs font-medium text-accent">Medlem</span>
+                    </div>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => signOut()}
+                    className="h-10 w-10 rounded-full hover:bg-secondary"
+                    title={language === 'sv' ? 'Logga ut' : 'Sign out'}
+                  >
+                    <LogOut className="w-5 h-5" />
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="hidden sm:flex h-10 w-10 rounded-full hover:bg-secondary"
+                  onClick={() => setIsAuthOpen(true)}
+                >
+                  <User className="w-5 h-5" />
+                </Button>
+              )}
+
               <Button
                 variant="ghost"
                 size="icon"
@@ -225,6 +259,7 @@ const Header = () => {
       </header>
 
       <ShopifyCartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
+      <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
     </>
   );
 };

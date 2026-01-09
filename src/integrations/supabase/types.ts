@@ -14,7 +14,143 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      bundle_pricing: {
+        Row: {
+          created_at: string
+          description: string | null
+          discount_percent: number
+          id: string
+          is_active: boolean
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          discount_percent: number
+          id?: string
+          is_active?: boolean
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          discount_percent?: number
+          id?: string
+          is_active?: boolean
+          name?: string
+        }
+        Relationships: []
+      }
+      bundle_products: {
+        Row: {
+          bundle_id: string
+          id: string
+          shopify_product_id: string
+          shopify_variant_id: string | null
+        }
+        Insert: {
+          bundle_id: string
+          id?: string
+          shopify_product_id: string
+          shopify_variant_id?: string | null
+        }
+        Update: {
+          bundle_id?: string
+          id?: string
+          shopify_product_id?: string
+          shopify_variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bundle_products_bundle_id_fkey"
+            columns: ["bundle_id"]
+            isOneToOne: false
+            referencedRelation: "bundle_pricing"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      member_prices: {
+        Row: {
+          created_at: string
+          id: string
+          member_price: number
+          shopify_product_id: string
+          shopify_variant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          member_price: number
+          shopify_product_id: string
+          shopify_variant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          member_price?: number
+          shopify_product_id?: string
+          shopify_variant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          id: string
+          is_member: boolean
+          member_since: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_member?: boolean
+          member_since?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_member?: boolean
+          member_since?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      volume_discounts: {
+        Row: {
+          created_at: string
+          discount_percent: number
+          id: string
+          is_global: boolean
+          min_quantity: number
+          shopify_product_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          discount_percent: number
+          id?: string
+          is_global?: boolean
+          min_quantity: number
+          shopify_product_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          discount_percent?: number
+          id?: string
+          is_global?: boolean
+          min_quantity?: number
+          shopify_product_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
