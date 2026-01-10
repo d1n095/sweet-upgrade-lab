@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus, Minus, Trash2, ShoppingBag, ExternalLink, Loader2, Sparkles } from 'lucide-react';
+import { X, Plus, Minus, Trash2, ShoppingBag, ExternalLink, Loader2, Sparkles, Tag, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCartStore } from '@/stores/cartStore';
 import { fetchProducts, ShopifyProduct } from '@/lib/shopify';
 import { useLanguage } from '@/context/LanguageContext';
+import { useCartDiscounts } from '@/hooks/useCartDiscounts';
 
 interface ShopifyCartDrawerProps {
   isOpen: boolean;
@@ -22,12 +23,15 @@ const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
     addItem
   } = useCartStore();
   
+  const { discounts, totalDiscount, getDiscountedTotal } = useCartDiscounts();
+  
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [recommendations, setRecommendations] = useState<ShopifyProduct[]>([]);
   const [loadingRecs, setLoadingRecs] = useState(false);
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-  const totalPrice = items.reduce((sum, item) => sum + (parseFloat(item.price.amount) * item.quantity), 0);
+  const subtotal = items.reduce((sum, item) => sum + (parseFloat(item.price.amount) * item.quantity), 0);
+  const finalTotal = getDiscountedTotal();
   const currencyCode = items[0]?.price.currencyCode || 'SEK';
 
   // Load recommendations when cart opens
@@ -267,10 +271,42 @@ const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
 
             {/* Footer */}
             {items.length > 0 && (
-              <div className="p-4 border-t border-border space-y-4 bg-card">
+              <div className="p-4 border-t border-border space-y-3 bg-card">
+                {/* Discounts section */}
+                {discounts.length > 0 && (
+                  <div className="space-y-2 pb-3 border-b border-border/50">
+                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                      <span>{language === 'sv' ? 'Delsumma' : 'Subtotal'}</span>
+                      <span>{formatPrice(subtotal, currencyCode)}</span>
+                    </div>
+                    {discounts.map((discount, index) => (
+                      <div key={index} className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-1.5 text-accent">
+                          {discount.type === 'bundle' ? (
+                            <Package className="w-3.5 h-3.5" />
+                          ) : (
+                            <Tag className="w-3.5 h-3.5" />
+                          )}
+                          <span className="font-medium">{discount.name}</span>
+                        </div>
+                        <span className="text-accent font-medium">
+                          -{formatPrice(discount.discountAmount, currencyCode)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between text-lg font-bold">
                   <span>{language === 'sv' ? 'Totalt' : 'Total'}</span>
-                  <span className="text-primary">{formatPrice(totalPrice, currencyCode)}</span>
+                  <div className="text-right">
+                    <span className="text-primary">{formatPrice(finalTotal, currencyCode)}</span>
+                    {totalDiscount > 0 && (
+                      <p className="text-xs text-accent font-normal">
+                        {language === 'sv' ? 'Du sparar' : 'You save'} {formatPrice(totalDiscount, currencyCode)}
+                      </p>
+                    )}
+                  </div>
                 </div>
                 <Button 
                   onClick={handleCheckout}

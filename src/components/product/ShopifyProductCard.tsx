@@ -141,24 +141,38 @@ const ShopifyProductCard = ({ product, index, compact = false }: ShopifyProductC
                 )}
               </div>
 
-              {/* Add to cart */}
-              <Button
-                size="sm"
-                onClick={handleAddToCart}
-                disabled={!isAvailable}
-                className={`mt-2 w-full h-8 text-xs transition-all ${isAdded ? 'bg-green-600 hover:bg-green-600' : ''}`}
-              >
-                {!isAvailable ? (
-                  'Slut'
-                ) : isAdded ? (
-                  <Check className="w-3 h-3" />
-                ) : (
-                  <>
-                    <ShoppingCart className="w-3 h-3 mr-1" />
-                    Lägg i varukorg
-                  </>
-                )}
-              </Button>
+              {/* Volume discount hint */}
+              {volumeDiscount > 0 && (
+                <p className="text-xs text-accent font-medium mt-1">
+                  {volumeDiscount}% rabatt vid {quantity}+ st
+                </p>
+              )}
+
+              {/* Quantity selector and add to cart */}
+              <div className="flex items-center gap-1.5 mt-2" onClick={(e) => e.preventDefault()}>
+                <QuantitySelector
+                  quantity={quantity}
+                  onChange={setQuantity}
+                  size="xs"
+                />
+                <Button
+                  size="sm"
+                  onClick={handleAddToCart}
+                  disabled={!isAvailable}
+                  className={`flex-1 h-7 text-xs transition-all ${isAdded ? 'bg-green-600 hover:bg-green-600' : ''}`}
+                >
+                  {!isAvailable ? (
+                    'Slut'
+                  ) : isAdded ? (
+                    <Check className="w-3 h-3" />
+                  ) : (
+                    <>
+                      <ShoppingCart className="w-3 h-3 mr-1" />
+                      Köp
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
         </Link>
