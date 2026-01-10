@@ -6,7 +6,7 @@ interface QuantitySelectorProps {
   onChange: (quantity: number) => void;
   min?: number;
   max?: number;
-  size?: 'sm' | 'md';
+  size?: 'xs' | 'sm' | 'md';
 }
 
 const QuantitySelector = ({ 
@@ -32,9 +32,9 @@ const QuantitySelector = ({
     }
   };
 
-  const buttonSize = size === 'sm' ? 'h-7 w-7' : 'h-9 w-9';
-  const iconSize = size === 'sm' ? 'w-3 h-3' : 'w-4 h-4';
-  const textSize = size === 'sm' ? 'text-sm w-8' : 'text-base w-10';
+  const buttonSize = size === 'xs' ? 'h-6 w-6' : size === 'sm' ? 'h-7 w-7' : 'h-9 w-9';
+  const iconSize = size === 'xs' ? 'w-2.5 h-2.5' : size === 'sm' ? 'w-3 h-3' : 'w-4 h-4';
+  const textSize = size === 'xs' ? 'text-xs w-6' : size === 'sm' ? 'text-sm w-8' : 'text-base w-10';
 
   return (
     <div className="flex items-center gap-1 bg-secondary/50 rounded-lg p-1">
