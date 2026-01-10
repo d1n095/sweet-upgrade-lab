@@ -91,31 +91,52 @@ export function useCartDiscounts() {
     }
 
     const calculatedDiscounts: CartDiscount[] = [];
+    
+    // Calculate total items in cart for global volume discount
+    const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
 
-    // Calculate volume discounts
+    // Find the best applicable global volume discount based on total cart quantity
+    const applicableGlobalDiscounts = volumeDiscounts
+      .filter(vd => vd.is_global && !vd.shopify_product_id && totalQuantity >= vd.min_quantity)
+      .sort((a, b) => b.discount_percent - a.discount_percent);
+    
+    const bestGlobalDiscount = applicableGlobalDiscounts[0];
+
+    if (bestGlobalDiscount) {
+      // Apply global discount to entire cart
+      const cartTotal = items.reduce(
+        (sum, item) => sum + parseFloat(item.price.amount) * item.quantity,
+        0
+      );
+      const discountAmount = cartTotal * (bestGlobalDiscount.discount_percent / 100);
+      
+      calculatedDiscounts.push({
+        type: 'volume',
+        name: `Mängdrabatt ${bestGlobalDiscount.discount_percent}%`,
+        description: `${totalQuantity} produkter i korgen`,
+        discountPercent: bestGlobalDiscount.discount_percent,
+        applicableItems: items.map(i => i.variantId),
+        discountAmount: discountAmount
+      });
+    }
+
+    // Also check product-specific volume discounts
     items.forEach(item => {
       const productId = item.product.node.id;
       
-      // Find applicable volume discount (product-specific or global)
       const productDiscount = volumeDiscounts.find(
         vd => vd.shopify_product_id === productId && item.quantity >= vd.min_quantity
       );
       
-      const globalDiscount = volumeDiscounts.find(
-        vd => vd.is_global && !vd.shopify_product_id && item.quantity >= vd.min_quantity
-      );
-
-      const applicableDiscount = productDiscount || globalDiscount;
-      
-      if (applicableDiscount) {
+      if (productDiscount) {
         const itemTotal = parseFloat(item.price.amount) * item.quantity;
-        const discountAmount = itemTotal * (applicableDiscount.discount_percent / 100);
+        const discountAmount = itemTotal * (productDiscount.discount_percent / 100);
         
         calculatedDiscounts.push({
           type: 'volume',
-          name: `Mängdrabatt ${applicableDiscount.discount_percent}%`,
-          description: `Köp ${applicableDiscount.min_quantity}+ st`,
-          discountPercent: applicableDiscount.discount_percent,
+          name: `Mängdrabatt ${productDiscount.discount_percent}%`,
+          description: `${item.quantity}+ st ${item.product.node.title}`,
+          discountPercent: productDiscount.discount_percent,
           applicableItems: [item.variantId],
           discountAmount: discountAmount
         });
