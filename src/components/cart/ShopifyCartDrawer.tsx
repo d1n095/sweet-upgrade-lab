@@ -34,12 +34,12 @@ const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
   const finalTotal = getDiscountedTotal();
   const currencyCode = items[0]?.price.currencyCode || 'SEK';
 
-  // Load recommendations when cart opens
+  // Load recommendations when cart opens (both for empty and non-empty cart)
   useEffect(() => {
-    if (isOpen && items.length > 0) {
+    if (isOpen) {
       loadRecommendations();
     }
-  }, [isOpen, items.length]);
+  }, [isOpen]);
 
   const loadRecommendations = async () => {
     setLoadingRecs(true);
@@ -135,12 +135,77 @@ const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
             {/* Items */}
             <div className="flex-1 overflow-y-auto p-4 scrollbar-hide">
               {items.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-center">
-                  <ShoppingBag className="w-16 h-16 text-muted-foreground/30 mb-4" />
-                  <p className="text-muted-foreground">
-                    {language === 'sv' ? 'Din kundvagn är tom' : 'Your cart is empty'}
-                  </p>
-                  <Button className="mt-4" onClick={onClose}>
+                <div className="flex flex-col h-full">
+                  <div className="text-center py-8">
+                    <ShoppingBag className="w-16 h-16 text-muted-foreground/30 mb-4 mx-auto" />
+                    <p className="text-muted-foreground">
+                      {language === 'sv' ? 'Din kundvagn är tom' : 'Your cart is empty'}
+                    </p>
+                  </div>
+                  
+                  {/* Recommendations for empty cart */}
+                  {loadingRecs ? (
+                    <div className="flex items-center justify-center gap-2 text-muted-foreground py-8">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span className="text-sm">
+                        {language === 'sv' ? 'Laddar förslag...' : 'Loading suggestions...'}
+                      </span>
+                    </div>
+                  ) : recommendations.length > 0 ? (
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-4">
+                        <Sparkles className="w-4 h-4 text-primary" />
+                        <h4 className="font-semibold text-sm">
+                          {language === 'sv' ? 'Populära produkter' : 'Popular products'}
+                        </h4>
+                      </div>
+                      <div className="space-y-3">
+                        {recommendations.map((product) => {
+                          const variant = product.node.variants.edges[0]?.node;
+                          const image = product.node.images.edges[0]?.node;
+                          if (!variant) return null;
+
+                          return (
+                            <motion.div
+                              key={product.node.id}
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="flex gap-3 p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors"
+                            >
+                              <div className="w-16 h-16 rounded-md bg-muted flex-shrink-0 overflow-hidden">
+                                {image && (
+                                  <img
+                                    src={image.url}
+                                    alt={product.node.title}
+                                    className="w-full h-full object-cover"
+                                  />
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h5 className="font-medium text-sm truncate">{product.node.title}</h5>
+                                <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                                  {product.node.description}
+                                </p>
+                                <p className="text-primary text-sm font-bold mt-1">
+                                  {formatPrice(parseFloat(variant.price.amount), variant.price.currencyCode)}
+                                </p>
+                              </div>
+                              <Button
+                                size="sm"
+                                className="flex-shrink-0 h-9"
+                                onClick={() => handleAddRecommendation(product)}
+                              >
+                                <Plus className="w-4 h-4 mr-1" />
+                                {language === 'sv' ? 'Lägg till' : 'Add'}
+                              </Button>
+                            </motion.div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
+                  
+                  <Button className="mt-auto" variant="outline" onClick={onClose}>
                     {language === 'sv' ? 'Fortsätt handla' : 'Continue shopping'}
                   </Button>
                 </div>
