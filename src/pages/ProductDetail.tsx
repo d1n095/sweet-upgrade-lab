@@ -1,12 +1,17 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ShoppingCart, Check, Loader2, Minus, Plus } from 'lucide-react';
+import { ArrowLeft, ShoppingCart, Check, Loader2, Minus, Plus, Shield, RotateCcw, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { storefrontApiRequest, ShopifyProduct } from '@/lib/shopify';
 import { useCartStore } from '@/stores/cartStore';
+import { useRecentlyViewedStore } from '@/stores/recentlyViewedStore';
+import SocialProofBadge from '@/components/engagement/SocialProofBadge';
+import LowStockBadge from '@/components/engagement/LowStockBadge';
+import PaymentMethods from '@/components/trust/PaymentMethods';
+import { useLanguage } from '@/context/LanguageContext';
 
 const PRODUCT_QUERY = `
   query GetProduct($handle: String!) {
@@ -56,6 +61,7 @@ const PRODUCT_QUERY = `
 
 const ProductDetail = () => {
   const { handle } = useParams<{ handle: string }>();
+  const { language } = useLanguage();
   const [product, setProduct] = useState<ShopifyProduct['node'] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
@@ -63,6 +69,7 @@ const ProductDetail = () => {
   const [isAdded, setIsAdded] = useState(false);
   
   const addItem = useCartStore(state => state.addItem);
+  const addToRecentlyViewed = useRecentlyViewedStore(state => state.addProduct);
 
   useEffect(() => {
     const loadProduct = async () => {
@@ -72,11 +79,14 @@ const ProductDetail = () => {
         setIsLoading(true);
         const data = await storefrontApiRequest(PRODUCT_QUERY, { handle });
         if (data?.data?.productByHandle) {
-          setProduct(data.data.productByHandle);
-          const firstVariant = data.data.productByHandle.variants.edges[0]?.node;
+          const productData = data.data.productByHandle;
+          setProduct(productData);
+          const firstVariant = productData.variants.edges[0]?.node;
           if (firstVariant) {
             setSelectedVariant(firstVariant.id);
           }
+          // Add to recently viewed
+          addToRecentlyViewed({ node: productData } as ShopifyProduct);
         }
       } catch (err) {
         console.error('Failed to load product:', err);
@@ -86,7 +96,7 @@ const ProductDetail = () => {
     };
 
     loadProduct();
-  }, [handle]);
+  }, [handle, addToRecentlyViewed]);
 
   const formatPrice = (amount: number, currency: string) => {
     return new Intl.NumberFormat('sv-SE', {
@@ -191,9 +201,17 @@ const ProductDetail = () => {
                 {product.title}
               </h1>
               
-              <p className="text-2xl font-bold text-primary mb-6">
+              <p className="text-2xl font-bold text-primary mb-4">
                 {formatPrice(price, currencyCode)}
               </p>
+
+              {/* Social proof */}
+              <div className="mb-6">
+                <SocialProofBadge productId={product.id} showViewers showSales />
+                <div className="mt-3">
+                  <LowStockBadge productId={product.id} />
+                </div>
+              </div>
 
               <p className="text-muted-foreground text-lg mb-8 leading-relaxed">
                 {product.description || 'Ingen beskrivning tillgänglig'}
@@ -268,10 +286,35 @@ const ProductDetail = () => {
                 ) : (
                   <>
                     <ShoppingCart className="w-5 h-5 mr-2" />
-                    Lägg i kundvagn
+                    {language === 'sv' ? 'Lägg i kundvagn' : 'Add to cart'}
                   </>
                 )}
               </Button>
+
+              {/* Trust elements */}
+              <div className="mt-8 pt-6 border-t border-border space-y-4">
+                <div className="grid grid-cols-3 gap-4 text-center text-sm">
+                  <div className="flex flex-col items-center gap-2">
+                    <Shield className="w-5 h-5 text-primary" />
+                    <span className="text-muted-foreground">
+                      {language === 'sv' ? 'Säker betalning' : 'Secure payment'}
+                    </span>
+                  </div>
+                  <div className="flex flex-col items-center gap-2">
+                    <RotateCcw className="w-5 h-5 text-primary" />
+                    <span className="text-muted-foreground">
+                      {language === 'sv' ? '30 dagars öppet köp' : '30-day returns'}
+                    </span>
+                  </div>
+                  <div className="flex flex-col items-center gap-2">
+                    <Truck className="w-5 h-5 text-primary" />
+                    <span className="text-muted-foreground">
+                      {language === 'sv' ? 'Snabb leverans' : 'Fast delivery'}
+                    </span>
+                  </div>
+                </div>
+                <PaymentMethods />
+              </div>
             </motion.div>
           </div>
         </div>

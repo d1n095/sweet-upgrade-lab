@@ -7,6 +7,9 @@ import TrustBadges from '@/components/sections/TrustBadges';
 import FAQ from '@/components/sections/FAQ';
 import Newsletter from '@/components/sections/Newsletter';
 import PromoPopup from '@/components/promo/PromoPopup';
+import ExitIntentPopup from '@/components/engagement/ExitIntentPopup';
+import RecentlyViewed from '@/components/engagement/RecentlyViewed';
+import FloatingContactButton from '@/components/trust/FloatingContactButton';
 
 const Index = () => {
   return (
@@ -15,6 +18,7 @@ const Index = () => {
       <main>
         <Hero />
         <ShopifyProductGrid />
+        <RecentlyViewed />
         <TrustBadges />
         <About />
         <FAQ />
@@ -22,6 +26,8 @@ const Index = () => {
       </main>
       <Footer />
       <PromoPopup />
+      <ExitIntentPopup />
+      <FloatingContactButton />
     </div>
   );
 };

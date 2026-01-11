@@ -9,6 +9,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import QuantitySelector from './QuantitySelector';
+import SocialProofBadge from '@/components/engagement/SocialProofBadge';
+import LowStockBadge from '@/components/engagement/LowStockBadge';
 
 interface ShopifyProductCardProps {
   product: ShopifyProduct;
@@ -121,6 +123,11 @@ const ShopifyProductCard = ({ product, index, compact = false }: ShopifyProductC
                   Ingen bild
                 </div>
               )}
+              {/* Social proof & stock badges on image */}
+              <div className="absolute bottom-2 left-2 flex flex-wrap gap-1">
+                <SocialProofBadge productId={node.id} compact showViewers showLimitedTime={false} />
+                <LowStockBadge productId={node.id} compact />
+              </div>
             </div>
 
             {/* Content */}
@@ -222,6 +229,11 @@ const ShopifyProductCard = ({ product, index, compact = false }: ShopifyProductC
                 Ingen bild
               </div>
             )}
+            {/* Social proof & stock badges on image */}
+            <div className="absolute bottom-2 left-2 flex flex-wrap gap-1.5">
+              <SocialProofBadge productId={node.id} compact showViewers />
+              <LowStockBadge productId={node.id} compact />
+            </div>
           </div>
 
           {/* Content */}
