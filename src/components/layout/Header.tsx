@@ -1,23 +1,28 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingCart, Menu, X, Leaf, ChevronDown, Search, User, Crown, LogOut } from 'lucide-react';
+import { ShoppingCart, Menu, X, Leaf, ChevronDown, Search, User, Crown, LogOut, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCartStore } from '@/stores/cartStore';
 import { useSearchStore } from '@/stores/searchStore';
+import { useWishlistStore } from '@/stores/wishlistStore';
 import { useLanguage } from '@/context/LanguageContext';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import ShopifyCartDrawer from '@/components/cart/ShopifyCartDrawer';
+import WishlistDrawer from '@/components/wishlist/WishlistDrawer';
 import AuthModal from '@/components/auth/AuthModal';
 import { useAuth } from '@/hooks/useAuth';
 import { categories } from '@/data/categories';
+
 const Header = () => {
   const { t, language } = useLanguage();
   const { user, isMember, signOut, loading: authLoading } = useAuth();
   const items = useCartStore(state => state.items);
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const { searchQuery, setSearchQuery } = useSearchStore();
+  const wishlistItems = useWishlistStore(state => state.items);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isWishlistOpen, setIsWishlistOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProductsHovered, setIsProductsHovered] = useState(false);
@@ -166,6 +171,29 @@ const Header = () => {
                 </Button>
               )}
 
+              {/* Wishlist button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="relative h-10 w-10 rounded-full hover:bg-secondary"
+                onClick={() => setIsWishlistOpen(true)}
+              >
+                <Heart className="w-5 h-5" />
+                <AnimatePresence>
+                  {wishlistItems.length > 0 && (
+                    <motion.span
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      exit={{ scale: 0 }}
+                      className="absolute -top-0.5 -right-0.5 w-5 h-5 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center shadow-lg"
+                    >
+                      {wishlistItems.length}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </Button>
+
+              {/* Cart button */}
               <Button
                 variant="ghost"
                 size="icon"
@@ -259,6 +287,7 @@ const Header = () => {
       </header>
 
       <ShopifyCartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
+      <WishlistDrawer isOpen={isWishlistOpen} onClose={() => setIsWishlistOpen(false)} />
       <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
     </>
   );
