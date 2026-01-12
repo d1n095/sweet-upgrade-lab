@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, X, ShoppingCart, Trash2, ExternalLink } from 'lucide-react';
+import { Heart, X, ShoppingCart, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useWishlistStore } from '@/stores/wishlistStore';
 import { useCartStore } from '@/stores/cartStore';
 import { useLanguage } from '@/context/LanguageContext';
 import { Link } from 'react-router-dom';
+import { ShopifyProduct } from '@/lib/shopify';
 
 interface WishlistDrawerProps {
   isOpen: boolean;
@@ -27,7 +28,7 @@ const WishlistDrawer = ({ isOpen, onClose }: WishlistDrawerProps) => {
     }).format(parseFloat(amount));
   };
 
-  const handleAddToCart = (product: typeof items[0]) => {
+  const handleAddToCart = (product: ShopifyProduct) => {
     const firstVariant = product.node.variants.edges[0]?.node;
     if (!firstVariant) return;
 
@@ -193,7 +194,7 @@ const WishlistDrawer = ({ isOpen, onClose }: WishlistDrawerProps) => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={clearWishlist}
+                  onClick={() => clearWishlist()}
                   className="w-full text-muted-foreground"
                 >
                   <Trash2 className="w-4 h-4 mr-2" />

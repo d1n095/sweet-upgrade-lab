@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
+import { useWishlistStore } from '@/stores/wishlistStore';
 
 interface Profile {
   id: string;
@@ -14,6 +15,7 @@ export const useAuth = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const { syncWithDatabase, setUserId, clearLocalWishlist } = useWishlistStore();
 
   useEffect(() => {
     // Set up auth state listener BEFORE getting session
@@ -31,8 +33,12 @@ export const useAuth = () => {
             .maybeSingle();
           
           setProfile(data);
+          
+          // Sync wishlist with database
+          syncWithDatabase(session.user.id);
         } else {
           setProfile(null);
+          setUserId(null);
         }
         
         setLoading(false);
@@ -53,6 +59,8 @@ export const useAuth = () => {
           .then(({ data }) => {
             setProfile(data);
             setLoading(false);
+            // Sync wishlist with database
+            syncWithDatabase(session.user.id);
           });
       } else {
         setLoading(false);
