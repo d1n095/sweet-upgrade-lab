@@ -11,6 +11,7 @@ import { Link } from 'react-router-dom';
 import QuantitySelector from './QuantitySelector';
 import SocialProofBadge from '@/components/engagement/SocialProofBadge';
 import LowStockBadge from '@/components/engagement/LowStockBadge';
+import WishlistButton from '@/components/wishlist/WishlistButton';
 
 interface ShopifyProductCardProps {
   product: ShopifyProduct;
@@ -91,9 +92,14 @@ const ShopifyProductCard = ({ product, index, compact = false }: ShopifyProductC
       >
         <Link to={`/product/${node.handle}`}>
           <div className="glass-card p-3 h-full flex flex-col transition-all duration-300 hover:border-primary/30 glow-effect">
+            {/* Wishlist button */}
+            <div className="absolute top-2 right-2 z-10">
+              <WishlistButton product={product} size="sm" className="bg-background/50 backdrop-blur-sm hover:bg-background/80" />
+            </div>
+
             {/* Cart quantity badge */}
             {quantityInCart > 0 && (
-              <div className="absolute top-2 right-2 z-10">
+              <div className="absolute top-2 left-2 z-10">
                 <Badge className="bg-primary text-primary-foreground text-xs px-2 py-0.5">
                   {quantityInCart} i korgen
                 </Badge>
@@ -102,7 +108,7 @@ const ShopifyProductCard = ({ product, index, compact = false }: ShopifyProductC
 
             {/* Member price badge */}
             {memberPrice && memberPrice < regularPrice && (
-              <div className="absolute top-2 left-2 z-10">
+              <div className="absolute top-10 left-2 z-10">
                 <Badge className="bg-accent text-accent-foreground text-xs px-2 py-0.5">
                   <Crown className="w-3 h-3 mr-1" />
                   Medlem
@@ -197,9 +203,14 @@ const ShopifyProductCard = ({ product, index, compact = false }: ShopifyProductC
     >
       <Link to={`/product/${node.handle}`}>
         <div className="glass-card p-4 h-full flex flex-col transition-all duration-300 hover:border-primary/30 glow-effect">
+          {/* Wishlist button */}
+          <div className="absolute top-3 right-3 z-10">
+            <WishlistButton product={product} className="bg-background/50 backdrop-blur-sm hover:bg-background/80" />
+          </div>
+
           {/* Cart quantity badge */}
           {quantityInCart > 0 && (
-            <div className="absolute top-3 right-3 z-10">
+            <div className="absolute top-3 left-3 z-10">
               <Badge className="bg-primary text-primary-foreground px-2.5 py-1">
                 {quantityInCart} i korgen
               </Badge>
@@ -208,7 +219,7 @@ const ShopifyProductCard = ({ product, index, compact = false }: ShopifyProductC
 
           {/* Member price badge */}
           {memberPrice && memberPrice < regularPrice && (
-            <div className="absolute top-3 left-3 z-10">
+            <div className="absolute top-14 left-3 z-10">
               <Badge className="bg-accent text-accent-foreground px-2.5 py-1">
                 <Crown className="w-3 h-3 mr-1" />
                 Medlemspris
