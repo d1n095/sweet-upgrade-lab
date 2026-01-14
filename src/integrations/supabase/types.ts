@@ -14,6 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      bundle_items: {
+        Row: {
+          bundle_id: string
+          created_at: string
+          id: string
+          quantity: number
+          shopify_product_id: string
+          shopify_variant_id: string | null
+        }
+        Insert: {
+          bundle_id: string
+          created_at?: string
+          id?: string
+          quantity?: number
+          shopify_product_id: string
+          shopify_variant_id?: string | null
+        }
+        Update: {
+          bundle_id?: string
+          created_at?: string
+          id?: string
+          quantity?: number
+          shopify_product_id?: string
+          shopify_variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bundle_items_bundle_id_fkey"
+            columns: ["bundle_id"]
+            isOneToOne: false
+            referencedRelation: "bundles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bundle_pricing: {
         Row: {
           created_at: string
@@ -70,6 +105,75 @@ export type Database = {
           },
         ]
       }
+      bundles: {
+        Row: {
+          created_at: string
+          description: string | null
+          description_en: string | null
+          discount_percent: number
+          display_order: number
+          id: string
+          is_active: boolean
+          name: string
+          name_en: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          description_en?: string | null
+          discount_percent?: number
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name: string
+          name_en?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          description_en?: string | null
+          discount_percent?: number
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name?: string
+          name_en?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      interest_logs: {
+        Row: {
+          category: string | null
+          created_at: string
+          email: string | null
+          id: string
+          interest_type: string
+          message: string | null
+          session_id: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          interest_type: string
+          message?: string | null
+          session_id?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          interest_type?: string
+          message?: string | null
+          session_id?: string | null
+        }
+        Relationships: []
+      }
       member_prices: {
         Row: {
           created_at: string
@@ -121,6 +225,30 @@ export type Database = {
           member_since?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      search_logs: {
+        Row: {
+          created_at: string
+          id: string
+          results_count: number
+          search_term: string
+          session_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          results_count?: number
+          search_term: string
+          session_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          results_count?: number
+          search_term?: string
+          session_id?: string | null
         }
         Relationships: []
       }

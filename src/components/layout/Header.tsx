@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingCart, Menu, X, Leaf, ChevronDown, Search, User, Crown, LogOut, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,10 +13,11 @@ import ShopifyCartDrawer from '@/components/cart/ShopifyCartDrawer';
 import WishlistDrawer from '@/components/wishlist/WishlistDrawer';
 import AuthModal from '@/components/auth/AuthModal';
 import { useAuth } from '@/hooks/useAuth';
-import { categories } from '@/data/categories';
+import { storeConfig } from '@/config/storeConfig';
 
 const Header = () => {
   const { t, language } = useLanguage();
+  const location = useLocation();
   const { user, isMember, signOut, loading: authLoading } = useAuth();
   const items = useCartStore(state => state.items);
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
@@ -28,6 +30,8 @@ const Header = () => {
   const [isProductsHovered, setIsProductsHovered] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
+  const activeCategories = storeConfig.categories.filter(c => c.active);
+
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
@@ -35,6 +39,18 @@ const Header = () => {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
+
+  const navLinks = [
+    { href: '/shop', label: language === 'sv' ? 'Shop' : 'Shop' },
+    { href: '/about', label: t('nav.about') },
+    { href: '/how-it-works', label: language === 'sv' ? 'Så funkar det' : 'How It Works' },
+    { href: '/contact', label: t('nav.contact') },
+  ];
 
   return (
     <>
@@ -48,7 +64,7 @@ const Header = () => {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-18 md:h-20">
             {/* Logo */}
-            <a href="/" className="flex items-center gap-3 group">
+            <Link to="/" className="flex items-center gap-3 group">
               <div className="relative">
                 <div className="w-11 h-11 rounded-xl bg-gradient-accent flex items-center justify-center shadow-lg shadow-accent/20">
                   <Leaf className="w-6 h-6 text-accent-foreground" />
@@ -57,23 +73,25 @@ const Header = () => {
               <span className="font-display text-xl font-semibold">
                 4The<span className="text-gradient">People</span>
               </span>
-            </a>
+            </Link>
 
             {/* Desktop Nav */}
-            <nav className="hidden md:flex items-center gap-10">
+            <nav className="hidden md:flex items-center gap-8">
               {/* Products with dropdown */}
               <div 
                 className="relative"
                 onMouseEnter={() => setIsProductsHovered(true)}
                 onMouseLeave={() => setIsProductsHovered(false)}
               >
-                <a
-                  href="#products"
-                  className="text-muted-foreground hover:text-foreground transition-colors relative group flex items-center gap-1.5 font-medium"
+                <Link
+                  to="/shop"
+                  className={`text-muted-foreground hover:text-foreground transition-colors relative group flex items-center gap-1.5 font-medium ${
+                    location.pathname === '/shop' ? 'text-foreground' : ''
+                  }`}
                 >
                   {t('nav.products')}
                   <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isProductsHovered ? 'rotate-180' : ''}`} />
-                </a>
+                </Link>
                 
                 <AnimatePresence>
                   {isProductsHovered && (
@@ -85,45 +103,50 @@ const Header = () => {
                       className="absolute top-full left-0 mt-3 w-60 rounded-2xl bg-card border border-border shadow-elevated z-50 overflow-hidden"
                     >
                       <div className="p-2">
-                        {categories.map((category) => {
-                          const Icon = category.icon;
-                          return (
-                            <a
-                              key={category.id}
-                              href={`#products`}
-                              onClick={(e) => {
-                                e.preventDefault();
-                                setIsProductsHovered(false);
-                                window.location.hash = `products?category=${category.id}`;
-                                document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' });
-                              }}
-                              className="flex items-center gap-3 px-4 py-3 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all duration-200"
-                            >
-                              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                                <Icon className="w-4 h-4 text-primary" />
-                              </div>
-                              <span className="font-medium">{category.name[language]}</span>
-                            </a>
-                          );
-                        })}
+                        {activeCategories.map((category) => (
+                          <Link
+                            key={category.id}
+                            to={`/shop?category=${category.id}`}
+                            onClick={() => setIsProductsHovered(false)}
+                            className="flex items-center gap-3 px-4 py-3 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all duration-200"
+                          >
+                            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                              <Leaf className="w-4 h-4 text-primary" />
+                            </div>
+                            <span className="font-medium">{category.name[language]}</span>
+                          </Link>
+                        ))}
+                        {/* CBD Category - always visible but marked as coming soon */}
+                        <Link
+                          to="/cbd"
+                          onClick={() => setIsProductsHovered(false)}
+                          className="flex items-center gap-3 px-4 py-3 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all duration-200"
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
+                            <Leaf className="w-4 h-4 text-accent" />
+                          </div>
+                          <div>
+                            <span className="font-medium">{language === 'sv' ? 'CBD & Hampa' : 'CBD & Hemp'}</span>
+                            <span className="text-xs text-accent ml-2">{language === 'sv' ? '(Snart)' : '(Soon)'}</span>
+                          </div>
+                        </Link>
                       </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
               </div>
 
-              <a
-                href="#about"
-                className="text-muted-foreground hover:text-foreground transition-colors font-medium"
-              >
-                {t('nav.about')}
-              </a>
-              <a
-                href="#contact"
-                className="text-muted-foreground hover:text-foreground transition-colors font-medium"
-              >
-                {t('nav.contact')}
-              </a>
+              {navLinks.slice(1).map((link) => (
+                <Link
+                  key={link.href}
+                  to={link.href}
+                  className={`text-muted-foreground hover:text-foreground transition-colors font-medium ${
+                    location.pathname === link.href ? 'text-foreground' : ''
+                  }`}
+                >
+                  {link.label}
+                </Link>
+              ))}
             </nav>
 
             {/* Search + Actions */}
@@ -238,48 +261,48 @@ const Header = () => {
               className="md:hidden bg-background/98 backdrop-blur-xl border-t border-border/50"
             >
               <nav className="container mx-auto px-4 py-6 flex flex-col gap-1">
-                <a
-                  href="#products"
-                  className="text-foreground font-medium py-3 px-4 rounded-xl hover:bg-secondary/50 transition-colors"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  {t('nav.products')}
-                </a>
-                <div className="pl-4 flex flex-col gap-1 mb-2">
-                  {categories.map((category) => {
-                    const Icon = category.icon;
-                    return (
-                      <a
-                        key={category.id}
-                        href={`#products`}
-                        className="flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground transition-colors py-2.5 px-4 rounded-xl hover:bg-secondary/30"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setIsMobileMenuOpen(false);
-                          window.location.hash = `products?category=${category.id}`;
-                          document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' });
-                        }}
-                      >
-                        <Icon className="w-4 h-4 text-primary" />
-                        {category.name[language]}
-                      </a>
-                    );
-                  })}
+                {navLinks.map((link) => (
+                  <Link
+                    key={link.href}
+                    to={link.href}
+                    className={`text-foreground font-medium py-3 px-4 rounded-xl hover:bg-secondary/50 transition-colors ${
+                      location.pathname === link.href ? 'bg-secondary/50' : ''
+                    }`}
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+                <div className="pl-4 flex flex-col gap-1 mt-2">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide px-4 py-2">
+                    {language === 'sv' ? 'Kategorier' : 'Categories'}
+                  </p>
+                  {activeCategories.map((category) => (
+                    <Link
+                      key={category.id}
+                      to={`/shop?category=${category.id}`}
+                      className="flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground transition-colors py-2.5 px-4 rounded-xl hover:bg-secondary/30"
+                    >
+                      <Leaf className="w-4 h-4 text-primary" />
+                      {category.name[language]}
+                    </Link>
+                  ))}
+                  <Link
+                    to="/cbd"
+                    className="flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground transition-colors py-2.5 px-4 rounded-xl hover:bg-secondary/30"
+                  >
+                    <Leaf className="w-4 h-4 text-accent" />
+                    {language === 'sv' ? 'CBD & Hampa' : 'CBD & Hemp'}
+                    <span className="text-xs text-accent">({language === 'sv' ? 'Snart' : 'Soon'})</span>
+                  </Link>
                 </div>
-                <a
-                  href="#about"
-                  className="text-foreground font-medium py-3 px-4 rounded-xl hover:bg-secondary/50 transition-colors"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  {t('nav.about')}
-                </a>
-                <a
-                  href="#contact"
-                  className="text-foreground font-medium py-3 px-4 rounded-xl hover:bg-secondary/50 transition-colors"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  {t('nav.contact')}
-                </a>
+                <div className="mt-4 pt-4 border-t border-border/50 flex flex-col gap-1">
+                  <Link
+                    to="/track-order"
+                    className="text-muted-foreground font-medium py-3 px-4 rounded-xl hover:bg-secondary/50 transition-colors"
+                  >
+                    {language === 'sv' ? 'Spåra order' : 'Track Order'}
+                  </Link>
+                </div>
               </nav>
             </motion.div>
           )}

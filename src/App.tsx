@@ -11,11 +11,13 @@ import AboutUs from "./pages/AboutUs";
 import Contact from "./pages/Contact";
 import TrackOrder from "./pages/TrackOrder";
 import HowItWorks from "./pages/HowItWorks";
+import CBD from "./pages/CBD";
 import ReturnsPolicy from "./pages/policies/ReturnsPolicy";
 import ShippingPolicy from "./pages/policies/ShippingPolicy";
 import PrivacyPolicy from "./pages/policies/PrivacyPolicy";
 import TermsConditions from "./pages/policies/TermsConditions";
 import NotFound from "./pages/NotFound";
+import CookieBanner from "./components/cookie/CookieBanner";
 
 const queryClient = new QueryClient();
 
@@ -30,17 +32,19 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/shop" element={<Shop />} />
             <Route path="/product/:handle" element={<ProductDetail />} />
-            <Route path="/om-oss" element={<AboutUs />} />
-            <Route path="/kontakt" element={<Contact />} />
-            <Route path="/spara-order" element={<TrackOrder />} />
-            <Route path="/sa-funkar-det" element={<HowItWorks />} />
-            <Route path="/returer" element={<ReturnsPolicy />} />
-            <Route path="/frakt" element={<ShippingPolicy />} />
-            <Route path="/integritet" element={<PrivacyPolicy />} />
-            <Route path="/villkor" element={<TermsConditions />} />
+            <Route path="/about" element={<AboutUs />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/track-order" element={<TrackOrder />} />
+            <Route path="/how-it-works" element={<HowItWorks />} />
+            <Route path="/cbd" element={<CBD />} />
+            <Route path="/policies/returns" element={<ReturnsPolicy />} />
+            <Route path="/policies/shipping" element={<ShippingPolicy />} />
+            <Route path="/policies/privacy" element={<PrivacyPolicy />} />
+            <Route path="/policies/terms" element={<TermsConditions />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <CookieBanner />
         </BrowserRouter>
       </TooltipProvider>
     </LanguageProvider>
