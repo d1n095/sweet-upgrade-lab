@@ -1,10 +1,8 @@
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
-// Shopify configuration
-const SHOPIFY_API_VERSION = '2025-07';
-const SHOPIFY_STORE_PERMANENT_DOMAIN = 'lovable-project-m6htx.myshopify.com';
-const SHOPIFY_STOREFRONT_URL = `https://${SHOPIFY_STORE_PERMANENT_DOMAIN}/api/${SHOPIFY_API_VERSION}/graphql.json`;
-const SHOPIFY_STOREFRONT_TOKEN = '799c62b0b481c001bd34dac2b3f16850';
+// Shopify proxy endpoint - token is now stored server-side
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
 export interface ShopifyProduct {
   node: {
@@ -145,11 +143,16 @@ const CART_CREATE_MUTATION = `
 `;
 
 export async function storefrontApiRequest(query: string, variables: Record<string, unknown> = {}) {
-  const response = await fetch(SHOPIFY_STOREFRONT_URL, {
+  const { data: sessionData } = await supabase.auth.getSession();
+  
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/shopify-proxy`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-Shopify-Storefront-Access-Token': SHOPIFY_STOREFRONT_TOKEN
+      'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+      ...(sessionData?.session?.access_token && {
+        'Authorization': `Bearer ${sessionData.session.access_token}`
+      })
     },
     body: JSON.stringify({
       query,
@@ -165,7 +168,8 @@ export async function storefrontApiRequest(query: string, variables: Record<stri
   }
 
   if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
   }
 
   const data = await response.json();
