@@ -11,6 +11,7 @@ import FAQ from '@/components/sections/FAQ';
 import Newsletter from '@/components/sections/Newsletter';
 import FloatingContactButton from '@/components/trust/FloatingContactButton';
 import SEOHead from '@/components/seo/SEOHead';
+import MemberReviewsSection from '@/components/reviews/MemberReviewsSection';
 import { useLanguage } from '@/context/LanguageContext';
 import { trackPageView } from '@/utils/analytics';
 
@@ -54,6 +55,9 @@ const Index = () => {
         
         {/* Shipping info - Transparency about delivery */}
         <ShippingInfo />
+        
+        {/* Member Reviews - Verified customer reviews or honest "no reviews yet" message */}
+        <MemberReviewsSection />
         
         {/* About - Honest about dropshipping */}
         <About />
