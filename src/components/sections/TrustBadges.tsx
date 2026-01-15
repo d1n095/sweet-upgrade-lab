@@ -10,27 +10,27 @@ const TrustBadges = () => {
     {
       icon: MapPin,
       title: { sv: 'Svensk startup', en: 'Swedish startup' },
-      description: { sv: 'Grundat 2024', en: 'Founded 2024' }
+      description: { sv: `Grundat ${storeConfig.foundingYear}`, en: `Founded ${storeConfig.foundingYear}` }
     },
     {
       icon: Truck,
-      title: { sv: 'Gratis frakt', en: 'Free shipping' },
+      title: { sv: 'Gratis leverans', en: 'Free delivery' },
       description: { sv: `Över ${storeConfig.shipping.freeShippingThreshold} kr`, en: `Over ${storeConfig.shipping.freeShippingThreshold} SEK` }
     },
     {
       icon: Shield,
-      title: { sv: 'Säkra betalningar', en: 'Secure payments' },
-      description: { sv: 'Klarna, kort, Swish', en: 'Klarna, card, Swish' }
+      title: { sv: 'Köparskydd', en: 'Buyer protection' },
+      description: { sv: 'Klarna & säker betalning', en: 'Klarna & secure payment' }
     },
     {
       icon: Mail,
-      title: { sv: 'Snabb support', en: 'Fast support' },
+      title: { sv: 'Personlig support', en: 'Personal support' },
       description: { sv: 'Svar inom 24h', en: 'Reply within 24h' }
     },
     {
       icon: RotateCcw,
-      title: { sv: '30 dagars returrätt', en: '30-day returns' },
-      description: { sv: 'Enkelt & tryggt', en: 'Easy & safe' }
+      title: { sv: 'Nöjdhetsgaranti', en: 'Satisfaction guarantee' },
+      description: { sv: '30 dagars öppet köp', en: '30-day returns' }
     }
   ];
 

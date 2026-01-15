@@ -14,7 +14,7 @@ const Hero = () => {
       subtitle: 'Vi är inte det största företaget. Vi är det noggrannaste i vår research. Varje produkt vi säljer är noggrant utvald efter ingrediensanalys, certifieringar och användarrecensioner.',
       wePromise: [
         'Noggrann research av varje produkt',
-        'Ärlig information om leveranstider (5-10 dagar)',
+        'Ärlig information om leveranstider (7-10 arbetsdagar)',
         'Personlig support (vi svarar själva)',
       ],
       weDont: [
@@ -22,9 +22,9 @@ const Hero = () => {
         'Blixtsnabb leverans från andra sidan jorden',
       ],
       features: [
-        { icon: '🇸🇪', text: 'Svensk uppstart 2026' },
+        { icon: '🇸🇪', text: 'Svensk startup 2026' },
         { icon: '🔍', text: 'Noggrann research' },
-        { icon: '🚚', text: '5-10 dagars leverans' },
+        { icon: '🚚', text: '7-10 arbetsdagar' },
       ],
       ctaPrimary: 'Shoppa giftfritt nu',
       ctaSecondary: 'Läs vår utvärderingsprocess',
@@ -35,7 +35,7 @@ const Hero = () => {
       subtitle: "We're not the biggest company. We're the most thorough in our research. Every product we sell is carefully selected based on ingredient analysis, certifications and user reviews.",
       wePromise: [
         'Thorough research on every product',
-        'Honest delivery info (5-10 days)',
+        'Honest delivery info (7-10 business days)',
         'Personal support (we answer ourselves)',
       ],
       weDont: [
@@ -45,7 +45,7 @@ const Hero = () => {
       features: [
         { icon: '🇸🇪', text: 'Swedish startup 2026' },
         { icon: '🔍', text: 'Thorough research' },
-        { icon: '🚚', text: '5-10 day delivery' },
+        { icon: '🚚', text: '7-10 business days' },
       ],
       ctaPrimary: 'Shop toxin-free now',
       ctaSecondary: 'Read our evaluation process',

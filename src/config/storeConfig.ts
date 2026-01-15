@@ -1,14 +1,18 @@
 // Central store configuration - single source of truth for all store settings
 export const storeConfig = {
+  // Company founding year
+  foundingYear: 2026,
+
   // Shipping
   shipping: {
     cost: 59, // SEK
-    freeShippingThreshold: 499, // SEK - set to 0 to disable
+    freeShippingThreshold: 500, // SEK - set to 0 to disable (rundare siffra)
     deliveryTime: {
-      sv: '2–5 arbetsdagar från EU-lager',
-      en: '2–5 business days from EU warehouse',
+      sv: '7–10 arbetsdagar från våra leverantörer',
+      en: '7–10 business days from our suppliers',
     },
-    provider: 'EU Logistics',
+    deliveryDays: '7-10',
+    provider: 'Pålitliga leverantörer',
   },
 
   // Returns
@@ -22,12 +26,6 @@ export const storeConfig = {
     email: 'hej@4thepeople.se',
     phone: '+46701234567',
     phoneFormatted: '070-123 45 67',
-    address: {
-      street: 'Naturvägen 1',
-      zip: '123 45',
-      city: 'Stockholm',
-      country: 'Sverige',
-    },
   },
 
   // Social media
