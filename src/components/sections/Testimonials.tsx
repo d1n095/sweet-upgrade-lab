@@ -1,67 +1,61 @@
 import { motion } from 'framer-motion';
-import { Star, Quote, UserCircle } from 'lucide-react';
+import { Star, Sparkles, Heart, ArrowRight } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Link } from 'react-router-dom';
 
 const Testimonials = () => {
   const { language } = useLanguage();
 
   const content = {
     sv: {
-      badge: 'Kundernas röster',
-      title: 'Vad våra kunder säger',
-      subtitle: 'Läs om upplevelserna från våra nöjda kunder',
-      testimonials: [
+      badge: 'Äkta omdömen',
+      title: 'Vi är nya – och stolta över det',
+      subtitle: 'Våra första kunder kommer snart att dela sina upplevelser här. Kanske blir du en av dem?',
+      cards: [
         {
-          name: 'Anna L.',
-          location: 'Stockholm',
-          rating: 5,
-          text: 'Fantastiska produkter! Jag märkte skillnad direkt efter att ha bytt till deras giftfria kroppsvård. Min hud har aldrig mått bättre.',
-          product: 'Kroppsvård'
+          icon: Heart,
+          title: 'Bli vår första kund',
+          description: 'Var med från början och hjälp oss forma framtidens giftfria produkter. Ditt omdöme kommer att visas här.'
         },
         {
-          name: 'Erik M.',
-          location: 'Göteborg',
-          rating: 5,
-          text: 'Snabb leverans och bra kundservice. Produkterna är av hög kvalitet och jag uppskattar att allt är naturligt och hållbart.',
-          product: 'Teknik'
+          icon: Star,
+          title: 'Ärlighet framför allt',
+          description: 'Vi visar aldrig falska omdömen. När vi får riktiga kundrecensioner ser du dem här – ofiltrerade.'
         },
         {
-          name: 'Maria S.',
-          location: 'Malmö',
-          rating: 5,
-          text: 'Äntligen ett företag som bryr sig om både kvalitet och miljö! Deras hampakläder är otroligt sköna och håller verkligen.',
-          product: 'Kläder'
+          icon: Sparkles,
+          title: 'Din röst räknas',
+          description: 'Som tidig kund har du möjlighet att påverka vårt sortiment och vår utveckling. Vi lyssnar.'
         }
-      ]
+      ],
+      cta: 'Bli vår första kund',
+      footer: 'Kom tillbaka snart för att läsa äkta omdömen!'
     },
     en: {
-      badge: 'Customer voices',
-      title: 'What our customers say',
-      subtitle: 'Read about the experiences of our satisfied customers',
-      testimonials: [
+      badge: 'Authentic reviews',
+      title: "We're new – and proud of it",
+      subtitle: 'Our first customers will soon share their experiences here. Maybe you will be one of them?',
+      cards: [
         {
-          name: 'Anna L.',
-          location: 'Stockholm',
-          rating: 5,
-          text: 'Amazing products! I noticed a difference immediately after switching to their toxin-free body care. My skin has never felt better.',
-          product: 'Body Care'
+          icon: Heart,
+          title: 'Be our first customer',
+          description: 'Be there from the start and help us shape the future of toxin-free products. Your review will be displayed here.'
         },
         {
-          name: 'Erik M.',
-          location: 'Gothenburg',
-          rating: 5,
-          text: 'Fast delivery and great customer service. The products are high quality and I appreciate that everything is natural and sustainable.',
-          product: 'Tech'
+          icon: Star,
+          title: 'Honesty above all',
+          description: "We never show fake reviews. When we get real customer reviews, you'll see them here – unfiltered."
         },
         {
-          name: 'Maria S.',
-          location: 'Malmö',
-          rating: 5,
-          text: 'Finally a company that cares about both quality and environment! Their hemp clothes are incredibly comfortable and really durable.',
-          product: 'Clothing'
+          icon: Sparkles,
+          title: 'Your voice matters',
+          description: 'As an early customer, you have the opportunity to influence our range and development. We listen.'
         }
-      ]
+      ],
+      cta: 'Be our first customer',
+      footer: 'Come back soon to read authentic reviews!'
     }
   };
 
@@ -77,19 +71,19 @@ const Testimonials = () => {
           className="text-center mb-12"
         >
           <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4">
-            <Star className="w-4 h-4 fill-current" />
+            <Star className="w-4 h-4" />
             {t.badge}
           </span>
           <h2 className="font-display text-3xl md:text-4xl font-semibold mb-3">
             {t.title}
           </h2>
-          <p className="text-muted-foreground max-w-md mx-auto">
+          <p className="text-muted-foreground max-w-lg mx-auto">
             {t.subtitle}
           </p>
         </motion.div>
 
-        <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-          {t.testimonials.map((testimonial, index) => (
+        <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto mb-10">
+          {t.cards.map((card, index) => (
             <motion.div
               key={index}
               initial={{ opacity: 0, y: 20 }}
@@ -97,34 +91,45 @@ const Testimonials = () => {
               viewport={{ once: true }}
               transition={{ delay: index * 0.1 }}
             >
-              <Card className="h-full bg-card border-border/50 hover:border-primary/30 transition-colors">
-                <CardContent className="p-6">
-                  <Quote className="w-8 h-8 text-primary/30 mb-4" />
-                  
-                  <div className="flex gap-1 mb-4">
-                    {[...Array(testimonial.rating)].map((_, i) => (
-                      <Star key={i} className="w-4 h-4 fill-primary text-primary" />
-                    ))}
+              <Card className="h-full bg-card/50 border-border/50 hover:border-primary/30 transition-all duration-300 hover:-translate-y-1">
+                <CardContent className="p-6 text-center">
+                  <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-primary/15 to-accent/15 flex items-center justify-center">
+                    <card.icon className="w-7 h-7 text-primary" />
                   </div>
                   
-                  <p className="text-foreground mb-6 leading-relaxed">
-                    "{testimonial.text}"
+                  <h3 className="font-semibold text-lg mb-3 text-foreground">
+                    {card.title}
+                  </h3>
+                  
+                  <p className="text-muted-foreground leading-relaxed">
+                    {card.description}
                   </p>
-                  
-                  <div className="flex items-center gap-3 pt-4 border-t border-border/50">
-                    <UserCircle className="w-10 h-10 text-muted-foreground" />
-                    <div>
-                      <p className="font-medium text-foreground">{testimonial.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {testimonial.location} • {testimonial.product}
-                      </p>
-                    </div>
-                  </div>
                 </CardContent>
               </Card>
             </motion.div>
           ))}
         </div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ delay: 0.4 }}
+          className="text-center space-y-4"
+        >
+          <Link to="/shop">
+            <Button 
+              size="lg" 
+              className="bg-gradient-to-r from-primary to-primary/80 hover:opacity-90 group"
+            >
+              {t.cta}
+              <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </Button>
+          </Link>
+          <p className="text-sm text-muted-foreground italic">
+            {t.footer}
+          </p>
+        </motion.div>
       </div>
     </section>
   );

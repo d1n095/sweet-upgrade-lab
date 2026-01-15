@@ -1,61 +1,59 @@
-import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
-import { useEffect } from 'react';
-import { TrendingUp, Users, Heart, Lightbulb } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Check, Rocket, Sparkles, Users, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/context/LanguageContext';
-
-interface CounterProps {
-  value: number;
-  suffix?: string;
-  duration?: number;
-}
-
-const AnimatedCounter = ({ value, suffix = '', duration = 2 }: CounterProps) => {
-  const count = useMotionValue(0);
-  const rounded = useTransform(count, (latest) => Math.round(latest).toLocaleString('sv-SE'));
-
-  useEffect(() => {
-    const controls = animate(count, value, { duration });
-    return controls.stop;
-  }, [count, value, duration]);
-
-  return (
-    <motion.span className="tabular-nums">
-      <motion.span>{rounded}</motion.span>
-      {suffix}
-    </motion.span>
-  );
-};
+import { Link } from 'react-router-dom';
 
 const ImpactSection = () => {
   const { language } = useLanguage();
 
   const content = {
     sv: {
-      title: 'Dina Köp Bygger Framtiden',
-      subtitle: 'Varje krona du spenderar skapar verklig förändring i samhället',
-      cta: 'Se Vår Transparensrapport',
-      stats: [
-        { value: 47, label: 'Nya Jobb Skapade', sublabel: 'Senaste året', icon: TrendingUp },
-        { value: 1234, label: 'Familjer Hjälpta', sublabel: 'Bytt till giftfritt', icon: Users },
-        { value: 89250, suffix: ' kr', label: 'Donerat till Samhället', sublabel: 'Transparent redovisning', icon: Heart },
-        { value: 3, label: 'Projekt Genomförda', sublabel: 'Se dem alla ↓', icon: Lightbulb }
-      ]
+      eyebrow: 'Vår Resa',
+      title: 'Vi är i uppstartsfasen',
+      titleHighlight: '– och det är vår styrka',
+      description: 'Varje produkt du köper från oss är inte bara ett köp. Det är ett bidrag till något större.',
+      promises: [
+        { icon: Users, text: 'Ett steg mot fler jobb i Sverige' },
+        { icon: Sparkles, text: 'Ett steg mot giftfria hem' },
+        { icon: Check, text: 'Ett steg mot transparent handel' },
+        { icon: Rocket, text: 'Ditt bidrag till vår gemensamma framtid' }
+      ],
+      footer: 'Just nu är vi små, men vi tänker stort.',
+      cta: 'Din första order gör skillnad',
+      ctaButton: 'Utforska produkter'
     },
     en: {
-      title: 'Your Purchases Build the Future',
-      subtitle: 'Every penny you spend creates real change in society',
-      cta: 'View Our Transparency Report',
-      stats: [
-        { value: 47, label: 'New Jobs Created', sublabel: 'Last year', icon: TrendingUp },
-        { value: 1234, label: 'Families Helped', sublabel: 'Switched to toxin-free', icon: Users },
-        { value: 89250, suffix: ' kr', label: 'Donated to Society', sublabel: 'Transparent reporting', icon: Heart },
-        { value: 3, label: 'Projects Completed', sublabel: 'See them all ↓', icon: Lightbulb }
-      ]
+      eyebrow: 'Our Journey',
+      title: "We're in the startup phase",
+      titleHighlight: '– and that is our strength',
+      description: 'Every product you buy from us is not just a purchase. It is a contribution to something bigger.',
+      promises: [
+        { icon: Users, text: 'A step towards more jobs in Sweden' },
+        { icon: Sparkles, text: 'A step towards toxin-free homes' },
+        { icon: Check, text: 'A step towards transparent trade' },
+        { icon: Rocket, text: 'Your contribution to our shared future' }
+      ],
+      footer: "Right now we're small, but we think big.",
+      cta: 'Your first order makes a difference',
+      ctaButton: 'Explore products'
     }
   };
 
   const t = content[language];
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, x: -20 },
+    visible: { opacity: 1, x: 0 }
+  };
 
   return (
     <section className="relative py-24 overflow-hidden bg-gradient-to-br from-primary/5 via-background to-accent/5">
@@ -70,54 +68,70 @@ const ImpactSection = () => {
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="text-center mb-16"
+          className="text-center mb-12"
         >
-          <h2 className="font-display text-3xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+          <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
+            <Rocket className="w-4 h-4" />
+            {t.eyebrow}
+          </span>
+          <h2 className="font-display text-3xl md:text-5xl font-bold mb-2">
             {t.title}
           </h2>
+          <h2 className="font-display text-3xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            {t.titleHighlight}
+          </h2>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            {t.subtitle}
+            {t.description}
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8 mb-12">
-          {t.stats.map((stat, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: index * 0.1 }}
-              className="relative group"
-            >
-              <div className="bg-card/50 backdrop-blur-sm border border-primary/20 rounded-2xl p-6 text-center h-full transition-all duration-300 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10">
-                <div className="w-12 h-12 mx-auto mb-4 rounded-xl bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <stat.icon className="w-6 h-6 text-primary" />
-                </div>
-                <div className="text-3xl md:text-4xl font-bold text-foreground mb-2">
-                  <AnimatedCounter value={stat.value} suffix={stat.suffix} />
-                </div>
-                <p className="font-medium text-foreground/90 mb-1">{stat.label}</p>
-                <p className="text-sm text-muted-foreground">{stat.sublabel}</p>
-              </div>
-            </motion.div>
-          ))}
-        </div>
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          className="max-w-2xl mx-auto mb-12"
+        >
+          <div className="bg-card/50 backdrop-blur-sm border border-primary/20 rounded-2xl p-8">
+            <div className="space-y-4">
+              {t.promises.map((promise, index) => (
+                <motion.div
+                  key={index}
+                  variants={itemVariants}
+                  className="flex items-center gap-4 group"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center group-hover:bg-primary/25 transition-colors">
+                    <promise.icon className="w-5 h-5 text-primary" />
+                  </div>
+                  <span className="text-lg text-foreground/90">{promise.text}</span>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </motion.div>
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ delay: 0.4 }}
-          className="text-center"
+          className="text-center space-y-6"
         >
-          <Button
-            size="lg"
-            variant="outline"
-            className="border-primary/50 hover:bg-primary/10 hover:border-primary"
-          >
+          <p className="text-xl font-medium text-foreground italic">
+            {t.footer}
+          </p>
+          <p className="text-primary font-semibold text-lg">
             {t.cta}
-          </Button>
+          </p>
+          <Link to="/shop">
+            <Button
+              size="lg"
+              className="bg-gradient-to-r from-primary to-primary/80 hover:opacity-90 text-primary-foreground font-semibold px-8 group"
+            >
+              {t.ctaButton}
+              <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </Button>
+          </Link>
         </motion.div>
       </div>
     </section>
