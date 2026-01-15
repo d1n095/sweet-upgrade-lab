@@ -1,4 +1,5 @@
 import { Helmet } from 'react-helmet-async';
+import { storeConfig } from '@/config/storeConfig';
 
 interface SEOHeadProps {
   title: string;
@@ -8,6 +9,8 @@ interface SEOHeadProps {
   ogImage?: string;
   ogType?: 'website' | 'article' | 'product';
   noindex?: boolean;
+  schemaType?: 'Store' | 'Product' | 'Article' | 'FAQPage';
+  schemaData?: Record<string, unknown>;
 }
 
 const SEOHead = ({
@@ -17,11 +20,64 @@ const SEOHead = ({
   canonical,
   ogImage = 'https://lovable.dev/opengraph-image-p98pqg.png',
   ogType = 'website',
-  noindex = false
+  noindex = false,
+  schemaType = 'Store',
+  schemaData
 }: SEOHeadProps) => {
   const fullTitle = title.includes('4thepeople') ? title : `${title} | 4thepeople`;
   const siteUrl = 'https://4thepeople.se';
   const canonicalUrl = canonical ? `${siteUrl}${canonical}` : undefined;
+
+  // Generate schema.org structured data
+  const getSchemaMarkup = () => {
+    const baseSchema = {
+      '@context': 'https://schema.org',
+    };
+
+    switch (schemaType) {
+      case 'Store':
+        return {
+          ...baseSchema,
+          '@type': 'Store',
+          name: storeConfig.company.name,
+          description: description,
+          url: siteUrl,
+          email: storeConfig.contact.email,
+          telephone: storeConfig.contact.phone,
+          address: {
+            '@type': 'PostalAddress',
+            streetAddress: storeConfig.contact.address.street,
+            addressLocality: storeConfig.contact.address.city,
+            postalCode: storeConfig.contact.address.zip,
+            addressCountry: 'SE'
+          },
+          priceRange: '$$',
+          currenciesAccepted: storeConfig.currency.code,
+          paymentAccepted: 'Klarna, Kort, Swish, PayPal',
+          ...schemaData
+        };
+      case 'Product':
+        return {
+          ...baseSchema,
+          '@type': 'Product',
+          ...schemaData
+        };
+      case 'FAQPage':
+        return {
+          ...baseSchema,
+          '@type': 'FAQPage',
+          ...schemaData
+        };
+      default:
+        return {
+          ...baseSchema,
+          '@type': 'WebSite',
+          name: storeConfig.company.name,
+          url: siteUrl,
+          ...schemaData
+        };
+    }
+  };
 
   return (
     <Helmet>
@@ -35,6 +91,7 @@ const SEOHead = ({
       <meta property="og:description" content={description} />
       <meta property="og:type" content={ogType} />
       <meta property="og:image" content={ogImage} />
+      <meta property="og:site_name" content={storeConfig.company.name} />
       {canonicalUrl && <meta property="og:url" content={canonicalUrl} />}
       
       {/* Twitter */}
@@ -45,6 +102,11 @@ const SEOHead = ({
       
       {/* Canonical */}
       {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
+
+      {/* Schema.org Structured Data */}
+      <script type="application/ld+json">
+        {JSON.stringify(getSchemaMarkup())}
+      </script>
     </Helmet>
   );
 };
