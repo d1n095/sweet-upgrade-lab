@@ -394,6 +394,92 @@ export type Database = {
         }
         Relationships: []
       }
+      donation_projects: {
+        Row: {
+          created_at: string
+          current_amount: number
+          description: string | null
+          description_en: string | null
+          families_helped: number
+          goal_amount: number
+          id: string
+          is_active: boolean
+          name: string
+          name_en: string | null
+          trees_planted: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_amount?: number
+          description?: string | null
+          description_en?: string | null
+          families_helped?: number
+          goal_amount?: number
+          id?: string
+          is_active?: boolean
+          name: string
+          name_en?: string | null
+          trees_planted?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_amount?: number
+          description?: string | null
+          description_en?: string | null
+          families_helped?: number
+          goal_amount?: number
+          id?: string
+          is_active?: boolean
+          name?: string
+          name_en?: string | null
+          trees_planted?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      donations: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          is_anonymous: boolean
+          order_id: string | null
+          purpose: string
+          source: string
+          user_id: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          is_anonymous?: boolean
+          order_id?: string | null
+          purpose?: string
+          source?: string
+          user_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          is_anonymous?: boolean
+          order_id?: string | null
+          purpose?: string
+          source?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "donations_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       influencer_products: {
         Row: {
           id: string

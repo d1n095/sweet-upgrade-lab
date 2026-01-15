@@ -26,6 +26,7 @@ import AdminApplicationsManager from '@/components/admin/AdminApplicationsManage
 import AdminLegalDocuments from '@/components/admin/AdminLegalDocuments';
 import InfluencerDashboard from '@/components/dashboard/InfluencerDashboard';
 import AffiliateDashboard from '@/components/dashboard/AffiliateDashboard';
+import DonationImpact from '@/components/donations/DonationImpact';
 
 interface Review {
   id: string;
@@ -364,6 +365,11 @@ const MemberProfile = () => {
               {/* Affiliate Dashboard - visible to affiliates */}
               <div className="mt-6">
                 <AffiliateDashboard />
+              </div>
+
+              {/* Donation Impact - visible to everyone */}
+              <div className="mt-6">
+                <DonationImpact />
               </div>
             </TabsContent>
 
