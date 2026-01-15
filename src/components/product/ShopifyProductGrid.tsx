@@ -77,8 +77,18 @@ const ShopifyProductGrid = () => {
     }
   }, [products, sortOption]);
 
+  // Listen for URL query params and hash changes
   useEffect(() => {
-    const handleHashChange = () => {
+    const updateCategoryFromUrl = () => {
+      // Check query params first (e.g., ?category=teknik)
+      const urlParams = new URLSearchParams(window.location.search);
+      const queryCategory = urlParams.get('category');
+      if (queryCategory && categories.some(c => c.id === queryCategory)) {
+        setActiveCategory(queryCategory);
+        return;
+      }
+      
+      // Fallback to hash (e.g., #category=teknik)
       const hash = window.location.hash;
       const match = hash.match(/category=([^&]+)/);
       if (match) {
@@ -89,9 +99,13 @@ const ShopifyProductGrid = () => {
       }
     };
     
-    handleHashChange();
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
+    updateCategoryFromUrl();
+    window.addEventListener('hashchange', updateCategoryFromUrl);
+    window.addEventListener('popstate', updateCategoryFromUrl);
+    return () => {
+      window.removeEventListener('hashchange', updateCategoryFromUrl);
+      window.removeEventListener('popstate', updateCategoryFromUrl);
+    };
   }, []);
 
   const sortOptions = [
@@ -103,41 +117,15 @@ const ShopifyProductGrid = () => {
   ];
 
   return (
-    <section id="products" className="section-padding relative overflow-hidden">
-      {/* Decorative elements */}
-      <div className="decorative-circle w-[500px] h-[500px] bg-accent/5 -top-32 -left-32" />
-      <div className="decorative-circle w-[400px] h-[400px] bg-primary/5 bottom-0 -right-32" />
-      
+    <section id="products" className="relative overflow-hidden py-8">
       <div className="container mx-auto px-4 relative z-10">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-12 md:mb-16"
-        >
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-accent/10 mb-6">
-            <Sparkles className="w-7 h-7 text-accent" />
-          </div>
-          <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-semibold mb-5">
-            {t('products.title').split(' ')[0]} <span className="text-gradient">{t('products.title').split(' ').slice(1).join(' ')}</span>
-          </h2>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            {language === 'sv' 
-              ? 'Utforska vårt sortiment av hållbara kläder, hudvård och hygienprodukter'
-              : 'Explore our range of sustainable clothing, skincare and hygiene products'
-            }
-          </p>
-        </motion.div>
-
         {/* Category Filters */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ delay: 0.1, duration: 0.5 }}
-          className="flex flex-wrap justify-center gap-3 mb-12 md:mb-16"
+          className="flex flex-wrap justify-center gap-3 mb-8"
         >
           {categories.map((category) => {
             const Icon = category.icon;
@@ -154,7 +142,7 @@ const ShopifyProductGrid = () => {
                 )}
               >
                 <Icon className="w-4 h-4" />
-                <span>{category.name[language]}</span>
+                <span>{category.name[language] || category.name.en}</span>
               </button>
             );
           })}
