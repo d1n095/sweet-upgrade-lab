@@ -6,60 +6,60 @@
 
 @layer base {
   :root {
-    /* Authentic & Transparent palette - Deep forest green, warm beige, clean white */
-    --background: 150 20% 4%;
-    --foreground: 40 20% 95%;
+    /* Professional green palette - clean & trustworthy */
+    --background: 0 0% 100%;
+    --foreground: 210 20% 15%;
 
-    --card: 150 15% 8%;
-    --card-foreground: 40 20% 95%;
+    --card: 0 0% 98%;
+    --card-foreground: 210 20% 15%;
 
-    --popover: 150 15% 8%;
-    --popover-foreground: 40 20% 95%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 20% 15%;
 
-    /* Deep forest green primary - trust & authenticity */
-    --primary: 158 60% 42%;
-    --primary-foreground: 40 20% 98%;
+    /* Deep forest green - trust & professionalism */
+    --primary: 153 56% 24%;
+    --primary-foreground: 0 0% 100%;
 
-    /* Warm beige secondary - authenticity & warmth */
-    --secondary: 35 25% 15%;
-    --secondary-foreground: 40 20% 90%;
+    /* Light gray secondary */
+    --secondary: 210 20% 96%;
+    --secondary-foreground: 210 20% 25%;
 
-    --muted: 150 12% 15%;
-    --muted-foreground: 40 15% 55%;
+    --muted: 210 15% 94%;
+    --muted-foreground: 210 10% 45%;
 
-    /* Earthy amber accent - warmth & humanity */
-    --accent: 32 80% 50%;
-    --accent-foreground: 150 20% 4%;
+    /* Warm amber accent */
+    --accent: 38 92% 50%;
+    --accent-foreground: 210 20% 10%;
 
-    --destructive: 0 72% 55%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 150 12% 18%;
-    --input: 150 12% 18%;
-    --ring: 158 60% 42%;
+    --border: 210 15% 90%;
+    --input: 210 15% 90%;
+    --ring: 153 56% 24%;
 
-    --radius: 0.75rem;
+    --radius: 0.5rem;
 
-    /* Custom design tokens - Authentic theme */
-    --gradient-primary: linear-gradient(135deg, hsl(158, 60%, 42%) 0%, hsl(165, 55%, 38%) 100%);
-    --gradient-warm: linear-gradient(180deg, hsl(150, 20%, 4%) 0%, hsl(150, 18%, 7%) 100%);
-    --gradient-card: linear-gradient(145deg, hsl(150, 15%, 9%) 0%, hsl(150, 14%, 6%) 100%);
-    --gradient-hero: linear-gradient(180deg, hsl(150, 20%, 5%) 0%, hsl(150, 18%, 7%) 50%, hsl(150, 20%, 5%) 100%);
-    --gradient-accent: linear-gradient(135deg, hsl(32, 80%, 50%) 0%, hsl(28, 75%, 45%) 100%);
+    /* Custom design tokens - Professional clean theme */
+    --gradient-primary: linear-gradient(135deg, hsl(153, 56%, 24%) 0%, hsl(153, 50%, 30%) 100%);
+    --gradient-warm: linear-gradient(180deg, hsl(0, 0%, 100%) 0%, hsl(210, 20%, 98%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(0, 0%, 99%) 0%, hsl(0, 0%, 97%) 100%);
+    --gradient-hero: linear-gradient(180deg, hsl(210, 20%, 98%) 0%, hsl(0, 0%, 100%) 50%, hsl(210, 15%, 97%) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(38, 92%, 50%) 0%, hsl(32, 90%, 45%) 100%);
     
-    --shadow-soft: 0 4px 20px hsl(158, 60%, 42%, 0.08);
-    --shadow-card: 0 8px 32px hsl(158, 60%, 42%, 0.12);
-    --shadow-elevated: 0 20px 60px hsl(158, 60%, 42%, 0.15);
-    --shadow-glow: 0 0 50px hsl(158, 60%, 42%, 0.2);
+    --shadow-soft: 0 2px 8px hsl(210, 15%, 85%, 0.4);
+    --shadow-card: 0 4px 16px hsl(210, 15%, 80%, 0.3);
+    --shadow-elevated: 0 8px 32px hsl(210, 15%, 75%, 0.25);
+    --shadow-glow: 0 0 24px hsl(153, 56%, 24%, 0.15);
 
-    --sidebar-background: 150 15% 8%;
-    --sidebar-foreground: 40 20% 95%;
-    --sidebar-primary: 158 60% 42%;
-    --sidebar-primary-foreground: 40 20% 98%;
-    --sidebar-accent: 150 12% 15%;
-    --sidebar-accent-foreground: 40 20% 90%;
-    --sidebar-border: 150 12% 18%;
-    --sidebar-ring: 158 60% 42%;
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 210 20% 15%;
+    --sidebar-primary: 153 56% 24%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 20% 96%;
+    --sidebar-accent-foreground: 210 20% 25%;
+    --sidebar-border: 210 15% 90%;
+    --sidebar-ring: 153 56% 24%;
   }
 }
 

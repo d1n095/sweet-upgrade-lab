@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Flame, TrendingUp, Clock } from 'lucide-react';
+import { TrendingUp, ArrowRight } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { fetchProducts, ShopifyProduct } from '@/lib/shopify';
 import ShopifyProductCard from '@/components/product/ShopifyProductCard';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Link } from 'react-router-dom';
 
 const Bestsellers = () => {
   const { language } = useLanguage();
@@ -14,18 +15,16 @@ const Bestsellers = () => {
 
   const content = {
     sv: {
-      badge: 'Populära val',
+      badge: 'Populära produkter',
       title: 'Bästsäljare',
-      subtitle: 'Våra mest älskade produkter – handplockade av våra kunder',
-      urgency: 'Begränsat antal',
-      selling: 'Säljer snabbt'
+      subtitle: 'Våra mest efterfrågade produkter just nu',
+      cta: 'Se alla produkter'
     },
     en: {
-      badge: 'Popular picks',
+      badge: 'Popular products',
       title: 'Bestsellers',
-      subtitle: 'Our most loved products – handpicked by our customers',
-      urgency: 'Limited stock',
-      selling: 'Selling fast'
+      subtitle: 'Our most popular products right now',
+      cta: 'View all products'
     }
   };
 
@@ -48,16 +47,16 @@ const Bestsellers = () => {
 
   if (loading) {
     return (
-      <section className="py-20 bg-muted/30">
+      <section className="py-16 md:py-20 bg-background">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <Skeleton className="h-8 w-40 mx-auto mb-4" />
-            <Skeleton className="h-12 w-64 mx-auto mb-2" />
-            <Skeleton className="h-6 w-96 mx-auto" />
+          <div className="text-center mb-10">
+            <Skeleton className="h-6 w-32 mx-auto mb-3" />
+            <Skeleton className="h-10 w-48 mx-auto mb-2" />
+            <Skeleton className="h-5 w-64 mx-auto" />
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
             {[...Array(4)].map((_, i) => (
-              <Skeleton key={i} className="aspect-[3/4] rounded-xl" />
+              <Skeleton key={i} className="aspect-[3/4] rounded-lg" />
             ))}
           </div>
         </div>
@@ -68,45 +67,27 @@ const Bestsellers = () => {
   if (products.length === 0) return null;
 
   return (
-    <section className="py-20 bg-muted/30">
+    <section className="py-16 md:py-20 bg-background">
       <div className="container mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="text-center mb-12"
+          className="text-center mb-10"
         >
           <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4">
-            <Flame className="w-4 h-4" />
-            {t.badge}
             <TrendingUp className="w-4 h-4" />
+            {t.badge}
           </span>
-          <h2 className="font-display text-3xl md:text-4xl font-semibold mb-3">
+          <h2 className="font-display text-2xl md:text-3xl font-semibold mb-2">
             {t.title}
           </h2>
-          <p className="text-muted-foreground max-w-md mx-auto">
+          <p className="text-muted-foreground">
             {t.subtitle}
           </p>
-          {/* Urgency banner */}
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.9 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.3 }}
-            className="mt-4 inline-flex items-center gap-2"
-          >
-            <Badge variant="destructive" className="animate-pulse">
-              <Clock className="w-3 h-3 mr-1" />
-              {t.urgency}
-            </Badge>
-            <Badge variant="secondary">
-              <TrendingUp className="w-3 h-3 mr-1" />
-              {t.selling}
-            </Badge>
-          </motion.div>
         </motion.div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-8">
           {products.slice(0, 4).map((product, index) => (
             <motion.div
               key={product.node.id}
@@ -119,6 +100,20 @@ const Bestsellers = () => {
             </motion.div>
           ))}
         </div>
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          className="text-center"
+        >
+          <Link to="/shop">
+            <Button variant="outline" size="lg" className="group">
+              {t.cta}
+              <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </Button>
+          </Link>
+        </motion.div>
       </div>
     </section>
   );

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Mail, Gift, Check, Sparkles } from 'lucide-react';
+import { Mail, Check, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useLanguage } from '@/context/LanguageContext';
@@ -12,6 +12,31 @@ const Newsletter = () => {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  const content = {
+    sv: {
+      title: 'Bli först med erbjudanden',
+      description: 'Prenumerera på vårt nyhetsbrev och få exklusiva erbjudanden och nyheter direkt i din inkorg.',
+      placeholder: 'Din e-postadress',
+      button: 'Prenumerera',
+      loading: 'Skickar...',
+      success: 'Tack för din prenumeration!',
+      successMessage: 'Du får snart ett välkomstmail.',
+      terms: 'Genom att prenumerera godkänner du våra villkor. Avsluta när som helst.'
+    },
+    en: {
+      title: 'Be first with offers',
+      description: 'Subscribe to our newsletter and get exclusive offers and news delivered straight to your inbox.',
+      placeholder: 'Your email address',
+      button: 'Subscribe',
+      loading: 'Sending...',
+      success: 'Thanks for subscribing!',
+      successMessage: "You'll receive a welcome email soon.",
+      terms: 'By subscribing you agree to our terms. Unsubscribe at any time.'
+    }
+  };
+
+  const t = content[language];
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
@@ -21,93 +46,67 @@ const Newsletter = () => {
     setIsLoading(false);
     setIsSubscribed(true);
     setEmail('');
-    toast.success(
-      language === 'sv' 
-        ? 'Tack för din prenumeration! Kolla din e-post för rabattkoden.' 
-        : 'Thanks for subscribing! Check your email for the discount code.'
-    );
+    toast.success(t.success);
   };
 
   return (
-    <section className="py-20 md:py-28 relative overflow-hidden">
-      {/* Background with gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/8 via-primary/4 to-transparent" />
-      <div className="decorative-circle w-[400px] h-[400px] bg-primary/10 top-0 right-0" />
-      <div className="decorative-circle w-[300px] h-[300px] bg-accent/10 bottom-0 left-0" />
-      
-      <div className="container mx-auto px-4 relative z-10">
+    <section className="py-16 md:py-20 bg-primary/5 border-t border-border">
+      <div className="container mx-auto px-4">
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.7 }}
-          className="max-w-2xl mx-auto text-center"
+          className="max-w-xl mx-auto text-center"
         >
-          <motion.div 
-            animate={{ rotate: [0, 10, -10, 0] }}
-            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-            className="inline-flex items-center justify-center w-18 h-18 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 mb-8"
-          >
-            <Gift className="w-9 h-9 text-primary" />
-          </motion.div>
+          <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
+            <Bell className="w-7 h-7 text-primary" />
+          </div>
           
-          <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-semibold mb-5">
-            {language === 'sv' ? 'Få ' : 'Get '}
-            <span className="text-gradient">10% rabatt</span>
-            {language === 'sv' ? ' på din första order!' : ' on your first order!'}
+          <h2 className="font-display text-2xl md:text-3xl font-semibold mb-3">
+            {t.title}
           </h2>
           
-          <p className="text-muted-foreground text-lg mb-10 max-w-lg mx-auto">
-            {language === 'sv' 
-              ? 'Prenumerera på vårt nyhetsbrev och få exklusiva erbjudanden, tips och nyheter direkt i din inkorg.'
-              : 'Subscribe to our newsletter and get exclusive offers, tips and news delivered straight to your inbox.'
-            }
+          <p className="text-muted-foreground mb-8">
+            {t.description}
           </p>
 
           {isSubscribed ? (
             <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
+              initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="inline-flex items-center gap-3 px-6 py-4 rounded-2xl bg-accent/10 border border-accent/20 text-accent font-semibold"
+              className="inline-flex items-center gap-3 px-6 py-4 rounded-xl bg-primary/10 border border-primary/20 text-primary font-medium"
             >
-              <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center">
-                <Check className="w-5 h-5" />
+              <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                <Check className="w-4 h-4" />
               </div>
-              {language === 'sv' ? 'Du är nu prenumerant!' : 'You\'re now subscribed!'}
-              <Sparkles className="w-5 h-5" />
+              {t.successMessage}
             </motion.div>
           ) : (
-            <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
+            <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
               <div className="relative flex-1">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
                   type="email"
-                  placeholder={language === 'sv' ? 'Din e-postadress' : 'Your email address'}
+                  placeholder={t.placeholder}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="pl-12 h-14 bg-card border-border/60 rounded-2xl text-base focus:border-primary/50"
+                  className="pl-12 h-12 bg-background border-border rounded-lg"
                   required
                 />
               </div>
               <Button 
                 type="submit" 
                 size="lg" 
-                className="h-14 px-8 rounded-2xl text-base font-semibold shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all"
+                className="h-12 px-6 rounded-lg"
                 disabled={isLoading}
               >
-                {isLoading 
-                  ? (language === 'sv' ? 'Skickar...' : 'Sending...') 
-                  : (language === 'sv' ? 'Prenumerera' : 'Subscribe')
-                }
+                {isLoading ? t.loading : t.button}
               </Button>
             </form>
           )}
           
           <p className="text-xs text-muted-foreground mt-6">
-            {language === 'sv' 
-              ? 'Genom att prenumerera godkänner du våra villkor. Avsluta när som helst.'
-              : 'By subscribing you agree to our terms. Unsubscribe at any time.'
-            }
+            {t.terms}
           </p>
         </motion.div>
       </div>
