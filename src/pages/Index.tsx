@@ -3,9 +3,9 @@ import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import Hero from '@/components/sections/Hero';
 import TrustBadges from '@/components/sections/TrustBadges';
+import Bestsellers from '@/components/sections/Bestsellers';
 import ProductGridSkeleton from '@/components/loading/ProductGridSkeleton';
 import ShippingInfo from '@/components/sections/ShippingInfo';
-import Testimonials from '@/components/sections/Testimonials';
 import About from '@/components/sections/About';
 import FAQ from '@/components/sections/FAQ';
 import Newsletter from '@/components/sections/Newsletter';
@@ -30,32 +30,32 @@ const Index = () => {
       <SEOHead
         title={language === 'sv' ? '4thepeople - Giftfria Produkter för Sverige' : '4thepeople - Toxin-Free Products for Sweden'}
         description={language === 'sv' 
-          ? 'Vi är inte det största företaget. Vi är det noggrannaste. Upptäck noggrant utvalda giftfria produkter till ärliga priser.'
-          : "We're not the biggest company. We're the most careful. Discover carefully selected toxin-free products at honest prices."}
-        keywords="giftfri, naturlig, kroppsvård, hållbart, svensk, ekologisk"
+          ? 'Vi är inte det största företaget. Vi är det noggrannaste i vår research. Upptäck noggrant utvalda giftfria produkter till ärliga priser.'
+          : "We're not the biggest company. We're the most thorough in our research. Discover carefully selected toxin-free products at honest prices."}
+        keywords="giftfri, naturlig, kroppsvård, hållbart, svensk, ekologisk, dropshipping"
         canonical="/"
         schemaType="Store"
       />
       <Header />
       <main>
-        {/* Hero - Professional & honest */}
+        {/* Hero - Professional & brutally honest */}
         <Hero />
         
         {/* TrustBadges - Build trust immediately */}
         <TrustBadges />
+        
+        {/* Bestsellers - Show popular products */}
+        <Bestsellers />
         
         {/* Main product grid with lazy loading */}
         <Suspense fallback={<ProductGridSkeleton />}>
           <ShopifyProductGrid />
         </Suspense>
         
-        {/* Shipping info - Transparency */}
+        {/* Shipping info - Transparency about delivery */}
         <ShippingInfo />
         
-        {/* Testimonials - Honest about being new */}
-        <Testimonials />
-        
-        {/* About - Honest startup story */}
+        {/* About - Honest about dropshipping */}
         <About />
         
         {/* FAQ - Answer questions before purchase */}
