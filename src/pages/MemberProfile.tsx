@@ -19,6 +19,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import OrderTracker from '@/components/orders/OrderTracker';
 import AdminProductManager from '@/components/admin/AdminProductManager';
+import AdminInfluencerManager from '@/components/admin/AdminInfluencerManager';
 
 interface Review {
   id: string;
@@ -491,6 +492,11 @@ const MemberProfile = () => {
 
                   {/* Product Manager */}
                   <AdminProductManager />
+
+                  {/* Influencer Manager */}
+                  <div className="mt-6 pt-6 border-t border-border">
+                    <AdminInfluencerManager />
+                  </div>
                 </motion.div>
               )}
             </TabsContent>

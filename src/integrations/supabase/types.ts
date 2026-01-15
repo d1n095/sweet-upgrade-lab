@@ -144,6 +144,96 @@ export type Database = {
         }
         Relationships: []
       }
+      influencer_products: {
+        Row: {
+          id: string
+          influencer_id: string
+          order_id: string | null
+          product_title: string
+          received_at: string
+          shopify_product_id: string
+          shopify_variant_id: string | null
+        }
+        Insert: {
+          id?: string
+          influencer_id: string
+          order_id?: string | null
+          product_title: string
+          received_at?: string
+          shopify_product_id: string
+          shopify_variant_id?: string | null
+        }
+        Update: {
+          id?: string
+          influencer_id?: string
+          order_id?: string | null
+          product_title?: string
+          received_at?: string
+          shopify_product_id?: string
+          shopify_variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "influencer_products_influencer_id_fkey"
+            columns: ["influencer_id"]
+            isOneToOne: false
+            referencedRelation: "influencers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "influencer_products_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      influencers: {
+        Row: {
+          code: string
+          created_at: string
+          email: string
+          id: string
+          is_active: boolean
+          max_products: number
+          name: string
+          notes: string | null
+          products_used: number
+          updated_at: string
+          user_id: string | null
+          valid_until: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          email: string
+          id?: string
+          is_active?: boolean
+          max_products?: number
+          name: string
+          notes?: string | null
+          products_used?: number
+          updated_at?: string
+          user_id?: string | null
+          valid_until?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          email?: string
+          id?: string
+          is_active?: boolean
+          max_products?: number
+          name?: string
+          notes?: string | null
+          products_used?: number
+          updated_at?: string
+          user_id?: string | null
+          valid_until?: string | null
+        }
+        Relationships: []
+      }
       interest_logs: {
         Row: {
           category: string | null
@@ -484,6 +574,16 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      validate_influencer_code: {
+        Args: { p_code: string; p_email: string }
+        Returns: {
+          influencer_id: string
+          influencer_name: string
+          is_valid: boolean
+          message: string
+          products_remaining: number
+        }[]
       }
     }
     Enums: {
