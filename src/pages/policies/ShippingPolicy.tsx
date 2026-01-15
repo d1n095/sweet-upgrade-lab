@@ -14,8 +14,8 @@ const ShippingPolicy = () => {
       <SEOHead
         title={language === 'sv' ? 'Fraktinformation' : 'Shipping Information'}
         description={language === 'sv' 
-          ? `Fri frakt över ${storeConfig.shipping.freeShippingThreshold} kr. ${storeConfig.shipping.deliveryTime.sv}. Leverans till hela Sverige.`
-          : `Free shipping over ${storeConfig.shipping.freeShippingThreshold} kr. ${storeConfig.shipping.deliveryTime.en}. Delivery throughout Sweden.`}
+          ? `Fri frakt över ${storeConfig.shipping.freeShippingThreshold} kr. ${storeConfig.shipping.deliveryTime.sv}. Leverans till hela Europa.`
+          : `Free shipping over ${storeConfig.shipping.freeShippingThreshold} kr. ${storeConfig.shipping.deliveryTime.en}. Delivery throughout Europe.`}
         canonical="/policies/shipping"
       />
       <Header />
@@ -40,7 +40,7 @@ const ShippingPolicy = () => {
               </div>
               
               <h2 className="font-display text-xl font-semibold text-foreground">{language === 'sv' ? 'Leveransområde' : 'Delivery Area'}</h2>
-              <p>{language === 'sv' ? 'Vi levererar till hela Sverige. Produkterna skickas från EU-lager för snabb leverans.' : 'We deliver throughout Sweden. Products ship from EU warehouses for fast delivery.'}</p>
+              <p>{language === 'sv' ? 'Vi levererar till hela Europa. Produkterna skickas från EU-lager för snabb leverans.' : 'We deliver throughout Europe. Products ship from EU warehouses for fast delivery.'}</p>
               
               <h2 className="font-display text-xl font-semibold text-foreground">{language === 'sv' ? 'Spårning' : 'Tracking'}</h2>
               <p>{language === 'sv' ? 'Du får spårningsinformation via e-post när din order har skickats.' : 'You\'ll receive tracking information via email when your order ships.'}</p>

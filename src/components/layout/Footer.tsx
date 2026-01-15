@@ -50,7 +50,7 @@ const Footer = () => {
                 {language === 'sv' ? 'Snabb support' : 'Quick support'}
               </span>
               <span className="flex items-center gap-1.5">
-                🌍 {language === 'sv' ? 'Leverans i Norden' : 'Nordic delivery'}
+                🌍 {language === 'sv' ? 'Leverans i Europa' : 'European delivery'}
               </span>
             </div>
             

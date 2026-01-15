@@ -23,7 +23,7 @@ const Hero = () => {
       ],
       features: [
         { icon: '🌍', text: 'Grundat 2026' },
-        { icon: '🚚', text: 'Leverans i Norden' },
+        { icon: '🚚', text: 'Leverans i Europa' },
         { icon: '💬', text: 'Transparent business' },
       ],
       ctaPrimary: 'Shoppa giftfritt nu',
@@ -44,7 +44,7 @@ const Hero = () => {
       ],
       features: [
         { icon: '🌍', text: 'Founded 2026' },
-        { icon: '🚚', text: 'Nordic delivery' },
+        { icon: '🚚', text: 'European delivery' },
         { icon: '💬', text: 'Transparent business' },
       ],
       ctaPrimary: 'Shop toxin-free now',

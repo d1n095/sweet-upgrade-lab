@@ -68,6 +68,47 @@ export type Database = {
           },
         ]
       }
+      affiliate_payout_requests: {
+        Row: {
+          affiliate_id: string
+          amount: number
+          created_at: string
+          id: string
+          notes: string | null
+          payout_type: string
+          processed_at: string | null
+          status: string
+        }
+        Insert: {
+          affiliate_id: string
+          amount: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payout_type?: string
+          processed_at?: string | null
+          status?: string
+        }
+        Update: {
+          affiliate_id?: string
+          amount?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payout_type?: string
+          processed_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_payout_requests_affiliate_id_fkey"
+            columns: ["affiliate_id"]
+            isOneToOne: false
+            referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       affiliate_payouts: {
         Row: {
           affiliate_id: string
@@ -114,12 +155,14 @@ export type Database = {
       }
       affiliates: {
         Row: {
+          auto_payout: boolean | null
           code: string
           commission_percent: number
           created_at: string
           email: string
           id: string
           is_active: boolean
+          min_payout_amount: number | null
           name: string
           notes: string | null
           paid_earnings: number
@@ -133,12 +176,14 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          auto_payout?: boolean | null
           code: string
           commission_percent?: number
           created_at?: string
           email: string
           id?: string
           is_active?: boolean
+          min_payout_amount?: number | null
           name: string
           notes?: string | null
           paid_earnings?: number
@@ -152,12 +197,14 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          auto_payout?: boolean | null
           code?: string
           commission_percent?: number
           created_at?: string
           email?: string
           id?: string
           is_active?: boolean
+          min_payout_amount?: number | null
           name?: string
           notes?: string | null
           paid_earnings?: number

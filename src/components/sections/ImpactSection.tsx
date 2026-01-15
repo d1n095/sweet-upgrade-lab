@@ -14,7 +14,7 @@ const ImpactSection = () => {
       titleHighlight: '– och det är vår styrka',
       description: 'Varje produkt du köper från oss är inte bara ett köp. Det är ett bidrag till något större.',
       promises: [
-        { icon: Users, text: 'Ett steg mot fler jobb i Sverige' },
+        { icon: Users, text: 'Ett steg mot fler jobb i Europa' },
         { icon: Sparkles, text: 'Ett steg mot giftfria hem' },
         { icon: Check, text: 'Ett steg mot transparent handel' },
         { icon: Rocket, text: 'Ditt bidrag till vår gemensamma framtid' }
@@ -29,7 +29,7 @@ const ImpactSection = () => {
       titleHighlight: '– and that is our strength',
       description: 'Every product you buy from us is not just a purchase. It is a contribution to something bigger.',
       promises: [
-        { icon: Users, text: 'A step towards more jobs in Sweden' },
+        { icon: Users, text: 'A step towards more jobs in Europe' },
         { icon: Sparkles, text: 'A step towards toxin-free homes' },
         { icon: Check, text: 'A step towards transparent trade' },
         { icon: Rocket, text: 'Your contribution to our shared future' }

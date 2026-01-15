@@ -75,9 +75,9 @@ const AboutUs = () => {
       <SEOHead
         title={language === 'sv' ? 'Om Oss - Vår Historia' : 'About Us - Our Story'}
         description={language === 'sv' 
-          ? 'Lär känna 4thepeople - ett svenskt företag med passion för hållbara och naturliga produkter.'
-          : 'Get to know 4thepeople - a Swedish company with a passion for sustainable and natural products.'}
-        keywords="om oss, hållbarhet, giftfritt, naturligt, svenskt företag"
+          ? 'Lär känna 4thepeople - ett europeiskt företag med passion för hållbara och naturliga produkter.'
+          : 'Get to know 4thepeople - a European company with a passion for sustainable and natural products.'}
+        keywords="om oss, hållbarhet, giftfritt, naturligt, europeiskt företag"
         canonical="/about"
       />
       <Header />
@@ -100,8 +100,8 @@ const AboutUs = () => {
             </h1>
             <p className="text-lg text-muted-foreground leading-relaxed">
               {language === 'sv' 
-                ? 'Vi är ett svenskt företag med en passion för hållbara och naturliga produkter. Vår vision är att göra det enkelt för alla att leva ett renare liv – utan att kompromissa med kvalitet eller stil.'
-                : 'We are a Swedish company with a passion for sustainable and natural products. Our vision is to make it easy for everyone to live a cleaner life – without compromising on quality or style.'}
+                ? 'Vi är ett europeiskt företag med en passion för hållbara och naturliga produkter. Vår vision är att göra det enkelt för alla att leva ett renare liv – utan att kompromissa med kvalitet eller stil.'
+                : 'We are a European company with a passion for sustainable and natural products. Our vision is to make it easy for everyone to live a cleaner life – without compromising on quality or style.'}
             </p>
           </motion.div>
         </section>

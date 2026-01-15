@@ -14,7 +14,7 @@ const TrustBadges = () => {
     },
     {
       icon: Truck,
-      title: { sv: 'Leverans i Norden', en: 'Nordic delivery' },
+      title: { sv: 'Leverans i Europa', en: 'European delivery' },
       description: { sv: `Gratis över ${storeConfig.shipping.freeShippingThreshold} kr`, en: `Free over ${storeConfig.shipping.freeShippingThreshold} SEK` }
     },
     {
