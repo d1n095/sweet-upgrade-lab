@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { storeConfig } from '@/config/storeConfig';
 import { toast } from 'sonner';
+import SEOHead from '@/components/seo/SEOHead';
 
 const Contact = () => {
   const { language } = useLanguage();
@@ -67,6 +68,14 @@ const Contact = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead
+        title={language === 'sv' ? 'Kontakta Oss' : 'Contact Us'}
+        description={language === 'sv' 
+          ? 'Kontakta 4thepeople - vi svarar inom 24 timmar. Frågor om beställningar, produkter eller samarbete.'
+          : 'Contact 4thepeople - we respond within 24 hours. Questions about orders, products or partnerships.'}
+        keywords="kontakt, kundservice, support, frågor"
+        canonical="/contact"
+      />
       <Header />
       
       <main className="pt-24 pb-20">

@@ -122,6 +122,8 @@ const ShopifyProductCard = ({ product, index, compact = false }: ShopifyProductC
                 <img
                   src={imageUrl}
                   alt={node.title}
+                  loading="lazy"
+                  decoding="async"
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                 />
               ) : (
@@ -233,6 +235,8 @@ const ShopifyProductCard = ({ product, index, compact = false }: ShopifyProductC
               <img
                 src={imageUrl}
                 alt={node.title}
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
               />
             ) : (

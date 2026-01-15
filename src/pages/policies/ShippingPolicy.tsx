@@ -4,12 +4,20 @@ import { useLanguage } from '@/context/LanguageContext';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { storeConfig } from '@/config/storeConfig';
+import SEOHead from '@/components/seo/SEOHead';
 
 const ShippingPolicy = () => {
   const { language } = useLanguage();
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead
+        title={language === 'sv' ? 'Fraktinformation' : 'Shipping Information'}
+        description={language === 'sv' 
+          ? `Fri frakt över ${storeConfig.shipping.freeShippingThreshold} kr. ${storeConfig.shipping.deliveryTime.sv}. Leverans till hela Sverige.`
+          : `Free shipping over ${storeConfig.shipping.freeShippingThreshold} kr. ${storeConfig.shipping.deliveryTime.en}. Delivery throughout Sweden.`}
+        canonical="/policies/shipping"
+      />
       <Header />
       <main className="pt-24 pb-20">
         <div className="container mx-auto px-4 max-w-3xl">
