@@ -7,6 +7,7 @@ import ShopifyProductCard from '@/components/product/ShopifyProductCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 
 const Bestsellers = () => {
   const { language } = useLanguage();
@@ -33,8 +34,48 @@ const Bestsellers = () => {
   useEffect(() => {
     const loadBestsellers = async () => {
       try {
-        const data = await fetchProducts(4);
-        setProducts(data);
+        // First, try to get actual bestseller data from product_sales
+        const { data: salesData, error: salesError } = await supabase
+          .from('product_sales')
+          .select('shopify_product_id, total_quantity_sold')
+          .order('total_quantity_sold', { ascending: false })
+          .limit(4);
+
+        // Fetch all products
+        const allProducts = await fetchProducts(50);
+
+        if (salesData && salesData.length > 0 && !salesError) {
+          // Sort products by sales data
+          const productMap = new Map(allProducts.map(p => [
+            p.node.id.replace('gid://shopify/Product/', ''),
+            p
+          ]));
+
+          const sortedBestsellers: ShopifyProduct[] = [];
+          
+          // Add products in order of sales
+          for (const sale of salesData) {
+            const product = productMap.get(sale.shopify_product_id);
+            if (product) {
+              sortedBestsellers.push(product);
+            }
+          }
+
+          // If we don't have enough, fill with remaining products
+          if (sortedBestsellers.length < 4) {
+            const usedIds = new Set(sortedBestsellers.map(p => p.node.id));
+            for (const product of allProducts) {
+              if (!usedIds.has(product.node.id) && sortedBestsellers.length < 4) {
+                sortedBestsellers.push(product);
+              }
+            }
+          }
+
+          setProducts(sortedBestsellers);
+        } else {
+          // Fallback: just use first 4 products
+          setProducts(allProducts.slice(0, 4));
+        }
       } catch (error) {
         console.error('Error fetching bestsellers:', error);
       } finally {
@@ -96,7 +137,7 @@ const Bestsellers = () => {
               viewport={{ once: true }}
               transition={{ delay: index * 0.1 }}
             >
-              <ShopifyProductCard product={product} index={index} compact />
+              <ShopifyProductCard product={product} index={index} compact isBestseller />
             </motion.div>
           ))}
         </div>

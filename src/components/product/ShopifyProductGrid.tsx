@@ -1,12 +1,13 @@
 import { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Package, Loader2, ArrowUpDown, Sparkles } from 'lucide-react';
+import { Package, Loader2, ArrowUpDown } from 'lucide-react';
 import ShopifyProductCard from '@/components/product/ShopifyProductCard';
 import { fetchProducts, ShopifyProduct } from '@/lib/shopify';
 import { categories } from '@/data/categories';
 import { useLanguage } from '@/context/LanguageContext';
 import { cn } from '@/lib/utils';
 import { useSearchStore } from '@/stores/searchStore';
+import { useBestsellers } from '@/hooks/useBestsellers';
 import {
   Select,
   SelectContent,
@@ -25,6 +26,7 @@ const ShopifyProductGrid = () => {
   const [activeCategory, setActiveCategory] = useState('all');
   const [sortOption, setSortOption] = useState<SortOption>('default');
   const searchQuery = useSearchStore(state => state.searchQuery);
+  const { isBestseller } = useBestsellers();
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -229,7 +231,12 @@ const ShopifyProductGrid = () => {
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ duration: 0.4, delay: index * 0.05, ease: [0.22, 1, 0.36, 1] }}
                 >
-                  <ShopifyProductCard product={product} index={index} compact />
+                  <ShopifyProductCard 
+                    product={product} 
+                    index={index} 
+                    compact 
+                    isBestseller={isBestseller(product.node.id)}
+                  />
                 </motion.div>
               ))}
             </AnimatePresence>

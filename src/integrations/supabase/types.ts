@@ -767,6 +767,36 @@ export type Database = {
         }
         Relationships: []
       }
+      product_sales: {
+        Row: {
+          created_at: string
+          id: string
+          last_sale_at: string | null
+          product_title: string
+          shopify_product_id: string
+          total_quantity_sold: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_sale_at?: string | null
+          product_title: string
+          shopify_product_id: string
+          total_quantity_sold?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_sale_at?: string | null
+          product_title?: string
+          shopify_product_id?: string
+          total_quantity_sold?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
