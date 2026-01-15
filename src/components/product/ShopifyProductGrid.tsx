@@ -131,19 +131,27 @@ const ShopifyProductGrid = () => {
             const Icon = category.icon;
             const isActive = activeCategory === category.id;
             return (
-              <button
+              <motion.button
                 key={category.id}
                 onClick={() => handleCategoryClick(category.id)}
+                whileHover={{ scale: 1.05, y: -2 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: "spring", stiffness: 400, damping: 17 }}
                 className={cn(
                   "flex items-center gap-2.5 px-5 py-3 rounded-full text-sm font-medium transition-all duration-300",
                   isActive 
                     ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25" 
-                    : "bg-card hover:bg-secondary border border-border/60 text-muted-foreground hover:text-foreground hover:border-border"
+                    : "bg-card hover:bg-secondary hover:shadow-md border border-border/60 text-muted-foreground hover:text-foreground hover:border-primary/30"
                 )}
               >
-                <Icon className="w-4 h-4" />
+                <motion.div
+                  animate={isActive ? { rotate: [0, -10, 10, 0] } : {}}
+                  transition={{ duration: 0.5 }}
+                >
+                  <Icon className="w-4 h-4" />
+                </motion.div>
                 <span>{category.name[language] || category.name.en}</span>
-              </button>
+              </motion.button>
             );
           })}
         </motion.div>
