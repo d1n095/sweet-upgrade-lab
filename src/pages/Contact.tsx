@@ -53,9 +53,9 @@ const Contact = () => {
       href: `tel:${storeConfig.contact.phone}`,
     },
     {
-      icon: MapPin,
-      label: { sv: 'Adress', en: 'Address' },
-      value: `${storeConfig.contact.address.street}, ${storeConfig.contact.address.zip} ${storeConfig.contact.address.city}`,
+      icon: MessageSquare,
+      label: { sv: 'Startup', en: 'Startup' },
+      value: `🇸🇪 ${language === 'sv' ? 'Svensk startup 2026' : 'Swedish startup 2026'}`,
       href: null,
     },
     {

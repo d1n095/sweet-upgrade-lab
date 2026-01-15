@@ -8,66 +8,66 @@ const ShippingInfo = () => {
 
   const content = {
     sv: {
-      title: 'Leverans & Frakt',
+      title: 'Leverans & Information',
       subtitle: 'Transparent information om hur vi levererar',
       items: [
         {
           icon: Package,
           title: 'Leveranstid',
-          description: '5-10 arbetsdagar',
-          detail: 'Vi skickar från pålitliga EU-lager'
+          description: `${storeConfig.shipping.deliveryDays} arbetsdagar`,
+          detail: 'Vi skickar från pålitliga leverantörer'
         },
         {
           icon: Truck,
-          title: 'Fraktkostnad',
+          title: 'Leveranskostnad',
           description: `${storeConfig.shipping.cost} kr`,
           detail: `Gratis vid köp över ${storeConfig.shipping.freeShippingThreshold} kr`
         },
         {
           icon: RotateCcw,
-          title: 'Returrätt',
+          title: 'Nöjdhetsgaranti',
           description: `${storeConfig.returns.period} dagars öppet köp`,
           detail: 'Enkla returer utan krångel'
         },
         {
           icon: MessageCircle,
-          title: 'Kundservice',
+          title: 'Personlig service',
           description: 'Svar inom 24 timmar',
           detail: storeConfig.contact.email
         }
       ],
-      footer: 'Spårningsnummer skickas när din order skeppas.'
+      footer: 'Spårningsnummer skickas när din order skeppas. Du får SMS-avisering vid leverans.'
     },
     en: {
-      title: 'Delivery & Shipping',
+      title: 'Delivery & Information',
       subtitle: 'Transparent information about how we deliver',
       items: [
         {
           icon: Package,
           title: 'Delivery time',
-          description: '5-10 business days',
-          detail: 'We ship from reliable EU warehouses'
+          description: `${storeConfig.shipping.deliveryDays} business days`,
+          detail: 'We ship from reliable suppliers'
         },
         {
           icon: Truck,
-          title: 'Shipping cost',
+          title: 'Delivery cost',
           description: `${storeConfig.shipping.cost} SEK`,
           detail: `Free on orders over ${storeConfig.shipping.freeShippingThreshold} SEK`
         },
         {
           icon: RotateCcw,
-          title: 'Returns',
+          title: 'Satisfaction guarantee',
           description: `${storeConfig.returns.period}-day return policy`,
           detail: 'Easy returns without hassle'
         },
         {
           icon: MessageCircle,
-          title: 'Customer service',
+          title: 'Personal service',
           description: 'Reply within 24 hours',
           detail: storeConfig.contact.email
         }
       ],
-      footer: 'Tracking number sent when your order ships.'
+      footer: 'Tracking number sent when your order ships. SMS notification on delivery.'
     }
   };
 

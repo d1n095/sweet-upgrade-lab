@@ -46,9 +46,7 @@ const SEOHead = ({
           telephone: storeConfig.contact.phone,
           address: {
             '@type': 'PostalAddress',
-            streetAddress: storeConfig.contact.address.street,
-            addressLocality: storeConfig.contact.address.city,
-            postalCode: storeConfig.contact.address.zip,
+            addressLocality: 'Stockholm',
             addressCountry: 'SE'
           },
           priceRange: '$$',
