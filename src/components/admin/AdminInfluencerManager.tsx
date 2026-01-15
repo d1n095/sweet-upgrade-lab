@@ -204,6 +204,33 @@ const AdminInfluencerManager = () => {
 
       if (error) throw error;
 
+      // Send notification email
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-influencer`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            ...(sessionData?.session?.access_token && {
+              'Authorization': `Bearer ${sessionData.session.access_token}`
+            })
+          },
+          body: JSON.stringify({
+            email: formData.email.toLowerCase(),
+            name: formData.name,
+            code,
+            maxProducts: parseInt(formData.maxProducts),
+            validUntil: formData.validUntil || null,
+            isUpdate: false,
+          }),
+        });
+        toast.success(language === 'sv' ? 'Email skickad till influencer!' : 'Email sent to influencer!');
+      } catch (emailError) {
+        console.error('Failed to send email:', emailError);
+        // Don't fail the whole operation if email fails
+      }
+
       toast.success(t.influencerAdded);
       resetForm();
       setIsAddDialogOpen(false);

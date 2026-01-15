@@ -7,6 +7,7 @@ import { fetchProducts, ShopifyProduct } from '@/lib/shopify';
 import { useLanguage } from '@/context/LanguageContext';
 import { useCartDiscounts } from '@/hooks/useCartDiscounts';
 import ShippingProgressBar from './ShippingProgressBar';
+import InfluencerCodeInput from './InfluencerCodeInput';
 
 interface ShopifyCartDrawerProps {
   isOpen: boolean;
@@ -340,6 +341,11 @@ const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
               <div className="p-4 border-t border-border space-y-3 bg-card">
                 {/* Smart shipping progress bar */}
                 <ShippingProgressBar cartTotal={finalTotal} />
+                
+                {/* Influencer code input */}
+                <InfluencerCodeInput 
+                  cartProductIds={items.map(item => item.product.node.id)}
+                />
                 
                 {/* Discounts section */}
                 {discounts.length > 0 && (
