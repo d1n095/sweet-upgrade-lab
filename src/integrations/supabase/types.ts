@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      affiliate_applications: {
+        Row: {
+          admin_notes: string | null
+          created_at: string
+          email: string
+          followers_count: string | null
+          id: string
+          name: string
+          phone: string | null
+          platform: string | null
+          processed_at: string | null
+          social_media: string | null
+          status: string
+          why_join: string | null
+        }
+        Insert: {
+          admin_notes?: string | null
+          created_at?: string
+          email: string
+          followers_count?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          platform?: string | null
+          processed_at?: string | null
+          social_media?: string | null
+          status?: string
+          why_join?: string | null
+        }
+        Update: {
+          admin_notes?: string | null
+          created_at?: string
+          email?: string
+          followers_count?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          platform?: string | null
+          processed_at?: string | null
+          social_media?: string | null
+          status?: string
+          why_join?: string | null
+        }
+        Relationships: []
+      }
       affiliate_orders: {
         Row: {
           affiliate_id: string
@@ -466,6 +511,89 @@ export type Database = {
           interest_type?: string
           message?: string | null
           session_id?: string | null
+        }
+        Relationships: []
+      }
+      legal_document_versions: {
+        Row: {
+          content_en: string
+          content_sv: string
+          created_at: string
+          created_by: string | null
+          document_id: string
+          id: string
+          title_en: string
+          title_sv: string
+          version: number
+        }
+        Insert: {
+          content_en: string
+          content_sv: string
+          created_at?: string
+          created_by?: string | null
+          document_id: string
+          id?: string
+          title_en: string
+          title_sv: string
+          version: number
+        }
+        Update: {
+          content_en?: string
+          content_sv?: string
+          created_at?: string
+          created_by?: string | null
+          document_id?: string
+          id?: string
+          title_en?: string
+          title_sv?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legal_document_versions_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "legal_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      legal_documents: {
+        Row: {
+          content_en: string
+          content_sv: string
+          created_at: string
+          document_type: string
+          id: string
+          is_active: boolean
+          title_en: string
+          title_sv: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          content_en: string
+          content_sv: string
+          created_at?: string
+          document_type: string
+          id?: string
+          is_active?: boolean
+          title_en: string
+          title_sv: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          content_en?: string
+          content_sv?: string
+          created_at?: string
+          document_type?: string
+          id?: string
+          is_active?: boolean
+          title_en?: string
+          title_sv?: string
+          updated_at?: string
+          version?: number
         }
         Relationships: []
       }
