@@ -6,6 +6,7 @@ import { useCartStore } from '@/stores/cartStore';
 import { fetchProducts, ShopifyProduct } from '@/lib/shopify';
 import { useLanguage } from '@/context/LanguageContext';
 import { useCartDiscounts } from '@/hooks/useCartDiscounts';
+import ShippingProgressBar from './ShippingProgressBar';
 
 interface ShopifyCartDrawerProps {
   isOpen: boolean;
@@ -337,6 +338,9 @@ const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
             {/* Footer */}
             {items.length > 0 && (
               <div className="p-4 border-t border-border space-y-3 bg-card">
+                {/* Smart shipping progress bar */}
+                <ShippingProgressBar cartTotal={finalTotal} />
+                
                 {/* Discounts section */}
                 {discounts.length > 0 && (
                   <div className="space-y-2 pb-3 border-b border-border/50">
@@ -390,9 +394,6 @@ const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
                     </>
                   )}
                 </Button>
-                <p className="text-xs text-center text-muted-foreground">
-                  {language === 'sv' ? 'Frakt beräknas i kassan' : 'Shipping calculated at checkout'}
-                </p>
               </div>
             )}
           </motion.div>
