@@ -11,7 +11,11 @@ import { useRecentlyViewedStore } from '@/stores/recentlyViewedStore';
 import SocialProofBadge from '@/components/engagement/SocialProofBadge';
 import LowStockBadge from '@/components/engagement/LowStockBadge';
 import PaymentMethods from '@/components/trust/PaymentMethods';
+import ReviewSummary from '@/components/reviews/ReviewSummary';
+import ReviewList from '@/components/reviews/ReviewList';
+import ReviewForm from '@/components/reviews/ReviewForm';
 import { useLanguage } from '@/context/LanguageContext';
+import { useAuth } from '@/hooks/useAuth';
 
 const PRODUCT_QUERY = `
   query GetProduct($handle: String!) {
@@ -316,6 +320,22 @@ const ProductDetail = () => {
                 <PaymentMethods />
               </div>
             </motion.div>
+          </div>
+
+          {/* Reviews Section */}
+          <div className="mt-20 pt-16 border-t border-border">
+            <h2 className="font-display text-2xl md:text-3xl font-semibold mb-8 text-center">
+              {language === 'sv' ? 'Kundrecensioner' : 'Customer Reviews'}
+            </h2>
+            
+            <div className="grid lg:grid-cols-2 gap-10">
+              <ReviewList productHandle={handle} limit={5} />
+              <ReviewForm 
+                productId={product.id}
+                productHandle={handle || ''}
+                productTitle={product.title}
+              />
+            </div>
           </div>
         </div>
       </main>

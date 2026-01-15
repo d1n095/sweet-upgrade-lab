@@ -228,6 +228,98 @@ export type Database = {
         }
         Relationships: []
       }
+      review_rewards: {
+        Row: {
+          created_at: string
+          discount_code: string
+          discount_percent: number
+          expires_at: string
+          id: string
+          is_used: boolean
+          review_id: string
+          used_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          discount_code: string
+          discount_percent?: number
+          expires_at?: string
+          id?: string
+          is_used?: boolean
+          review_id: string
+          used_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          discount_code?: string
+          discount_percent?: number
+          expires_at?: string
+          id?: string
+          is_used?: boolean
+          review_id?: string
+          used_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_rewards_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "reviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reviews: {
+        Row: {
+          admin_response: string | null
+          admin_response_at: string | null
+          comment: string
+          created_at: string
+          id: string
+          is_approved: boolean
+          is_verified_purchase: boolean
+          product_title: string
+          rating: number
+          shopify_product_handle: string
+          shopify_product_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_response?: string | null
+          admin_response_at?: string | null
+          comment: string
+          created_at?: string
+          id?: string
+          is_approved?: boolean
+          is_verified_purchase?: boolean
+          product_title: string
+          rating: number
+          shopify_product_handle: string
+          shopify_product_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_response?: string | null
+          admin_response_at?: string | null
+          comment?: string
+          created_at?: string
+          id?: string
+          is_approved?: boolean
+          is_verified_purchase?: boolean
+          product_title?: string
+          rating?: number
+          shopify_product_handle?: string
+          shopify_product_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       search_logs: {
         Row: {
           created_at: string
