@@ -8,6 +8,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { useCartDiscounts } from '@/hooks/useCartDiscounts';
 import ShippingProgressBar from './ShippingProgressBar';
 import InfluencerCodeInput from './InfluencerCodeInput';
+import RoundUpDonation from './RoundUpDonation';
 
 interface ShopifyCartDrawerProps {
   isOpen: boolean;
@@ -30,10 +31,11 @@ const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [recommendations, setRecommendations] = useState<ShopifyProduct[]>([]);
   const [loadingRecs, setLoadingRecs] = useState(false);
+  const [donationAmount, setDonationAmount] = useState(0);
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const subtotal = items.reduce((sum, item) => sum + (parseFloat(item.price.amount) * item.quantity), 0);
-  const finalTotal = getDiscountedTotal();
+  const finalTotal = getDiscountedTotal() + donationAmount;
   const currencyCode = items[0]?.price.currencyCode || 'SEK';
 
   // Load recommendations when cart opens (both for empty and non-empty cart)
@@ -345,6 +347,13 @@ const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
                 {/* Influencer code input */}
                 <InfluencerCodeInput 
                   cartProductIds={items.map(item => item.product.node.id)}
+                />
+                
+                {/* Round up donation */}
+                <RoundUpDonation
+                  cartTotal={getDiscountedTotal()}
+                  currencyCode={currencyCode}
+                  onDonationChange={setDonationAmount}
                 />
                 
                 {/* Discounts section */}
