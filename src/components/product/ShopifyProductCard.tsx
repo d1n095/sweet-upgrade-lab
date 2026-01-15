@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { ShoppingCart, Check, Crown } from 'lucide-react';
+import { ShoppingCart, Check, Crown, Flame } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ShopifyProduct } from '@/lib/shopify';
@@ -9,17 +9,19 @@ import { useAuth } from '@/hooks/useAuth';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import QuantitySelector from './QuantitySelector';
-import SocialProofBadge from '@/components/engagement/SocialProofBadge';
 import LowStockBadge from '@/components/engagement/LowStockBadge';
 import WishlistButton from '@/components/wishlist/WishlistButton';
+import { useLanguage } from '@/context/LanguageContext';
 
 interface ShopifyProductCardProps {
   product: ShopifyProduct;
   index: number;
   compact?: boolean;
+  isBestseller?: boolean;
 }
 
-const ShopifyProductCard = ({ product, index, compact = false }: ShopifyProductCardProps) => {
+const ShopifyProductCard = ({ product, index, compact = false, isBestseller = false }: ShopifyProductCardProps) => {
+  const { language } = useLanguage();
   const { items, addItem } = useCartStore();
   const { getMemberPrice, getVolumeDiscount } = useMemberPrices();
   const { isMember } = useAuth();
@@ -131,9 +133,14 @@ const ShopifyProductCard = ({ product, index, compact = false }: ShopifyProductC
                   Ingen bild
                 </div>
               )}
-              {/* Social proof & stock badges on image */}
+              {/* Badges on image */}
               <div className="absolute bottom-2 left-2 flex flex-wrap gap-1">
-                <SocialProofBadge productId={node.id} compact showViewers showLimitedTime={false} />
+                {isBestseller && (
+                  <Badge className="bg-orange-500 text-white text-xs px-2 py-0.5">
+                    <Flame className="w-3 h-3 mr-1" />
+                    {language === 'sv' ? 'Populär' : 'Popular'}
+                  </Badge>
+                )}
                 <LowStockBadge productId={node.id} compact />
               </div>
             </div>
@@ -244,9 +251,14 @@ const ShopifyProductCard = ({ product, index, compact = false }: ShopifyProductC
                 Ingen bild
               </div>
             )}
-            {/* Social proof & stock badges on image */}
+            {/* Badges on image */}
             <div className="absolute bottom-2 left-2 flex flex-wrap gap-1.5">
-              <SocialProofBadge productId={node.id} compact showViewers />
+              {isBestseller && (
+                <Badge className="bg-orange-500 text-white px-2.5 py-1">
+                  <Flame className="w-3 h-3 mr-1" />
+                  {language === 'sv' ? 'Populär' : 'Popular'}
+                </Badge>
+              )}
               <LowStockBadge productId={node.id} compact />
             </div>
           </div>
