@@ -3,12 +3,20 @@ import { FileText } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
+import SEOHead from '@/components/seo/SEOHead';
 
 const TermsConditions = () => {
   const { language } = useLanguage();
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead
+        title={language === 'sv' ? 'Allmänna Villkor' : 'Terms & Conditions'}
+        description={language === 'sv' 
+          ? 'Läs våra allmänna villkor för köp, priser och betalning.'
+          : 'Read our terms and conditions for purchases, prices and payment.'}
+        canonical="/policies/terms"
+      />
       <Header />
       <main className="pt-24 pb-20">
         <div className="container mx-auto px-4 max-w-3xl">

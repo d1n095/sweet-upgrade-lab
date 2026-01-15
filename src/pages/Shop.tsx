@@ -7,6 +7,7 @@ import Footer from '@/components/layout/Footer';
 import ShopifyProductGrid from '@/components/product/ShopifyProductGrid';
 import { storeConfig } from '@/config/storeConfig';
 import { Button } from '@/components/ui/button';
+import SEOHead from '@/components/seo/SEOHead';
 import {
   Select,
   SelectContent,
@@ -24,6 +25,14 @@ const Shop = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead
+        title={language === 'sv' ? 'Butik - Alla Produkter' : 'Shop - All Products'}
+        description={language === 'sv' 
+          ? 'Utforska vårt sortiment av hållbara, giftfria produkter. Kroppsvård, teknik och naturliga kläder.'
+          : 'Explore our range of sustainable, toxin-free products. Body care, tech and natural clothing.'}
+        keywords="butik, shop, giftfri, naturlig, kroppsvård, powerbank, ekologiska kläder"
+        canonical="/shop"
+      />
       <Header />
       
       <main className="pt-24 pb-20">

@@ -3,6 +3,7 @@ import { Leaf, Heart, Shield, Truck, Users, Award } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
+import SEOHead from '@/components/seo/SEOHead';
 
 const AboutUs = () => {
   const { language } = useLanguage();
@@ -71,6 +72,14 @@ const AboutUs = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead
+        title={language === 'sv' ? 'Om Oss - Vår Historia' : 'About Us - Our Story'}
+        description={language === 'sv' 
+          ? 'Lär känna 4thepeople - ett svenskt företag med passion för hållbara och naturliga produkter.'
+          : 'Get to know 4thepeople - a Swedish company with a passion for sustainable and natural products.'}
+        keywords="om oss, hållbarhet, giftfritt, naturligt, svenskt företag"
+        canonical="/about"
+      />
       <Header />
       
       <main className="pt-24 pb-20">

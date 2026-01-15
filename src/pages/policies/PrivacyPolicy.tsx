@@ -3,12 +3,20 @@ import { Shield } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
+import SEOHead from '@/components/seo/SEOHead';
 
 const PrivacyPolicy = () => {
   const { language } = useLanguage();
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead
+        title={language === 'sv' ? 'Integritetspolicy' : 'Privacy Policy'}
+        description={language === 'sv' 
+          ? 'Läs om hur vi hanterar dina personuppgifter och dina rättigheter enligt GDPR.'
+          : 'Read about how we handle your personal data and your rights under GDPR.'}
+        canonical="/policies/privacy"
+      />
       <Header />
       <main className="pt-24 pb-20">
         <div className="container mx-auto px-4 max-w-3xl">
