@@ -352,6 +352,16 @@ const MemberProfile = () => {
             {/* Orders Tab */}
             <TabsContent value="orders">
               <OrderTracker />
+              
+              {/* Influencer Dashboard - visible to influencers */}
+              <div className="mt-6">
+                <InfluencerDashboard />
+              </div>
+              
+              {/* Affiliate Dashboard - visible to affiliates */}
+              <div className="mt-6">
+                <AffiliateDashboard />
+              </div>
             </TabsContent>
 
             {/* Overview Tab */}
@@ -499,6 +509,11 @@ const MemberProfile = () => {
                   {/* Influencer Manager */}
                   <div className="mt-6 pt-6 border-t border-border">
                     <AdminInfluencerManager />
+                  </div>
+
+                  {/* Affiliate Manager */}
+                  <div className="mt-6 pt-6 border-t border-border">
+                    <AdminAffiliateManager />
                   </div>
                 </motion.div>
               )}
