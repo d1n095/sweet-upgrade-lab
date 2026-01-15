@@ -17,6 +17,8 @@ import { useAdminRole } from '@/hooks/useAdminRole';
 import { useLanguage } from '@/context/LanguageContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import OrderTracker from '@/components/orders/OrderTracker';
+import AdminProductManager from '@/components/admin/AdminProductManager';
 
 interface Review {
   id: string;
@@ -317,8 +319,12 @@ const MemberProfile = () => {
           </motion.div>
 
           {/* Tabs */}
-          <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="mb-6">
+          <Tabs defaultValue="orders" className="w-full">
+            <TabsList className="mb-6 flex-wrap">
+              <TabsTrigger value="orders" className="gap-2">
+                <Package className="w-4 h-4" />
+                {language === 'sv' ? 'Mina ordrar' : 'My Orders'}
+              </TabsTrigger>
               <TabsTrigger value="overview" className="gap-2">
                 <User className="w-4 h-4" />
                 {t.tabs.overview}
@@ -338,6 +344,11 @@ const MemberProfile = () => {
                 )}
               </TabsTrigger>
             </TabsList>
+
+            {/* Orders Tab */}
+            <TabsContent value="orders">
+              <OrderTracker />
+            </TabsContent>
 
             {/* Overview Tab */}
             <TabsContent value="overview">
@@ -464,7 +475,7 @@ const MemberProfile = () => {
                   </div>
 
                   {/* Quick Actions */}
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2 mb-6">
                     <Link to="/admin/reviews">
                       <Button size="sm" className="gap-2">
                         <MessageCircle className="w-4 h-4" />
@@ -477,6 +488,9 @@ const MemberProfile = () => {
                       </Button>
                     </Link>
                   </div>
+
+                  {/* Product Manager */}
+                  <AdminProductManager />
                 </motion.div>
               )}
             </TabsContent>

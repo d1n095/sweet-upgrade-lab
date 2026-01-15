@@ -6,60 +6,71 @@
 
 @layer base {
   :root {
-    /* Professional green palette - clean & trustworthy */
+    /* Professional Green Palette - #1a5f3f based */
     --background: 0 0% 100%;
-    --foreground: 210 20% 15%;
+    --foreground: 210 20% 12%;
 
-    --card: 0 0% 98%;
-    --card-foreground: 210 20% 15%;
+    --card: 140 10% 98%;
+    --card-foreground: 210 20% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 210 20% 15%;
+    --popover-foreground: 210 20% 12%;
 
-    /* Deep forest green - trust & professionalism */
-    --primary: 153 56% 24%;
+    /* Deep forest green - #1a5f3f = hsl(153, 57%, 24%) */
+    --primary: 153 57% 24%;
     --primary-foreground: 0 0% 100%;
+    
+    /* Lighter green for hover */
+    --primary-light: 153 45% 35%;
+    --primary-dark: 153 60% 18%;
 
-    /* Light gray secondary */
-    --secondary: 210 20% 96%;
-    --secondary-foreground: 210 20% 25%;
+    /* Soft sage secondary */
+    --secondary: 140 15% 95%;
+    --secondary-foreground: 153 40% 20%;
 
-    --muted: 210 15% 94%;
-    --muted-foreground: 210 10% 45%;
+    --muted: 140 10% 93%;
+    --muted-foreground: 150 8% 45%;
 
-    /* Warm amber accent */
+    /* Warm amber accent - energetic contrast */
     --accent: 38 92% 50%;
-    --accent-foreground: 210 20% 10%;
+    --accent-foreground: 38 80% 15%;
+
+    /* Success green */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 210 15% 90%;
-    --input: 210 15% 90%;
-    --ring: 153 56% 24%;
+    --border: 140 15% 88%;
+    --input: 140 15% 88%;
+    --ring: 153 57% 24%;
 
-    --radius: 0.5rem;
+    --radius: 0.625rem;
 
-    /* Custom design tokens - Professional clean theme */
-    --gradient-primary: linear-gradient(135deg, hsl(153, 56%, 24%) 0%, hsl(153, 50%, 30%) 100%);
-    --gradient-warm: linear-gradient(180deg, hsl(0, 0%, 100%) 0%, hsl(210, 20%, 98%) 100%);
-    --gradient-card: linear-gradient(145deg, hsl(0, 0%, 99%) 0%, hsl(0, 0%, 97%) 100%);
-    --gradient-hero: linear-gradient(180deg, hsl(210, 20%, 98%) 0%, hsl(0, 0%, 100%) 50%, hsl(210, 15%, 97%) 100%);
-    --gradient-accent: linear-gradient(135deg, hsl(38, 92%, 50%) 0%, hsl(32, 90%, 45%) 100%);
+    /* Premium design tokens */
+    --gradient-primary: linear-gradient(135deg, hsl(153, 57%, 24%) 0%, hsl(153, 50%, 32%) 50%, hsl(153, 45%, 28%) 100%);
+    --gradient-primary-soft: linear-gradient(135deg, hsl(153, 57%, 24%, 0.1) 0%, hsl(153, 50%, 32%, 0.05) 100%);
+    --gradient-warm: linear-gradient(180deg, hsl(0, 0%, 100%) 0%, hsl(140, 15%, 98%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(140, 10%, 99%) 0%, hsl(140, 12%, 96%) 100%);
+    --gradient-hero: linear-gradient(180deg, hsl(140, 15%, 98%) 0%, hsl(0, 0%, 100%) 50%, hsl(140, 10%, 97%) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(38, 92%, 50%) 0%, hsl(32, 85%, 45%) 100%);
+    --gradient-surface: linear-gradient(180deg, hsl(140, 10%, 99%) 0%, hsl(140, 15%, 96%) 100%);
     
-    --shadow-soft: 0 2px 8px hsl(210, 15%, 85%, 0.4);
-    --shadow-card: 0 4px 16px hsl(210, 15%, 80%, 0.3);
-    --shadow-elevated: 0 8px 32px hsl(210, 15%, 75%, 0.25);
-    --shadow-glow: 0 0 24px hsl(153, 56%, 24%, 0.15);
+    --shadow-soft: 0 2px 8px hsl(153, 20%, 70%, 0.15);
+    --shadow-card: 0 4px 20px hsl(153, 30%, 60%, 0.12);
+    --shadow-elevated: 0 12px 40px hsl(153, 30%, 50%, 0.15);
+    --shadow-glow: 0 0 30px hsl(153, 57%, 24%, 0.2);
+    --shadow-glow-accent: 0 0 30px hsl(38, 92%, 50%, 0.25);
 
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 210 20% 15%;
-    --sidebar-primary: 153 56% 24%;
+    --sidebar-background: 140 10% 98%;
+    --sidebar-foreground: 210 20% 12%;
+    --sidebar-primary: 153 57% 24%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 20% 96%;
-    --sidebar-accent-foreground: 210 20% 25%;
-    --sidebar-border: 210 15% 90%;
-    --sidebar-ring: 153 56% 24%;
+    --sidebar-accent: 140 15% 95%;
+    --sidebar-accent-foreground: 153 40% 20%;
+    --sidebar-border: 140 15% 88%;
+    --sidebar-ring: 153 57% 24%;
   }
 }
 
