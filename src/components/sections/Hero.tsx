@@ -9,7 +9,7 @@ const Hero = () => {
   
   const content = {
     sv: {
-      badge: '🌍 Grundat 2026',
+      badge: 'Grundat 2026 🌍',
       title: 'Giftfria Produkter som Faktiskt Fungerar',
       subtitle: 'Vi är inte det största företaget. Vi är det noggrannaste i vår research. Varje produkt vi säljer är noggrant utvald efter ingrediensanalys, internationella certifieringar och användarrecensioner.',
       wePromise: [
@@ -30,7 +30,7 @@ const Hero = () => {
       ctaSecondary: 'Läs vår utvärderingsprocess',
     },
     en: {
-      badge: '🌍 Founded 2026',
+      badge: 'Founded 2026 🌍',
       title: 'Toxin-Free Products That Actually Work',
       subtitle: "We're not the biggest company. We're the most thorough in our research. Every product we sell is carefully selected based on ingredient analysis, international certifications and user reviews.",
       wePromise: [
