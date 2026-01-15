@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { ShoppingCart, Check, Crown, Flame } from 'lucide-react';
+import { ShoppingCart, Check, Crown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ShopifyProduct } from '@/lib/shopify';
@@ -94,8 +94,15 @@ const ShopifyProductCard = ({ product, index, compact = false, isBestseller = fa
       >
         <Link to={`/product/${node.handle}`}>
           <div className="glass-card p-3 h-full flex flex-col transition-all duration-300 hover:border-primary/30 glow-effect">
+            {/* Bestseller fire badge - top right corner */}
+            {isBestseller && (
+              <div className="absolute top-2 right-2 z-20 bg-orange-500 text-white text-xs px-2 py-1 rounded">
+                🔥
+              </div>
+            )}
+
             {/* Wishlist button */}
-            <div className="absolute top-2 right-2 z-10">
+            <div className="absolute top-2 right-10 z-10">
               <WishlistButton product={product} size="sm" className="bg-background/50 backdrop-blur-sm hover:bg-background/80" />
             </div>
 
@@ -133,14 +140,8 @@ const ShopifyProductCard = ({ product, index, compact = false, isBestseller = fa
                   Ingen bild
                 </div>
               )}
-              {/* Badges on image */}
+              {/* Low stock badge on image */}
               <div className="absolute bottom-2 left-2 flex flex-wrap gap-1">
-                {isBestseller && (
-                  <Badge className="bg-orange-500 text-white text-xs px-2 py-0.5">
-                    <Flame className="w-3 h-3 mr-1" />
-                    {language === 'sv' ? 'Populär' : 'Popular'}
-                  </Badge>
-                )}
                 <LowStockBadge productId={node.id} compact />
               </div>
             </div>
@@ -212,8 +213,15 @@ const ShopifyProductCard = ({ product, index, compact = false, isBestseller = fa
     >
       <Link to={`/product/${node.handle}`}>
         <div className="glass-card p-4 h-full flex flex-col transition-all duration-300 hover:border-primary/30 glow-effect">
+          {/* Bestseller fire badge - top right corner */}
+          {isBestseller && (
+            <div className="absolute top-2 right-2 z-20 bg-orange-500 text-white text-xs px-2 py-1 rounded">
+              🔥
+            </div>
+          )}
+
           {/* Wishlist button */}
-          <div className="absolute top-3 right-3 z-10">
+          <div className="absolute top-3 right-10 z-10">
             <WishlistButton product={product} className="bg-background/50 backdrop-blur-sm hover:bg-background/80" />
           </div>
 
@@ -251,14 +259,8 @@ const ShopifyProductCard = ({ product, index, compact = false, isBestseller = fa
                 Ingen bild
               </div>
             )}
-            {/* Badges on image */}
+            {/* Low stock badge on image */}
             <div className="absolute bottom-2 left-2 flex flex-wrap gap-1.5">
-              {isBestseller && (
-                <Badge className="bg-orange-500 text-white px-2.5 py-1">
-                  <Flame className="w-3 h-3 mr-1" />
-                  {language === 'sv' ? 'Populär' : 'Popular'}
-                </Badge>
-              )}
               <LowStockBadge productId={node.id} compact />
             </div>
           </div>
