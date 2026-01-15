@@ -21,6 +21,9 @@ import OrderTracker from '@/components/orders/OrderTracker';
 import AdminProductManager from '@/components/admin/AdminProductManager';
 import AdminInfluencerManager from '@/components/admin/AdminInfluencerManager';
 import AdminAffiliateManager from '@/components/admin/AdminAffiliateManager';
+import AdminPayoutManager from '@/components/admin/AdminPayoutManager';
+import AdminApplicationsManager from '@/components/admin/AdminApplicationsManager';
+import AdminLegalDocuments from '@/components/admin/AdminLegalDocuments';
 import InfluencerDashboard from '@/components/dashboard/InfluencerDashboard';
 import AffiliateDashboard from '@/components/dashboard/AffiliateDashboard';
 
@@ -514,6 +517,21 @@ const MemberProfile = () => {
                   {/* Affiliate Manager */}
                   <div className="mt-6 pt-6 border-t border-border">
                     <AdminAffiliateManager />
+                  </div>
+
+                  {/* Affiliate Applications */}
+                  <div className="mt-6 pt-6 border-t border-border">
+                    <AdminApplicationsManager />
+                  </div>
+
+                  {/* Payout Manager */}
+                  <div className="mt-6 pt-6 border-t border-border">
+                    <AdminPayoutManager />
+                  </div>
+
+                  {/* Legal Documents */}
+                  <div className="mt-6 pt-6 border-t border-border">
+                    <AdminLegalDocuments />
                   </div>
                 </motion.div>
               )}
