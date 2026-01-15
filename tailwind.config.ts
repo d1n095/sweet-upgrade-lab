@@ -14,8 +14,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['DM Sans', 'sans-serif'],
-        display: ['Playfair Display', 'serif'],
+        sans: ['Inter', 'DM Sans', 'sans-serif'],
+        display: ['Inter', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",
