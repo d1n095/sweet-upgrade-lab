@@ -7,6 +7,8 @@ import Bestsellers from '@/components/sections/Bestsellers';
 import ProductGridSkeleton from '@/components/loading/ProductGridSkeleton';
 import Testimonials from '@/components/sections/Testimonials';
 import ShippingInfo from '@/components/sections/ShippingInfo';
+import ImpactSection from '@/components/sections/ImpactSection';
+import BuilderSection from '@/components/sections/BuilderSection';
 import About from '@/components/sections/About';
 import RecentlyViewed from '@/components/engagement/RecentlyViewed';
 import FAQ from '@/components/sections/FAQ';
@@ -61,6 +63,12 @@ const Index = () => {
         
         {/* Shipping info - crucial for dropshipping trust */}
         <ShippingInfo />
+        
+        {/* Impact section - show social impact */}
+        <ImpactSection />
+        
+        {/* Builder section - recruit workers */}
+        <BuilderSection />
         
         {/* About - build brand connection */}
         <About />
