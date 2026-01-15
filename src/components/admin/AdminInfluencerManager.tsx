@@ -46,6 +46,11 @@ interface InfluencerProduct {
   received_at: string;
 }
 
+interface ProductStats {
+  product_title: string;
+  count: number;
+}
+
 const AdminInfluencerManager = () => {
   const { language } = useLanguage();
   const [influencers, setInfluencers] = useState<Influencer[]>([]);
@@ -54,6 +59,7 @@ const AdminInfluencerManager = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [productHistory, setProductHistory] = useState<Record<string, InfluencerProduct[]>>({});
+  const [productStats, setProductStats] = useState<ProductStats[]>([]);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -94,6 +100,10 @@ const AdminInfluencerManager = () => {
       influencerUpdated: 'Uppdaterad!',
       influencerDeleted: 'Borttagen!',
       error: 'Något gick fel',
+      resendEmail: 'Skicka email igen',
+      emailSent: 'Email skickat!',
+      topProducts: 'Mest populära produkter',
+      noStats: 'Ingen statistik ännu',
     },
     en: {
       title: 'Influencer & VIP',
@@ -125,6 +135,10 @@ const AdminInfluencerManager = () => {
       influencerUpdated: 'Updated!',
       influencerDeleted: 'Deleted!',
       error: 'Something went wrong',
+      resendEmail: 'Resend email',
+      emailSent: 'Email sent!',
+      topProducts: 'Most popular products',
+      noStats: 'No stats yet',
     }
   };
 
@@ -132,6 +146,7 @@ const AdminInfluencerManager = () => {
 
   useEffect(() => {
     loadInfluencers();
+    loadProductStats();
   }, []);
 
   const loadInfluencers = async () => {
@@ -147,6 +162,32 @@ const AdminInfluencerManager = () => {
       console.error('Failed to load influencers:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadProductStats = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('influencer_products')
+        .select('product_title');
+
+      if (error) throw error;
+      
+      // Count products by title
+      const counts: Record<string, number> = {};
+      (data || []).forEach((item: { product_title: string }) => {
+        counts[item.product_title] = (counts[item.product_title] || 0) + 1;
+      });
+      
+      // Convert to array and sort by count
+      const stats = Object.entries(counts)
+        .map(([product_title, count]) => ({ product_title, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5);
+      
+      setProductStats(stats);
+    } catch (error) {
+      console.error('Failed to load product stats:', error);
     }
   };
 
@@ -277,6 +318,34 @@ const AdminInfluencerManager = () => {
     }
   };
 
+  const resendEmail = async (influencer: Influencer) => {
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-influencer`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          ...(sessionData?.session?.access_token && {
+            'Authorization': `Bearer ${sessionData.session.access_token}`
+          })
+        },
+        body: JSON.stringify({
+          email: influencer.email,
+          name: influencer.name,
+          code: influencer.code,
+          maxProducts: influencer.max_products,
+          validUntil: influencer.valid_until,
+          isUpdate: true,
+        }),
+      });
+      toast.success(t.emailSent);
+    } catch (error) {
+      console.error('Failed to resend email:', error);
+      toast.error(t.error);
+    }
+  };
+
   const copyCode = (code: string) => {
     navigator.clipboard.writeText(code);
     toast.success(t.copied);
@@ -314,6 +383,25 @@ const AdminInfluencerManager = () => {
 
   return (
     <div className="space-y-4">
+      {/* Product Stats */}
+      {productStats.length > 0 && (
+        <div className="p-4 bg-gradient-to-r from-purple-500/5 to-pink-500/5 rounded-lg border border-purple-500/10">
+          <p className="text-sm font-medium mb-3 flex items-center gap-2">
+            <Gift className="w-4 h-4 text-purple-600" />
+            {t.topProducts}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {productStats.map((stat, index) => (
+              <Badge key={stat.product_title} variant="secondary" className="gap-1">
+                <span className="text-purple-600 font-bold">#{index + 1}</span>
+                {stat.product_title}
+                <span className="text-xs text-muted-foreground">({stat.count})</span>
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
@@ -555,12 +643,11 @@ const AdminInfluencerManager = () => {
                       </div>
 
                       {/* Actions */}
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2">
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => toggleActive(influencer.id, influencer.is_active)}
-                          className="flex-1"
                         >
                           {influencer.is_active ? (
                             <>
@@ -573,6 +660,14 @@ const AdminInfluencerManager = () => {
                               {t.activate}
                             </>
                           )}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => resendEmail(influencer)}
+                        >
+                          <Mail className="w-3 h-3 mr-1" />
+                          {t.resendEmail}
                         </Button>
                         <Button
                           size="sm"
