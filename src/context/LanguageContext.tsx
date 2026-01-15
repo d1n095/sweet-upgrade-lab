@@ -15,17 +15,17 @@ export const translations: Translations = {
   'nav.about': { sv: 'Om oss', en: 'About' },
   'nav.contact': { sv: 'Kontakt', en: 'Contact' },
   
-  // Hero - Magnetic but honest
-  'hero.badge': { sv: 'Giftfritt & Ärligt 2026', en: 'Toxin-free & Honest 2026' },
-  'hero.title': { sv: 'Byt till giftfritt. Bygg framtiden.', en: 'Switch to toxin-free. Build the future.' },
-  'hero.subtitle': { sv: '4thepeople är inte bara en butik – det är din protest mot ett system som prioriterar vinst före människor. Vi lovar inte mirakel. Vi lovar noggrant utvalda giftfria produkter, ärliga priser, och din röst i byggandet av något större.', en: "4thepeople is not just a store – it's your protest against a system that prioritizes profit over people. We don't promise miracles. We promise carefully selected toxin-free products, honest prices, and your voice in building something bigger." },
-  'hero.cta.products': { sv: 'Upptäck sortimentet', en: 'Discover our range' },
-  'hero.cta.contact': { sv: 'Läs vår story', en: 'Read our story' },
+  // Hero - Professional & Honest
+  'hero.badge': { sv: 'Svensk Startup 2024', en: 'Swedish Startup 2024' },
+  'hero.title': { sv: 'Giftfria Produkter för Sverige', en: 'Toxin-Free Products for Sweden' },
+  'hero.subtitle': { sv: 'Vi är inte det största företaget. Vi är det noggrannaste. Varje produkt vi säljer är testad och godkänd av oss själva. Inga mirakel. Inga överdrivna löften. Bara ärliga produkter till ärliga priser.', en: "We're not the biggest company. We're the most careful. Every product we sell is tested and approved by us. No miracles. No exaggerated promises. Just honest products at honest prices." },
+  'hero.cta.products': { sv: 'Shoppa nu', en: 'Shop now' },
+  'hero.cta.contact': { sv: 'Läs mer om oss', en: 'Read more about us' },
   'hero.feature.toxinfree': { sv: 'Noggrant utvalt', en: 'Carefully selected' },
-  'hero.feature.quality': { sv: 'Ärliga priser', en: 'Honest prices' },
+  'hero.feature.quality': { sv: '30 dagars öppet köp', en: '30-day returns' },
   'hero.feature.shipping': { sv: 'Snabb leverans', en: 'Fast delivery' },
-  'hero.feature.service': { sv: 'Din röst räknas', en: 'Your voice matters' },
-  
+  'hero.feature.service': { sv: 'Personlig kundservice', en: 'Personal service' },
+
   // Products
   'products.title': { sv: 'Våra Produkter', en: 'Our Products' },
   'products.addtocart': { sv: 'Lägg i varukorg', en: 'Add to cart' },

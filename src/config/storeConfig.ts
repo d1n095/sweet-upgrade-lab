@@ -13,7 +13,7 @@ export const storeConfig = {
 
   // Returns
   returns: {
-    period: 14, // days
+    period: 30, // days - updated to 30 days
     freeReturns: false,
   },
 

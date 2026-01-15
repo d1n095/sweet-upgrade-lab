@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Truck, Shield, RotateCcw, Clock } from 'lucide-react';
+import { Package, Truck, RotateCcw, MessageCircle } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { storeConfig } from '@/config/storeConfig';
 
@@ -8,58 +8,73 @@ const ShippingInfo = () => {
 
   const content = {
     sv: {
-      title: 'Trygg och snabb leverans',
-      subtitle: 'Vi skickar från EU för snabb leverans och säker handel',
-      shipping: {
-        title: 'Snabb leverans',
-        description: storeConfig.shipping.deliveryTime.sv
-      },
-      freeShipping: {
-        title: 'Fri frakt',
-        description: `Vid köp över ${storeConfig.shipping.freeShippingThreshold} kr`
-      },
-      returns: {
-        title: `${storeConfig.returns.period} dagars öppet köp`,
-        description: 'Enkla returer – ingen krångel'
-      },
-      secure: {
-        title: 'Säker betalning',
-        description: 'Klarna, kort, Swish & mer'
-      }
+      title: 'Leverans & Frakt',
+      subtitle: 'Transparent information om hur vi levererar',
+      items: [
+        {
+          icon: Package,
+          title: 'Leveranstid',
+          description: '5-10 arbetsdagar',
+          detail: 'Vi skickar från pålitliga EU-lager'
+        },
+        {
+          icon: Truck,
+          title: 'Fraktkostnad',
+          description: `${storeConfig.shipping.cost} kr`,
+          detail: `Gratis vid köp över ${storeConfig.shipping.freeShippingThreshold} kr`
+        },
+        {
+          icon: RotateCcw,
+          title: 'Returrätt',
+          description: `${storeConfig.returns.period} dagars öppet köp`,
+          detail: 'Enkla returer utan krångel'
+        },
+        {
+          icon: MessageCircle,
+          title: 'Kundservice',
+          description: 'Svar inom 24 timmar',
+          detail: storeConfig.contact.email
+        }
+      ],
+      footer: 'Spårningsnummer skickas när din order skeppas.'
     },
     en: {
-      title: 'Safe and fast delivery',
-      subtitle: 'We ship from EU for fast delivery and secure shopping',
-      shipping: {
-        title: 'Fast delivery',
-        description: storeConfig.shipping.deliveryTime.en
-      },
-      freeShipping: {
-        title: 'Free shipping',
-        description: `On orders over ${storeConfig.shipping.freeShippingThreshold} SEK`
-      },
-      returns: {
-        title: `${storeConfig.returns.period} days return policy`,
-        description: 'Easy returns – no hassle'
-      },
-      secure: {
-        title: 'Secure payment',
-        description: 'Klarna, card, Swish & more'
-      }
+      title: 'Delivery & Shipping',
+      subtitle: 'Transparent information about how we deliver',
+      items: [
+        {
+          icon: Package,
+          title: 'Delivery time',
+          description: '5-10 business days',
+          detail: 'We ship from reliable EU warehouses'
+        },
+        {
+          icon: Truck,
+          title: 'Shipping cost',
+          description: `${storeConfig.shipping.cost} SEK`,
+          detail: `Free on orders over ${storeConfig.shipping.freeShippingThreshold} SEK`
+        },
+        {
+          icon: RotateCcw,
+          title: 'Returns',
+          description: `${storeConfig.returns.period}-day return policy`,
+          detail: 'Easy returns without hassle'
+        },
+        {
+          icon: MessageCircle,
+          title: 'Customer service',
+          description: 'Reply within 24 hours',
+          detail: storeConfig.contact.email
+        }
+      ],
+      footer: 'Tracking number sent when your order ships.'
     }
   };
 
   const t = content[language];
 
-  const features = [
-    { icon: Truck, ...t.shipping },
-    { icon: Clock, ...t.freeShipping },
-    { icon: RotateCcw, ...t.returns },
-    { icon: Shield, ...t.secure }
-  ];
-
   return (
-    <section className="py-16 bg-primary/5 border-y border-primary/10">
+    <section className="py-16 md:py-20 bg-secondary/30">
       <div className="container mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -73,24 +88,35 @@ const ShippingInfo = () => {
           <p className="text-muted-foreground">{t.subtitle}</p>
         </motion.div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-          {features.map((feature, index) => (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 max-w-5xl mx-auto">
+          {t.items.map((item, index) => (
             <motion.div
               key={index}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: index * 0.1 }}
-              className="flex flex-col items-center text-center p-4"
+              className="bg-background border border-border rounded-xl p-5 text-center"
             >
-              <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                <feature.icon className="w-7 h-7 text-primary" />
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <item.icon className="w-6 h-6 text-primary" />
               </div>
-              <h3 className="font-semibold mb-1">{feature.title}</h3>
-              <p className="text-sm text-muted-foreground">{feature.description}</p>
+              <h3 className="font-semibold mb-1">{item.title}</h3>
+              <p className="text-primary font-medium text-lg mb-1">{item.description}</p>
+              <p className="text-xs text-muted-foreground">{item.detail}</p>
             </motion.div>
           ))}
         </div>
+
+        <motion.p
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ delay: 0.4 }}
+          className="text-center text-sm text-muted-foreground mt-8"
+        >
+          {t.footer}
+        </motion.p>
       </div>
     </section>
   );

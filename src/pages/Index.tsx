@@ -5,16 +5,10 @@ import Hero from '@/components/sections/Hero';
 import TrustBadges from '@/components/sections/TrustBadges';
 import Bestsellers from '@/components/sections/Bestsellers';
 import ProductGridSkeleton from '@/components/loading/ProductGridSkeleton';
-import Testimonials from '@/components/sections/Testimonials';
 import ShippingInfo from '@/components/sections/ShippingInfo';
-import ImpactSection from '@/components/sections/ImpactSection';
-import BuilderSection from '@/components/sections/BuilderSection';
 import About from '@/components/sections/About';
-import RecentlyViewed from '@/components/engagement/RecentlyViewed';
 import FAQ from '@/components/sections/FAQ';
 import Newsletter from '@/components/sections/Newsletter';
-import PromoPopup from '@/components/promo/PromoPopup';
-import ExitIntentPopup from '@/components/engagement/ExitIntentPopup';
 import FloatingContactButton from '@/components/trust/FloatingContactButton';
 import SEOHead from '@/components/seo/SEOHead';
 import { useLanguage } from '@/context/LanguageContext';
@@ -34,23 +28,23 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead
-        title={language === 'sv' ? '4thepeople - Giftfria Produkter för ett Renare Liv' : '4thepeople - Toxin-Free Products for a Cleaner Life'}
+        title={language === 'sv' ? '4thepeople - Giftfria Produkter för Sverige' : '4thepeople - Toxin-Free Products for Sweden'}
         description={language === 'sv' 
-          ? 'Upptäck giftfria kroppsvårdsprodukter, hållbar teknik och naturliga kläder. Allt för ett renare och hälsosammare liv.'
-          : 'Discover toxin-free body care, sustainable tech and natural clothing. Everything for a cleaner, healthier life.'}
-        keywords="giftfri, naturlig, kroppsvård, tvål, tandkräm, deodorant, powerbank, ekologiska kläder, hållbart"
+          ? 'Vi är inte det största företaget. Vi är det noggrannaste. Upptäck noggrant utvalda giftfria produkter till ärliga priser.'
+          : "We're not the biggest company. We're the most careful. Discover carefully selected toxin-free products at honest prices."}
+        keywords="giftfri, naturlig, kroppsvård, hållbart, svensk, ekologisk"
         canonical="/"
         schemaType="Store"
       />
       <Header />
       <main>
-        {/* Hero - grab attention */}
+        {/* Hero - Professional & honest */}
         <Hero />
         
-        {/* TrustBadges - build trust immediately after hero */}
+        {/* TrustBadges - Build trust immediately */}
         <TrustBadges />
         
-        {/* Bestsellers - show popular products early */}
+        {/* Bestsellers - Show popular products early */}
         <Bestsellers />
         
         {/* Main product grid with lazy loading */}
@@ -58,33 +52,19 @@ const Index = () => {
           <ShopifyProductGrid />
         </Suspense>
         
-        {/* Testimonials - social proof after seeing products */}
-        <Testimonials />
-        
-        {/* Shipping info - crucial for dropshipping trust */}
+        {/* Shipping info - Transparency */}
         <ShippingInfo />
         
-        {/* Impact section - show social impact */}
-        <ImpactSection />
-        
-        {/* Builder section - recruit workers */}
-        <BuilderSection />
-        
-        {/* About - build brand connection */}
+        {/* About - Honest startup story */}
         <About />
         
-        {/* Recently viewed - personalized recommendations */}
-        <RecentlyViewed />
-        
-        {/* FAQ - answer questions before purchase */}
+        {/* FAQ - Answer questions before purchase */}
         <FAQ />
         
-        {/* Newsletter - capture leads last */}
+        {/* Newsletter - Capture leads */}
         <Newsletter />
       </main>
       <Footer />
-      <PromoPopup />
-      <ExitIntentPopup />
       <FloatingContactButton />
     </div>
   );
