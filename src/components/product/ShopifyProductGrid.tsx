@@ -7,7 +7,6 @@ import { categories } from '@/data/categories';
 import { useLanguage } from '@/context/LanguageContext';
 import { cn } from '@/lib/utils';
 import { useSearchStore } from '@/stores/searchStore';
-import { useBestsellers } from '@/hooks/useBestsellers';
 import {
   Select,
   SelectContent,
@@ -26,7 +25,6 @@ const ShopifyProductGrid = () => {
   const [activeCategory, setActiveCategory] = useState('all');
   const [sortOption, setSortOption] = useState<SortOption>('default');
   const searchQuery = useSearchStore(state => state.searchQuery);
-  const { isBestseller } = useBestsellers();
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -235,7 +233,6 @@ const ShopifyProductGrid = () => {
                     product={product} 
                     index={index} 
                     compact 
-                    isBestseller={isBestseller(product.node.id)}
                   />
                 </motion.div>
               ))}

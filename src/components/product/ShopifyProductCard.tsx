@@ -12,6 +12,7 @@ import QuantitySelector from './QuantitySelector';
 import LowStockBadge from '@/components/engagement/LowStockBadge';
 import WishlistButton from '@/components/wishlist/WishlistButton';
 import { useLanguage } from '@/context/LanguageContext';
+import { useProductSoldCount } from '@/hooks/useProductSales';
 
 interface ShopifyProductCardProps {
   product: ShopifyProduct;
@@ -20,7 +21,7 @@ interface ShopifyProductCardProps {
   isBestseller?: boolean;
 }
 
-const ShopifyProductCard = ({ product, index, compact = false, isBestseller = false }: ShopifyProductCardProps) => {
+const ShopifyProductCard = ({ product, index, compact = false, isBestseller: isBestsellerProp = false }: ShopifyProductCardProps) => {
   const { language } = useLanguage();
   const { items, addItem } = useCartStore();
   const { getMemberPrice, getVolumeDiscount } = useMemberPrices();
@@ -29,6 +30,10 @@ const ShopifyProductCard = ({ product, index, compact = false, isBestseller = fa
   const [quantity, setQuantity] = useState(1);
 
   const { node } = product;
+  
+  // Real-time sales tracking
+  const { soldCount, status, isBestseller: isBestsellerFromSales } = useProductSoldCount(node.id);
+  const showBestseller = isBestsellerProp || isBestsellerFromSales;
   const firstVariant = node.variants.edges[0]?.node;
   const imageUrl = node.images.edges[0]?.node.url;
   const regularPrice = parseFloat(node.priceRange.minVariantPrice.amount);
@@ -94,15 +99,22 @@ const ShopifyProductCard = ({ product, index, compact = false, isBestseller = fa
       >
         <Link to={`/product/${node.handle}`}>
           <div className="glass-card p-3 h-full flex flex-col transition-all duration-300 hover:border-primary/30 glow-effect">
-            {/* Bestseller fire badge - top right corner */}
-            {isBestseller && (
+            {/* Real-time popularity status badge */}
+            {status && (
+              <div className="absolute top-2 right-2 z-20 bg-green-100 text-green-800 text-xs px-2 py-1 rounded">
+                {status.status} ({status.count} {language === 'sv' ? 'personer' : 'people'})
+              </div>
+            )}
+            
+            {/* Bestseller fire badge - only show if no status badge */}
+            {!status && showBestseller && (
               <div className="absolute top-2 right-2 z-20 bg-orange-500 text-white text-xs px-2 py-1 rounded">
                 🔥
               </div>
             )}
 
             {/* Wishlist button */}
-            <div className="absolute top-2 right-10 z-10">
+            <div className={`absolute top-2 z-10 ${status || showBestseller ? 'right-32' : 'right-2'}`}>
               <WishlistButton product={product} size="sm" className="bg-background/50 backdrop-blur-sm hover:bg-background/80" />
             </div>
 
@@ -213,15 +225,22 @@ const ShopifyProductCard = ({ product, index, compact = false, isBestseller = fa
     >
       <Link to={`/product/${node.handle}`}>
         <div className="glass-card p-4 h-full flex flex-col transition-all duration-300 hover:border-primary/30 glow-effect">
-          {/* Bestseller fire badge - top right corner */}
-          {isBestseller && (
-            <div className="absolute top-2 right-2 z-20 bg-orange-500 text-white text-xs px-2 py-1 rounded">
+          {/* Real-time popularity status badge */}
+          {status && (
+            <div className="absolute top-3 right-3 z-20 bg-green-100 text-green-800 text-xs px-2 py-1 rounded">
+              {status.status} ({status.count} {language === 'sv' ? 'personer' : 'people'})
+            </div>
+          )}
+          
+          {/* Bestseller fire badge - only show if no status badge */}
+          {!status && showBestseller && (
+            <div className="absolute top-3 right-3 z-20 bg-orange-500 text-white text-xs px-2 py-1 rounded">
               🔥
             </div>
           )}
 
           {/* Wishlist button */}
-          <div className="absolute top-3 right-10 z-10">
+          <div className={`absolute top-3 z-10 ${status || showBestseller ? 'right-36' : 'right-3'}`}>
             <WishlistButton product={product} className="bg-background/50 backdrop-blur-sm hover:bg-background/80" />
           </div>
 
