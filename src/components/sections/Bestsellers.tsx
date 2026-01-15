@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Flame, TrendingUp } from 'lucide-react';
+import { Flame, TrendingUp, Clock } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { fetchProducts, ShopifyProduct } from '@/lib/shopify';
 import ShopifyProductCard from '@/components/product/ShopifyProductCard';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 
 const Bestsellers = () => {
   const { language } = useLanguage();
@@ -15,12 +16,16 @@ const Bestsellers = () => {
     sv: {
       badge: 'Populära val',
       title: 'Bästsäljare',
-      subtitle: 'Våra mest älskade produkter – handplockade av våra kunder'
+      subtitle: 'Våra mest älskade produkter – handplockade av våra kunder',
+      urgency: 'Begränsat antal',
+      selling: 'Säljer snabbt'
     },
     en: {
       badge: 'Popular picks',
       title: 'Bestsellers',
-      subtitle: 'Our most loved products – handpicked by our customers'
+      subtitle: 'Our most loved products – handpicked by our customers',
+      urgency: 'Limited stock',
+      selling: 'Selling fast'
     }
   };
 
@@ -82,6 +87,23 @@ const Bestsellers = () => {
           <p className="text-muted-foreground max-w-md mx-auto">
             {t.subtitle}
           </p>
+          {/* Urgency banner */}
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.3 }}
+            className="mt-4 inline-flex items-center gap-2"
+          >
+            <Badge variant="destructive" className="animate-pulse">
+              <Clock className="w-3 h-3 mr-1" />
+              {t.urgency}
+            </Badge>
+            <Badge variant="secondary">
+              <TrendingUp className="w-3 h-3 mr-1" />
+              {t.selling}
+            </Badge>
+          </motion.div>
         </motion.div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
