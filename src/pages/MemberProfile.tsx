@@ -20,6 +20,9 @@ import { toast } from 'sonner';
 import OrderTracker from '@/components/orders/OrderTracker';
 import AdminProductManager from '@/components/admin/AdminProductManager';
 import AdminInfluencerManager from '@/components/admin/AdminInfluencerManager';
+import AdminAffiliateManager from '@/components/admin/AdminAffiliateManager';
+import InfluencerDashboard from '@/components/dashboard/InfluencerDashboard';
+import AffiliateDashboard from '@/components/dashboard/AffiliateDashboard';
 
 interface Review {
   id: string;
