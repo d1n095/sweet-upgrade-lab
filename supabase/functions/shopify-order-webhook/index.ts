@@ -26,6 +26,44 @@ serve(async (req) => {
     if (topic === 'orders/paid' || topic === 'orders/fulfilled') {
       const order = body;
       
+      // Track product sales for bestseller logic
+      const lineItems = order.line_items || [];
+      for (const item of lineItems) {
+        const productId = item.product_id?.toString();
+        const productTitle = item.title || 'Unknown';
+        const quantity = item.quantity || 1;
+
+        if (!productId) continue;
+
+        // Upsert product sales data
+        const { data: existing } = await supabase
+          .from('product_sales')
+          .select('id, total_quantity_sold')
+          .eq('shopify_product_id', productId)
+          .single();
+
+        if (existing) {
+          await supabase
+            .from('product_sales')
+            .update({
+              total_quantity_sold: existing.total_quantity_sold + quantity,
+              last_sale_at: new Date().toISOString()
+            })
+            .eq('id', existing.id);
+        } else {
+          await supabase
+            .from('product_sales')
+            .insert({
+              shopify_product_id: productId,
+              product_title: productTitle,
+              total_quantity_sold: quantity,
+              last_sale_at: new Date().toISOString()
+            });
+        }
+
+        console.log(`Updated sales for ${productTitle}: +${quantity}`);
+      }
+
       // Check for discount code (affiliate code)
       const discountCodes = order.discount_codes || [];
       

@@ -44,34 +44,34 @@ export const storeConfig = {
     veryLowStockThreshold: 2,
   },
 
-  // Categories
+  // Categories - matching Shopify product_type values
   categories: [
     {
-      id: 'teknik',
-      name: { sv: 'Teknik', en: 'Tech' },
-      description: { sv: 'Laddare, adaptrar, hörlurar', en: 'Chargers, adapters, headphones' },
-      shopifyTag: 'teknik',
+      id: 'elektronik',
+      name: { sv: 'Elektronik', en: 'Electronics' },
+      description: { sv: 'Laddare, powerbanks, kablar', en: 'Chargers, powerbanks, cables' },
+      shopifyProductType: 'Elektronik',
       active: true,
     },
     {
       id: 'hampa-klader',
       name: { sv: 'Hampa-kläder', en: 'Hemp Clothing' },
       description: { sv: 'Hållbara kläder i hampa', en: 'Sustainable hemp clothing' },
-      shopifyTag: 'hampa,klader',
+      shopifyProductType: 'Hampa-kläder',
       active: true,
     },
     {
       id: 'kroppsvard',
       name: { sv: 'Kroppsvård', en: 'Body Care' },
-      description: { sv: 'Naturlig tvål, lotion', en: 'Natural soap, lotion' },
-      shopifyTag: 'kroppsvard',
+      description: { sv: 'Naturlig tvål, tandvård, hudvård', en: 'Natural soap, dental care, skincare' },
+      shopifyProductType: 'Kroppsvård',
       active: true,
     },
     {
       id: 'cbd',
       name: { sv: 'CBD & Hampa', en: 'CBD & Hemp' },
       description: { sv: 'CBD-produkter (kommer snart)', en: 'CBD products (coming soon)' },
-      shopifyTag: 'cbd',
+      shopifyProductType: 'CBD',
       active: false, // Hidden but structure exists
     },
   ],
