@@ -55,7 +55,7 @@ const Contact = () => {
     {
       icon: MessageSquare,
       label: { sv: 'Startup', en: 'Startup' },
-      value: `🇸🇪 ${language === 'sv' ? 'Svensk startup 2026' : 'Swedish startup 2026'}`,
+      value: `🇪🇺 ${language === 'sv' ? 'Europeisk startup 2026' : 'European startup 2026'}`,
       href: null,
     },
     {

@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Share2, DollarSign, TrendingUp, Copy, Users, CreditCard, Clock } from 'lucide-react';
+import { Share2, DollarSign, TrendingUp, Copy, Users, CreditCard, Clock, Wallet, ArrowRight, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/context/LanguageContext';
@@ -20,13 +22,29 @@ interface AffiliateData {
   total_sales: number;
   is_active: boolean;
   payout_method: string;
+  min_payout_amount: number;
+  auto_payout: boolean;
+}
+
+interface PayoutRequest {
+  id: string;
+  amount: number;
+  payout_type: string;
+  status: string;
+  created_at: string;
+  processed_at: string | null;
 }
 
 const AffiliateDashboard = () => {
   const { language } = useLanguage();
   const { user } = useAuth();
   const [affiliateData, setAffiliateData] = useState<AffiliateData | null>(null);
+  const [payoutRequests, setPayoutRequests] = useState<PayoutRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [withdrawDialogOpen, setWithdrawDialogOpen] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [payoutType, setPayoutType] = useState<'cash' | 'store_credit'>('cash');
 
   const content = {
     sv: {
@@ -35,12 +53,11 @@ const AffiliateDashboard = () => {
       copyCode: 'Kopiera kod',
       copied: 'Kopierad!',
       totalEarnings: 'Totalt intjänat',
-      pendingEarnings: 'Väntar på utbetalning',
+      pendingEarnings: 'Tillgängligt saldo',
       paidEarnings: 'Utbetalt',
       totalSales: 'Total försäljning',
       totalOrders: 'Antal ordrar',
       commission: 'Din provision',
-      payoutThreshold: 'Utbetalning sker vid 500 kr',
       customerDiscount: 'Dina kunder får 10% rabatt',
       shareCode: 'Dela din kod och tjäna pengar!',
       inactive: 'Ditt konto är pausat',
@@ -48,6 +65,24 @@ const AffiliateDashboard = () => {
       step1: 'Dela din unika kod med dina följare',
       step2: 'De får 10% rabatt på sitt köp',
       step3: 'Du får provision på varje order',
+      withdraw: 'Ta ut pengar',
+      withdrawTitle: 'Begär utbetalning',
+      withdrawDesc: 'Välj belopp och utbetalningsmetod',
+      amount: 'Belopp',
+      payoutMethod: 'Utbetalningsmetod',
+      cash: 'Kontant (Swish/Bank)',
+      storeCredit: 'Butikskredit',
+      storeCreditBonus: '+10% bonus som butikskredit',
+      submit: 'Skicka begäran',
+      success: 'Utbetalningsbegäran skickad!',
+      payoutHistory: 'Utbetalningshistorik',
+      pending: 'Väntar',
+      approved: 'Godkänd',
+      paid: 'Utbetald',
+      rejected: 'Nekad',
+      noHistory: 'Ingen utbetalningshistorik ännu',
+      insufficientBalance: 'Otillräckligt saldo',
+      enterAmount: 'Ange belopp',
     },
     en: {
       title: 'Affiliate Dashboard',
@@ -55,12 +90,11 @@ const AffiliateDashboard = () => {
       copyCode: 'Copy code',
       copied: 'Copied!',
       totalEarnings: 'Total earnings',
-      pendingEarnings: 'Pending payout',
+      pendingEarnings: 'Available balance',
       paidEarnings: 'Paid out',
       totalSales: 'Total sales',
       totalOrders: 'Total orders',
       commission: 'Your commission',
-      payoutThreshold: 'Payout at 500 SEK',
       customerDiscount: 'Your customers get 10% off',
       shareCode: 'Share your code and earn money!',
       inactive: 'Your account is paused',
@@ -68,6 +102,24 @@ const AffiliateDashboard = () => {
       step1: 'Share your unique code with followers',
       step2: 'They get 10% off their purchase',
       step3: 'You earn commission on every order',
+      withdraw: 'Withdraw',
+      withdrawTitle: 'Request payout',
+      withdrawDesc: 'Choose amount and payout method',
+      amount: 'Amount',
+      payoutMethod: 'Payout method',
+      cash: 'Cash (Bank transfer)',
+      storeCredit: 'Store credit',
+      storeCreditBonus: '+10% bonus as store credit',
+      submit: 'Submit request',
+      success: 'Payout request submitted!',
+      payoutHistory: 'Payout history',
+      pending: 'Pending',
+      approved: 'Approved',
+      paid: 'Paid',
+      rejected: 'Rejected',
+      noHistory: 'No payout history yet',
+      insufficientBalance: 'Insufficient balance',
+      enterAmount: 'Enter amount',
     }
   };
 
@@ -95,6 +147,15 @@ const AffiliateDashboard = () => {
       }
 
       setAffiliateData(affiliate as unknown as AffiliateData);
+
+      // Load payout requests
+      const { data: requests } = await supabase
+        .from('affiliate_payout_requests')
+        .select('*')
+        .eq('affiliate_id', affiliate.id)
+        .order('created_at', { ascending: false });
+
+      setPayoutRequests((requests || []) as unknown as PayoutRequest[]);
     } catch (error) {
       console.error('Failed to load affiliate data:', error);
     } finally {
@@ -117,7 +178,67 @@ const AffiliateDashboard = () => {
     }).format(amount);
   };
 
-  const payoutProgress = affiliateData ? Math.min((affiliateData.pending_earnings / 500) * 100, 100) : 0;
+  const handleWithdraw = async () => {
+    if (!affiliateData) return;
+    
+    const amount = parseFloat(withdrawAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast.error(t.enterAmount);
+      return;
+    }
+    
+    if (amount > affiliateData.pending_earnings) {
+      toast.error(t.insufficientBalance);
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from('affiliate_payout_requests')
+        .insert({
+          affiliate_id: affiliateData.id,
+          amount: amount,
+          payout_type: payoutType,
+        });
+
+      if (error) throw error;
+
+      // Update local pending earnings
+      setAffiliateData(prev => prev ? {
+        ...prev,
+        pending_earnings: prev.pending_earnings - amount
+      } : null);
+
+      toast.success(t.success);
+      setWithdrawDialogOpen(false);
+      setWithdrawAmount('');
+      loadAffiliateData();
+    } catch (error) {
+      console.error('Failed to submit payout request:', error);
+      toast.error('Error submitting request');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    const statusMap: Record<string, { label: string; color: string }> = {
+      pending: { label: t.pending, color: 'bg-amber-500/10 text-amber-600' },
+      approved: { label: t.approved, color: 'bg-blue-500/10 text-blue-600' },
+      paid: { label: t.paid, color: 'bg-green-500/10 text-green-600' },
+      rejected: { label: t.rejected, color: 'bg-red-500/10 text-red-600' },
+    };
+    return statusMap[status] || statusMap.pending;
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString(language === 'sv' ? 'sv-SE' : 'en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
 
   if (isLoading) {
     return (
@@ -129,7 +250,7 @@ const AffiliateDashboard = () => {
   }
 
   if (!affiliateData) {
-    return null; // User is not an affiliate
+    return null;
   }
 
   return (
@@ -178,6 +299,91 @@ const AffiliateDashboard = () => {
         </div>
       </div>
 
+      {/* Balance card with withdraw button */}
+      <div className="p-4 bg-gradient-to-r from-green-500/10 to-emerald-500/10 rounded-xl border border-green-500/20">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-muted-foreground">{t.pendingEarnings}</p>
+            <p className="text-3xl font-bold text-green-600">{formatCurrency(affiliateData.pending_earnings)}</p>
+          </div>
+          <Dialog open={withdrawDialogOpen} onOpenChange={setWithdrawDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2 bg-green-600 hover:bg-green-700">
+                <Wallet className="w-4 h-4" />
+                {t.withdraw}
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{t.withdrawTitle}</DialogTitle>
+                <DialogDescription>{t.withdrawDesc}</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 pt-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">{t.amount}</label>
+                  <div className="relative">
+                    <Input
+                      type="number"
+                      placeholder="0"
+                      value={withdrawAmount}
+                      onChange={(e) => setWithdrawAmount(e.target.value)}
+                      min="1"
+                      max={affiliateData.pending_earnings}
+                      className="pr-12"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                      SEK
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {language === 'sv' ? 'Max:' : 'Max:'} {formatCurrency(affiliateData.pending_earnings)}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-2 block">{t.payoutMethod}</label>
+                  <Select value={payoutType} onValueChange={(v) => setPayoutType(v as 'cash' | 'store_credit')}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cash">
+                        <div className="flex items-center gap-2">
+                          <CreditCard className="w-4 h-4" />
+                          {t.cash}
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="store_credit">
+                        <div className="flex items-center gap-2">
+                          <Wallet className="w-4 h-4" />
+                          {t.storeCredit}
+                          <span className="text-xs text-green-600 font-medium">{t.storeCreditBonus}</span>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Button 
+                  onClick={handleWithdraw} 
+                  className="w-full gap-2" 
+                  disabled={isSubmitting || !withdrawAmount}
+                >
+                  {isSubmitting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <>
+                      <ArrowRight className="w-4 h-4" />
+                      {t.submit}
+                    </>
+                  )}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+
       {/* Stats grid */}
       <div className="grid grid-cols-2 gap-3">
         <div className="p-4 bg-card border border-border rounded-xl">
@@ -185,7 +391,7 @@ const AffiliateDashboard = () => {
             <TrendingUp className="w-4 h-4" />
             <span className="text-xs">{t.totalEarnings}</span>
           </div>
-          <p className="text-2xl font-bold text-success">{formatCurrency(affiliateData.total_earnings)}</p>
+          <p className="text-2xl font-bold text-primary">{formatCurrency(affiliateData.total_earnings)}</p>
         </div>
         <div className="p-4 bg-card border border-border rounded-xl">
           <div className="flex items-center gap-2 text-muted-foreground mb-1">
@@ -197,9 +403,9 @@ const AffiliateDashboard = () => {
         <div className="p-4 bg-card border border-border rounded-xl">
           <div className="flex items-center gap-2 text-muted-foreground mb-1">
             <Clock className="w-4 h-4" />
-            <span className="text-xs">{t.pendingEarnings}</span>
+            <span className="text-xs">{t.totalSales}</span>
           </div>
-          <p className="text-xl font-bold text-amber-600">{formatCurrency(affiliateData.pending_earnings)}</p>
+          <p className="text-xl font-bold">{formatCurrency(affiliateData.total_sales)}</p>
         </div>
         <div className="p-4 bg-card border border-border rounded-xl">
           <div className="flex items-center gap-2 text-muted-foreground mb-1">
@@ -210,21 +416,30 @@ const AffiliateDashboard = () => {
         </div>
       </div>
 
-      {/* Payout progress */}
-      <div className="p-4 bg-card border border-border rounded-xl">
-        <div className="flex justify-between items-center mb-2">
-          <span className="text-sm font-medium">{t.payoutThreshold}</span>
-          <span className="text-sm text-muted-foreground">
-            {formatCurrency(affiliateData.pending_earnings)} / {formatCurrency(500)}
-          </span>
+      {/* Payout History */}
+      {payoutRequests.length > 0 && (
+        <div className="p-4 bg-card border border-border rounded-xl">
+          <h3 className="font-semibold mb-3">{t.payoutHistory}</h3>
+          <div className="space-y-2">
+            {payoutRequests.map((request) => {
+              const statusInfo = getStatusBadge(request.status);
+              return (
+                <div key={request.id} className="flex items-center justify-between p-2 bg-secondary/30 rounded-lg">
+                  <div>
+                    <p className="font-medium">{formatCurrency(request.amount)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatDate(request.created_at)} • {request.payout_type === 'store_credit' ? t.storeCredit : t.cash}
+                    </p>
+                  </div>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusInfo.color}`}>
+                    {statusInfo.label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         </div>
-        <Progress value={payoutProgress} className="h-3" />
-        {payoutProgress >= 100 && (
-          <p className="text-xs text-success mt-2">
-            ✓ {language === 'sv' ? 'Utbetalning kommer snart!' : 'Payout coming soon!'}
-          </p>
-        )}
-      </div>
+      )}
 
       {/* How it works */}
       <div className="p-4 bg-card border border-border rounded-xl">

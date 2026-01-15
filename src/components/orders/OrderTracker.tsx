@@ -55,7 +55,7 @@ const OrderTracker = () => {
         confirmed: 'Bekräftad',
         processing: 'Packas hos leverantör',
         shipped: 'Skickad',
-        in_transit: 'På väg till Sverige',
+        in_transit: 'På väg till dig',
         delivered: 'Levererad',
       },
       statusDescriptions: {
@@ -63,7 +63,7 @@ const OrderTracker = () => {
         confirmed: 'Betalning bekräftad, förbereder för packning',
         processing: 'Din order packas hos vår leverantör',
         shipped: 'Din order har skickats',
-        in_transit: 'Paketet är på väg till Sverige',
+        in_transit: 'Paketet är på väg till dig',
         delivered: 'Paketet har levererats!',
       },
     },
@@ -81,7 +81,7 @@ const OrderTracker = () => {
         confirmed: 'Confirmed',
         processing: 'Packing at supplier',
         shipped: 'Shipped',
-        in_transit: 'In transit to Sweden',
+        in_transit: 'In transit to you',
         delivered: 'Delivered',
       },
       statusDescriptions: {
@@ -89,7 +89,7 @@ const OrderTracker = () => {
         confirmed: 'Payment confirmed, preparing for packing',
         processing: 'Your order is being packed at our supplier',
         shipped: 'Your order has been shipped',
-        in_transit: 'The package is on its way to Sweden',
+        in_transit: 'The package is on its way to you',
         delivered: 'Your package has been delivered!',
       },
     }

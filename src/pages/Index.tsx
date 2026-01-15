@@ -29,11 +29,11 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead
-        title={language === 'sv' ? '4thepeople - Giftfria Produkter för Sverige' : '4thepeople - Toxin-Free Products for Sweden'}
+        title={language === 'sv' ? '4thepeople - Giftfria Produkter för Europa' : '4thepeople - Toxin-Free Products for Europe'}
         description={language === 'sv' 
           ? 'Vi är inte det största företaget. Vi är det noggrannaste i vår research. Upptäck noggrant utvalda giftfria produkter till ärliga priser.'
           : "We're not the biggest company. We're the most thorough in our research. Discover carefully selected toxin-free products at honest prices."}
-        keywords="giftfri, naturlig, kroppsvård, hållbart, svensk, ekologisk, dropshipping"
+        keywords="giftfri, naturlig, kroppsvård, hållbart, europeisk, ekologisk, dropshipping"
         canonical="/"
         schemaType="Store"
       />
