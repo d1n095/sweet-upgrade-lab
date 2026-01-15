@@ -5,6 +5,7 @@ import Hero from '@/components/sections/Hero';
 import TrustBadges from '@/components/sections/TrustBadges';
 import ProductGridSkeleton from '@/components/loading/ProductGridSkeleton';
 import ShippingInfo from '@/components/sections/ShippingInfo';
+import Testimonials from '@/components/sections/Testimonials';
 import About from '@/components/sections/About';
 import FAQ from '@/components/sections/FAQ';
 import Newsletter from '@/components/sections/Newsletter';
@@ -50,6 +51,9 @@ const Index = () => {
         
         {/* Shipping info - Transparency */}
         <ShippingInfo />
+        
+        {/* Testimonials - Honest about being new */}
+        <Testimonials />
         
         {/* About - Honest startup story */}
         <About />

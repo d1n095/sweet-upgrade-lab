@@ -1,17 +1,11 @@
 import { Link } from 'react-router-dom';
-import { Leaf, Mail, Phone, MapPin, Instagram, Facebook, Twitter, CreditCard, Wallet } from 'lucide-react';
+import { Leaf, Mail, MessageCircle, Instagram, Facebook, CreditCard, Wallet, Send } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { storeConfig } from '@/config/storeConfig';
 
 const Footer = () => {
   const { t, language } = useLanguage();
   
-  const socialLinks = [
-    { icon: Instagram, href: storeConfig.social.instagram, label: 'Instagram' },
-    { icon: Facebook, href: storeConfig.social.facebook, label: 'Facebook' },
-    { icon: Twitter, href: storeConfig.social.twitter, label: 'Twitter' },
-  ];
-
   const quickLinks = [
     { href: '/shop', label: language === 'sv' ? 'Alla produkter' : 'All Products' },
     { href: '/about', label: t('nav.about') },
@@ -29,10 +23,6 @@ const Footer = () => {
   
   return (
     <footer className="bg-card border-t border-border/50 relative overflow-hidden">
-      {/* Decorative elements */}
-      <div className="decorative-circle w-[400px] h-[400px] bg-primary/3 -top-48 -right-48" />
-      <div className="decorative-circle w-[300px] h-[300px] bg-accent/3 -bottom-32 -left-32" />
-      
       <div className="container mx-auto px-4 py-16 md:py-20 relative z-10">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 md:gap-12">
           {/* Brand */}
@@ -49,20 +39,51 @@ const Footer = () => {
               {t('footer.description')}
             </p>
             
+            {/* Contact info - simplified */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground mb-6">
+              <span className="flex items-center gap-1.5">
+                <Mail className="w-4 h-4 text-primary" />
+                {storeConfig.contact.email}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <MessageCircle className="w-4 h-4 text-primary" />
+                {language === 'sv' ? 'Snabb support' : 'Quick support'}
+              </span>
+              <span className="flex items-center gap-1.5">
+                🇸🇪 {language === 'sv' ? 'Svensk startup' : 'Swedish startup'}
+              </span>
+            </div>
+            
             {/* Social links */}
-            <div className="flex items-center gap-3">
-              {socialLinks.map((social) => (
+            <div className="space-y-3">
+              <p className="text-sm font-medium">{language === 'sv' ? 'Följ oss:' : 'Follow us:'}</p>
+              <div className="flex items-center gap-3">
                 <a
-                  key={social.label}
-                  href={social.href}
+                  href={storeConfig.social.instagram}
                   target="_blank"
                   rel="noopener noreferrer"
-                  aria-label={social.label}
+                  aria-label="Instagram"
                   className="w-10 h-10 rounded-xl bg-secondary/50 hover:bg-primary/10 flex items-center justify-center text-muted-foreground hover:text-primary transition-all duration-200"
                 >
-                  <social.icon className="w-5 h-5" />
+                  <Instagram className="w-5 h-5" />
                 </a>
-              ))}
+                <a
+                  href={storeConfig.social.facebook}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Facebook"
+                  className="w-10 h-10 rounded-xl bg-secondary/50 hover:bg-primary/10 flex items-center justify-center text-muted-foreground hover:text-primary transition-all duration-200"
+                >
+                  <Facebook className="w-5 h-5" />
+                </a>
+                <Link
+                  to="/#newsletter"
+                  aria-label="Newsletter"
+                  className="w-10 h-10 rounded-xl bg-secondary/50 hover:bg-primary/10 flex items-center justify-center text-muted-foreground hover:text-primary transition-all duration-200"
+                >
+                  <Send className="w-5 h-5" />
+                </Link>
+              </div>
             </div>
           </div>
 
@@ -94,58 +115,39 @@ const Footer = () => {
             </ul>
           </div>
 
-          {/* Contact */}
+          {/* Payment Methods */}
           <div>
-            <h4 className="font-display font-semibold text-lg mb-5">{t('footer.contact')}</h4>
-            <ul className="space-y-4 text-sm">
-              <li className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Mail className="w-4 h-4 text-primary" />
+            <h4 className="font-display font-semibold text-lg mb-5">
+              {language === 'sv' ? 'Betalsätt' : 'Payment'}
+            </h4>
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-3">
+                <div className="flex items-center gap-2 px-3 py-2 bg-secondary/50 rounded-lg">
+                  <CreditCard className="w-5 h-5 text-muted-foreground" />
+                  <span className="text-sm">Kort</span>
                 </div>
-                <a href={`mailto:${storeConfig.contact.email}`} className="text-muted-foreground hover:text-foreground transition-colors">
-                  {storeConfig.contact.email}
-                </a>
-              </li>
-              <li className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Phone className="w-4 h-4 text-primary" />
+                <div className="flex items-center gap-2 px-3 py-2 bg-secondary/50 rounded-lg">
+                  <Wallet className="w-5 h-5 text-muted-foreground" />
+                  <span className="text-sm">Klarna</span>
                 </div>
-                <a href={`tel:${storeConfig.contact.phone}`} className="text-muted-foreground hover:text-foreground transition-colors">
-                  {storeConfig.contact.phoneFormatted}
-                </a>
-              </li>
-              <li className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <MapPin className="w-4 h-4 text-primary" />
+                <div className="flex items-center gap-2 px-3 py-2 bg-secondary/50 rounded-lg">
+                  <span className="text-sm font-medium">Swish</span>
                 </div>
-                <span className="text-muted-foreground">
-                  {storeConfig.contact.address.street}<br />
-                  {storeConfig.contact.address.zip} {storeConfig.contact.address.city}
-                </span>
-              </li>
-            </ul>
-          </div>
-        </div>
-
-        {/* Payment Methods */}
-        <div className="mt-12 pt-8 border-t border-border/50">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <span className="text-sm">{language === 'sv' ? 'Betalningsmetoder:' : 'Payment methods:'}</span>
-              <div className="flex items-center gap-3 ml-2">
-                <CreditCard className="w-6 h-6" />
-                <Wallet className="w-6 h-6" />
-                <span className="text-xs font-medium px-2 py-1 bg-secondary rounded">Swish</span>
               </div>
-            </div>
-            <div className="text-sm text-muted-foreground">
-              {language === 'sv' ? `Fri frakt över ${storeConfig.shipping.freeShippingThreshold} kr` : `Free shipping over ${storeConfig.shipping.freeShippingThreshold} SEK`}
+              <p className="text-sm text-muted-foreground">
+                🔒 {language === 'sv' ? 'Säker betalning med SSL' : 'Secure SSL payment'}
+              </p>
+              <p className="text-sm text-primary font-medium">
+                {language === 'sv' 
+                  ? `Fri frakt över ${storeConfig.shipping.freeShippingThreshold} kr` 
+                  : `Free shipping over ${storeConfig.shipping.freeShippingThreshold} SEK`}
+              </p>
             </div>
           </div>
         </div>
 
         {/* Bottom bar */}
-        <div className="decorative-line mt-8 mb-8" />
+        <div className="decorative-line mt-12 mb-8" />
         
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
           <p>© {new Date().getFullYear()} {storeConfig.company.name}. {t('footer.rights')}</p>
