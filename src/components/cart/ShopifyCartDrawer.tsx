@@ -6,9 +6,12 @@ import { useCartStore } from '@/stores/cartStore';
 import { fetchProducts, ShopifyProduct } from '@/lib/shopify';
 import { useLanguage } from '@/context/LanguageContext';
 import { useCartDiscounts } from '@/hooks/useCartDiscounts';
+import { useAuth } from '@/hooks/useAuth';
 import ShippingProgressBar from './ShippingProgressBar';
 import InfluencerCodeInput from './InfluencerCodeInput';
 import RoundUpDonation from './RoundUpDonation';
+import LoginIncentives from '@/components/auth/LoginIncentives';
+import AuthModal from '@/components/auth/AuthModal';
 
 interface ShopifyCartDrawerProps {
   isOpen: boolean;
@@ -17,6 +20,7 @@ interface ShopifyCartDrawerProps {
 
 const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
   const { language } = useLanguage();
+  const { user } = useAuth();
   const { 
     items, 
     isLoading, 
@@ -32,6 +36,8 @@ const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
   const [recommendations, setRecommendations] = useState<ShopifyProduct[]>([]);
   const [loadingRecs, setLoadingRecs] = useState(false);
   const [donationAmount, setDonationAmount] = useState(0);
+  const [showLoginIncentive, setShowLoginIncentive] = useState(true);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const subtotal = items.reduce((sum, item) => sum + (parseFloat(item.price.amount) * item.quantity), 0);
@@ -344,6 +350,14 @@ const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
                 {/* Smart shipping progress bar */}
                 <ShippingProgressBar cartTotal={finalTotal} />
                 
+                {/* Login incentives for non-logged in users */}
+                {!user && showLoginIncentive && (
+                  <LoginIncentives 
+                    onLogin={() => setIsAuthOpen(true)}
+                    onContinue={() => setShowLoginIncentive(false)}
+                  />
+                )}
+                
                 {/* Influencer code input */}
                 <InfluencerCodeInput 
                   cartProductIds={items.map(item => item.product.node.id)}
@@ -414,6 +428,9 @@ const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
           </motion.div>
         </>
       )}
+      
+      {/* Auth Modal */}
+      <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
     </AnimatePresence>
   );
 };
