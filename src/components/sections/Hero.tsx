@@ -1,18 +1,40 @@
 import { motion } from 'framer-motion';
-import { ArrowRight, Check, Leaf } from 'lucide-react';
+import { ArrowRight, Leaf, Truck, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/context/LanguageContext';
 import { Link } from 'react-router-dom';
 
 const Hero = () => {
-  const { t, language } = useLanguage();
+  const { language } = useLanguage();
   
-  const features = [
-    { text: language === 'sv' ? 'Snabb leverans i Sverige' : 'Fast delivery in Sweden' },
-    { text: language === 'sv' ? '30 dagars öppet köp' : '30-day returns' },
-    { text: language === 'sv' ? 'Personlig kundservice' : 'Personal customer service' },
-    { text: language === 'sv' ? 'Noggrant utvalt sortiment' : 'Carefully curated selection' },
-  ];
+  const content = {
+    sv: {
+      badge: '🇸🇪 Svensk Startup 2026',
+      title: 'Giftfria Produkter för Sverige',
+      subtitle: 'Vi är inte det största företaget. Vi är det noggrannaste. Varje produkt vi säljer är testad och godkänd av oss själva. Inga mirakel. Inga löften. Bara ärliga produkter till ärliga priser.',
+      features: [
+        { icon: '🇸🇪', text: 'Svensk uppstart' },
+        { icon: '✅', text: 'Noggrant utvalt' },
+        { icon: '🚚', text: 'Snabb leverans' },
+      ],
+      ctaPrimary: 'Shoppa giftfritt nu',
+      ctaSecondary: 'Läs vår story',
+    },
+    en: {
+      badge: '🇸🇪 Swedish Startup 2026',
+      title: 'Toxin-Free Products for Sweden',
+      subtitle: "We're not the biggest company. We're the most careful. Every product we sell is tested and approved by us. No miracles. No promises. Just honest products at honest prices.",
+      features: [
+        { icon: '🇸🇪', text: 'Swedish startup' },
+        { icon: '✅', text: 'Carefully selected' },
+        { icon: '🚚', text: 'Fast delivery' },
+      ],
+      ctaPrimary: 'Shop toxin-free now',
+      ctaSecondary: 'Read our story',
+    }
+  };
+
+  const t = content[language as 'sv' | 'en'] || content.en;
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -35,7 +57,7 @@ const Hero = () => {
   };
 
   return (
-    <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden bg-gradient-to-b from-secondary/50 via-background to-background">
+    <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden bg-gradient-to-b from-secondary/30 via-background to-background">
       {/* Subtle decorative elements */}
       <div className="absolute top-20 right-[10%] w-64 h-64 bg-primary/5 rounded-full blur-3xl" />
       <div className="absolute bottom-20 left-[10%] w-48 h-48 bg-accent/5 rounded-full blur-3xl" />
@@ -53,7 +75,7 @@ const Hero = () => {
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-sm font-medium text-primary mb-8"
           >
             <Leaf className="w-4 h-4" />
-            <span>{t('hero.badge')}</span>
+            <span>{t.badge}</span>
           </motion.div>
 
           {/* Headline */}
@@ -61,7 +83,7 @@ const Hero = () => {
             variants={itemVariants}
             className="font-display text-4xl sm:text-5xl md:text-6xl font-semibold leading-[1.1] mb-6 text-foreground"
           >
-            {t('hero.title')}
+            {t.title}
           </motion.h1>
 
           {/* Subtitle */}
@@ -69,17 +91,17 @@ const Hero = () => {
             variants={itemVariants}
             className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed"
           >
-            {t('hero.subtitle')}
+            {t.subtitle}
           </motion.p>
 
-          {/* Features list */}
+          {/* Features list - simplified */}
           <motion.div
             variants={itemVariants}
-            className="flex flex-wrap justify-center gap-x-6 gap-y-3 mb-10"
+            className="flex flex-wrap justify-center gap-6 mb-10"
           >
-            {features.map((feature, index) => (
-              <div key={index} className="flex items-center gap-2 text-sm text-foreground/80">
-                <Check className="w-4 h-4 text-primary" />
+            {t.features.map((feature, index) => (
+              <div key={index} className="flex items-center gap-2 text-sm font-medium text-foreground/90 px-4 py-2 bg-secondary/50 rounded-full">
+                <span>{feature.icon}</span>
                 <span>{feature.text}</span>
               </div>
             ))}
@@ -92,19 +114,19 @@ const Hero = () => {
           >
             <Button
               size="lg"
-              className="h-12 px-8 text-base font-semibold gap-2 rounded-lg shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300 group"
+              className="h-14 px-10 text-base font-semibold gap-2 rounded-xl shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300 group"
               onClick={() => document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' })}
             >
-              {t('hero.cta.products')}
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              {t.ctaPrimary}
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </Button>
             <Link to="/about">
               <Button
                 variant="outline"
                 size="lg"
-                className="h-12 px-8 text-base rounded-lg border-2"
+                className="h-14 px-10 text-base rounded-xl border-2 hover:bg-secondary/50"
               >
-                {t('hero.cta.contact')}
+                {t.ctaSecondary}
               </Button>
             </Link>
           </motion.div>
