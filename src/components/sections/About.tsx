@@ -10,7 +10,7 @@ const About = () => {
       eyebrow: 'Om oss',
       title: 'Vi är i uppstartsfasen',
       titleHighlight: '– och det är vår fördel',
-      description: '4thepeople startade 2024 med en enkel idé: erbjuda giftfria alternativ utan att det kostar skjortan. Vi är inte stora. Vi är inte etablerade. Vi är noggranna.',
+      description: '4thepeople startar 2026 med en enkel idé: erbjuda giftfria alternativ utan att det kostar skjortan. Vi är inte stora. Vi är inte etablerade. Vi är noggranna.',
       promises: {
         title: 'Vad vi lovar:',
         items: [
@@ -21,11 +21,12 @@ const About = () => {
         ]
       },
       notPromises: {
-        title: 'Vad vi INTE lovar:',
+        title: 'Vad vi ALDRIG kommer göra:',
         items: [
-          'Mirakelprodukter',
-          'Överdrivna påståenden',
-          'Falska omdömen'
+          'Sälja "mirakelkurer" – det finns inga genvägar',
+          'Hitta på recensioner eller omdömen',
+          'Överdriva produkters effekt för att sälja mer',
+          'Dölja ursprung eller ingredienser'
         ]
       },
       footer: 'Din order gör skillnad – för dig, för miljön, för framtiden.'
@@ -34,7 +35,7 @@ const About = () => {
       eyebrow: 'About us',
       title: "We're in the startup phase",
       titleHighlight: '– and that is our advantage',
-      description: "4thepeople started in 2024 with a simple idea: offer toxin-free alternatives without breaking the bank. We're not big. We're not established. We're careful.",
+      description: "4thepeople launches in 2026 with a simple idea: offer toxin-free alternatives without breaking the bank. We're not big. We're not established. We're careful.",
       promises: {
         title: 'What we promise:',
         items: [
@@ -45,11 +46,12 @@ const About = () => {
         ]
       },
       notPromises: {
-        title: 'What we do NOT promise:',
+        title: 'What we will NEVER do:',
         items: [
-          'Miracle products',
-          'Exaggerated claims',
-          'Fake reviews'
+          'Sell "miracle cures" – there are no shortcuts',
+          'Make up reviews or testimonials',
+          'Exaggerate product effects to sell more',
+          'Hide origins or ingredients'
         ]
       },
       footer: 'Your order makes a difference – for you, for the environment, for the future.'

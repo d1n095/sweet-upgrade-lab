@@ -3,7 +3,6 @@ import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import Hero from '@/components/sections/Hero';
 import TrustBadges from '@/components/sections/TrustBadges';
-import Bestsellers from '@/components/sections/Bestsellers';
 import ProductGridSkeleton from '@/components/loading/ProductGridSkeleton';
 import ShippingInfo from '@/components/sections/ShippingInfo';
 import About from '@/components/sections/About';
@@ -43,9 +42,6 @@ const Index = () => {
         
         {/* TrustBadges - Build trust immediately */}
         <TrustBadges />
-        
-        {/* Bestsellers - Show popular products early */}
-        <Bestsellers />
         
         {/* Main product grid with lazy loading */}
         <Suspense fallback={<ProductGridSkeleton />}>

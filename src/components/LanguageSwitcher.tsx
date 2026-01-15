@@ -11,6 +11,9 @@ import { useLanguage, Language } from '@/context/LanguageContext';
 const languages: { code: Language; name: string; flag: string }[] = [
   { code: 'sv', name: 'Svenska', flag: '🇸🇪' },
   { code: 'en', name: 'English', flag: '🇬🇧' },
+  { code: 'no', name: 'Norsk', flag: '🇳🇴' },
+  { code: 'da', name: 'Dansk', flag: '🇩🇰' },
+  { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
 ];
 
 export const LanguageSwitcher = () => {
