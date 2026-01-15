@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   User, Package, Star, Gift, Settings, LogOut, 
-  ChevronRight, Loader2, Clock, Check, BadgeCheck
+  ChevronRight, Loader2, Clock, Check, BadgeCheck,
+  Shield, BarChart3, Users, TrendingUp, MessageCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +13,7 @@ import Footer from '@/components/layout/Footer';
 import ReviewStars from '@/components/reviews/ReviewStars';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useAdminRole } from '@/hooks/useAdminRole';
 import { useLanguage } from '@/context/LanguageContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -34,13 +36,23 @@ interface Reward {
   created_at: string;
 }
 
+interface AdminStats {
+  totalReviews: number;
+  pendingReviews: number;
+  approvedReviews: number;
+  averageRating: number;
+  totalMembers: number;
+}
+
 const MemberProfile = () => {
   const { language } = useLanguage();
   const { user, profile, loading: authLoading, signOut, isMember } = useAuth();
+  const { isAdmin, isLoading: adminLoading } = useAdminRole();
   const navigate = useNavigate();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [adminStats, setAdminStats] = useState<AdminStats | null>(null);
 
   const content = {
     sv: {
@@ -135,7 +147,10 @@ const MemberProfile = () => {
     if (user) {
       loadUserData();
     }
-  }, [user]);
+    if (isAdmin) {
+      loadAdminStats();
+    }
+  }, [user, isAdmin]);
 
   const loadUserData = async () => {
     if (!user) return;
@@ -162,6 +177,40 @@ const MemberProfile = () => {
       console.error('Failed to load user data:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadAdminStats = async () => {
+    try {
+      // Load review stats
+      const { data: allReviews } = await supabase
+        .from('reviews')
+        .select('rating, is_approved');
+
+      // Load member count
+      const { count: memberCount } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_member', true);
+
+      if (allReviews) {
+        const total = allReviews.length;
+        const pending = allReviews.filter(r => !r.is_approved).length;
+        const approved = allReviews.filter(r => r.is_approved).length;
+        const avgRating = total > 0 
+          ? Math.round((allReviews.reduce((sum, r) => sum + r.rating, 0) / total) * 10) / 10
+          : 0;
+
+        setAdminStats({
+          totalReviews: total,
+          pendingReviews: pending,
+          approvedReviews: approved,
+          averageRating: avgRating,
+          totalMembers: memberCount || 0,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load admin stats:', error);
     }
   };
 
@@ -349,6 +398,87 @@ const MemberProfile = () => {
                   </div>
                 </motion.div>
               </div>
+
+              {/* Admin Panel - Only visible to admins */}
+              {isAdmin && adminStats && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="mt-8"
+                >
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Shield className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg">
+                        {language === 'sv' ? 'Admin-panel' : 'Admin Panel'}
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        {language === 'sv' ? 'Snabböversikt och hantering' : 'Quick overview and management'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Admin Stats Grid */}
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+                    <div className="bg-card border border-border rounded-lg p-3">
+                      <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
+                        <BarChart3 className="w-3.5 h-3.5" />
+                        <span className="text-xs">{language === 'sv' ? 'Recensioner' : 'Reviews'}</span>
+                      </div>
+                      <p className="text-xl font-bold">{adminStats.totalReviews}</p>
+                    </div>
+                    <div className="bg-card border border-border rounded-lg p-3">
+                      <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
+                        <Clock className="w-3.5 h-3.5" />
+                        <span className="text-xs">{language === 'sv' ? 'Väntande' : 'Pending'}</span>
+                      </div>
+                      <p className="text-xl font-bold text-yellow-600">{adminStats.pendingReviews}</p>
+                    </div>
+                    <div className="bg-card border border-border rounded-lg p-3">
+                      <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
+                        <Check className="w-3.5 h-3.5" />
+                        <span className="text-xs">{language === 'sv' ? 'Godkända' : 'Approved'}</span>
+                      </div>
+                      <p className="text-xl font-bold text-green-600">{adminStats.approvedReviews}</p>
+                    </div>
+                    <div className="bg-card border border-border rounded-lg p-3">
+                      <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
+                        <TrendingUp className="w-3.5 h-3.5" />
+                        <span className="text-xs">{language === 'sv' ? 'Snittbetyg' : 'Avg Rating'}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <p className="text-xl font-bold">{adminStats.averageRating}</p>
+                        <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                      </div>
+                    </div>
+                    <div className="bg-card border border-border rounded-lg p-3">
+                      <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
+                        <Users className="w-3.5 h-3.5" />
+                        <span className="text-xs">{language === 'sv' ? 'Medlemmar' : 'Members'}</span>
+                      </div>
+                      <p className="text-xl font-bold">{adminStats.totalMembers}</p>
+                    </div>
+                  </div>
+
+                  {/* Quick Actions */}
+                  <div className="flex flex-wrap gap-2">
+                    <Link to="/admin/reviews">
+                      <Button size="sm" className="gap-2">
+                        <MessageCircle className="w-4 h-4" />
+                        {language === 'sv' ? 'Hantera recensioner' : 'Manage Reviews'}
+                        {adminStats.pendingReviews > 0 && (
+                          <Badge variant="secondary" className="ml-1">
+                            {adminStats.pendingReviews}
+                          </Badge>
+                        )}
+                      </Button>
+                    </Link>
+                  </div>
+                </motion.div>
+              )}
             </TabsContent>
 
             {/* Reviews Tab */}
