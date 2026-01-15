@@ -14,6 +14,164 @@ export type Database = {
   }
   public: {
     Tables: {
+      affiliate_orders: {
+        Row: {
+          affiliate_id: string
+          commission_amount: number
+          created_at: string
+          customer_discount: number
+          id: string
+          order_id: string | null
+          order_total: number
+          paid_at: string | null
+          shopify_order_id: string | null
+          status: string
+        }
+        Insert: {
+          affiliate_id: string
+          commission_amount: number
+          created_at?: string
+          customer_discount?: number
+          id?: string
+          order_id?: string | null
+          order_total: number
+          paid_at?: string | null
+          shopify_order_id?: string | null
+          status?: string
+        }
+        Update: {
+          affiliate_id?: string
+          commission_amount?: number
+          created_at?: string
+          customer_discount?: number
+          id?: string
+          order_id?: string | null
+          order_total?: number
+          paid_at?: string | null
+          shopify_order_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_orders_affiliate_id_fkey"
+            columns: ["affiliate_id"]
+            isOneToOne: false
+            referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "affiliate_orders_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      affiliate_payouts: {
+        Row: {
+          affiliate_id: string
+          amount: number
+          completed_at: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          payout_method: string
+          payout_reference: string | null
+          status: string
+        }
+        Insert: {
+          affiliate_id: string
+          amount: number
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payout_method: string
+          payout_reference?: string | null
+          status?: string
+        }
+        Update: {
+          affiliate_id?: string
+          amount?: number
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payout_method?: string
+          payout_reference?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_payouts_affiliate_id_fkey"
+            columns: ["affiliate_id"]
+            isOneToOne: false
+            referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      affiliates: {
+        Row: {
+          code: string
+          commission_percent: number
+          created_at: string
+          email: string
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          paid_earnings: number
+          payout_details: Json | null
+          payout_method: string | null
+          pending_earnings: number
+          total_earnings: number
+          total_orders: number
+          total_sales: number
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          code: string
+          commission_percent?: number
+          created_at?: string
+          email: string
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          paid_earnings?: number
+          payout_details?: Json | null
+          payout_method?: string | null
+          pending_earnings?: number
+          total_earnings?: number
+          total_orders?: number
+          total_sales?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          code?: string
+          commission_percent?: number
+          created_at?: string
+          email?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          paid_earnings?: number
+          payout_details?: Json | null
+          payout_method?: string | null
+          pending_earnings?: number
+          total_earnings?: number
+          total_orders?: number
+          total_sales?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       bundle_items: {
         Row: {
           bundle_id: string
@@ -574,6 +732,17 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      validate_affiliate_code: {
+        Args: { p_code: string }
+        Returns: {
+          affiliate_id: string
+          affiliate_name: string
+          commission_percent: number
+          customer_discount: number
+          is_valid: boolean
+          message: string
+        }[]
       }
       validate_influencer_code: {
         Args: { p_code: string; p_email: string }
