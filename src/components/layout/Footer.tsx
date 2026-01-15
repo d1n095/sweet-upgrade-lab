@@ -153,7 +153,7 @@ const Footer = () => {
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-3">
             <p>© {new Date().getFullYear()} {storeConfig.company.name}. {t('footer.rights')}</p>
-            <span className="text-xs opacity-60">🌍 Grundat 2026</span>
+            <span className="text-xs opacity-60">Grundat 2026 🌍</span>
           </div>
           <div className="flex items-center gap-6">
             <Link to="/policies/privacy" className="hover:text-foreground transition-colors">
