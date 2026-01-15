@@ -12,6 +12,7 @@ const Footer = () => {
     { href: '/how-it-works', label: language === 'sv' ? 'Så funkar det' : 'How It Works' },
     { href: '/contact', label: t('nav.contact') },
     { href: '/track-order', label: language === 'sv' ? 'Spåra order' : 'Track Order' },
+    { href: '/affiliate', label: language === 'sv' ? 'Bli affiliate' : 'Become Affiliate' },
   ];
 
   const customerServiceLinks = [
@@ -150,7 +151,10 @@ const Footer = () => {
         <div className="decorative-line mt-12 mb-8" />
         
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
-          <p>© {new Date().getFullYear()} {storeConfig.company.name}. {t('footer.rights')}</p>
+          <div className="flex items-center gap-3">
+            <p>© {new Date().getFullYear()} {storeConfig.company.name}. {t('footer.rights')}</p>
+            <span className="text-xs opacity-60">🌍 Grundat 2026</span>
+          </div>
           <div className="flex items-center gap-6">
             <Link to="/policies/privacy" className="hover:text-foreground transition-colors">
               {language === 'sv' ? 'Integritetspolicy' : 'Privacy Policy'}
