@@ -9,43 +9,43 @@ const Hero = () => {
   
   const content = {
     sv: {
-      badge: '🇸🇪 Svensk Startup 2026',
-      title: 'Giftfria Produkter för Sverige',
-      subtitle: 'Vi är inte det största företaget. Vi är det noggrannaste i vår research. Varje produkt vi säljer är noggrant utvald efter ingrediensanalys, certifieringar och användarrecensioner.',
+      badge: '🌍 Grundat 2026',
+      title: 'Giftfria Produkter som Faktiskt Fungerar',
+      subtitle: 'Vi är inte det största företaget. Vi är det noggrannaste i vår research. Varje produkt vi säljer är noggrant utvald efter ingrediensanalys, internationella certifieringar och användarrecensioner.',
       wePromise: [
         'Noggrann research av varje produkt',
         'Ärlig information om leveranstider (7-10 arbetsdagar)',
-        'Personlig support (vi svarar själva)',
+        'Personlig support på svenska och engelska',
       ],
       weDont: [
         'Mirakelprodukter som botar allt',
         'Blixtsnabb leverans från andra sidan jorden',
       ],
       features: [
-        { icon: '🇸🇪', text: 'Svensk startup 2026' },
-        { icon: '🔍', text: 'Noggrann research' },
-        { icon: '🚚', text: '7-10 arbetsdagar' },
+        { icon: '🌍', text: 'Grundat 2026' },
+        { icon: '🚚', text: 'Leverans i Norden' },
+        { icon: '💬', text: 'Transparent business' },
       ],
       ctaPrimary: 'Shoppa giftfritt nu',
       ctaSecondary: 'Läs vår utvärderingsprocess',
     },
     en: {
-      badge: '🇸🇪 Swedish Startup 2026',
-      title: 'Toxin-Free Products for Sweden',
-      subtitle: "We're not the biggest company. We're the most thorough in our research. Every product we sell is carefully selected based on ingredient analysis, certifications and user reviews.",
+      badge: '🌍 Founded 2026',
+      title: 'Toxin-Free Products That Actually Work',
+      subtitle: "We're not the biggest company. We're the most thorough in our research. Every product we sell is carefully selected based on ingredient analysis, international certifications and user reviews.",
       wePromise: [
         'Thorough research on every product',
         'Honest delivery info (7-10 business days)',
-        'Personal support (we answer ourselves)',
+        'Personal support in Swedish and English',
       ],
       weDont: [
         'Miracle products that cure everything',
         'Lightning-fast delivery from the other side of the world',
       ],
       features: [
-        { icon: '🇸🇪', text: 'Swedish startup 2026' },
-        { icon: '🔍', text: 'Thorough research' },
-        { icon: '🚚', text: '7-10 business days' },
+        { icon: '🌍', text: 'Founded 2026' },
+        { icon: '🚚', text: 'Nordic delivery' },
+        { icon: '💬', text: 'Transparent business' },
       ],
       ctaPrimary: 'Shop toxin-free now',
       ctaSecondary: 'Read our evaluation process',

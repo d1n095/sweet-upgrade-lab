@@ -10,27 +10,27 @@ const About = () => {
       eyebrow: 'Om oss',
       title: 'Vi är i uppstartsfasen',
       titleHighlight: '– och det är vår fördel',
-      description: '4thepeople startar 2026 med en enkel idé: göra det enklare att hitta giftfria alternativ utan att det kostar skjortan. Vi är inte stora. Vi är inte etablerade. Vi är noggranna i vår research.',
+      description: '4thepeople grundades 2026 med en enkel idé: göra det enklare att hitta giftfria alternativ utan att det kostar skjortan. Vi är inte stora. Vi är inte etablerade. Vi är noggranna.',
       transparency: {
         title: '🔍 Transparent affärsmodell',
-        text: 'Vi är en dropshipping-butik – men vi är selektiva. Vi väljer leverantörer med spårbar kvalitet och granskar varje produkt noggrant innan den läggs upp.'
+        text: 'Vi är en dropshipping-butik – men vi är selektiva. Vi väljer leverantörer med spårbar kvalitet och granskar internationella certifieringar noggrant innan produkter läggs upp.'
       },
       promises: {
         title: 'Vad vi gör:',
         items: [
-          'Granskar ingredienser och certifieringar',
+          'Granskar internationella certifieringar',
           'Väljer leverantörer med spårbar kvalitet',
-          'Läser tusentals användarrecensioner',
-          'Finns här om du har frågor'
+          'Analyserar globala användarrecensioner',
+          'Finns här om du har frågor (på svenska och engelska)'
         ]
       },
       notPromises: {
         title: 'Vad vi INTE gör och ALDRIG kommer göra:',
         items: [
           'Lovar mirakelprodukter som botar allt',
-          'Påstår att vi testar varje produkt fysiskt (omöjligt i dropshipping)',
+          'Påstår att vi testar varje produkt fysiskt',
           'Använder falska omdömen eller fejkad social proof',
-          'Lovar 2-dagars leverans från Kina (vi är ärliga om 5-10 dagar)',
+          'Lovar blixtsnabb leverans (vi är ärliga om 7-10 arbetsdagar)',
           'Påstår att vi är ett stort etablerat företag',
           'Gömmer att vi är dropshipping'
         ]
@@ -42,29 +42,29 @@ const About = () => {
       eyebrow: 'About us',
       title: "We're in the startup phase",
       titleHighlight: '– and that is our advantage',
-      description: "4thepeople launches in 2026 with a simple idea: make it easier to find toxin-free alternatives without breaking the bank. We're not big. We're not established. We're thorough in our research.",
+      description: "4thepeople was founded in 2026 with a simple idea: make it easier to find toxin-free alternatives without breaking the bank. We're not big. We're not established. We're thorough.",
       transparency: {
         title: '🔍 Transparent business model',
-        text: "We're a dropshipping store – but we're selective. We choose suppliers with traceable quality and carefully review every product before listing it."
+        text: "We're a dropshipping store – but we're selective. We choose suppliers with traceable quality and carefully review international certifications before listing products."
       },
       promises: {
         title: 'What we do:',
         items: [
-          'Review ingredients and certifications',
+          'Review international certifications',
           'Choose suppliers with traceable quality',
-          'Read thousands of user reviews',
-          "We're here if you have questions"
+          'Analyze global user reviews',
+          "We're here if you have questions (in Swedish and English)"
         ]
       },
       notPromises: {
         title: 'What we do NOT and will NEVER do:',
         items: [
           'Promise miracle products that cure everything',
-          'Claim we physically test every product (impossible in dropshipping)',
+          'Claim we physically test every product',
           'Use fake reviews or fake social proof',
-          'Promise 2-day delivery from China (we\'re honest about 5-10 days)',
+          "Promise lightning-fast delivery (we're honest about 7-10 business days)",
           'Pretend to be a large established company',
-          'Hide that we\'re dropshipping'
+          "Hide that we're dropshipping"
         ]
       },
       footer: "We're dropshipping – but we're selective. We're small – but we're honest.",

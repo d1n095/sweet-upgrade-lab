@@ -18,6 +18,7 @@ import ShippingPolicy from "./pages/policies/ShippingPolicy";
 import PrivacyPolicy from "./pages/policies/PrivacyPolicy";
 import TermsConditions from "./pages/policies/TermsConditions";
 import AdminReviews from "./pages/admin/AdminReviews";
+import MemberProfile from "./pages/MemberProfile";
 import NotFound from "./pages/NotFound";
 import CookieBanner from "./components/cookie/CookieBanner";
 
@@ -45,6 +46,7 @@ const App = () => (
             <Route path="/policies/privacy" element={<PrivacyPolicy />} />
             <Route path="/policies/terms" element={<TermsConditions />} />
             <Route path="/admin/reviews" element={<AdminReviews />} />
+            <Route path="/profile" element={<MemberProfile />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

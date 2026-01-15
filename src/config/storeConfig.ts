@@ -5,8 +5,11 @@ export const storeConfig = {
 
   // Shipping
   shipping: {
-    cost: 59, // SEK
-    freeShippingThreshold: 500, // SEK - set to 0 to disable (rundare siffra)
+    cost: 39, // SEK - reduced from 59
+    freeShippingThreshold: 500, // SEK
+    // Smart shipping: free between 480-520 for "generous" feel
+    generousFreeMin: 480,
+    generousFreeMax: 520,
     deliveryTime: {
       sv: '7–10 arbetsdagar från våra leverantörer',
       en: '7–10 business days from our suppliers',

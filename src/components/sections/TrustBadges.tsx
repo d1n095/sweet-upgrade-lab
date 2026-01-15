@@ -9,18 +9,18 @@ const TrustBadges = () => {
   const badges = [
     {
       icon: MapPin,
-      title: { sv: 'Svensk startup', en: 'Swedish startup' },
-      description: { sv: `Grundat ${storeConfig.foundingYear}`, en: `Founded ${storeConfig.foundingYear}` }
+      title: { sv: 'Grundat 2026', en: 'Founded 2026' },
+      description: { sv: 'Transparent business', en: 'Transparent business' }
     },
     {
       icon: Truck,
-      title: { sv: 'Gratis leverans', en: 'Free delivery' },
-      description: { sv: `Över ${storeConfig.shipping.freeShippingThreshold} kr`, en: `Over ${storeConfig.shipping.freeShippingThreshold} SEK` }
+      title: { sv: 'Leverans i Norden', en: 'Nordic delivery' },
+      description: { sv: `Gratis över ${storeConfig.shipping.freeShippingThreshold} kr`, en: `Free over ${storeConfig.shipping.freeShippingThreshold} SEK` }
     },
     {
       icon: Shield,
-      title: { sv: 'Köparskydd', en: 'Buyer protection' },
-      description: { sv: 'Klarna & säker betalning', en: 'Klarna & secure payment' }
+      title: { sv: 'Säkra betalningar', en: 'Secure payments' },
+      description: { sv: 'Köparskydd via Klarna', en: 'Buyer protection via Klarna' }
     },
     {
       icon: Mail,
