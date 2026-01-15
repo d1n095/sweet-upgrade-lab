@@ -88,7 +88,7 @@ const Hero = () => {
           {/* Headline */}
           <motion.h1
             variants={itemVariants}
-            className="font-display text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-semibold leading-[1.1] mb-8 text-balance"
+            className="font-display text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-semibold leading-[1.15] mb-8 text-balance"
           >
             {t('hero.title')}{' '}
             <span className="text-gradient relative inline-block">
