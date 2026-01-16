@@ -8,6 +8,7 @@ import { useCartStore } from '@/stores/cartStore';
 import { useSearchStore } from '@/stores/searchStore';
 import { useWishlistStore } from '@/stores/wishlistStore';
 import { useLanguage } from '@/context/LanguageContext';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import ShopifyCartDrawer from '@/components/cart/ShopifyCartDrawer';
 import WishlistDrawer from '@/components/wishlist/WishlistDrawer';
 import AuthModal from '@/components/auth/AuthModal';
@@ -170,7 +171,7 @@ const Header = () => {
                   className="pl-9 w-44 md:w-56 h-10 bg-secondary/50 border-transparent hover:border-border focus:border-primary/50 rounded-full text-sm transition-all"
                 />
               </div>
-              
+              <LanguageSwitcher />
 
               {/* Auth button */}
               {user ? (
