@@ -8,7 +8,6 @@ import { useCartStore } from '@/stores/cartStore';
 import { useSearchStore } from '@/stores/searchStore';
 import { useWishlistStore } from '@/stores/wishlistStore';
 import { useLanguage } from '@/context/LanguageContext';
-import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import ShopifyCartDrawer from '@/components/cart/ShopifyCartDrawer';
 import WishlistDrawer from '@/components/wishlist/WishlistDrawer';
 import AuthModal from '@/components/auth/AuthModal';
@@ -64,7 +63,16 @@ const Header = () => {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-18 md:h-20">
             {/* Logo */}
-            <Link to="/" className="flex items-center gap-3 group">
+            <button
+              onClick={() => {
+                if (location.pathname === '/') {
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                } else {
+                  window.location.href = '/';
+                }
+              }}
+              className="flex items-center gap-3 group cursor-pointer"
+            >
               <div className="relative">
                 <div className="w-11 h-11 rounded-xl bg-gradient-accent flex items-center justify-center shadow-lg shadow-accent/20">
                   <Leaf className="w-6 h-6 text-accent-foreground" />
@@ -73,7 +81,7 @@ const Header = () => {
               <span className="font-display text-xl font-semibold">
                 4The<span className="text-gradient">People</span>
               </span>
-            </Link>
+            </button>
 
             {/* Desktop Nav */}
             <nav className="hidden md:flex items-center gap-8">
@@ -162,7 +170,7 @@ const Header = () => {
                   className="pl-9 w-44 md:w-56 h-10 bg-secondary/50 border-transparent hover:border-border focus:border-primary/50 rounded-full text-sm transition-all"
                 />
               </div>
-              <LanguageSwitcher />
+              
 
               {/* Auth button */}
               {user ? (
