@@ -305,6 +305,44 @@ const Header = () => {
                   </Link>
                 </div>
                 <div className="mt-4 pt-4 border-t border-border/50 flex flex-col gap-1">
+                  {user ? (
+                    <>
+                      <Link
+                        to="/profile"
+                        className="flex items-center gap-3 text-foreground font-medium py-3 px-4 rounded-xl hover:bg-secondary/50 transition-colors"
+                      >
+                        <User className="w-5 h-5" />
+                        {language === 'sv' ? 'Min sida' : 'My Profile'}
+                        {isMember && (
+                          <span className="ml-auto flex items-center gap-1 text-xs text-accent">
+                            <Crown className="w-4 h-4" />
+                            Medlem
+                          </span>
+                        )}
+                      </Link>
+                      <button
+                        onClick={() => {
+                          signOut();
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className="flex items-center gap-3 text-muted-foreground font-medium py-3 px-4 rounded-xl hover:bg-secondary/50 transition-colors text-left"
+                      >
+                        <LogOut className="w-5 h-5" />
+                        {language === 'sv' ? 'Logga ut' : 'Sign out'}
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setIsAuthOpen(true);
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="flex items-center gap-3 text-foreground font-medium py-3 px-4 rounded-xl hover:bg-secondary/50 transition-colors text-left"
+                    >
+                      <User className="w-5 h-5" />
+                      {language === 'sv' ? 'Logga in / Skapa konto' : 'Sign in / Create account'}
+                    </button>
+                  )}
                   <Link
                     to="/track-order"
                     className="text-muted-foreground font-medium py-3 px-4 rounded-xl hover:bg-secondary/50 transition-colors"
