@@ -65,9 +65,9 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md"
+            className="fixed inset-x-4 top-[10%] sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:inset-x-auto z-50 w-auto sm:w-full max-w-md max-h-[85vh] overflow-y-auto"
           >
-            <div className="bg-card border border-border rounded-2xl shadow-elevated p-8">
+            <div className="bg-card border border-border rounded-2xl shadow-elevated p-6 sm:p-8">
               {/* Header */}
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
