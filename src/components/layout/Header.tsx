@@ -12,6 +12,7 @@ import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import ShopifyCartDrawer from '@/components/cart/ShopifyCartDrawer';
 import WishlistDrawer from '@/components/wishlist/WishlistDrawer';
 import AuthModal from '@/components/auth/AuthModal';
+import AccountDrawer from '@/components/auth/AccountDrawer';
 import { useAuth } from '@/hooks/useAuth';
 import { storeConfig } from '@/config/storeConfig';
 
@@ -26,6 +27,7 @@ const Header = () => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProductsHovered, setIsProductsHovered] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -173,25 +175,19 @@ const Header = () => {
               </div>
               <LanguageSwitcher />
 
-              {/* Auth button */}
+              {/* Auth/Account button */}
               {user ? (
-                <div className="hidden sm:flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="hidden sm:flex h-10 w-10 rounded-full hover:bg-secondary relative"
+                  onClick={() => setIsAccountOpen(true)}
+                >
+                  <User className="w-5 h-5" />
                   {isMember && (
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-accent/10 border border-accent/20">
-                      <Crown className="w-4 h-4 text-accent" />
-                      <span className="text-xs font-medium text-accent">Medlem</span>
-                    </div>
+                    <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-accent border-2 border-background" />
                   )}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => signOut()}
-                    className="h-10 w-10 rounded-full hover:bg-secondary"
-                    title={language === 'sv' ? 'Logga ut' : 'Sign out'}
-                  >
-                    <LogOut className="w-5 h-5" />
-                  </Button>
-                </div>
+                </Button>
               ) : (
                 <Button
                   variant="ghost"
@@ -307,19 +303,22 @@ const Header = () => {
                 <div className="mt-4 pt-4 border-t border-border/50 flex flex-col gap-1">
                   {user ? (
                     <>
-                      <Link
-                        to="/profile"
-                        className="flex items-center gap-3 text-foreground font-medium py-3 px-4 rounded-xl hover:bg-secondary/50 transition-colors"
+                      <button
+                        onClick={() => {
+                          setIsAccountOpen(true);
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className="flex items-center gap-3 text-foreground font-medium py-3 px-4 rounded-xl hover:bg-secondary/50 transition-colors text-left w-full"
                       >
                         <User className="w-5 h-5" />
-                        {language === 'sv' ? 'Min sida' : 'My Profile'}
+                        {language === 'sv' ? 'Mitt konto' : 'My Account'}
                         {isMember && (
                           <span className="ml-auto flex items-center gap-1 text-xs text-accent">
                             <Crown className="w-4 h-4" />
                             Medlem
                           </span>
                         )}
-                      </Link>
+                      </button>
                       <button
                         onClick={() => {
                           signOut();
@@ -359,6 +358,7 @@ const Header = () => {
       <ShopifyCartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
       <WishlistDrawer isOpen={isWishlistOpen} onClose={() => setIsWishlistOpen(false)} />
       <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
+      <AccountDrawer isOpen={isAccountOpen} onClose={() => setIsAccountOpen(false)} />
     </>
   );
 };
