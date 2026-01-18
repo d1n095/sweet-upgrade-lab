@@ -1,4 +1,4 @@
-import { Cpu, Shirt, Droplets, Grid } from 'lucide-react';
+import { Cpu, Shirt, Droplets, Grid, Flame } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 export interface Category {
@@ -6,6 +6,7 @@ export interface Category {
   name: { [key: string]: string };
   icon: LucideIcon;
   query?: string;
+  isBestsellerFilter?: boolean;
 }
 
 // Categories matching Shopify product_type values
@@ -15,6 +16,12 @@ export const categories: Category[] = [
     name: { sv: 'Alla', en: 'All', no: 'Alle', da: 'Alle', de: 'Alle', fi: 'Kaikki', nl: 'Alles', fr: 'Tout', es: 'Todo', pl: 'Wszystko' }, 
     icon: Grid,
     query: undefined
+  },
+  { 
+    id: 'bestsaljare', 
+    name: { sv: 'Bästsäljare', en: 'Bestsellers', no: 'Bestselgere', da: 'Bestsellere', de: 'Bestseller', fi: 'Bestsellerit', nl: 'Bestsellers', fr: 'Meilleures ventes', es: 'Más vendidos', pl: 'Bestsellery' }, 
+    icon: Flame,
+    isBestsellerFilter: true
   },
   { 
     id: 'elektronik', 

@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { ShoppingCart, Check, Crown } from 'lucide-react';
+import { ShoppingCart, Check, Crown, Flame } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ShopifyProduct } from '@/lib/shopify';
@@ -106,10 +106,10 @@ const ShopifyProductCard = ({ product, index, compact = false, isBestseller: isB
               </div>
             )}
             
-            {/* Bestseller fire badge - only show if no status badge */}
+            {/* Bestseller fire icon - positioned on image */}
             {!status && showBestseller && (
-              <div className="absolute top-2 right-2 z-20 bg-orange-500 text-white text-xs px-2 py-1 rounded">
-                🔥
+              <div className="absolute top-2 right-2 z-20 w-8 h-8 rounded-full bg-orange-500/90 backdrop-blur-sm flex items-center justify-center shadow-lg">
+                <Flame className="w-4 h-4 text-white" />
               </div>
             )}
 
@@ -232,10 +232,10 @@ const ShopifyProductCard = ({ product, index, compact = false, isBestseller: isB
             </div>
           )}
           
-          {/* Bestseller fire badge - only show if no status badge */}
+          {/* Bestseller fire icon - positioned on image */}
           {!status && showBestseller && (
-            <div className="absolute top-3 right-3 z-20 bg-orange-500 text-white text-xs px-2 py-1 rounded">
-              🔥
+            <div className="absolute top-3 right-3 z-20 w-10 h-10 rounded-full bg-orange-500/90 backdrop-blur-sm flex items-center justify-center shadow-lg">
+              <Flame className="w-5 h-5 text-white" />
             </div>
           )}
 

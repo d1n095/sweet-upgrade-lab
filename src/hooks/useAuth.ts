@@ -90,6 +90,10 @@ export const useAuth = () => {
   };
 
   const signOut = async () => {
+    clearLocalWishlist();
+    setUser(null);
+    setSession(null);
+    setProfile(null);
     const { error } = await supabase.auth.signOut();
     return { error };
   };

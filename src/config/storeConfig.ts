@@ -26,7 +26,7 @@ export const storeConfig = {
 
   // Contact
   contact: {
-    email: 'hej@4thepeople.se',
+    email: 'support@4thepeople.se',
     phone: '+46701234567',
     phoneFormatted: '070-123 45 67',
   },
@@ -46,6 +46,13 @@ export const storeConfig = {
 
   // Categories - matching Shopify product_type values
   categories: [
+    {
+      id: 'bestsaljare',
+      name: { sv: 'Bästsäljare', en: 'Bestsellers' },
+      description: { sv: 'Våra mest populära produkter', en: 'Our most popular products' },
+      shopifyProductType: '__bestseller__',
+      active: true,
+    },
     {
       id: 'elektronik',
       name: { sv: 'Elektronik', en: 'Electronics' },

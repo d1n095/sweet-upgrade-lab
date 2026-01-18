@@ -7,6 +7,7 @@ import { categories } from '@/data/categories';
 import { useLanguage } from '@/context/LanguageContext';
 import { cn } from '@/lib/utils';
 import { useSearchStore } from '@/stores/searchStore';
+import { supabase } from '@/integrations/supabase/client';
 import {
   Select,
   SelectContent,
@@ -24,7 +25,24 @@ const ShopifyProductGrid = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState('all');
   const [sortOption, setSortOption] = useState<SortOption>('default');
+  const [bestsellerIds, setBestsellerIds] = useState<string[]>([]);
   const searchQuery = useSearchStore(state => state.searchQuery);
+
+  // Load bestseller IDs from database
+  useEffect(() => {
+    const loadBestsellerIds = async () => {
+      const { data } = await supabase
+        .from('product_sales')
+        .select('shopify_product_id, total_quantity_sold')
+        .gte('total_quantity_sold', 10)
+        .order('total_quantity_sold', { ascending: false });
+      
+      if (data) {
+        setBestsellerIds(data.map(item => item.shopify_product_id));
+      }
+    };
+    loadBestsellerIds();
+  }, []);
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -32,15 +50,24 @@ const ShopifyProductGrid = () => {
         setIsLoading(true);
         setError(null);
         const category = categories.find(c => c.id === activeCategory);
-        let query = category?.query;
         
-        if (searchQuery.trim()) {
-          const searchFilter = `title:*${searchQuery}*`;
-          query = query ? `${query} AND ${searchFilter}` : searchFilter;
+        // Check if this is the bestseller category
+        if (category?.isBestsellerFilter) {
+          // Load all products and filter by bestseller IDs
+          const data = await fetchProducts(50);
+          const filteredProducts = data.filter(p => bestsellerIds.includes(p.node.id));
+          setProducts(filteredProducts);
+        } else {
+          let query = category?.query;
+          
+          if (searchQuery.trim()) {
+            const searchFilter = `title:*${searchQuery}*`;
+            query = query ? `${query} AND ${searchFilter}` : searchFilter;
+          }
+          
+          const data = await fetchProducts(50, query);
+          setProducts(data);
         }
-        
-        const data = await fetchProducts(50, query);
-        setProducts(data);
       } catch (err) {
         console.error('Failed to load products:', err);
         setError(t('products.error'));
@@ -51,7 +78,7 @@ const ShopifyProductGrid = () => {
 
     const debounce = setTimeout(loadProducts, 300);
     return () => clearTimeout(debounce);
-  }, [activeCategory, searchQuery, t]);
+  }, [activeCategory, searchQuery, t, bestsellerIds]);
 
   const handleCategoryClick = (categoryId: string) => {
     setActiveCategory(categoryId);
