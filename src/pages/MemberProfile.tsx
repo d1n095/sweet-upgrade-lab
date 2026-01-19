@@ -24,6 +24,7 @@ import AdminAffiliateManager from '@/components/admin/AdminAffiliateManager';
 import AdminPayoutManager from '@/components/admin/AdminPayoutManager';
 import AdminApplicationsManager from '@/components/admin/AdminApplicationsManager';
 import AdminLegalDocuments from '@/components/admin/AdminLegalDocuments';
+import AdminEmailTemplates from '@/components/admin/AdminEmailTemplates';
 import InfluencerDashboard from '@/components/dashboard/InfluencerDashboard';
 import AffiliateDashboard from '@/components/dashboard/AffiliateDashboard';
 import DonationImpact from '@/components/donations/DonationImpact';
@@ -538,6 +539,11 @@ const MemberProfile = () => {
                   {/* Legal Documents */}
                   <div className="mt-6 pt-6 border-t border-border">
                     <AdminLegalDocuments />
+                  </div>
+
+                  {/* Email Templates */}
+                  <div className="mt-6 pt-6 border-t border-border">
+                    <AdminEmailTemplates />
                   </div>
                 </motion.div>
               )}

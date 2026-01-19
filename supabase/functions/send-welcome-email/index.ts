@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -14,8 +15,38 @@ interface WelcomeEmailRequest {
   language?: 'sv' | 'en';
 }
 
+interface EmailTemplate {
+  subject_sv: string;
+  subject_en: string;
+  greeting_sv: string;
+  greeting_en: string;
+  intro_sv: string;
+  intro_en: string;
+  benefits_sv: string[];
+  benefits_en: string[];
+  cta_text_sv: string;
+  cta_text_en: string;
+  footer_sv: string;
+  footer_en: string;
+}
+
+const getDefaultTemplate = (language: 'sv' | 'en') => ({
+  subject: language === 'sv' ? 'Välkommen till 4thepeople! 🌿' : 'Welcome to 4thepeople! 🌿',
+  greeting: language === 'sv' ? 'Välkommen till familjen!' : 'Welcome to the family!',
+  intro: language === 'sv' 
+    ? 'Tack för att du registrerade dig hos oss. Du är nu medlem och har tillgång till exklusiva fördelar.'
+    : 'Thank you for signing up with us. You are now a member with access to exclusive benefits.',
+  benefits: language === 'sv'
+    ? ['💰 Exklusiva medlemspriser på alla produkter', '📦 Automatiska mängdrabatter', '🎁 Tillgång till paketpriser och erbjudanden', '⭐ Möjlighet att skriva recensioner och få rabatter']
+    : ['💰 Exclusive member prices on all products', '📦 Automatic volume discounts', '🎁 Access to bundle pricing and offers', '⭐ Ability to write reviews and earn discounts'],
+  cta: language === 'sv' ? 'Börja handla' : 'Start shopping',
+  footer: language === 'sv' ? 'Vi är glada att ha dig med oss! 💚' : "We're happy to have you with us! 💚",
+  team: language === 'sv' ? '4thepeople-teamet' : 'The 4thepeople team',
+  contact: 'Har du frågor? Kontakta oss på support@4thepeople.se',
+  benefitsTitle: language === 'sv' ? 'Dina medlemsfördelar:' : 'Your member benefits:',
+});
+
 const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -32,43 +63,40 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`Sending welcome email to: ${email} (language: ${language})`);
 
+    // Fetch template from database
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    let t = getDefaultTemplate(language);
+
+    const { data: templateData } = await supabase
+      .from('email_templates')
+      .select('*')
+      .eq('template_type', 'welcome')
+      .eq('is_active', true)
+      .single();
+
+    if (templateData) {
+      const tmpl = templateData as EmailTemplate;
+      t = {
+        subject: language === 'sv' ? tmpl.subject_sv : tmpl.subject_en,
+        greeting: language === 'sv' ? tmpl.greeting_sv : tmpl.greeting_en,
+        intro: language === 'sv' ? tmpl.intro_sv : tmpl.intro_en,
+        benefits: language === 'sv' ? tmpl.benefits_sv : tmpl.benefits_en,
+        cta: language === 'sv' ? tmpl.cta_text_sv : tmpl.cta_text_en,
+        footer: language === 'sv' ? tmpl.footer_sv : tmpl.footer_en,
+        team: language === 'sv' ? '4thepeople-teamet' : 'The 4thepeople team',
+        contact: 'Har du frågor? Kontakta oss på support@4thepeople.se',
+        benefitsTitle: language === 'sv' ? 'Dina medlemsfördelar:' : 'Your member benefits:',
+      };
+      console.log('Using custom template from database');
+    } else {
+      console.log('Using default template');
+    }
+
     const baseUrl = Deno.env.get("SITE_URL") || "https://4thepeople.se";
     const shopUrl = `${baseUrl}/shop`;
-
-    const content = {
-      sv: {
-        subject: 'Välkommen till 4thepeople! 🌿',
-        greeting: 'Välkommen till familjen!',
-        intro: 'Tack för att du registrerade dig hos oss. Du är nu medlem och har tillgång till exklusiva fördelar.',
-        benefits: [
-          '💰 Exklusiva medlemspriser på alla produkter',
-          '📦 Automatiska mängdrabatter',
-          '🎁 Tillgång till paketpriser och erbjudanden',
-          '⭐ Möjlighet att skriva recensioner och få rabatter'
-        ],
-        cta: 'Börja handla',
-        footer: 'Vi är glada att ha dig med oss! 💚',
-        team: '4thepeople-teamet',
-        contact: 'Har du frågor? Kontakta oss på support@4thepeople.se'
-      },
-      en: {
-        subject: 'Welcome to 4thepeople! 🌿',
-        greeting: 'Welcome to the family!',
-        intro: 'Thank you for signing up with us. You are now a member with access to exclusive benefits.',
-        benefits: [
-          '💰 Exclusive member prices on all products',
-          '📦 Automatic volume discounts',
-          '🎁 Access to bundle pricing and offers',
-          '⭐ Ability to write reviews and earn discounts'
-        ],
-        cta: 'Start shopping',
-        footer: 'We\'re happy to have you with us! 💚',
-        team: 'The 4thepeople team',
-        contact: 'Have questions? Contact us at support@4thepeople.se'
-      }
-    };
-
-    const t = content[language];
 
     const emailHtml = `
 <!DOCTYPE html>
@@ -103,7 +131,7 @@ const handler = async (req: Request): Promise<Response> => {
       <!-- Benefits -->
       <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 24px; margin-bottom: 32px;">
         <p style="font-weight: 600; color: #166534; margin: 0 0 16px 0; font-size: 16px;">
-          ${language === 'sv' ? 'Dina medlemsfördelar:' : 'Your member benefits:'}
+          ${t.benefitsTitle}
         </p>
         ${t.benefits.map(b => `<p style="color: #166534; margin: 8px 0; font-size: 14px;">${b}</p>`).join('')}
       </div>
