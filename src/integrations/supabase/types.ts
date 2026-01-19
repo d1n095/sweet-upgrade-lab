@@ -480,6 +480,66 @@ export type Database = {
           },
         ]
       }
+      email_templates: {
+        Row: {
+          benefits_en: string[]
+          benefits_sv: string[]
+          created_at: string
+          cta_text_en: string
+          cta_text_sv: string
+          footer_en: string
+          footer_sv: string
+          greeting_en: string
+          greeting_sv: string
+          id: string
+          intro_en: string
+          intro_sv: string
+          is_active: boolean
+          subject_en: string
+          subject_sv: string
+          template_type: string
+          updated_at: string
+        }
+        Insert: {
+          benefits_en?: string[]
+          benefits_sv?: string[]
+          created_at?: string
+          cta_text_en: string
+          cta_text_sv: string
+          footer_en: string
+          footer_sv: string
+          greeting_en: string
+          greeting_sv: string
+          id?: string
+          intro_en: string
+          intro_sv: string
+          is_active?: boolean
+          subject_en: string
+          subject_sv: string
+          template_type: string
+          updated_at?: string
+        }
+        Update: {
+          benefits_en?: string[]
+          benefits_sv?: string[]
+          created_at?: string
+          cta_text_en?: string
+          cta_text_sv?: string
+          footer_en?: string
+          footer_sv?: string
+          greeting_en?: string
+          greeting_sv?: string
+          id?: string
+          intro_en?: string
+          intro_sv?: string
+          is_active?: boolean
+          subject_en?: string
+          subject_sv?: string
+          template_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       influencer_products: {
         Row: {
           id: string
