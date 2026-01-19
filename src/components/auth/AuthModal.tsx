@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { useLanguage } from '@/context/LanguageContext';
+import { supabase } from '@/integrations/supabase/client';
 import {
   Sheet,
   SheetContent,
@@ -49,6 +50,12 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
       } else {
         const { error } = await signUp(email, password);
         if (error) throw error;
+        
+        // Send welcome email in background
+        supabase.functions.invoke('send-welcome-email', {
+          body: { email, language }
+        }).catch(err => console.error('Welcome email failed:', err));
+        
         toast.success(
           language === 'sv' 
             ? 'Konto skapat! Du är nu medlem.' 
