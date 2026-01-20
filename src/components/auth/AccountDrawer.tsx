@@ -1,18 +1,22 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   User, 
   Package, 
   Heart, 
-  Settings, 
   LogOut, 
   Crown, 
   ShoppingBag,
   MapPin,
-  CreditCard
+  Shield,
+  BarChart3,
+  Star,
+  Gift
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
+import { useAdminRole } from '@/hooks/useAdminRole';
 import { useLanguage } from '@/context/LanguageContext';
+import { toast } from 'sonner';
 import {
   Sheet,
   SheetContent,
@@ -29,10 +33,19 @@ interface AccountDrawerProps {
 const AccountDrawer = ({ isOpen, onClose }: AccountDrawerProps) => {
   const { language } = useLanguage();
   const { user, isMember, signOut } = useAuth();
+  const { isAdmin } = useAdminRole();
+  const navigate = useNavigate();
 
   const handleSignOut = async () => {
     await signOut();
+    toast.success(language === 'sv' ? 'Du har loggat ut' : 'You have been signed out');
     onClose();
+    navigate('/');
+  };
+
+  const handleNavigation = (href: string) => {
+    onClose();
+    navigate(href);
   };
 
   const menuItems = [
@@ -49,8 +62,20 @@ const AccountDrawer = ({ isOpen, onClose }: AccountDrawerProps) => {
       description: language === 'sv' ? 'Se orderhistorik' : 'View order history',
     },
     {
+      icon: Star,
+      label: language === 'sv' ? 'Mina recensioner' : 'My Reviews',
+      href: '/profile?tab=reviews',
+      description: language === 'sv' ? 'Dina produktrecensioner' : 'Your product reviews',
+    },
+    {
+      icon: Gift,
+      label: language === 'sv' ? 'Rabattkoder' : 'Discount Codes',
+      href: '/profile?tab=rewards',
+      description: language === 'sv' ? 'Dina belöningar' : 'Your rewards',
+    },
+    {
       icon: Heart,
-      label: language === 'sv' ? 'Mina donationer' : 'My Donations',
+      label: language === 'sv' ? 'Donationer' : 'Donations',
       href: '/profile?tab=donations',
       description: language === 'sv' ? 'Din påverkan' : 'Your impact',
     },
@@ -59,6 +84,21 @@ const AccountDrawer = ({ isOpen, onClose }: AccountDrawerProps) => {
       label: language === 'sv' ? 'Spåra order' : 'Track Order',
       href: '/track-order',
       description: language === 'sv' ? 'Följ din leverans' : 'Follow your delivery',
+    },
+  ];
+
+  const adminItems = [
+    {
+      icon: BarChart3,
+      label: language === 'sv' ? 'Admin Statistik' : 'Admin Stats',
+      href: '/admin/stats',
+      description: language === 'sv' ? 'Fullständig översikt' : 'Full overview',
+    },
+    {
+      icon: Shield,
+      label: language === 'sv' ? 'Admin-panel' : 'Admin Panel',
+      href: '/profile?tab=overview',
+      description: language === 'sv' ? 'Hantera butiken' : 'Manage the store',
     },
   ];
 
@@ -94,27 +134,74 @@ const AccountDrawer = ({ isOpen, onClose }: AccountDrawerProps) => {
               </div>
             </div>
           )}
+
+          {/* Admin badge */}
+          {isAdmin && (
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-primary/10 border border-primary/20">
+              <Shield className="w-5 h-5 text-primary" />
+              <div>
+                <p className="text-sm font-medium text-primary">
+                  {language === 'sv' ? 'Administratör' : 'Administrator'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {language === 'sv' ? 'Du har admin-rättigheter' : 'You have admin privileges'}
+                </p>
+              </div>
+            </div>
+          )}
         </SheetHeader>
 
+        {/* Admin items */}
+        {isAdmin && (
+          <div className="mb-4">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide px-4 mb-2">
+              {language === 'sv' ? 'Administration' : 'Administration'}
+            </p>
+            <nav className="space-y-1">
+              {adminItems.map((item) => (
+                <button
+                  key={item.href}
+                  onClick={() => handleNavigation(item.href)}
+                  className="flex items-center gap-4 p-4 rounded-xl hover:bg-primary/5 transition-colors group w-full text-left"
+                >
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                    <item.icon className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium text-foreground">{item.label}</p>
+                    <p className="text-sm text-muted-foreground">{item.description}</p>
+                  </div>
+                </button>
+              ))}
+            </nav>
+          </div>
+        )}
+
         {/* Menu items */}
-        <nav className="space-y-1">
-          {menuItems.map((item) => (
-            <Link
-              key={item.href}
-              to={item.href}
-              onClick={onClose}
-              className="flex items-center gap-4 p-4 rounded-xl hover:bg-secondary/50 transition-colors group"
-            >
-              <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                <item.icon className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
-              </div>
-              <div className="flex-1">
-                <p className="font-medium text-foreground">{item.label}</p>
-                <p className="text-sm text-muted-foreground">{item.description}</p>
-              </div>
-            </Link>
-          ))}
-        </nav>
+        <div className="mb-4">
+          {isAdmin && (
+            <p className="text-xs text-muted-foreground uppercase tracking-wide px-4 mb-2">
+              {language === 'sv' ? 'Mitt konto' : 'My Account'}
+            </p>
+          )}
+          <nav className="space-y-1">
+            {menuItems.map((item) => (
+              <button
+                key={item.href}
+                onClick={() => handleNavigation(item.href)}
+                className="flex items-center gap-4 p-4 rounded-xl hover:bg-secondary/50 transition-colors group w-full text-left"
+              >
+                <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                  <item.icon className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-medium text-foreground">{item.label}</p>
+                  <p className="text-sm text-muted-foreground">{item.description}</p>
+                </div>
+              </button>
+            ))}
+          </nav>
+        </div>
 
         {/* Divider */}
         <div className="my-6 border-t border-border" />
