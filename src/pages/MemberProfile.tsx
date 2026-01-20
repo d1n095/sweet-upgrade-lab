@@ -15,7 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useAdminRole } from '@/hooks/useAdminRole';
 import { useLanguage } from '@/context/LanguageContext';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import OrderTracker from '@/components/orders/OrderTracker';
 import AdminProductManager from '@/components/admin/AdminProductManager';
@@ -60,10 +60,18 @@ const MemberProfile = () => {
   const { user, profile, loading: authLoading, signOut, isMember } = useAuth();
   const { isAdmin, isLoading: adminLoading } = useAdminRole();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [adminStats, setAdminStats] = useState<AdminStats | null>(null);
+
+  // Get tab from URL query params, default to 'orders'
+  const currentTab = searchParams.get('tab') || 'orders';
+
+  const handleTabChange = (value: string) => {
+    setSearchParams({ tab: value });
+  };
 
   const content = {
     sv: {
@@ -328,7 +336,7 @@ const MemberProfile = () => {
           </motion.div>
 
           {/* Tabs */}
-          <Tabs defaultValue="orders" className="w-full">
+          <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
             <TabsList className="mb-6 flex-wrap">
               <TabsTrigger value="orders" className="gap-2">
                 <Package className="w-4 h-4" />
@@ -352,6 +360,10 @@ const MemberProfile = () => {
                   <Badge variant="secondary" className="ml-1">{unusedRewards.length}</Badge>
                 )}
               </TabsTrigger>
+              <TabsTrigger value="donations" className="gap-2">
+                <TrendingUp className="w-4 h-4" />
+                {language === 'sv' ? 'Donationer' : 'Donations'}
+              </TabsTrigger>
             </TabsList>
 
             {/* Orders Tab */}
@@ -367,11 +379,11 @@ const MemberProfile = () => {
               <div className="mt-6">
                 <AffiliateDashboard />
               </div>
+            </TabsContent>
 
-              {/* Donation Impact - visible to everyone */}
-              <div className="mt-6">
-                <DonationImpact />
-              </div>
+            {/* Donations Tab */}
+            <TabsContent value="donations">
+              <DonationImpact />
             </TabsContent>
 
             {/* Overview Tab */}

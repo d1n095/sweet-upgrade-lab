@@ -320,8 +320,8 @@ const Header = () => {
                         )}
                       </button>
                       <button
-                        onClick={() => {
-                          signOut();
+                        onClick={async () => {
+                          await signOut();
                           setIsMobileMenuOpen(false);
                         }}
                         className="flex items-center gap-3 text-muted-foreground font-medium py-3 px-4 rounded-xl hover:bg-secondary/50 transition-colors text-left"
