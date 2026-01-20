@@ -28,6 +28,7 @@ import AdminEmailTemplates from '@/components/admin/AdminEmailTemplates';
 import InfluencerDashboard from '@/components/dashboard/InfluencerDashboard';
 import AffiliateDashboard from '@/components/dashboard/AffiliateDashboard';
 import DonationImpact from '@/components/donations/DonationImpact';
+import AccountSettings from '@/components/profile/AccountSettings';
 
 interface Review {
   id: string;
@@ -364,6 +365,10 @@ const MemberProfile = () => {
                 <TrendingUp className="w-4 h-4" />
                 {language === 'sv' ? 'Donationer' : 'Donations'}
               </TabsTrigger>
+              <TabsTrigger value="settings" className="gap-2">
+                <Settings className="w-4 h-4" />
+                {language === 'sv' ? 'Inställningar' : 'Settings'}
+              </TabsTrigger>
             </TabsList>
 
             {/* Orders Tab */}
@@ -384,6 +389,11 @@ const MemberProfile = () => {
             {/* Donations Tab */}
             <TabsContent value="donations">
               <DonationImpact />
+            </TabsContent>
+
+            {/* Settings Tab */}
+            <TabsContent value="settings">
+              <AccountSettings />
             </TabsContent>
 
             {/* Overview Tab */}

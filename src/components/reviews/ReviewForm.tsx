@@ -104,7 +104,15 @@ const ReviewForm = ({ productId, productHandle, productTitle, onReviewSubmitted 
 
       if (reviewError) throw reviewError;
 
-      // Generate discount code
+      // Notify admin about new review
+      supabase.functions.invoke('notify-review', {
+        body: {
+          productTitle,
+          rating,
+          comment: comment.trim(),
+          userEmail: user.email,
+        }
+      }).catch(err => console.error('Failed to notify admin:', err));
       const discountCode = `REV${Date.now().toString(36).toUpperCase()}`;
       
       const { error: rewardError } = await supabase
