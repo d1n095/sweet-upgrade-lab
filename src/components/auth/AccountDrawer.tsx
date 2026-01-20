@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { 
   User, 
   Package, 
@@ -10,11 +10,13 @@ import {
   Shield,
   BarChart3,
   Star,
-  Gift
+  Gift,
+  Settings
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { useAdminRole } from '@/hooks/useAdminRole';
+import { useAccountStats } from '@/hooks/useAccountStats';
 import { useLanguage } from '@/context/LanguageContext';
 import { toast } from 'sonner';
 import {
@@ -34,6 +36,7 @@ const AccountDrawer = ({ isOpen, onClose }: AccountDrawerProps) => {
   const { language } = useLanguage();
   const { user, isMember, signOut } = useAuth();
   const { isAdmin } = useAdminRole();
+  const { stats } = useAccountStats();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -84,6 +87,12 @@ const AccountDrawer = ({ isOpen, onClose }: AccountDrawerProps) => {
       label: language === 'sv' ? 'Spåra order' : 'Track Order',
       href: '/track-order',
       description: language === 'sv' ? 'Följ din leverans' : 'Follow your delivery',
+    },
+    {
+      icon: Settings,
+      label: language === 'sv' ? 'Inställningar' : 'Settings',
+      href: '/profile?tab=settings',
+      description: language === 'sv' ? 'Ändra e-post & lösenord' : 'Change email & password',
     },
   ];
 
@@ -210,14 +219,14 @@ const AccountDrawer = ({ isOpen, onClose }: AccountDrawerProps) => {
         <div className="grid grid-cols-2 gap-3 mb-6">
           <div className="p-4 rounded-xl bg-secondary/30">
             <ShoppingBag className="w-5 h-5 text-primary mb-2" />
-            <p className="text-2xl font-bold">0</p>
+            <p className="text-2xl font-bold">{stats.ordersCount}</p>
             <p className="text-xs text-muted-foreground">
               {language === 'sv' ? 'Beställningar' : 'Orders'}
             </p>
           </div>
           <div className="p-4 rounded-xl bg-secondary/30">
             <Heart className="w-5 h-5 text-accent mb-2" />
-            <p className="text-2xl font-bold">0 kr</p>
+            <p className="text-2xl font-bold">{stats.totalDonated} kr</p>
             <p className="text-xs text-muted-foreground">
               {language === 'sv' ? 'Donerat' : 'Donated'}
             </p>
