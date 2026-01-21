@@ -18,9 +18,38 @@ export const useAuth = () => {
   const { syncWithDatabase, setUserId, clearLocalWishlist } = useWishlistStore();
 
   useEffect(() => {
-    // Set up auth state listener BEFORE getting session
+    // Get initial session first
+    const initializeAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        setSession(session);
+        setUser(session.user);
+        
+        // Fetch profile
+        const { data } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .maybeSingle();
+        
+        setProfile(data);
+        
+        // Sync wishlist
+        syncWithDatabase(session.user.id);
+      }
+      
+      setLoading(false);
+    };
+
+    initializeAuth();
+
+    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        // Avoid resetting state on INITIAL_SESSION if we already have data
+        if (event === 'INITIAL_SESSION') return;
+        
         setSession(session);
         setUser(session?.user ?? null);
         
@@ -40,35 +69,11 @@ export const useAuth = () => {
           setProfile(null);
           setUserId(null);
         }
-        
-        setLoading(false);
       }
     );
 
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', session.user.id)
-          .maybeSingle()
-          .then(({ data }) => {
-            setProfile(data);
-            setLoading(false);
-            // Sync wishlist with database
-            syncWithDatabase(session.user.id);
-          });
-      } else {
-        setLoading(false);
-      }
-    });
-
     return () => subscription.unsubscribe();
-  }, []);
+  }, [syncWithDatabase, setUserId]);
 
   const signUp = async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signUp({
