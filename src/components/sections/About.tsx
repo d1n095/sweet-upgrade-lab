@@ -194,8 +194,8 @@ const About = () => {
                     </p>
                   </div>
                   <div className="text-center p-4 rounded-xl bg-background/50">
-                    <TreePine className="w-6 h-6 text-green-600 mx-auto mb-2" />
-                    <p className="text-2xl font-bold text-green-600">{donationStats.treesPlanted}</p>
+                    <TreePine className="w-6 h-6 text-primary mx-auto mb-2" />
+                    <p className="text-2xl font-bold text-primary">{donationStats.treesPlanted}</p>
                     <p className="text-xs text-muted-foreground">
                       {language === 'sv' ? 'Träd planterade' : 'Trees planted'}
                     </p>
