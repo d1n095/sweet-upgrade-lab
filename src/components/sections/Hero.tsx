@@ -112,41 +112,6 @@ const Hero = () => {
             {t.subtitle}
           </motion.p>
 
-          {/* Promises grid */}
-          <motion.div
-            variants={itemVariants}
-            className="grid sm:grid-cols-2 gap-4 max-w-2xl mx-auto mb-8"
-          >
-            {/* We promise */}
-            <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 text-left">
-              <p className="text-xs font-semibold text-primary uppercase tracking-wide mb-3">
-                {language === 'sv' ? 'Vi lovar:' : 'We promise:'}
-              </p>
-              <ul className="space-y-2">
-                {t.wePromise.map((item, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-foreground/90">
-                    <Check className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            
-            {/* We don't */}
-            <div className="bg-secondary/50 border border-border rounded-xl p-4 text-left">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-                {language === 'sv' ? 'Vi lovar inte:' : "We don't promise:"}
-              </p>
-              <ul className="space-y-2">
-                {t.weDont.map((item, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
-                    <X className="w-4 h-4 text-muted-foreground/60 flex-shrink-0 mt-0.5" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </motion.div>
 
           {/* Features badges */}
           <motion.div
