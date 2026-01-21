@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { useWishlistStore } from '@/stores/wishlistStore';
 import { useCartStore } from '@/stores/cartStore';
 import { useLanguage } from '@/context/LanguageContext';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ShopifyProduct } from '@/lib/shopify';
 
 interface WishlistDrawerProps {
@@ -19,6 +19,12 @@ const WishlistDrawer = ({ isOpen, onClose }: WishlistDrawerProps) => {
   const { items, removeItem, clearWishlist } = useWishlistStore();
   const { addItem: addToCart } = useCartStore();
   const [addedItems, setAddedItems] = useState<Set<string>>(new Set());
+  const navigate = useNavigate();
+
+  const handleExploreProducts = () => {
+    onClose();
+    navigate('/shop');
+  };
 
   const formatPrice = (amount: string, currency: string) => {
     return new Intl.NumberFormat('sv-SE', {
@@ -104,7 +110,7 @@ const WishlistDrawer = ({ isOpen, onClose }: WishlistDrawerProps) => {
                       : 'Save products you like to find them easily later'
                     }
                   </p>
-                  <Button onClick={onClose} variant="outline">
+                  <Button onClick={handleExploreProducts} variant="outline">
                     {language === 'sv' ? 'Utforska produkter' : 'Explore products'}
                   </Button>
                 </div>
