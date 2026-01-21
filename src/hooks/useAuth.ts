@@ -18,62 +18,59 @@ export const useAuth = () => {
   const { syncWithDatabase, setUserId, clearLocalWishlist } = useWishlistStore();
 
   useEffect(() => {
-    // Get initial session first
-    const initializeAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session?.user) {
-        setSession(session);
-        setUser(session.user);
-        
-        // Fetch profile
-        const { data } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', session.user.id)
-          .maybeSingle();
-        
-        setProfile(data);
-        
-        // Sync wishlist
-        syncWithDatabase(session.user.id);
-      }
-      
+    // IMPORTANT: keep auth state listener synchronous (no awaited calls inside)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+    });
+
+    // Then fetch existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
       setLoading(false);
-    };
+    });
 
-    initializeAuth();
+    return () => subscription.unsubscribe();
+  }, []);
 
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        // Avoid resetting state on INITIAL_SESSION if we already have data
-        if (event === 'INITIAL_SESSION') return;
-        
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          // Fetch profile
+  useEffect(() => {
+    const userId = user?.id ?? null;
+
+    if (!userId) {
+      setProfile(null);
+      setUserId(null);
+      return;
+    }
+
+    setUserId(userId);
+
+    let cancelled = false;
+
+    // Defer DB calls to avoid any auth refresh deadlocks
+    setTimeout(() => {
+      (async () => {
+        try {
           const { data } = await supabase
             .from('profiles')
             .select('*')
-            .eq('user_id', session.user.id)
+            .eq('user_id', userId)
             .maybeSingle();
-          
-          setProfile(data);
-          
-          // Sync wishlist with database
-          syncWithDatabase(session.user.id);
-        } else {
-          setProfile(null);
-          setUserId(null);
-        }
-      }
-    );
 
-    return () => subscription.unsubscribe();
-  }, [syncWithDatabase, setUserId]);
+          if (!cancelled) setProfile(data);
+
+          // Sync wishlist with database
+          syncWithDatabase(userId);
+        } catch (error) {
+          console.error('Failed to load profile:', error);
+        }
+      })();
+    }, 0);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, setUserId, syncWithDatabase]);
 
   const signUp = async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signUp({
