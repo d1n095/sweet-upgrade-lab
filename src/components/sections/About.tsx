@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Check, X, Leaf, Heart, AlertTriangle, TrendingUp, Users, TreePine } from 'lucide-react';
+import { Check, X, Leaf, Heart, AlertTriangle, TrendingUp } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { useDonationStats } from '@/hooks/useDonationStats';
 
@@ -160,7 +160,7 @@ const About = () => {
           </div>
 
           {/* Donation Impact Section */}
-          {(donationStats.totalDonated > 0 || donationStats.familiesHelped > 0 || donationStats.treesPlanted > 0) && (
+          {donationStats.totalDonated > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -168,36 +168,20 @@ const About = () => {
               className="mb-10"
             >
               <div className="bg-gradient-to-br from-primary/10 via-accent/5 to-primary/10 border border-primary/20 rounded-2xl p-6 md:p-8">
-                <div className="text-center mb-6">
+                <div className="text-center">
                   <h3 className="font-display text-xl font-semibold mb-2">
                     {language === 'sv' ? '🌱 Vår gemensamma påverkan' : '🌱 Our Collective Impact'}
                   </h3>
-                  <p className="text-muted-foreground text-sm">
+                  <p className="text-muted-foreground text-sm mb-6">
                     {language === 'sv' 
                       ? 'Tack vare er har vi tillsammans bidragit till:' 
                       : 'Thanks to you, together we have contributed to:'}
                   </p>
-                </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="text-center p-4 rounded-xl bg-background/50">
-                    <TrendingUp className="w-6 h-6 text-primary mx-auto mb-2" />
-                    <p className="text-2xl font-bold text-primary">{donationStats.totalDonated} kr</p>
-                    <p className="text-xs text-muted-foreground">
-                      {language === 'sv' ? 'Totalt donerat' : 'Total donated'}
-                    </p>
-                  </div>
-                  <div className="text-center p-4 rounded-xl bg-background/50">
-                    <Users className="w-6 h-6 text-accent mx-auto mb-2" />
-                    <p className="text-2xl font-bold text-accent">{donationStats.familiesHelped}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {language === 'sv' ? 'Familjer hjälpta' : 'Families helped'}
-                    </p>
-                  </div>
-                  <div className="text-center p-4 rounded-xl bg-background/50">
-                    <TreePine className="w-6 h-6 text-primary mx-auto mb-2" />
-                    <p className="text-2xl font-bold text-primary">{donationStats.treesPlanted}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {language === 'sv' ? 'Träd planterade' : 'Trees planted'}
+                  <div className="inline-flex flex-col items-center p-6 rounded-xl bg-background/50">
+                    <TrendingUp className="w-8 h-8 text-primary mb-3" />
+                    <p className="text-3xl font-bold text-primary">{donationStats.totalDonated} kr</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {language === 'sv' ? 'Totalt insamlat' : 'Total collected'}
                     </p>
                   </div>
                 </div>
