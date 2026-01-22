@@ -28,20 +28,42 @@ const ShopifyProductGrid = () => {
   const [bestsellerIds, setBestsellerIds] = useState<string[]>([]);
   const searchQuery = useSearchStore(state => state.searchQuery);
 
-  // Load bestseller IDs from database
+  // Load bestseller IDs from database with realtime updates
   useEffect(() => {
     const loadBestsellerIds = async () => {
       const { data } = await supabase
         .from('product_sales')
         .select('shopify_product_id, total_quantity_sold')
-        .gte('total_quantity_sold', 10)
-        .order('total_quantity_sold', { ascending: false });
+        .gt('total_quantity_sold', 0)
+        .order('total_quantity_sold', { ascending: false })
+        .limit(5);
       
       if (data) {
         setBestsellerIds(data.map(item => item.shopify_product_id));
       }
     };
     loadBestsellerIds();
+
+    // Subscribe to realtime changes for bestseller updates
+    const channel = supabase
+      .channel('bestseller-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'product_sales',
+        },
+        () => {
+          // Reload bestseller IDs when sales data changes
+          loadBestsellerIds();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   useEffect(() => {
