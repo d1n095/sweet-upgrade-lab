@@ -1,12 +1,14 @@
 import { motion } from 'framer-motion';
-import { Leaf, Heart, Shield, Truck, Users, Award } from 'lucide-react';
+import { Leaf, Heart, Shield, Truck, Users, Award, TrendingUp } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import SEOHead from '@/components/seo/SEOHead';
+import { useDonationStats } from '@/hooks/useDonationStats';
 
 const AboutUs = () => {
   const { language } = useLanguage();
+  const donationStats = useDonationStats();
 
   const values = [
     {
@@ -185,6 +187,34 @@ const AboutUs = () => {
             ))}
           </div>
         </section>
+
+        {/* Donation Impact Section */}
+        {donationStats.totalDonated > 0 && (
+          <section className="container mx-auto px-4 mb-20">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="bg-gradient-to-br from-primary/10 via-accent/5 to-primary/10 border border-primary/20 rounded-3xl p-8 md:p-12 text-center max-w-3xl mx-auto"
+            >
+              <h2 className="font-display text-2xl md:text-3xl font-semibold mb-4">
+                {language === 'sv' ? '🌱 Vår Gemensamma Påverkan' : '🌱 Our Collective Impact'}
+              </h2>
+              <p className="text-muted-foreground mb-8">
+                {language === 'sv' 
+                  ? 'Tack vare er har vi tillsammans bidragit till:' 
+                  : 'Thanks to you, together we have contributed to:'}
+              </p>
+              <div className="inline-flex flex-col items-center p-8 rounded-2xl bg-background/50">
+                <TrendingUp className="w-10 h-10 text-primary mb-4" />
+                <p className="text-4xl md:text-5xl font-bold text-primary">{donationStats.totalDonated} kr</p>
+                <p className="text-lg text-muted-foreground mt-2">
+                  {language === 'sv' ? 'Totalt insamlat' : 'Total collected'}
+                </p>
+              </div>
+            </motion.div>
+          </section>
+        )}
 
         {/* Mission Statement */}
         <section className="container mx-auto px-4">
