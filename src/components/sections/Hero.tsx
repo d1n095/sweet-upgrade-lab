@@ -1,8 +1,14 @@
-import { motion } from 'framer-motion';
-import { ArrowRight, Leaf, Check, X } from 'lucide-react';
+import { motion, useScroll, useTransform } from 'framer-motion';
+import { ArrowRight, Leaf, Check, X, Sparkles, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/context/LanguageContext';
 import { Link } from 'react-router-dom';
+
+// Custom hook for parallax effect
+const useParallax = (multiplier: number) => {
+  const { scrollY } = useScroll();
+  return useTransform(scrollY, [0, 500], [0, 100 * multiplier]);
+};
 
 const Hero = () => {
   const { language } = useLanguage();
@@ -76,9 +82,58 @@ const Hero = () => {
 
   return (
     <section className="relative min-h-[95vh] flex items-center justify-center overflow-hidden bg-gradient-to-b from-secondary/30 via-background to-background">
-      {/* Subtle decorative elements */}
-      <div className="absolute top-20 right-[10%] w-64 h-64 bg-primary/5 rounded-full blur-3xl" />
-      <div className="absolute bottom-20 left-[10%] w-48 h-48 bg-accent/5 rounded-full blur-3xl" />
+      {/* Parallax floating elements */}
+      <motion.div
+        style={{ y: useParallax(0.3) }}
+        className="absolute top-20 right-[10%] w-64 h-64 bg-primary/5 rounded-full blur-3xl"
+      />
+      <motion.div
+        style={{ y: useParallax(0.5) }}
+        className="absolute bottom-20 left-[10%] w-48 h-48 bg-accent/5 rounded-full blur-3xl"
+      />
+      <motion.div
+        style={{ y: useParallax(0.2) }}
+        className="absolute top-1/3 left-[5%] w-32 h-32 bg-primary/8 rounded-full blur-2xl"
+      />
+      <motion.div
+        style={{ y: useParallax(0.4) }}
+        className="absolute bottom-1/3 right-[5%] w-24 h-24 bg-accent/8 rounded-full blur-2xl"
+      />
+      
+      {/* Floating decorative icons */}
+      <motion.div
+        style={{ y: useParallax(0.6) }}
+        animate={{ 
+          y: [0, -10, 0],
+          rotate: [0, 5, 0]
+        }}
+        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute top-32 left-[15%] w-12 h-12 rounded-xl bg-primary/10 backdrop-blur-sm flex items-center justify-center opacity-60"
+      >
+        <Leaf className="w-6 h-6 text-primary" />
+      </motion.div>
+      <motion.div
+        style={{ y: useParallax(0.35) }}
+        animate={{ 
+          y: [0, 15, 0],
+          rotate: [0, -5, 0]
+        }}
+        transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+        className="absolute top-48 right-[20%] w-10 h-10 rounded-full bg-accent/10 backdrop-blur-sm flex items-center justify-center opacity-50"
+      >
+        <Sparkles className="w-5 h-5 text-accent" />
+      </motion.div>
+      <motion.div
+        style={{ y: useParallax(0.45) }}
+        animate={{ 
+          y: [0, -8, 0],
+          rotate: [0, 10, 0]
+        }}
+        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+        className="absolute bottom-40 left-[25%] w-8 h-8 rounded-lg bg-primary/15 backdrop-blur-sm flex items-center justify-center opacity-40"
+      >
+        <Heart className="w-4 h-4 text-primary" />
+      </motion.div>
       
       <div className="container mx-auto px-4 py-16 md:py-24 relative z-10">
         <motion.div 

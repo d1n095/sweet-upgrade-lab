@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingCart, Menu, X, Leaf, ChevronDown, Search, User, Crown, LogOut, Heart } from 'lucide-react';
+import { ShoppingCart, Menu, X, Leaf, ChevronDown, Search, User, Crown, LogOut, Heart, Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCartStore } from '@/stores/cartStore';
@@ -15,6 +15,7 @@ import AuthModal from '@/components/auth/AuthModal';
 import AccountDrawer from '@/components/auth/AccountDrawer';
 import { useAuth } from '@/hooks/useAuth';
 import { storeConfig } from '@/config/storeConfig';
+import { useTheme } from 'next-themes';
 
 const Header = () => {
   const { t, language } = useLanguage();
@@ -31,7 +32,13 @@ const Header = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProductsHovered, setIsProductsHovered] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const { theme, setTheme, resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
 
+  // Ensure theme is mounted before rendering
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const activeCategories = storeConfig.categories.filter(c => c.active);
 
   useEffect(() => {
@@ -173,6 +180,34 @@ const Header = () => {
                   className="pl-9 w-44 md:w-56 h-10 bg-secondary/50 border-transparent hover:border-border focus:border-primary/50 rounded-full text-sm transition-all"
                 />
               </div>
+              
+              {/* Dark mode toggle */}
+              {mounted && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-10 w-10 rounded-full hover:bg-secondary"
+                  onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+                  aria-label="Toggle dark mode"
+                >
+                  <AnimatePresence mode="wait" initial={false}>
+                    <motion.div
+                      key={resolvedTheme}
+                      initial={{ y: -20, opacity: 0, rotate: -90 }}
+                      animate={{ y: 0, opacity: 1, rotate: 0 }}
+                      exit={{ y: 20, opacity: 0, rotate: 90 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      {resolvedTheme === 'dark' ? (
+                        <Sun className="w-5 h-5" />
+                      ) : (
+                        <Moon className="w-5 h-5" />
+                      )}
+                    </motion.div>
+                  </AnimatePresence>
+                </Button>
+              )}
+              
               <LanguageSwitcher />
 
               {/* Auth/Account button */}

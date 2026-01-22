@@ -95,10 +95,11 @@ const ShopifyProductCard = ({ product, index, compact = false, isBestseller: isB
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
         transition={{ delay: index * 0.05, duration: 0.4 }}
+        whileHover={{ y: -8, transition: { duration: 0.3 } }}
         className="group relative"
       >
         <Link to={`/product/${node.handle}`}>
-          <div className="glass-card p-3 h-full flex flex-col transition-all duration-300 hover:border-primary/30 glow-effect">
+          <div className="glass-card p-3 h-full flex flex-col transition-all duration-300 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/10 glow-effect">
             {/* Real-time popularity status badge */}
             {status && (
               <div className="absolute top-2 right-2 z-20 bg-green-100 text-green-800 text-xs px-2 py-1 rounded">
@@ -140,12 +141,14 @@ const ShopifyProductCard = ({ product, index, compact = false, isBestseller: isB
             {/* Image */}
             <div className="relative aspect-square mb-3 rounded-lg overflow-hidden bg-secondary/50">
               {imageUrl ? (
-                <img
+                <motion.img
                   src={imageUrl}
                   alt={node.title}
                   loading="lazy"
                   decoding="async"
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                  className="w-full h-full object-cover"
+                  whileHover={{ scale: 1.1 }}
+                  transition={{ duration: 0.5, ease: "easeOut" }}
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-muted-foreground text-sm">
@@ -221,10 +224,11 @@ const ShopifyProductCard = ({ product, index, compact = false, isBestseller: isB
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ delay: index * 0.1, duration: 0.5 }}
+      whileHover={{ y: -10, transition: { duration: 0.3 } }}
       className="group relative"
     >
       <Link to={`/product/${node.handle}`}>
-        <div className="glass-card p-4 h-full flex flex-col transition-all duration-300 hover:border-primary/30 glow-effect">
+        <div className="glass-card p-4 h-full flex flex-col transition-all duration-300 hover:border-primary/30 hover:shadow-2xl hover:shadow-primary/15 glow-effect">
           {/* Real-time popularity status badge */}
           {status && (
             <div className="absolute top-3 right-3 z-20 bg-green-100 text-green-800 text-xs px-2 py-1 rounded">
@@ -266,12 +270,14 @@ const ShopifyProductCard = ({ product, index, compact = false, isBestseller: isB
           {/* Image */}
           <div className="relative aspect-square mb-4 rounded-lg overflow-hidden bg-secondary/50">
             {imageUrl ? (
-              <img
+              <motion.img
                 src={imageUrl}
                 alt={node.title}
                 loading="lazy"
                 decoding="async"
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                className="w-full h-full object-cover"
+                whileHover={{ scale: 1.1 }}
+                transition={{ duration: 0.5, ease: "easeOut" }}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-muted-foreground">
