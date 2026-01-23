@@ -59,6 +59,7 @@ const Header = () => {
     { href: '/about', label: t('nav.about') },
     { href: '/how-it-works', label: language === 'sv' ? 'Så funkar det' : 'How It Works' },
     { href: '/contact', label: t('nav.contact') },
+    { href: '/affiliate', label: language === 'sv' ? 'Samarbete' : 'Partnership' },
   ];
 
   return (
@@ -174,10 +175,10 @@ const Header = () => {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   type="text"
-                  placeholder={language === 'sv' ? 'Sök produkter...' : 'Search products...'}
+                  placeholder={language === 'sv' ? 'Sök...' : 'Search...'}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 w-44 md:w-56 h-10 bg-secondary/50 border-transparent hover:border-border focus:border-primary/50 rounded-full text-sm transition-all"
+                  className="pl-9 w-32 md:w-40 h-10 bg-secondary/50 border-transparent hover:border-border focus:border-primary/50 rounded-full text-sm transition-all"
                 />
               </div>
               

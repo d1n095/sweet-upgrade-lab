@@ -13,7 +13,8 @@ const Footer = () => {
     { href: '/how-it-works', label: language === 'sv' ? 'Så funkar det' : 'How It Works' },
     { href: '/contact', label: t('nav.contact') },
     { href: '/track-order', label: language === 'sv' ? 'Spåra order' : 'Track Order' },
-    { href: '/affiliate', label: language === 'sv' ? 'Bli affiliate' : 'Become Affiliate' },
+    { href: '/business', label: language === 'sv' ? 'Företagskunder' : 'Business Customers' },
+    { href: '/affiliate', label: language === 'sv' ? 'Samarbete' : 'Partnership' },
   ];
 
   const customerServiceLinks = [

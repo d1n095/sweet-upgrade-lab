@@ -1,4 +1,4 @@
-import { Cpu, Shirt, Droplets, Grid, Flame } from 'lucide-react';
+import { Cpu, Shirt, Droplets, Grid, Flame, Flame as SaunaIcon, Sparkles, Gem } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 export interface Category {
@@ -40,5 +40,23 @@ export const categories: Category[] = [
     name: { sv: 'Kroppsvård', en: 'Body Care', no: 'Kroppsvård', da: 'Kropspleje', de: 'Körperpflege', fi: 'Vartalonhoito', nl: 'Lichaamsverzorging', fr: 'Soins corporels', es: 'Cuidado corporal', pl: 'Pielęgnacja ciała' }, 
     icon: Droplets,
     query: 'product_type:Kroppsvård'
+  },
+  { 
+    id: 'ljus', 
+    name: { sv: 'Ljus', en: 'Candles', no: 'Lys', da: 'Lys', de: 'Kerzen', fi: 'Kynttilät', nl: 'Kaarsen', fr: 'Bougies', es: 'Velas', pl: 'Świece' }, 
+    icon: Sparkles,
+    query: 'product_type:Ljus'
+  },
+  { 
+    id: 'smycken', 
+    name: { sv: 'Smycken & Silver', en: 'Jewelry & Silver', no: 'Smykker', da: 'Smykker', de: 'Schmuck', fi: 'Korut', nl: 'Sieraden', fr: 'Bijoux', es: 'Joyas', pl: 'Biżuteria' }, 
+    icon: Gem,
+    query: 'product_type:Smycken'
+  },
+  { 
+    id: 'bastudofter', 
+    name: { sv: 'Bastudofter', en: 'Sauna Scents', no: 'Badstudufter', da: 'Saunadufte', de: 'Saunadüfte', fi: 'Saunatuoksut', nl: 'Saunageuren', fr: 'Parfums sauna', es: 'Aromas sauna', pl: 'Zapachy do sauny' }, 
+    icon: SaunaIcon,
+    query: 'product_type:Bastudofter'
   },
 ];
