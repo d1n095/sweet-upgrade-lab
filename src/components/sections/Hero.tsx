@@ -1,5 +1,5 @@
 import { motion, useScroll, useTransform } from 'framer-motion';
-import { ArrowRight, Leaf, Check, X, Sparkles, Heart } from 'lucide-react';
+import { ArrowRight, Leaf, Sparkles, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/context/LanguageContext';
 import { Link } from 'react-router-dom';
@@ -18,15 +18,6 @@ const Hero = () => {
       badge: 'Grundat 2026',
       title: 'Giftfria Produkter som Faktiskt Fungerar',
       subtitle: 'Vi är inte det största företaget. Vi är det noggrannaste i vår research. Varje produkt vi säljer är noggrant utvald efter ingrediensanalys, internationella certifieringar och användarrecensioner.',
-      wePromise: [
-        'Noggrann research av varje produkt',
-        'Ärlig information om leveranstider (7-10 arbetsdagar)',
-        'Personlig support på svenska och engelska',
-      ],
-      weDont: [
-        'Mirakelprodukter som botar allt',
-        'Blixtsnabb leverans från andra sidan jorden',
-      ],
       features: [
         { icon: '🚚', text: 'Leverans i Europa' },
         { icon: '💬', text: 'Transparent business' },
@@ -39,15 +30,6 @@ const Hero = () => {
       badge: 'Founded 2026',
       title: 'Toxin-Free Products That Actually Work',
       subtitle: "We're not the biggest company. We're the most thorough in our research. Every product we sell is carefully selected based on ingredient analysis, international certifications and user reviews.",
-      wePromise: [
-        'Thorough research on every product',
-        'Honest delivery info (7-10 business days)',
-        'Personal support in Swedish and English',
-      ],
-      weDont: [
-        'Miracle products that cure everything',
-        'Lightning-fast delivery from the other side of the world',
-      ],
       features: [
         { icon: '🚚', text: 'European delivery' },
         { icon: '💬', text: 'Transparent business' },
@@ -167,7 +149,6 @@ const Hero = () => {
             {t.subtitle}
           </motion.p>
 
-
           {/* Features badges */}
           <motion.div
             variants={itemVariants}
@@ -204,34 +185,34 @@ const Hero = () => {
               </Button>
             </Link>
           </motion.div>
-
-          {/* Scroll indicator */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 1, duration: 0.5 }}
-            className="absolute bottom-8 left-1/2 -translate-x-1/2"
-          >
-            <motion.div
-              animate={{ y: [0, 8, 0] }}
-              transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-              className="flex flex-col items-center gap-2 cursor-pointer"
-              onClick={() => document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' })}
-            >
-              <span className="text-xs text-muted-foreground font-medium">
-                {language === 'sv' ? 'Scrolla för produkter' : 'Scroll for products'}
-              </span>
-              <div className="w-6 h-10 rounded-full border-2 border-muted-foreground/30 flex items-start justify-center p-1.5">
-                <motion.div
-                  animate={{ y: [0, 12, 0] }}
-                  transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                  className="w-1.5 h-1.5 rounded-full bg-primary"
-                />
-              </div>
-            </motion.div>
-          </motion.div>
         </motion.div>
       </div>
+
+      {/* Scroll indicator - positioned at bottom of section */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1, duration: 0.5 }}
+        className="absolute bottom-6 left-1/2 -translate-x-1/2"
+      >
+        <motion.div
+          animate={{ y: [0, 8, 0] }}
+          transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+          className="flex flex-col items-center gap-2 cursor-pointer"
+          onClick={() => document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' })}
+        >
+          <span className="text-xs text-muted-foreground font-medium">
+            {language === 'sv' ? 'Scrolla för produkter' : 'Scroll for products'}
+          </span>
+          <div className="w-6 h-10 rounded-full border-2 border-muted-foreground/30 flex items-start justify-center p-1.5">
+            <motion.div
+              animate={{ y: [0, 12, 0] }}
+              transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+              className="w-1.5 h-1.5 rounded-full bg-primary"
+            />
+          </div>
+        </motion.div>
+      </motion.div>
     </section>
   );
 };

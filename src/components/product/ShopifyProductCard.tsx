@@ -96,10 +96,11 @@ const ShopifyProductCard = ({ product, index, compact = false, isBestseller: isB
         viewport={{ once: true }}
         transition={{ delay: index * 0.05, duration: 0.4 }}
         whileHover={{ y: -8, transition: { duration: 0.3 } }}
-        className="group relative"
+        whileTap={{ scale: 0.98 }}
+        className="group relative touch-manipulation"
       >
         <Link to={`/product/${node.handle}`}>
-          <div className="glass-card p-3 h-full flex flex-col transition-all duration-300 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/10 glow-effect">
+          <div className="glass-card p-3 h-full flex flex-col transition-all duration-300 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/10 active:shadow-lg active:shadow-primary/20 glow-effect">
             {/* Real-time popularity status badge */}
             {status && (
               <div className="absolute top-2 right-2 z-20 bg-green-100 text-green-800 text-xs px-2 py-1 rounded">
@@ -225,10 +226,11 @@ const ShopifyProductCard = ({ product, index, compact = false, isBestseller: isB
       viewport={{ once: true }}
       transition={{ delay: index * 0.1, duration: 0.5 }}
       whileHover={{ y: -10, transition: { duration: 0.3 } }}
-      className="group relative"
+      whileTap={{ scale: 0.98 }}
+      className="group relative touch-manipulation"
     >
       <Link to={`/product/${node.handle}`}>
-        <div className="glass-card p-4 h-full flex flex-col transition-all duration-300 hover:border-primary/30 hover:shadow-2xl hover:shadow-primary/15 glow-effect">
+        <div className="glass-card p-4 h-full flex flex-col transition-all duration-300 hover:border-primary/30 hover:shadow-2xl hover:shadow-primary/15 active:shadow-xl active:shadow-primary/20 glow-effect">
           {/* Real-time popularity status badge */}
           {status && (
             <div className="absolute top-3 right-3 z-20 bg-green-100 text-green-800 text-xs px-2 py-1 rounded">

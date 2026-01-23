@@ -75,6 +75,27 @@ export const storeConfig = {
       active: true,
     },
     {
+      id: 'ljus',
+      name: { sv: 'Ljus', en: 'Candles' },
+      description: { sv: 'Naturliga ljus och doftljus', en: 'Natural candles and scented candles' },
+      shopifyProductType: 'Ljus',
+      active: true,
+    },
+    {
+      id: 'smycken',
+      name: { sv: 'Smycken & Silver', en: 'Jewelry & Silver' },
+      description: { sv: 'Smycken och silveraccessoarer', en: 'Jewelry and silver accessories' },
+      shopifyProductType: 'Smycken',
+      active: true,
+    },
+    {
+      id: 'bastudofter',
+      name: { sv: 'Bastudofter', en: 'Sauna Scents' },
+      description: { sv: 'Naturliga bastudofter', en: 'Natural sauna scents' },
+      shopifyProductType: 'Bastudofter',
+      active: true,
+    },
+    {
       id: 'cbd',
       name: { sv: 'CBD & Hampa', en: 'CBD & Hemp' },
       description: { sv: 'CBD-produkter (kommer snart)', en: 'CBD products (coming soon)' },
