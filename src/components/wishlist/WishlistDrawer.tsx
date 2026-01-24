@@ -110,9 +110,22 @@ const WishlistDrawer = ({ isOpen, onClose }: WishlistDrawerProps) => {
                       : 'Save products you like to find them easily later'
                     }
                   </p>
-                  <Button onClick={handleExploreProducts} variant="outline">
-                    {language === 'sv' ? 'Utforska produkter' : 'Explore products'}
-                  </Button>
+                  <div className="flex flex-col gap-2">
+                    <Button onClick={handleExploreProducts} variant="outline">
+                      {language === 'sv' ? 'Utforska produkter' : 'Explore products'}
+                    </Button>
+                    <Button 
+                      onClick={() => {
+                        onClose();
+                        navigate('/#product-suggestions');
+                      }} 
+                      variant="ghost"
+                      size="sm"
+                      className="text-primary"
+                    >
+                      {language === 'sv' ? 'Önska en produkt' : 'Suggest a product'}
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-4">

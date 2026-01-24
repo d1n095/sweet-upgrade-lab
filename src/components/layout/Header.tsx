@@ -54,12 +54,19 @@ const Header = () => {
     setIsMobileMenuOpen(false);
   }, [location.pathname]);
 
+  const [isContactHovered, setIsContactHovered] = useState(false);
+
   const navLinks = [
     { href: '/shop', label: language === 'sv' ? 'Shop' : 'Shop' },
     { href: '/about', label: t('nav.about') },
     { href: '/how-it-works', label: language === 'sv' ? 'Så funkar det' : 'How It Works' },
-    { href: '/contact', label: t('nav.contact') },
+  ];
+  
+  const contactSubMenu = [
+    { href: '/contact', label: language === 'sv' ? 'Kontakta oss' : 'Contact us' },
     { href: '/affiliate', label: language === 'sv' ? 'Samarbete' : 'Partnership' },
+    { href: '/business', label: language === 'sv' ? 'Handla som företag' : 'Business' },
+    { href: '/#product-suggestions', label: language === 'sv' ? 'Önska produkt' : 'Suggest product' },
   ];
 
   return (
@@ -166,6 +173,48 @@ const Header = () => {
                   {link.label}
                 </Link>
               ))}
+
+              {/* Contact with dropdown */}
+              <div 
+                className="relative"
+                onMouseEnter={() => setIsContactHovered(true)}
+                onMouseLeave={() => setIsContactHovered(false)}
+              >
+                <Link
+                  to="/contact"
+                  className={`text-muted-foreground hover:text-foreground transition-colors relative group flex items-center gap-1.5 font-medium ${
+                    location.pathname === '/contact' || location.pathname === '/affiliate' || location.pathname === '/business' ? 'text-foreground' : ''
+                  }`}
+                >
+                  {t('nav.contact')}
+                  <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isContactHovered ? 'rotate-180' : ''}`} />
+                </Link>
+                
+                <AnimatePresence>
+                  {isContactHovered && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.98 }}
+                      transition={{ duration: 0.2, ease: "easeOut" }}
+                      className="absolute top-full left-0 mt-3 w-56 rounded-2xl bg-card border border-border shadow-elevated z-50 overflow-hidden"
+                    >
+                      <div className="p-2">
+                        {contactSubMenu.map((item) => (
+                          <Link
+                            key={item.href}
+                            to={item.href}
+                            onClick={() => setIsContactHovered(false)}
+                            className="flex items-center gap-3 px-4 py-3 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all duration-200"
+                          >
+                            <span className="font-medium">{item.label}</span>
+                          </Link>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </nav>
 
             {/* Search + Actions */}
