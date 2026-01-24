@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Plus, Package, Edit, Trash2, Loader2, 
-  Image as ImageIcon, DollarSign, Tag
+  Image as ImageIcon, DollarSign, Tag, X, Save
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,10 +16,21 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useLanguage } from '@/context/LanguageContext';
 import { toast } from 'sonner';
 import { fetchProducts, ShopifyProduct } from '@/lib/shopify';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ProductFormData {
   title: string;
@@ -34,6 +45,9 @@ const AdminProductManager = () => {
   const { language } = useLanguage();
   const queryClient = useQueryClient();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<ShopifyProduct | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<ProductFormData>({
     title: '',
@@ -52,7 +66,7 @@ const AdminProductManager = () => {
   const content = {
     sv: {
       title: 'Produkthantering',
-      subtitle: 'Lägg till och redigera produkter',
+      subtitle: 'Lägg till, redigera och ta bort produkter',
       addProduct: 'Lägg till produkt',
       editProduct: 'Redigera produkt',
       productName: 'Produktnamn',
@@ -62,18 +76,24 @@ const AdminProductManager = () => {
       tags: 'Taggar (kommaseparerade)',
       vendor: 'Leverantör',
       save: 'Spara produkt',
+      update: 'Uppdatera',
       cancel: 'Avbryt',
+      delete: 'Ta bort',
       noProducts: 'Inga produkter hittades',
       loading: 'Laddar produkter...',
-      deleteConfirm: 'Är du säker på att du vill ta bort denna produkt?',
+      deleteConfirm: 'Är du säker?',
+      deleteDescription: 'Denna åtgärd kan inte ångras. Produkten tas bort permanent.',
       productAdded: 'Produkt tillagd!',
       productUpdated: 'Produkt uppdaterad!',
       productDeleted: 'Produkt borttagen!',
       error: 'Något gick fel',
+      inStock: 'I lager',
+      outOfStock: 'Slut',
+      moreProducts: 'fler produkter',
     },
     en: {
       title: 'Product Management',
-      subtitle: 'Add and edit products',
+      subtitle: 'Add, edit and delete products',
       addProduct: 'Add Product',
       editProduct: 'Edit Product',
       productName: 'Product Name',
@@ -83,14 +103,20 @@ const AdminProductManager = () => {
       tags: 'Tags (comma separated)',
       vendor: 'Vendor',
       save: 'Save Product',
+      update: 'Update',
       cancel: 'Cancel',
+      delete: 'Delete',
       noProducts: 'No products found',
       loading: 'Loading products...',
-      deleteConfirm: 'Are you sure you want to delete this product?',
+      deleteConfirm: 'Are you sure?',
+      deleteDescription: 'This action cannot be undone. The product will be permanently deleted.',
       productAdded: 'Product added!',
       productUpdated: 'Product updated!',
       productDeleted: 'Product deleted!',
       error: 'Something went wrong',
+      inStock: 'In stock',
+      outOfStock: 'Out of stock',
+      moreProducts: 'more products',
     }
   };
 
@@ -105,6 +131,25 @@ const AdminProductManager = () => {
       tags: '',
       vendor: '4ThePeople',
     });
+    setSelectedProduct(null);
+  };
+
+  const handleEditClick = (product: ShopifyProduct) => {
+    setSelectedProduct(product);
+    setFormData({
+      title: product.node.title,
+      description: product.node.description || '',
+      price: product.node.priceRange.minVariantPrice.amount,
+      productType: '',
+      tags: '',
+      vendor: '4ThePeople',
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleDeleteClick = (product: ShopifyProduct) => {
+    setSelectedProduct(product);
+    setIsDeleteDialogOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -112,33 +157,100 @@ const AdminProductManager = () => {
     setIsSubmitting(true);
 
     try {
-      // Call the Shopify product creation API via edge function
-      const response = await fetch('/api/shopify/products', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: formData.title,
-          body: formData.description,
-          product_type: formData.productType,
-          tags: formData.tags,
-          vendor: formData.vendor,
-          variants: [{
-            price: formData.price,
-          }],
-        }),
+      const response = await supabase.functions.invoke('shopify-proxy', {
+        body: {
+          action: 'createProduct',
+          data: {
+            title: formData.title,
+            body_html: formData.description,
+            product_type: formData.productType,
+            tags: formData.tags,
+            vendor: formData.vendor,
+            variants: [{
+              price: formData.price,
+            }],
+          },
+        },
       });
 
-      if (response.ok) {
-        toast.success(t.productAdded);
-        resetForm();
-        setIsAddDialogOpen(false);
-        queryClient.invalidateQueries({ queryKey: ['admin-products'] });
-        queryClient.invalidateQueries({ queryKey: ['shopify-products'] });
-      } else {
-        throw new Error('Failed to create product');
-      }
+      if (response.error) throw response.error;
+
+      toast.success(t.productAdded);
+      resetForm();
+      setIsAddDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+      queryClient.invalidateQueries({ queryKey: ['shopify-products'] });
     } catch (error) {
       console.error('Failed to create product:', error);
+      toast.error(t.error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedProduct) return;
+    setIsSubmitting(true);
+
+    try {
+      // Extract the numeric ID from the Shopify GID
+      const gid = selectedProduct.node.id;
+      const numericId = gid.split('/').pop();
+
+      const response = await supabase.functions.invoke('shopify-proxy', {
+        body: {
+          action: 'updateProduct',
+          productId: numericId,
+          data: {
+            title: formData.title,
+            body_html: formData.description,
+            product_type: formData.productType,
+            tags: formData.tags,
+            vendor: formData.vendor,
+          },
+        },
+      });
+
+      if (response.error) throw response.error;
+
+      toast.success(t.productUpdated);
+      resetForm();
+      setIsEditDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+      queryClient.invalidateQueries({ queryKey: ['shopify-products'] });
+    } catch (error) {
+      console.error('Failed to update product:', error);
+      toast.error(t.error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedProduct) return;
+    setIsSubmitting(true);
+
+    try {
+      const gid = selectedProduct.node.id;
+      const numericId = gid.split('/').pop();
+
+      const response = await supabase.functions.invoke('shopify-proxy', {
+        body: {
+          action: 'deleteProduct',
+          productId: numericId,
+        },
+      });
+
+      if (response.error) throw response.error;
+
+      toast.success(t.productDeleted);
+      setSelectedProduct(null);
+      setIsDeleteDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+      queryClient.invalidateQueries({ queryKey: ['shopify-products'] });
+    } catch (error) {
+      console.error('Failed to delete product:', error);
       toast.error(t.error);
     } finally {
       setIsSubmitting(false);
@@ -152,6 +264,104 @@ const AdminProductManager = () => {
       minimumFractionDigits: 0,
     }).format(parseFloat(amount));
   };
+
+  const ProductForm = ({ isEdit = false, onSubmit }: { isEdit?: boolean; onSubmit: (e: React.FormEvent) => void }) => (
+    <form onSubmit={onSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="title">{t.productName}</Label>
+        <Input
+          id="title"
+          value={formData.title}
+          onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+          placeholder="Naturlig Deodorant"
+          required
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="description">{t.description}</Label>
+        <Textarea
+          id="description"
+          value={formData.description}
+          onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+          placeholder="Aluminiumfri, naturlig doft..."
+          rows={3}
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="price">{t.price}</Label>
+          <div className="relative">
+            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              id="price"
+              type="number"
+              step="0.01"
+              value={formData.price}
+              onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
+              placeholder="159"
+              className="pl-9"
+              required
+              disabled={isEdit}
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="productType">{t.category}</Label>
+          <Input
+            id="productType"
+            value={formData.productType}
+            onChange={(e) => setFormData(prev => ({ ...prev, productType: e.target.value }))}
+            placeholder="Kroppsvård"
+          />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="tags">{t.tags}</Label>
+        <div className="relative">
+          <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            id="tags"
+            value={formData.tags}
+            onChange={(e) => setFormData(prev => ({ ...prev, tags: e.target.value }))}
+            placeholder="naturlig, ekologisk, vegansk"
+            className="pl-9"
+          />
+        </div>
+      </div>
+
+      <div className="flex gap-2 pt-2">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => {
+            resetForm();
+            isEdit ? setIsEditDialogOpen(false) : setIsAddDialogOpen(false);
+          }}
+          className="flex-1"
+        >
+          {t.cancel}
+        </Button>
+        <Button
+          type="submit"
+          disabled={isSubmitting || !formData.title || (!isEdit && !formData.price)}
+          className="flex-1"
+        >
+          {isSubmitting ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <>
+              <Save className="w-4 h-4 mr-2" />
+              {isEdit ? t.update : t.save}
+            </>
+          )}
+        </Button>
+      </div>
+    </form>
+  );
 
   return (
     <div className="space-y-4">
@@ -180,101 +390,13 @@ const AdminProductManager = () => {
                 {t.addProduct}
               </DialogTitle>
             </DialogHeader>
-            
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="title">{t.productName}</Label>
-                <Input
-                  id="title"
-                  value={formData.title}
-                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                  placeholder="Naturlig Deodorant"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="description">{t.description}</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Aluminiumfri, naturlig doft..."
-                  rows={3}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="price">{t.price}</Label>
-                  <div className="relative">
-                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      id="price"
-                      type="number"
-                      step="0.01"
-                      value={formData.price}
-                      onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
-                      placeholder="159"
-                      className="pl-9"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="productType">{t.category}</Label>
-                  <Input
-                    id="productType"
-                    value={formData.productType}
-                    onChange={(e) => setFormData(prev => ({ ...prev, productType: e.target.value }))}
-                    placeholder="Kroppsvård"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="tags">{t.tags}</Label>
-                <div className="relative">
-                  <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    id="tags"
-                    value={formData.tags}
-                    onChange={(e) => setFormData(prev => ({ ...prev, tags: e.target.value }))}
-                    placeholder="naturlig, ekologisk, vegansk"
-                    className="pl-9"
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-2 pt-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsAddDialogOpen(false)}
-                  className="flex-1"
-                >
-                  {t.cancel}
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={isSubmitting || !formData.title || !formData.price}
-                  className="flex-1"
-                >
-                  {isSubmitting ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    t.save
-                  )}
-                </Button>
-              </div>
-            </form>
+            <ProductForm onSubmit={handleSubmit} />
           </DialogContent>
         </Dialog>
       </div>
 
       {/* Product List */}
-      <div className="space-y-2 max-h-64 overflow-y-auto">
+      <div className="space-y-2 max-h-80 overflow-y-auto">
         {productsLoading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -282,12 +404,12 @@ const AdminProductManager = () => {
         ) : products.length === 0 ? (
           <p className="text-center text-muted-foreground py-4">{t.noProducts}</p>
         ) : (
-          products.slice(0, 6).map((product: ShopifyProduct) => (
+          products.slice(0, 10).map((product: ShopifyProduct) => (
             <motion.div
               key={product.node.id}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors"
+              className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors group"
             >
               <div className="w-12 h-12 rounded-md bg-muted flex-shrink-0 overflow-hidden">
                 {product.node.images.edges[0]?.node && (
@@ -314,23 +436,84 @@ const AdminProductManager = () => {
               </div>
               <Badge variant="outline" className="text-xs">
                 {product.node.variants.edges[0]?.node.availableForSale 
-                  ? (language === 'sv' ? 'I lager' : 'In stock')
-                  : (language === 'sv' ? 'Slut' : 'Out of stock')
+                  ? t.inStock
+                  : t.outOfStock
                 }
               </Badge>
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => handleEditClick(product)}
+                >
+                  <Edit className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-destructive hover:text-destructive"
+                  onClick={() => handleDeleteClick(product)}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
             </motion.div>
           ))
         )}
       </div>
 
-      {products.length > 6 && (
+      {products.length > 10 && (
         <p className="text-xs text-center text-muted-foreground">
-          {language === 'sv' 
-            ? `+ ${products.length - 6} fler produkter`
-            : `+ ${products.length - 6} more products`
-          }
+          + {products.length - 10} {t.moreProducts}
         </p>
       )}
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="w-5 h-5 text-primary" />
+              {t.editProduct}
+            </DialogTitle>
+          </DialogHeader>
+          <ProductForm isEdit onSubmit={handleUpdate} />
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t.deleteConfirm}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t.deleteDescription}
+              {selectedProduct && (
+                <span className="block mt-2 font-medium text-foreground">
+                  {selectedProduct.node.title}
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSelectedProduct(null)}>
+              {t.cancel}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                t.delete
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

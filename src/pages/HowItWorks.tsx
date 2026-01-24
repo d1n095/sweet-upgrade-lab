@@ -15,8 +15,8 @@ const HowItWorks = () => {
       icon: ShoppingCart,
       title: { sv: 'Välj produkter', en: 'Choose products' },
       description: {
-        sv: 'Bläddra i vårt sortiment av hållbara produkter och lägg de du vill ha i varukorgen.',
-        en: 'Browse our range of sustainable products and add the ones you want to your cart.',
+        sv: 'Bläddra i vårt sortiment av noggrant utvalda produkter och lägg de du vill ha i varukorgen.',
+        en: 'Browse our carefully selected range of products and add the ones you want to your cart.',
       },
     },
     {
@@ -31,10 +31,10 @@ const HowItWorks = () => {
     {
       number: '03',
       icon: Package,
-      title: { sv: 'Vi förbereder', en: 'We prepare' },
+      title: { sv: 'Vi behandlar din order', en: 'We process your order' },
       description: {
-        sv: 'Din order packas omsorgsfullt och skickas från vårt EU-lager inom 1-2 arbetsdagar.',
-        en: 'Your order is carefully packed and shipped from our EU warehouse within 1-2 business days.',
+        sv: 'Vi granskar din beställning manuellt för att säkerställa kvalitet, sedan skickas den från våra EU-baserade leverantörer.',
+        en: 'We manually review your order to ensure quality, then it\'s shipped from our EU-based suppliers.',
       },
     },
     {
@@ -42,8 +42,8 @@ const HowItWorks = () => {
       icon: Truck,
       title: { sv: 'Leverans hem', en: 'Home delivery' },
       description: {
-        sv: `Leverans tar ${storeConfig.shipping.deliveryTime.sv}. Du får spårningsinformation via e-post.`,
-        en: `Delivery takes ${storeConfig.shipping.deliveryTime.en}. You'll receive tracking info via email.`,
+        sv: `Leverans tar normalt 7-10 arbetsdagar. Du får spårningsinformation via e-post när paketet skickats.`,
+        en: `Delivery normally takes 7-10 business days. You'll receive tracking info via email when shipped.`,
       },
     },
     {
@@ -51,8 +51,8 @@ const HowItWorks = () => {
       icon: CheckCircle,
       title: { sv: 'Njut!', en: 'Enjoy!' },
       description: {
-        sv: 'Dina produkter är hemma och redo att användas. Enkelt och bekvämt.',
-        en: 'Your products are home and ready to use. Simple and convenient.',
+        sv: 'Dina produkter är hemma och redo att användas. Inte nöjd? Du har 14 dagars ångerrätt.',
+        en: 'Your products are home and ready to use. Not satisfied? You have 14 days to return.',
       },
     },
   ];
