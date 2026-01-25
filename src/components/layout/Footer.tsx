@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Leaf, Mail, MessageCircle, Instagram, Facebook, CreditCard, Wallet, Send } from 'lucide-react';
+import { Leaf, Mail, Clock, Instagram, Facebook, CreditCard, Wallet, Send } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { storeConfig } from '@/config/storeConfig';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
@@ -7,21 +7,96 @@ import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 const Footer = () => {
   const { t, language } = useLanguage();
   
+  const footerContent = {
+    sv: {
+      quickLinks: 'Snabblänkar',
+      customerService: 'Kundtjänst',
+      payment: 'Betalsätt',
+      followUs: 'Följ oss:',
+      securePayment: 'Säker betalning med SSL',
+      freeShipping: `Fri frakt över ${storeConfig.shipping.freeShippingThreshold} kr`,
+      founded: 'Grundat 2026',
+      responseTime: 'Svar inom 48 timmar',
+      europeanDelivery: 'Leverans i Europa',
+      privacyPolicy: 'Integritetspolicy',
+      terms: 'Villkor',
+      returns: 'Returer'
+    },
+    en: {
+      quickLinks: 'Quick Links',
+      customerService: 'Customer Service',
+      payment: 'Payment',
+      followUs: 'Follow us:',
+      securePayment: 'Secure SSL payment',
+      freeShipping: `Free shipping over ${storeConfig.shipping.freeShippingThreshold} SEK`,
+      founded: 'Founded 2026',
+      responseTime: 'Response within 48 hours',
+      europeanDelivery: 'European delivery',
+      privacyPolicy: 'Privacy Policy',
+      terms: 'Terms',
+      returns: 'Returns'
+    },
+    no: {
+      quickLinks: 'Hurtiglenker',
+      customerService: 'Kundeservice',
+      payment: 'Betaling',
+      followUs: 'Følg oss:',
+      securePayment: 'Sikker betaling med SSL',
+      freeShipping: `Fri frakt over ${storeConfig.shipping.freeShippingThreshold} kr`,
+      founded: 'Grunnlagt 2026',
+      responseTime: 'Svar innen 48 timer',
+      europeanDelivery: 'Europeisk levering',
+      privacyPolicy: 'Personvernerklæring',
+      terms: 'Vilkår',
+      returns: 'Returer'
+    },
+    da: {
+      quickLinks: 'Hurtige links',
+      customerService: 'Kundeservice',
+      payment: 'Betaling',
+      followUs: 'Følg os:',
+      securePayment: 'Sikker betaling med SSL',
+      freeShipping: `Gratis fragt over ${storeConfig.shipping.freeShippingThreshold} kr`,
+      founded: 'Grundlagt 2026',
+      responseTime: 'Svar inden for 48 timer',
+      europeanDelivery: 'Europæisk levering',
+      privacyPolicy: 'Privatlivspolitik',
+      terms: 'Vilkår',
+      returns: 'Returneringer'
+    },
+    de: {
+      quickLinks: 'Schnelllinks',
+      customerService: 'Kundenservice',
+      payment: 'Zahlung',
+      followUs: 'Folgen Sie uns:',
+      securePayment: 'Sichere SSL-Zahlung',
+      freeShipping: `Kostenloser Versand ab ${storeConfig.shipping.freeShippingThreshold} SEK`,
+      founded: 'Gegründet 2026',
+      responseTime: 'Antwort innerhalb von 48 Stunden',
+      europeanDelivery: 'Europäische Lieferung',
+      privacyPolicy: 'Datenschutz',
+      terms: 'AGB',
+      returns: 'Rückgabe'
+    }
+  };
+
+  const fc = footerContent[language as keyof typeof footerContent] || footerContent.en;
+
   const quickLinks = [
-    { href: '/shop', label: language === 'sv' ? 'Alla produkter' : 'All Products' },
+    { href: '/shop', label: language === 'sv' ? 'Alla produkter' : language === 'no' ? 'Alle produkter' : language === 'da' ? 'Alle produkter' : language === 'de' ? 'Alle Produkte' : 'All Products' },
     { href: '/about', label: t('nav.about') },
-    { href: '/how-it-works', label: language === 'sv' ? 'Så funkar det' : 'How It Works' },
+    { href: '/how-it-works', label: language === 'sv' ? 'Så funkar det' : language === 'no' ? 'Slik fungerer det' : language === 'da' ? 'Sådan fungerer det' : language === 'de' ? 'So funktioniert es' : 'How It Works' },
     { href: '/contact', label: t('nav.contact') },
-    { href: '/track-order', label: language === 'sv' ? 'Spåra order' : 'Track Order' },
-    { href: '/business', label: language === 'sv' ? 'Företagskunder' : 'Business Customers' },
-    { href: '/affiliate', label: language === 'sv' ? 'Samarbete' : 'Partnership' },
+    { href: '/track-order', label: language === 'sv' ? 'Spåra order' : language === 'no' ? 'Spor ordre' : language === 'da' ? 'Spor ordre' : language === 'de' ? 'Bestellung verfolgen' : 'Track Order' },
+    { href: '/business', label: language === 'sv' ? 'Företagskunder' : language === 'no' ? 'Bedriftskunder' : language === 'da' ? 'Erhvervskunder' : language === 'de' ? 'Geschäftskunden' : 'Business Customers' },
+    { href: '/affiliate', label: language === 'sv' ? 'Samarbete' : language === 'no' ? 'Samarbeid' : language === 'da' ? 'Samarbejde' : language === 'de' ? 'Partnerschaft' : 'Partnership' },
   ];
 
   const customerServiceLinks = [
     { href: '/policies/shipping', label: t('footer.shippinginfo') },
     { href: '/policies/returns', label: t('footer.returns') },
-    { href: '/policies/privacy', label: language === 'sv' ? 'Integritetspolicy' : 'Privacy Policy' },
-    { href: '/policies/terms', label: language === 'sv' ? 'Villkor' : 'Terms & Conditions' },
+    { href: '/policies/privacy', label: fc.privacyPolicy },
+    { href: '/policies/terms', label: fc.terms },
   ];
   
   return (
@@ -42,24 +117,24 @@ const Footer = () => {
               {t('footer.description')}
             </p>
             
-            {/* Contact info - simplified */}
+            {/* Contact info */}
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground mb-6">
               <span className="flex items-center gap-1.5">
                 <Mail className="w-4 h-4 text-primary" />
                 {storeConfig.contact.email}
               </span>
               <span className="flex items-center gap-1.5">
-                <MessageCircle className="w-4 h-4 text-primary" />
-                {language === 'sv' ? 'Snabb support' : 'Quick support'}
+                <Clock className="w-4 h-4 text-primary" />
+                {fc.responseTime}
               </span>
               <span className="flex items-center gap-1.5">
-                🌍 {language === 'sv' ? 'Leverans i Europa' : 'European delivery'}
+                🌍 {fc.europeanDelivery}
               </span>
             </div>
             
             {/* Social links */}
             <div className="space-y-3">
-              <p className="text-sm font-medium">{language === 'sv' ? 'Följ oss:' : 'Follow us:'}</p>
+              <p className="text-sm font-medium">{fc.followUs}</p>
               <div className="flex items-center gap-3">
                 <a
                   href={storeConfig.social.instagram}
@@ -92,7 +167,7 @@ const Footer = () => {
 
           {/* Quick Links */}
           <div>
-            <h4 className="font-display font-semibold text-lg mb-5">{t('footer.quicklinks')}</h4>
+            <h4 className="font-display font-semibold text-lg mb-5">{fc.quickLinks}</h4>
             <ul className="space-y-3 text-sm">
               {quickLinks.map((link) => (
                 <li key={link.href}>
@@ -106,7 +181,7 @@ const Footer = () => {
 
           {/* Customer Service */}
           <div>
-            <h4 className="font-display font-semibold text-lg mb-5">{t('footer.customerservice')}</h4>
+            <h4 className="font-display font-semibold text-lg mb-5">{fc.customerService}</h4>
             <ul className="space-y-3 text-sm">
               {customerServiceLinks.map((link) => (
                 <li key={link.href}>
@@ -120,9 +195,7 @@ const Footer = () => {
 
           {/* Payment Methods */}
           <div>
-            <h4 className="font-display font-semibold text-lg mb-5">
-              {language === 'sv' ? 'Betalsätt' : 'Payment'}
-            </h4>
+            <h4 className="font-display font-semibold text-lg mb-5">{fc.payment}</h4>
             <div className="space-y-4">
               <div className="flex flex-wrap gap-3">
                 <div className="flex items-center gap-2 px-3 py-2 bg-secondary/50 rounded-lg">
@@ -138,12 +211,10 @@ const Footer = () => {
                 </div>
               </div>
               <p className="text-sm text-muted-foreground">
-                🔒 {language === 'sv' ? 'Säker betalning med SSL' : 'Secure SSL payment'}
+                🔒 {fc.securePayment}
               </p>
               <p className="text-sm text-primary font-medium">
-                {language === 'sv' 
-                  ? `Fri frakt över ${storeConfig.shipping.freeShippingThreshold} kr` 
-                  : `Free shipping over ${storeConfig.shipping.freeShippingThreshold} SEK`}
+                {fc.freeShipping}
               </p>
             </div>
           </div>
@@ -155,17 +226,17 @@ const Footer = () => {
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-3">
             <p>© {new Date().getFullYear()} {storeConfig.company.name}. {t('footer.rights')}</p>
-            <span className="text-xs opacity-60">Grundat 2026</span>
+            <span className="text-xs opacity-60">{fc.founded}</span>
           </div>
           <div className="flex items-center gap-6">
             <Link to="/policies/privacy" className="hover:text-foreground transition-colors">
-              {language === 'sv' ? 'Integritetspolicy' : 'Privacy Policy'}
+              {fc.privacyPolicy}
             </Link>
             <Link to="/policies/terms" className="hover:text-foreground transition-colors">
-              {language === 'sv' ? 'Villkor' : 'Terms'}
+              {fc.terms}
             </Link>
             <Link to="/policies/returns" className="hover:text-foreground transition-colors">
-              {language === 'sv' ? 'Returer' : 'Returns'}
+              {fc.returns}
             </Link>
             <LanguageSwitcher />
           </div>

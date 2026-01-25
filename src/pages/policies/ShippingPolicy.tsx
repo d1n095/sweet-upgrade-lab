@@ -125,6 +125,60 @@ If you haven't received tracking information within 5 business days after order 
 We always work to give you the best possible experience and resolve any issues quickly and professionally.`
         }
       ]
+    },
+    no: {
+      title: 'Fraktinformasjon',
+      badge: 'Frakt',
+      intro: 'Vi streber etter å levere produktene dine så raskt og smidig som mulig. Her finner du all informasjon om våre leveringsalternativer.',
+      infoCards: [
+        { label: 'Fraktkostnad', value: `${storeConfig.shipping.cost} kr`, highlight: false },
+        { label: 'Fri frakt over', value: `${storeConfig.shipping.freeShippingThreshold} kr`, highlight: true },
+        { label: 'Leveringstid', value: storeConfig.shipping.deliveryTime.en, highlight: false },
+        { label: 'Angrerett', value: `${storeConfig.returns.period} dager`, highlight: false },
+      ],
+      sections: [
+        { title: 'Slik fungerer leveransen', icon: Package, text: 'Vi samarbeider med nøye utvalgte leverandører som sender produktene direkte til deg fra EU-baserte lager.' },
+        { title: 'Leveringstider', icon: Clock, text: `Normal leveringstid er 7-10 virkedager. Dette inkluderer 1-3 virkedager for ordrebehandling og 4-7 virkedager for levering.` },
+        { title: 'Leveringsområde', icon: Globe, text: 'Vi leverer til hele Europa. Ingen tollgebyrer eller importkostnader for EU-land.' },
+        { title: 'Ordresporing', icon: MapPin, text: 'Når ordren er sendt, mottar du en e-post med sporingsinformasjon.' },
+        { title: 'Viktig å vite', icon: AlertTriangle, text: 'Vi kan ikke garantere eksakte leveringsdatoer. Forsinkelser kan oppstå ved høytider.' }
+      ]
+    },
+    da: {
+      title: 'Fragtinformation',
+      badge: 'Fragt',
+      intro: 'Vi stræber efter at levere dine produkter så hurtigt og smidigt som muligt. Her finder du al information om vores leveringsmuligheder.',
+      infoCards: [
+        { label: 'Fragtomkostning', value: `${storeConfig.shipping.cost} kr`, highlight: false },
+        { label: 'Gratis fragt over', value: `${storeConfig.shipping.freeShippingThreshold} kr`, highlight: true },
+        { label: 'Leveringstid', value: storeConfig.shipping.deliveryTime.en, highlight: false },
+        { label: 'Returret', value: `${storeConfig.returns.period} dage`, highlight: false },
+      ],
+      sections: [
+        { title: 'Sådan fungerer leveringen', icon: Package, text: 'Vi samarbejder med omhyggeligt udvalgte leverandører, der sender produkterne direkte til dig fra EU-baserede lagre.' },
+        { title: 'Leveringstider', icon: Clock, text: `Normal leveringstid er 7-10 hverdage. Dette inkluderer 1-3 hverdage til ordrebehandling og 4-7 hverdage til levering.` },
+        { title: 'Leveringsområde', icon: Globe, text: 'Vi leverer til hele Europa. Ingen toldgebyrer eller importomkostninger for EU-lande.' },
+        { title: 'Ordresporing', icon: MapPin, text: 'Når ordren er afsendt, modtager du en e-mail med sporingsinformation.' },
+        { title: 'Vigtigt at vide', icon: AlertTriangle, text: 'Vi kan ikke garantere eksakte leveringsdatoer. Forsinkelser kan forekomme i højtider.' }
+      ]
+    },
+    de: {
+      title: 'Versandinformationen',
+      badge: 'Versand',
+      intro: 'Wir bemühen uns, Ihre Produkte so schnell und reibungslos wie möglich zu liefern. Hier finden Sie alle Informationen zu unseren Lieferoptionen.',
+      infoCards: [
+        { label: 'Versandkosten', value: `${storeConfig.shipping.cost} kr`, highlight: false },
+        { label: 'Kostenloser Versand ab', value: `${storeConfig.shipping.freeShippingThreshold} kr`, highlight: true },
+        { label: 'Lieferzeit', value: storeConfig.shipping.deliveryTime.en, highlight: false },
+        { label: 'Rückgaberecht', value: `${storeConfig.returns.period} Tage`, highlight: false },
+      ],
+      sections: [
+        { title: 'So funktioniert die Lieferung', icon: Package, text: 'Wir arbeiten mit sorgfältig ausgewählten Lieferanten zusammen, die Produkte direkt aus EU-Lagern an Sie versenden.' },
+        { title: 'Lieferzeiten', icon: Clock, text: `Normale Lieferzeit beträgt 7-10 Werktage. Dies umfasst 1-3 Werktage für Auftragsbearbeitung und 4-7 Werktage für die Lieferung.` },
+        { title: 'Liefergebiet', icon: Globe, text: 'Wir liefern in ganz Europa. Keine Zollgebühren oder Importkosten für EU-Länder.' },
+        { title: 'Sendungsverfolgung', icon: MapPin, text: 'Sobald Ihre Bestellung versandt wurde, erhalten Sie eine E-Mail mit Tracking-Informationen.' },
+        { title: 'Wichtig zu wissen', icon: AlertTriangle, text: 'Wir können keine exakten Liefertermine garantieren. Verzögerungen können während Feiertagen auftreten.' }
+      ]
     }
   };
 

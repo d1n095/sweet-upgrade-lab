@@ -1,4 +1,4 @@
-import { Cpu, Shirt, Droplets, Grid, Flame, Flame as SaunaIcon, Sparkles, Gem } from 'lucide-react';
+import { Cpu, Shirt, Droplets, Grid, Flame, Flame as SaunaIcon, Sparkles, Gem, Bed } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 export interface Category {
@@ -30,10 +30,10 @@ export const categories: Category[] = [
     query: 'product_type:Elektronik'
   },
   { 
-    id: 'hampa-klader', 
-    name: { sv: 'Hampa-kläder', en: 'Hemp Clothing', no: 'Hampeklær', da: 'Hampetøj', de: 'Hanf-Kleidung', fi: 'Hamppu-vaatteet', nl: 'Hennep-kleding', fr: 'Vêtements chanvre', es: 'Ropa de cáñamo', pl: 'Odzież konopna' }, 
+    id: 'klader', 
+    name: { sv: 'Kläder', en: 'Clothing', no: 'Klær', da: 'Tøj', de: 'Kleidung', fi: 'Vaatteet', nl: 'Kleding', fr: 'Vêtements', es: 'Ropa', pl: 'Odzież' }, 
     icon: Shirt,
-    query: 'product_type:"Hampa-kläder"'
+    query: 'product_type:"Hampa-kläder" OR product_type:Kläder'
   },
   { 
     id: 'kroppsvard', 
@@ -58,5 +58,11 @@ export const categories: Category[] = [
     name: { sv: 'Bastudofter', en: 'Sauna Scents', no: 'Badstudufter', da: 'Saunadufte', de: 'Saunadüfte', fi: 'Saunatuoksut', nl: 'Saunageuren', fr: 'Parfums sauna', es: 'Aromas sauna', pl: 'Zapachy do sauny' }, 
     icon: SaunaIcon,
     query: 'product_type:Bastudofter'
+  },
+  { 
+    id: 'hem-textil', 
+    name: { sv: 'Hemtextil', en: 'Home Textiles', no: 'Hjemmetekstil', da: 'Hjemmetekstil', de: 'Heimtextilien', fi: 'Kodintekstiilit', nl: 'Woontextiel', fr: 'Textiles maison', es: 'Textiles hogar', pl: 'Tekstylia domowe' }, 
+    icon: Bed,
+    query: 'product_type:Hemtextil OR product_type:Sängkläder OR product_type:Handdukar OR product_type:Filtar'
   },
 ];

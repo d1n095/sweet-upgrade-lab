@@ -11,6 +11,7 @@ import Shop from "./pages/Shop";
 import AboutUs from "./pages/AboutUs";
 import Contact from "./pages/Contact";
 import TrackOrder from "./pages/TrackOrder";
+import OrderConfirmation from "./pages/OrderConfirmation";
 import HowItWorks from "./pages/HowItWorks";
 import CBD from "./pages/CBD";
 import ReturnsPolicy from "./pages/policies/ReturnsPolicy";
@@ -43,6 +44,7 @@ const App = () => (
             <Route path="/about" element={<AboutUs />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/track-order" element={<TrackOrder />} />
+            <Route path="/order-confirmation" element={<OrderConfirmation />} />
             <Route path="/how-it-works" element={<HowItWorks />} />
             <Route path="/cbd" element={<CBD />} />
             <Route path="/policies/returns" element={<ReturnsPolicy />} />

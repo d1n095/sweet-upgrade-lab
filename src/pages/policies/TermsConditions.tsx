@@ -14,84 +14,75 @@ const TermsConditions = () => {
       title: 'Allmänna Villkor',
       badge: 'Villkor',
       sections: [
-        {
-          title: 'Allmänt',
-          text: `Dessa allmänna villkor gäller för alla köp som görs via vår webbplats. Genom att genomföra ett köp godkänner du dessa villkor i sin helhet. Vi förbehåller oss rätten att uppdatera villkoren utan föregående meddelande. Det är kundens ansvar att hålla sig informerad om gällande villkor.`
-        },
-        {
-          title: 'Företagsinformation',
-          text: `4ThePeople är en europeisk e-handelsverksamhet med säte i EU. Vi agerar som förmedlare mellan våra leverantörer och dig som kund. Produkterna levereras direkt från våra noggrant utvalda samarbetspartners inom EU.`
-        },
-        {
-          title: 'Priser och betalning',
-          text: `Alla priser anges i SEK inklusive moms (25%). Vi reserverar oss för eventuella prisändringar, tryckfel och slutförsäljning. Betalning sker via säkra betalningslösningar (kort, Klarna, Swish). Din order behandlas först när betalningen är bekräftad och godkänd.`
-        },
-        {
-          title: 'Orderbekräftelse',
-          text: `Efter genomfört köp skickas en orderbekräftelse till din e-postadress. Denna bekräftelse utgör ditt kvitto. Spara den för eventuella reklamationer eller returer. Om du inte mottar bekräftelse inom 24 timmar, kontakta vår kundtjänst.`
-        },
-        {
-          title: 'Leverans och orderhantering',
-          text: `Vi samarbetar med leverantörer som skickar produkterna direkt till dig. Leveranstiden är normalt ${storeConfig.shipping.deliveryTime.sv}. Förseningar kan förekomma vid högsäsong eller på grund av omständigheter utanför vår kontroll. Du får spårningsinformation via e-post när din order har skickats.`
-        },
-        {
-          title: 'Ångerrätt',
-          text: `Enligt distansavtalslagen har du ${storeConfig.returns.period} dagars ångerrätt från den dag du tar emot varan. Produkten ska vara oanvänd och i originalförpackning. Kontakta oss på ${storeConfig.contact.email} för att påbörja en retur.`
-        },
-        {
-          title: 'Reklamation',
-          text: `Om en produkt är defekt eller skadad vid leverans har du rätt att reklamera. Kontakta oss inom skälig tid efter att felet upptäckts. Vi följer konsumentköplagen och du har alltid minst 3 års reklamationsrätt på fabriksfel.`
-        },
-        {
-          title: 'Force Majeure',
-          text: `Vi ansvarar inte för förseningar orsakade av omständigheter utanför vår kontroll, såsom naturkatastrofer, pandemi, krig, strejk, eller leveransproblem hos våra partners.`
-        },
-        {
-          title: 'Tvistelösning',
-          text: `Vid eventuell tvist följer vi svensk lagstiftning. Du kan även vända dig till Allmänna Reklamationsnämnden (ARN) för en opartisk prövning.`
-        }
+        { title: 'Allmänt', text: `Dessa allmänna villkor gäller för alla köp som görs via vår webbplats. Genom att genomföra ett köp godkänner du dessa villkor i sin helhet.` },
+        { title: 'Företagsinformation', text: `4ThePeople är en europeisk e-handelsverksamhet med säte i EU. Vi agerar som förmedlare mellan våra leverantörer och dig som kund.` },
+        { title: 'Priser och betalning', text: `Alla priser anges i SEK inklusive moms (25%). Betalning sker via säkra betalningslösningar (kort, Klarna, Swish).` },
+        { title: 'Orderbekräftelse', text: `Efter genomfört köp skickas en orderbekräftelse till din e-postadress. Denna bekräftelse utgör ditt kvitto.` },
+        { title: 'Leverans och orderhantering', text: `Leveranstiden är normalt ${storeConfig.shipping.deliveryTime.sv}. Du får spårningsinformation via e-post.` },
+        { title: 'Ångerrätt', text: `Enligt distansavtalslagen har du ${storeConfig.returns.period} dagars ångerrätt. Kontakta oss på ${storeConfig.contact.email} för att påbörja en retur.` },
+        { title: 'Reklamation', text: `Du har minst 3 års reklamationsrätt på fabriksfel enligt konsumentköplagen.` },
+        { title: 'Force Majeure', text: `Vi ansvarar inte för förseningar orsakade av omständigheter utanför vår kontroll.` },
+        { title: 'Tvistelösning', text: `Vid eventuell tvist följer vi svensk lagstiftning. Du kan vända dig till Allmänna Reklamationsnämnden (ARN).` }
       ]
     },
     en: {
       title: 'Terms & Conditions',
       badge: 'Terms',
       sections: [
-        {
-          title: 'General',
-          text: `These general terms apply to all purchases made through our website. By completing a purchase, you agree to these terms in full. We reserve the right to update the terms without prior notice. It is the customer's responsibility to stay informed about current terms.`
-        },
-        {
-          title: 'Company Information',
-          text: `4ThePeople is a European e-commerce business based in the EU. We act as an intermediary between our suppliers and you as a customer. Products are delivered directly from our carefully selected partners within the EU.`
-        },
-        {
-          title: 'Prices and Payment',
-          text: `All prices are in SEK including VAT (25%). We reserve the right for price changes, printing errors and sold-out items. Payment is made through secure payment solutions (card, Klarna, Swish). Your order is processed only when payment is confirmed and approved.`
-        },
-        {
-          title: 'Order Confirmation',
-          text: `After completing your purchase, an order confirmation is sent to your email address. This confirmation serves as your receipt. Save it for any claims or returns. If you don't receive confirmation within 24 hours, contact our customer service.`
-        },
-        {
-          title: 'Delivery and Order Handling',
-          text: `We work with suppliers who ship products directly to you. Delivery time is normally ${storeConfig.shipping.deliveryTime.en}. Delays may occur during peak season or due to circumstances beyond our control. You will receive tracking information via email when your order has been shipped.`
-        },
-        {
-          title: 'Right of Withdrawal',
-          text: `According to the Distance Selling Act, you have ${storeConfig.returns.period} days right of withdrawal from the day you receive the product. The product must be unused and in original packaging. Contact us at ${storeConfig.contact.email} to initiate a return.`
-        },
-        {
-          title: 'Complaints',
-          text: `If a product is defective or damaged upon delivery, you have the right to file a complaint. Contact us within a reasonable time after discovering the defect. We follow consumer protection laws and you always have at least 3 years warranty on manufacturing defects.`
-        },
-        {
-          title: 'Force Majeure',
-          text: `We are not responsible for delays caused by circumstances beyond our control, such as natural disasters, pandemic, war, strikes, or delivery problems with our partners.`
-        },
-        {
-          title: 'Dispute Resolution',
-          text: `In case of a dispute, we follow Swedish law. You can also contact the National Board for Consumer Disputes (ARN) for an impartial review.`
-        }
+        { title: 'General', text: `These general terms apply to all purchases made through our website. By completing a purchase, you agree to these terms in full.` },
+        { title: 'Company Information', text: `4ThePeople is a European e-commerce business based in the EU. We act as an intermediary between our suppliers and you as a customer.` },
+        { title: 'Prices and Payment', text: `All prices are in SEK including VAT (25%). Payment is made through secure payment solutions (card, Klarna, Swish).` },
+        { title: 'Order Confirmation', text: `After completing your purchase, an order confirmation is sent to your email address. This confirmation serves as your receipt.` },
+        { title: 'Delivery and Order Handling', text: `Delivery time is normally ${storeConfig.shipping.deliveryTime.en}. You will receive tracking information via email.` },
+        { title: 'Right of Withdrawal', text: `According to the Distance Selling Act, you have ${storeConfig.returns.period} days right of withdrawal. Contact us at ${storeConfig.contact.email} to initiate a return.` },
+        { title: 'Complaints', text: `You always have at least 3 years warranty on manufacturing defects.` },
+        { title: 'Force Majeure', text: `We are not responsible for delays caused by circumstances beyond our control.` },
+        { title: 'Dispute Resolution', text: `In case of a dispute, we follow Swedish law. You can contact the National Board for Consumer Disputes (ARN).` }
+      ]
+    },
+    no: {
+      title: 'Vilkår og betingelser',
+      badge: 'Vilkår',
+      sections: [
+        { title: 'Generelt', text: 'Disse generelle vilkårene gjelder for alle kjøp gjort via vår nettside.' },
+        { title: 'Firmainfo', text: '4ThePeople er en europeisk e-handelsvirksomhet basert i EU.' },
+        { title: 'Priser og betaling', text: 'Alle priser er i SEK inkludert MVA. Betaling skjer via sikre betalingsløsninger.' },
+        { title: 'Ordrebekreftelse', text: 'En ordrebekreftelse sendes til din e-postadresse etter kjøp.' },
+        { title: 'Levering', text: `Normal leveringstid er 7-10 virkedager.` },
+        { title: 'Angrerett', text: `Du har ${storeConfig.returns.period} dagers angrerett.` },
+        { title: 'Reklamasjon', text: 'Du har minst 3 års reklamasjonsrett på fabriksfeil.' },
+        { title: 'Force Majeure', text: 'Vi er ikke ansvarlige for forsinkelser utenfor vår kontroll.' },
+        { title: 'Tvister', text: 'Tvister løses etter svensk lov.' }
+      ]
+    },
+    da: {
+      title: 'Vilkår og betingelser',
+      badge: 'Vilkår',
+      sections: [
+        { title: 'Generelt', text: 'Disse generelle vilkår gælder for alle køb foretaget via vores hjemmeside.' },
+        { title: 'Virksomhedsoplysninger', text: '4ThePeople er en europæisk e-handelsvirksomhed baseret i EU.' },
+        { title: 'Priser og betaling', text: 'Alle priser er i SEK inklusiv moms. Betaling sker via sikre betalingsløsninger.' },
+        { title: 'Ordrebekræftelse', text: 'En ordrebekræftelse sendes til din e-mailadresse efter køb.' },
+        { title: 'Levering', text: `Normal leveringstid er 7-10 hverdage.` },
+        { title: 'Fortrydelsesret', text: `Du har ${storeConfig.returns.period} dages fortrydelsesret.` },
+        { title: 'Reklamation', text: 'Du har mindst 3 års reklamationsret på fabriksfejl.' },
+        { title: 'Force Majeure', text: 'Vi er ikke ansvarlige for forsinkelser uden for vores kontrol.' },
+        { title: 'Tvister', text: 'Tvister afgøres efter svensk lovgivning.' }
+      ]
+    },
+    de: {
+      title: 'Allgemeine Geschäftsbedingungen',
+      badge: 'AGB',
+      sections: [
+        { title: 'Allgemeines', text: 'Diese AGB gelten für alle Käufe über unsere Website.' },
+        { title: 'Unternehmensinfo', text: '4ThePeople ist ein europäisches E-Commerce-Unternehmen mit Sitz in der EU.' },
+        { title: 'Preise und Zahlung', text: 'Alle Preise sind in SEK inkl. MwSt. Zahlung erfolgt über sichere Zahlungslösungen.' },
+        { title: 'Bestellbestätigung', text: 'Nach Abschluss erhalten Sie eine Bestellbestätigung per E-Mail.' },
+        { title: 'Lieferung', text: `Normale Lieferzeit beträgt 7-10 Werktage.` },
+        { title: 'Widerrufsrecht', text: `Sie haben ${storeConfig.returns.period} Tage Widerrufsrecht.` },
+        { title: 'Reklamation', text: 'Sie haben mindestens 3 Jahre Garantie auf Herstellungsfehler.' },
+        { title: 'Force Majeure', text: 'Wir haften nicht für Verzögerungen außerhalb unserer Kontrolle.' },
+        { title: 'Streitbeilegung', text: 'Streitigkeiten werden nach schwedischem Recht geregelt.' }
       ]
     }
   };
