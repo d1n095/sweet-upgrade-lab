@@ -61,10 +61,10 @@ export const storeConfig = {
       active: true,
     },
     {
-      id: 'hampa-klader',
-      name: { sv: 'Hampa-kläder', en: 'Hemp Clothing' },
-      description: { sv: 'Hållbara kläder i hampa', en: 'Sustainable hemp clothing' },
-      shopifyProductType: 'Hampa-kläder',
+      id: 'klader',
+      name: { sv: 'Kläder', en: 'Clothing' },
+      description: { sv: 'Hållbara kläder', en: 'Sustainable clothing' },
+      shopifyProductType: 'Kläder',
       active: true,
     },
     {
@@ -96,8 +96,15 @@ export const storeConfig = {
       active: true,
     },
     {
+      id: 'hem-textil',
+      name: { sv: 'Hemtextil', en: 'Home Textiles' },
+      description: { sv: 'Sängkläder, filtar, handdukar', en: 'Bedding, blankets, towels' },
+      shopifyProductType: 'Hemtextil',
+      active: true,
+    },
+    {
       id: 'cbd',
-      name: { sv: 'CBD & Hampa', en: 'CBD & Hemp' },
+      name: { sv: 'CBD', en: 'CBD' },
       description: { sv: 'CBD-produkter (kommer snart)', en: 'CBD products (coming soon)' },
       shopifyProductType: 'CBD',
       active: false, // Hidden but structure exists

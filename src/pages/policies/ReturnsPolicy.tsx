@@ -121,6 +121,45 @@ const ReturnsPolicy = () => {
         title: 'Defective Products',
         text: 'If the product is defective or damaged upon delivery, contact us immediately. We will replace the product or refund the full amount including shipping costs. You don\'t pay return shipping for complaints.'
       }
+    },
+    no: {
+      title: 'Retur & Refusjon',
+      badge: 'Retur',
+      intro: `Vi ønsker at du skal være helt fornøyd med kjøpet ditt. Hvis du ikke er det, har du ${storeConfig.returns.period} dagers angrerett.`,
+      sections: [
+        { title: 'Angrerett', icon: CheckCircle, items: [`Du har ${storeConfig.returns.period} dagers angrerett fra mottaksdato.`, 'Ingen begrunnelse nødvendig.'] },
+        { title: 'Returvilkår', icon: Package, items: ['Produktet må være ubrukt og i original emballasje.'] },
+        { title: 'Slik returnerer du', icon: RotateCcw, items: [`1. Kontakt oss på ${storeConfig.contact.email}`, '2. Send produktet tilbake innen 14 dager.'] },
+        { title: 'Unntak', icon: AlertCircle, items: ['Hygieneartikler hvor forseglingen er brutt.'] }
+      ],
+      refundInfo: { title: 'Refusjon', text: 'Refusjon skjer til samme betalingsmetode innen 14 dager.' },
+      defectInfo: { title: 'Defekte produkter', text: 'Kontakt oss umiddelbart ved defekte produkter.' }
+    },
+    da: {
+      title: 'Retur & Refusion',
+      badge: 'Retur',
+      intro: `Vi ønsker, at du skal være helt tilfreds med dit køb. Hvis du ikke er det, har du ${storeConfig.returns.period} dages fortrydelsesret.`,
+      sections: [
+        { title: 'Fortrydelsesret', icon: CheckCircle, items: [`Du har ${storeConfig.returns.period} dages fortrydelsesret fra modtagelsesdatoen.`, 'Ingen begrundelse nødvendig.'] },
+        { title: 'Returvilkår', icon: Package, items: ['Produktet skal være ubrugt og i original emballage.'] },
+        { title: 'Sådan returnerer du', icon: RotateCcw, items: [`1. Kontakt os på ${storeConfig.contact.email}`, '2. Send produktet retur inden for 14 dage.'] },
+        { title: 'Undtagelser', icon: AlertCircle, items: ['Hygiejneartikler hvor forseglingen er brudt.'] }
+      ],
+      refundInfo: { title: 'Refusion', text: 'Refusion sker til samme betalingsmetode inden for 14 dage.' },
+      defectInfo: { title: 'Defekte produkter', text: 'Kontakt os straks ved defekte produkter.' }
+    },
+    de: {
+      title: 'Rückgabe & Erstattung',
+      badge: 'Rückgabe',
+      intro: `Wir möchten, dass Sie mit Ihrem Kauf vollkommen zufrieden sind. Falls nicht, haben Sie ${storeConfig.returns.period} Tage Widerrufsrecht.`,
+      sections: [
+        { title: 'Widerrufsrecht', icon: CheckCircle, items: [`Sie haben ${storeConfig.returns.period} Tage Widerrufsrecht ab Erhalt.`, 'Keine Begründung erforderlich.'] },
+        { title: 'Rückgabebedingungen', icon: Package, items: ['Das Produkt muss unbenutzt und in Originalverpackung sein.'] },
+        { title: 'So retournieren Sie', icon: RotateCcw, items: [`1. Kontaktieren Sie uns unter ${storeConfig.contact.email}`, '2. Senden Sie das Produkt innerhalb von 14 Tagen zurück.'] },
+        { title: 'Ausnahmen', icon: AlertCircle, items: ['Hygieneartikel mit gebrochenem Siegel.'] }
+      ],
+      refundInfo: { title: 'Erstattung', text: 'Erstattung erfolgt innerhalb von 14 Tagen auf dieselbe Zahlungsmethode.' },
+      defectInfo: { title: 'Defekte Produkte', text: 'Kontaktieren Sie uns sofort bei defekten Produkten.' }
     }
   };
 

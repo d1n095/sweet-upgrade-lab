@@ -152,7 +152,7 @@ const Header = () => {
                             <Leaf className="w-4 h-4 text-accent" />
                           </div>
                           <div>
-                            <span className="font-medium">{language === 'sv' ? 'CBD & Hampa' : 'CBD & Hemp'}</span>
+                            <span className="font-medium">{language === 'sv' ? 'CBD' : 'CBD'}</span>
                             <span className="text-xs text-accent ml-2">{language === 'sv' ? '(Snart)' : '(Soon)'}</span>
                           </div>
                         </Link>
@@ -381,7 +381,7 @@ const Header = () => {
                     className="flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground transition-colors py-2.5 px-4 rounded-xl hover:bg-secondary/30"
                   >
                     <Leaf className="w-4 h-4 text-accent" />
-                    {language === 'sv' ? 'CBD & Hampa' : 'CBD & Hemp'}
+                    {language === 'sv' ? 'CBD' : 'CBD'}
                     <span className="text-xs text-accent">({language === 'sv' ? 'Snart' : 'Soon'})</span>
                   </Link>
                 </div>
