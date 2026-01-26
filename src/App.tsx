@@ -23,6 +23,7 @@ import AdminStats from "./pages/admin/AdminStats";
 import MemberProfile from "./pages/MemberProfile";
 import AffiliateLanding from "./pages/AffiliateLanding";
 import Business from "./pages/Business";
+import SuggestProduct from "./pages/SuggestProduct";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import CookieBanner from "./components/cookie/CookieBanner";
@@ -56,6 +57,7 @@ const App = () => (
             <Route path="/profile" element={<MemberProfile />} />
             <Route path="/affiliate" element={<AffiliateLanding />} />
             <Route path="/business" element={<Business />} />
+            <Route path="/suggest-product" element={<SuggestProduct />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

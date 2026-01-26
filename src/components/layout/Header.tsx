@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingCart, Menu, X, Leaf, ChevronDown, Search, User, Crown, LogOut, Heart, Moon, Sun } from 'lucide-react';
+import { ShoppingCart, Menu, X, Leaf, ChevronDown, User, Crown, LogOut, Heart, Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { useCartStore } from '@/stores/cartStore';
-import { useSearchStore } from '@/stores/searchStore';
 import { useWishlistStore } from '@/stores/wishlistStore';
 import { useLanguage } from '@/context/LanguageContext';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
@@ -13,6 +11,7 @@ import ShopifyCartDrawer from '@/components/cart/ShopifyCartDrawer';
 import WishlistDrawer from '@/components/wishlist/WishlistDrawer';
 import AuthModal from '@/components/auth/AuthModal';
 import AccountDrawer from '@/components/auth/AccountDrawer';
+import SearchSuggestions from '@/components/search/SearchSuggestions';
 import { useAuth } from '@/hooks/useAuth';
 import { storeConfig } from '@/config/storeConfig';
 import { useTheme } from 'next-themes';
@@ -23,7 +22,6 @@ const Header = () => {
   const { user, isMember, signOut, loading: authLoading } = useAuth();
   const items = useCartStore(state => state.items);
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-  const { searchQuery, setSearchQuery } = useSearchStore();
   const wishlistItems = useWishlistStore(state => state.items);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
@@ -66,7 +64,7 @@ const Header = () => {
     { href: '/contact', label: language === 'sv' ? 'Kontakta oss' : 'Contact us' },
     { href: '/affiliate', label: language === 'sv' ? 'Samarbete' : 'Partnership' },
     { href: '/business', label: language === 'sv' ? 'Handla som företag' : 'Business' },
-    { href: '/#product-suggestions', label: language === 'sv' ? 'Önska produkt' : 'Suggest product' },
+    { href: '/suggest-product', label: language === 'sv' ? 'Önska produkt' : 'Suggest product' },
   ];
 
   return (
@@ -219,16 +217,9 @@ const Header = () => {
 
             {/* Search + Actions */}
             <div className="flex items-center gap-3 md:gap-4">
-              {/* Search Field */}
-              <div className="relative hidden sm:block">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  type="text"
-                  placeholder={language === 'sv' ? 'Sök...' : 'Search...'}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 w-32 md:w-40 h-10 bg-secondary/50 border-transparent hover:border-border focus:border-primary/50 rounded-full text-sm transition-all"
-                />
+              {/* Search Field with Suggestions */}
+              <div className="hidden sm:block">
+                <SearchSuggestions />
               </div>
               
               {/* Dark mode toggle */}
