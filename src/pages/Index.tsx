@@ -12,7 +12,6 @@ import Newsletter from '@/components/sections/Newsletter';
 import FloatingContactButton from '@/components/trust/FloatingContactButton';
 import SEOHead from '@/components/seo/SEOHead';
 import MemberReviewsSection from '@/components/reviews/MemberReviewsSection';
-import ProductSuggestions from '@/components/sections/ProductSuggestions';
 import { useLanguage } from '@/context/LanguageContext';
 import { trackPageView } from '@/utils/analytics';
 
@@ -62,9 +61,6 @@ const Index = () => {
         
         {/* FAQ - Answer questions before purchase */}
         <FAQ />
-        
-        {/* Product Suggestions - Let users request products */}
-        <ProductSuggestions />
         
         {/* Newsletter - Capture leads */}
         <Newsletter />

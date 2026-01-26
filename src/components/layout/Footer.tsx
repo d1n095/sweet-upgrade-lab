@@ -90,6 +90,7 @@ const Footer = () => {
     { href: '/track-order', label: language === 'sv' ? 'Spåra order' : language === 'no' ? 'Spor ordre' : language === 'da' ? 'Spor ordre' : language === 'de' ? 'Bestellung verfolgen' : 'Track Order' },
     { href: '/business', label: language === 'sv' ? 'Företagskunder' : language === 'no' ? 'Bedriftskunder' : language === 'da' ? 'Erhvervskunder' : language === 'de' ? 'Geschäftskunden' : 'Business Customers' },
     { href: '/affiliate', label: language === 'sv' ? 'Samarbete' : language === 'no' ? 'Samarbeid' : language === 'da' ? 'Samarbejde' : language === 'de' ? 'Partnerschaft' : 'Partnership' },
+    { href: '/suggest-product', label: language === 'sv' ? 'Önska produkt' : language === 'no' ? 'Ønsk produkt' : language === 'da' ? 'Ønsk produkt' : language === 'de' ? 'Produkt wünschen' : 'Suggest Product' },
   ];
 
   const customerServiceLinks = [

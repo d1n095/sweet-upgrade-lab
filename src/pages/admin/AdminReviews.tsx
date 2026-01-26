@@ -29,6 +29,7 @@ interface Review {
   comment: string;
   is_verified_purchase: boolean;
   is_approved: boolean;
+  is_rejected?: boolean;
   admin_response: string | null;
   created_at: string;
 }
@@ -37,6 +38,7 @@ interface ReviewStats {
   total: number;
   pending: number;
   approved: number;
+  rejected: number;
   averageRating: number;
 }
 
@@ -45,7 +47,8 @@ const AdminReviews = () => {
   const { user, loading: authLoading } = useAuth();
   const { isAdmin, isLoading: adminLoading } = useAdminRole();
   const [reviews, setReviews] = useState<Review[]>([]);
-  const [stats, setStats] = useState<ReviewStats>({ total: 0, pending: 0, approved: 0, averageRating: 0 });
+  const [stats, setStats] = useState<ReviewStats>({ total: 0, pending: 0, approved: 0, rejected: 0, averageRating: 0 });
+  const [rejectedReviews, setRejectedReviews] = useState<Review[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('pending');
   const [respondingTo, setRespondingTo] = useState<string | null>(null);
@@ -59,6 +62,7 @@ const AdminReviews = () => {
       tabs: {
         pending: 'Väntande',
         approved: 'Godkända',
+        rejected: 'Nekade',
         all: 'Alla'
       },
       stats: {
@@ -69,7 +73,7 @@ const AdminReviews = () => {
       },
       actions: {
         approve: 'Godkänn',
-        reject: 'Avslå',
+        reject: 'Neka',
         respond: 'Svara',
         sendResponse: 'Skicka svar',
         cancel: 'Avbryt'
@@ -89,6 +93,7 @@ const AdminReviews = () => {
       tabs: {
         pending: 'Pending',
         approved: 'Approved',
+        rejected: 'Rejected',
         all: 'All'
       },
       stats: {
@@ -161,11 +166,12 @@ const AdminReviews = () => {
         const total = allReviews.length;
         const pending = allReviews.filter(r => !r.is_approved).length;
         const approved = allReviews.filter(r => r.is_approved).length;
+        const rejected = 0; // We don't have a rejected flag, deleted = rejected
         const avgRating = total > 0 
           ? Math.round((allReviews.reduce((sum, r) => sum + r.rating, 0) / total) * 10) / 10
           : 0;
 
-        setStats({ total, pending, approved, averageRating: avgRating });
+        setStats({ total, pending, approved, rejected, averageRating: avgRating });
       }
     } catch (error) {
       console.error('Failed to load stats:', error);
