@@ -25,6 +25,9 @@ import AdminPayoutManager from '@/components/admin/AdminPayoutManager';
 import AdminApplicationsManager from '@/components/admin/AdminApplicationsManager';
 import AdminLegalDocuments from '@/components/admin/AdminLegalDocuments';
 import AdminEmailTemplates from '@/components/admin/AdminEmailTemplates';
+import AdminDonationManager from '@/components/admin/AdminDonationManager';
+import AdminMemberManager from '@/components/admin/AdminMemberManager';
+import AdminInventoryManager from '@/components/admin/AdminInventoryManager';
 import InfluencerDashboard from '@/components/dashboard/InfluencerDashboard';
 import AffiliateDashboard from '@/components/dashboard/AffiliateDashboard';
 import DonationImpact from '@/components/donations/DonationImpact';
@@ -537,6 +540,21 @@ const MemberProfile = () => {
 
                   {/* Product Manager */}
                   <AdminProductManager />
+
+                  {/* Inventory Manager */}
+                  <div className="mt-6 pt-6 border-t border-border">
+                    <AdminInventoryManager />
+                  </div>
+
+                  {/* Member Manager */}
+                  <div className="mt-6 pt-6 border-t border-border">
+                    <AdminMemberManager />
+                  </div>
+
+                  {/* Donation Manager */}
+                  <div className="mt-6 pt-6 border-t border-border">
+                    <AdminDonationManager />
+                  </div>
 
                   {/* Influencer Manager */}
                   <div className="mt-6 pt-6 border-t border-border">
