@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
-import { Leaf, Mail, Clock, Instagram, Facebook, CreditCard, Wallet, Send } from 'lucide-react';
+import { Leaf, Mail, Clock, Instagram, Facebook, Send } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { storeConfig } from '@/config/storeConfig';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
+import PaymentIcons from '@/components/trust/PaymentIcons';
 
 const Footer = () => {
   const { t, language } = useLanguage();
@@ -198,19 +199,7 @@ const Footer = () => {
           <div>
             <h4 className="font-display font-semibold text-lg mb-5">{fc.payment}</h4>
             <div className="space-y-4">
-              <div className="flex flex-wrap gap-3">
-                <div className="flex items-center gap-2 px-3 py-2 bg-secondary/50 rounded-lg">
-                  <CreditCard className="w-5 h-5 text-muted-foreground" />
-                  <span className="text-sm">Kort</span>
-                </div>
-                <div className="flex items-center gap-2 px-3 py-2 bg-secondary/50 rounded-lg">
-                  <Wallet className="w-5 h-5 text-muted-foreground" />
-                  <span className="text-sm">Klarna</span>
-                </div>
-                <div className="flex items-center gap-2 px-3 py-2 bg-secondary/50 rounded-lg">
-                  <span className="text-sm font-medium">Swish</span>
-                </div>
-              </div>
+              <PaymentIcons />
               <p className="text-sm text-muted-foreground">
                 🔒 {fc.securePayment}
               </p>

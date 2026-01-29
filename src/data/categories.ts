@@ -31,7 +31,7 @@ export const categories: Category[] = [
   },
   { 
     id: 'klader', 
-    name: { sv: 'Kläder', en: 'Clothing', no: 'Klær', da: 'Tøj', de: 'Kleidung', fi: 'Vaatteet', nl: 'Kleding', fr: 'Vêtements', es: 'Ropa', pl: 'Odzież' }, 
+    name: { sv: 'Mode', en: 'Fashion', no: 'Mote', da: 'Mode', de: 'Mode', fi: 'Muoti', nl: 'Mode', fr: 'Mode', es: 'Moda', pl: 'Moda' }, 
     icon: Shirt,
     query: 'product_type:"Hampa-kläder" OR product_type:Kläder'
   },
