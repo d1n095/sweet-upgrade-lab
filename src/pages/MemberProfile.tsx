@@ -14,6 +14,7 @@ import ReviewStars from '@/components/reviews/ReviewStars';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useAdminRole } from '@/hooks/useAdminRole';
+import { useEmployeeRole } from '@/hooks/useEmployeeRole';
 import { useLanguage } from '@/context/LanguageContext';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -31,6 +32,7 @@ import AdminInventoryManager from '@/components/admin/AdminInventoryManager';
 import AdminCategoryManager from '@/components/admin/AdminCategoryManager';
 import InfluencerDashboard from '@/components/dashboard/InfluencerDashboard';
 import AffiliateDashboard from '@/components/dashboard/AffiliateDashboard';
+import EmployeeDashboard from '@/components/dashboard/EmployeeDashboard';
 import DonationImpact from '@/components/donations/DonationImpact';
 import AccountSettings from '@/components/profile/AccountSettings';
 
@@ -64,6 +66,7 @@ const MemberProfile = () => {
   const { language } = useLanguage();
   const { user, profile, loading: authLoading, signOut, isMember } = useAuth();
   const { isAdmin, isLoading: adminLoading } = useAdminRole();
+  const { isEmployee, isLoading: employeeLoading } = useEmployeeRole();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -378,6 +381,13 @@ const MemberProfile = () => {
             {/* Orders Tab */}
             <TabsContent value="orders">
               <OrderTracker />
+              
+              {/* Employee Dashboard - visible to employees (moderators) */}
+              {isEmployee && !isAdmin && (
+                <div className="mt-6">
+                  <EmployeeDashboard />
+                </div>
+              )}
               
               {/* Influencer Dashboard - visible to influencers */}
               <div className="mt-6">

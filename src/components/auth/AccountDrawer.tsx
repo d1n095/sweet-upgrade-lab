@@ -11,11 +11,13 @@ import {
   BarChart3,
   Star,
   Gift,
-  Settings
+  Settings,
+  Briefcase
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { useAdminRole } from '@/hooks/useAdminRole';
+import { useEmployeeRole } from '@/hooks/useEmployeeRole';
 import { useAccountStats } from '@/hooks/useAccountStats';
 import { useLanguage } from '@/context/LanguageContext';
 import { toast } from 'sonner';
@@ -36,6 +38,7 @@ const AccountDrawer = ({ isOpen, onClose }: AccountDrawerProps) => {
   const { language } = useLanguage();
   const { user, isMember, signOut } = useAuth();
   const { isAdmin } = useAdminRole();
+  const { isEmployee } = useEmployeeRole();
   const { stats } = useAccountStats();
   const navigate = useNavigate();
 
@@ -111,6 +114,21 @@ const AccountDrawer = ({ isOpen, onClose }: AccountDrawerProps) => {
     },
   ];
 
+  const employeeItems = [
+    {
+      icon: Package,
+      label: language === 'sv' ? 'Orderhantering' : 'Order Management',
+      href: '/profile?tab=orders',
+      description: language === 'sv' ? 'Se och hantera ordrar' : 'View and manage orders',
+    },
+    {
+      icon: Briefcase,
+      label: language === 'sv' ? 'Support-panel' : 'Support Panel',
+      href: '/profile?tab=overview',
+      description: language === 'sv' ? 'Hantera kundärenden' : 'Handle customer issues',
+    },
+  ];
+
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
@@ -158,6 +176,21 @@ const AccountDrawer = ({ isOpen, onClose }: AccountDrawerProps) => {
               </div>
             </div>
           )}
+
+          {/* Employee badge */}
+          {isEmployee && !isAdmin && (
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
+              <Briefcase className="w-5 h-5 text-blue-600" />
+              <div>
+                <p className="text-sm font-medium text-blue-600">
+                  {language === 'sv' ? 'Anställd' : 'Employee'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {language === 'sv' ? 'Support & kundtjänst' : 'Support & customer service'}
+                </p>
+              </div>
+            </div>
+          )}
         </SheetHeader>
 
         {/* Admin items */}
@@ -186,9 +219,35 @@ const AccountDrawer = ({ isOpen, onClose }: AccountDrawerProps) => {
           </div>
         )}
 
+        {/* Employee items */}
+        {isEmployee && !isAdmin && (
+          <div className="mb-4">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide px-4 mb-2">
+              {language === 'sv' ? 'Support' : 'Support'}
+            </p>
+            <nav className="space-y-1">
+              {employeeItems.map((item) => (
+                <button
+                  key={item.href}
+                  onClick={() => handleNavigation(item.href)}
+                  className="flex items-center gap-4 p-4 rounded-xl hover:bg-blue-500/5 transition-colors group w-full text-left"
+                >
+                  <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors">
+                    <item.icon className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium text-foreground">{item.label}</p>
+                    <p className="text-sm text-muted-foreground">{item.description}</p>
+                  </div>
+                </button>
+              ))}
+            </nav>
+          </div>
+        )}
+
         {/* Menu items */}
         <div className="mb-4">
-          {isAdmin && (
+          {(isAdmin || isEmployee) && (
             <p className="text-xs text-muted-foreground uppercase tracking-wide px-4 mb-2">
               {language === 'sv' ? 'Mitt konto' : 'My Account'}
             </p>
