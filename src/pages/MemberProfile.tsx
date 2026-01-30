@@ -35,6 +35,7 @@ import AffiliateDashboard from '@/components/dashboard/AffiliateDashboard';
 import EmployeeDashboard from '@/components/dashboard/EmployeeDashboard';
 import DonationImpact from '@/components/donations/DonationImpact';
 import AccountSettings from '@/components/profile/AccountSettings';
+import BalanceOverview from '@/components/profile/BalanceOverview';
 
 interface Review {
   id: string;
@@ -412,6 +413,8 @@ const MemberProfile = () => {
 
             {/* Overview Tab */}
             <TabsContent value="overview">
+              {/* Balance Overview for admin/affiliate */}
+              <BalanceOverview />
               <div className="grid md:grid-cols-3 gap-4">
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}

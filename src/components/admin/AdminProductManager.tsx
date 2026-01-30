@@ -2,13 +2,15 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Plus, Package, Edit, Trash2, Loader2, 
-  Image as ImageIcon, DollarSign, Tag, X, Save
+  Image as ImageIcon, DollarSign, Tag, X, Save,
+  Eye, EyeOff, Boxes
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
   DialogContent,
@@ -26,11 +28,36 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useLanguage } from '@/context/LanguageContext';
 import { toast } from 'sonner';
 import { fetchProducts, ShopifyProduct } from '@/lib/shopify';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+
+// Product categories
+const productCategories = [
+  { value: 'Kroppsvård', label: { sv: 'Kroppsvård', en: 'Body Care' } },
+  { value: 'Elektronik', label: { sv: 'Elektronik', en: 'Electronics' } },
+  { value: 'Mode', label: { sv: 'Mode', en: 'Fashion' } },
+  { value: 'Ljus', label: { sv: 'Ljus', en: 'Candles' } },
+  { value: 'Smycken', label: { sv: 'Smycken & Silver', en: 'Jewelry & Silver' } },
+  { value: 'Bastudofter', label: { sv: 'Bastudofter', en: 'Sauna Scents' } },
+  { value: 'Hemtextil', label: { sv: 'Hemtextil', en: 'Home Textiles' } },
+  { value: 'CBD', label: { sv: 'CBD', en: 'CBD' } },
+];
+
+// Suggested tags
+const suggestedTags = [
+  'naturlig', 'ekologisk', 'vegansk', 'giftfri', 'hållbar', 
+  'handgjord', 'svensktillverkad', 'nyhet', 'bästsäljare', 'limited'
+];
 
 interface ProductFormData {
   title: string;
@@ -39,6 +66,9 @@ interface ProductFormData {
   productType: string;
   tags: string;
   vendor: string;
+  isVisible: boolean;
+  inventory: number;
+  allowOverselling: boolean;
 }
 
 const AdminProductManager = () => {
@@ -56,6 +86,9 @@ const AdminProductManager = () => {
     productType: '',
     tags: '',
     vendor: '4ThePeople',
+    isVisible: true,
+    inventory: 0,
+    allowOverselling: false,
   });
 
   const { data: products = [], isLoading: productsLoading } = useQuery({
@@ -130,12 +163,16 @@ const AdminProductManager = () => {
       productType: '',
       tags: '',
       vendor: '4ThePeople',
+      isVisible: true,
+      inventory: 0,
+      allowOverselling: false,
     });
     setSelectedProduct(null);
   };
 
   const handleEditClick = (product: ShopifyProduct) => {
     setSelectedProduct(product);
+    const variant = product.node.variants.edges[0]?.node;
     setFormData({
       title: product.node.title,
       description: product.node.description || '',
@@ -143,6 +180,9 @@ const AdminProductManager = () => {
       productType: '',
       tags: '',
       vendor: '4ThePeople',
+      isVisible: true,
+      inventory: 0,
+      allowOverselling: false,
     });
     setIsEditDialogOpen(true);
   };
