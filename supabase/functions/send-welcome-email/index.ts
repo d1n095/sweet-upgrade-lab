@@ -12,7 +12,7 @@ const corsHeaders = {
 
 interface WelcomeEmailRequest {
   email: string;
-  language?: 'sv' | 'en';
+  language?: 'sv' | 'en' | 'no' | 'da' | 'de';
 }
 
 interface EmailTemplate {
@@ -30,21 +30,78 @@ interface EmailTemplate {
   footer_en: string;
 }
 
-const getDefaultTemplate = (language: 'sv' | 'en') => ({
-  subject: language === 'sv' ? 'Välkommen till 4thepeople! 🌿' : 'Welcome to 4thepeople! 🌿',
-  greeting: language === 'sv' ? 'Välkommen till familjen!' : 'Welcome to the family!',
-  intro: language === 'sv' 
-    ? 'Tack för att du registrerade dig hos oss. Du är nu medlem och har tillgång till exklusiva fördelar.'
-    : 'Thank you for signing up with us. You are now a member with access to exclusive benefits.',
-  benefits: language === 'sv'
-    ? ['💰 Exklusiva medlemspriser på alla produkter', '📦 Automatiska mängdrabatter', '🎁 Tillgång till paketpriser och erbjudanden', '⭐ Möjlighet att skriva recensioner och få rabatter']
-    : ['💰 Exclusive member prices on all products', '📦 Automatic volume discounts', '🎁 Access to bundle pricing and offers', '⭐ Ability to write reviews and earn discounts'],
-  cta: language === 'sv' ? 'Börja handla' : 'Start shopping',
-  footer: language === 'sv' ? 'Vi är glada att ha dig med oss! 💚' : "We're happy to have you with us! 💚",
-  team: language === 'sv' ? '4thepeople-teamet' : 'The 4thepeople team',
-  contact: 'Har du frågor? Kontakta oss på support@4thepeople.se',
-  benefitsTitle: language === 'sv' ? 'Dina medlemsfördelar:' : 'Your member benefits:',
-});
+type LanguageContent = {
+  subject: string;
+  greeting: string;
+  intro: string;
+  benefits: string[];
+  cta: string;
+  footer: string;
+  team: string;
+  contact: string;
+  benefitsTitle: string;
+};
+
+const getDefaultTemplate = (language: 'sv' | 'en' | 'no' | 'da' | 'de'): LanguageContent => {
+  const templates: Record<string, LanguageContent> = {
+    sv: {
+      subject: 'Välkommen till 4thepeople! 🌿',
+      greeting: 'Välkommen till familjen!',
+      intro: 'Tack för att du registrerade dig hos oss. Du är nu medlem och har tillgång till exklusiva fördelar.',
+      benefits: ['💰 Exklusiva medlemspriser på alla produkter', '📦 Automatiska mängdrabatter', '🎁 Tillgång till paketpriser och erbjudanden', '⭐ Möjlighet att skriva recensioner och få rabatter'],
+      cta: 'Börja handla',
+      footer: 'Vi är glada att ha dig med oss! 💚',
+      team: '4thepeople-teamet',
+      contact: 'Har du frågor? Kontakta oss på support@4thepeople.se',
+      benefitsTitle: 'Dina medlemsfördelar:',
+    },
+    en: {
+      subject: 'Welcome to 4thepeople! 🌿',
+      greeting: 'Welcome to the family!',
+      intro: 'Thank you for signing up with us. You are now a member with access to exclusive benefits.',
+      benefits: ['💰 Exclusive member prices on all products', '📦 Automatic volume discounts', '🎁 Access to bundle pricing and offers', '⭐ Ability to write reviews and earn discounts'],
+      cta: 'Start shopping',
+      footer: "We're happy to have you with us! 💚",
+      team: 'The 4thepeople team',
+      contact: 'Questions? Contact us at support@4thepeople.se',
+      benefitsTitle: 'Your member benefits:',
+    },
+    no: {
+      subject: 'Velkommen til 4thepeople! 🌿',
+      greeting: 'Velkommen til familien!',
+      intro: 'Takk for at du registrerte deg hos oss. Du er nå medlem og har tilgang til eksklusive fordeler.',
+      benefits: ['💰 Eksklusive medlemspriser på alle produkter', '📦 Automatiske mengderabatter', '🎁 Tilgang til pakkeprisser og tilbud', '⭐ Mulighet til å skrive anmeldelser og få rabatter'],
+      cta: 'Begynn å handle',
+      footer: 'Vi er glade for å ha deg med oss! 💚',
+      team: '4thepeople-teamet',
+      contact: 'Har du spørsmål? Kontakt oss på support@4thepeople.se',
+      benefitsTitle: 'Dine medlemsfordeler:',
+    },
+    da: {
+      subject: 'Velkommen til 4thepeople! 🌿',
+      greeting: 'Velkommen til familien!',
+      intro: 'Tak fordi du tilmeldte dig hos os. Du er nu medlem og har adgang til eksklusive fordele.',
+      benefits: ['💰 Eksklusive medlemspriser på alle produkter', '📦 Automatiske mængderabatter', '🎁 Adgang til pakkepriser og tilbud', '⭐ Mulighed for at skrive anmeldelser og få rabatter'],
+      cta: 'Begynd at handle',
+      footer: 'Vi er glade for at have dig med! 💚',
+      team: '4thepeople-teamet',
+      contact: 'Har du spørgsmål? Kontakt os på support@4thepeople.se',
+      benefitsTitle: 'Dine medlemsfordele:',
+    },
+    de: {
+      subject: 'Willkommen bei 4thepeople! 🌿',
+      greeting: 'Willkommen in der Familie!',
+      intro: 'Vielen Dank für Ihre Anmeldung bei uns. Sie sind jetzt Mitglied und haben Zugang zu exklusiven Vorteilen.',
+      benefits: ['💰 Exklusive Mitgliedspreise auf alle Produkte', '📦 Automatische Mengenrabatte', '🎁 Zugang zu Paketpreisen und Angeboten', '⭐ Möglichkeit, Bewertungen zu schreiben und Rabatte zu erhalten'],
+      cta: 'Jetzt einkaufen',
+      footer: 'Wir freuen uns, Sie bei uns zu haben! 💚',
+      team: 'Das 4thepeople-Team',
+      contact: 'Fragen? Kontaktieren Sie uns unter support@4thepeople.se',
+      benefitsTitle: 'Ihre Mitgliedsvorteile:',
+    },
+  };
+  return templates[language] || templates.en;
+};
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
@@ -52,7 +109,8 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { email, language = 'sv' }: WelcomeEmailRequest = await req.json();
+    const { email, language: rawLang = 'sv' }: WelcomeEmailRequest = await req.json();
+    const language = ['sv', 'en', 'no', 'da', 'de'].includes(rawLang) ? rawLang as 'sv' | 'en' | 'no' | 'da' | 'de' : 'sv';
 
     if (!email) {
       return new Response(
@@ -79,20 +137,22 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (templateData) {
       const tmpl = templateData as EmailTemplate;
+      // Database templates only have sv/en, use appropriate fallback
+      const useSv = language === 'sv' || language === 'no' || language === 'da';
       t = {
-        subject: language === 'sv' ? tmpl.subject_sv : tmpl.subject_en,
-        greeting: language === 'sv' ? tmpl.greeting_sv : tmpl.greeting_en,
-        intro: language === 'sv' ? tmpl.intro_sv : tmpl.intro_en,
-        benefits: language === 'sv' ? tmpl.benefits_sv : tmpl.benefits_en,
-        cta: language === 'sv' ? tmpl.cta_text_sv : tmpl.cta_text_en,
-        footer: language === 'sv' ? tmpl.footer_sv : tmpl.footer_en,
-        team: language === 'sv' ? '4thepeople-teamet' : 'The 4thepeople team',
-        contact: 'Har du frågor? Kontakta oss på support@4thepeople.se',
-        benefitsTitle: language === 'sv' ? 'Dina medlemsfördelar:' : 'Your member benefits:',
+        subject: useSv ? tmpl.subject_sv : tmpl.subject_en,
+        greeting: useSv ? tmpl.greeting_sv : tmpl.greeting_en,
+        intro: useSv ? tmpl.intro_sv : tmpl.intro_en,
+        benefits: useSv ? tmpl.benefits_sv : tmpl.benefits_en,
+        cta: useSv ? tmpl.cta_text_sv : tmpl.cta_text_en,
+        footer: useSv ? tmpl.footer_sv : tmpl.footer_en,
+        team: getDefaultTemplate(language).team,
+        contact: getDefaultTemplate(language).contact,
+        benefitsTitle: getDefaultTemplate(language).benefitsTitle,
       };
-      console.log('Using custom template from database');
+      console.log('Using custom template from database with language fallback');
     } else {
-      console.log('Using default template');
+      console.log('Using default template for language:', language);
     }
 
     const baseUrl = Deno.env.get("SITE_URL") || "https://4thepeople.se";

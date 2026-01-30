@@ -42,59 +42,72 @@ const EmployeeDashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('orders');
 
-  const content = {
+  const content: Record<string, {
+    title: string;
+    subtitle: string;
+    tabs: { orders: string; reviews: string };
+    orders: {
+      search: string;
+      empty: string;
+      status: { pending: string; processing: string; shipped: string; delivered: string; cancelled: string };
+    };
+    reviews: { empty: string; approve: string; reject: string; approved: string; rejected: string };
+  }> = {
     sv: {
       title: 'Support-panel',
       subtitle: 'Hantera ordrar och recensioner',
-      tabs: {
-        orders: 'Ordrar',
-        reviews: 'Väntande recensioner'
-      },
+      tabs: { orders: 'Ordrar', reviews: 'Väntande recensioner' },
       orders: {
         search: 'Sök ordernummer eller e-post...',
         empty: 'Inga ordrar hittades',
-        status: {
-          pending: 'Väntande',
-          processing: 'Behandlas',
-          shipped: 'Skickad',
-          delivered: 'Levererad',
-          cancelled: 'Avbruten'
-        }
+        status: { pending: 'Väntande', processing: 'Behandlas', shipped: 'Skickad', delivered: 'Levererad', cancelled: 'Avbruten' }
       },
-      reviews: {
-        empty: 'Inga väntande recensioner',
-        approve: 'Godkänn',
-        reject: 'Neka',
-        approved: 'Godkänd!',
-        rejected: 'Nekad'
-      }
+      reviews: { empty: 'Inga väntande recensioner', approve: 'Godkänn', reject: 'Neka', approved: 'Godkänd!', rejected: 'Nekad' }
     },
     en: {
       title: 'Support Panel',
       subtitle: 'Manage orders and reviews',
-      tabs: {
-        orders: 'Orders',
-        reviews: 'Pending Reviews'
-      },
+      tabs: { orders: 'Orders', reviews: 'Pending Reviews' },
       orders: {
         search: 'Search order number or email...',
         empty: 'No orders found',
-        status: {
-          pending: 'Pending',
-          processing: 'Processing',
-          shipped: 'Shipped',
-          delivered: 'Delivered',
-          cancelled: 'Cancelled'
-        }
+        status: { pending: 'Pending', processing: 'Processing', shipped: 'Shipped', delivered: 'Delivered', cancelled: 'Cancelled' }
       },
-      reviews: {
-        empty: 'No pending reviews',
-        approve: 'Approve',
-        reject: 'Reject',
-        approved: 'Approved!',
-        rejected: 'Rejected'
-      }
-    }
+      reviews: { empty: 'No pending reviews', approve: 'Approve', reject: 'Reject', approved: 'Approved!', rejected: 'Rejected' }
+    },
+    no: {
+      title: 'Støttepanel',
+      subtitle: 'Administrer ordrer og anmeldelser',
+      tabs: { orders: 'Ordrer', reviews: 'Ventende anmeldelser' },
+      orders: {
+        search: 'Søk ordrenummer eller e-post...',
+        empty: 'Ingen ordrer funnet',
+        status: { pending: 'Venter', processing: 'Behandles', shipped: 'Sendt', delivered: 'Levert', cancelled: 'Kansellert' }
+      },
+      reviews: { empty: 'Ingen ventende anmeldelser', approve: 'Godkjenn', reject: 'Avvis', approved: 'Godkjent!', rejected: 'Avvist' }
+    },
+    da: {
+      title: 'Supportpanel',
+      subtitle: 'Administrer ordrer og anmeldelser',
+      tabs: { orders: 'Ordrer', reviews: 'Afventende anmeldelser' },
+      orders: {
+        search: 'Søg ordrenummer eller e-mail...',
+        empty: 'Ingen ordrer fundet',
+        status: { pending: 'Afventer', processing: 'Behandles', shipped: 'Afsendt', delivered: 'Leveret', cancelled: 'Annulleret' }
+      },
+      reviews: { empty: 'Ingen afventende anmeldelser', approve: 'Godkend', reject: 'Afvis', approved: 'Godkendt!', rejected: 'Afvist' }
+    },
+    de: {
+      title: 'Support-Panel',
+      subtitle: 'Bestellungen und Bewertungen verwalten',
+      tabs: { orders: 'Bestellungen', reviews: 'Ausstehende Bewertungen' },
+      orders: {
+        search: 'Bestellnummer oder E-Mail suchen...',
+        empty: 'Keine Bestellungen gefunden',
+        status: { pending: 'Ausstehend', processing: 'In Bearbeitung', shipped: 'Versendet', delivered: 'Geliefert', cancelled: 'Storniert' }
+      },
+      reviews: { empty: 'Keine ausstehenden Bewertungen', approve: 'Genehmigen', reject: 'Ablehnen', approved: 'Genehmigt!', rejected: 'Abgelehnt' }
+    },
   };
 
   const t = content[language as keyof typeof content] || content.en;

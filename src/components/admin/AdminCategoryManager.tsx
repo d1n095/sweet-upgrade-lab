@@ -76,7 +76,26 @@ const AdminCategoryManager = () => {
     query: '',
   });
 
-  const content = {
+  const content: Record<string, {
+    title: string;
+    subtitle: string;
+    addCategory: string;
+    categoryId: string;
+    nameSv: string;
+    nameEn: string;
+    icon: string;
+    query: string;
+    visible: string;
+    hidden: string;
+    save: string;
+    cancel: string;
+    delete: string;
+    categoryAdded: string;
+    categoryDeleted: string;
+    visibilityChanged: string;
+    error: string;
+    noCategories: string;
+  }> = {
     sv: {
       title: 'Kategorihantering',
       subtitle: 'Lägg till, dölj och ta bort kategorier',
@@ -116,7 +135,67 @@ const AdminCategoryManager = () => {
       visibilityChanged: 'Visibility changed!',
       error: 'Something went wrong',
       noCategories: 'No categories',
-    }
+    },
+    no: {
+      title: 'Kategorihåndtering',
+      subtitle: 'Legg til, skjul og fjern kategorier',
+      addCategory: 'Legg til kategori',
+      categoryId: 'Kategori-ID (unik)',
+      nameSv: 'Navn (Svensk)',
+      nameEn: 'Navn (Engelsk)',
+      icon: 'Ikon',
+      query: 'Shopify-query (product_type:...)',
+      visible: 'Synlig',
+      hidden: 'Skjult',
+      save: 'Lagre',
+      cancel: 'Avbryt',
+      delete: 'Slett',
+      categoryAdded: 'Kategori lagt til!',
+      categoryDeleted: 'Kategori fjernet!',
+      visibilityChanged: 'Synlighet endret!',
+      error: 'Noe gikk galt',
+      noCategories: 'Ingen kategorier',
+    },
+    da: {
+      title: 'Kategorihåndtering',
+      subtitle: 'Tilføj, skjul og fjern kategorier',
+      addCategory: 'Tilføj kategori',
+      categoryId: 'Kategori-ID (unik)',
+      nameSv: 'Navn (Svensk)',
+      nameEn: 'Navn (Engelsk)',
+      icon: 'Ikon',
+      query: 'Shopify-query (product_type:...)',
+      visible: 'Synlig',
+      hidden: 'Skjult',
+      save: 'Gem',
+      cancel: 'Annuller',
+      delete: 'Slet',
+      categoryAdded: 'Kategori tilføjet!',
+      categoryDeleted: 'Kategori fjernet!',
+      visibilityChanged: 'Synlighed ændret!',
+      error: 'Noget gik galt',
+      noCategories: 'Ingen kategorier',
+    },
+    de: {
+      title: 'Kategorieverwaltung',
+      subtitle: 'Kategorien hinzufügen, ausblenden und entfernen',
+      addCategory: 'Kategorie hinzufügen',
+      categoryId: 'Kategorie-ID (eindeutig)',
+      nameSv: 'Name (Schwedisch)',
+      nameEn: 'Name (Englisch)',
+      icon: 'Symbol',
+      query: 'Shopify-Query (product_type:...)',
+      visible: 'Sichtbar',
+      hidden: 'Versteckt',
+      save: 'Speichern',
+      cancel: 'Abbrechen',
+      delete: 'Löschen',
+      categoryAdded: 'Kategorie hinzugefügt!',
+      categoryDeleted: 'Kategorie entfernt!',
+      visibilityChanged: 'Sichtbarkeit geändert!',
+      error: 'Etwas ist schief gelaufen',
+      noCategories: 'Keine Kategorien',
+    },
   };
 
   const t = content[language as keyof typeof content] || content.en;

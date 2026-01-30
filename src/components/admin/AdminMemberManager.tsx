@@ -68,7 +68,34 @@ const AdminMemberManager = () => {
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [assigningRole, setAssigningRole] = useState(false);
 
-  const content = {
+  const content: Record<string, {
+    title: string;
+    subtitle: string;
+    searchPlaceholder: string;
+    noMembers: string;
+    memberSince: string;
+    orders: string;
+    reviews: string;
+    role: string;
+    assignRole: string;
+    admin: string;
+    moderator: string;
+    user: string;
+    affiliate: string;
+    employee: string;
+    viewDetails: string;
+    memberDetails: string;
+    orderHistory: string;
+    noOrders: string;
+    noReviews: string;
+    approved: string;
+    pending: string;
+    roleAssigned: string;
+    roleRemoved: string;
+    error: string;
+    close: string;
+    noRole: string;
+  }> = {
     sv: {
       title: 'Medlemshantering',
       subtitle: 'Sök och hantera medlemmar',
@@ -95,6 +122,7 @@ const AdminMemberManager = () => {
       roleRemoved: 'Roll borttagen!',
       error: 'Något gick fel',
       close: 'Stäng',
+      noRole: 'Ingen roll',
     },
     en: {
       title: 'Member Management',
@@ -122,6 +150,91 @@ const AdminMemberManager = () => {
       roleRemoved: 'Role removed!',
       error: 'Something went wrong',
       close: 'Close',
+      noRole: 'No role',
+    },
+    no: {
+      title: 'Medlemshåndtering',
+      subtitle: 'Søk og administrer medlemmer',
+      searchPlaceholder: 'Søk på e-post eller ID...',
+      noMembers: 'Ingen medlemmer funnet',
+      memberSince: 'Medlem siden',
+      orders: 'Ordrer',
+      reviews: 'Anmeldelser',
+      role: 'Rolle',
+      assignRole: 'Tildel rolle',
+      admin: 'Admin',
+      moderator: 'Moderator',
+      user: 'Bruker',
+      affiliate: 'Affiliate',
+      employee: 'Ansatt',
+      viewDetails: 'Vis detaljer',
+      memberDetails: 'Medlemsdetaljer',
+      orderHistory: 'Ordrehistorikk',
+      noOrders: 'Ingen ordrer',
+      noReviews: 'Ingen anmeldelser',
+      approved: 'Godkjent',
+      pending: 'Venter',
+      roleAssigned: 'Rolle tildelt!',
+      roleRemoved: 'Rolle fjernet!',
+      error: 'Noe gikk galt',
+      close: 'Lukk',
+      noRole: 'Ingen rolle',
+    },
+    da: {
+      title: 'Medlemshåndtering',
+      subtitle: 'Søg og administrer medlemmer',
+      searchPlaceholder: 'Søg på e-mail eller ID...',
+      noMembers: 'Ingen medlemmer fundet',
+      memberSince: 'Medlem siden',
+      orders: 'Ordrer',
+      reviews: 'Anmeldelser',
+      role: 'Rolle',
+      assignRole: 'Tildel rolle',
+      admin: 'Admin',
+      moderator: 'Moderator',
+      user: 'Bruger',
+      affiliate: 'Affiliate',
+      employee: 'Ansat',
+      viewDetails: 'Vis detaljer',
+      memberDetails: 'Medlemsdetaljer',
+      orderHistory: 'Ordrehistorik',
+      noOrders: 'Ingen ordrer',
+      noReviews: 'Ingen anmeldelser',
+      approved: 'Godkendt',
+      pending: 'Afventer',
+      roleAssigned: 'Rolle tildelt!',
+      roleRemoved: 'Rolle fjernet!',
+      error: 'Noget gik galt',
+      close: 'Luk',
+      noRole: 'Ingen rolle',
+    },
+    de: {
+      title: 'Mitgliederverwaltung',
+      subtitle: 'Mitglieder suchen und verwalten',
+      searchPlaceholder: 'Nach E-Mail oder ID suchen...',
+      noMembers: 'Keine Mitglieder gefunden',
+      memberSince: 'Mitglied seit',
+      orders: 'Bestellungen',
+      reviews: 'Bewertungen',
+      role: 'Rolle',
+      assignRole: 'Rolle zuweisen',
+      admin: 'Admin',
+      moderator: 'Moderator',
+      user: 'Benutzer',
+      affiliate: 'Affiliate',
+      employee: 'Mitarbeiter',
+      viewDetails: 'Details anzeigen',
+      memberDetails: 'Mitgliedsdetails',
+      orderHistory: 'Bestellverlauf',
+      noOrders: 'Keine Bestellungen',
+      noReviews: 'Keine Bewertungen',
+      approved: 'Genehmigt',
+      pending: 'Ausstehend',
+      roleAssigned: 'Rolle zugewiesen!',
+      roleRemoved: 'Rolle entfernt!',
+      error: 'Etwas ist schief gelaufen',
+      close: 'Schließen',
+      noRole: 'Keine Rolle',
     },
   };
 
@@ -335,9 +448,9 @@ const AdminMemberManager = () => {
                     <SelectValue placeholder={t.assignRole} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">-</SelectItem>
+                    <SelectItem value="none">{t.noRole}</SelectItem>
                     <SelectItem value="admin">{t.admin}</SelectItem>
-                    <SelectItem value="moderator">{t.moderator}</SelectItem>
+                    <SelectItem value="moderator">{t.employee}</SelectItem>
                   </SelectContent>
                 </Select>
                 <Button

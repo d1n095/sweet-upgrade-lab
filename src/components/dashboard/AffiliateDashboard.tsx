@@ -46,7 +46,43 @@ const AffiliateDashboard = () => {
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [payoutType, setPayoutType] = useState<'cash' | 'store_credit'>('cash');
 
-  const content = {
+  const content: Record<string, {
+    title: string;
+    yourCode: string;
+    copyCode: string;
+    copied: string;
+    totalEarnings: string;
+    pendingEarnings: string;
+    paidEarnings: string;
+    totalSales: string;
+    totalOrders: string;
+    commission: string;
+    customerDiscount: string;
+    shareCode: string;
+    inactive: string;
+    howItWorks: string;
+    step1: string;
+    step2: string;
+    step3: string;
+    withdraw: string;
+    withdrawTitle: string;
+    withdrawDesc: string;
+    amount: string;
+    payoutMethod: string;
+    cash: string;
+    storeCredit: string;
+    storeCreditBonus: string;
+    submit: string;
+    success: string;
+    payoutHistory: string;
+    pending: string;
+    approved: string;
+    paid: string;
+    rejected: string;
+    noHistory: string;
+    insufficientBalance: string;
+    enterAmount: string;
+  }> = {
     sv: {
       title: 'Affiliate Dashboard',
       yourCode: 'Din affiliate-kod',
@@ -120,7 +156,118 @@ const AffiliateDashboard = () => {
       noHistory: 'No payout history yet',
       insufficientBalance: 'Insufficient balance',
       enterAmount: 'Enter amount',
-    }
+    },
+    no: {
+      title: 'Affiliate Dashboard',
+      yourCode: 'Din affiliate-kode',
+      copyCode: 'Kopier kode',
+      copied: 'Kopiert!',
+      totalEarnings: 'Totalt tjent',
+      pendingEarnings: 'Tilgjengelig saldo',
+      paidEarnings: 'Utbetalt',
+      totalSales: 'Total salg',
+      totalOrders: 'Antall ordrer',
+      commission: 'Din provisjon',
+      customerDiscount: 'Kundene dine får 10% rabatt',
+      shareCode: 'Del koden din og tjen penger!',
+      inactive: 'Kontoen din er pauset',
+      howItWorks: 'Slik fungerer det',
+      step1: 'Del din unike kode med følgerne dine',
+      step2: 'De får 10% rabatt på sitt kjøp',
+      step3: 'Du får provisjon på hver ordre',
+      withdraw: 'Ta ut',
+      withdrawTitle: 'Be om utbetaling',
+      withdrawDesc: 'Velg beløp og utbetalingsmetode',
+      amount: 'Beløp',
+      payoutMethod: 'Utbetalingsmetode',
+      cash: 'Kontant (Bank)',
+      storeCredit: 'Butikkreditt',
+      storeCreditBonus: '+10% bonus som butikkreditt',
+      submit: 'Send forespørsel',
+      success: 'Utbetalingsforespørsel sendt!',
+      payoutHistory: 'Utbetalingshistorikk',
+      pending: 'Venter',
+      approved: 'Godkjent',
+      paid: 'Utbetalt',
+      rejected: 'Avvist',
+      noHistory: 'Ingen utbetalingshistorikk ennå',
+      insufficientBalance: 'Utilstrekkelig saldo',
+      enterAmount: 'Skriv inn beløp',
+    },
+    da: {
+      title: 'Affiliate Dashboard',
+      yourCode: 'Din affiliate-kode',
+      copyCode: 'Kopier kode',
+      copied: 'Kopieret!',
+      totalEarnings: 'Total indtjent',
+      pendingEarnings: 'Tilgængelig saldo',
+      paidEarnings: 'Udbetalt',
+      totalSales: 'Total salg',
+      totalOrders: 'Antal ordrer',
+      commission: 'Din provision',
+      customerDiscount: 'Dine kunder får 10% rabat',
+      shareCode: 'Del din kode og tjen penge!',
+      inactive: 'Din konto er sat på pause',
+      howItWorks: 'Sådan fungerer det',
+      step1: 'Del din unikke kode med dine følgere',
+      step2: 'De får 10% rabat på deres køb',
+      step3: 'Du får provision på hver ordre',
+      withdraw: 'Hæv',
+      withdrawTitle: 'Anmod om udbetaling',
+      withdrawDesc: 'Vælg beløb og udbetalingsmetode',
+      amount: 'Beløb',
+      payoutMethod: 'Udbetalingsmetode',
+      cash: 'Kontant (Bank)',
+      storeCredit: 'Butikskredit',
+      storeCreditBonus: '+10% bonus som butikskredit',
+      submit: 'Send anmodning',
+      success: 'Udbetalingsanmodning sendt!',
+      payoutHistory: 'Udbetalingshistorik',
+      pending: 'Afventer',
+      approved: 'Godkendt',
+      paid: 'Udbetalt',
+      rejected: 'Afvist',
+      noHistory: 'Ingen udbetalingshistorik endnu',
+      insufficientBalance: 'Utilstrækkelig saldo',
+      enterAmount: 'Indtast beløb',
+    },
+    de: {
+      title: 'Affiliate Dashboard',
+      yourCode: 'Ihr Affiliate-Code',
+      copyCode: 'Code kopieren',
+      copied: 'Kopiert!',
+      totalEarnings: 'Gesamteinnahmen',
+      pendingEarnings: 'Verfügbares Guthaben',
+      paidEarnings: 'Ausgezahlt',
+      totalSales: 'Gesamtumsatz',
+      totalOrders: 'Gesamtbestellungen',
+      commission: 'Ihre Provision',
+      customerDiscount: 'Ihre Kunden erhalten 10% Rabatt',
+      shareCode: 'Teilen Sie Ihren Code und verdienen Sie!',
+      inactive: 'Ihr Konto ist pausiert',
+      howItWorks: 'So funktioniert es',
+      step1: 'Teilen Sie Ihren einzigartigen Code',
+      step2: 'Sie erhalten 10% Rabatt auf ihren Einkauf',
+      step3: 'Sie verdienen Provision bei jeder Bestellung',
+      withdraw: 'Abheben',
+      withdrawTitle: 'Auszahlung anfordern',
+      withdrawDesc: 'Betrag und Auszahlungsmethode wählen',
+      amount: 'Betrag',
+      payoutMethod: 'Auszahlungsmethode',
+      cash: 'Bar (Banküberweisung)',
+      storeCredit: 'Gutschrift',
+      storeCreditBonus: '+10% Bonus als Gutschrift',
+      submit: 'Anfrage senden',
+      success: 'Auszahlungsanfrage gesendet!',
+      payoutHistory: 'Auszahlungsverlauf',
+      pending: 'Ausstehend',
+      approved: 'Genehmigt',
+      paid: 'Ausgezahlt',
+      rejected: 'Abgelehnt',
+      noHistory: 'Noch kein Auszahlungsverlauf',
+      insufficientBalance: 'Unzureichendes Guthaben',
+      enterAmount: 'Betrag eingeben',
+    },
   };
 
   const t = content[language as keyof typeof content] || content.en;
