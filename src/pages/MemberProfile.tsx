@@ -3,11 +3,17 @@ import { motion } from 'framer-motion';
 import { 
   User, Package, Star, Gift, Settings, LogOut, 
   ChevronRight, Loader2, Clock, Check, BadgeCheck,
-  Shield, BarChart3, Users, TrendingUp, MessageCircle
+  Shield, BarChart3, Users, TrendingUp, MessageCircle,
+  ChevronDown, Boxes, UserCog, Handshake, FileText, Heart
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import ReviewStars from '@/components/reviews/ReviewStars';
@@ -62,6 +68,42 @@ interface AdminStats {
   averageRating: number;
   totalMembers: number;
 }
+
+// Collapsible Admin Section Component
+const AdminSection = ({ 
+  title, 
+  icon: Icon, 
+  children, 
+  defaultOpen = false 
+}: { 
+  title: string; 
+  icon: React.ElementType; 
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}) => {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+  
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="border border-border rounded-xl overflow-hidden">
+      <CollapsibleTrigger asChild>
+        <button className="flex items-center justify-between w-full p-4 bg-secondary/30 hover:bg-secondary/50 transition-colors">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Icon className="w-4 h-4 text-primary" />
+            </div>
+            <span className="font-semibold">{title}</span>
+          </div>
+          <ChevronDown className={`w-5 h-5 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="p-4 space-y-4">
+          {children}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+};
 
 const MemberProfile = () => {
   const { language } = useLanguage();
@@ -123,7 +165,22 @@ const MemberProfile = () => {
         shopNow: 'Shoppa nu'
       },
       loginRequired: 'Du måste vara inloggad för att se din profil',
-      backToHome: 'Tillbaka till startsidan'
+      backToHome: 'Tillbaka till startsidan',
+      admin: {
+        panel: 'Admin-panel',
+        panelDesc: 'Snabböversikt och hantering',
+        productsInventory: 'Produkter & Lager',
+        membersRoles: 'Medlemmar & Roller',
+        partners: 'Partners',
+        reviewsCommunication: 'Recensioner & Kommunikation',
+        legalDonations: 'Juridik & Donationer',
+        reviews: 'Recensioner',
+        pending: 'Väntande',
+        approved: 'Godkända',
+        avgRating: 'Snittbetyg',
+        members: 'Medlemmar',
+        manageReviews: 'Hantera recensioner'
+      }
     },
     en: {
       title: 'My Profile',
@@ -165,7 +222,22 @@ const MemberProfile = () => {
         shopNow: 'Shop now'
       },
       loginRequired: 'You must be logged in to view your profile',
-      backToHome: 'Back to home'
+      backToHome: 'Back to home',
+      admin: {
+        panel: 'Admin Panel',
+        panelDesc: 'Quick overview and management',
+        productsInventory: 'Products & Inventory',
+        membersRoles: 'Members & Roles',
+        partners: 'Partners',
+        reviewsCommunication: 'Reviews & Communication',
+        legalDonations: 'Legal & Donations',
+        reviews: 'Reviews',
+        pending: 'Pending',
+        approved: 'Approved',
+        avgRating: 'Avg Rating',
+        members: 'Members',
+        manageReviews: 'Manage Reviews'
+      }
     }
   };
 
@@ -481,47 +553,43 @@ const MemberProfile = () => {
                   transition={{ delay: 0.3 }}
                   className="mt-8"
                 >
-                  <div className="flex items-center gap-3 mb-4">
+                  <div className="flex items-center gap-3 mb-6">
                     <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
                       <Shield className="w-5 h-5 text-primary" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-lg">
-                        {language === 'sv' ? 'Admin-panel' : 'Admin Panel'}
-                      </h3>
-                      <p className="text-sm text-muted-foreground">
-                        {language === 'sv' ? 'Snabböversikt och hantering' : 'Quick overview and management'}
-                      </p>
+                      <h3 className="font-semibold text-lg">{t.admin.panel}</h3>
+                      <p className="text-sm text-muted-foreground">{t.admin.panelDesc}</p>
                     </div>
                   </div>
 
                   {/* Admin Stats Grid */}
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
                     <div className="bg-card border border-border rounded-lg p-3">
                       <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
                         <BarChart3 className="w-3.5 h-3.5" />
-                        <span className="text-xs">{language === 'sv' ? 'Recensioner' : 'Reviews'}</span>
+                        <span className="text-xs">{t.admin.reviews}</span>
                       </div>
                       <p className="text-xl font-bold">{adminStats.totalReviews}</p>
                     </div>
                     <div className="bg-card border border-border rounded-lg p-3">
                       <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
                         <Clock className="w-3.5 h-3.5" />
-                        <span className="text-xs">{language === 'sv' ? 'Väntande' : 'Pending'}</span>
+                        <span className="text-xs">{t.admin.pending}</span>
                       </div>
                       <p className="text-xl font-bold text-yellow-600">{adminStats.pendingReviews}</p>
                     </div>
                     <div className="bg-card border border-border rounded-lg p-3">
                       <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
                         <Check className="w-3.5 h-3.5" />
-                        <span className="text-xs">{language === 'sv' ? 'Godkända' : 'Approved'}</span>
+                        <span className="text-xs">{t.admin.approved}</span>
                       </div>
                       <p className="text-xl font-bold text-green-600">{adminStats.approvedReviews}</p>
                     </div>
                     <div className="bg-card border border-border rounded-lg p-3">
                       <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
                         <TrendingUp className="w-3.5 h-3.5" />
-                        <span className="text-xs">{language === 'sv' ? 'Snittbetyg' : 'Avg Rating'}</span>
+                        <span className="text-xs">{t.admin.avgRating}</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <p className="text-xl font-bold">{adminStats.averageRating}</p>
@@ -531,7 +599,7 @@ const MemberProfile = () => {
                     <div className="bg-card border border-border rounded-lg p-3">
                       <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
                         <Users className="w-3.5 h-3.5" />
-                        <span className="text-xs">{language === 'sv' ? 'Medlemmar' : 'Members'}</span>
+                        <span className="text-xs">{t.admin.members}</span>
                       </div>
                       <p className="text-xl font-bold">{adminStats.totalMembers}</p>
                     </div>
@@ -542,7 +610,7 @@ const MemberProfile = () => {
                     <Link to="/admin/reviews">
                       <Button size="sm" className="gap-2">
                         <MessageCircle className="w-4 h-4" />
-                        {language === 'sv' ? 'Hantera recensioner' : 'Manage Reviews'}
+                        {t.admin.manageReviews}
                         {adminStats.pendingReviews > 0 && (
                           <Badge variant="secondary" className="ml-1">
                             {adminStats.pendingReviews}
@@ -552,57 +620,50 @@ const MemberProfile = () => {
                     </Link>
                   </div>
 
-                  {/* Product Manager */}
-                  <AdminProductManager />
+                  {/* Collapsible Admin Sections */}
+                  <div className="space-y-4">
+                    {/* Products & Inventory */}
+                    <AdminSection title={t.admin.productsInventory} icon={Boxes} defaultOpen>
+                      <AdminProductManager />
+                      <div className="pt-4 border-t border-border">
+                        <AdminCategoryManager />
+                      </div>
+                      <div className="pt-4 border-t border-border">
+                        <AdminInventoryManager />
+                      </div>
+                    </AdminSection>
 
-                  {/* Category Manager */}
-                  <div className="mt-6 pt-6 border-t border-border">
-                    <AdminCategoryManager />
-                  </div>
+                    {/* Members & Roles */}
+                    <AdminSection title={t.admin.membersRoles} icon={UserCog}>
+                      <AdminMemberManager />
+                    </AdminSection>
 
-                  {/* Inventory Manager */}
-                  <div className="mt-6 pt-6 border-t border-border">
-                    <AdminInventoryManager />
-                  </div>
+                    {/* Partners */}
+                    <AdminSection title={t.admin.partners} icon={Handshake}>
+                      <AdminInfluencerManager />
+                      <div className="pt-4 border-t border-border">
+                        <AdminAffiliateManager />
+                      </div>
+                      <div className="pt-4 border-t border-border">
+                        <AdminApplicationsManager />
+                      </div>
+                      <div className="pt-4 border-t border-border">
+                        <AdminPayoutManager />
+                      </div>
+                    </AdminSection>
 
-                  {/* Member Manager */}
-                  <div className="mt-6 pt-6 border-t border-border">
-                    <AdminMemberManager />
-                  </div>
+                    {/* Reviews & Communication */}
+                    <AdminSection title={t.admin.reviewsCommunication} icon={MessageCircle}>
+                      <AdminEmailTemplates />
+                    </AdminSection>
 
-                  {/* Donation Manager */}
-                  <div className="mt-6 pt-6 border-t border-border">
-                    <AdminDonationManager />
-                  </div>
-
-                  {/* Influencer Manager */}
-                  <div className="mt-6 pt-6 border-t border-border">
-                    <AdminInfluencerManager />
-                  </div>
-
-                  {/* Affiliate Manager */}
-                  <div className="mt-6 pt-6 border-t border-border">
-                    <AdminAffiliateManager />
-                  </div>
-
-                  {/* Affiliate Applications */}
-                  <div className="mt-6 pt-6 border-t border-border">
-                    <AdminApplicationsManager />
-                  </div>
-
-                  {/* Payout Manager */}
-                  <div className="mt-6 pt-6 border-t border-border">
-                    <AdminPayoutManager />
-                  </div>
-
-                  {/* Legal Documents */}
-                  <div className="mt-6 pt-6 border-t border-border">
-                    <AdminLegalDocuments />
-                  </div>
-
-                  {/* Email Templates */}
-                  <div className="mt-6 pt-6 border-t border-border">
-                    <AdminEmailTemplates />
+                    {/* Legal & Donations */}
+                    <AdminSection title={t.admin.legalDonations} icon={Heart}>
+                      <AdminDonationManager />
+                      <div className="pt-4 border-t border-border">
+                        <AdminLegalDocuments />
+                      </div>
+                    </AdminSection>
                   </div>
                 </motion.div>
               )}
