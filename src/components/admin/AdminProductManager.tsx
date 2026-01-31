@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Plus, Package, Edit, Trash2, Loader2, 
-  Image as ImageIcon, DollarSign, Tag, X, Save,
-  Eye, EyeOff, Boxes
+  Image as ImageIcon, DollarSign, Tag, Save,
+  Eye, EyeOff, Boxes, Minus
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -106,7 +106,10 @@ const AdminProductManager = () => {
       description: 'Beskrivning',
       price: 'Pris (SEK)',
       category: 'Kategori',
-      tags: 'Taggar (kommaseparerade)',
+      selectCategory: 'Välj kategori',
+      tags: 'Taggar',
+      tagsPlaceholder: 'Klicka på förslag eller skriv egna',
+      suggestedTags: 'Föreslagna taggar:',
       vendor: 'Leverantör',
       save: 'Spara produkt',
       update: 'Uppdatera',
@@ -123,6 +126,13 @@ const AdminProductManager = () => {
       inStock: 'I lager',
       outOfStock: 'Slut',
       moreProducts: 'fler produkter',
+      visibility: 'Synlighet',
+      visibleInStore: 'Synlig i butiken',
+      hiddenFromStore: 'Dold från butiken',
+      inventory: 'Lager',
+      currentStock: 'Nuvarande lager',
+      allowOverselling: 'Tillåt försäljning när slut',
+      oversellHint: 'Kunder kan köpa även när lagret är 0',
     },
     en: {
       title: 'Product Management',
@@ -133,7 +143,10 @@ const AdminProductManager = () => {
       description: 'Description',
       price: 'Price (SEK)',
       category: 'Category',
-      tags: 'Tags (comma separated)',
+      selectCategory: 'Select category',
+      tags: 'Tags',
+      tagsPlaceholder: 'Click suggestions or type your own',
+      suggestedTags: 'Suggested tags:',
       vendor: 'Vendor',
       save: 'Save Product',
       update: 'Update',
@@ -150,6 +163,13 @@ const AdminProductManager = () => {
       inStock: 'In stock',
       outOfStock: 'Out of stock',
       moreProducts: 'more products',
+      visibility: 'Visibility',
+      visibleInStore: 'Visible in store',
+      hiddenFromStore: 'Hidden from store',
+      inventory: 'Inventory',
+      currentStock: 'Current stock',
+      allowOverselling: 'Allow overselling',
+      oversellHint: 'Customers can buy even when stock is 0',
     }
   };
 
@@ -172,16 +192,25 @@ const AdminProductManager = () => {
 
   const handleEditClick = (product: ShopifyProduct) => {
     setSelectedProduct(product);
-    const variant = product.node.variants.edges[0]?.node;
+    const node = product.node as {
+      title: string;
+      description?: string;
+      priceRange: { minVariantPrice: { amount: string } };
+      productType?: string;
+      tags?: string[];
+      vendor?: string;
+      availableForSale?: boolean;
+      variants: { edges: Array<{ node: { quantityAvailable?: number } }> };
+    };
     setFormData({
-      title: product.node.title,
-      description: product.node.description || '',
-      price: product.node.priceRange.minVariantPrice.amount,
-      productType: '',
-      tags: '',
-      vendor: '4ThePeople',
-      isVisible: true,
-      inventory: 0,
+      title: node.title,
+      description: node.description || '',
+      price: node.priceRange.minVariantPrice.amount,
+      productType: node.productType || '',
+      tags: node.tags?.join(', ') || '',
+      vendor: node.vendor || '4ThePeople',
+      isVisible: node.availableForSale !== false,
+      inventory: node.variants.edges[0]?.node.quantityAvailable || 0,
       allowOverselling: false,
     });
     setIsEditDialogOpen(true);
@@ -190,6 +219,20 @@ const AdminProductManager = () => {
   const handleDeleteClick = (product: ShopifyProduct) => {
     setSelectedProduct(product);
     setIsDeleteDialogOpen(true);
+  };
+
+  const addTag = (tag: string) => {
+    const currentTags = formData.tags.split(',').map(t => t.trim()).filter(Boolean);
+    if (!currentTags.includes(tag)) {
+      const newTags = [...currentTags, tag].join(', ');
+      setFormData(prev => ({ ...prev, tags: newTags }));
+    }
+  };
+
+  const removeTag = (tagToRemove: string) => {
+    const currentTags = formData.tags.split(',').map(t => t.trim()).filter(Boolean);
+    const newTags = currentTags.filter(t => t !== tagToRemove).join(', ');
+    setFormData(prev => ({ ...prev, tags: newTags }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -208,6 +251,8 @@ const AdminProductManager = () => {
             vendor: formData.vendor,
             variants: [{
               price: formData.price,
+              inventory_quantity: formData.inventory,
+              inventory_management: formData.allowOverselling ? null : 'shopify',
             }],
           },
         },
@@ -305,8 +350,10 @@ const AdminProductManager = () => {
     }).format(parseFloat(amount));
   };
 
+  const currentTags = formData.tags.split(',').map(t => t.trim()).filter(Boolean);
+
   const ProductForm = ({ isEdit = false, onSubmit }: { isEdit?: boolean; onSubmit: (e: React.FormEvent) => void }) => (
-    <form onSubmit={onSubmit} className="space-y-4">
+    <form onSubmit={onSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
       <div className="space-y-2">
         <Label htmlFor="title">{t.productName}</Label>
         <Input
@@ -350,26 +397,140 @@ const AdminProductManager = () => {
 
         <div className="space-y-2">
           <Label htmlFor="productType">{t.category}</Label>
-          <Input
-            id="productType"
+          <Select
             value={formData.productType}
-            onChange={(e) => setFormData(prev => ({ ...prev, productType: e.target.value }))}
-            placeholder="Kroppsvård"
-          />
+            onValueChange={(value) => setFormData(prev => ({ ...prev, productType: value }))}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={t.selectCategory} />
+            </SelectTrigger>
+            <SelectContent>
+              {productCategories.map((cat) => (
+                <SelectItem key={cat.value} value={cat.value}>
+                  {cat.label[language as 'sv' | 'en'] || cat.label.en}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
+      {/* Tags Section */}
       <div className="space-y-2">
-        <Label htmlFor="tags">{t.tags}</Label>
+        <Label>{t.tags}</Label>
         <div className="relative">
           <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            id="tags"
             value={formData.tags}
             onChange={(e) => setFormData(prev => ({ ...prev, tags: e.target.value }))}
-            placeholder="naturlig, ekologisk, vegansk"
+            placeholder={t.tagsPlaceholder}
             className="pl-9"
           />
+        </div>
+        
+        {/* Current Tags */}
+        {currentTags.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {currentTags.map((tag) => (
+              <Badge
+                key={tag}
+                variant="secondary"
+                className="cursor-pointer hover:bg-destructive/20"
+                onClick={() => removeTag(tag)}
+              >
+                {tag} ×
+              </Badge>
+            ))}
+          </div>
+        )}
+        
+        {/* Suggested Tags */}
+        <div>
+          <p className="text-xs text-muted-foreground mb-1.5">{t.suggestedTags}</p>
+          <div className="flex flex-wrap gap-1.5">
+            {suggestedTags.filter(tag => !currentTags.includes(tag)).map((tag) => (
+              <Badge
+                key={tag}
+                variant="outline"
+                className="cursor-pointer hover:bg-primary/10"
+                onClick={() => addTag(tag)}
+              >
+                + {tag}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Visibility & Inventory Section */}
+      <div className="bg-secondary/30 rounded-lg p-4 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {formData.isVisible ? (
+              <Eye className="w-4 h-4 text-green-600" />
+            ) : (
+              <EyeOff className="w-4 h-4 text-muted-foreground" />
+            )}
+            <div>
+              <p className="font-medium text-sm">{t.visibility}</p>
+              <p className="text-xs text-muted-foreground">
+                {formData.isVisible ? t.visibleInStore : t.hiddenFromStore}
+              </p>
+            </div>
+          </div>
+          <Switch
+            checked={formData.isVisible}
+            onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isVisible: checked }))}
+          />
+        </div>
+
+        <div className="border-t border-border pt-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Boxes className="w-4 h-4 text-primary" />
+            <p className="font-medium text-sm">{t.inventory}</p>
+          </div>
+          
+          <div className="flex items-center gap-3 mb-3">
+            <Label className="text-sm">{t.currentStock}</Label>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setFormData(prev => ({ ...prev, inventory: Math.max(0, prev.inventory - 1) }))}
+              >
+                <Minus className="w-4 h-4" />
+              </Button>
+              <Input
+                type="number"
+                value={formData.inventory}
+                onChange={(e) => setFormData(prev => ({ ...prev, inventory: parseInt(e.target.value) || 0 }))}
+                className="w-20 text-center"
+                min="0"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setFormData(prev => ({ ...prev, inventory: prev.inventory + 1 }))}
+              >
+                <Plus className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm">{t.allowOverselling}</p>
+              <p className="text-xs text-muted-foreground">{t.oversellHint}</p>
+            </div>
+            <Switch
+              checked={formData.allowOverselling}
+              onCheckedChange={(checked) => setFormData(prev => ({ ...prev, allowOverselling: checked }))}
+            />
+          </div>
         </div>
       </div>
 

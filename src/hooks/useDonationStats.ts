@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface DonationStats {
@@ -18,39 +18,39 @@ export const useDonationStats = () => {
     isLoading: true,
   });
 
+  const fetchStats = useCallback(async () => {
+    try {
+      // Fetch from donation_projects table - use current_amount which represents actual donations
+      const { data: projects } = await supabase
+        .from('donation_projects')
+        .select('current_amount, families_helped, trees_planted')
+        .eq('is_active', true);
+
+      const projectsSupported = projects?.length || 0;
+      // Sum up current_amount from all projects - this is the actual donated amount
+      const totalDonated = projects?.reduce((sum, p) => sum + Number(p.current_amount ?? 0), 0) || 0;
+      const familiesHelped = projects?.reduce((sum, p) => sum + p.families_helped, 0) || 0;
+      const treesPlanted = projects?.reduce((sum, p) => sum + p.trees_planted, 0) || 0;
+
+      setStats({
+        totalDonated,
+        projectsSupported,
+        familiesHelped,
+        treesPlanted,
+        isLoading: false,
+      });
+    } catch (error) {
+      console.error('Failed to fetch donation stats:', error);
+      setStats(prev => ({ ...prev, isLoading: false }));
+    }
+  }, []);
+
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        // Fetch from donation_projects table - use current_amount which represents actual donations
-        const { data: projects } = await supabase
-          .from('donation_projects')
-          .select('current_amount, families_helped, trees_planted')
-          .eq('is_active', true);
-
-        const projectsSupported = projects?.length || 0;
-        // Sum up current_amount from all projects - this is the actual donated amount
-        const totalDonated = projects?.reduce((sum, p) => sum + Number(p.current_amount ?? 0), 0) || 0;
-        const familiesHelped = projects?.reduce((sum, p) => sum + p.families_helped, 0) || 0;
-        const treesPlanted = projects?.reduce((sum, p) => sum + p.trees_planted, 0) || 0;
-
-        setStats({
-          totalDonated,
-          projectsSupported,
-          familiesHelped,
-          treesPlanted,
-          isLoading: false,
-        });
-      } catch (error) {
-        console.error('Failed to fetch donation stats:', error);
-        setStats(prev => ({ ...prev, isLoading: false }));
-      }
-    };
-
     fetchStats();
 
     // Subscribe to realtime updates on donation_projects
     const channel = supabase
-      .channel('donation-stats')
+      .channel('donation-stats-realtime')
       .on(
         'postgres_changes',
         {
@@ -68,7 +68,7 @@ export const useDonationStats = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [fetchStats]);
 
   return stats;
 };

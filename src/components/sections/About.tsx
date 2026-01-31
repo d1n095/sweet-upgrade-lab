@@ -159,35 +159,39 @@ const About = () => {
             </motion.div>
           </div>
 
-          {/* Donation Impact Section */}
-          {donationStats.totalDonated > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="mb-10"
-            >
-              <div className="bg-gradient-to-br from-primary/10 via-accent/5 to-primary/10 border border-primary/20 rounded-2xl p-6 md:p-8">
-                <div className="text-center">
-                  <h3 className="font-display text-xl font-semibold mb-2">
-                    {language === 'sv' ? '🌱 Vår gemensamma påverkan' : '🌱 Our Collective Impact'}
-                  </h3>
-                  <p className="text-muted-foreground text-sm mb-6">
-                    {language === 'sv' 
+          {/* Donation Impact Section - Always show with live updates */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="mb-10"
+          >
+            <div className="bg-gradient-to-br from-primary/10 via-accent/5 to-primary/10 border border-primary/20 rounded-2xl p-6 md:p-8">
+              <div className="text-center">
+                <h3 className="font-display text-xl font-semibold mb-2">
+                  {language === 'sv' ? '🌱 Vår gemensamma påverkan' : '🌱 Our Collective Impact'}
+                </h3>
+                <p className="text-muted-foreground text-sm mb-6">
+                  {language === 'sv' 
+                    ? donationStats.totalDonated > 0 
                       ? 'Tack vare er har vi tillsammans bidragit till:' 
-                      : 'Thanks to you, together we have contributed to:'}
+                      : 'Varje donation gör skillnad – hjälp oss komma igång!'
+                    : donationStats.totalDonated > 0
+                      ? 'Thanks to you, together we have contributed to:'
+                      : 'Every donation makes a difference – help us get started!'}
+                </p>
+                <div className="inline-flex flex-col items-center p-6 rounded-xl bg-background/50">
+                  <TrendingUp className="w-8 h-8 text-primary mb-3" />
+                  <p className="text-3xl font-bold text-primary">
+                    {donationStats.isLoading ? '...' : `${donationStats.totalDonated} kr`}
                   </p>
-                  <div className="inline-flex flex-col items-center p-6 rounded-xl bg-background/50">
-                    <TrendingUp className="w-8 h-8 text-primary mb-3" />
-                    <p className="text-3xl font-bold text-primary">{donationStats.totalDonated} kr</p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {language === 'sv' ? 'Totalt insamlat' : 'Total collected'}
-                    </p>
-                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {language === 'sv' ? 'Totalt insamlat' : 'Total collected'}
+                  </p>
                 </div>
               </div>
-            </motion.div>
-          )}
+            </div>
+          </motion.div>
 
           <motion.div
             initial={{ opacity: 0, y: 20 }}
