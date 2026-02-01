@@ -32,12 +32,55 @@ const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [activeCategories, setActiveCategories] = useState(
+    storeConfig.categories.filter(c => c.active)
+  );
 
   // Ensure theme is mounted before rendering
   useEffect(() => {
     setMounted(true);
   }, []);
-  const activeCategories = storeConfig.categories.filter(c => c.active);
+
+  // Listen for category visibility updates from AdminCategoryManager
+  useEffect(() => {
+    const handleCategoriesUpdated = (event: CustomEvent) => {
+      const adminCategories = event.detail as Array<{
+        id: string;
+        name: { [key: string]: string };
+        isVisible: boolean;
+      }>;
+      
+      // Map admin categories to storeConfig format and filter visible ones
+      const visibleIds = adminCategories
+        .filter(c => c.isVisible)
+        .map(c => c.id);
+      
+      // Update activeCategories based on visibility
+      const updatedCategories = storeConfig.categories.filter(c => {
+        // Map storeConfig id to admin category id
+        const mappedId = c.id;
+        return c.active && visibleIds.includes(mappedId);
+      });
+      
+      setActiveCategories(updatedCategories);
+    };
+
+    // Load initial state from localStorage
+    const stored = localStorage.getItem('admin_categories');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        handleCategoriesUpdated({ detail: parsed } as CustomEvent);
+      } catch {
+        // Keep default
+      }
+    }
+
+    window.addEventListener('categories-updated', handleCategoriesUpdated as EventListener);
+    return () => {
+      window.removeEventListener('categories-updated', handleCategoriesUpdated as EventListener);
+    };
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {

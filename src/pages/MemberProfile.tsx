@@ -605,10 +605,55 @@ const MemberProfile = () => {
                     </div>
                   </div>
 
-                  {/* Quick Actions */}
-                  <div className="flex flex-wrap gap-2 mb-6">
+                  {/* Admin Quick Navigation */}
+                  <div className="flex flex-wrap gap-2 mb-6 p-3 bg-secondary/30 rounded-xl">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="gap-2"
+                      onClick={() => document.getElementById('admin-products')?.scrollIntoView({ behavior: 'smooth' })}
+                    >
+                      <Boxes className="w-4 h-4" />
+                      {language === 'sv' ? 'Produkter' : 'Products'}
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="gap-2"
+                      onClick={() => document.getElementById('admin-members')?.scrollIntoView({ behavior: 'smooth' })}
+                    >
+                      <UserCog className="w-4 h-4" />
+                      {language === 'sv' ? 'Medlemmar' : 'Members'}
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="gap-2"
+                      onClick={() => document.getElementById('admin-partners')?.scrollIntoView({ behavior: 'smooth' })}
+                    >
+                      <Handshake className="w-4 h-4" />
+                      {language === 'sv' ? 'Partners' : 'Partners'}
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="gap-2"
+                      onClick={() => document.getElementById('admin-communication')?.scrollIntoView({ behavior: 'smooth' })}
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      {language === 'sv' ? 'Kommunikation' : 'Communication'}
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="gap-2"
+                      onClick={() => document.getElementById('admin-legal')?.scrollIntoView({ behavior: 'smooth' })}
+                    >
+                      <Heart className="w-4 h-4" />
+                      {language === 'sv' ? 'Juridik & Donationer' : 'Legal & Donations'}
+                    </Button>
                     <Link to="/admin/reviews">
-                      <Button size="sm" className="gap-2">
+                      <Button size="sm" variant="default" className="gap-2">
                         <MessageCircle className="w-4 h-4" />
                         {t.admin.manageReviews}
                         {adminStats.pendingReviews > 0 && (
@@ -622,48 +667,58 @@ const MemberProfile = () => {
 
                   {/* Collapsible Admin Sections */}
                   <div className="space-y-4">
-                    {/* Products & Inventory */}
-                    <AdminSection title={t.admin.productsInventory} icon={Boxes} defaultOpen>
-                      <AdminProductManager />
-                      <div className="pt-4 border-t border-border">
-                        <AdminCategoryManager />
-                      </div>
-                      <div className="pt-4 border-t border-border">
-                        <AdminInventoryManager />
-                      </div>
-                    </AdminSection>
+                    {/* Products & Inventory - Combined */}
+                    <div id="admin-products">
+                      <AdminSection title={t.admin.productsInventory} icon={Boxes} defaultOpen>
+                        <AdminProductManager />
+                        <div className="pt-4 border-t border-border">
+                          <AdminInventoryManager />
+                        </div>
+                        <div className="pt-4 border-t border-border">
+                          <AdminCategoryManager />
+                        </div>
+                      </AdminSection>
+                    </div>
 
                     {/* Members & Roles */}
-                    <AdminSection title={t.admin.membersRoles} icon={UserCog}>
-                      <AdminMemberManager />
-                    </AdminSection>
+                    <div id="admin-members">
+                      <AdminSection title={t.admin.membersRoles} icon={UserCog}>
+                        <AdminMemberManager />
+                      </AdminSection>
+                    </div>
 
                     {/* Partners */}
-                    <AdminSection title={t.admin.partners} icon={Handshake}>
-                      <AdminInfluencerManager />
-                      <div className="pt-4 border-t border-border">
-                        <AdminAffiliateManager />
-                      </div>
-                      <div className="pt-4 border-t border-border">
-                        <AdminApplicationsManager />
-                      </div>
-                      <div className="pt-4 border-t border-border">
-                        <AdminPayoutManager />
-                      </div>
-                    </AdminSection>
+                    <div id="admin-partners">
+                      <AdminSection title={t.admin.partners} icon={Handshake}>
+                        <AdminInfluencerManager />
+                        <div className="pt-4 border-t border-border">
+                          <AdminAffiliateManager />
+                        </div>
+                        <div className="pt-4 border-t border-border">
+                          <AdminApplicationsManager />
+                        </div>
+                        <div className="pt-4 border-t border-border">
+                          <AdminPayoutManager />
+                        </div>
+                      </AdminSection>
+                    </div>
 
                     {/* Reviews & Communication */}
-                    <AdminSection title={t.admin.reviewsCommunication} icon={MessageCircle}>
-                      <AdminEmailTemplates />
-                    </AdminSection>
+                    <div id="admin-communication">
+                      <AdminSection title={t.admin.reviewsCommunication} icon={MessageCircle}>
+                        <AdminEmailTemplates />
+                      </AdminSection>
+                    </div>
 
                     {/* Legal & Donations */}
-                    <AdminSection title={t.admin.legalDonations} icon={Heart}>
-                      <AdminDonationManager />
-                      <div className="pt-4 border-t border-border">
-                        <AdminLegalDocuments />
-                      </div>
-                    </AdminSection>
+                    <div id="admin-legal">
+                      <AdminSection title={t.admin.legalDonations} icon={Heart}>
+                        <AdminDonationManager />
+                        <div className="pt-4 border-t border-border">
+                          <AdminLegalDocuments />
+                        </div>
+                      </AdminSection>
+                    </div>
                   </div>
                 </motion.div>
               )}

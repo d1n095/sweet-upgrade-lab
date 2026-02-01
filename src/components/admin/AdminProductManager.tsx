@@ -96,7 +96,43 @@ const AdminProductManager = () => {
     queryFn: () => fetchProducts(50),
   });
 
-  const content = {
+  const content: Record<string, {
+    title: string;
+    subtitle: string;
+    addProduct: string;
+    editProduct: string;
+    productName: string;
+    description: string;
+    price: string;
+    category: string;
+    selectCategory: string;
+    tags: string;
+    tagsPlaceholder: string;
+    suggestedTags: string;
+    vendor: string;
+    save: string;
+    update: string;
+    cancel: string;
+    delete: string;
+    noProducts: string;
+    loading: string;
+    deleteConfirm: string;
+    deleteDescription: string;
+    productAdded: string;
+    productUpdated: string;
+    productDeleted: string;
+    error: string;
+    inStock: string;
+    outOfStock: string;
+    moreProducts: string;
+    visibility: string;
+    visibleInStore: string;
+    hiddenFromStore: string;
+    inventory: string;
+    currentStock: string;
+    allowOverselling: string;
+    oversellHint: string;
+  }> = {
     sv: {
       title: 'Produkthantering',
       subtitle: 'Lägg till, redigera och ta bort produkter',
@@ -170,7 +206,155 @@ const AdminProductManager = () => {
       currentStock: 'Current stock',
       allowOverselling: 'Allow overselling',
       oversellHint: 'Customers can buy even when stock is 0',
-    }
+    },
+    no: {
+      title: 'Produkthåndtering',
+      subtitle: 'Legg til, rediger og slett produkter',
+      addProduct: 'Legg til produkt',
+      editProduct: 'Rediger produkt',
+      productName: 'Produktnavn',
+      description: 'Beskrivelse',
+      price: 'Pris (SEK)',
+      category: 'Kategori',
+      selectCategory: 'Velg kategori',
+      tags: 'Tagger',
+      tagsPlaceholder: 'Klikk på forslag eller skriv egne',
+      suggestedTags: 'Foreslåtte tagger:',
+      vendor: 'Leverandør',
+      save: 'Lagre produkt',
+      update: 'Oppdater',
+      cancel: 'Avbryt',
+      delete: 'Slett',
+      noProducts: 'Ingen produkter funnet',
+      loading: 'Laster produkter...',
+      deleteConfirm: 'Er du sikker?',
+      deleteDescription: 'Denne handlingen kan ikke angres. Produktet slettes permanent.',
+      productAdded: 'Produkt lagt til!',
+      productUpdated: 'Produkt oppdatert!',
+      productDeleted: 'Produkt slettet!',
+      error: 'Noe gikk galt',
+      inStock: 'På lager',
+      outOfStock: 'Utsolgt',
+      moreProducts: 'flere produkter',
+      visibility: 'Synlighet',
+      visibleInStore: 'Synlig i butikk',
+      hiddenFromStore: 'Skjult fra butikk',
+      inventory: 'Lager',
+      currentStock: 'Nåværende lager',
+      allowOverselling: 'Tillat oversalg',
+      oversellHint: 'Kunder kan kjøpe selv når lager er 0',
+    },
+    da: {
+      title: 'Produkthåndtering',
+      subtitle: 'Tilføj, rediger og slet produkter',
+      addProduct: 'Tilføj produkt',
+      editProduct: 'Rediger produkt',
+      productName: 'Produktnavn',
+      description: 'Beskrivelse',
+      price: 'Pris (SEK)',
+      category: 'Kategori',
+      selectCategory: 'Vælg kategori',
+      tags: 'Tags',
+      tagsPlaceholder: 'Klik på forslag eller skriv egne',
+      suggestedTags: 'Foreslåede tags:',
+      vendor: 'Leverandør',
+      save: 'Gem produkt',
+      update: 'Opdater',
+      cancel: 'Annuller',
+      delete: 'Slet',
+      noProducts: 'Ingen produkter fundet',
+      loading: 'Indlæser produkter...',
+      deleteConfirm: 'Er du sikker?',
+      deleteDescription: 'Denne handling kan ikke fortrydes. Produktet slettes permanent.',
+      productAdded: 'Produkt tilføjet!',
+      productUpdated: 'Produkt opdateret!',
+      productDeleted: 'Produkt slettet!',
+      error: 'Noget gik galt',
+      inStock: 'På lager',
+      outOfStock: 'Udsolgt',
+      moreProducts: 'flere produkter',
+      visibility: 'Synlighed',
+      visibleInStore: 'Synlig i butik',
+      hiddenFromStore: 'Skjult fra butik',
+      inventory: 'Lager',
+      currentStock: 'Nuværende lager',
+      allowOverselling: 'Tillad oversalg',
+      oversellHint: 'Kunder kan købe selv når lager er 0',
+    },
+    de: {
+      title: 'Produktverwaltung',
+      subtitle: 'Produkte hinzufügen, bearbeiten und löschen',
+      addProduct: 'Produkt hinzufügen',
+      editProduct: 'Produkt bearbeiten',
+      productName: 'Produktname',
+      description: 'Beschreibung',
+      price: 'Preis (SEK)',
+      category: 'Kategorie',
+      selectCategory: 'Kategorie wählen',
+      tags: 'Tags',
+      tagsPlaceholder: 'Klicken Sie auf Vorschläge oder schreiben Sie eigene',
+      suggestedTags: 'Vorgeschlagene Tags:',
+      vendor: 'Lieferant',
+      save: 'Produkt speichern',
+      update: 'Aktualisieren',
+      cancel: 'Abbrechen',
+      delete: 'Löschen',
+      noProducts: 'Keine Produkte gefunden',
+      loading: 'Produkte werden geladen...',
+      deleteConfirm: 'Sind Sie sicher?',
+      deleteDescription: 'Diese Aktion kann nicht rückgängig gemacht werden. Das Produkt wird dauerhaft gelöscht.',
+      productAdded: 'Produkt hinzugefügt!',
+      productUpdated: 'Produkt aktualisiert!',
+      productDeleted: 'Produkt gelöscht!',
+      error: 'Etwas ist schief gelaufen',
+      inStock: 'Auf Lager',
+      outOfStock: 'Ausverkauft',
+      moreProducts: 'weitere Produkte',
+      visibility: 'Sichtbarkeit',
+      visibleInStore: 'Im Shop sichtbar',
+      hiddenFromStore: 'Vom Shop versteckt',
+      inventory: 'Bestand',
+      currentStock: 'Aktueller Bestand',
+      allowOverselling: 'Überverkauf erlauben',
+      oversellHint: 'Kunden können kaufen, auch wenn der Bestand 0 ist',
+    },
+    fi: {
+      title: 'Tuotehallinta',
+      subtitle: 'Lisää, muokkaa ja poista tuotteita',
+      addProduct: 'Lisää tuote',
+      editProduct: 'Muokkaa tuotetta',
+      productName: 'Tuotenimi',
+      description: 'Kuvaus',
+      price: 'Hinta (SEK)',
+      category: 'Kategoria',
+      selectCategory: 'Valitse kategoria',
+      tags: 'Tagit',
+      tagsPlaceholder: 'Klikkaa ehdotuksia tai kirjoita omia',
+      suggestedTags: 'Ehdotetut tagit:',
+      vendor: 'Toimittaja',
+      save: 'Tallenna tuote',
+      update: 'Päivitä',
+      cancel: 'Peruuta',
+      delete: 'Poista',
+      noProducts: 'Tuotteita ei löytynyt',
+      loading: 'Ladataan tuotteita...',
+      deleteConfirm: 'Oletko varma?',
+      deleteDescription: 'Tätä toimintoa ei voi peruuttaa. Tuote poistetaan pysyvästi.',
+      productAdded: 'Tuote lisätty!',
+      productUpdated: 'Tuote päivitetty!',
+      productDeleted: 'Tuote poistettu!',
+      error: 'Jotain meni pieleen',
+      inStock: 'Varastossa',
+      outOfStock: 'Loppuunmyyty',
+      moreProducts: 'lisää tuotteita',
+      visibility: 'Näkyvyys',
+      visibleInStore: 'Näkyy kaupassa',
+      hiddenFromStore: 'Piilotettu kaupasta',
+      inventory: 'Varasto',
+      currentStock: 'Nykyinen varasto',
+      allowOverselling: 'Salli ylimyynti',
+      oversellHint: 'Asiakkaat voivat ostaa, vaikka varasto on 0',
+    },
   };
 
   const t = content[language as keyof typeof content] || content.en;
