@@ -22,38 +22,38 @@ const ProductSuggestions = () => {
     sv: {
       title: 'Önskelista',
       subtitle: 'Hjälp oss driva ned priserna',
-      description: 'Saknar du en produkt? Berätta vad du letar efter! Vi samlar in önskemål och förhandlar direkt med leverantörer för att få bättre priser för alla.',
-      productLabel: 'Produktnamn eller kategori',
-      productPlaceholder: 'Ex: Naturlig solkräm, Hampakläder...',
-      descriptionLabel: 'Beskriv produkten (valfritt)',
-      descriptionPlaceholder: 'Valfritt: Nämn gärna varumärke, specifikationer eller var du sett produkten...',
+      description: 'Saknar du en produkt? Berätta vad du letar efter! Vi samlar in önskemål och förhandlar direkt med leverantörer för att kunna erbjuda bättre produkter till lägre priser.',
+      productLabel: 'Vad är det för typ av produkt?',
+      productPlaceholder: 'Ex: Deodorant för känslig hud, Ekologiskt bivax-ljus...',
+      descriptionLabel: 'Beskriv produkten och varför du vill ha den',
+      descriptionPlaceholder: 'Berätta gärna:\n• Vilka egenskaper är viktiga? (t.ex. naturlig, parfymfri, vegan)\n• Vad ska produkten användas till?\n• Finns det specifika krav? (t.ex. allergivänlig, ekologisk)\n\nExempel: "En deodorant som fungerar för känslig hud, helst utan aluminium och med naturliga ingredienser."',
       emailLabel: 'Din e-post (valfritt)',
       emailPlaceholder: 'Vi meddelar dig när produkten finns',
       submit: 'Skicka förslag',
       success: 'Tack för ditt förslag!',
-      successDescription: 'Vi har tagit emot din önskan och kommer undersöka möjligheterna.',
+      successDescription: 'Vi har tagit emot din önskan och kommer undersöka möjligheterna att ta fram en bättre och billigare version.',
       benefits: [
-        'Gemensam förhandlingskraft',
-        'Lägre priser för alla',
+        'Vi förhandlar för dig',
+        'Bättre produkter, lägre pris',
         'Du påverkar sortimentet'
       ]
     },
     en: {
       title: 'Wishlist',
       subtitle: 'Help us drive down prices',
-      description: "Missing a product? Tell us what you're looking for! We collect requests and negotiate directly with suppliers to get better prices for everyone.",
-      productLabel: 'Product name or category',
-      productPlaceholder: 'Ex: Natural sunscreen, Hemp clothing...',
-      descriptionLabel: 'Describe the product (optional)',
-      descriptionPlaceholder: 'Optional: Mention brand, specifications, or where you saw the product...',
+      description: "Missing a product? Tell us what you're looking for! We collect requests and negotiate directly with suppliers to offer better products at lower prices.",
+      productLabel: 'What type of product is it?',
+      productPlaceholder: 'Ex: Deodorant for sensitive skin, Organic beeswax candle...',
+      descriptionLabel: 'Describe the product and why you want it',
+      descriptionPlaceholder: "Please tell us:\n• What features are important? (e.g. natural, fragrance-free, vegan)\n• What will the product be used for?\n• Any specific requirements? (e.g. allergy-friendly, organic)\n\nExample: 'A deodorant that works for sensitive skin, preferably aluminum-free with natural ingredients.'",
       emailLabel: 'Your email (optional)',
       emailPlaceholder: "We'll notify you when available",
       submit: 'Send suggestion',
       success: 'Thanks for your suggestion!',
-      successDescription: 'We have received your request and will investigate the possibilities.',
+      successDescription: 'We have received your request and will investigate how to create a better, more affordable version.',
       benefits: [
-        'Collective bargaining power',
-        'Lower prices for everyone',
+        'We negotiate for you',
+        'Better products, lower prices',
         'You influence our selection'
       ]
     }
@@ -184,7 +184,8 @@ const ProductSuggestions = () => {
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     placeholder={t.descriptionPlaceholder}
-                    rows={3}
+                    rows={6}
+                    className="whitespace-pre-wrap"
                   />
                 </div>
                 

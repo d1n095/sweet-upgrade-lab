@@ -68,6 +68,46 @@ const BalanceOverview = () => {
       yourBalance: 'Ihr Guthaben',
       noBalance: 'Kein Guthaben',
     },
+    fi: {
+      title: 'Taloudellinen yleiskatsaus',
+      donationBalance: 'Lahjoitussaldo',
+      affiliateCommissions: 'Kumppaniprovisiot',
+      pendingPayouts: 'Odottavat maksut',
+      yourBalance: 'Saldosi',
+      noBalance: 'Ei saldoa',
+    },
+    nl: {
+      title: 'Financieel overzicht',
+      donationBalance: 'Donatiesaldo',
+      affiliateCommissions: 'Affiliate-commissies',
+      pendingPayouts: 'Uitstaande uitbetalingen',
+      yourBalance: 'Jouw saldo',
+      noBalance: 'Geen saldo',
+    },
+    fr: {
+      title: 'Aperçu financier',
+      donationBalance: 'Solde des dons',
+      affiliateCommissions: 'Commissions affiliés',
+      pendingPayouts: 'Paiements en attente',
+      yourBalance: 'Votre solde',
+      noBalance: 'Pas de solde',
+    },
+    es: {
+      title: 'Resumen financiero',
+      donationBalance: 'Saldo de donaciones',
+      affiliateCommissions: 'Comisiones de afiliados',
+      pendingPayouts: 'Pagos pendientes',
+      yourBalance: 'Tu saldo',
+      noBalance: 'Sin saldo',
+    },
+    pl: {
+      title: 'Przegląd finansowy',
+      donationBalance: 'Saldo darowizn',
+      affiliateCommissions: 'Prowizje partnerskie',
+      pendingPayouts: 'Oczekujące wypłaty',
+      yourBalance: 'Twoje saldo',
+      noBalance: 'Brak salda',
+    },
   };
 
   const t = content[language] || content.en;

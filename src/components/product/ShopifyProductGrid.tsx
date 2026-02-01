@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Package, Loader2, ArrowUpDown } from 'lucide-react';
 import ShopifyProductCard from '@/components/product/ShopifyProductCard';
 import { fetchProducts, ShopifyProduct } from '@/lib/shopify';
-import { categories } from '@/data/categories';
+import { categories, Category } from '@/data/categories';
 import { useLanguage } from '@/context/LanguageContext';
 import { cn } from '@/lib/utils';
 import { useSearchStore } from '@/stores/searchStore';
@@ -18,6 +18,26 @@ import {
 
 type SortOption = 'default' | 'price-asc' | 'price-desc' | 'name-asc' | 'name-desc';
 
+// Helper to get visible categories from admin settings
+const getVisibleCategories = (): Category[] => {
+  const stored = localStorage.getItem('admin_categories');
+  if (stored) {
+    try {
+      const adminCategories = JSON.parse(stored) as Array<{
+        id: string;
+        isVisible: boolean;
+      }>;
+      const visibleIds = adminCategories
+        .filter(c => c.isVisible)
+        .map(c => c.id);
+      return categories.filter(c => visibleIds.includes(c.id));
+    } catch {
+      return categories;
+    }
+  }
+  return categories;
+};
+
 const ShopifyProductGrid = () => {
   const { language, t } = useLanguage();
   const [products, setProducts] = useState<ShopifyProduct[]>([]);
@@ -26,7 +46,20 @@ const ShopifyProductGrid = () => {
   const [activeCategory, setActiveCategory] = useState('all');
   const [sortOption, setSortOption] = useState<SortOption>('default');
   const [bestsellerIds, setBestsellerIds] = useState<string[]>([]);
+  const [visibleCategories, setVisibleCategories] = useState<Category[]>(getVisibleCategories());
   const searchQuery = useSearchStore(state => state.searchQuery);
+
+  // Listen for category visibility updates
+  useEffect(() => {
+    const handleCategoriesUpdated = () => {
+      setVisibleCategories(getVisibleCategories());
+    };
+
+    window.addEventListener('categories-updated', handleCategoriesUpdated);
+    return () => {
+      window.removeEventListener('categories-updated', handleCategoriesUpdated);
+    };
+  }, []);
 
   // Load bestseller IDs from database with realtime updates
   useEffect(() => {
@@ -176,7 +209,7 @@ const ShopifyProductGrid = () => {
           transition={{ delay: 0.1, duration: 0.5 }}
           className="flex flex-wrap justify-center gap-3 mb-8"
         >
-          {categories.map((category) => {
+        {visibleCategories.map((category) => {
             const Icon = category.icon;
             const isActive = activeCategory === category.id;
             return (
