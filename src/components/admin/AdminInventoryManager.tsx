@@ -236,18 +236,32 @@ const AdminInventoryManager = () => {
                     {/* Stock Controls */}
                     <div className="mt-3 flex items-center gap-3 flex-wrap">
                       {isEditing ? (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                           <Input
                             type="number"
                             value={stockValue}
                             onChange={(e) => setStockValue(Number(e.target.value))}
-                            className="w-20 h-8 text-sm"
+                            onFocus={(e) => e.target.select()}
+                            onClick={(e) => e.stopPropagation()}
+                            onKeyDown={(e) => {
+                              e.stopPropagation();
+                              if (e.key === 'Enter') {
+                                handleSaveStock(product.node.id);
+                              } else if (e.key === 'Escape') {
+                                setEditingStock(null);
+                              }
+                            }}
+                            className="w-24 h-8 text-sm"
+                            autoFocus
                           />
                           <Button
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8"
-                            onClick={() => handleSaveStock(product.node.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSaveStock(product.node.id);
+                            }}
                           >
                             <Save className="w-4 h-4 text-green-600" />
                           </Button>
@@ -255,7 +269,10 @@ const AdminInventoryManager = () => {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8"
-                            onClick={() => setEditingStock(null)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingStock(null);
+                            }}
                           >
                             <X className="w-4 h-4" />
                           </Button>

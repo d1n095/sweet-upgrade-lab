@@ -26,6 +26,7 @@ import AffiliateLanding from "./pages/AffiliateLanding";
 import Business from "./pages/Business";
 import SuggestProduct from "./pages/SuggestProduct";
 import ResetPassword from "./pages/ResetPassword";
+import WhatsNew from "./pages/WhatsNew";
 import NotFound from "./pages/NotFound";
 import CookieBanner from "./components/cookie/CookieBanner";
 
@@ -61,6 +62,7 @@ const App = () => (
             <Route path="/business" element={<Business />} />
             <Route path="/suggest-product" element={<SuggestProduct />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/whats-new" element={<WhatsNew />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

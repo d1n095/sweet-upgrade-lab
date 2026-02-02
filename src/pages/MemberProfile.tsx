@@ -42,6 +42,7 @@ import EmployeeDashboard from '@/components/dashboard/EmployeeDashboard';
 import DonationImpact from '@/components/donations/DonationImpact';
 import AccountSettings from '@/components/profile/AccountSettings';
 import BalanceOverview from '@/components/profile/BalanceOverview';
+import ProfileBalanceBadge from '@/components/profile/ProfileBalanceBadge';
 
 interface Review {
   id: string;
@@ -418,38 +419,43 @@ const MemberProfile = () => {
 
           {/* Tabs */}
           <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
-            <TabsList className="mb-6 flex-wrap">
-              <TabsTrigger value="orders" className="gap-2">
-                <Package className="w-4 h-4" />
-                {language === 'sv' ? 'Mina ordrar' : 'My Orders'}
-              </TabsTrigger>
-              <TabsTrigger value="overview" className="gap-2">
-                <User className="w-4 h-4" />
-                {t.tabs.overview}
-              </TabsTrigger>
-              <TabsTrigger value="reviews" className="gap-2">
-                <Star className="w-4 h-4" />
-                {t.tabs.reviews}
-                {reviews.length > 0 && (
-                  <Badge variant="secondary" className="ml-1">{reviews.length}</Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="rewards" className="gap-2">
-                <Gift className="w-4 h-4" />
-                {t.tabs.rewards}
-                {unusedRewards.length > 0 && (
-                  <Badge variant="secondary" className="ml-1">{unusedRewards.length}</Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="donations" className="gap-2">
-                <TrendingUp className="w-4 h-4" />
-                {language === 'sv' ? 'Donationer' : 'Donations'}
-              </TabsTrigger>
-              <TabsTrigger value="settings" className="gap-2">
-                <Settings className="w-4 h-4" />
-                {language === 'sv' ? 'Inställningar' : 'Settings'}
-              </TabsTrigger>
-            </TabsList>
+            <div className="flex items-center gap-3 mb-6 flex-wrap">
+              <TabsList className="flex-wrap">
+                <TabsTrigger value="orders" className="gap-2">
+                  <Package className="w-4 h-4" />
+                  {language === 'sv' ? 'Mina ordrar' : 'My Orders'}
+                </TabsTrigger>
+                <TabsTrigger value="overview" className="gap-2">
+                  <User className="w-4 h-4" />
+                  {t.tabs.overview}
+                </TabsTrigger>
+                <TabsTrigger value="reviews" className="gap-2">
+                  <Star className="w-4 h-4" />
+                  {t.tabs.reviews}
+                  {reviews.length > 0 && (
+                    <Badge variant="secondary" className="ml-1">{reviews.length}</Badge>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="rewards" className="gap-2">
+                  <Gift className="w-4 h-4" />
+                  {t.tabs.rewards}
+                  {unusedRewards.length > 0 && (
+                    <Badge variant="secondary" className="ml-1">{unusedRewards.length}</Badge>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="donations" className="gap-2">
+                  <TrendingUp className="w-4 h-4" />
+                  {language === 'sv' ? 'Donationer' : 'Donations'}
+                </TabsTrigger>
+                <TabsTrigger value="settings" className="gap-2">
+                  <Settings className="w-4 h-4" />
+                  {language === 'sv' ? 'Inställningar' : 'Settings'}
+                </TabsTrigger>
+              </TabsList>
+              
+              {/* Balance Badge - shown next to tabs */}
+              <ProfileBalanceBadge />
+            </div>
 
             {/* Orders Tab */}
             <TabsContent value="orders">
@@ -667,16 +673,20 @@ const MemberProfile = () => {
 
                   {/* Collapsible Admin Sections */}
                   <div className="space-y-4">
-                    {/* Products & Inventory - Combined */}
+                    {/* Products */}
                     <div id="admin-products">
-                      <AdminSection title={t.admin.productsInventory} icon={Boxes} defaultOpen>
+                      <AdminSection title={language === 'sv' ? 'Produkthantering' : 'Product Management'} icon={Boxes} defaultOpen>
                         <AdminProductManager />
-                        <div className="pt-4 border-t border-border">
-                          <AdminInventoryManager />
-                        </div>
                         <div className="pt-4 border-t border-border">
                           <AdminCategoryManager />
                         </div>
+                      </AdminSection>
+                    </div>
+
+                    {/* Inventory & Visibility */}
+                    <div id="admin-inventory">
+                      <AdminSection title={language === 'sv' ? 'Lager & Synlighet' : 'Inventory & Visibility'} icon={Package}>
+                        <AdminInventoryManager />
                       </AdminSection>
                     </div>
 
