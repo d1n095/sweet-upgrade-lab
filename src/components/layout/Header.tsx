@@ -101,6 +101,7 @@ const Header = () => {
     { href: '/shop', label: language === 'sv' ? 'Shop' : 'Shop' },
     { href: '/about', label: t('nav.about') },
     { href: '/how-it-works', label: language === 'sv' ? 'Så funkar det' : 'How It Works' },
+    { href: '/whats-new', label: language === 'sv' ? 'Nytt hos oss' : "What's New" },
   ];
   
   const contactSubMenu = [

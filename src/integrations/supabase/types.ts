@@ -442,6 +442,7 @@ export type Database = {
       donations: {
         Row: {
           amount: number
+          anonymous_id: string | null
           created_at: string
           id: string
           is_anonymous: boolean
@@ -452,6 +453,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          anonymous_id?: string | null
           created_at?: string
           id?: string
           is_anonymous?: boolean
@@ -462,6 +464,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          anonymous_id?: string | null
           created_at?: string
           id?: string
           is_anonymous?: boolean
@@ -997,6 +1000,54 @@ export type Database = {
           results_count?: number
           search_term?: string
           session_id?: string | null
+        }
+        Relationships: []
+      }
+      site_updates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description_en: string | null
+          description_sv: string | null
+          id: string
+          image_url: string | null
+          is_published: boolean
+          related_category: string | null
+          related_product_id: string | null
+          title_en: string | null
+          title_sv: string
+          update_type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description_en?: string | null
+          description_sv?: string | null
+          id?: string
+          image_url?: string | null
+          is_published?: boolean
+          related_category?: string | null
+          related_product_id?: string | null
+          title_en?: string | null
+          title_sv: string
+          update_type?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description_en?: string | null
+          description_sv?: string | null
+          id?: string
+          image_url?: string | null
+          is_published?: boolean
+          related_category?: string | null
+          related_product_id?: string | null
+          title_en?: string | null
+          title_sv?: string
+          update_type?: string
+          updated_at?: string
         }
         Relationships: []
       }

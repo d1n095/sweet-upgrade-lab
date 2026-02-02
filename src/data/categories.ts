@@ -1,4 +1,4 @@
-import { Cpu, Shirt, Droplets, Grid, Flame, Flame as SaunaIcon, Sparkles, Gem, Bed } from 'lucide-react';
+import { Cpu, Shirt, Droplets, Grid, Flame, Flame as SaunaIcon, Sparkles, Gem, Bed, Leaf } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 export interface Category {
@@ -64,5 +64,11 @@ export const categories: Category[] = [
     name: { sv: 'Hemtextil', en: 'Home Textiles', no: 'Hjemmetekstil', da: 'Hjemmetekstil', de: 'Heimtextilien', fi: 'Kodintekstiilit', nl: 'Woontextiel', fr: 'Textiles maison', es: 'Textiles hogar', pl: 'Tekstylia domowe' }, 
     icon: Bed,
     query: 'product_type:Hemtextil OR product_type:Sängkläder OR product_type:Handdukar OR product_type:Filtar'
+  },
+  { 
+    id: 'cbd', 
+    name: { sv: 'CBD', en: 'CBD', no: 'CBD', da: 'CBD', de: 'CBD', fi: 'CBD', nl: 'CBD', fr: 'CBD', es: 'CBD', pl: 'CBD' }, 
+    icon: Leaf,
+    query: 'product_type:CBD'
   },
 ];

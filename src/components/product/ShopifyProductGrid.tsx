@@ -38,6 +38,35 @@ const getVisibleCategories = (): Category[] => {
   return categories;
 };
 
+// Helper to get hidden category product_types for filtering
+const getHiddenCategoryQueries = (): string[] => {
+  const stored = localStorage.getItem('admin_categories');
+  if (stored) {
+    try {
+      const adminCategories = JSON.parse(stored) as Array<{
+        id: string;
+        isVisible: boolean;
+      }>;
+      const hiddenIds = adminCategories
+        .filter(c => !c.isVisible)
+        .map(c => c.id);
+      
+      // Map hidden category IDs to their product_type values
+      return categories
+        .filter(c => hiddenIds.includes(c.id) && c.query)
+        .map(c => {
+          // Extract product_type from query like 'product_type:CBD'
+          const match = c.query?.match(/product_type:([^\s]+)/);
+          return match ? match[1].replace(/"/g, '') : null;
+        })
+        .filter((v): v is string => v !== null);
+    } catch {
+      return [];
+    }
+  }
+  return [];
+};
+
 const ShopifyProductGrid = () => {
   const { language, t } = useLanguage();
   const [products, setProducts] = useState<ShopifyProduct[]>([]);
@@ -158,6 +187,20 @@ const ShopifyProductGrid = () => {
         return sorted;
     }
   }, [products, sortOption]);
+
+  // Filter out products from hidden categories
+  const filteredProducts = useMemo(() => {
+    const hiddenTypes = getHiddenCategoryQueries();
+    if (hiddenTypes.length === 0) return sortedProducts;
+    
+    return sortedProducts.filter(product => {
+      const productType = product.node.productType || '';
+      // Check if product's type matches any hidden category
+      return !hiddenTypes.some(hiddenType => 
+        productType.toLowerCase().includes(hiddenType.toLowerCase())
+      );
+    });
+  }, [sortedProducts]);
 
   // Listen for URL query params and hash changes
   useEffect(() => {
@@ -299,10 +342,10 @@ const ShopifyProductGrid = () => {
         )}
 
         {/* Products Grid */}
-        {!isLoading && sortedProducts.length > 0 && (
+        {!isLoading && filteredProducts.length > 0 && (
           <motion.div layout className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
             <AnimatePresence mode="popLayout">
-              {sortedProducts.map((product, index) => (
+              {filteredProducts.map((product, index) => (
                 <motion.div
                   key={product.node.id}
                   layout

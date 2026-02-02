@@ -5,6 +5,7 @@ import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import SEOHead from '@/components/seo/SEOHead';
 import { useDonationStats } from '@/hooks/useDonationStats';
+import LiveDonationFeed from '@/components/donations/LiveDonationFeed';
 
 const AboutUs = () => {
   const { language } = useLanguage();
@@ -189,32 +190,39 @@ const AboutUs = () => {
         </section>
 
         {/* Donation Impact Section */}
-        {donationStats.totalDonated > 0 && (
-          <section className="container mx-auto px-4 mb-20">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="bg-gradient-to-br from-primary/10 via-accent/5 to-primary/10 border border-primary/20 rounded-3xl p-8 md:p-12 text-center max-w-3xl mx-auto"
-            >
-              <h2 className="font-display text-2xl md:text-3xl font-semibold mb-4">
-                {language === 'sv' ? '🌱 Vår Gemensamma Påverkan' : '🌱 Our Collective Impact'}
-              </h2>
-              <p className="text-muted-foreground mb-8">
-                {language === 'sv' 
-                  ? 'Tack vare er har vi tillsammans bidragit till:' 
-                  : 'Thanks to you, together we have contributed to:'}
-              </p>
-              <div className="inline-flex flex-col items-center p-8 rounded-2xl bg-background/50">
-                <TrendingUp className="w-10 h-10 text-primary mb-4" />
-                <p className="text-4xl md:text-5xl font-bold text-primary">{donationStats.totalDonated} kr</p>
-                <p className="text-lg text-muted-foreground mt-2">
-                  {language === 'sv' ? 'Totalt insamlat' : 'Total collected'}
+        <section className="container mx-auto px-4 mb-20">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="max-w-4xl mx-auto"
+          >
+            <h2 className="font-display text-2xl md:text-3xl font-semibold text-center mb-8">
+              {language === 'sv' ? '🌱 Vår Gemensamma Påverkan' : '🌱 Our Collective Impact'}
+            </h2>
+            
+            <div className="grid md:grid-cols-2 gap-8">
+              {/* Total Donated */}
+              <div className="bg-gradient-to-br from-primary/10 via-accent/5 to-primary/10 border border-primary/20 rounded-2xl p-8 text-center">
+                <p className="text-muted-foreground mb-4">
+                  {language === 'sv' 
+                    ? 'Tack vare er har vi tillsammans bidragit till:' 
+                    : 'Thanks to you, together we have contributed to:'}
                 </p>
+                <div className="inline-flex flex-col items-center p-6 rounded-xl bg-background/50">
+                  <TrendingUp className="w-8 h-8 text-primary mb-3" />
+                  <p className="text-3xl md:text-4xl font-bold text-primary">{donationStats.totalDonated} kr</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {language === 'sv' ? 'Totalt insamlat' : 'Total collected'}
+                  </p>
+                </div>
               </div>
-            </motion.div>
-          </section>
-        )}
+
+              {/* Live Donation Feed */}
+              <LiveDonationFeed />
+            </div>
+          </motion.div>
+        </section>
 
         {/* Mission Statement */}
         <section className="container mx-auto px-4">
