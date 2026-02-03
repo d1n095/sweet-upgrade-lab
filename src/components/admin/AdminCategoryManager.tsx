@@ -52,15 +52,16 @@ const CATEGORIES_STORAGE_KEY = 'admin_categories';
 
 // Default categories matching src/data/categories.ts
 const defaultCategories: Category[] = [
-  { id: 'all', name: { sv: 'Alla', en: 'All' }, iconId: 'grid', isVisible: true },
-  { id: 'bestsaljare', name: { sv: 'Bästsäljare', en: 'Bestsellers' }, iconId: 'flame', isVisible: true, isBestsellerFilter: true },
-  { id: 'elektronik', name: { sv: 'Elektronik', en: 'Electronics' }, iconId: 'cpu', query: 'product_type:Elektronik', isVisible: true },
-  { id: 'klader', name: { sv: 'Mode', en: 'Fashion' }, iconId: 'shirt', query: 'product_type:"Hampa-kläder" OR product_type:Kläder', isVisible: true },
-  { id: 'kroppsvard', name: { sv: 'Kroppsvård', en: 'Body Care' }, iconId: 'droplets', query: 'product_type:Kroppsvård', isVisible: true },
-  { id: 'ljus', name: { sv: 'Ljus', en: 'Candles' }, iconId: 'sparkles', query: 'product_type:Ljus', isVisible: true },
-  { id: 'smycken', name: { sv: 'Smycken & Silver', en: 'Jewelry & Silver' }, iconId: 'gem', query: 'product_type:Smycken', isVisible: true },
-  { id: 'bastudofter', name: { sv: 'Bastudofter', en: 'Sauna Scents' }, iconId: 'flame', query: 'product_type:Bastudofter', isVisible: true },
-  { id: 'hem-textil', name: { sv: 'Hemtextil', en: 'Home Textiles' }, iconId: 'bed', query: 'product_type:Hemtextil OR product_type:Sängkläder OR product_type:Handdukar OR product_type:Filtar', isVisible: true },
+  { id: 'all', name: { sv: 'Alla', en: 'All', no: 'Alle', da: 'Alle', de: 'Alle', fi: 'Kaikki', nl: 'Alles', fr: 'Tout', es: 'Todo', pl: 'Wszystko' }, iconId: 'grid', isVisible: true },
+  { id: 'bestsaljare', name: { sv: 'Bästsäljare', en: 'Bestsellers', no: 'Bestselgere', da: 'Bestsellere', de: 'Bestseller', fi: 'Bestsellerit', nl: 'Bestsellers', fr: 'Meilleures ventes', es: 'Más vendidos', pl: 'Bestsellery' }, iconId: 'flame', isVisible: true, isBestsellerFilter: true },
+  { id: 'elektronik', name: { sv: 'Elektronik', en: 'Electronics', no: 'Elektronikk', da: 'Elektronik', de: 'Elektronik', fi: 'Elektroniikka', nl: 'Elektronica', fr: 'Électronique', es: 'Electrónica', pl: 'Elektronika' }, iconId: 'cpu', query: 'product_type:Elektronik', isVisible: true },
+  { id: 'klader', name: { sv: 'Mode', en: 'Fashion', no: 'Mote', da: 'Mode', de: 'Mode', fi: 'Muoti', nl: 'Mode', fr: 'Mode', es: 'Moda', pl: 'Moda' }, iconId: 'shirt', query: 'product_type:"Hampa-kläder" OR product_type:Kläder', isVisible: true },
+  { id: 'kroppsvard', name: { sv: 'Kroppsvård', en: 'Body Care', no: 'Kroppsvård', da: 'Kropspleje', de: 'Körperpflege', fi: 'Vartalonhoito', nl: 'Lichaamsverzorging', fr: 'Soins corporels', es: 'Cuidado corporal', pl: 'Pielęgnacja ciała' }, iconId: 'droplets', query: 'product_type:Kroppsvård', isVisible: true },
+  { id: 'ljus', name: { sv: 'Ljus', en: 'Candles', no: 'Lys', da: 'Lys', de: 'Kerzen', fi: 'Kynttilät', nl: 'Kaarsen', fr: 'Bougies', es: 'Velas', pl: 'Świece' }, iconId: 'sparkles', query: 'product_type:Ljus', isVisible: true },
+  { id: 'smycken', name: { sv: 'Smycken & Silver', en: 'Jewelry & Silver', no: 'Smykker', da: 'Smykker', de: 'Schmuck', fi: 'Korut', nl: 'Sieraden', fr: 'Bijoux', es: 'Joyas', pl: 'Biżuteria' }, iconId: 'gem', query: 'product_type:Smycken', isVisible: true },
+  { id: 'bastudofter', name: { sv: 'Bastudofter', en: 'Sauna Scents', no: 'Badstudufter', da: 'Saunadufte', de: 'Saunadüfte', fi: 'Saunatuoksut', nl: 'Saunageuren', fr: 'Parfums sauna', es: 'Aromas sauna', pl: 'Zapachy do sauny' }, iconId: 'flame', query: 'product_type:Bastudofter', isVisible: true },
+  { id: 'hem-textil', name: { sv: 'Hemtextil', en: 'Home Textiles', no: 'Hjemmetekstil', da: 'Hjemmetekstil', de: 'Heimtextilien', fi: 'Kodintekstiilit', nl: 'Woontextiel', fr: 'Textiles maison', es: 'Textiles hogar', pl: 'Tekstylia domowe' }, iconId: 'bed', query: 'product_type:Hemtextil OR product_type:Sängkläder OR product_type:Handdukar OR product_type:Filtar', isVisible: true },
+  { id: 'cbd', name: { sv: 'CBD', en: 'CBD', no: 'CBD', da: 'CBD', de: 'CBD', fi: 'CBD', nl: 'CBD', fr: 'CBD', es: 'CBD', pl: 'CBD' }, iconId: 'droplets', query: 'product_type:CBD', isVisible: false },
 ];
 
 const AdminCategoryManager = () => {
