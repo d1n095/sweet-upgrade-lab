@@ -4,7 +4,7 @@ import {
   User, Package, Star, Gift, Settings, LogOut, 
   ChevronRight, Loader2, Clock, Check, BadgeCheck,
   Shield, BarChart3, Users, TrendingUp, MessageCircle,
-  ChevronDown, Boxes, UserCog, Handshake, FileText, Heart
+  ChevronDown, Boxes, UserCog, Handshake, FileText, Heart, Wallet, Grid
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -43,6 +43,7 @@ import DonationImpact from '@/components/donations/DonationImpact';
 import AccountSettings from '@/components/profile/AccountSettings';
 import BalanceOverview from '@/components/profile/BalanceOverview';
 import ProfileBalanceBadge from '@/components/profile/ProfileBalanceBadge';
+import BalancePage from '@/pages/BalancePage';
 
 interface Review {
   id: string;
@@ -447,6 +448,10 @@ const MemberProfile = () => {
                   <TrendingUp className="w-4 h-4" />
                   {language === 'sv' ? 'Donationer' : 'Donations'}
                 </TabsTrigger>
+                <TabsTrigger value="balance" className="gap-2">
+                  <Wallet className="w-4 h-4" />
+                  {language === 'sv' ? 'Saldo' : 'Balance'}
+                </TabsTrigger>
                 <TabsTrigger value="settings" className="gap-2">
                   <Settings className="w-4 h-4" />
                   {language === 'sv' ? 'Inställningar' : 'Settings'}
@@ -482,6 +487,11 @@ const MemberProfile = () => {
             {/* Donations Tab */}
             <TabsContent value="donations">
               <DonationImpact />
+            </TabsContent>
+
+            {/* Balance Tab */}
+            <TabsContent value="balance">
+              <BalancePage />
             </TabsContent>
 
             {/* Settings Tab */}
@@ -626,6 +636,24 @@ const MemberProfile = () => {
                       variant="ghost" 
                       size="sm" 
                       className="gap-2"
+                      onClick={() => document.getElementById('admin-categories')?.scrollIntoView({ behavior: 'smooth' })}
+                    >
+                      <Grid className="w-4 h-4" />
+                      {language === 'sv' ? 'Kategorier' : 'Categories'}
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="gap-2"
+                      onClick={() => document.getElementById('admin-inventory')?.scrollIntoView({ behavior: 'smooth' })}
+                    >
+                      <Package className="w-4 h-4" />
+                      {language === 'sv' ? 'Lager' : 'Inventory'}
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="gap-2"
                       onClick={() => document.getElementById('admin-members')?.scrollIntoView({ behavior: 'smooth' })}
                     >
                       <UserCog className="w-4 h-4" />
@@ -677,9 +705,13 @@ const MemberProfile = () => {
                     <div id="admin-products">
                       <AdminSection title={language === 'sv' ? 'Produkthantering' : 'Product Management'} icon={Boxes} defaultOpen>
                         <AdminProductManager />
-                        <div className="pt-4 border-t border-border">
-                          <AdminCategoryManager />
-                        </div>
+                      </AdminSection>
+                    </div>
+
+                    {/* Categories */}
+                    <div id="admin-categories">
+                      <AdminSection title={language === 'sv' ? 'Kategorihantering' : 'Category Management'} icon={Grid}>
+                        <AdminCategoryManager />
                       </AdminSection>
                     </div>
 
