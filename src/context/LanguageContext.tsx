@@ -91,7 +91,13 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
       console.warn(`Missing translation for key: ${key}`);
       return key;
     }
-    return translation[language];
+    // Fallback to English (and then Swedish) if a specific language string is missing.
+    return (
+      translation[language] ??
+      translation.en ??
+      translation.sv ??
+      key
+    );
   };
 
   return (
