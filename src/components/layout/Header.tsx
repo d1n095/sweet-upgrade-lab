@@ -184,20 +184,6 @@ const Header = () => {
                             <span className="font-medium">{category.name[language]}</span>
                           </Link>
                         ))}
-                        {/* CBD Category - always visible but marked as coming soon */}
-                        <Link
-                          to="/cbd"
-                          onClick={() => setIsProductsHovered(false)}
-                          className="flex items-center gap-3 px-4 py-3 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all duration-200"
-                        >
-                          <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
-                            <Leaf className="w-4 h-4 text-accent" />
-                          </div>
-                          <div>
-                            <span className="font-medium">{language === 'sv' ? 'CBD' : 'CBD'}</span>
-                            <span className="text-xs text-accent ml-2">{language === 'sv' ? '(Snart)' : '(Soon)'}</span>
-                          </div>
-                        </Link>
                       </div>
                     </motion.div>
                   )}
