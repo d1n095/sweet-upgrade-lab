@@ -674,7 +674,7 @@ const AdminProductManager = () => {
             <p className="font-medium text-sm">{t.inventory}</p>
           </div>
           
-          <div className="flex items-center gap-3 mb-3">
+          <div className="flex items-center gap-3 mb-3" onClick={(e) => e.stopPropagation()}>
             <Label className="text-sm">{t.currentStock}</Label>
             <div className="flex items-center gap-2">
               <Button
@@ -682,23 +682,46 @@ const AdminProductManager = () => {
                 variant="outline"
                 size="icon"
                 className="h-8 w-8"
-                onClick={() => setFormData(prev => ({ ...prev, inventory: Math.max(0, prev.inventory - 1) }))}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setFormData(prev => ({ ...prev, inventory: Math.max(0, prev.inventory - 1) }));
+                }}
               >
                 <Minus className="w-4 h-4" />
               </Button>
               <Input
                 type="number"
                 value={formData.inventory}
-                onChange={(e) => setFormData(prev => ({ ...prev, inventory: parseInt(e.target.value) || 0 }))}
-                className="w-20 text-center"
+                onChange={(e) => {
+                  e.stopPropagation();
+                  setFormData(prev => ({ ...prev, inventory: parseInt(e.target.value) || 0 }));
+                }}
+                onClick={(e) => e.stopPropagation()}
+                onFocus={(e) => {
+                  e.stopPropagation();
+                  e.target.select();
+                }}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                  }
+                }}
+                className="w-24 text-center"
                 min="0"
+                autoComplete="off"
               />
               <Button
                 type="button"
                 variant="outline"
                 size="icon"
                 className="h-8 w-8"
-                onClick={() => setFormData(prev => ({ ...prev, inventory: prev.inventory + 1 }))}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setFormData(prev => ({ ...prev, inventory: prev.inventory + 1 }));
+                }}
               >
                 <Plus className="w-4 h-4" />
               </Button>
