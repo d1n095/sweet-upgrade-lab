@@ -1,16 +1,11 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
-  Plus, Package, Edit, Trash2, Loader2, 
-  Image as ImageIcon, DollarSign, Tag, Save,
-  Eye, EyeOff, Boxes, Minus
+  Plus, Package, Edit, Trash2, Loader2,
+  Image as ImageIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
   DialogContent,
@@ -28,18 +23,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useLanguage } from '@/context/LanguageContext';
 import { toast } from 'sonner';
 import { fetchProducts, ShopifyProduct } from '@/lib/shopify';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import {
+  AdminProductForm,
+  type AdminProductFormStrings,
+  type ProductFormData,
+} from '@/components/admin/AdminProductForm';
 
 // Product categories
 const productCategories = [
@@ -59,17 +52,11 @@ const suggestedTags = [
   'handgjord', 'svensktillverkad', 'nyhet', 'bästsäljare', 'limited'
 ];
 
-interface ProductFormData {
-  title: string;
-  description: string;
-  price: string;
-  productType: string;
-  tags: string;
-  vendor: string;
-  isVisible: boolean;
-  inventory: number;
-  allowOverselling: boolean;
-}
+const gidToNumericId = (gid: string | undefined | null) => {
+  if (!gid) return null;
+  const id = gid.split('/').pop();
+  return id || null;
+};
 
 const AdminProductManager = () => {
   const { language } = useLanguage();
@@ -96,23 +83,11 @@ const AdminProductManager = () => {
     queryFn: () => fetchProducts(50),
   });
 
-  const content: Record<string, {
+  const content: Record<string, AdminProductFormStrings & {
     title: string;
     subtitle: string;
     addProduct: string;
     editProduct: string;
-    productName: string;
-    description: string;
-    price: string;
-    category: string;
-    selectCategory: string;
-    tags: string;
-    tagsPlaceholder: string;
-    suggestedTags: string;
-    vendor: string;
-    save: string;
-    update: string;
-    cancel: string;
     delete: string;
     noProducts: string;
     loading: string;
@@ -125,13 +100,6 @@ const AdminProductManager = () => {
     inStock: string;
     outOfStock: string;
     moreProducts: string;
-    visibility: string;
-    visibleInStore: string;
-    hiddenFromStore: string;
-    inventory: string;
-    currentStock: string;
-    allowOverselling: string;
-    oversellHint: string;
   }> = {
     sv: {
       title: 'Produkthantering',
@@ -436,7 +404,8 @@ const AdminProductManager = () => {
             variants: [{
               price: formData.price,
               inventory_quantity: formData.inventory,
-              inventory_management: formData.allowOverselling ? null : 'shopify',
+              inventory_management: 'shopify',
+              inventory_policy: formData.allowOverselling ? 'continue' : 'deny',
             }],
           },
         },
@@ -463,25 +432,52 @@ const AdminProductManager = () => {
     setIsSubmitting(true);
 
     try {
-      // Extract the numeric ID from the Shopify GID
-      const gid = selectedProduct.node.id;
-      const numericId = gid.split('/').pop();
+      const productNumericId = gidToNumericId(selectedProduct.node.id);
+      const firstVariantGid = selectedProduct.node.variants.edges[0]?.node.id;
+      const variantNumericId = gidToNumericId(firstVariantGid);
+
+      if (!productNumericId) throw new Error('Missing product id');
+      if (!variantNumericId) throw new Error('Missing variant id');
+
+      // If hidden, force not sellable.
+      const targetQuantity = formData.isVisible ? formData.inventory : 0;
+      const targetOversell = formData.isVisible ? formData.allowOverselling : false;
 
       const response = await supabase.functions.invoke('shopify-proxy', {
         body: {
           action: 'updateProduct',
-          productId: numericId,
+          productId: productNumericId,
           data: {
+            id: Number(productNumericId),
             title: formData.title,
             body_html: formData.description,
             product_type: formData.productType,
             tags: formData.tags,
             vendor: formData.vendor,
+            variants: [
+              {
+                id: Number(variantNumericId),
+                inventory_management: 'shopify',
+                inventory_policy: targetOversell ? 'continue' : 'deny',
+              },
+            ],
           },
         },
       });
 
       if (response.error) throw response.error;
+
+      const inventoryRes = await supabase.functions.invoke('shopify-proxy', {
+        body: {
+          action: 'updateInventory',
+          data: {
+            variantId: Number(variantNumericId),
+            quantity: targetQuantity,
+          },
+        },
+      });
+
+      if (inventoryRes.error) throw inventoryRes.error;
 
       toast.success(t.productUpdated);
       resetForm();
@@ -490,7 +486,9 @@ const AdminProductManager = () => {
       queryClient.invalidateQueries({ queryKey: ['shopify-products'] });
     } catch (error) {
       console.error('Failed to update product:', error);
-      toast.error(t.error);
+      toast.error(t.error, {
+        description: error instanceof Error ? error.message : undefined,
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -534,242 +532,8 @@ const AdminProductManager = () => {
     }).format(parseFloat(amount));
   };
 
-  const currentTags = formData.tags.split(',').map(t => t.trim()).filter(Boolean);
-
-  const ProductForm = ({ isEdit = false, onSubmit }: { isEdit?: boolean; onSubmit: (e: React.FormEvent) => void }) => (
-    <form onSubmit={onSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
-      <div className="space-y-2">
-        <Label htmlFor="title">{t.productName}</Label>
-        <Input
-          id="title"
-          value={formData.title}
-          onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-          placeholder="Naturlig Deodorant"
-          required
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="description">{t.description}</Label>
-        <Textarea
-          id="description"
-          value={formData.description}
-          onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-          placeholder="Aluminiumfri, naturlig doft..."
-          rows={3}
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="price">{t.price}</Label>
-          <div className="relative">
-            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              id="price"
-              type="number"
-              step="0.01"
-              value={formData.price}
-              onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
-              placeholder="159"
-              className="pl-9"
-              required
-              disabled={isEdit}
-            />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="productType">{t.category}</Label>
-          <Select
-            value={formData.productType}
-            onValueChange={(value) => setFormData(prev => ({ ...prev, productType: value }))}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder={t.selectCategory} />
-            </SelectTrigger>
-            <SelectContent>
-              {productCategories.map((cat) => (
-                <SelectItem key={cat.value} value={cat.value}>
-                  {cat.label[language as 'sv' | 'en'] || cat.label.en}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {/* Tags Section */}
-      <div className="space-y-2">
-        <Label>{t.tags}</Label>
-        <div className="relative">
-          <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            value={formData.tags}
-            onChange={(e) => setFormData(prev => ({ ...prev, tags: e.target.value }))}
-            placeholder={t.tagsPlaceholder}
-            className="pl-9"
-          />
-        </div>
-        
-        {/* Current Tags */}
-        {currentTags.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {currentTags.map((tag) => (
-              <Badge
-                key={tag}
-                variant="secondary"
-                className="cursor-pointer hover:bg-destructive/20"
-                onClick={() => removeTag(tag)}
-              >
-                {tag} ×
-              </Badge>
-            ))}
-          </div>
-        )}
-        
-        {/* Suggested Tags */}
-        <div>
-          <p className="text-xs text-muted-foreground mb-1.5">{t.suggestedTags}</p>
-          <div className="flex flex-wrap gap-1.5">
-            {suggestedTags.filter(tag => !currentTags.includes(tag)).map((tag) => (
-              <Badge
-                key={tag}
-                variant="outline"
-                className="cursor-pointer hover:bg-primary/10"
-                onClick={() => addTag(tag)}
-              >
-                + {tag}
-              </Badge>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Visibility & Inventory Section */}
-      <div className="bg-secondary/30 rounded-lg p-4 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {formData.isVisible ? (
-              <Eye className="w-4 h-4 text-green-600" />
-            ) : (
-              <EyeOff className="w-4 h-4 text-muted-foreground" />
-            )}
-            <div>
-              <p className="font-medium text-sm">{t.visibility}</p>
-              <p className="text-xs text-muted-foreground">
-                {formData.isVisible ? t.visibleInStore : t.hiddenFromStore}
-              </p>
-            </div>
-          </div>
-          <Switch
-            checked={formData.isVisible}
-            onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isVisible: checked }))}
-          />
-        </div>
-
-        <div className="border-t border-border pt-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Boxes className="w-4 h-4 text-primary" />
-            <p className="font-medium text-sm">{t.inventory}</p>
-          </div>
-          
-          <div className="flex items-center gap-3 mb-3" onClick={(e) => e.stopPropagation()}>
-            <Label className="text-sm">{t.currentStock}</Label>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setFormData(prev => ({ ...prev, inventory: Math.max(0, prev.inventory - 1) }));
-                }}
-              >
-                <Minus className="w-4 h-4" />
-              </Button>
-              <Input
-                type="number"
-                value={formData.inventory}
-                onChange={(e) => {
-                  e.stopPropagation();
-                  setFormData(prev => ({ ...prev, inventory: parseInt(e.target.value) || 0 }));
-                }}
-                onClick={(e) => e.stopPropagation()}
-                onFocus={(e) => {
-                  e.stopPropagation();
-                  e.target.select();
-                }}
-                onKeyDown={(e) => {
-                  e.stopPropagation();
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                  }
-                }}
-                className="w-24 text-center"
-                min="0"
-                autoComplete="off"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setFormData(prev => ({ ...prev, inventory: prev.inventory + 1 }));
-                }}
-              >
-                <Plus className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm">{t.allowOverselling}</p>
-              <p className="text-xs text-muted-foreground">{t.oversellHint}</p>
-            </div>
-            <Switch
-              checked={formData.allowOverselling}
-              onCheckedChange={(checked) => setFormData(prev => ({ ...prev, allowOverselling: checked }))}
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="flex gap-2 pt-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => {
-            resetForm();
-            isEdit ? setIsEditDialogOpen(false) : setIsAddDialogOpen(false);
-          }}
-          className="flex-1"
-        >
-          {t.cancel}
-        </Button>
-        <Button
-          type="submit"
-          disabled={isSubmitting || !formData.title || (!isEdit && !formData.price)}
-          className="flex-1"
-        >
-          {isSubmitting ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <>
-              <Save className="w-4 h-4 mr-2" />
-              {isEdit ? t.update : t.save}
-            </>
-          )}
-        </Button>
-      </div>
-    </form>
-  );
+  // NOTE: Product form extracted to its own component to prevent remounting on every keystroke
+  // (which caused focus loss + scroll-to-top inside the dialog).
 
   return (
     <div className="space-y-4">
@@ -798,7 +562,21 @@ const AdminProductManager = () => {
                 {t.addProduct}
               </DialogTitle>
             </DialogHeader>
-            <ProductForm onSubmit={handleSubmit} />
+            <AdminProductForm
+              t={t}
+              language={language}
+              productCategories={productCategories}
+              suggestedTags={suggestedTags}
+              formData={formData}
+              setFormData={setFormData}
+              isEdit={false}
+              isSubmitting={isSubmitting}
+              onCancel={() => {
+                resetForm();
+                setIsAddDialogOpen(false);
+              }}
+              onSubmit={handleSubmit}
+            />
           </DialogContent>
         </Dialog>
       </div>
@@ -886,7 +664,21 @@ const AdminProductManager = () => {
               {t.editProduct}
             </DialogTitle>
           </DialogHeader>
-          <ProductForm isEdit onSubmit={handleUpdate} />
+          <AdminProductForm
+            t={t}
+            language={language}
+            productCategories={productCategories}
+            suggestedTags={suggestedTags}
+            formData={formData}
+            setFormData={setFormData}
+            isEdit
+            isSubmitting={isSubmitting}
+            onCancel={() => {
+              resetForm();
+              setIsEditDialogOpen(false);
+            }}
+            onSubmit={handleUpdate}
+          />
         </DialogContent>
       </Dialog>
 

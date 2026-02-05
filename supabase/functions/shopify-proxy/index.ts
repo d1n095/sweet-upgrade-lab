@@ -152,13 +152,18 @@ async function handleAdminAction(body: { action: string; productId?: string; dat
           );
         }
 
+        const productPayload = {
+          ...(data ?? {}),
+          id: Number(productId),
+        };
+
         const response = await fetch(`${SHOPIFY_ADMIN_URL}/products/${productId}.json`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
             'X-Shopify-Access-Token': adminToken,
           },
-          body: JSON.stringify({ product: data }),
+          body: JSON.stringify({ product: productPayload }),
         });
 
         if (!response.ok) {
