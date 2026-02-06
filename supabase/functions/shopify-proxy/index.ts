@@ -212,6 +212,38 @@ async function handleAdminAction(body: { action: string; productId?: string; dat
         );
       }
 
+      case 'getVariant': {
+        const variantId = body.data?.variantId;
+
+        if (!variantId) {
+          return new Response(
+            JSON.stringify({ error: 'Variant ID required' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        const variantResponse = await fetch(`${SHOPIFY_ADMIN_URL}/variants/${variantId}.json`, {
+          headers: {
+            'X-Shopify-Access-Token': adminToken,
+          },
+        });
+
+        if (!variantResponse.ok) {
+          const errorText = await variantResponse.text();
+          console.error('Get variant error:', errorText);
+          return new Response(
+            JSON.stringify({ error: 'Failed to get variant', details: errorText }),
+            { status: variantResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        const result = await variantResponse.json();
+        return new Response(
+          JSON.stringify(result),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       case 'updateInventory': {
         // First get the inventory item ID for the variant
         const variantId = body.data?.variantId;
