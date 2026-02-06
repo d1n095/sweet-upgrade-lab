@@ -107,7 +107,7 @@ export const storeConfig = {
       name: { sv: 'CBD', en: 'CBD' },
       description: { sv: 'CBD-produkter (kommer snart)', en: 'CBD products (coming soon)' },
       shopifyProductType: 'CBD',
-      active: false, // Hidden but structure exists
+      active: true,
     },
   ],
 

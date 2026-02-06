@@ -181,7 +181,7 @@ const Header = () => {
                             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
                               <Leaf className="w-4 h-4 text-primary" />
                             </div>
-                            <span className="font-medium">{category.name[language]}</span>
+                            <span className="font-medium">{category.name?.[language as 'sv' | 'en'] ?? category.name?.en ?? category.name?.sv ?? ''}</span>
                           </Link>
                         ))}
                       </div>
@@ -394,17 +394,9 @@ const Header = () => {
                       className="flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground transition-colors py-2.5 px-4 rounded-xl hover:bg-secondary/30"
                     >
                       <Leaf className="w-4 h-4 text-primary" />
-                      {category.name[language]}
+                      {category.name?.[language as 'sv' | 'en'] ?? category.name?.en ?? category.name?.sv ?? ''}
                     </Link>
                   ))}
-                  <Link
-                    to="/cbd"
-                    className="flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground transition-colors py-2.5 px-4 rounded-xl hover:bg-secondary/30"
-                  >
-                    <Leaf className="w-4 h-4 text-accent" />
-                    {language === 'sv' ? 'CBD' : 'CBD'}
-                    <span className="text-xs text-accent">({language === 'sv' ? 'Snart' : 'Soon'})</span>
-                  </Link>
                 </div>
                 <div className="mt-4 pt-4 border-t border-border/50 flex flex-col gap-1">
                   {user ? (

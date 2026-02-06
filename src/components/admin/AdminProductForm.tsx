@@ -86,6 +86,34 @@ export function AdminProductForm({
 }) {
   const currentTags = React.useMemo(() => parseTags(formData.tags), [formData.tags]);
 
+  // Keep inventory typing local so the dialog/form doesn't re-render on every keypress
+  // (this was causing focus-loss/scroll-jumps in some browsers)
+  const inventoryFocusedRef = React.useRef(false);
+  const [inventoryDraft, setInventoryDraft] = React.useState<string>(
+    String(Number.isFinite(formData.inventory) ? formData.inventory : 0)
+  );
+
+  React.useEffect(() => {
+    if (!inventoryFocusedRef.current) {
+      setInventoryDraft(String(Number.isFinite(formData.inventory) ? formData.inventory : 0));
+    }
+  }, [formData.inventory]);
+
+  const commitInventoryDraft = React.useCallback(() => {
+    const next = inventoryDraft.trim() === '' ? 0 : Number(inventoryDraft);
+    const safe = Number.isFinite(next) ? Math.max(0, Math.trunc(next)) : 0;
+    setFormData((prev) => ({ ...prev, inventory: safe }));
+  }, [inventoryDraft, setFormData]);
+
+  const setInventory = React.useCallback(
+    (next: number) => {
+      const safe = Number.isFinite(next) ? Math.max(0, Math.trunc(next)) : 0;
+      setInventoryDraft(String(safe));
+      setFormData((prev) => ({ ...prev, inventory: safe }));
+    },
+    [setFormData]
+  );
+
   const addTag = React.useCallback(
     (tag: string) => {
       const tags = parseTags(formData.tags);
@@ -255,36 +283,45 @@ export function AdminProductForm({
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  setFormData((prev) => ({ ...prev, inventory: Math.max(0, prev.inventory - 1) }));
+                  const current = inventoryDraft.trim() === '' ? 0 : Number(inventoryDraft);
+                  setInventory((Number.isFinite(current) ? current : 0) - 1);
                 }}
               >
                 <Minus className="w-4 h-4" />
               </Button>
+
               <Input
-                type="number"
-                value={Number.isFinite(formData.inventory) ? formData.inventory : 0}
+                type="text"
+                value={inventoryDraft}
                 onChange={(e) => {
                   e.stopPropagation();
-                  const next = e.target.value === '' ? 0 : Number(e.target.value);
-                  setFormData((prev) => ({
-                    ...prev,
-                    inventory: Number.isFinite(next) ? next : 0,
-                  }));
+                  const cleaned = e.target.value.replace(/[^0-9]/g, '');
+                  setInventoryDraft(cleaned);
                 }}
                 onClick={(e) => e.stopPropagation()}
                 onFocus={(e) => {
                   e.stopPropagation();
+                  inventoryFocusedRef.current = true;
                   e.target.select();
+                }}
+                onBlur={() => {
+                  inventoryFocusedRef.current = false;
+                  commitInventoryDraft();
                 }}
                 onKeyDown={(e) => {
                   e.stopPropagation();
-                  if (e.key === 'Enter') e.preventDefault();
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    commitInventoryDraft();
+                  }
                 }}
                 className="w-24 text-center"
-                min={0}
                 autoComplete="off"
                 inputMode="numeric"
+                pattern="[0-9]*"
+                aria-label={t.currentStock}
               />
+
               <Button
                 type="button"
                 variant="outline"
@@ -293,7 +330,8 @@ export function AdminProductForm({
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  setFormData((prev) => ({ ...prev, inventory: prev.inventory + 1 }));
+                  const current = inventoryDraft.trim() === '' ? 0 : Number(inventoryDraft);
+                  setInventory((Number.isFinite(current) ? current : 0) + 1);
                 }}
               >
                 <Plus className="w-4 h-4" />

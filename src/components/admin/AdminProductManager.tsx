@@ -342,8 +342,9 @@ const AdminProductManager = () => {
     setSelectedProduct(null);
   };
 
-  const handleEditClick = (product: ShopifyProduct) => {
+  const handleEditClick = async (product: ShopifyProduct) => {
     setSelectedProduct(product);
+
     const node = product.node as {
       title: string;
       description?: string;
@@ -352,8 +353,12 @@ const AdminProductManager = () => {
       tags?: string[];
       vendor?: string;
       availableForSale?: boolean;
-      variants: { edges: Array<{ node: { quantityAvailable?: number } }> };
+      variants: { edges: Array<{ node: { id?: string } }> };
     };
+
+    const firstVariantGid = node.variants?.edges?.[0]?.node?.id;
+    const variantNumericId = gidToNumericId(firstVariantGid);
+
     setFormData({
       title: node.title,
       description: node.description || '',
@@ -362,10 +367,36 @@ const AdminProductManager = () => {
       tags: node.tags?.join(', ') || '',
       vendor: node.vendor || '4ThePeople',
       isVisible: node.availableForSale !== false,
-      inventory: node.variants.edges[0]?.node.quantityAvailable || 0,
+      inventory: 0,
       allowOverselling: false,
     });
+
     setIsEditDialogOpen(true);
+
+    // Load current inventory/policy via Admin API (Storefront API can't read inventory without extra scope)
+    if (variantNumericId) {
+      try {
+        const res = await supabase.functions.invoke('shopify-proxy', {
+          body: {
+            action: 'getVariant',
+            data: { variantId: Number(variantNumericId) },
+          },
+        });
+
+        if (res.error) throw res.error;
+
+        const variant = (res.data as { variant?: { inventory_quantity?: number; inventory_policy?: string } } | null)?.variant;
+        if (variant) {
+          setFormData((prev) => ({
+            ...prev,
+            inventory: typeof variant.inventory_quantity === 'number' ? variant.inventory_quantity : prev.inventory,
+            allowOverselling: variant.inventory_policy === 'continue',
+          }));
+        }
+      } catch (err) {
+        console.warn('Failed to load variant inventory:', err);
+      }
+    }
   };
 
   const handleDeleteClick = (product: ShopifyProduct) => {

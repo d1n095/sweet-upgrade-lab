@@ -84,7 +84,7 @@ const STOREFRONT_QUERY = `
                   currencyCode
                 }
                 availableForSale
-                quantityAvailable
+                # quantityAvailable (requires unauthenticated_read_product_inventory scope)
                 selectedOptions {
                   name
                   value
