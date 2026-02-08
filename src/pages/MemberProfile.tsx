@@ -4,7 +4,7 @@ import {
   User, Package, Star, Gift, Settings, LogOut, 
   ChevronRight, Loader2, Clock, Check, BadgeCheck,
   Shield, BarChart3, Users, TrendingUp, MessageCircle,
-  ChevronDown, Boxes, UserCog, Handshake, FileText, Heart, Wallet, Grid
+  ChevronDown, Boxes, UserCog, Handshake, FileText, Heart, Wallet, Grid, Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -36,6 +36,7 @@ import AdminDonationManager from '@/components/admin/AdminDonationManager';
 import AdminMemberManager from '@/components/admin/AdminMemberManager';
 import AdminInventoryManager from '@/components/admin/AdminInventoryManager';
 import AdminCategoryManager from '@/components/admin/AdminCategoryManager';
+import AdminSiteUpdatesManager from '@/components/admin/AdminSiteUpdatesManager';
 import InfluencerDashboard from '@/components/dashboard/InfluencerDashboard';
 import AffiliateDashboard from '@/components/dashboard/AffiliateDashboard';
 import EmployeeDashboard from '@/components/dashboard/EmployeeDashboard';
@@ -749,6 +750,13 @@ const MemberProfile = () => {
                     <div id="admin-communication">
                       <AdminSection title={t.admin.reviewsCommunication} icon={MessageCircle}>
                         <AdminEmailTemplates />
+                      </AdminSection>
+                    </div>
+
+                    {/* Site Updates (What's New) */}
+                    <div id="admin-updates">
+                      <AdminSection title={language === 'sv' ? 'Nytt hos oss' : "What's New"} icon={Sparkles}>
+                        <AdminSiteUpdatesManager />
                       </AdminSection>
                     </div>
 
