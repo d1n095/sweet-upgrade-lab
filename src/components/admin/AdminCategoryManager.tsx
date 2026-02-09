@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
-  Grid, Plus, Eye, EyeOff, Trash2, Loader2, Save, X,
+  Grid, Plus, Eye, EyeOff, Trash2, Loader2, Save, X, Languages,
   Cpu, Shirt, Droplets, Flame, Sparkles, Gem, Bed
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useLanguage } from '@/context/LanguageContext';
+import { useAutoTranslate } from '@/hooks/useAutoTranslate';
 import { toast } from 'sonner';
 
 // Icons available for categories
@@ -66,13 +67,13 @@ const defaultCategories: Category[] = [
 
 const AdminCategoryManager = () => {
   const { language } = useLanguage();
+  const { translate, isTranslating } = useAutoTranslate();
   const [categories, setCategories] = useState<Category[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [newCategory, setNewCategory] = useState({
     id: '',
     nameSv: '',
-    nameEn: '',
     iconId: 'grid',
     query: '',
   });
@@ -83,7 +84,6 @@ const AdminCategoryManager = () => {
     addCategory: string;
     categoryId: string;
     nameSv: string;
-    nameEn: string;
     icon: string;
     query: string;
     visible: string;
@@ -96,6 +96,8 @@ const AdminCategoryManager = () => {
     visibilityChanged: string;
     error: string;
     noCategories: string;
+    autoTranslate: string;
+    translating: string;
   }> = {
     sv: {
       title: 'Kategorihantering',
@@ -103,7 +105,6 @@ const AdminCategoryManager = () => {
       addCategory: 'Lägg till kategori',
       categoryId: 'Kategori-ID (unikt)',
       nameSv: 'Namn (Svenska)',
-      nameEn: 'Namn (Engelska)',
       icon: 'Ikon',
       query: 'Shopify-query (product_type:...)',
       visible: 'Synlig',
@@ -116,6 +117,8 @@ const AdminCategoryManager = () => {
       visibilityChanged: 'Synlighet ändrad!',
       error: 'Något gick fel',
       noCategories: 'Inga kategorier',
+      autoTranslate: 'Översätter automatiskt till alla språk',
+      translating: 'Översätter...',
     },
     en: {
       title: 'Category Management',
@@ -123,7 +126,6 @@ const AdminCategoryManager = () => {
       addCategory: 'Add Category',
       categoryId: 'Category ID (unique)',
       nameSv: 'Name (Swedish)',
-      nameEn: 'Name (English)',
       icon: 'Icon',
       query: 'Shopify query (product_type:...)',
       visible: 'Visible',
@@ -136,6 +138,8 @@ const AdminCategoryManager = () => {
       visibilityChanged: 'Visibility changed!',
       error: 'Something went wrong',
       noCategories: 'No categories',
+      autoTranslate: 'Auto-translates to all languages',
+      translating: 'Translating...',
     },
     no: {
       title: 'Kategorihåndtering',
@@ -143,7 +147,6 @@ const AdminCategoryManager = () => {
       addCategory: 'Legg til kategori',
       categoryId: 'Kategori-ID (unik)',
       nameSv: 'Navn (Svensk)',
-      nameEn: 'Navn (Engelsk)',
       icon: 'Ikon',
       query: 'Shopify-query (product_type:...)',
       visible: 'Synlig',
@@ -156,6 +159,8 @@ const AdminCategoryManager = () => {
       visibilityChanged: 'Synlighet endret!',
       error: 'Noe gikk galt',
       noCategories: 'Ingen kategorier',
+      autoTranslate: 'Oversetter automatisk til alle språk',
+      translating: 'Oversetter...',
     },
     da: {
       title: 'Kategorihåndtering',
@@ -163,7 +168,6 @@ const AdminCategoryManager = () => {
       addCategory: 'Tilføj kategori',
       categoryId: 'Kategori-ID (unik)',
       nameSv: 'Navn (Svensk)',
-      nameEn: 'Navn (Engelsk)',
       icon: 'Ikon',
       query: 'Shopify-query (product_type:...)',
       visible: 'Synlig',
@@ -176,6 +180,8 @@ const AdminCategoryManager = () => {
       visibilityChanged: 'Synlighed ændret!',
       error: 'Noget gik galt',
       noCategories: 'Ingen kategorier',
+      autoTranslate: 'Oversætter automatisk til alle sprog',
+      translating: 'Oversætter...',
     },
     de: {
       title: 'Kategorieverwaltung',
@@ -183,7 +189,6 @@ const AdminCategoryManager = () => {
       addCategory: 'Kategorie hinzufügen',
       categoryId: 'Kategorie-ID (eindeutig)',
       nameSv: 'Name (Schwedisch)',
-      nameEn: 'Name (Englisch)',
       icon: 'Symbol',
       query: 'Shopify-Query (product_type:...)',
       visible: 'Sichtbar',
@@ -196,6 +201,8 @@ const AdminCategoryManager = () => {
       visibilityChanged: 'Sichtbarkeit geändert!',
       error: 'Etwas ist schief gelaufen',
       noCategories: 'Keine Kategorien',
+      autoTranslate: 'Übersetzt automatisch in alle Sprachen',
+      translating: 'Übersetzt...',
     },
   };
 
@@ -243,7 +250,7 @@ const AdminCategoryManager = () => {
     toast.success(t.categoryDeleted);
   };
 
-  const addCategory = () => {
+  const addCategory = async () => {
     if (!newCategory.id || !newCategory.nameSv) {
       toast.error(t.error);
       return;
@@ -255,19 +262,27 @@ const AdminCategoryManager = () => {
       return;
     }
 
+    // Auto-translate the Swedish name to all other languages
+    let translatedNames: Record<string, string> = { sv: newCategory.nameSv };
+    
+    const translations = await translate(newCategory.nameSv, 'sv', 'e-commerce category name');
+    if (translations) {
+      translatedNames = { sv: newCategory.nameSv, ...translations };
+    } else {
+      // Fallback: use Swedish name for all
+      translatedNames = { sv: newCategory.nameSv, en: newCategory.nameSv };
+    }
+
     const category: Category = {
       id: newCategory.id.toLowerCase().replace(/\s+/g, '-'),
-      name: {
-        sv: newCategory.nameSv,
-        en: newCategory.nameEn || newCategory.nameSv,
-      },
+      name: translatedNames,
       iconId: newCategory.iconId,
       query: newCategory.query || `product_type:${newCategory.nameSv}`,
       isVisible: true,
     };
 
     saveCategories([...categories, category]);
-    setNewCategory({ id: '', nameSv: '', nameEn: '', iconId: 'grid', query: '' });
+    setNewCategory({ id: '', nameSv: '', iconId: 'grid', query: '' });
     setIsAddDialogOpen(false);
     toast.success(t.categoryAdded);
   };
@@ -289,8 +304,8 @@ const AdminCategoryManager = () => {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
-            <Grid className="w-5 h-5 text-purple-600" />
+          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Grid className="w-5 h-5 text-primary" />
           </div>
           <div>
             <h3 className="font-semibold">{t.title}</h3>
@@ -321,22 +336,16 @@ const AdminCategoryManager = () => {
                   placeholder="ny-kategori"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>{t.nameSv}</Label>
-                  <Input
-                    value={newCategory.nameSv}
-                    onChange={(e) => setNewCategory(prev => ({ ...prev, nameSv: e.target.value }))}
-                    placeholder="Ny Kategori"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>{t.nameEn}</Label>
-                  <Input
-                    value={newCategory.nameEn}
-                    onChange={(e) => setNewCategory(prev => ({ ...prev, nameEn: e.target.value }))}
-                    placeholder="New Category"
-                  />
+              <div className="space-y-2">
+                <Label>{t.nameSv}</Label>
+                <Input
+                  value={newCategory.nameSv}
+                  onChange={(e) => setNewCategory(prev => ({ ...prev, nameSv: e.target.value }))}
+                  placeholder="Ny Kategori"
+                />
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Languages className="w-3 h-3" />
+                  {isTranslating ? t.translating : t.autoTranslate}
                 </div>
               </div>
               <div className="space-y-2">
@@ -376,12 +385,13 @@ const AdminCategoryManager = () => {
                   variant="outline"
                   onClick={() => setIsAddDialogOpen(false)}
                   className="flex-1"
+                  disabled={isTranslating}
                 >
                   {t.cancel}
                 </Button>
-                <Button onClick={addCategory} className="flex-1 gap-2">
-                  <Save className="w-4 h-4" />
-                  {t.save}
+                <Button onClick={addCategory} className="flex-1 gap-2" disabled={isTranslating}>
+                  {isTranslating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  {isTranslating ? t.translating : t.save}
                 </Button>
               </div>
             </div>
