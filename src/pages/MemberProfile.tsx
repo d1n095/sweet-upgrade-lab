@@ -4,7 +4,7 @@ import {
   User, Package, Star, Gift, Settings, LogOut, 
   ChevronRight, Loader2, Clock, Check, BadgeCheck,
   Shield, BarChart3, Users, TrendingUp, MessageCircle,
-  ChevronDown, Boxes, UserCog, Handshake, FileText, Heart, Wallet, Grid, Sparkles
+  ChevronDown, Boxes, UserCog, Handshake, FileText, Heart, Wallet, Grid, Sparkles, ClipboardList
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -34,7 +34,7 @@ import AdminLegalDocuments from '@/components/admin/AdminLegalDocuments';
 import AdminEmailTemplates from '@/components/admin/AdminEmailTemplates';
 import AdminDonationManager from '@/components/admin/AdminDonationManager';
 import AdminMemberManager from '@/components/admin/AdminMemberManager';
-import AdminInventoryManager from '@/components/admin/AdminInventoryManager';
+import AdminOrderManager from '@/components/admin/AdminOrderManager';
 import AdminCategoryManager from '@/components/admin/AdminCategoryManager';
 import AdminSiteUpdatesManager from '@/components/admin/AdminSiteUpdatesManager';
 import InfluencerDashboard from '@/components/dashboard/InfluencerDashboard';
@@ -646,10 +646,10 @@ const MemberProfile = () => {
                       variant="ghost" 
                       size="sm" 
                       className="gap-2"
-                      onClick={() => document.getElementById('admin-inventory')?.scrollIntoView({ behavior: 'smooth' })}
+                      onClick={() => document.getElementById('admin-orders')?.scrollIntoView({ behavior: 'smooth' })}
                     >
-                      <Package className="w-4 h-4" />
-                      {language === 'sv' ? 'Lager' : 'Inventory'}
+                      <ClipboardList className="w-4 h-4" />
+                      {language === 'sv' ? 'Ordrar' : 'Orders'}
                     </Button>
                     <Button 
                       variant="ghost" 
@@ -716,10 +716,10 @@ const MemberProfile = () => {
                       </AdminSection>
                     </div>
 
-                    {/* Inventory & Visibility */}
-                    <div id="admin-inventory">
-                      <AdminSection title={language === 'sv' ? 'Lager & Synlighet' : 'Inventory & Visibility'} icon={Package}>
-                        <AdminInventoryManager />
+                    {/* Order Management */}
+                    <div id="admin-orders">
+                      <AdminSection title={language === 'sv' ? 'Orderhantering' : 'Order Management'} icon={ClipboardList}>
+                        <AdminOrderManager />
                       </AdminSection>
                     </div>
 

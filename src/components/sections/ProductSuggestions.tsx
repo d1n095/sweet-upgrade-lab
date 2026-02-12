@@ -636,14 +636,20 @@ const ProductSuggestions = () => {
                   </Select>
                 </div>
 
-                {/* Product Name/Description */}
+                {/* Product Description */}
                 <div>
                   <Label className="text-base font-medium mb-2 block">{t.productNameLabel}</Label>
-                  <Input
+                  <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                    <HelpCircle className="w-3 h-3" />
+                    {lang === 'sv' 
+                      ? 'Beskriv vad produkten gör, vilka egenskaper den har, och varför just den produkten. T.ex. "En deodorant som är bra för känslig hud och doftar lavendel" eller "Ett ljus av bivax med lång brinntid".'
+                      : 'Describe what the product does, its properties, and why this specific product. E.g. "A deodorant good for sensitive skin with lavender scent" or "A beeswax candle with long burn time".'}
+                  </p>
+                  <Textarea
                     value={formData.productName}
                     onChange={(e) => setFormData({ ...formData, productName: e.target.value })}
                     placeholder={t.productNamePlaceholder}
-                    className="h-12"
+                    rows={3}
                   />
                 </div>
 
