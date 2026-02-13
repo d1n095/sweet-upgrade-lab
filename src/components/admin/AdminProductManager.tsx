@@ -490,7 +490,7 @@ const AdminProductManager = () => {
     setSelectedProduct(null);
   };
 
-  const handleEditClick = async (product: ShopifyProduct) => {
+  const handleEditClick = (product: ShopifyProduct) => {
     setSelectedProduct(product);
 
     const node = product.node as {
