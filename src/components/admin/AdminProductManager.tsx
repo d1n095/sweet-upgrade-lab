@@ -323,6 +323,154 @@ const AdminProductManager = () => {
       allowOverselling: 'Salli ylimyynti',
       oversellHint: 'Asiakkaat voivat ostaa, vaikka varasto on 0',
     },
+    nl: {
+      title: 'Productbeheer',
+      subtitle: 'Producten toevoegen, bewerken en verwijderen',
+      addProduct: 'Product toevoegen',
+      editProduct: 'Product bewerken',
+      productName: 'Productnaam',
+      description: 'Beschrijving',
+      price: 'Prijs (SEK)',
+      category: 'Categorie',
+      selectCategory: 'Selecteer categorie',
+      tags: 'Tags',
+      tagsPlaceholder: 'Klik op suggesties of typ je eigen',
+      suggestedTags: 'Voorgestelde tags:',
+      vendor: 'Leverancier',
+      save: 'Product opslaan',
+      update: 'Bijwerken',
+      cancel: 'Annuleren',
+      delete: 'Verwijderen',
+      noProducts: 'Geen producten gevonden',
+      loading: 'Producten laden...',
+      deleteConfirm: 'Weet je het zeker?',
+      deleteDescription: 'Deze actie kan niet ongedaan worden gemaakt. Het product wordt permanent verwijderd.',
+      productAdded: 'Product toegevoegd!',
+      productUpdated: 'Product bijgewerkt!',
+      productDeleted: 'Product verwijderd!',
+      error: 'Er ging iets mis',
+      inStock: 'Op voorraad',
+      outOfStock: 'Uitverkocht',
+      moreProducts: 'meer producten',
+      visibility: 'Zichtbaarheid',
+      visibleInStore: 'Zichtbaar in winkel',
+      hiddenFromStore: 'Verborgen uit winkel',
+      inventory: 'Voorraad',
+      currentStock: 'Huidige voorraad',
+      allowOverselling: 'Oververkoop toestaan',
+      oversellHint: 'Klanten kunnen kopen ook als voorraad 0 is',
+    },
+    fr: {
+      title: 'Gestion des produits',
+      subtitle: 'Ajouter, modifier et supprimer des produits',
+      addProduct: 'Ajouter un produit',
+      editProduct: 'Modifier le produit',
+      productName: 'Nom du produit',
+      description: 'Description',
+      price: 'Prix (SEK)',
+      category: 'Catégorie',
+      selectCategory: 'Sélectionner une catégorie',
+      tags: 'Tags',
+      tagsPlaceholder: 'Cliquez sur les suggestions ou tapez les vôtres',
+      suggestedTags: 'Tags suggérés :',
+      vendor: 'Fournisseur',
+      save: 'Enregistrer le produit',
+      update: 'Mettre à jour',
+      cancel: 'Annuler',
+      delete: 'Supprimer',
+      noProducts: 'Aucun produit trouvé',
+      loading: 'Chargement des produits...',
+      deleteConfirm: 'Êtes-vous sûr ?',
+      deleteDescription: 'Cette action est irréversible. Le produit sera définitivement supprimé.',
+      productAdded: 'Produit ajouté !',
+      productUpdated: 'Produit mis à jour !',
+      productDeleted: 'Produit supprimé !',
+      error: 'Quelque chose a mal tourné',
+      inStock: 'En stock',
+      outOfStock: 'Épuisé',
+      moreProducts: 'produits supplémentaires',
+      visibility: 'Visibilité',
+      visibleInStore: 'Visible en boutique',
+      hiddenFromStore: 'Caché de la boutique',
+      inventory: 'Inventaire',
+      currentStock: 'Stock actuel',
+      allowOverselling: 'Autoriser la survente',
+      oversellHint: 'Les clients peuvent acheter même si le stock est à 0',
+    },
+    es: {
+      title: 'Gestión de productos',
+      subtitle: 'Agregar, editar y eliminar productos',
+      addProduct: 'Agregar producto',
+      editProduct: 'Editar producto',
+      productName: 'Nombre del producto',
+      description: 'Descripción',
+      price: 'Precio (SEK)',
+      category: 'Categoría',
+      selectCategory: 'Seleccionar categoría',
+      tags: 'Etiquetas',
+      tagsPlaceholder: 'Haz clic en sugerencias o escribe las tuyas',
+      suggestedTags: 'Etiquetas sugeridas:',
+      vendor: 'Proveedor',
+      save: 'Guardar producto',
+      update: 'Actualizar',
+      cancel: 'Cancelar',
+      delete: 'Eliminar',
+      noProducts: 'No se encontraron productos',
+      loading: 'Cargando productos...',
+      deleteConfirm: '¿Estás seguro?',
+      deleteDescription: 'Esta acción no se puede deshacer. El producto se eliminará permanentemente.',
+      productAdded: '¡Producto agregado!',
+      productUpdated: '¡Producto actualizado!',
+      productDeleted: '¡Producto eliminado!',
+      error: 'Algo salió mal',
+      inStock: 'En stock',
+      outOfStock: 'Agotado',
+      moreProducts: 'productos más',
+      visibility: 'Visibilidad',
+      visibleInStore: 'Visible en tienda',
+      hiddenFromStore: 'Oculto de la tienda',
+      inventory: 'Inventario',
+      currentStock: 'Stock actual',
+      allowOverselling: 'Permitir sobreventa',
+      oversellHint: 'Los clientes pueden comprar incluso cuando el stock es 0',
+    },
+    pl: {
+      title: 'Zarządzanie produktami',
+      subtitle: 'Dodawaj, edytuj i usuwaj produkty',
+      addProduct: 'Dodaj produkt',
+      editProduct: 'Edytuj produkt',
+      productName: 'Nazwa produktu',
+      description: 'Opis',
+      price: 'Cena (SEK)',
+      category: 'Kategoria',
+      selectCategory: 'Wybierz kategorię',
+      tags: 'Tagi',
+      tagsPlaceholder: 'Kliknij sugestie lub wpisz własne',
+      suggestedTags: 'Sugerowane tagi:',
+      vendor: 'Dostawca',
+      save: 'Zapisz produkt',
+      update: 'Aktualizuj',
+      cancel: 'Anuluj',
+      delete: 'Usuń',
+      noProducts: 'Nie znaleziono produktów',
+      loading: 'Ładowanie produktów...',
+      deleteConfirm: 'Czy na pewno?',
+      deleteDescription: 'Tej operacji nie można cofnąć. Produkt zostanie trwale usunięty.',
+      productAdded: 'Produkt dodany!',
+      productUpdated: 'Produkt zaktualizowany!',
+      productDeleted: 'Produkt usunięty!',
+      error: 'Coś poszło nie tak',
+      inStock: 'W magazynie',
+      outOfStock: 'Wyprzedane',
+      moreProducts: 'więcej produktów',
+      visibility: 'Widoczność',
+      visibleInStore: 'Widoczny w sklepie',
+      hiddenFromStore: 'Ukryty w sklepie',
+      inventory: 'Magazyn',
+      currentStock: 'Aktualny stan',
+      allowOverselling: 'Pozwól na nadsprzedaż',
+      oversellHint: 'Klienci mogą kupować nawet gdy stan wynosi 0',
+    },
   };
 
   const t = content[language as keyof typeof content] || content.en;
@@ -373,18 +521,18 @@ const AdminProductManager = () => {
 
     setIsEditDialogOpen(true);
 
-    // Load current inventory/policy via Admin API (Storefront API can't read inventory without extra scope)
+    // Load current inventory/policy via Admin API (non-blocking, silent on failure)
     if (variantNumericId) {
-      try {
-        const res = await supabase.functions.invoke('shopify-proxy', {
-          body: {
-            action: 'getVariant',
-            data: { variantId: Number(variantNumericId) },
-          },
-        });
-
-        if (res.error) throw res.error;
-
+      supabase.functions.invoke('shopify-proxy', {
+        body: {
+          action: 'getVariant',
+          data: { variantId: Number(variantNumericId) },
+        },
+      }).then((res) => {
+        if (res.error) {
+          console.warn('Failed to load variant inventory:', res.error);
+          return;
+        }
         const variant = (res.data as { variant?: { inventory_quantity?: number; inventory_policy?: string } } | null)?.variant;
         if (variant) {
           setFormData((prev) => ({
@@ -393,9 +541,9 @@ const AdminProductManager = () => {
             allowOverselling: variant.inventory_policy === 'continue',
           }));
         }
-      } catch (err) {
+      }).catch((err) => {
         console.warn('Failed to load variant inventory:', err);
-      }
+      });
     }
   };
 
