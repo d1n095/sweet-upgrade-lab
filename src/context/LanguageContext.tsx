@@ -2,14 +2,21 @@ import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 export type Language = 'sv' | 'en' | 'no' | 'da' | 'de' | 'fi' | 'nl' | 'fr' | 'es' | 'pl';
 
+interface TranslationEntry {
+  sv: string;
+  en: string;
+  no?: string;
+  da?: string;
+  de?: string;
+  fi?: string;
+  nl?: string;
+  fr?: string;
+  es?: string;
+  pl?: string;
+}
+
 interface Translations {
-  [key: string]: {
-    sv: string;
-    en: string;
-    no: string;
-    da: string;
-    de: string;
-  };
+  [key: string]: TranslationEntry;
 }
 
 export const translations: Translations = {

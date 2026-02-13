@@ -102,6 +102,7 @@ const Header = () => {
     { href: '/about', label: t('nav.about') },
     { href: '/how-it-works', label: language === 'sv' ? 'Så funkar det' : 'How It Works' },
     { href: '/whats-new', label: language === 'sv' ? 'Nytt hos oss' : "What's New" },
+    { href: '/donations', label: language === 'sv' ? 'Donationer' : 'Donations' },
   ];
   
   const contactSubMenu = [

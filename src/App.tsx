@@ -27,6 +27,7 @@ import Business from "./pages/Business";
 import SuggestProduct from "./pages/SuggestProduct";
 import ResetPassword from "./pages/ResetPassword";
 import WhatsNew from "./pages/WhatsNew";
+import Donations from "./pages/Donations";
 import NotFound from "./pages/NotFound";
 import CookieBanner from "./components/cookie/CookieBanner";
 
@@ -63,6 +64,7 @@ const App = () => (
             <Route path="/suggest-product" element={<SuggestProduct />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/whats-new" element={<WhatsNew />} />
+            <Route path="/donations" element={<Donations />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
