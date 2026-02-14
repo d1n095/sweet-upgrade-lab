@@ -29,7 +29,7 @@ const Bestsellers = () => {
     }
   };
 
-  const t = content[language];
+  const t = content[language] || content.en;
 
   useEffect(() => {
     const loadBestsellers = async () => {

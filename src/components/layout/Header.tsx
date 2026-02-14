@@ -96,12 +96,16 @@ const Header = () => {
   }, [location.pathname]);
 
   const [isContactHovered, setIsContactHovered] = useState(false);
+  const [isAboutHovered, setIsAboutHovered] = useState(false);
 
   const navLinks = [
     { href: '/shop', label: language === 'sv' ? 'Shop' : 'Shop' },
-    { href: '/about', label: t('nav.about') },
     { href: '/how-it-works', label: language === 'sv' ? 'Så funkar det' : 'How It Works' },
     { href: '/whats-new', label: language === 'sv' ? 'Nytt hos oss' : "What's New" },
+  ];
+
+  const aboutSubMenu = [
+    { href: '/about', label: language === 'sv' ? 'Om oss' : 'About us' },
     { href: '/donations', label: language === 'sv' ? 'Donationer' : 'Donations' },
   ];
   
@@ -183,6 +187,48 @@ const Header = () => {
                               <Leaf className="w-4 h-4 text-primary" />
                             </div>
                             <span className="font-medium">{category.name?.[language as 'sv' | 'en'] ?? category.name?.en ?? category.name?.sv ?? ''}</span>
+                          </Link>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* About with dropdown */}
+              <div 
+                className="relative"
+                onMouseEnter={() => setIsAboutHovered(true)}
+                onMouseLeave={() => setIsAboutHovered(false)}
+              >
+                <Link
+                  to="/about"
+                  className={`text-muted-foreground hover:text-foreground transition-colors relative group flex items-center gap-1.5 font-medium ${
+                    location.pathname === '/about' || location.pathname === '/donations' ? 'text-foreground' : ''
+                  }`}
+                >
+                  {t('nav.about')}
+                  <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isAboutHovered ? 'rotate-180' : ''}`} />
+                </Link>
+                
+                <AnimatePresence>
+                  {isAboutHovered && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.98 }}
+                      transition={{ duration: 0.2, ease: "easeOut" }}
+                      className="absolute top-full left-0 mt-3 w-56 rounded-2xl bg-card border border-border shadow-elevated z-50 overflow-hidden"
+                    >
+                      <div className="p-2">
+                        {aboutSubMenu.map((item) => (
+                          <Link
+                            key={item.href}
+                            to={item.href}
+                            onClick={() => setIsAboutHovered(false)}
+                            className="flex items-center gap-3 px-4 py-3 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all duration-200"
+                          >
+                            <span className="font-medium">{item.label}</span>
                           </Link>
                         ))}
                       </div>
@@ -384,6 +430,21 @@ const Header = () => {
                     {link.label}
                   </Link>
                 ))}
+                {/* About sub-links in mobile */}
+                <div className="pl-4 flex flex-col gap-1 mt-2">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide px-4 py-2">
+                    {t('nav.about')}
+                  </p>
+                  {aboutSubMenu.map((item) => (
+                    <Link
+                      key={item.href}
+                      to={item.href}
+                      className="text-sm text-muted-foreground hover:text-foreground transition-colors py-2.5 px-4 rounded-xl hover:bg-secondary/30"
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
                 <div className="pl-4 flex flex-col gap-1 mt-2">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide px-4 py-2">
                     {language === 'sv' ? 'Kategorier' : 'Categories'}

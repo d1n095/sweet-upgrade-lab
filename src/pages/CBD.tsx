@@ -126,7 +126,7 @@ const CBD = () => {
     },
   };
 
-  const t = content[language];
+  const t = content[language] || content.en;
 
   return (
     <div className="min-h-screen bg-background">

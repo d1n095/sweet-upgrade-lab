@@ -40,7 +40,7 @@ const ImpactSection = () => {
     }
   };
 
-  const t = content[language];
+  const t = content[language] || content.en;
 
   const containerVariants = {
     hidden: { opacity: 0 },

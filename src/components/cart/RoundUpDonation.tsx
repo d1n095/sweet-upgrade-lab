@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Leaf, Heart, X, Check } from 'lucide-react';
+import { Leaf, Heart, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/context/LanguageContext';
 
@@ -12,40 +12,36 @@ interface RoundUpDonationProps {
 
 const RoundUpDonation = ({ cartTotal, currencyCode, onDonationChange }: RoundUpDonationProps) => {
   const { language } = useLanguage();
-  const [isEnabled, setIsEnabled] = useState(false);
-  const [selectedAmount, setSelectedAmount] = useState<number>(10);
+  const [isEnabled, setIsEnabled] = useState(true); // Auto-enabled by default
 
   const content = {
     sv: {
-      title: 'Runda upp för miljön',
-      description: 'Hjälp oss plantera träd och stödja giftfria initiativ',
-      amounts: [10, 20, 50],
+      title: 'Avrundning för miljön',
+      description: 'Vi avrundar automatiskt till närmaste 10-tal',
       enabled: 'Tack för ditt bidrag!',
-      impact: 'bidrar till en grönare framtid',
+      disabled: 'Avrundat belopp borttaget',
     },
     en: {
       title: 'Round up for the environment',
-      description: 'Help us plant trees and support toxin-free initiatives',
-      amounts: [10, 20, 50],
+      description: 'We automatically round up to the nearest 10',
       enabled: 'Thank you for your contribution!',
-      impact: 'contributes to a greener future',
+      disabled: 'Round-up removed',
     },
   };
 
   const t = content[language as keyof typeof content] || content.en;
 
-  const handleToggle = () => {
-    const newValue = !isEnabled;
-    setIsEnabled(newValue);
-    onDonationChange(newValue ? selectedAmount : 0);
-  };
+  // Calculate round-up amount to nearest 10
+  const roundUpAmount = Math.ceil(cartTotal / 10) * 10 - cartTotal;
+  // If already even, round up by 10
+  const donationAmount = roundUpAmount === 0 ? 0 : roundUpAmount;
 
-  const handleAmountChange = (amount: number) => {
-    setSelectedAmount(amount);
-    if (isEnabled) {
-      onDonationChange(amount);
-    }
-  };
+  useEffect(() => {
+    onDonationChange(isEnabled ? donationAmount : 0);
+  }, [isEnabled, donationAmount]);
+
+  // Don't show if cart total is already a multiple of 10
+  if (donationAmount === 0) return null;
 
   const formatPrice = (amount: number, currency: string) => {
     return new Intl.NumberFormat('sv-SE', {
@@ -80,52 +76,25 @@ const RoundUpDonation = ({ cartTotal, currencyCode, onDonationChange }: RoundUpD
                 variant={isEnabled ? 'default' : 'outline'}
                 size="sm"
                 className={`h-7 px-3 text-xs ${isEnabled ? 'bg-success hover:bg-success/90' : ''}`}
-                onClick={handleToggle}
+                onClick={() => setIsEnabled(!isEnabled)}
               >
                 {isEnabled ? (
                   <>
                     <Check className="w-3 h-3 mr-1" />
-                    {formatPrice(selectedAmount, currencyCode)}
+                    +{formatPrice(donationAmount, currencyCode)}
                   </>
                 ) : (
                   <>
                     <Heart className="w-3 h-3 mr-1" />
-                    {language === 'sv' ? 'Lägg till' : 'Add'}
+                    +{formatPrice(donationAmount, currencyCode)}
                   </>
                 )}
               </Button>
             </div>
             
             <p className="text-xs text-muted-foreground mt-0.5">
-              {t.description}
+              {t.description} ({formatPrice(cartTotal, currencyCode)} → {formatPrice(cartTotal + donationAmount, currencyCode)})
             </p>
-
-            <AnimatePresence>
-              {!isEnabled && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  className="overflow-hidden"
-                >
-                  <div className="flex gap-1.5 mt-2">
-                    {t.amounts.map((amount) => (
-                      <button
-                        key={amount}
-                        onClick={() => handleAmountChange(amount)}
-                        className={`px-2.5 py-1 text-xs rounded-md border transition-all ${
-                          selectedAmount === amount
-                            ? 'bg-primary text-primary-foreground border-primary'
-                            : 'bg-background border-border hover:border-primary/50'
-                        }`}
-                      >
-                        {formatPrice(amount, currencyCode)}
-                      </button>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
 
             <AnimatePresence>
               {isEnabled && (

@@ -71,7 +71,7 @@ const ShippingInfo = () => {
     }
   };
 
-  const t = content[language];
+  const t = content[language] || content.en;
 
   return (
     <section className="py-16 md:py-20 bg-secondary/30">
