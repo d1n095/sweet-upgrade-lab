@@ -35,7 +35,7 @@ const Newsletter = () => {
     }
   };
 
-  const t = content[language];
+  const t = content[language] || content.en;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -8,6 +8,8 @@ import SEOHead from '@/components/seo/SEOHead';
 const AboutUs = () => {
   const { language } = useLanguage();
 
+  const getLang = (obj: { sv: string; en: string }) => obj[language as 'sv' | 'en'] ?? obj.en ?? obj.sv;
+
   const values = [
     {
       icon: Leaf,
@@ -132,10 +134,10 @@ const AboutUs = () => {
                     <value.icon className="w-8 h-8 text-primary" />
                   </div>
                   <h3 className="font-display text-xl font-semibold mb-2">
-                    {value.title[language]}
+                    {getLang(value.title)}
                   </h3>
                   <p className="text-muted-foreground text-sm">
-                    {value.description[language]}
+                    {getLang(value.description)}
                   </p>
                 </motion.div>
               ))}
@@ -175,10 +177,10 @@ const AboutUs = () => {
                 <div className="flex-1 pb-8">
                   <span className="text-sm text-primary font-medium">{item.year}</span>
                   <h3 className="font-display text-xl font-semibold mt-1 mb-2">
-                    {item.title[language]}
+                    {getLang(item.title)}
                   </h3>
                   <p className="text-muted-foreground">
-                    {item.description[language]}
+                    {getLang(item.description)}
                   </p>
                 </div>
               </motion.div>
