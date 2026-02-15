@@ -4,7 +4,7 @@ import { Leaf, Mail, Bell, Check, ArrowRight, Shield, Sparkles, Heart } from 'lu
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { useLanguage } from '@/context/LanguageContext';
+import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import { useInsightLogger } from '@/hooks/useInsightLogger';
 import { toast } from 'sonner';
 import Header from '@/components/layout/Header';
@@ -126,7 +126,7 @@ const CBD = () => {
     },
   };
 
-  const t = content[language] || content.en;
+  const t = content[getContentLang(language)];
 
   return (
     <div className="min-h-screen bg-background">

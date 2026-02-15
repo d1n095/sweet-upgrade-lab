@@ -491,59 +491,59 @@ const AdminProductManager = () => {
   };
 
   const handleEditClick = (product: ShopifyProduct) => {
-    setSelectedProduct(product);
+    try {
+      setSelectedProduct(product);
 
-    const node = product.node as {
-      title: string;
-      description?: string;
-      priceRange: { minVariantPrice: { amount: string } };
-      productType?: string;
-      tags?: string[];
-      vendor?: string;
-      availableForSale?: boolean;
-      variants: { edges: Array<{ node: { id?: string } }> };
-    };
+      const node = product.node as Record<string, unknown>;
+      const variants = (node.variants as { edges: Array<{ node: { id?: string } }> })?.edges;
 
-    const firstVariantGid = node.variants?.edges?.[0]?.node?.id;
-    const variantNumericId = gidToNumericId(firstVariantGid);
+      const firstVariantGid = variants?.[0]?.node?.id;
+      const variantNumericId = gidToNumericId(firstVariantGid);
 
-    setFormData({
-      title: node.title,
-      description: node.description || '',
-      price: node.priceRange.minVariantPrice.amount,
-      productType: node.productType || '',
-      tags: node.tags?.join(', ') || '',
-      vendor: node.vendor || '4ThePeople',
-      isVisible: node.availableForSale !== false,
-      inventory: 0,
-      allowOverselling: false,
-    });
+      const rawTags = node.tags;
+      const tags = Array.isArray(rawTags) ? rawTags.join(', ') : (typeof rawTags === 'string' ? rawTags : '');
 
-    setIsEditDialogOpen(true);
-
-    // Load current inventory/policy via Admin API (non-blocking, silent on failure)
-    if (variantNumericId) {
-      supabase.functions.invoke('shopify-proxy', {
-        body: {
-          action: 'getVariant',
-          data: { variantId: Number(variantNumericId) },
-        },
-      }).then((res) => {
-        if (res.error) {
-          console.warn('Failed to load variant inventory:', res.error);
-          return;
-        }
-        const variant = (res.data as { variant?: { inventory_quantity?: number; inventory_policy?: string } } | null)?.variant;
-        if (variant) {
-          setFormData((prev) => ({
-            ...prev,
-            inventory: typeof variant.inventory_quantity === 'number' ? variant.inventory_quantity : prev.inventory,
-            allowOverselling: variant.inventory_policy === 'continue',
-          }));
-        }
-      }).catch((err) => {
-        console.warn('Failed to load variant inventory:', err);
+      setFormData({
+        title: (node.title as string) || '',
+        description: (node.description as string) || '',
+        price: ((node.priceRange as any)?.minVariantPrice?.amount as string) || '0',
+        productType: (node.productType as string) || '',
+        tags,
+        vendor: (node.vendor as string) || '4ThePeople',
+        isVisible: (node.availableForSale as boolean) !== false,
+        inventory: 0,
+        allowOverselling: false,
       });
+
+      setIsEditDialogOpen(true);
+
+      // Load current inventory/policy via Admin API (non-blocking, silent on failure)
+      if (variantNumericId) {
+        supabase.functions.invoke('shopify-proxy', {
+          body: {
+            action: 'getVariant',
+            data: { variantId: Number(variantNumericId) },
+          },
+        }).then((res) => {
+          if (res.error) {
+            console.warn('Failed to load variant inventory:', res.error);
+            return;
+          }
+          const variant = (res.data as { variant?: { inventory_quantity?: number; inventory_policy?: string } } | null)?.variant;
+          if (variant) {
+            setFormData((prev) => ({
+              ...prev,
+              inventory: typeof variant.inventory_quantity === 'number' ? variant.inventory_quantity : prev.inventory,
+              allowOverselling: variant.inventory_policy === 'continue',
+            }));
+          }
+        }).catch((err) => {
+          console.warn('Failed to load variant inventory:', err);
+        });
+      }
+    } catch (err) {
+      console.error('Error opening edit dialog:', err);
+      toast.error(t.error);
     }
   };
 

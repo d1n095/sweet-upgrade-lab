@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Mail, Check, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useLanguage } from '@/context/LanguageContext';
+import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import { toast } from 'sonner';
 
 const Newsletter = () => {
@@ -35,7 +35,7 @@ const Newsletter = () => {
     }
   };
 
-  const t = content[language] || content.en;
+  const t = content[getContentLang(language)];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

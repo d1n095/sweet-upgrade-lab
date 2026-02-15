@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { Sparkles, Send, Heart, Users, Lightbulb, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useLanguage } from '@/context/LanguageContext';
+import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
@@ -64,7 +64,7 @@ const BuilderSection = () => {
     }
   };
 
-  const t = content[language] || content.en;
+  const t = content[getContentLang(language)];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
