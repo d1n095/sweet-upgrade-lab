@@ -2,6 +2,15 @@ import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 export type Language = 'sv' | 'en' | 'no' | 'da' | 'de' | 'fi' | 'nl' | 'fr' | 'es' | 'pl';
 
+/**
+ * Maps any Language to 'sv' or 'en' for components that only have those two content sets.
+ * Scandinavian languages (no, da) map to Swedish since they're mutually intelligible.
+ */
+export function getContentLang(language: Language): 'sv' | 'en' {
+  if (language === 'sv' || language === 'no' || language === 'da') return 'sv';
+  return 'en';
+}
+
 interface TranslationEntry {
   sv: string;
   en: string;

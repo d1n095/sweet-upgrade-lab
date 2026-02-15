@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { Check, Rocket, Sparkles, Users, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useLanguage } from '@/context/LanguageContext';
+import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import { Link } from 'react-router-dom';
 
 const ImpactSection = () => {
@@ -40,7 +40,7 @@ const ImpactSection = () => {
     }
   };
 
-  const t = content[language] || content.en;
+  const t = content[getContentLang(language)];
 
   const containerVariants = {
     hidden: { opacity: 0 },

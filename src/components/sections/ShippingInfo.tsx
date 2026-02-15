@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Package, Truck, RotateCcw, MessageCircle } from 'lucide-react';
-import { useLanguage } from '@/context/LanguageContext';
+import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import { storeConfig } from '@/config/storeConfig';
 
 const ShippingInfo = () => {
@@ -71,7 +71,7 @@ const ShippingInfo = () => {
     }
   };
 
-  const t = content[language] || content.en;
+  const t = content[getContentLang(language)];
 
   return (
     <section className="py-16 md:py-20 bg-secondary/30">

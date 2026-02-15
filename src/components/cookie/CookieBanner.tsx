@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Cookie, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useLanguage } from '@/context/LanguageContext';
+import { useLanguage, getContentLang } from '@/context/LanguageContext';
 
 const COOKIE_CONSENT_KEY = 'cookie_consent';
 
@@ -57,7 +57,7 @@ const CookieBanner = () => {
     },
   };
 
-  const t = content[language] || content.en;
+  const t = content[getContentLang(language)];
 
   return (
     <AnimatePresence>

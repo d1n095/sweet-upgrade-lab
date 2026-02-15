@@ -4,7 +4,7 @@ import { Wallet, TrendingUp, Heart, DollarSign, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useAdminRole } from '@/hooks/useAdminRole';
-import { useLanguage } from '@/context/LanguageContext';
+import { useLanguage, getContentLang } from '@/context/LanguageContext';
 
 interface BalanceData {
   donationTotal: number;
@@ -110,7 +110,7 @@ const BalanceOverview = () => {
     },
   };
 
-  const t = content[language] || content.en;
+  const t = content[getContentLang(language)];
 
   useEffect(() => {
     if (user) {

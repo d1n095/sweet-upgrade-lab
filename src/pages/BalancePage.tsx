@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useAdminRole } from '@/hooks/useAdminRole';
-import { useLanguage } from '@/context/LanguageContext';
+import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 
@@ -191,7 +191,7 @@ const BalancePage = () => {
     },
   };
 
-  const t = content[language] || content.en;
+  const t = content[getContentLang(language)];
 
   useEffect(() => {
     if (user) {

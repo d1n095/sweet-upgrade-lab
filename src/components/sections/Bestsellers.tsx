@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { TrendingUp, ArrowRight } from 'lucide-react';
-import { useLanguage } from '@/context/LanguageContext';
+import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import { fetchProducts, ShopifyProduct } from '@/lib/shopify';
 import ShopifyProductCard from '@/components/product/ShopifyProductCard';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -29,7 +29,7 @@ const Bestsellers = () => {
     }
   };
 
-  const t = content[language] || content.en;
+  const t = content[getContentLang(language)];
 
   useEffect(() => {
     const loadBestsellers = async () => {
