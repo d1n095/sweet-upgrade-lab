@@ -4,7 +4,7 @@ import { Building2, Package, Users, HandshakeIcon, Mail, Phone, Check, ArrowRigh
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { useLanguage } from '@/context/LanguageContext';
+import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import SEOHead from '@/components/seo/SEOHead';
@@ -73,7 +73,7 @@ const Business = () => {
     }
   };
 
-  const t = content[language as 'sv' | 'en'] || content.en;
+  const t = content[getContentLang(language)];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

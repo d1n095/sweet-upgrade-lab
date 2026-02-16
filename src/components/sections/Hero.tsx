@@ -1,8 +1,7 @@
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { ArrowRight, Leaf, Sparkles, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useLanguage } from '@/context/LanguageContext';
-import { Link } from 'react-router-dom';
+import { useLanguage, getContentLang } from '@/context/LanguageContext';
 
 // Custom hook for parallax effect
 const useParallax = (multiplier: number) => {
@@ -12,6 +11,7 @@ const useParallax = (multiplier: number) => {
 
 const Hero = () => {
   const { language } = useLanguage();
+  const lang = getContentLang(language);
   
   const content = {
     sv: {
@@ -24,7 +24,7 @@ const Hero = () => {
         { icon: '✨', text: 'Grundat 2026' },
       ],
       ctaPrimary: 'Shoppa giftfritt nu',
-      ctaSecondary: 'Läs vår utvärderingsprocess',
+      ctaSecondary: 'Läs mer om oss',
     },
     en: {
       badge: 'Founded 2026',
@@ -36,11 +36,11 @@ const Hero = () => {
         { icon: '✨', text: 'Founded 2026' },
       ],
       ctaPrimary: 'Shop toxin-free now',
-      ctaSecondary: 'Read our evaluation process',
+      ctaSecondary: 'Read more about us',
     }
   };
 
-  const t = content[language as 'sv' | 'en'] || content.en;
+  const t = content[lang];
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -175,15 +175,14 @@ const Hero = () => {
               {t.ctaPrimary}
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </Button>
-            <Link to="/how-it-works">
-              <Button
-                variant="outline"
-                size="lg"
-                className="h-14 px-10 text-base rounded-xl border-2 hover:bg-secondary/50"
-              >
-                {t.ctaSecondary}
-              </Button>
-            </Link>
+            <Button
+              variant="outline"
+              size="lg"
+              className="h-14 px-10 text-base rounded-xl border-2 hover:bg-secondary/50"
+              onClick={() => window.location.href = '/about'}
+            >
+              {t.ctaSecondary}
+            </Button>
           </motion.div>
         </motion.div>
       </div>
@@ -202,7 +201,7 @@ const Hero = () => {
           onClick={() => document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' })}
         >
           <span className="text-xs text-muted-foreground font-medium">
-            {language === 'sv' ? 'Scrolla för produkter' : 'Scroll for products'}
+            {lang === 'sv' ? 'Scrolla för produkter' : 'Scroll for products'}
           </span>
           <div className="w-6 h-10 rounded-full border-2 border-muted-foreground/30 flex items-start justify-center p-1.5">
             <motion.div

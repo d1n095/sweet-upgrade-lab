@@ -1,10 +1,11 @@
 import { motion } from 'framer-motion';
 import { Check, X, Leaf, Heart, AlertTriangle, TrendingUp } from 'lucide-react';
-import { useLanguage } from '@/context/LanguageContext';
+import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import { useDonationStats } from '@/hooks/useDonationStats';
 
 const About = () => {
   const { language } = useLanguage();
+  const lang = getContentLang(language);
   const donationStats = useDonationStats();
   
   const content = {
@@ -74,7 +75,7 @@ const About = () => {
     }
   };
 
-  const t = content[language as 'sv' | 'en'] || content.en;
+  const t = content[lang];
 
   return (
     <section id="about" className="py-20 md:py-28 bg-background">
@@ -169,10 +170,10 @@ const About = () => {
             <div className="bg-gradient-to-br from-primary/10 via-accent/5 to-primary/10 border border-primary/20 rounded-2xl p-6 md:p-8">
               <div className="text-center">
                 <h3 className="font-display text-xl font-semibold mb-2">
-                  {language === 'sv' ? '🌱 Vår gemensamma påverkan' : '🌱 Our Collective Impact'}
+                  {lang === 'sv' ? '🌱 Vår gemensamma påverkan' : '🌱 Our Collective Impact'}
                 </h3>
                 <p className="text-muted-foreground text-sm mb-6">
-                  {language === 'sv' 
+                  {lang === 'sv' 
                     ? donationStats.totalDonated > 0 
                       ? 'Tack vare er har vi tillsammans bidragit till:' 
                       : 'Varje donation gör skillnad – hjälp oss komma igång!'
@@ -186,7 +187,7 @@ const About = () => {
                     {donationStats.isLoading ? '...' : `${donationStats.totalDonated} kr`}
                   </p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    {language === 'sv' ? 'Totalt insamlat' : 'Total collected'}
+                    {lang === 'sv' ? 'Totalt insamlat' : 'Total collected'}
                   </p>
                 </div>
               </div>

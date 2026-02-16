@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { useLanguage } from '@/context/LanguageContext';
+import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import ShopifyProductGrid from '@/components/product/ShopifyProductGrid';
@@ -8,12 +8,13 @@ import SEOHead from '@/components/seo/SEOHead';
 
 const Shop = () => {
   const { language } = useLanguage();
+  const lang = getContentLang(language);
 
   return (
     <div className="min-h-screen bg-background">
       <SEOHead
-        title={language === 'sv' ? 'Butik - Alla Produkter' : 'Shop - All Products'}
-        description={language === 'sv' 
+        title={lang === 'sv' ? 'Butik - Alla Produkter' : 'Shop - All Products'}
+        description={lang === 'sv' 
           ? 'Utforska vårt sortiment av hållbara, giftfria produkter. Kroppsvård, teknik och naturliga kläder.'
           : 'Explore our range of sustainable, toxin-free products. Body care, tech and natural clothing.'}
         keywords="butik, shop, giftfri, naturlig, kroppsvård, powerbank, ekologiska kläder"
@@ -30,20 +31,20 @@ const Shop = () => {
             className="text-center mb-8"
           >
             <h1 className="font-display text-4xl md:text-5xl font-semibold mb-4">
-              {language === 'sv' ? 'Alla Produkter' : 'All Products'}
+              {lang === 'sv' ? 'Alla Produkter' : 'All Products'}
             </h1>
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto mb-6">
-              {language === 'sv' 
+              {lang === 'sv' 
                 ? 'Upptäck vårt sortiment av hållbara och naturliga produkter'
                 : 'Discover our range of sustainable and natural products'}
             </p>
             
             {/* Delivery info banner */}
             <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-5 py-2.5 text-sm">
-              <span className="font-medium">{storeConfig.shipping.deliveryTime[language as 'sv' | 'en']}</span>
+              <span className="font-medium">{storeConfig.shipping.deliveryTime[lang]}</span>
               <span className="text-muted-foreground">•</span>
               <span>
-                {language === 'sv' 
+                {lang === 'sv' 
                   ? `Fri frakt över ${storeConfig.shipping.freeShippingThreshold} kr`
                   : `Free shipping over ${storeConfig.shipping.freeShippingThreshold} kr`}
               </span>
