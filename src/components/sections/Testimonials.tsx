@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { MessageCircle, ArrowRight, Mail, Clock } from 'lucide-react';
-import { useLanguage } from '@/context/LanguageContext';
+import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 
@@ -58,7 +58,7 @@ const Testimonials = () => {
     }
   };
 
-  const t = content[language as 'sv' | 'en'] || content.en;
+  const t = content[getContentLang(language)];
 
   return (
     <section className="py-20 bg-secondary/30">

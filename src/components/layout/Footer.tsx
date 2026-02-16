@@ -1,12 +1,13 @@
 import { Link } from 'react-router-dom';
 import { Leaf, Mail, Clock, Instagram, Facebook, Send } from 'lucide-react';
-import { useLanguage } from '@/context/LanguageContext';
+import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import { storeConfig } from '@/config/storeConfig';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import PaymentIcons from '@/components/trust/PaymentIcons';
 
 const Footer = () => {
   const { t, language } = useLanguage();
+  const lang = getContentLang(language);
   
   const footerContent = {
     sv: {
@@ -81,17 +82,16 @@ const Footer = () => {
     }
   };
 
-  const fc = footerContent[language as keyof typeof footerContent] || footerContent.en;
+  const fc = footerContent[language as keyof typeof footerContent] || footerContent[lang];
 
   const quickLinks = [
-    { href: '/shop', label: language === 'sv' ? 'Alla produkter' : language === 'no' ? 'Alle produkter' : language === 'da' ? 'Alle produkter' : language === 'de' ? 'Alle Produkte' : 'All Products' },
+    { href: '/shop', label: lang === 'sv' ? 'Alla produkter' : 'All Products' },
     { href: '/about', label: t('nav.about') },
-    { href: '/how-it-works', label: language === 'sv' ? 'Så funkar det' : language === 'no' ? 'Slik fungerer det' : language === 'da' ? 'Sådan fungerer det' : language === 'de' ? 'So funktioniert es' : 'How It Works' },
     { href: '/contact', label: t('nav.contact') },
-    { href: '/track-order', label: language === 'sv' ? 'Spåra order' : language === 'no' ? 'Spor ordre' : language === 'da' ? 'Spor ordre' : language === 'de' ? 'Bestellung verfolgen' : 'Track Order' },
-    { href: '/business', label: language === 'sv' ? 'Företagskunder' : language === 'no' ? 'Bedriftskunder' : language === 'da' ? 'Erhvervskunder' : language === 'de' ? 'Geschäftskunden' : 'Business Customers' },
-    { href: '/affiliate', label: language === 'sv' ? 'Samarbete' : language === 'no' ? 'Samarbeid' : language === 'da' ? 'Samarbejde' : language === 'de' ? 'Partnerschaft' : 'Partnership' },
-    { href: '/suggest-product', label: language === 'sv' ? 'Önska produkt' : language === 'no' ? 'Ønsk produkt' : language === 'da' ? 'Ønsk produkt' : language === 'de' ? 'Produkt wünschen' : 'Suggest Product' },
+    { href: '/track-order', label: lang === 'sv' ? 'Spåra order' : 'Track Order' },
+    { href: '/business', label: lang === 'sv' ? 'Företagskunder' : 'Business Customers' },
+    { href: '/affiliate', label: lang === 'sv' ? 'Samarbete' : 'Partnership' },
+    { href: '/suggest-product', label: lang === 'sv' ? 'Önska produkt' : 'Suggest Product' },
   ];
 
   const customerServiceLinks = [
