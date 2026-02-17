@@ -9,7 +9,7 @@ const STORAGE_KEY = 'exit_popup_shown';
 const DISCOUNT_CODE = 'STANNA10';
 
 const ExitIntentPopup = () => {
-  const { language } = useLanguage();
+  const { contentLang } = useLanguage();
   const [isVisible, setIsVisible] = useState(false);
   const [email, setEmail] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -101,10 +101,10 @@ const ExitIntentPopup = () => {
 
                     {/* Content */}
                     <h3 className="font-display text-2xl font-bold mb-2">
-                      {language === 'sv' ? 'Vänta! Missa inte detta!' : 'Wait! Don\'t miss this!'}
+                      {contentLang === 'sv' ? 'Vänta! Missa inte detta!' : 'Wait! Don\'t miss this!'}
                     </h3>
                     <p className="text-muted-foreground mb-6">
-                      {language === 'sv' 
+                      {contentLang === 'sv' 
                         ? 'Ange din e-post och få 10% rabatt på din första beställning!'
                         : 'Enter your email and get 10% off your first order!'
                       }
@@ -114,7 +114,7 @@ const ExitIntentPopup = () => {
                     <form onSubmit={handleSubmit} className="space-y-3">
                       <Input
                         type="email"
-                        placeholder={language === 'sv' ? 'Din e-postadress' : 'Your email address'}
+                        placeholder={contentLang === 'sv' ? 'Din e-postadress' : 'Your email address'}
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         className="h-12 text-center"
@@ -122,12 +122,12 @@ const ExitIntentPopup = () => {
                       />
                       <Button type="submit" className="w-full h-12 text-base font-semibold">
                         <Sparkles className="w-4 h-4 mr-2" />
-                        {language === 'sv' ? 'Hämta min rabatt' : 'Get my discount'}
+                        {contentLang === 'sv' ? 'Hämta min rabatt' : 'Get my discount'}
                       </Button>
                     </form>
 
                     <p className="text-xs text-muted-foreground mt-4">
-                      {language === 'sv' 
+                      {contentLang === 'sv' 
                         ? 'Inga spam, bara bra erbjudanden!'
                         : 'No spam, just great deals!'
                       }
@@ -141,10 +141,10 @@ const ExitIntentPopup = () => {
                     </div>
 
                     <h3 className="font-display text-2xl font-bold mb-2">
-                      {language === 'sv' ? 'Tack!' : 'Thank you!'}
+                      {contentLang === 'sv' ? 'Tack!' : 'Thank you!'}
                     </h3>
                     <p className="text-muted-foreground mb-6">
-                      {language === 'sv' 
+                      {contentLang === 'sv' 
                         ? 'Här är din rabattkod:'
                         : 'Here\'s your discount code:'
                       }
@@ -160,14 +160,14 @@ const ExitIntentPopup = () => {
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
                         {codeCopied 
-                          ? (language === 'sv' ? 'Kopierad!' : 'Copied!')
-                          : (language === 'sv' ? 'Klicka för att kopiera' : 'Click to copy')
+                          ? (contentLang === 'sv' ? 'Kopierad!' : 'Copied!')
+                          : (contentLang === 'sv' ? 'Klicka för att kopiera' : 'Click to copy')
                         }
                       </p>
                     </div>
 
                     <Button onClick={handleClose} variant="outline" className="w-full">
-                      {language === 'sv' ? 'Fortsätt handla' : 'Continue shopping'}
+                      {contentLang === 'sv' ? 'Fortsätt handla' : 'Continue shopping'}
                     </Button>
                   </>
                 )}

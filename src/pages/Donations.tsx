@@ -9,7 +9,7 @@ import LiveDonationFeed from '@/components/donations/LiveDonationFeed';
 import DonationImpact from '@/components/donations/DonationImpact';
 
 const Donations = () => {
-  const { language } = useLanguage();
+  const { language, contentLang } = useLanguage();
   const donationStats = useDonationStats();
 
   const content: Record<string, {

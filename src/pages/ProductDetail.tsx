@@ -65,7 +65,7 @@ const PRODUCT_QUERY = `
 
 const ProductDetail = () => {
   const { handle } = useParams<{ handle: string }>();
-  const { language } = useLanguage();
+  const { language, contentLang } = useLanguage();
   const [product, setProduct] = useState<ShopifyProduct['node'] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
@@ -150,9 +150,9 @@ const ProductDetail = () => {
       <div className="min-h-screen bg-background">
         <Header />
         <div className="container mx-auto px-4 py-32 text-center">
-          <h1 className="text-2xl font-bold mb-4">Produkten hittades inte</h1>
+          <h1 className="text-2xl font-bold mb-4">{contentLang === 'sv' ? 'Produkten hittades inte' : 'Product not found'}</h1>
           <Link to="/">
-            <Button>Tillbaka till startsidan</Button>
+            <Button>{contentLang === 'sv' ? 'Tillbaka till startsidan' : 'Back to home'}</Button>
           </Link>
         </div>
         <Footer />
@@ -172,7 +172,7 @@ const ProductDetail = () => {
           {/* Back button */}
           <Link to="/#products" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-8 transition-colors">
             <ArrowLeft className="w-4 h-4" />
-            Tillbaka till produkter
+            {contentLang === 'sv' ? 'Tillbaka till produkter' : 'Back to products'}
           </Link>
 
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-20">
@@ -190,7 +190,7 @@ const ProductDetail = () => {
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                  Ingen bild
+                  {contentLang === 'sv' ? 'Ingen bild' : 'No image'}
                 </div>
               )}
             </motion.div>
@@ -218,7 +218,7 @@ const ProductDetail = () => {
               </div>
 
               <p className="text-muted-foreground text-lg mb-8 leading-relaxed">
-                {product.description || 'Ingen beskrivning tillgänglig'}
+                {product.description || (contentLang === 'sv' ? 'Ingen beskrivning tillgänglig' : 'No description available')}
               </p>
 
               {/* Variants */}
@@ -253,7 +253,7 @@ const ProductDetail = () => {
 
               {/* Quantity */}
               <div className="mb-8">
-                <label className="block text-sm font-medium mb-2">Antal</label>
+                <label className="block text-sm font-medium mb-2">{contentLang === 'sv' ? 'Antal' : 'Quantity'}</label>
                 <div className="flex items-center gap-3">
                   <Button
                     variant="outline"
@@ -281,16 +281,16 @@ const ProductDetail = () => {
                 disabled={!isAvailable}
               >
                 {!isAvailable ? (
-                  'Slut i lager'
+                  contentLang === 'sv' ? 'Slut i lager' : 'Out of stock'
                 ) : isAdded ? (
                   <>
                     <Check className="w-5 h-5 mr-2" />
-                    Tillagd i kundvagnen
+                    {contentLang === 'sv' ? 'Tillagd i kundvagnen' : 'Added to cart'}
                   </>
                 ) : (
                   <>
                     <ShoppingCart className="w-5 h-5 mr-2" />
-                    {language === 'sv' ? 'Lägg i kundvagn' : 'Add to cart'}
+                    {contentLang === 'sv' ? 'Lägg i kundvagn' : 'Add to cart'}
                   </>
                 )}
               </Button>
@@ -301,19 +301,19 @@ const ProductDetail = () => {
                   <div className="flex flex-col items-center gap-2">
                     <Shield className="w-5 h-5 text-primary" />
                     <span className="text-muted-foreground">
-                      {language === 'sv' ? 'Säker betalning' : 'Secure payment'}
+                      {contentLang === 'sv' ? 'Säker betalning' : 'Secure payment'}
                     </span>
                   </div>
                   <div className="flex flex-col items-center gap-2">
                     <RotateCcw className="w-5 h-5 text-primary" />
                     <span className="text-muted-foreground">
-                      {language === 'sv' ? '30 dagars öppet köp' : '30-day returns'}
+                      {contentLang === 'sv' ? '30 dagars öppet köp' : '30-day returns'}
                     </span>
                   </div>
                   <div className="flex flex-col items-center gap-2">
                     <Truck className="w-5 h-5 text-primary" />
                     <span className="text-muted-foreground">
-                      {language === 'sv' ? 'Snabb leverans' : 'Fast delivery'}
+                      {contentLang === 'sv' ? 'Snabb leverans' : 'Fast delivery'}
                     </span>
                   </div>
                 </div>
@@ -325,7 +325,7 @@ const ProductDetail = () => {
           {/* Reviews Section */}
           <div className="mt-20 pt-16 border-t border-border">
             <h2 className="font-display text-2xl md:text-3xl font-semibold mb-8 text-center">
-              {language === 'sv' ? 'Kundrecensioner' : 'Customer Reviews'}
+              {contentLang === 'sv' ? 'Kundrecensioner' : 'Customer Reviews'}
             </h2>
             
             <div className="grid lg:grid-cols-2 gap-10">
