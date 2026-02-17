@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { useLanguage } from '@/context/LanguageContext';
+import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import { HelpCircle } from 'lucide-react';
 import {
   Accordion,
@@ -37,6 +37,7 @@ const faqData = [
 
 const FAQ = () => {
   const { language } = useLanguage();
+  const lang = getContentLang(language);
 
   return (
     <section id="faq" className="py-16 md:py-20 bg-background">
@@ -51,10 +52,10 @@ const FAQ = () => {
             <HelpCircle className="w-7 h-7 text-primary" />
           </div>
           <h2 className="font-display text-2xl md:text-3xl font-semibold mb-3">
-            {language === 'sv' ? 'Vanliga frågor' : 'Frequently Asked Questions'}
+            {lang === 'sv' ? 'Vanliga frågor' : 'Frequently Asked Questions'}
           </h2>
           <p className="text-muted-foreground max-w-lg mx-auto">
-            {language === 'sv' 
+            {lang === 'sv' 
               ? 'Här hittar du svar på de vanligaste frågorna.'
               : 'Here you\'ll find answers to the most common questions.'
             }
@@ -76,10 +77,10 @@ const FAQ = () => {
                 className="bg-secondary/50 border border-border rounded-lg px-5 overflow-hidden"
               >
                 <AccordionTrigger className="text-left font-medium text-base hover:text-primary transition-colors py-4 [&[data-state=open]]:text-primary">
-                  {faq.question[language]}
+                  {faq.question[lang] || faq.question.en}
                 </AccordionTrigger>
                 <AccordionContent className="text-muted-foreground pb-4 leading-relaxed">
-                  {faq.answer[language]}
+                  {faq.answer[lang] || faq.answer.en}
                 </AccordionContent>
               </AccordionItem>
             ))}

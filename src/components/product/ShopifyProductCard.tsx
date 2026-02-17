@@ -11,7 +11,7 @@ import { Link } from 'react-router-dom';
 import QuantitySelector from './QuantitySelector';
 import LowStockBadge from '@/components/engagement/LowStockBadge';
 import WishlistButton from '@/components/wishlist/WishlistButton';
-import { useLanguage } from '@/context/LanguageContext';
+import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import { useProductSoldCount } from '@/hooks/useProductSales';
 
 interface ShopifyProductCardProps {
@@ -23,6 +23,7 @@ interface ShopifyProductCardProps {
 
 const ShopifyProductCard = ({ product, index, compact = false, isBestseller: isBestsellerProp = false }: ShopifyProductCardProps) => {
   const { language } = useLanguage();
+  const lang = getContentLang(language);
   const { items, addItem } = useCartStore();
   const { getMemberPrice, getVolumeDiscount } = useMemberPrices();
   const { isMember } = useAuth();
@@ -104,7 +105,7 @@ const ShopifyProductCard = ({ product, index, compact = false, isBestseller: isB
             {/* Real-time popularity status badge */}
             {status && (
               <div className="absolute top-2 right-2 z-20 bg-green-100 text-green-800 text-xs px-2 py-1 rounded">
-                {status.status} ({status.count} {language === 'sv' ? 'personer' : 'people'})
+                {status.status} ({status.count} {lang === 'sv' ? 'personer' : 'people'})
               </div>
             )}
             
@@ -234,7 +235,7 @@ const ShopifyProductCard = ({ product, index, compact = false, isBestseller: isB
           {/* Real-time popularity status badge */}
           {status && (
             <div className="absolute top-3 right-3 z-20 bg-green-100 text-green-800 text-xs px-2 py-1 rounded">
-              {status.status} ({status.count} {language === 'sv' ? 'personer' : 'people'})
+              {status.status} ({status.count} {lang === 'sv' ? 'personer' : 'people'})
             </div>
           )}
           
