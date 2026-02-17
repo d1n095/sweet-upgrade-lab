@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import ReviewList from './ReviewList';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { useLanguage } from '@/context/LanguageContext';
+import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import AuthModal from '@/components/auth/AuthModal';
 
 const MemberReviewsSection = () => {
@@ -46,7 +46,7 @@ const MemberReviewsSection = () => {
     }
   };
 
-  const t = content[language as keyof typeof content] || content.en;
+  const t = content[getContentLang(language)] || content.en;
 
   useEffect(() => {
     const checkForReviews = async () => {

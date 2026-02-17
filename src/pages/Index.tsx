@@ -12,7 +12,7 @@ import Newsletter from '@/components/sections/Newsletter';
 import FloatingContactButton from '@/components/trust/FloatingContactButton';
 import SEOHead from '@/components/seo/SEOHead';
 import MemberReviewsSection from '@/components/reviews/MemberReviewsSection';
-import { useLanguage } from '@/context/LanguageContext';
+import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import { trackPageView } from '@/utils/analytics';
 
 // Lazy load the product grid for better performance
@@ -20,6 +20,7 @@ const ShopifyProductGrid = lazy(() => import('@/components/product/ShopifyProduc
 
 const Index = () => {
   const { language } = useLanguage();
+  const lang = getContentLang(language);
 
   // Track page view
   useEffect(() => {
@@ -29,8 +30,8 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead
-        title={language === 'sv' ? '4thepeople - Giftfria Produkter för Europa' : '4thepeople - Toxin-Free Products for Europe'}
-        description={language === 'sv' 
+        title={lang === 'sv' ? '4thepeople - Giftfria Produkter för Europa' : '4thepeople - Toxin-Free Products for Europe'}
+        description={lang === 'sv' 
           ? 'Vi är inte det största företaget. Vi är det noggrannaste i vår research. Upptäck noggrant utvalda giftfria produkter till ärliga priser.'
           : "We're not the biggest company. We're the most thorough in our research. Discover carefully selected toxin-free products at honest prices."}
         keywords="giftfri, naturlig, kroppsvård, hållbart, europeisk, ekologisk, dropshipping"

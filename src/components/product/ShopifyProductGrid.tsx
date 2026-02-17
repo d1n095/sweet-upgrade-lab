@@ -4,7 +4,7 @@ import { Package, Loader2, ArrowUpDown } from 'lucide-react';
 import ShopifyProductCard from '@/components/product/ShopifyProductCard';
 import { fetchProducts, ShopifyProduct } from '@/lib/shopify';
 import { categories, Category } from '@/data/categories';
-import { useLanguage } from '@/context/LanguageContext';
+import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import { cn } from '@/lib/utils';
 import { useSearchStore } from '@/stores/searchStore';
 import { supabase } from '@/integrations/supabase/client';
@@ -69,6 +69,7 @@ const getHiddenCategoryQueries = (): string[] => {
 
 const ShopifyProductGrid = () => {
   const { language, t } = useLanguage();
+  const lang = getContentLang(language);
   const [products, setProducts] = useState<ShopifyProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -234,11 +235,11 @@ const ShopifyProductGrid = () => {
   }, []);
 
   const sortOptions = [
-    { value: 'default', label: language === 'sv' ? 'Standard' : 'Default' },
-    { value: 'price-asc', label: language === 'sv' ? 'Pris: Lågt till högt' : 'Price: Low to High' },
-    { value: 'price-desc', label: language === 'sv' ? 'Pris: Högt till lågt' : 'Price: High to Low' },
-    { value: 'name-asc', label: language === 'sv' ? 'Namn: A-Ö' : 'Name: A-Z' },
-    { value: 'name-desc', label: language === 'sv' ? 'Namn: Ö-A' : 'Name: Z-A' },
+    { value: 'default', label: lang === 'sv' ? 'Standard' : 'Default' },
+    { value: 'price-asc', label: lang === 'sv' ? 'Pris: Lågt till högt' : 'Price: Low to High' },
+    { value: 'price-desc', label: lang === 'sv' ? 'Pris: Högt till lågt' : 'Price: High to Low' },
+    { value: 'name-asc', label: lang === 'sv' ? 'Namn: A-Ö' : 'Name: A-Z' },
+    { value: 'name-desc', label: lang === 'sv' ? 'Namn: Ö-A' : 'Name: Z-A' },
   ];
 
   return (
@@ -275,7 +276,7 @@ const ShopifyProductGrid = () => {
                 >
                   <Icon className="w-4 h-4" />
                 </motion.div>
-                <span>{category.name[language] || category.name.en}</span>
+                <span>{category.name[lang] || category.name.en}</span>
               </motion.button>
             );
           })}
@@ -291,7 +292,7 @@ const ShopifyProductGrid = () => {
             <Select value={sortOption} onValueChange={(value) => setSortOption(value as SortOption)}>
               <SelectTrigger className="w-[200px] bg-card border-border/60 rounded-xl h-11">
                 <ArrowUpDown className="w-4 h-4 mr-2 text-muted-foreground" />
-                <SelectValue placeholder={language === 'sv' ? 'Sortera' : 'Sort'} />
+                <SelectValue placeholder={lang === 'sv' ? 'Sortera' : 'Sort'} />
               </SelectTrigger>
               <SelectContent className="bg-card border-border rounded-xl">
                 {sortOptions.map((option) => (
@@ -333,7 +334,7 @@ const ShopifyProductGrid = () => {
             </div>
             <h3 className="font-display text-xl font-semibold mb-3">{t('products.noproducts')}</h3>
             <p className="text-muted-foreground text-center max-w-md">
-              {language === 'sv' 
+              {lang === 'sv' 
                 ? 'Inga produkter hittades i denna kategori. Prova en annan kategori eller berätta vilka produkter du vill lägga till!'
                 : 'No products found in this category. Try another category or tell us what products you\'d like to add!'
               }
