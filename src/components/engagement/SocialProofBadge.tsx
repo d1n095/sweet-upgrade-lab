@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, TrendingUp, Clock } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 
+const useCL = () => useLanguage().contentLang;
+
 interface SocialProofBadgeProps {
   productId?: string;
   showViewers?: boolean;
@@ -18,7 +20,7 @@ const SocialProofBadge = ({
   showLimitedTime = false,
   compact = false 
 }: SocialProofBadgeProps) => {
-  const { language } = useLanguage();
+  const { contentLang } = useLanguage();
   const [currentViewers, setCurrentViewers] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
 
@@ -65,7 +67,7 @@ const SocialProofBadge = ({
             className="flex items-center gap-1 text-xs text-accent bg-accent/10 px-2 py-0.5 rounded-full"
           >
             <Clock className="w-3 h-3" />
-            <span>{language === 'sv' ? 'Begränsat' : 'Limited'}</span>
+            <span>{contentLang === 'sv' ? 'Begränsat' : 'Limited'}</span>
           </motion.div>
         )}
       </div>
@@ -85,7 +87,7 @@ const SocialProofBadge = ({
             <span>
               <span className="font-semibold text-foreground">{currentViewers}</span>
               {' '}
-              {language === 'sv' ? 'tittar just nu' : 'viewing now'}
+              {contentLang === 'sv' ? 'tittar just nu' : 'viewing now'}
             </span>
           </div>
         </motion.div>
@@ -103,7 +105,7 @@ const SocialProofBadge = ({
             <span>
               <span className="font-semibold text-foreground">50+</span>
               {' '}
-              {language === 'sv' ? 'sålda senaste veckan' : 'sold last week'}
+              {contentLang === 'sv' ? 'sålda senaste veckan' : 'sold last week'}
             </span>
           </div>
         </motion.div>
@@ -119,7 +121,7 @@ const SocialProofBadge = ({
           <div className="flex items-center gap-1.5 bg-accent/10 text-accent px-3 py-1.5 rounded-full">
             <Clock className="w-4 h-4" />
             <span className="font-medium">
-              {language === 'sv' ? 'Begränsat erbjudande' : 'Limited time offer'}
+              {contentLang === 'sv' ? 'Begränsat erbjudande' : 'Limited time offer'}
             </span>
           </div>
         </motion.div>

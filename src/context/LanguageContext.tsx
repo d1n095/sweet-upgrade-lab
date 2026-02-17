@@ -92,6 +92,8 @@ export const translations: Translations = {
 
 interface LanguageContextType {
   language: Language;
+  /** 'sv' for Scandinavian languages, 'en' for everything else */
+  contentLang: 'sv' | 'en';
   setLanguage: (lang: Language) => void;
   t: (key: string) => string;
 }
@@ -100,6 +102,7 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 
 export const LanguageProvider = ({ children }: { children: ReactNode }) => {
   const [language, setLanguage] = useState<Language>('sv');
+  const contentLang = getContentLang(language);
 
   const t = (key: string): string => {
     const translation = translations[key];
@@ -117,7 +120,7 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t }}>
+    <LanguageContext.Provider value={{ language, contentLang, setLanguage, t }}>
       {children}
     </LanguageContext.Provider>
   );
