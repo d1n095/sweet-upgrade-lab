@@ -1,13 +1,12 @@
 import { Link } from 'react-router-dom';
 import { Leaf, Mail, Clock, Instagram, Facebook, Send } from 'lucide-react';
-import { useLanguage, getContentLang } from '@/context/LanguageContext';
+import { useLanguage } from '@/context/LanguageContext';
 import { storeConfig } from '@/config/storeConfig';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import PaymentIcons from '@/components/trust/PaymentIcons';
 
 const Footer = () => {
   const { t, language } = useLanguage();
-  const lang = getContentLang(language);
   
   const footerContent = {
     sv: {
@@ -82,16 +81,16 @@ const Footer = () => {
     }
   };
 
-  const fc = footerContent[language as keyof typeof footerContent] || footerContent[lang];
+  const fc = footerContent[language as keyof typeof footerContent] || footerContent.en;
 
   const quickLinks = [
-    { href: '/shop', label: lang === 'sv' ? 'Alla produkter' : 'All Products' },
+    { href: '/shop', label: t('nav.products') },
     { href: '/about', label: t('nav.about') },
     { href: '/contact', label: t('nav.contact') },
-    { href: '/track-order', label: lang === 'sv' ? 'Spåra order' : 'Track Order' },
-    { href: '/business', label: lang === 'sv' ? 'Företagskunder' : 'Business Customers' },
-    { href: '/affiliate', label: lang === 'sv' ? 'Samarbete' : 'Partnership' },
-    { href: '/suggest-product', label: lang === 'sv' ? 'Önska produkt' : 'Suggest Product' },
+    { href: '/track-order', label: t('nav.trackorder') },
+    { href: '/business', label: t('nav.business') },
+    { href: '/affiliate', label: t('nav.partnership') },
+    { href: '/suggest-product', label: t('nav.suggestproduct') },
   ];
 
   const customerServiceLinks = [

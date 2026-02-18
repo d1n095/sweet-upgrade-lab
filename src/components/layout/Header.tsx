@@ -5,7 +5,7 @@ import { ShoppingCart, Menu, X, Leaf, ChevronDown, User, Crown, LogOut, Heart, M
 import { Button } from '@/components/ui/button';
 import { useCartStore } from '@/stores/cartStore';
 import { useWishlistStore } from '@/stores/wishlistStore';
-import { useLanguage, getContentLang } from '@/context/LanguageContext';
+import { useLanguage } from '@/context/LanguageContext';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import ShopifyCartDrawer from '@/components/cart/ShopifyCartDrawer';
 import WishlistDrawer from '@/components/wishlist/WishlistDrawer';
@@ -17,8 +17,7 @@ import { storeConfig } from '@/config/storeConfig';
 import { useTheme } from 'next-themes';
 
 const Header = () => {
-  const { t, language } = useLanguage();
-  const lang = getContentLang(language);
+  const { t, language, contentLang } = useLanguage();
   const location = useLocation();
   const { user, isMember, signOut, loading: authLoading } = useAuth();
   const items = useCartStore(state => state.items);
@@ -101,19 +100,19 @@ const Header = () => {
 
   const navLinks = [
     { href: '/shop', label: 'Shop' },
-    { href: '/whats-new', label: lang === 'sv' ? 'Nytt hos oss' : "What's New" },
+    { href: '/whats-new', label: t('nav.whatsnew') },
   ];
 
   const aboutSubMenu = [
-    { href: '/about', label: lang === 'sv' ? 'Om oss' : 'About us' },
-    { href: '/donations', label: lang === 'sv' ? 'Donationer' : 'Donations' },
+    { href: '/about', label: t('nav.aboutus') },
+    { href: '/donations', label: t('nav.donations') },
   ];
   
   const contactSubMenu = [
-    { href: '/contact', label: lang === 'sv' ? 'Kontakta oss' : 'Contact us' },
-    { href: '/affiliate', label: lang === 'sv' ? 'Samarbete' : 'Partnership' },
-    { href: '/business', label: lang === 'sv' ? 'Handla som företag' : 'Business' },
-    { href: '/suggest-product', label: lang === 'sv' ? 'Önska produkt' : 'Suggest product' },
+    { href: '/contact', label: t('nav.contactus') },
+    { href: '/affiliate', label: t('nav.partnership') },
+    { href: '/business', label: t('nav.business') },
+    { href: '/suggest-product', label: t('nav.suggestproduct') },
   ];
 
   return (
@@ -186,7 +185,7 @@ const Header = () => {
                             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
                               <Leaf className="w-4 h-4 text-primary" />
                             </div>
-                            <span className="font-medium">{category.name?.[lang] ?? category.name?.en ?? category.name?.sv ?? ''}</span>
+                            <span className="font-medium">{category.name?.[language] ?? category.name?.[contentLang] ?? category.name?.en ?? category.name?.sv ?? ''}</span>
                           </Link>
                         ))}
                       </div>
@@ -447,7 +446,7 @@ const Header = () => {
                 </div>
                 <div className="pl-4 flex flex-col gap-1 mt-2">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide px-4 py-2">
-                    {lang === 'sv' ? 'Kategorier' : 'Categories'}
+                    {t('nav.categories')}
                   </p>
                   {activeCategories.map((category) => (
                     <Link
@@ -456,7 +455,7 @@ const Header = () => {
                       className="flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground transition-colors py-2.5 px-4 rounded-xl hover:bg-secondary/30"
                     >
                       <Leaf className="w-4 h-4 text-primary" />
-                      {category.name?.[lang] ?? category.name?.en ?? category.name?.sv ?? ''}
+                      {category.name?.[language] ?? category.name?.[contentLang] ?? category.name?.en ?? category.name?.sv ?? ''}
                     </Link>
                   ))}
                 </div>
@@ -471,7 +470,7 @@ const Header = () => {
                         className="flex items-center gap-3 text-foreground font-medium py-3 px-4 rounded-xl hover:bg-secondary/50 transition-colors text-left w-full"
                       >
                         <User className="w-5 h-5" />
-                        {lang === 'sv' ? 'Mitt konto' : 'My Account'}
+                        {t('nav.myaccount')}
                         {isMember && (
                           <span className="ml-auto flex items-center gap-1 text-xs text-accent">
                             <Crown className="w-4 h-4" />
@@ -487,7 +486,7 @@ const Header = () => {
                         className="flex items-center gap-3 text-muted-foreground font-medium py-3 px-4 rounded-xl hover:bg-secondary/50 transition-colors text-left"
                       >
                         <LogOut className="w-5 h-5" />
-                        {lang === 'sv' ? 'Logga ut' : 'Sign out'}
+                        {t('nav.signout')}
                       </button>
                     </>
                   ) : (
@@ -499,14 +498,14 @@ const Header = () => {
                       className="flex items-center gap-3 text-foreground font-medium py-3 px-4 rounded-xl hover:bg-secondary/50 transition-colors text-left"
                     >
                       <User className="w-5 h-5" />
-                      {lang === 'sv' ? 'Logga in / Skapa konto' : 'Sign in / Create account'}
+                      {t('nav.signin')}
                     </button>
                   )}
                   <Link
                     to="/track-order"
                     className="text-muted-foreground font-medium py-3 px-4 rounded-xl hover:bg-secondary/50 transition-colors"
                   >
-                    {lang === 'sv' ? 'Spåra order' : 'Track Order'}
+                    {t('nav.trackorder')}
                   </Link>
                 </div>
               </nav>
