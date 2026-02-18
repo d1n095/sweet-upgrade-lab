@@ -35,15 +35,30 @@ export const translations: Translations = {
   'nav.contact': { sv: 'Kontakt', en: 'Contact', no: 'Kontakt', da: 'Kontakt', de: 'Kontakt' },
   
   // Hero - Professional & Honest
-  'hero.badge': { sv: 'Europeisk Startup 2026', en: 'European Startup 2026', no: 'Europeisk Startup 2026', da: 'Europæisk Startup 2026', de: 'Europäisches Startup 2026' },
-  'hero.title': { sv: 'Giftfria Produkter för Europa', en: 'Toxin-Free Products for Europe', no: 'Giftfrie Produkter for Europa', da: 'Giftfrie Produkter til Europa', de: 'Schadstofffreie Produkte für Europa' },
-  'hero.subtitle': { sv: 'Vi är inte det största företaget. Vi är det noggrannaste. Varje produkt vi säljer är testad och godkänd av oss själva. Inga mirakel. Inga överdrivna löften. Bara ärliga produkter till ärliga priser.', en: "We're not the biggest company. We're the most careful. Every product we sell is tested and approved by us. No miracles. No exaggerated promises. Just honest products at honest prices.", no: 'Vi er ikke det største selskapet. Vi er det mest nøye. Hver produkt vi selger er testet og godkjent av oss selv. Ingen mirakler. Ingen overdrevne løfter. Bare ærlige produkter til ærlige priser.', da: 'Vi er ikke den største virksomhed. Vi er den mest omhyggelige. Hvert produkt vi sælger er testet og godkendt af os selv. Ingen mirakler. Ingen overdrevne løfter. Bare ærlige produkter til ærlige priser.', de: 'Wir sind nicht das größte Unternehmen. Wir sind das sorgfältigste. Jedes Produkt, das wir verkaufen, wurde von uns selbst getestet und genehmigt. Keine Wunder. Keine übertriebenen Versprechen. Nur ehrliche Produkte zu ehrlichen Preisen.' },
-  'hero.cta.products': { sv: 'Shoppa nu', en: 'Shop now', no: 'Handle nå', da: 'Shop nu', de: 'Jetzt kaufen' },
-  'hero.cta.contact': { sv: 'Läs mer om oss', en: 'Read more about us', no: 'Les mer om oss', da: 'Læs mere om os', de: 'Mehr über uns' },
-  'hero.feature.toxinfree': { sv: 'Noggrant utvalt', en: 'Carefully selected', no: 'Nøye utvalgt', da: 'Omhyggeligt udvalgt', de: 'Sorgfältig ausgewählt' },
-  'hero.feature.quality': { sv: '30 dagars öppet köp', en: '30-day returns', no: '30 dagers åpent kjøp', da: '30 dages returret', de: '30 Tage Rückgaberecht' },
-  'hero.feature.shipping': { sv: 'Snabb leverans', en: 'Fast delivery', no: 'Rask levering', da: 'Hurtig levering', de: 'Schnelle Lieferung' },
-  'hero.feature.service': { sv: 'Personlig kundservice', en: 'Personal service', no: 'Personlig kundeservice', da: 'Personlig kundeservice', de: 'Persönlicher Service' },
+  'hero.badge': { sv: 'Grundat 2026', en: 'Founded 2026', no: 'Grunnlagt 2026', da: 'Grundlagt 2026', de: 'Gegründet 2026' },
+  'hero.title': { sv: 'Giftfria Produkter som Faktiskt Fungerar', en: 'Toxin-Free Products That Actually Work', no: 'Giftfrie Produkter som Faktisk Fungerer', da: 'Giftfrie Produkter der Faktisk Virker', de: 'Schadstofffreie Produkte die Wirklich Funktionieren' },
+  'hero.subtitle': { sv: 'Vi är inte det största företaget. Vi är det noggrannaste i vår research. Varje produkt vi säljer är noggrant utvald efter ingrediensanalys, internationella certifieringar och användarrecensioner.', en: "We're not the biggest company. We're the most thorough in our research. Every product we sell is carefully selected based on ingredient analysis, international certifications and user reviews.", no: 'Vi er ikke det største selskapet. Vi er de mest grundige i vår forskning. Hvert produkt vi selger er nøye utvalgt basert på ingrediensanalyse, internasjonale sertifiseringer og brukeranmeldelser.', da: 'Vi er ikke den største virksomhed. Vi er de mest grundige i vores forskning. Hvert produkt vi sælger er omhyggeligt udvalgt baseret på ingrediensanalyse, internationale certificeringer og brugeranmeldelser.', de: 'Wir sind nicht das größte Unternehmen. Wir sind die gründlichsten in unserer Forschung. Jedes Produkt, das wir verkaufen, wird sorgfältig anhand von Inhaltsstoffanalysen, internationalen Zertifizierungen und Nutzerbewertungen ausgewählt.' },
+  'hero.cta.primary': { sv: 'Shoppa giftfritt nu', en: 'Shop toxin-free now', no: 'Handle giftfritt nå', da: 'Shop giftfrit nu', de: 'Jetzt schadstofffrei kaufen' },
+  'hero.cta.secondary': { sv: 'Läs mer om oss', en: 'Read more about us', no: 'Les mer om oss', da: 'Læs mere om os', de: 'Mehr über uns' },
+  'hero.feature.delivery': { sv: 'Leverans i Europa', en: 'European delivery', no: 'Levering i Europa', da: 'Levering i Europa', de: 'Lieferung in Europa' },
+  'hero.feature.transparent': { sv: 'Transparent business', en: 'Transparent business', no: 'Transparent business', da: 'Transparent business', de: 'Transparentes Geschäft' },
+  'hero.feature.founded': { sv: 'Grundat 2026', en: 'Founded 2026', no: 'Grunnlagt 2026', da: 'Grundlagt 2026', de: 'Gegründet 2026' },
+  'hero.scroll': { sv: 'Scrolla för produkter', en: 'Scroll for products', no: 'Scroll for produkter', da: 'Scroll for produkter', de: 'Scrollen für Produkte' },
+
+  // Navigation sub-menus
+  'nav.whatsnew': { sv: 'Nytt hos oss', en: "What's New", no: 'Nytt hos oss', da: 'Nyt hos os', de: 'Neuheiten' },
+  'nav.aboutus': { sv: 'Om oss', en: 'About us', no: 'Om oss', da: 'Om os', de: 'Über uns' },
+  'nav.donations': { sv: 'Donationer', en: 'Donations', no: 'Donasjoner', da: 'Donationer', de: 'Spenden' },
+  'nav.contactus': { sv: 'Kontakta oss', en: 'Contact us', no: 'Kontakt oss', da: 'Kontakt os', de: 'Kontaktieren Sie uns' },
+  'nav.partnership': { sv: 'Samarbete', en: 'Partnership', no: 'Samarbeid', da: 'Samarbejde', de: 'Partnerschaft' },
+  'nav.business': { sv: 'Handla som företag', en: 'Business', no: 'Handle som bedrift', da: 'Bestil som virksomhed', de: 'Geschäftskunden' },
+  'nav.suggestproduct': { sv: 'Önska produkt', en: 'Suggest product', no: 'Ønsk produkt', da: 'Ønsk produkt', de: 'Produkt vorschlagen' },
+
+  'nav.categories': { sv: 'Kategorier', en: 'Categories', no: 'Kategorier', da: 'Kategorier', de: 'Kategorien' },
+  'nav.myaccount': { sv: 'Mitt konto', en: 'My Account', no: 'Min konto', da: 'Min konto', de: 'Mein Konto' },
+  'nav.signout': { sv: 'Logga ut', en: 'Sign out', no: 'Logg ut', da: 'Log ud', de: 'Abmelden' },
+  'nav.signin': { sv: 'Logga in / Skapa konto', en: 'Sign in / Create account', no: 'Logg inn / Opprett konto', da: 'Log ind / Opret konto', de: 'Anmelden / Konto erstellen' },
+  'nav.trackorder': { sv: 'Spåra order', en: 'Track Order', no: 'Spor ordre', da: 'Spor ordre', de: 'Bestellung verfolgen' },
 
   // Products
   'products.title': { sv: 'Våra Produkter', en: 'Our Products', no: 'Våre Produkter', da: 'Vores Produkter', de: 'Unsere Produkte' },

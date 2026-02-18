@@ -1,7 +1,7 @@
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { ArrowRight, Leaf, Sparkles, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useLanguage, getContentLang } from '@/context/LanguageContext';
+import { useLanguage } from '@/context/LanguageContext';
 
 // Custom hook for parallax effect
 const useParallax = (multiplier: number) => {
@@ -10,37 +10,13 @@ const useParallax = (multiplier: number) => {
 };
 
 const Hero = () => {
-  const { language } = useLanguage();
-  const lang = getContentLang(language);
-  
-  const content = {
-    sv: {
-      badge: 'Grundat 2026',
-      title: 'Giftfria Produkter som Faktiskt Fungerar',
-      subtitle: 'Vi är inte det största företaget. Vi är det noggrannaste i vår research. Varje produkt vi säljer är noggrant utvald efter ingrediensanalys, internationella certifieringar och användarrecensioner.',
-      features: [
-        { icon: '🚚', text: 'Leverans i Europa' },
-        { icon: '💬', text: 'Transparent business' },
-        { icon: '✨', text: 'Grundat 2026' },
-      ],
-      ctaPrimary: 'Shoppa giftfritt nu',
-      ctaSecondary: 'Läs mer om oss',
-    },
-    en: {
-      badge: 'Founded 2026',
-      title: 'Toxin-Free Products That Actually Work',
-      subtitle: "We're not the biggest company. We're the most thorough in our research. Every product we sell is carefully selected based on ingredient analysis, international certifications and user reviews.",
-      features: [
-        { icon: '🚚', text: 'European delivery' },
-        { icon: '💬', text: 'Transparent business' },
-        { icon: '✨', text: 'Founded 2026' },
-      ],
-      ctaPrimary: 'Shop toxin-free now',
-      ctaSecondary: 'Read more about us',
-    }
-  };
+  const { t } = useLanguage();
 
-  const t = content[lang];
+  const features = [
+    { icon: '🚚', text: t('hero.feature.delivery') },
+    { icon: '💬', text: t('hero.feature.transparent') },
+    { icon: '✨', text: t('hero.feature.founded') },
+  ];
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -130,7 +106,7 @@ const Hero = () => {
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-sm font-medium text-primary mb-6"
           >
             <Leaf className="w-4 h-4" />
-            <span>{t.badge}</span>
+            <span>{t('hero.badge')}</span>
           </motion.div>
 
           {/* Headline */}
@@ -138,7 +114,7 @@ const Hero = () => {
             variants={itemVariants}
             className="font-display text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-semibold leading-[1.1] mb-5 text-foreground"
           >
-            {t.title}
+            {t('hero.title')}
           </motion.h1>
 
           {/* Subtitle */}
@@ -146,7 +122,7 @@ const Hero = () => {
             variants={itemVariants}
             className="text-base md:text-lg text-muted-foreground max-w-2xl mx-auto mb-8 leading-relaxed"
           >
-            {t.subtitle}
+            {t('hero.subtitle')}
           </motion.p>
 
           {/* Features badges */}
@@ -154,7 +130,7 @@ const Hero = () => {
             variants={itemVariants}
             className="flex flex-wrap justify-center gap-3 mb-8"
           >
-            {t.features.map((feature, index) => (
+            {features.map((feature, index) => (
               <div key={index} className="flex items-center gap-2 text-sm font-medium text-foreground/90 px-4 py-2 bg-secondary/50 rounded-full border border-border/50">
                 <span>{feature.icon}</span>
                 <span>{feature.text}</span>
@@ -172,7 +148,7 @@ const Hero = () => {
               className="h-14 px-10 text-base font-semibold gap-2 rounded-xl shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300 group"
               onClick={() => document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' })}
             >
-              {t.ctaPrimary}
+              {t('hero.cta.primary')}
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </Button>
             <Button
@@ -181,13 +157,13 @@ const Hero = () => {
               className="h-14 px-10 text-base rounded-xl border-2 hover:bg-secondary/50"
               onClick={() => window.location.href = '/about'}
             >
-              {t.ctaSecondary}
+              {t('hero.cta.secondary')}
             </Button>
           </motion.div>
         </motion.div>
       </div>
 
-      {/* Scroll indicator - positioned at bottom of section */}
+      {/* Scroll indicator */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -201,7 +177,7 @@ const Hero = () => {
           onClick={() => document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' })}
         >
           <span className="text-xs text-muted-foreground font-medium">
-            {lang === 'sv' ? 'Scrolla för produkter' : 'Scroll for products'}
+            {t('hero.scroll')}
           </span>
           <div className="w-6 h-10 rounded-full border-2 border-muted-foreground/30 flex items-start justify-center p-1.5">
             <motion.div
