@@ -890,6 +890,72 @@ export type Database = {
         }
         Relationships: []
       }
+      products: {
+        Row: {
+          allow_overselling: boolean
+          badge: string | null
+          category: string | null
+          created_at: string
+          description_en: string | null
+          description_sv: string | null
+          display_order: number | null
+          handle: string | null
+          id: string
+          image_urls: string[] | null
+          is_visible: boolean
+          original_price: number | null
+          price: number
+          stock: number
+          tags: string[] | null
+          title_en: string | null
+          title_sv: string
+          updated_at: string
+          vendor: string | null
+        }
+        Insert: {
+          allow_overselling?: boolean
+          badge?: string | null
+          category?: string | null
+          created_at?: string
+          description_en?: string | null
+          description_sv?: string | null
+          display_order?: number | null
+          handle?: string | null
+          id?: string
+          image_urls?: string[] | null
+          is_visible?: boolean
+          original_price?: number | null
+          price?: number
+          stock?: number
+          tags?: string[] | null
+          title_en?: string | null
+          title_sv: string
+          updated_at?: string
+          vendor?: string | null
+        }
+        Update: {
+          allow_overselling?: boolean
+          badge?: string | null
+          category?: string | null
+          created_at?: string
+          description_en?: string | null
+          description_sv?: string | null
+          display_order?: number | null
+          handle?: string | null
+          id?: string
+          image_urls?: string[] | null
+          is_visible?: boolean
+          original_price?: number | null
+          price?: number
+          stock?: number
+          tags?: string[] | null
+          title_en?: string | null
+          title_sv?: string
+          updated_at?: string
+          vendor?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
