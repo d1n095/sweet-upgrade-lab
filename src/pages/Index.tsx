@@ -16,7 +16,7 @@ import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import { trackPageView } from '@/utils/analytics';
 
 // Lazy load the product grid for better performance
-const ShopifyProductGrid = lazy(() => import('@/components/product/ShopifyProductGrid'));
+const DbProductGrid = lazy(() => import('@/components/product/DbProductGrid'));
 
 const Index = () => {
   const { language } = useLanguage();
@@ -48,7 +48,7 @@ const Index = () => {
         
         {/* Main product grid with lazy loading */}
         <Suspense fallback={<ProductGridSkeleton />}>
-          <ShopifyProductGrid />
+          <DbProductGrid />
         </Suspense>
         
         {/* Shipping info - Transparency about delivery */}

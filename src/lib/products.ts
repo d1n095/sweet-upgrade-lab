@@ -1,0 +1,74 @@
+import { supabase } from '@/integrations/supabase/client';
+
+export interface DbProduct {
+  id: string;
+  title_sv: string;
+  title_en: string | null;
+  description_sv: string | null;
+  description_en: string | null;
+  price: number;
+  original_price: number | null;
+  category: string | null;
+  tags: string[] | null;
+  is_visible: boolean;
+  stock: number;
+  allow_overselling: boolean;
+  image_urls: string[] | null;
+  handle: string | null;
+  badge: 'new' | 'bestseller' | 'sale' | null;
+  vendor: string | null;
+  display_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type DbProductInsert = Omit<DbProduct, 'id' | 'created_at' | 'updated_at' | 'handle'> & {
+  handle?: string;
+};
+
+export const fetchDbProducts = async (adminView = false): Promise<DbProduct[]> => {
+  let query = supabase.from('products').select('*').order('display_order', { ascending: true });
+  if (!adminView) {
+    query = query.eq('is_visible', true);
+  }
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data || []) as DbProduct[];
+};
+
+export const createDbProduct = async (product: DbProductInsert): Promise<DbProduct> => {
+  const { data, error } = await supabase
+    .from('products')
+    .insert([product])
+    .select()
+    .single();
+  if (error) throw error;
+  return data as DbProduct;
+};
+
+export const updateDbProduct = async (id: string, product: Partial<DbProductInsert>): Promise<DbProduct> => {
+  const { data, error } = await supabase
+    .from('products')
+    .update(product)
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as DbProduct;
+};
+
+export const deleteDbProduct = async (id: string): Promise<void> => {
+  const { error } = await supabase.from('products').delete().eq('id', id);
+  if (error) throw error;
+};
+
+export const fetchDbProductByHandle = async (handle: string): Promise<DbProduct | null> => {
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+    .eq('handle', handle)
+    .eq('is_visible', true)
+    .maybeSingle();
+  if (error) throw error;
+  return data as DbProduct | null;
+};

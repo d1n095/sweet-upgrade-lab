@@ -25,7 +25,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import OrderTracker from '@/components/orders/OrderTracker';
-import AdminProductManager from '@/components/admin/AdminProductManager';
+import AdminDbProductManager from '@/components/admin/AdminDbProductManager';
 import AdminInfluencerManager from '@/components/admin/AdminInfluencerManager';
 import AdminAffiliateManager from '@/components/admin/AdminAffiliateManager';
 import AdminPayoutManager from '@/components/admin/AdminPayoutManager';
@@ -705,7 +705,7 @@ const MemberProfile = () => {
                     {/* Products */}
                     <div id="admin-products">
                       <AdminSection title={language === 'sv' ? 'Produkthantering' : 'Product Management'} icon={Boxes} defaultOpen>
-                        <AdminProductManager />
+                        <AdminDbProductManager />
                       </AdminSection>
                     </div>
 

@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
-import ShopifyProductGrid from '@/components/product/ShopifyProductGrid';
+import DbProductGrid from '@/components/product/DbProductGrid';
 import { storeConfig } from '@/config/storeConfig';
 import SEOHead from '@/components/seo/SEOHead';
 
@@ -24,7 +24,6 @@ const Shop = () => {
       
       <main className="pt-24 pb-20">
         <div className="container mx-auto px-4">
-          {/* Page Header */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -38,8 +37,6 @@ const Shop = () => {
                 ? 'Upptäck vårt sortiment av hållbara och naturliga produkter'
                 : 'Discover our range of sustainable and natural products'}
             </p>
-            
-            {/* Delivery info banner */}
             <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-5 py-2.5 text-sm">
               <span className="font-medium">{storeConfig.shipping.deliveryTime[lang]}</span>
               <span className="text-muted-foreground">•</span>
@@ -51,8 +48,7 @@ const Shop = () => {
             </div>
           </motion.div>
 
-          {/* Product Grid - includes its own category filters */}
-          <ShopifyProductGrid />
+          <DbProductGrid />
         </div>
       </main>
 
@@ -62,3 +58,4 @@ const Shop = () => {
 };
 
 export default Shop;
+
