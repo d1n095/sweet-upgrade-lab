@@ -1,5 +1,6 @@
 import * as React from 'react';
-import { DollarSign, Tag, Save, Eye, EyeOff, Boxes, Minus, Plus } from 'lucide-react';
+import { DollarSign, Tag, Save, Eye, EyeOff, Boxes, Minus, Plus, Upload, X, Image } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -24,6 +25,7 @@ export interface ProductFormData {
   isVisible: boolean;
   inventory: number;
   allowOverselling: boolean;
+  imageUrls: string[];
 }
 
 export type ProductCategoryOption = {
@@ -72,6 +74,7 @@ export function AdminProductForm({
   isSubmitting,
   onCancel,
   onSubmit,
+  onImageUpload,
 }: {
   t: AdminProductFormStrings;
   language: string;
@@ -83,8 +86,39 @@ export function AdminProductForm({
   isSubmitting: boolean;
   onCancel: () => void;
   onSubmit: (e: React.FormEvent) => void;
+  onImageUpload?: (urls: string[]) => void;
 }) {
   const currentTags = React.useMemo(() => parseTags(formData.tags), [formData.tags]);
+  const [isUploading, setIsUploading] = React.useState(false);
+
+  const handleImageUpload = React.useCallback(async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setIsUploading(true);
+    const newUrls: string[] = [];
+    try {
+      for (const file of Array.from(files)) {
+        const ext = file.name.split('.').pop();
+        const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const { error } = await supabase.storage.from('product-images').upload(path, file, { upsert: false });
+        if (!error) {
+          const { data } = supabase.storage.from('product-images').getPublicUrl(path);
+          newUrls.push(data.publicUrl);
+        }
+      }
+      if (newUrls.length > 0) {
+        const updated = [...(formData.imageUrls || []), ...newUrls];
+        setFormData(prev => ({ ...prev, imageUrls: updated }));
+        onImageUpload?.(updated);
+      }
+    } finally {
+      setIsUploading(false);
+    }
+  }, [formData.imageUrls, setFormData, onImageUpload]);
+
+  const removeImage = React.useCallback((url: string) => {
+    const updated = (formData.imageUrls || []).filter(u => u !== url);
+    setFormData(prev => ({ ...prev, imageUrls: updated }));
+  }, [formData.imageUrls, setFormData]);
 
   // Keep inventory typing local so the dialog/form doesn't re-render on every keypress
   // (this was causing focus-loss/scroll-jumps in some browsers)
@@ -354,13 +388,50 @@ export function AdminProductForm({
         </div>
       </div>
 
+      {/* Image upload section */}
+      <div className="space-y-2">
+        <Label className="flex items-center gap-2"><Image className="w-4 h-4" /> Produktbilder</Label>
+        <div className="flex flex-wrap gap-2 mb-2">
+          {(formData.imageUrls || []).map((url) => (
+            <div key={url} className="relative w-20 h-20 rounded-md overflow-hidden border border-border group">
+              <img src={url} alt="" className="w-full h-full object-cover" />
+              <button
+                type="button"
+                onClick={() => removeImage(url)}
+                className="absolute top-0.5 right-0.5 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          ))}
+          <label className="w-20 h-20 rounded-md border-2 border-dashed border-border flex flex-col items-center justify-center cursor-pointer hover:bg-secondary/50 transition-colors">
+            {isUploading ? (
+              <span className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+            ) : (
+              <>
+                <Upload className="w-5 h-5 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground mt-1">Ladda upp</span>
+              </>
+            )}
+            <input
+              type="file"
+              accept="image/jpeg,image/jpg,image/png,image/webp"
+              multiple
+              className="hidden"
+              onChange={(e) => handleImageUpload(e.target.files)}
+              disabled={isUploading}
+            />
+          </label>
+        </div>
+      </div>
+
       <div className="flex gap-2 pt-2">
         <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
           {t.cancel}
         </Button>
         <Button
           type="submit"
-          disabled={isSubmitting || !formData.title || (!isEdit && !formData.price)}
+          disabled={isSubmitting || isUploading || !formData.title || (!isEdit && !formData.price)}
           className="flex-1"
         >
           {isSubmitting ? (

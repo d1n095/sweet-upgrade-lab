@@ -76,6 +76,7 @@ const AdminProductManager = () => {
     isVisible: true,
     inventory: 0,
     allowOverselling: false,
+    imageUrls: [],
   });
 
   const { data: products = [], isLoading: productsLoading } = useQuery({
@@ -486,6 +487,7 @@ const AdminProductManager = () => {
       isVisible: true,
       inventory: 0,
       allowOverselling: false,
+      imageUrls: [],
     });
     setSelectedProduct(null);
   };
@@ -513,6 +515,7 @@ const AdminProductManager = () => {
         isVisible: (node.availableForSale as boolean) !== false,
         inventory: 0,
         allowOverselling: false,
+        imageUrls: [],
       });
 
       setIsEditDialogOpen(true);
