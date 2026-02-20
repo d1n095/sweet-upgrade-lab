@@ -115,8 +115,23 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export const LanguageProvider = ({ children }: { children: ReactNode }) => {
-  const [language, setLanguage] = useState<Language>('sv');
+  const [language, setLanguage] = useState<Language>(() => {
+    try {
+      const saved = localStorage.getItem('preferred-language') as Language | null;
+      const valid: Language[] = ['sv', 'en', 'no', 'da', 'de', 'fi', 'nl', 'fr', 'es', 'pl'];
+      return saved && valid.includes(saved) ? saved : 'sv';
+    } catch {
+      return 'sv';
+    }
+  });
   const contentLang = getContentLang(language);
+
+  const handleSetLanguage = (lang: Language) => {
+    try {
+      localStorage.setItem('preferred-language', lang);
+    } catch {}
+    setLanguage(lang);
+  };
 
   const t = (key: string): string => {
     const translation = translations[key];
@@ -134,7 +149,7 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <LanguageContext.Provider value={{ language, contentLang, setLanguage, t }}>
+    <LanguageContext.Provider value={{ language, contentLang, setLanguage: handleSetLanguage, t }}>
       {children}
     </LanguageContext.Provider>
   );
