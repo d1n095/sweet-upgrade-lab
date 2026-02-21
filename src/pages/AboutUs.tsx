@@ -1,13 +1,13 @@
 import { motion } from 'framer-motion';
 import { Leaf, Heart, Shield, Users, Award } from 'lucide-react';
-import { useLanguage, getContentLang } from '@/context/LanguageContext';
+import { useLanguage } from '@/context/LanguageContext';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import SEOHead from '@/components/seo/SEOHead';
 
 const AboutUs = () => {
-  const { language } = useLanguage();
-  const lang = getContentLang(language);
+  const { t, contentLang } = useLanguage();
+  const lang = contentLang;
 
   const getLang = (obj: { sv: string; en: string }) => obj[lang];
 
@@ -76,17 +76,14 @@ const AboutUs = () => {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead
-        title={lang === 'sv' ? 'Om Oss - Vår Historia' : 'About Us - Our Story'}
-        description={lang === 'sv' 
-          ? 'Lär känna 4thepeople - ett europeiskt företag med passion för hållbara och naturliga produkter.'
-          : 'Get to know 4thepeople - a European company with a passion for sustainable and natural products.'}
+        title={t('about.page.ourstory')}
+        description={t('about.page.intro')}
         keywords="om oss, hållbarhet, giftfritt, naturligt, europeiskt företag"
         canonical="/about"
       />
       <Header />
       
       <main className="pt-24 pb-20">
-        {/* Hero Section */}
         <section className="container mx-auto px-4 mb-20">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -95,21 +92,18 @@ const AboutUs = () => {
           >
             <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
               <Leaf className="w-4 h-4" />
-              {lang === 'sv' ? 'Vår Historia' : 'Our Story'}
+              {t('about.page.ourstory')}
             </span>
             <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-semibold mb-6">
-              {lang === 'sv' ? 'Om ' : 'About '}
+              {t('about.page.about')}{' '}
               <span className="text-gradient">4ThePeople</span>
             </h1>
             <p className="text-lg text-muted-foreground leading-relaxed">
-              {lang === 'sv' 
-                ? 'Vi är ett europeiskt företag med en passion för hållbara och naturliga produkter. Vår vision är att göra det enkelt för alla att leva ett renare liv – utan att kompromissa med kvalitet eller stil.'
-                : 'We are a European company with a passion for sustainable and natural products. Our vision is to make it easy for everyone to live a cleaner life – without compromising on quality or style.'}
+              {t('about.page.intro')}
             </p>
           </motion.div>
         </section>
 
-        {/* Values Section */}
         <section className="bg-card border-y border-border/50 py-20 mb-20">
           <div className="container mx-auto px-4">
             <motion.h2
@@ -118,7 +112,7 @@ const AboutUs = () => {
               viewport={{ once: true }}
               className="font-display text-3xl md:text-4xl font-semibold text-center mb-12"
             >
-              {lang === 'sv' ? 'Våra Värderingar' : 'Our Values'}
+              {t('about.page.values')}
             </motion.h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -146,7 +140,6 @@ const AboutUs = () => {
           </div>
         </section>
 
-        {/* Story/Timeline Section */}
         <section className="container mx-auto px-4 mb-20">
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
@@ -154,7 +147,7 @@ const AboutUs = () => {
             viewport={{ once: true }}
             className="font-display text-3xl md:text-4xl font-semibold text-center mb-12"
           >
-            {lang === 'sv' ? 'Vår Resa' : 'Our Journey'}
+            {t('about.page.journey')}
           </motion.h2>
 
           <div className="max-w-2xl mx-auto">
@@ -189,7 +182,6 @@ const AboutUs = () => {
           </div>
         </section>
 
-        {/* Mission Statement */}
         <section className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -199,12 +191,10 @@ const AboutUs = () => {
           >
             <Award className="w-12 h-12 text-primary mx-auto mb-6" />
             <h2 className="font-display text-2xl md:text-3xl font-semibold mb-4">
-              {lang === 'sv' ? 'Vårt Löfte' : 'Our Promise'}
+              {t('about.page.promise')}
             </h2>
             <p className="text-muted-foreground text-lg leading-relaxed">
-              {lang === 'sv'
-                ? 'Vi lovar att alltid prioritera kvalitet, hållbarhet och din hälsa. Varje produkt i vårt sortiment har valts med omsorg för att ge dig det bästa – för dig och för planeten.'
-                : 'We promise to always prioritize quality, sustainability and your health. Every product in our range has been chosen with care to give you the best – for you and for the planet.'}
+              {t('about.page.promisetext')}
             </p>
           </motion.div>
         </section>
