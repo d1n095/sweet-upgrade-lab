@@ -36,7 +36,7 @@ const faqData = [
 ];
 
 const FAQ = () => {
-  const { language } = useLanguage();
+  const { t, language } = useLanguage();
   const lang = getContentLang(language);
 
   return (
@@ -52,13 +52,10 @@ const FAQ = () => {
             <HelpCircle className="w-7 h-7 text-primary" />
           </div>
           <h2 className="font-display text-2xl md:text-3xl font-semibold mb-3">
-            {lang === 'sv' ? 'Vanliga frågor' : 'Frequently Asked Questions'}
+            {t('faq.title')}
           </h2>
           <p className="text-muted-foreground max-w-lg mx-auto">
-            {lang === 'sv' 
-              ? 'Här hittar du svar på de vanligaste frågorna.'
-              : 'Here you\'ll find answers to the most common questions.'
-            }
+            {t('faq.subtitle')}
           </p>
         </motion.div>
 

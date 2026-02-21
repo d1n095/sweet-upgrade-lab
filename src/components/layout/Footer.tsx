@@ -6,83 +6,8 @@ import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import PaymentIcons from '@/components/trust/PaymentIcons';
 
 const Footer = () => {
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   
-  const footerContent = {
-    sv: {
-      quickLinks: 'Snabblänkar',
-      customerService: 'Kundtjänst',
-      payment: 'Betalsätt',
-      followUs: 'Följ oss:',
-      securePayment: 'Säker betalning med SSL',
-      freeShipping: `Fri frakt över ${storeConfig.shipping.freeShippingThreshold} kr`,
-      founded: 'Grundat 2026',
-      responseTime: 'Svar inom 48 timmar',
-      europeanDelivery: 'Leverans i Europa',
-      privacyPolicy: 'Integritetspolicy',
-      terms: 'Villkor',
-      returns: 'Returer'
-    },
-    en: {
-      quickLinks: 'Quick Links',
-      customerService: 'Customer Service',
-      payment: 'Payment',
-      followUs: 'Follow us:',
-      securePayment: 'Secure SSL payment',
-      freeShipping: `Free shipping over ${storeConfig.shipping.freeShippingThreshold} SEK`,
-      founded: 'Founded 2026',
-      responseTime: 'Response within 48 hours',
-      europeanDelivery: 'European delivery',
-      privacyPolicy: 'Privacy Policy',
-      terms: 'Terms',
-      returns: 'Returns'
-    },
-    no: {
-      quickLinks: 'Hurtiglenker',
-      customerService: 'Kundeservice',
-      payment: 'Betaling',
-      followUs: 'Følg oss:',
-      securePayment: 'Sikker betaling med SSL',
-      freeShipping: `Fri frakt over ${storeConfig.shipping.freeShippingThreshold} kr`,
-      founded: 'Grunnlagt 2026',
-      responseTime: 'Svar innen 48 timer',
-      europeanDelivery: 'Europeisk levering',
-      privacyPolicy: 'Personvernerklæring',
-      terms: 'Vilkår',
-      returns: 'Returer'
-    },
-    da: {
-      quickLinks: 'Hurtige links',
-      customerService: 'Kundeservice',
-      payment: 'Betaling',
-      followUs: 'Følg os:',
-      securePayment: 'Sikker betaling med SSL',
-      freeShipping: `Gratis fragt over ${storeConfig.shipping.freeShippingThreshold} kr`,
-      founded: 'Grundlagt 2026',
-      responseTime: 'Svar inden for 48 timer',
-      europeanDelivery: 'Europæisk levering',
-      privacyPolicy: 'Privatlivspolitik',
-      terms: 'Vilkår',
-      returns: 'Returneringer'
-    },
-    de: {
-      quickLinks: 'Schnelllinks',
-      customerService: 'Kundenservice',
-      payment: 'Zahlung',
-      followUs: 'Folgen Sie uns:',
-      securePayment: 'Sichere SSL-Zahlung',
-      freeShipping: `Kostenloser Versand ab ${storeConfig.shipping.freeShippingThreshold} SEK`,
-      founded: 'Gegründet 2026',
-      responseTime: 'Antwort innerhalb von 48 Stunden',
-      europeanDelivery: 'Europäische Lieferung',
-      privacyPolicy: 'Datenschutz',
-      terms: 'AGB',
-      returns: 'Rückgabe'
-    }
-  };
-
-  const fc = footerContent[language as keyof typeof footerContent] || footerContent.en;
-
   const quickLinks = [
     { href: '/shop', label: t('nav.products') },
     { href: '/about', label: t('nav.about') },
@@ -96,8 +21,8 @@ const Footer = () => {
   const customerServiceLinks = [
     { href: '/policies/shipping', label: t('footer.shippinginfo') },
     { href: '/policies/returns', label: t('footer.returns') },
-    { href: '/policies/privacy', label: fc.privacyPolicy },
-    { href: '/policies/terms', label: fc.terms },
+    { href: '/policies/privacy', label: t('footer.privacypolicy') },
+    { href: '/policies/terms', label: t('footer.terms') },
   ];
   
   return (
@@ -118,7 +43,6 @@ const Footer = () => {
               {t('footer.description')}
             </p>
             
-            {/* Contact info */}
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground mb-6">
               <span className="flex items-center gap-1.5">
                 <Mail className="w-4 h-4 text-primary" />
@@ -126,16 +50,15 @@ const Footer = () => {
               </span>
               <span className="flex items-center gap-1.5">
                 <Clock className="w-4 h-4 text-primary" />
-                {fc.responseTime}
+                {t('footer.response')}
               </span>
               <span className="flex items-center gap-1.5">
-                🌍 {fc.europeanDelivery}
+                🌍 {t('footer.europeandelivery')}
               </span>
             </div>
             
-            {/* Social links */}
             <div className="space-y-3">
-              <p className="text-sm font-medium">{fc.followUs}</p>
+              <p className="text-sm font-medium">{t('footer.followus')}</p>
               <div className="flex items-center gap-3">
                 <a
                   href={storeConfig.social.instagram}
@@ -168,7 +91,7 @@ const Footer = () => {
 
           {/* Quick Links */}
           <div>
-            <h4 className="font-display font-semibold text-lg mb-5">{fc.quickLinks}</h4>
+            <h4 className="font-display font-semibold text-lg mb-5">{t('footer.quicklinks')}</h4>
             <ul className="space-y-3 text-sm">
               {quickLinks.map((link) => (
                 <li key={link.href}>
@@ -182,7 +105,7 @@ const Footer = () => {
 
           {/* Customer Service */}
           <div>
-            <h4 className="font-display font-semibold text-lg mb-5">{fc.customerService}</h4>
+            <h4 className="font-display font-semibold text-lg mb-5">{t('footer.customerservice')}</h4>
             <ul className="space-y-3 text-sm">
               {customerServiceLinks.map((link) => (
                 <li key={link.href}>
@@ -196,36 +119,35 @@ const Footer = () => {
 
           {/* Payment Methods */}
           <div>
-            <h4 className="font-display font-semibold text-lg mb-5">{fc.payment}</h4>
+            <h4 className="font-display font-semibold text-lg mb-5">{t('footer.payment')}</h4>
             <div className="space-y-4">
               <PaymentIcons />
               <p className="text-sm text-muted-foreground">
-                🔒 {fc.securePayment}
+                🔒 {t('footer.securepayment')}
               </p>
               <p className="text-sm text-primary font-medium">
-                {fc.freeShipping}
+                {t('footer.freeshipping').replace('{threshold}', String(storeConfig.shipping.freeShippingThreshold))}
               </p>
             </div>
           </div>
         </div>
 
-        {/* Bottom bar */}
         <div className="decorative-line mt-12 mb-8" />
         
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-3">
             <p>© {new Date().getFullYear()} {storeConfig.company.name}. {t('footer.rights')}</p>
-            <span className="text-xs opacity-60">{fc.founded}</span>
+            <span className="text-xs opacity-60">{t('footer.founded')}</span>
           </div>
           <div className="flex items-center gap-6">
             <Link to="/policies/privacy" className="hover:text-foreground transition-colors">
-              {fc.privacyPolicy}
+              {t('footer.privacypolicy')}
             </Link>
             <Link to="/policies/terms" className="hover:text-foreground transition-colors">
-              {fc.terms}
+              {t('footer.terms')}
             </Link>
             <Link to="/policies/returns" className="hover:text-foreground transition-colors">
-              {fc.returns}
+              {t('footer.returnspolicy')}
             </Link>
             <LanguageSwitcher />
           </div>

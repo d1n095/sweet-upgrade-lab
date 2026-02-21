@@ -3,39 +3,14 @@ import { motion } from 'framer-motion';
 import { Mail, Check, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useLanguage, getContentLang } from '@/context/LanguageContext';
+import { useLanguage } from '@/context/LanguageContext';
 import { toast } from 'sonner';
 
 const Newsletter = () => {
-  const { language } = useLanguage();
+  const { t } = useLanguage();
   const [email, setEmail] = useState('');
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-
-  const content = {
-    sv: {
-      title: 'Bli först med erbjudanden',
-      description: 'Prenumerera på vårt nyhetsbrev och få exklusiva erbjudanden och nyheter direkt i din inkorg.',
-      placeholder: 'Din e-postadress',
-      button: 'Prenumerera',
-      loading: 'Skickar...',
-      success: 'Tack för din prenumeration!',
-      successMessage: 'Du får snart ett välkomstmail.',
-      terms: 'Genom att prenumerera godkänner du våra villkor. Avsluta när som helst.'
-    },
-    en: {
-      title: 'Be first with offers',
-      description: 'Subscribe to our newsletter and get exclusive offers and news delivered straight to your inbox.',
-      placeholder: 'Your email address',
-      button: 'Subscribe',
-      loading: 'Sending...',
-      success: 'Thanks for subscribing!',
-      successMessage: "You'll receive a welcome email soon.",
-      terms: 'By subscribing you agree to our terms. Unsubscribe at any time.'
-    }
-  };
-
-  const t = content[getContentLang(language)];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,7 +21,7 @@ const Newsletter = () => {
     setIsLoading(false);
     setIsSubscribed(true);
     setEmail('');
-    toast.success(t.success);
+    toast.success(t('newsletter.success'));
   };
 
   return (
@@ -63,11 +38,11 @@ const Newsletter = () => {
           </div>
           
           <h2 className="font-display text-2xl md:text-3xl font-semibold mb-3">
-            {t.title}
+            {t('newsletter.title')}
           </h2>
           
           <p className="text-muted-foreground mb-8">
-            {t.description}
+            {t('newsletter.description')}
           </p>
 
           {isSubscribed ? (
@@ -79,7 +54,7 @@ const Newsletter = () => {
               <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
                 <Check className="w-4 h-4" />
               </div>
-              {t.successMessage}
+              {t('newsletter.successmessage')}
             </motion.div>
           ) : (
             <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
@@ -87,7 +62,7 @@ const Newsletter = () => {
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
                   type="email"
-                  placeholder={t.placeholder}
+                  placeholder={t('newsletter.placeholder')}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-12 h-12 bg-background border-border rounded-lg"
@@ -100,13 +75,13 @@ const Newsletter = () => {
                 className="h-12 px-6 rounded-lg"
                 disabled={isLoading}
               >
-                {isLoading ? t.loading : t.button}
+                {isLoading ? t('newsletter.sending') : t('newsletter.subscribe')}
               </Button>
             </form>
           )}
           
           <p className="text-xs text-muted-foreground mt-6">
-            {t.terms}
+            {t('newsletter.terms')}
           </p>
         </motion.div>
       </div>

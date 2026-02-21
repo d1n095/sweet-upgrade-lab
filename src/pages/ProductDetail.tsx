@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 
 const ProductDetail = () => {
   const { handle } = useParams<{ handle: string }>();
-  const { language, contentLang } = useLanguage();
+  const { t, contentLang } = useLanguage();
   const lang = contentLang;
   const [product, setProduct] = useState<DbProduct | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -42,7 +42,6 @@ const ProductDetail = () => {
     new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK', minimumFractionDigits: 0 }).format(amount);
 
   const handleAddToCart = () => {
-    // TODO: integrate with cart when Stripe checkout is set up
     setIsAdded(true);
     setTimeout(() => setIsAdded(false), 1500);
   };
@@ -64,11 +63,9 @@ const ProductDetail = () => {
       <div className="min-h-screen bg-background">
         <Header />
         <div className="container mx-auto px-4 py-32 text-center">
-          <h1 className="text-2xl font-bold mb-4">
-            {lang === 'sv' ? 'Produkten hittades inte' : 'Product not found'}
-          </h1>
+          <h1 className="text-2xl font-bold mb-4">{t('product.notfound')}</h1>
           <Link to="/shop">
-            <Button>{lang === 'sv' ? 'Tillbaka till butiken' : 'Back to shop'}</Button>
+            <Button>{t('product.back')}</Button>
           </Link>
         </div>
         <Footer />
@@ -87,10 +84,9 @@ const ProductDetail = () => {
       <Header />
       <main className="pt-24 pb-20">
         <div className="container mx-auto px-4">
-          {/* Back */}
           <Link to="/shop" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-8 transition-colors">
             <ArrowLeft className="w-4 h-4" />
-            {lang === 'sv' ? 'Tillbaka till butiken' : 'Back to shop'}
+            {t('product.back')}
           </Link>
 
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-20">
@@ -105,7 +101,7 @@ const ProductDetail = () => {
                   <img src={imageUrl} alt={title} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-muted-foreground text-sm">
-                    {lang === 'sv' ? 'Ingen bild' : 'No image'}
+                    {t('product.noimage')}
                   </div>
                 )}
                 {product.badge && (
@@ -118,7 +114,6 @@ const ProductDetail = () => {
                   </div>
                 )}
               </motion.div>
-              {/* Thumbnails */}
               {images.length > 1 && (
                 <div className="flex gap-2 overflow-x-auto">
                   {images.map((url, i) => (
@@ -154,20 +149,15 @@ const ProductDetail = () => {
                 )}
               </div>
 
-              {/* Stock */}
               <div className="mb-6">
                 {isOutOfStock ? (
-                  <span className="text-sm text-destructive font-medium">
-                    {lang === 'sv' ? '⚠️ Slut i lager' : '⚠️ Out of stock'}
-                  </span>
+                  <span className="text-sm text-destructive font-medium">{t('product.outofstockwarning')}</span>
                 ) : product.stock <= 5 ? (
                   <span className="text-sm text-yellow-600 dark:text-yellow-400 font-medium">
-                    {lang === 'sv' ? `🔥 Bara ${product.stock} kvar!` : `🔥 Only ${product.stock} left!`}
+                    {t('product.lowstock').replace('{count}', String(product.stock))}
                   </span>
                 ) : (
-                  <span className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">
-                    {lang === 'sv' ? '✓ I lager' : '✓ In stock'}
-                  </span>
+                  <span className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">{t('product.instock')}</span>
                 )}
               </div>
 
@@ -175,9 +165,8 @@ const ProductDetail = () => {
                 <p className="text-muted-foreground text-lg mb-8 leading-relaxed">{description}</p>
               )}
 
-              {/* Quantity */}
               <div className="mb-8">
-                <label className="block text-sm font-medium mb-2">{lang === 'sv' ? 'Antal' : 'Quantity'}</label>
+                <label className="block text-sm font-medium mb-2">{t('product.quantity')}</label>
                 <div className="flex items-center gap-3">
                   <Button variant="outline" size="icon" onClick={() => setQuantity(Math.max(1, quantity - 1))}>
                     <Minus className="w-4 h-4" />
@@ -189,7 +178,6 @@ const ProductDetail = () => {
                 </div>
               </div>
 
-              {/* Add to cart */}
               <Button
                 size="lg"
                 className={`h-14 text-base font-semibold transition-all ${isAdded ? 'bg-green-600 hover:bg-green-600' : ''}`}
@@ -197,28 +185,27 @@ const ProductDetail = () => {
                 disabled={isOutOfStock}
               >
                 {isOutOfStock ? (
-                  lang === 'sv' ? 'Slut i lager' : 'Out of stock'
+                  t('product.outofstock')
                 ) : isAdded ? (
-                  <><Check className="w-5 h-5 mr-2" />{lang === 'sv' ? 'Tillagd i kundvagnen' : 'Added to cart'}</>
+                  <><Check className="w-5 h-5 mr-2" />{t('product.added')}</>
                 ) : (
-                  <><ShoppingCart className="w-5 h-5 mr-2" />{lang === 'sv' ? 'Lägg i kundvagn' : 'Add to cart'}</>
+                  <><ShoppingCart className="w-5 h-5 mr-2" />{t('product.addtocart')}</>
                 )}
               </Button>
 
-              {/* Trust */}
               <div className="mt-8 pt-6 border-t border-border space-y-4">
                 <div className="grid grid-cols-3 gap-4 text-center text-sm">
                   <div className="flex flex-col items-center gap-2">
                     <Shield className="w-5 h-5 text-primary" />
-                    <span className="text-muted-foreground">{lang === 'sv' ? 'Säker betalning' : 'Secure payment'}</span>
+                    <span className="text-muted-foreground">{t('product.securepayment')}</span>
                   </div>
                   <div className="flex flex-col items-center gap-2">
                     <RotateCcw className="w-5 h-5 text-primary" />
-                    <span className="text-muted-foreground">{lang === 'sv' ? '30 dagars öppet köp' : '30-day returns'}</span>
+                    <span className="text-muted-foreground">{t('product.returns')}</span>
                   </div>
                   <div className="flex flex-col items-center gap-2">
                     <Truck className="w-5 h-5 text-primary" />
-                    <span className="text-muted-foreground">{lang === 'sv' ? 'Snabb leverans' : 'Fast delivery'}</span>
+                    <span className="text-muted-foreground">{t('product.fastdelivery')}</span>
                   </div>
                 </div>
                 <PaymentMethods />
@@ -226,10 +213,9 @@ const ProductDetail = () => {
             </motion.div>
           </div>
 
-          {/* Reviews */}
           <div className="mt-20 pt-16 border-t border-border">
             <h2 className="font-display text-2xl md:text-3xl font-semibold mb-8 text-center">
-              {lang === 'sv' ? 'Kundrecensioner' : 'Customer Reviews'}
+              {t('product.reviews')}
             </h2>
             <div className="grid lg:grid-cols-2 gap-10">
               <ReviewList productHandle={handle} limit={5} />

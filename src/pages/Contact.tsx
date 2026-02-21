@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 import SEOHead from '@/components/seo/SEOHead';
 
 const Contact = () => {
-  const { language, contentLang } = useLanguage();
+  const { t, language } = useLanguage();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -25,15 +25,8 @@ const Contact = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
     await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    toast.success(
-      contentLang === 'sv' 
-        ? 'Tack för ditt meddelande! Vi återkommer inom 24 timmar.'
-        : 'Thank you for your message! We\'ll get back to you within 24 hours.'
-    );
-    
+    toast.success(t('contact.thankyou'));
     setFormData({ name: '', email: '', subject: '', message: '' });
     setIsSubmitting(false);
   };
@@ -41,26 +34,26 @@ const Contact = () => {
   const contactInfo = [
     {
       icon: Mail,
-      label: { sv: 'E-post', en: 'Email' },
+      label: t('contact.email'),
       value: storeConfig.contact.email,
       href: `mailto:${storeConfig.contact.email}`,
     },
     {
       icon: Phone,
-      label: { sv: 'Telefon', en: 'Phone' },
+      label: t('contact.name'),
       value: storeConfig.contact.phoneFormatted,
       href: `tel:${storeConfig.contact.phone}`,
     },
     {
       icon: MessageSquare,
-      label: { sv: 'Grundat', en: 'Founded' },
+      label: t('footer.founded'),
       value: '2026',
       href: null,
     },
     {
       icon: Clock,
-      label: { sv: 'Svarstid', en: 'Response time' },
-      value: contentLang === 'sv' ? 'Inom 24 timmar' : 'Within 24 hours',
+      label: t('contact.responsetime'),
+      value: t('contact.within24h'),
       href: null,
     },
   ];
@@ -68,10 +61,8 @@ const Contact = () => {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead
-        title={contentLang === 'sv' ? 'Kontakta Oss' : 'Contact Us'}
-        description={contentLang === 'sv' 
-          ? 'Kontakta 4thepeople - vi svarar inom 24 timmar. Frågor om beställningar, produkter eller samarbete.'
-          : 'Contact 4thepeople - we respond within 24 hours. Questions about orders, products or partnerships.'}
+        title={t('contact.title')}
+        description={t('contact.subtitle')}
         keywords="kontakt, kundservice, support, frågor"
         canonical="/contact"
       />
@@ -86,15 +77,13 @@ const Contact = () => {
           >
             <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
               <MessageSquare className="w-4 h-4" />
-              {contentLang === 'sv' ? 'Kontakta Oss' : 'Contact Us'}
+              {t('contact.title')}
             </span>
             <h1 className="font-display text-4xl md:text-5xl font-semibold mb-4">
-              {contentLang === 'sv' ? 'Hur kan vi hjälpa dig?' : 'How can we help you?'}
+              {t('contact.heading')}
             </h1>
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              {contentLang === 'sv'
-                ? 'Vi finns här för att svara på dina frågor. Hör av dig så återkommer vi så snart som möjligt.'
-                : 'We\'re here to answer your questions. Get in touch and we\'ll get back to you as soon as possible.'}
+              {t('contact.subtitle')}
             </p>
           </motion.div>
 
@@ -106,72 +95,60 @@ const Contact = () => {
             >
               <div className="bg-card border border-border/50 rounded-2xl p-6 md:p-8">
                 <h2 className="font-display text-2xl font-semibold mb-6">
-                  {contentLang === 'sv' ? 'Skicka meddelande' : 'Send a message'}
+                  {t('contact.sendmessage')}
                 </h2>
                 
                 <form onSubmit={handleSubmit} className="space-y-5">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="name">
-                        {contentLang === 'sv' ? 'Namn' : 'Name'}
-                      </Label>
+                      <Label htmlFor="name">{t('contact.name')}</Label>
                       <Input
                         id="name"
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                         required
-                        placeholder={contentLang === 'sv' ? 'Ditt namn' : 'Your name'}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="email">
-                        {contentLang === 'sv' ? 'E-post' : 'Email'}
-                      </Label>
+                      <Label htmlFor="email">{t('contact.email')}</Label>
                       <Input
                         id="email"
                         type="email"
                         value={formData.email}
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                         required
-                        placeholder={contentLang === 'sv' ? 'din@email.se' : 'your@email.com'}
                       />
                     </div>
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="subject">
-                      {contentLang === 'sv' ? 'Ämne' : 'Subject'}
-                    </Label>
+                    <Label htmlFor="subject">{t('contact.subject')}</Label>
                     <Input
                       id="subject"
                       value={formData.subject}
                       onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
                       required
-                      placeholder={contentLang === 'sv' ? 'Vad gäller din fråga?' : 'What is your question about?'}
                     />
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="message">
-                      {contentLang === 'sv' ? 'Meddelande' : 'Message'}
-                    </Label>
+                    <Label htmlFor="message">{t('contact.message')}</Label>
                     <Textarea
                       id="message"
                       value={formData.message}
                       onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                       required
                       rows={5}
-                      placeholder={contentLang === 'sv' ? 'Beskriv hur vi kan hjälpa dig...' : 'Describe how we can help you...'}
                     />
                   </div>
                   
                   <Button type="submit" className="w-full" disabled={isSubmitting}>
                     {isSubmitting ? (
-                      contentLang === 'sv' ? 'Skickar...' : 'Sending...'
+                      t('contact.sending')
                     ) : (
                       <>
                         <Send className="w-4 h-4 mr-2" />
-                        {contentLang === 'sv' ? 'Skicka meddelande' : 'Send message'}
+                        {t('contact.sendmessage')}
                       </>
                     )}
                   </Button>
@@ -187,24 +164,19 @@ const Contact = () => {
             >
               <div className="bg-card border border-border/50 rounded-2xl p-6 md:p-8">
                 <h2 className="font-display text-2xl font-semibold mb-6">
-                  {contentLang === 'sv' ? 'Kontaktinformation' : 'Contact Information'}
+                  {t('contact.info')}
                 </h2>
                 
                 <div className="space-y-6">
-                  {contactInfo.map((item) => (
-                    <div key={item.label.sv} className="flex items-start gap-4">
+                  {contactInfo.map((item, idx) => (
+                    <div key={idx} className="flex items-start gap-4">
                       <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
                         <item.icon className="w-5 h-5 text-primary" />
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground mb-1">
-                          {item.label[contentLang]}
-                        </p>
+                        <p className="text-sm text-muted-foreground mb-1">{item.label}</p>
                         {item.href ? (
-                          <a 
-                            href={item.href}
-                            className="font-medium hover:text-primary transition-colors"
-                          >
+                          <a href={item.href} className="font-medium hover:text-primary transition-colors">
                             {item.value}
                           </a>
                         ) : (
@@ -218,17 +190,13 @@ const Contact = () => {
 
               <div className="bg-gradient-to-br from-primary/10 to-accent/10 rounded-2xl p-6">
                 <h3 className="font-display text-lg font-semibold mb-2">
-                  {contentLang === 'sv' ? 'Vanliga frågor' : 'FAQ'}
+                  {t('faq.title')}
                 </h3>
                 <p className="text-muted-foreground text-sm mb-4">
-                  {contentLang === 'sv'
-                    ? 'Kanske hittar du svaret på din fråga i våra vanliga frågor.'
-                    : 'You might find the answer to your question in our FAQ.'}
+                  {t('contact.faq')}
                 </p>
                 <Button variant="outline" asChild>
-                  <a href="/#faq">
-                    {contentLang === 'sv' ? 'Se vanliga frågor' : 'View FAQ'}
-                  </a>
+                  <a href="/#faq">{t('contact.viewfaq')}</a>
                 </Button>
               </div>
             </motion.div>
