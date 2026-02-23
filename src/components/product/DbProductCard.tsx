@@ -9,6 +9,7 @@ import { Link } from 'react-router-dom';
 import QuantitySelector from './QuantitySelector';
 import WishlistButton from '@/components/wishlist/WishlistButton';
 import { useLanguage, getContentLang } from '@/context/LanguageContext';
+import { Package } from 'lucide-react';
 
 interface DbProductCardProps {
   product: DbProduct;
@@ -17,7 +18,7 @@ interface DbProductCardProps {
 }
 
 const DbProductCard = ({ product, index, compact = false }: DbProductCardProps) => {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const lang = getContentLang(language);
   const { items, addItem } = useCartStore();
   const [isAdded, setIsAdded] = useState(false);
@@ -125,7 +126,7 @@ const DbProductCard = ({ product, index, compact = false }: DbProductCardProps) 
             {quantityInCart > 0 && (
               <div className="absolute bottom-2 left-2 z-10">
                 <Badge className="bg-primary text-primary-foreground text-xs px-2 py-0.5">
-                  {quantityInCart} i korgen
+                  {quantityInCart} {t('product.incart')}
                 </Badge>
               </div>
             )}
@@ -142,8 +143,8 @@ const DbProductCard = ({ product, index, compact = false }: DbProductCardProps) 
                   transition={{ duration: 0.5 }}
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs text-center p-2">
-                  {title}
+                <div className="w-full h-full flex items-center justify-center bg-muted/30">
+                  <Package className="w-8 h-8 text-muted-foreground/30" />
                 </div>
               )}
             </div>
@@ -171,7 +172,7 @@ const DbProductCard = ({ product, index, compact = false }: DbProductCardProps) 
                   disabled={!isAvailable}
                   className={`flex-1 h-7 text-xs transition-all ${isAdded ? 'bg-green-600 hover:bg-green-600' : ''}`}
                 >
-                  {!isAvailable ? 'Slut' : isAdded ? <Check className="w-3 h-3" /> : <><ShoppingCart className="w-3 h-3 mr-1" />Köp</>}
+                  {!isAvailable ? t('product.soldout') : isAdded ? <Check className="w-3 h-3" /> : <><ShoppingCart className="w-3 h-3 mr-1" />{t('product.buy')}</>}
                 </Button>
               </div>
             </div>
@@ -197,7 +198,7 @@ const DbProductCard = ({ product, index, compact = false }: DbProductCardProps) 
             {imageUrl ? (
               <motion.img src={imageUrl} alt={title} loading="lazy" className="w-full h-full object-cover" whileHover={{ scale: 1.1 }} transition={{ duration: 0.5 }} />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-muted-foreground">{title}</div>
+              <div className="w-full h-full flex items-center justify-center bg-muted/30"><Package className="w-10 h-10 text-muted-foreground/30" /></div>
             )}
           </div>
           <div className="flex-1 flex flex-col">
@@ -217,7 +218,7 @@ const DbProductCard = ({ product, index, compact = false }: DbProductCardProps) 
                   disabled={!isAvailable}
                   className={`flex-1 transition-all ${isAdded ? 'bg-green-600 hover:bg-green-600' : ''}`}
                 >
-                  {!isAvailable ? 'Slut i lager' : isAdded ? <><Check className="w-4 h-4 mr-1" />Tillagd</> : <><ShoppingCart className="w-4 h-4 mr-1" />Köp</>}
+                  {!isAvailable ? t('product.outofstock') : isAdded ? <><Check className="w-4 h-4 mr-1" />{t('product.added')}</> : <><ShoppingCart className="w-4 h-4 mr-1" />{t('product.buy')}</>}
                 </Button>
               </div>
             </div>
