@@ -80,16 +80,21 @@ const DbProductGrid = () => {
   }, [searchFiltered, sortOption]);
 
   const sortOptions = [
-    { value: 'default', label: lang === 'sv' ? 'Standard' : 'Default' },
-    { value: 'price-asc', label: lang === 'sv' ? 'Pris: Lågt till högt' : 'Price: Low to High' },
-    { value: 'price-desc', label: lang === 'sv' ? 'Pris: Högt till lågt' : 'Price: High to Low' },
-    { value: 'name-asc', label: lang === 'sv' ? 'Namn: A-Ö' : 'Name: A-Z' },
-    { value: 'name-desc', label: lang === 'sv' ? 'Namn: Ö-A' : 'Name: Z-A' },
+    { value: 'default', label: t('sort.default') },
+    { value: 'price-asc', label: t('sort.pricelow') },
+    { value: 'price-desc', label: t('sort.pricehigh') },
+    { value: 'name-asc', label: t('sort.nameasc') },
+    { value: 'name-desc', label: t('sort.namedesc') },
   ];
 
   return (
-    <section id="products" className="relative overflow-hidden py-8">
+    <section id="products" className="relative overflow-hidden py-12 md:py-16">
       <div className="container mx-auto px-4 relative z-10">
+        {/* Section heading */}
+        <div className="text-center mb-8">
+          <h2 className="font-display text-2xl md:text-3xl font-semibold mb-2">{t('products.title')}</h2>
+        </div>
+
         {/* Category Filters */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -126,7 +131,7 @@ const DbProductGrid = () => {
             <Select value={sortOption} onValueChange={(v) => setSortOption(v as SortOption)}>
               <SelectTrigger className="w-[200px] bg-card border-border/60 rounded-xl h-11">
                 <ArrowUpDown className="w-4 h-4 mr-2 text-muted-foreground" />
-                <SelectValue placeholder={lang === 'sv' ? 'Sortera' : 'Sort'} />
+                <SelectValue placeholder={t('sort.label')} />
               </SelectTrigger>
               <SelectContent className="bg-card border-border rounded-xl">
                 {sortOptions.map(o => (
@@ -164,16 +169,14 @@ const DbProductGrid = () => {
             </div>
             <h3 className="font-display text-xl font-semibold mb-3">{t('products.noproducts')}</h3>
             <p className="text-muted-foreground text-center max-w-md">
-              {lang === 'sv'
-                ? 'Inga produkter hittades. Lägg till produkter via adminpanelen!'
-                : 'No products found. Add products via the admin panel!'}
+              {t('products.noproducts')}
             </p>
           </motion.div>
         )}
 
         {/* Grid */}
         {!isLoading && sortedProducts.length > 0 && (
-          <motion.div layout className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+          <motion.div layout className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
             <AnimatePresence mode="popLayout">
               {sortedProducts.map((product, index) => (
                 <motion.div

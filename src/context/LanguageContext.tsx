@@ -173,6 +173,31 @@ export const translations: Translations = {
   'footer.privacypolicy': { sv: 'Integritetspolicy', en: 'Privacy Policy', no: 'Personvernerklæring', da: 'Privatlivspolitik', de: 'Datenschutz', fi: 'Tietosuojakäytäntö', nl: 'Privacybeleid', fr: 'Politique de confidentialité', es: 'Política de privacidad', pl: 'Polityka prywatności' },
   'footer.terms': { sv: 'Villkor', en: 'Terms', no: 'Vilkår', da: 'Vilkår', de: 'AGB', fi: 'Ehdot', nl: 'Voorwaarden', fr: 'Conditions', es: 'Términos', pl: 'Regulamin' },
   'footer.returnspolicy': { sv: 'Returer', en: 'Returns', no: 'Returer', da: 'Returneringer', de: 'Rückgabe', fi: 'Palautukset', nl: 'Retourneren', fr: 'Retours', es: 'Devoluciones', pl: 'Zwroty' },
+
+  // Trust badges
+  'trust.founded': { sv: 'Grundat 2026', en: 'Founded 2026', no: 'Grunnlagt 2026', da: 'Grundlagt 2026', de: 'Gegründet 2026', fi: 'Perustettu 2026', nl: 'Opgericht 2026', fr: 'Fondé en 2026', es: 'Fundado en 2026', pl: 'Założony w 2026' },
+  'trust.founded.desc': { sv: 'Transparent business', en: 'Transparent business', no: 'Transparent business', da: 'Transparent business', de: 'Transparentes Geschäft', fi: 'Läpinäkyvä', nl: 'Transparant', fr: 'Transparent', es: 'Transparente', pl: 'Przejrzysty' },
+  'trust.delivery': { sv: 'Leverans i Europa', en: 'European delivery', no: 'Levering i Europa', da: 'Levering i Europa', de: 'Lieferung in Europa', fi: 'Toimitus Euroopassa', nl: 'Levering in Europa', fr: 'Livraison en Europe', es: 'Entrega en Europa', pl: 'Dostawa w Europie' },
+  'trust.delivery.desc': { sv: 'Gratis över 500 kr', en: 'Free over 500 SEK', no: 'Gratis over 500 kr', da: 'Gratis over 500 kr', de: 'Kostenlos ab 500 SEK', fi: 'Ilmainen yli 500 kr', nl: 'Gratis boven 500 SEK', fr: 'Gratuit dès 500 SEK', es: 'Gratis desde 500 SEK', pl: 'Darmowa od 500 SEK' },
+  'trust.payment': { sv: 'Säkra betalningar', en: 'Secure payments', no: 'Sikre betalinger', da: 'Sikre betalinger', de: 'Sichere Zahlungen', fi: 'Turvalliset maksut', nl: 'Veilige betalingen', fr: 'Paiements sécurisés', es: 'Pagos seguros', pl: 'Bezpieczne płatności' },
+  'trust.payment.desc': { sv: 'Köparskydd via Klarna', en: 'Buyer protection via Klarna', no: 'Kjøperbeskyttelse via Klarna', da: 'Købersbeskyttelse via Klarna', de: 'Käuferschutz via Klarna', fi: 'Ostajan suoja Klarnan kautta', nl: 'Kopersbescherming via Klarna', fr: 'Protection acheteur via Klarna', es: 'Protección al comprador vía Klarna', pl: 'Ochrona kupującego przez Klarna' },
+  'trust.support': { sv: 'Personlig support', en: 'Personal support', no: 'Personlig support', da: 'Personlig support', de: 'Persönlicher Support', fi: 'Henkilökohtainen tuki', nl: 'Persoonlijke ondersteuning', fr: 'Support personnel', es: 'Soporte personal', pl: 'Wsparcie osobiste' },
+  'trust.support.desc': { sv: 'Svar inom 24h', en: 'Reply within 24h', no: 'Svar innen 24t', da: 'Svar inden 24t', de: 'Antwort innerhalb 24h', fi: 'Vastaus 24h sisällä', nl: 'Antwoord binnen 24u', fr: 'Réponse sous 24h', es: 'Respuesta en 24h', pl: 'Odpowiedź w 24h' },
+  'trust.guarantee': { sv: 'Nöjdhetsgaranti', en: 'Satisfaction guarantee', no: 'Fornøydhetsgaranti', da: 'Tilfredshedsgaranti', de: 'Zufriedenheitsgarantie', fi: 'Tyytyväisyystakuu', nl: 'Tevredenheidsgarantie', fr: 'Garantie de satisfaction', es: 'Garantía de satisfacción', pl: 'Gwarancja satysfakcji' },
+  'trust.guarantee.desc': { sv: '30 dagars öppet köp', en: '30-day returns', no: '30 dagers returrett', da: '30 dages returret', de: '30 Tage Rückgabe', fi: '30 päivän palautusoikeus', nl: '30 dagen retour', fr: 'Retour sous 30 jours', es: 'Devolución 30 días', pl: '30 dni na zwrot' },
+
+  // Product card
+  'product.buy': { sv: 'Köp', en: 'Buy', no: 'Kjøp', da: 'Køb', de: 'Kaufen', fi: 'Osta', nl: 'Koop', fr: 'Acheter', es: 'Comprar', pl: 'Kup' },
+  'product.soldout': { sv: 'Slut', en: 'Sold out', no: 'Utsolgt', da: 'Udsolgt', de: 'Ausverkauft', fi: 'Loppuunmyyty', nl: 'Uitverkocht', fr: 'Épuisé', es: 'Agotado', pl: 'Wyprzedane' },
+  'product.incart': { sv: 'i korgen', en: 'in cart', no: 'i kurven', da: 'i kurven', de: 'im Korb', fi: 'korissa', nl: 'in wagen', fr: 'au panier', es: 'en carrito', pl: 'w koszyku' },
+
+  // Sort options
+  'sort.default': { sv: 'Standard', en: 'Default', no: 'Standard', da: 'Standard', de: 'Standard', fi: 'Oletus', nl: 'Standaard', fr: 'Par défaut', es: 'Predeterminado', pl: 'Domyślne' },
+  'sort.pricelow': { sv: 'Pris: Lågt till högt', en: 'Price: Low to High', no: 'Pris: Lav til Høy', da: 'Pris: Lav til Høj', de: 'Preis: Niedrig bis Hoch', fi: 'Hinta: Matala ensin', nl: 'Prijs: Laag naar Hoog', fr: 'Prix: Croissant', es: 'Precio: Menor a Mayor', pl: 'Cena: Od najniższej' },
+  'sort.pricehigh': { sv: 'Pris: Högt till lågt', en: 'Price: High to Low', no: 'Pris: Høy til Lav', da: 'Pris: Høj til Lav', de: 'Preis: Hoch bis Niedrig', fi: 'Hinta: Korkea ensin', nl: 'Prijs: Hoog naar Laag', fr: 'Prix: Décroissant', es: 'Precio: Mayor a Menor', pl: 'Cena: Od najwyższej' },
+  'sort.nameasc': { sv: 'Namn: A-Ö', en: 'Name: A-Z', no: 'Navn: A-Å', da: 'Navn: A-Å', de: 'Name: A-Z', fi: 'Nimi: A-Ö', nl: 'Naam: A-Z', fr: 'Nom: A-Z', es: 'Nombre: A-Z', pl: 'Nazwa: A-Z' },
+  'sort.namedesc': { sv: 'Namn: Ö-A', en: 'Name: Z-A', no: 'Navn: Å-A', da: 'Navn: Å-A', de: 'Name: Z-A', fi: 'Nimi: Ö-A', nl: 'Naam: Z-A', fr: 'Nom: Z-A', es: 'Nombre: Z-A', pl: 'Nazwa: Z-A' },
+  'sort.label': { sv: 'Sortera', en: 'Sort', no: 'Sorter', da: 'Sorter', de: 'Sortieren', fi: 'Järjestä', nl: 'Sorteer', fr: 'Trier', es: 'Ordenar', pl: 'Sortuj' },
 };
 
 interface LanguageContextType {
