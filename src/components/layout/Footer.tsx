@@ -13,12 +13,10 @@ const Footer = () => {
     { href: '/about', label: t('nav.about') },
     { href: '/contact', label: t('nav.contact') },
     { href: '/track-order', label: t('nav.trackorder') },
-    { href: '/business', label: t('nav.business') },
     { href: '/affiliate', label: t('nav.partnership') },
-    { href: '/suggest-product', label: t('nav.suggestproduct') },
   ];
 
-  const customerServiceLinks = [
+  const legalLinks = [
     { href: '/policies/shipping', label: t('footer.shippinginfo') },
     { href: '/policies/returns', label: t('footer.returns') },
     { href: '/policies/privacy', label: t('footer.privacypolicy') },
@@ -26,76 +24,41 @@ const Footer = () => {
   ];
   
   return (
-    <footer className="bg-card border-t border-border/50 relative overflow-hidden">
-      <div className="container mx-auto px-4 py-16 md:py-20 relative z-10">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 md:gap-12">
+    <footer className="border-t border-border/50">
+      <div className="container mx-auto px-4 py-12 md:py-16">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
           {/* Brand */}
-          <div className="lg:col-span-1">
-            <Link to="/" className="flex items-center gap-3 mb-5">
-              <div className="w-11 h-11 rounded-xl bg-gradient-accent flex items-center justify-center">
-                <Leaf className="w-6 h-6 text-accent-foreground" />
+          <div className="col-span-2 md:col-span-1">
+            <Link to="/" className="flex items-center gap-2.5 mb-4">
+              <div className="w-8 h-8 rounded-lg bg-gradient-accent flex items-center justify-center">
+                <Leaf className="w-4 h-4 text-accent-foreground" />
               </div>
-              <span className="font-display text-xl font-semibold">
+              <span className="text-base font-bold">
                 4The<span className="text-gradient">People</span>
               </span>
             </Link>
-            <p className="text-muted-foreground text-sm leading-relaxed mb-6">
+            <p className="text-xs text-muted-foreground leading-relaxed mb-4 max-w-[200px]">
               {t('footer.description')}
             </p>
-            
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground mb-6">
-              <span className="flex items-center gap-1.5">
-                <Mail className="w-4 h-4 text-primary" />
-                {storeConfig.contact.email}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Clock className="w-4 h-4 text-primary" />
-                {t('footer.response')}
-              </span>
-              <span className="flex items-center gap-1.5">
-                🌍 {t('footer.europeandelivery')}
-              </span>
-            </div>
-            
-            <div className="space-y-3">
-              <p className="text-sm font-medium">{t('footer.followus')}</p>
-              <div className="flex items-center gap-3">
-                <a
-                  href={storeConfig.social.instagram}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="Instagram"
-                  className="w-10 h-10 rounded-xl bg-secondary/50 hover:bg-primary/10 flex items-center justify-center text-muted-foreground hover:text-primary transition-all duration-200"
-                >
-                  <Instagram className="w-5 h-5" />
-                </a>
-                <a
-                  href={storeConfig.social.facebook}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="Facebook"
-                  className="w-10 h-10 rounded-xl bg-secondary/50 hover:bg-primary/10 flex items-center justify-center text-muted-foreground hover:text-primary transition-all duration-200"
-                >
-                  <Facebook className="w-5 h-5" />
-                </a>
-                <Link
-                  to="/#newsletter"
-                  aria-label="Newsletter"
-                  className="w-10 h-10 rounded-xl bg-secondary/50 hover:bg-primary/10 flex items-center justify-center text-muted-foreground hover:text-primary transition-all duration-200"
-                >
-                  <Send className="w-5 h-5" />
-                </Link>
-              </div>
+            <div className="flex items-center gap-2">
+              <a href={storeConfig.social.instagram} target="_blank" rel="noopener noreferrer" aria-label="Instagram"
+                className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
+                <Instagram className="w-4 h-4" />
+              </a>
+              <a href={storeConfig.social.facebook} target="_blank" rel="noopener noreferrer" aria-label="Facebook"
+                className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
+                <Facebook className="w-4 h-4" />
+              </a>
             </div>
           </div>
 
           {/* Quick Links */}
           <div>
-            <h4 className="font-display font-semibold text-lg mb-5">{t('footer.quicklinks')}</h4>
-            <ul className="space-y-3 text-sm">
+            <h4 className="text-xs font-semibold uppercase tracking-wider mb-4">{t('footer.quicklinks')}</h4>
+            <ul className="space-y-2">
               {quickLinks.map((link) => (
                 <li key={link.href}>
-                  <Link to={link.href} className="text-muted-foreground hover:text-foreground transition-colors">
+                  <Link to={link.href} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
                     {link.label}
                   </Link>
                 </li>
@@ -103,13 +66,13 @@ const Footer = () => {
             </ul>
           </div>
 
-          {/* Customer Service */}
+          {/* Legal */}
           <div>
-            <h4 className="font-display font-semibold text-lg mb-5">{t('footer.customerservice')}</h4>
-            <ul className="space-y-3 text-sm">
-              {customerServiceLinks.map((link) => (
+            <h4 className="text-xs font-semibold uppercase tracking-wider mb-4">{t('footer.customerservice')}</h4>
+            <ul className="space-y-2">
+              {legalLinks.map((link) => (
                 <li key={link.href}>
-                  <Link to={link.href} className="text-muted-foreground hover:text-foreground transition-colors">
+                  <Link to={link.href} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
                     {link.label}
                   </Link>
                 </li>
@@ -117,38 +80,30 @@ const Footer = () => {
             </ul>
           </div>
 
-          {/* Payment Methods */}
+          {/* Payment & Contact */}
           <div>
-            <h4 className="font-display font-semibold text-lg mb-5">{t('footer.payment')}</h4>
-            <div className="space-y-4">
+            <h4 className="text-xs font-semibold uppercase tracking-wider mb-4">{t('footer.payment')}</h4>
+            <div className="space-y-3">
               <PaymentIcons />
-              <p className="text-sm text-muted-foreground">
-                🔒 {t('footer.securepayment')}
-              </p>
-              <p className="text-sm text-primary font-medium">
-                {t('footer.freeshipping').replace('{threshold}', String(storeConfig.shipping.freeShippingThreshold))}
-              </p>
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Mail className="w-3 h-3" />
+                {storeConfig.contact.email}
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Clock className="w-3 h-3" />
+                {t('footer.response')}
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="decorative-line mt-12 mb-8" />
+        <div className="decorative-line mt-10 mb-6" />
         
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
-          <div className="flex items-center gap-3">
-            <p>© {new Date().getFullYear()} {storeConfig.company.name}. {t('footer.rights')}</p>
-            <span className="text-xs opacity-60">{t('footer.founded')}</span>
-          </div>
-          <div className="flex items-center gap-6">
-            <Link to="/policies/privacy" className="hover:text-foreground transition-colors">
-              {t('footer.privacypolicy')}
-            </Link>
-            <Link to="/policies/terms" className="hover:text-foreground transition-colors">
-              {t('footer.terms')}
-            </Link>
-            <Link to="/policies/returns" className="hover:text-foreground transition-colors">
-              {t('footer.returnspolicy')}
-            </Link>
+        <div className="flex flex-col md:flex-row items-center justify-between gap-3 text-[11px] text-muted-foreground">
+          <p>© {new Date().getFullYear()} {storeConfig.company.name}. {t('footer.rights')}</p>
+          <div className="flex items-center gap-4">
+            <Link to="/policies/privacy" className="hover:text-foreground transition-colors">{t('footer.privacypolicy')}</Link>
+            <Link to="/policies/terms" className="hover:text-foreground transition-colors">{t('footer.terms')}</Link>
             <LanguageSwitcher />
           </div>
         </div>
