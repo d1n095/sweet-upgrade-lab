@@ -1,6 +1,5 @@
 import { motion } from 'framer-motion';
 import { useLanguage, getContentLang } from '@/context/LanguageContext';
-import { HelpCircle } from 'lucide-react';
 import {
   Accordion,
   AccordionContent,
@@ -19,7 +18,7 @@ const faqData = [
   },
   {
     question: { sv: 'Är produkterna verkligen giftfria?', en: 'Are the products really toxin-free?' },
-    answer: { sv: 'Vi väljer noggrant ut alla våra produkter och säkerställer att de är fria från skadliga kemikalier. Vi testar varje produkt själva innan vi lägger den i sortimentet.', en: 'We carefully select all our products and ensure they are free from harmful chemicals. We test every product ourselves before adding it to our range.' }
+    answer: { sv: 'Vi väljer noggrant ut alla våra produkter och säkerställer att de är fria från skadliga kemikalier. Vi granskar internationella certifieringar och globala recensioner noggrant.', en: 'We carefully select all our products and ensure they are free from harmful chemicals. We thoroughly review international certifications and global reviews.' }
   },
   {
     question: { sv: 'Vilka betalningsalternativ finns?', en: 'What payment options are available?' },
@@ -31,7 +30,7 @@ const faqData = [
   },
   {
     question: { sv: 'Varför är leveranstiden längre än vanliga butiker?', en: 'Why is the delivery time longer than regular stores?' },
-    answer: { sv: 'Vi samarbetar med pålitliga leverantörer i EU för att kunna erbjuda kvalitetsprodukter till bra priser. Genom att inte ha ett stort mellanlager kan vi hålla nere kostnaderna och erbjuda dig bättre priser.', en: 'We work with reliable suppliers in the EU to offer quality products at good prices. By not having a large warehouse, we can keep costs down and offer you better prices.' }
+    answer: { sv: 'Vi samarbetar med pålitliga leverantörer i EU för att kunna erbjuda kvalitetsprodukter till bra priser. Genom att inte ha ett stort mellanlager kan vi hålla nere kostnaderna.', en: 'We work with reliable suppliers in the EU to offer quality products at good prices. By not maintaining a large warehouse, we keep costs down.' }
   }
 ];
 
@@ -40,43 +39,40 @@ const FAQ = () => {
   const lang = getContentLang(language);
 
   return (
-    <section id="faq" className="py-16 md:py-20 bg-background">
+    <section id="faq" className="py-16 md:py-20 bg-secondary/20">
       <div className="container mx-auto px-4">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="text-center mb-10"
+          className="text-center mb-8"
         >
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-primary/10 mb-6">
-            <HelpCircle className="w-7 h-7 text-primary" />
-          </div>
-          <h2 className="font-display text-2xl md:text-3xl font-semibold mb-3">
+          <h2 className="text-2xl md:text-3xl font-bold mb-2">
             {t('faq.title')}
           </h2>
-          <p className="text-muted-foreground max-w-lg mx-auto">
+          <p className="text-sm text-muted-foreground">
             {t('faq.subtitle')}
           </p>
         </motion.div>
 
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ delay: 0.1 }}
           className="max-w-2xl mx-auto"
         >
-          <Accordion type="single" collapsible className="space-y-3">
+          <Accordion type="single" collapsible className="space-y-2">
             {faqData.map((faq, index) => (
               <AccordionItem 
                 key={index} 
                 value={`item-${index}`}
-                className="bg-secondary/50 border border-border rounded-lg px-5 overflow-hidden"
+                className="bg-card border border-border rounded-xl px-5 overflow-hidden"
               >
-                <AccordionTrigger className="text-left font-medium text-base hover:text-primary transition-colors py-4 [&[data-state=open]]:text-primary">
+                <AccordionTrigger className="text-left font-medium text-sm hover:text-accent transition-colors py-4 [&[data-state=open]]:text-accent">
                   {faq.question[lang] || faq.question.en}
                 </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground pb-4 leading-relaxed">
+                <AccordionContent className="text-sm text-muted-foreground pb-4 leading-relaxed">
                   {faq.answer[lang] || faq.answer.en}
                 </AccordionContent>
               </AccordionItem>

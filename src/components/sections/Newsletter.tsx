@@ -15,7 +15,6 @@ const Newsletter = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
-
     setIsLoading(true);
     await new Promise(resolve => setTimeout(resolve, 1000));
     setIsLoading(false);
@@ -25,23 +24,21 @@ const Newsletter = () => {
   };
 
   return (
-    <section className="py-16 md:py-20 bg-primary/5 border-t border-border">
+    <section id="newsletter" className="py-16 md:py-20 bg-secondary/30 border-t border-border/50">
       <div className="container mx-auto px-4">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="max-w-xl mx-auto text-center"
+          className="max-w-md mx-auto text-center"
         >
-          <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
-            <Bell className="w-7 h-7 text-primary" />
-          </div>
+          <Bell className="w-5 h-5 text-accent mx-auto mb-4" />
           
-          <h2 className="font-display text-2xl md:text-3xl font-semibold mb-3">
+          <h2 className="text-xl md:text-2xl font-bold mb-2">
             {t('newsletter.title')}
           </h2>
           
-          <p className="text-muted-foreground mb-8">
+          <p className="text-sm text-muted-foreground mb-6">
             {t('newsletter.description')}
           </p>
 
@@ -49,38 +46,35 @@ const Newsletter = () => {
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="inline-flex items-center gap-3 px-6 py-4 rounded-xl bg-primary/10 border border-primary/20 text-primary font-medium"
+              className="inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-accent/10 border border-accent/20 text-accent text-sm font-medium"
             >
-              <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                <Check className="w-4 h-4" />
-              </div>
+              <Check className="w-4 h-4" />
               {t('newsletter.successmessage')}
             </motion.div>
           ) : (
-            <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
+            <form onSubmit={handleSubmit} className="flex gap-2">
               <div className="relative flex-1">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   type="email"
                   placeholder={t('newsletter.placeholder')}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="pl-12 h-12 bg-background border-border rounded-lg"
+                  className="pl-10 h-10 bg-background border-border rounded-xl text-sm"
                   required
                 />
               </div>
               <Button 
                 type="submit" 
-                size="lg" 
-                className="h-12 px-6 rounded-lg"
+                className="h-10 px-5 rounded-xl text-sm"
                 disabled={isLoading}
               >
-                {isLoading ? t('newsletter.sending') : t('newsletter.subscribe')}
+                {isLoading ? '...' : t('newsletter.subscribe')}
               </Button>
             </form>
           )}
           
-          <p className="text-xs text-muted-foreground mt-6">
+          <p className="text-[10px] text-muted-foreground mt-4">
             {t('newsletter.terms')}
           </p>
         </motion.div>

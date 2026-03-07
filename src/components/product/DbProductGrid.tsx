@@ -44,10 +44,8 @@ const DbProductGrid = () => {
     load();
   }, [t]);
 
-  // Filter by category
   const categoryFiltered = useMemo(() => {
     if (activeCategory === 'all') return products;
-    // Match product.category to category query
     const cat = categories.find(c => c.id === activeCategory);
     if (!cat || !cat.query) return products;
     const match = cat.query.match(/product_type:"?([^"&\s]+)"?/);
@@ -56,7 +54,6 @@ const DbProductGrid = () => {
     return products.filter(p => (p.category || '').toLowerCase() === type);
   }, [products, activeCategory]);
 
-  // Filter by search
   const searchFiltered = useMemo(() => {
     if (!searchQuery.trim()) return categoryFiltered;
     const q = searchQuery.toLowerCase();
@@ -67,7 +64,6 @@ const DbProductGrid = () => {
     );
   }, [categoryFiltered, searchQuery]);
 
-  // Sort
   const sortedProducts = useMemo(() => {
     const sorted = [...searchFiltered];
     switch (sortOption) {
@@ -88,104 +84,84 @@ const DbProductGrid = () => {
   ];
 
   return (
-    <section id="products" className="relative overflow-hidden py-12 md:py-16">
-      <div className="container mx-auto px-4 relative z-10">
-        {/* Section heading */}
-        <div className="text-center mb-8">
-          <h2 className="font-display text-2xl md:text-3xl font-semibold mb-2">{t('products.title')}</h2>
-        </div>
-
-        {/* Category Filters */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="flex flex-wrap justify-center gap-3 mb-8"
-        >
-          {categories.map((category) => {
-            const Icon = category.icon;
-            const isActive = activeCategory === category.id;
-            return (
-              <motion.button
-                key={category.id}
-                onClick={() => setActiveCategory(category.id)}
-                whileHover={{ scale: 1.05, y: -2 }}
-                whileTap={{ scale: 0.98 }}
-                className={cn(
-                  "flex items-center gap-2.5 px-5 py-3 rounded-full text-sm font-medium transition-all duration-300",
-                  isActive
-                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25"
-                    : "bg-card hover:bg-secondary hover:shadow-md border border-border/60 text-muted-foreground hover:text-foreground hover:border-primary/30"
-                )}
-              >
-                <Icon className="w-4 h-4" />
-                <span>{category.name[lang] || category.name.en}</span>
-              </motion.button>
-            );
-          })}
-        </motion.div>
-
-        {/* Sort */}
-        {!isLoading && products.length > 0 && (
-          <div className="flex justify-end mb-8">
+    <section id="products" className="py-16 md:py-20">
+      <div className="container mx-auto px-4">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8">
+          <div>
+            <h2 className="text-2xl md:text-3xl font-bold">{t('products.title')}</h2>
+          </div>
+          {!isLoading && products.length > 0 && (
             <Select value={sortOption} onValueChange={(v) => setSortOption(v as SortOption)}>
-              <SelectTrigger className="w-[200px] bg-card border-border/60 rounded-xl h-11">
-                <ArrowUpDown className="w-4 h-4 mr-2 text-muted-foreground" />
+              <SelectTrigger className="w-[180px] bg-card border-border rounded-xl h-9 text-xs">
+                <ArrowUpDown className="w-3.5 h-3.5 mr-1.5 text-muted-foreground" />
                 <SelectValue placeholder={t('sort.label')} />
               </SelectTrigger>
               <SelectContent className="bg-card border-border rounded-xl">
                 {sortOptions.map(o => (
-                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          </div>
-        )}
+          )}
+        </div>
+
+        {/* Category Filters */}
+        <div className="flex flex-wrap gap-2 mb-8">
+          {categories.map((category) => {
+            const Icon = category.icon;
+            const isActive = activeCategory === category.id;
+            return (
+              <button
+                key={category.id}
+                onClick={() => setActiveCategory(category.id)}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium transition-all duration-200",
+                  isActive
+                    ? "bg-foreground text-background"
+                    : "bg-secondary hover:bg-secondary/80 text-muted-foreground hover:text-foreground border border-transparent"
+                )}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span>{category.name[lang] || category.name.en}</span>
+              </button>
+            );
+          })}
+        </div>
 
         {/* Loading */}
         {isLoading && (
-          <div className="flex flex-col items-center justify-center py-24">
-            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
-              <Loader2 className="w-8 h-8 text-primary animate-spin" />
-            </div>
-            <p className="text-muted-foreground font-medium">{t('products.loading')}</p>
+          <div className="flex flex-col items-center justify-center py-20">
+            <Loader2 className="w-6 h-6 text-muted-foreground animate-spin mb-3" />
+            <p className="text-sm text-muted-foreground">{t('products.loading')}</p>
           </div>
         )}
 
         {/* Error */}
         {error && !isLoading && (
-          <div className="text-center py-16 text-destructive">{error}</div>
+          <div className="text-center py-16 text-sm text-destructive">{error}</div>
         )}
 
         {/* Empty */}
         {!isLoading && !error && sortedProducts.length === 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col items-center justify-center py-24"
-          >
-            <div className="w-20 h-20 rounded-2xl bg-secondary flex items-center justify-center mb-6">
-              <Package className="w-10 h-10 text-muted-foreground/40" />
-            </div>
-            <h3 className="font-display text-xl font-semibold mb-3">{t('products.noproducts')}</h3>
-            <p className="text-muted-foreground text-center max-w-md">
-              {t('products.noproducts')}
-            </p>
-          </motion.div>
+          <div className="flex flex-col items-center justify-center py-20">
+            <Package className="w-10 h-10 text-muted-foreground/30 mb-4" />
+            <p className="font-semibold text-sm mb-1">{t('products.noproducts')}</p>
+          </div>
         )}
 
         {/* Grid */}
         {!isLoading && sortedProducts.length > 0 && (
-          <motion.div layout className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+          <motion.div layout className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5">
             <AnimatePresence mode="popLayout">
               {sortedProducts.map((product, index) => (
                 <motion.div
                   key={product.id}
                   layout
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ duration: 0.4, delay: index * 0.05 }}
+                  transition={{ duration: 0.3 }}
                 >
                   <DbProductCard product={product} index={index} compact />
                 </motion.div>
