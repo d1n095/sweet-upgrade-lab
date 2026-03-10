@@ -761,6 +761,13 @@ const MemberProfile = () => {
                       </AdminSection>
                     </div>
 
+                    {/* Page Visibility */}
+                    <div id="admin-visibility">
+                      <AdminSection title={language === 'sv' ? 'Sidsynlighet' : 'Page Visibility'} icon={Eye}>
+                        <AdminPageVisibility />
+                      </AdminSection>
+                    </div>
+
                     {/* Legal & Donations */}
                     <div id="admin-legal">
                       <AdminSection title={t.admin.legalDonations} icon={Heart}>
