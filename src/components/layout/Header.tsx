@@ -34,6 +34,7 @@ const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const { isVisible } = usePageVisibility();
   const [activeCategories, setActiveCategories] = useState(
     storeConfig.categories.filter(c => c.active)
   );
