@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { LanguageProvider } from "./context/LanguageContext";
 import ScrollToTop from "./components/ScrollToTop";
@@ -30,8 +30,16 @@ import WhatsNew from "./pages/WhatsNew";
 import Donations from "./pages/Donations";
 import NotFound from "./pages/NotFound";
 import CookieBanner from "./components/cookie/CookieBanner";
+import { usePageVisibility, ToggleablePage } from "./stores/pageVisibilityStore";
 
 const queryClient = new QueryClient();
+
+// Guard component for toggleable pages
+const PageGuard = ({ pageId, children }: { pageId: ToggleablePage; children: React.ReactNode }) => {
+  const { isVisible } = usePageVisibility();
+  if (!isVisible(pageId)) return <NotFound />;
+  return <>{children}</>;
+};
 
 const App = () => (
   <HelmetProvider>
@@ -59,12 +67,12 @@ const App = () => (
             <Route path="/admin/reviews" element={<AdminReviews />} />
             <Route path="/admin/stats" element={<AdminStats />} />
             <Route path="/profile" element={<MemberProfile />} />
-            <Route path="/affiliate" element={<AffiliateLanding />} />
-            <Route path="/business" element={<Business />} />
-            <Route path="/suggest-product" element={<SuggestProduct />} />
+            <Route path="/affiliate" element={<PageGuard pageId="affiliate"><AffiliateLanding /></PageGuard>} />
+            <Route path="/business" element={<PageGuard pageId="business"><Business /></PageGuard>} />
+            <Route path="/suggest-product" element={<PageGuard pageId="suggest-product"><SuggestProduct /></PageGuard>} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/whats-new" element={<WhatsNew />} />
-            <Route path="/donations" element={<Donations />} />
+            <Route path="/whats-new" element={<PageGuard pageId="whats-new"><WhatsNew /></PageGuard>} />
+            <Route path="/donations" element={<PageGuard pageId="donations"><Donations /></PageGuard>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

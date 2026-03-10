@@ -15,6 +15,7 @@ import SearchSuggestions from '@/components/search/SearchSuggestions';
 import { useAuth } from '@/hooks/useAuth';
 import { storeConfig } from '@/config/storeConfig';
 import { useTheme } from 'next-themes';
+import { usePageVisibility } from '@/stores/pageVisibilityStore';
 
 const Header = () => {
   const { t, language, contentLang } = useLanguage();
@@ -33,6 +34,7 @@ const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const { isVisible } = usePageVisibility();
   const [activeCategories, setActiveCategories] = useState(
     storeConfig.categories.filter(c => c.active)
   );
@@ -101,19 +103,19 @@ const Header = () => {
 
   const navLinks = [
     { href: '/shop', label: 'Shop' },
-    { href: '/whats-new', label: t('nav.whatsnew') },
+    ...(isVisible('whats-new') ? [{ href: '/whats-new', label: t('nav.whatsnew') }] : []),
   ];
 
   const aboutSubMenu = [
     { href: '/about', label: t('nav.aboutus') },
-    { href: '/donations', label: t('nav.donations') },
+    ...(isVisible('donations') ? [{ href: '/donations', label: t('nav.donations') }] : []),
   ];
   
   const contactSubMenu = [
     { href: '/contact', label: t('nav.contactus') },
-    { href: '/affiliate', label: t('nav.partnership') },
-    { href: '/business', label: t('nav.business') },
-    { href: '/suggest-product', label: t('nav.suggestproduct') },
+    ...(isVisible('affiliate') ? [{ href: '/affiliate', label: t('nav.partnership') }] : []),
+    ...(isVisible('business') ? [{ href: '/business', label: t('nav.business') }] : []),
+    ...(isVisible('suggest-product') ? [{ href: '/suggest-product', label: t('nav.suggestproduct') }] : []),
   ];
 
   return (

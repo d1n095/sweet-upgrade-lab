@@ -4,7 +4,7 @@ import {
   User, Package, Star, Gift, Settings, LogOut, 
   ChevronRight, Loader2, Clock, Check, BadgeCheck,
   Shield, BarChart3, Users, TrendingUp, MessageCircle,
-  ChevronDown, Boxes, UserCog, Handshake, FileText, Heart, Wallet, Grid, Sparkles, ClipboardList
+  ChevronDown, Boxes, UserCog, Handshake, FileText, Heart, Wallet, Grid, Sparkles, ClipboardList, Eye
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -45,6 +45,7 @@ import AccountSettings from '@/components/profile/AccountSettings';
 import BalanceOverview from '@/components/profile/BalanceOverview';
 import ProfileBalanceBadge from '@/components/profile/ProfileBalanceBadge';
 import BalancePage from '@/pages/BalancePage';
+import AdminPageVisibility from '@/components/admin/AdminPageVisibility';
 
 interface Review {
   id: string;
@@ -757,6 +758,13 @@ const MemberProfile = () => {
                     <div id="admin-updates">
                       <AdminSection title={language === 'sv' ? 'Nytt hos oss' : "What's New"} icon={Sparkles}>
                         <AdminSiteUpdatesManager />
+                      </AdminSection>
+                    </div>
+
+                    {/* Page Visibility */}
+                    <div id="admin-visibility">
+                      <AdminSection title={language === 'sv' ? 'Sidsynlighet' : 'Page Visibility'} icon={Eye}>
+                        <AdminPageVisibility />
                       </AdminSection>
                     </div>
 
