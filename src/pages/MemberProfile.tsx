@@ -45,6 +45,7 @@ import AccountSettings from '@/components/profile/AccountSettings';
 import BalanceOverview from '@/components/profile/BalanceOverview';
 import ProfileBalanceBadge from '@/components/profile/ProfileBalanceBadge';
 import BalancePage from '@/pages/BalancePage';
+import AdminPageVisibility from '@/components/admin/AdminPageVisibility';
 
 interface Review {
   id: string;
