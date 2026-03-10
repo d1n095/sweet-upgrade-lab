@@ -15,6 +15,7 @@ import SearchSuggestions from '@/components/search/SearchSuggestions';
 import { useAuth } from '@/hooks/useAuth';
 import { storeConfig } from '@/config/storeConfig';
 import { useTheme } from 'next-themes';
+import { usePageVisibility } from '@/stores/pageVisibilityStore';
 
 const Header = () => {
   const { t, language, contentLang } = useLanguage();
