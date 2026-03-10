@@ -198,6 +198,12 @@ export const translations: Translations = {
   'sort.nameasc': { sv: 'Namn: A-Ö', en: 'Name: A-Z', no: 'Navn: A-Å', da: 'Navn: A-Å', de: 'Name: A-Z', fi: 'Nimi: A-Ö', nl: 'Naam: A-Z', fr: 'Nom: A-Z', es: 'Nombre: A-Z', pl: 'Nazwa: A-Z' },
   'sort.namedesc': { sv: 'Namn: Ö-A', en: 'Name: Z-A', no: 'Navn: Å-A', da: 'Navn: Å-A', de: 'Name: Z-A', fi: 'Nimi: Ö-A', nl: 'Naam: Z-A', fr: 'Nom: Z-A', es: 'Nombre: Z-A', pl: 'Nazwa: Z-A' },
   'sort.label': { sv: 'Sortera', en: 'Sort', no: 'Sorter', da: 'Sorter', de: 'Sortieren', fi: 'Järjestä', nl: 'Sorteer', fr: 'Trier', es: 'Ordenar', pl: 'Sortuj' },
+
+  // Cookie banner
+  'cookie.text': { sv: 'Vi använder cookies för att förbättra din upplevelse.', en: 'We use cookies to improve your experience.', no: 'Vi bruker informasjonskapsler for å forbedre opplevelsen.', da: 'Vi bruger cookies for at forbedre din oplevelse.', de: 'Wir verwenden Cookies, um Ihre Erfahrung zu verbessern.', fi: 'Käytämme evästeitä parantaaksemme kokemustasi.', nl: 'We gebruiken cookies om uw ervaring te verbeteren.', fr: 'Nous utilisons des cookies pour améliorer votre expérience.', es: 'Usamos cookies para mejorar tu experiencia.', pl: 'Używamy plików cookie, aby poprawić Twoje doświadczenie.' },
+  'cookie.accept': { sv: 'Acceptera', en: 'Accept', no: 'Godta', da: 'Accepter', de: 'Akzeptieren', fi: 'Hyväksy', nl: 'Accepteren', fr: 'Accepter', es: 'Aceptar', pl: 'Akceptuj' },
+  'cookie.reject': { sv: 'Avvisa', en: 'Reject', no: 'Avvis', da: 'Afvis', de: 'Ablehnen', fi: 'Hylkää', nl: 'Weigeren', fr: 'Refuser', es: 'Rechazar', pl: 'Odrzuć' },
+  'cookie.learnmore': { sv: 'Läs mer', en: 'Learn more', no: 'Les mer', da: 'Læs mere', de: 'Mehr erfahren', fi: 'Lue lisää', nl: 'Lees meer', fr: 'En savoir plus', es: 'Más información', pl: 'Dowiedz się więcej' },
 };
 
 interface LanguageContextType {

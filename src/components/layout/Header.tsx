@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingCart, Menu, X, Leaf, ChevronDown, User, Crown, LogOut, Heart, Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,7 @@ import { useTheme } from 'next-themes';
 const Header = () => {
   const { t, language, contentLang } = useLanguage();
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, isMember, signOut, loading: authLoading } = useAuth();
   const items = useCartStore(state => state.items);
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
@@ -132,7 +133,7 @@ const Header = () => {
                 if (location.pathname === '/') {
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 } else {
-                  window.location.href = '/';
+                  navigate('/');
                 }
               }}
               className="flex items-center gap-3 group cursor-pointer"
