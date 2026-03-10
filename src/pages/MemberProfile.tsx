@@ -4,7 +4,7 @@ import {
   User, Package, Star, Gift, Settings, LogOut, 
   ChevronRight, Loader2, Clock, Check, BadgeCheck,
   Shield, BarChart3, Users, TrendingUp, MessageCircle,
-  ChevronDown, Boxes, UserCog, Handshake, FileText, Heart, Wallet, Grid, Sparkles, ClipboardList
+  ChevronDown, Boxes, UserCog, Handshake, FileText, Heart, Wallet, Grid, Sparkles, ClipboardList, Eye
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
