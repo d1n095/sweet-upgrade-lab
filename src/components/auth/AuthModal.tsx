@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Mail, Lock, Loader2, Crown, ArrowLeft, CheckCircle } from 'lucide-react';
+import { Mail, Lock, Loader2, Crown, ArrowLeft, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/useAuth';
