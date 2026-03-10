@@ -4,16 +4,18 @@ import { useLanguage } from '@/context/LanguageContext';
 import { storeConfig } from '@/config/storeConfig';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import PaymentIcons from '@/components/trust/PaymentIcons';
+import { usePageVisibility } from '@/stores/pageVisibilityStore';
 
 const Footer = () => {
   const { t } = useLanguage();
+  const { isVisible } = usePageVisibility();
   
   const quickLinks = [
     { href: '/shop', label: t('nav.products') },
     { href: '/about', label: t('nav.about') },
     { href: '/contact', label: t('nav.contact') },
     { href: '/track-order', label: t('nav.trackorder') },
-    { href: '/affiliate', label: t('nav.partnership') },
+    ...(isVisible('affiliate') ? [{ href: '/affiliate', label: t('nav.partnership') }] : []),
   ];
 
   const legalLinks = [

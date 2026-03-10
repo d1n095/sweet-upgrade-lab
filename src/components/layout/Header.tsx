@@ -103,19 +103,19 @@ const Header = () => {
 
   const navLinks = [
     { href: '/shop', label: 'Shop' },
-    { href: '/whats-new', label: t('nav.whatsnew') },
+    ...(isVisible('whats-new') ? [{ href: '/whats-new', label: t('nav.whatsnew') }] : []),
   ];
 
   const aboutSubMenu = [
     { href: '/about', label: t('nav.aboutus') },
-    { href: '/donations', label: t('nav.donations') },
+    ...(isVisible('donations') ? [{ href: '/donations', label: t('nav.donations') }] : []),
   ];
   
   const contactSubMenu = [
     { href: '/contact', label: t('nav.contactus') },
-    { href: '/affiliate', label: t('nav.partnership') },
-    { href: '/business', label: t('nav.business') },
-    { href: '/suggest-product', label: t('nav.suggestproduct') },
+    ...(isVisible('affiliate') ? [{ href: '/affiliate', label: t('nav.partnership') }] : []),
+    ...(isVisible('business') ? [{ href: '/business', label: t('nav.business') }] : []),
+    ...(isVisible('suggest-product') ? [{ href: '/suggest-product', label: t('nav.suggestproduct') }] : []),
   ];
 
   return (
