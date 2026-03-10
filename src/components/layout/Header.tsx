@@ -133,7 +133,7 @@ const Header = () => {
                 if (location.pathname === '/') {
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 } else {
-                  window.location.href = '/';
+                  navigate('/');
                 }
               }}
               className="flex items-center gap-3 group cursor-pointer"
