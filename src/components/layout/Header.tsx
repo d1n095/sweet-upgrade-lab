@@ -19,6 +19,7 @@ import { useTheme } from 'next-themes';
 const Header = () => {
   const { t, language, contentLang } = useLanguage();
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, isMember, signOut, loading: authLoading } = useAuth();
   const items = useCartStore(state => state.items);
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
