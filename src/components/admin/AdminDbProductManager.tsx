@@ -151,6 +151,8 @@ const AdminDbProductManager = () => {
         badge: null,
         vendor: formData.vendor || '4ThePeople',
         display_order: 0,
+        ingredients_sv: formData.ingredients || null,
+        certifications: formData.certifications ? formData.certifications.split(',').map(s => s.trim()).filter(Boolean) : null,
       });
       toast.success(t.productAdded);
       queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });
