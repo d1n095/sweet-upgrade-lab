@@ -25,7 +25,7 @@ export interface DbProduct {
   updated_at: string;
 }
 
-export type DbProductInsert = Omit<DbProduct, 'id' | 'created_at' | 'updated_at' | 'handle'> & {
+export type DbProductInsert = Omit<DbProduct, 'id' | 'created_at' | 'updated_at' | 'handle' | 'ingredients_sv' | 'ingredients_en' | 'certifications'> & {
   handle?: string;
   ingredients_sv?: string | null;
   ingredients_en?: string | null;
