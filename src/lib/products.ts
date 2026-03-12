@@ -27,6 +27,9 @@ export interface DbProduct {
 
 export type DbProductInsert = Omit<DbProduct, 'id' | 'created_at' | 'updated_at' | 'handle'> & {
   handle?: string;
+  ingredients_sv?: string | null;
+  ingredients_en?: string | null;
+  certifications?: string[] | null;
 };
 
 export const fetchDbProducts = async (adminView = false): Promise<DbProduct[]> => {
