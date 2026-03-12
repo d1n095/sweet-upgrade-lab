@@ -427,6 +427,33 @@ export function AdminProductForm({
         </div>
       </div>
 
+      {/* Ingredients */}
+      <div className="space-y-2">
+        <Label htmlFor="ingredients">
+          {language === 'sv' ? 'Ingredienser (kommaseparerade)' : 'Ingredients (comma-separated)'}
+        </Label>
+        <Textarea
+          id="ingredients"
+          value={formData.ingredients}
+          onChange={(e) => setFormData((prev) => ({ ...prev, ingredients: e.target.value }))}
+          placeholder="Kokosolja, Sheasmör, Bivax..."
+          rows={2}
+        />
+      </div>
+
+      {/* Certifications */}
+      <div className="space-y-2">
+        <Label htmlFor="certifications">
+          {language === 'sv' ? 'Certifieringar (kommaseparerade)' : 'Certifications (comma-separated)'}
+        </Label>
+        <Input
+          id="certifications"
+          value={formData.certifications}
+          onChange={(e) => setFormData((prev) => ({ ...prev, certifications: e.target.value }))}
+          placeholder="Cruelty-Free, Vegan, Organic..."
+        />
+      </div>
+
       <div className="flex gap-2 pt-2">
         <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
           {t.cancel}
