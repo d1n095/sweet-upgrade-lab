@@ -77,6 +77,8 @@ const AdminProductManager = () => {
     inventory: 0,
     allowOverselling: false,
     imageUrls: [],
+    ingredients: '',
+    certifications: '',
   });
 
   const { data: products = [], isLoading: productsLoading } = useQuery({
@@ -488,6 +490,8 @@ const AdminProductManager = () => {
       inventory: 0,
       allowOverselling: false,
       imageUrls: [],
+      ingredients: '',
+      certifications: '',
     });
     setSelectedProduct(null);
   };
@@ -516,6 +520,8 @@ const AdminProductManager = () => {
         inventory: 0,
         allowOverselling: false,
         imageUrls: [],
+        ingredients: '',
+        certifications: '',
       });
 
       setIsEditDialogOpen(true);

@@ -18,12 +18,18 @@ export interface DbProduct {
   badge: 'new' | 'bestseller' | 'sale' | null;
   vendor: string | null;
   display_order: number;
+  ingredients_sv: string | null;
+  ingredients_en: string | null;
+  certifications: string[] | null;
   created_at: string;
   updated_at: string;
 }
 
-export type DbProductInsert = Omit<DbProduct, 'id' | 'created_at' | 'updated_at' | 'handle'> & {
+export type DbProductInsert = Omit<DbProduct, 'id' | 'created_at' | 'updated_at' | 'handle' | 'ingredients_sv' | 'ingredients_en' | 'certifications'> & {
   handle?: string;
+  ingredients_sv?: string | null;
+  ingredients_en?: string | null;
+  certifications?: string[] | null;
 };
 
 export const fetchDbProducts = async (adminView = false): Promise<DbProduct[]> => {

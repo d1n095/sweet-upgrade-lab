@@ -47,6 +47,8 @@ const emptyForm = (): ProductFormData => ({
   inventory: 0,
   allowOverselling: false,
   imageUrls: [],
+  ingredients: '',
+  certifications: '',
 });
 
 const AdminDbProductManager = () => {
@@ -123,6 +125,8 @@ const AdminDbProductManager = () => {
       inventory: product.stock,
       allowOverselling: product.allow_overselling,
       imageUrls: product.image_urls || [],
+      ingredients: product.ingredients_sv || '',
+      certifications: (product.certifications || []).join(', '),
     });
     setIsEditOpen(true);
   };
@@ -147,6 +151,8 @@ const AdminDbProductManager = () => {
         badge: null,
         vendor: formData.vendor || '4ThePeople',
         display_order: 0,
+        ingredients_sv: formData.ingredients || null,
+        certifications: formData.certifications ? formData.certifications.split(',').map(s => s.trim()).filter(Boolean) : null,
       });
       toast.success(t.productAdded);
       queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });
@@ -175,6 +181,8 @@ const AdminDbProductManager = () => {
         allow_overselling: formData.allowOverselling,
         vendor: formData.vendor || '4ThePeople',
         image_urls: formData.imageUrls && formData.imageUrls.length > 0 ? formData.imageUrls : null,
+        ingredients_sv: formData.ingredients || null,
+        certifications: formData.certifications ? formData.certifications.split(',').map(s => s.trim()).filter(Boolean) : null,
       });
       toast.success(t.productUpdated);
       queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });
