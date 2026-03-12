@@ -47,6 +47,8 @@ const emptyForm = (): ProductFormData => ({
   inventory: 0,
   allowOverselling: false,
   imageUrls: [],
+  ingredients: '',
+  certifications: '',
 });
 
 const AdminDbProductManager = () => {
