@@ -125,6 +125,8 @@ const AdminDbProductManager = () => {
       inventory: product.stock,
       allowOverselling: product.allow_overselling,
       imageUrls: product.image_urls || [],
+      ingredients: product.ingredients_sv || '',
+      certifications: (product.certifications || []).join(', '),
     });
     setIsEditOpen(true);
   };
