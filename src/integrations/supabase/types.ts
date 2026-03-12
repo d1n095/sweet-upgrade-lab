@@ -895,6 +895,7 @@ export type Database = {
           allow_overselling: boolean
           badge: string | null
           category: string | null
+          certifications: string[] | null
           created_at: string
           description_en: string | null
           description_sv: string | null
@@ -902,6 +903,8 @@ export type Database = {
           handle: string | null
           id: string
           image_urls: string[] | null
+          ingredients_en: string | null
+          ingredients_sv: string | null
           is_visible: boolean
           original_price: number | null
           price: number
@@ -916,6 +919,7 @@ export type Database = {
           allow_overselling?: boolean
           badge?: string | null
           category?: string | null
+          certifications?: string[] | null
           created_at?: string
           description_en?: string | null
           description_sv?: string | null
@@ -923,6 +927,8 @@ export type Database = {
           handle?: string | null
           id?: string
           image_urls?: string[] | null
+          ingredients_en?: string | null
+          ingredients_sv?: string | null
           is_visible?: boolean
           original_price?: number | null
           price?: number
@@ -937,6 +943,7 @@ export type Database = {
           allow_overselling?: boolean
           badge?: string | null
           category?: string | null
+          certifications?: string[] | null
           created_at?: string
           description_en?: string | null
           description_sv?: string | null
@@ -944,6 +951,8 @@ export type Database = {
           handle?: string | null
           id?: string
           image_urls?: string[] | null
+          ingredients_en?: string | null
+          ingredients_sv?: string | null
           is_visible?: boolean
           original_price?: number | null
           price?: number
