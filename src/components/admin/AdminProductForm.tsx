@@ -26,6 +26,8 @@ export interface ProductFormData {
   inventory: number;
   allowOverselling: boolean;
   imageUrls: string[];
+  ingredients: string;
+  certifications: string;
 }
 
 export type ProductCategoryOption = {
