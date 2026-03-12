@@ -12,7 +12,7 @@ const getSessionId = () => {
 };
 
 export const useInsightLogger = () => {
-  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Log search queries (debounced to avoid spam)
   const logSearch = useCallback((searchTerm: string, resultsCount: number) => {

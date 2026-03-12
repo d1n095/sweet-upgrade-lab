@@ -1,21 +1,27 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ShoppingCart, Check, Loader2, Minus, Plus, Shield, RotateCcw, Truck } from 'lucide-react';
+import { ArrowLeft, ShoppingCart, Check, Loader2, Minus, Plus, Shield, RotateCcw, Truck, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { fetchDbProductByHandle, DbProduct } from '@/lib/products';
 import { useLanguage } from '@/context/LanguageContext';
+import { useCartStore } from '@/stores/cartStore';
 import PaymentMethods from '@/components/trust/PaymentMethods';
 import ReviewList from '@/components/reviews/ReviewList';
 import ReviewForm from '@/components/reviews/ReviewForm';
+import ReviewSummary from '@/components/reviews/ReviewSummary';
+import ProductIngredients from '@/components/product/ProductIngredients';
+import ProductCertifications from '@/components/product/ProductCertifications';
 import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
 
 const ProductDetail = () => {
   const { handle } = useParams<{ handle: string }>();
   const { t, contentLang } = useLanguage();
   const lang = contentLang;
+  const { addItem } = useCartStore();
   const [product, setProduct] = useState<DbProduct | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(0);
@@ -42,8 +48,58 @@ const ProductDetail = () => {
     new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK', minimumFractionDigits: 0 }).format(amount);
 
   const handleAddToCart = () => {
+    if (!product) return;
+    const title = (lang === 'sv' ? product.title_sv : product.title_en) || product.title_sv;
+    const description = (lang === 'sv' ? product.description_sv : product.description_en) || product.description_sv;
+    const imageUrl = product.image_urls?.[0];
+    const pHandle = product.handle || product.id;
+
+    const cartProduct = {
+      dbId: product.id,
+      node: {
+        id: product.id,
+        title,
+        handle: pHandle,
+        description: description || '',
+        productType: product.category || '',
+        tags: product.tags || [],
+        priceRange: { minVariantPrice: { amount: product.price.toString(), currencyCode: 'SEK' } },
+        images: { edges: imageUrl ? [{ node: { url: imageUrl, altText: title } }] : [] },
+        variants: {
+          edges: [{
+            node: {
+              id: product.id + '-variant',
+              title: 'Default',
+              availableForSale: product.stock > 0 || product.allow_overselling,
+              price: { amount: product.price.toString(), currencyCode: 'SEK' },
+              selectedOptions: [],
+            }
+          }]
+        },
+      }
+    } as any;
+
+    addItem({
+      product: cartProduct,
+      variantId: product.id + '-variant',
+      variantTitle: 'Default',
+      price: { amount: product.price.toString(), currencyCode: 'SEK' },
+      quantity,
+      selectedOptions: [],
+    });
+
     setIsAdded(true);
+    setQuantity(1);
     setTimeout(() => setIsAdded(false), 1500);
+  };
+
+  const handleShare = () => {
+    if (navigator.share) {
+      navigator.share({ title: document.title, url: window.location.href });
+    } else {
+      navigator.clipboard.writeText(window.location.href);
+      toast.success(lang === 'sv' ? 'Länk kopierad!' : 'Link copied!');
+    }
   };
 
   if (isLoading) {
@@ -78,24 +134,32 @@ const ProductDetail = () => {
   const images = product.image_urls || [];
   const imageUrl = images[selectedImage] || null;
   const isOutOfStock = !product.allow_overselling && product.stock <= 0;
+  const hasDiscount = product.original_price && product.original_price > product.price;
+  const discountPercent = hasDiscount
+    ? Math.round((1 - product.price / product.original_price!) * 100)
+    : 0;
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
       <main className="pt-24 pb-20">
         <div className="container mx-auto px-4">
-          <Link to="/shop" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-8 transition-colors">
-            <ArrowLeft className="w-4 h-4" />
-            {t('product.back')}
-          </Link>
+          {/* Breadcrumb */}
+          <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
+            <Link to="/" className="hover:text-foreground transition-colors">{t('nav.home') || 'Hem'}</Link>
+            <span>/</span>
+            <Link to="/shop" className="hover:text-foreground transition-colors">{t('nav.shop')}</Link>
+            <span>/</span>
+            <span className="text-foreground truncate max-w-[200px]">{title}</span>
+          </nav>
 
-          <div className="grid lg:grid-cols-2 gap-12 lg:gap-20">
-            {/* Images */}
-            <div className="flex flex-col gap-4">
+          <div className="grid lg:grid-cols-2 gap-10 lg:gap-16">
+            {/* Image gallery */}
+            <div className="flex flex-col gap-3">
               <motion.div
-                initial={{ opacity: 0, x: -30 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="relative aspect-square rounded-2xl overflow-hidden bg-secondary/50"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="relative aspect-square rounded-2xl overflow-hidden bg-secondary/30 border border-border"
               >
                 {imageUrl ? (
                   <img src={imageUrl} alt={title} className="w-full h-full object-cover" />
@@ -106,22 +170,32 @@ const ProductDetail = () => {
                 )}
                 {product.badge && (
                   <div className="absolute top-3 left-3">
-                    <Badge variant={product.badge === 'sale' ? 'destructive' : 'default'} className="uppercase text-xs font-bold">
+                    <Badge
+                      variant={product.badge === 'sale' ? 'destructive' : 'default'}
+                      className="text-xs font-bold px-2.5 py-1 rounded-full uppercase tracking-wide"
+                    >
                       {product.badge === 'new' ? (lang === 'sv' ? 'Nyhet' : 'New') :
                        product.badge === 'bestseller' ? (lang === 'sv' ? 'Bästsäljare' : 'Bestseller') :
                        (lang === 'sv' ? 'Rea' : 'Sale')}
                     </Badge>
                   </div>
                 )}
+                {hasDiscount && (
+                  <div className="absolute top-3 right-3">
+                    <span className="bg-destructive text-destructive-foreground text-xs font-bold px-2.5 py-1 rounded-full">
+                      -{discountPercent}%
+                    </span>
+                  </div>
+                )}
               </motion.div>
               {images.length > 1 && (
-                <div className="flex gap-2 overflow-x-auto">
+                <div className="flex gap-2 overflow-x-auto pb-1">
                   {images.map((url, i) => (
                     <button
                       key={i}
                       onClick={() => setSelectedImage(i)}
                       className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
-                        selectedImage === i ? 'border-primary' : 'border-border opacity-60'
+                        selectedImage === i ? 'border-foreground ring-1 ring-foreground/20' : 'border-border opacity-60 hover:opacity-100'
                       }`}
                     >
                       <img src={url} alt="" className="w-full h-full object-cover" />
@@ -131,94 +205,108 @@ const ProductDetail = () => {
               )}
             </div>
 
-            {/* Details */}
+            {/* Product info */}
             <motion.div
-              initial={{ opacity: 0, x: 30 }}
-              animate={{ opacity: 1, x: 0 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
               className="flex flex-col"
             >
               {product.vendor && (
-                <p className="text-sm text-muted-foreground mb-1">{product.vendor}</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-2">{product.vendor}</p>
               )}
-              <h1 className="font-display text-3xl md:text-4xl font-bold mb-4">{title}</h1>
+              <h1 className="font-display text-2xl md:text-3xl font-bold mb-4 leading-tight">{title}</h1>
 
-              <div className="flex items-center gap-3 mb-6">
-                <p className="text-2xl font-bold text-primary">{formatPrice(product.price)}</p>
-                {product.original_price && product.original_price > product.price && (
-                  <p className="text-lg text-muted-foreground line-through">{formatPrice(product.original_price)}</p>
+              {/* Price */}
+              <div className="flex items-baseline gap-3 mb-4">
+                <span className="text-3xl font-bold">{formatPrice(product.price)}</span>
+                {hasDiscount && (
+                  <span className="text-lg text-muted-foreground line-through">{formatPrice(product.original_price!)}</span>
                 )}
               </div>
 
-              <div className="mb-6">
+              {/* Stock status */}
+              <div className="mb-5">
                 {isOutOfStock ? (
-                  <span className="text-sm text-destructive font-medium">{t('product.outofstockwarning')}</span>
+                  <span className="inline-flex items-center gap-1.5 text-sm text-destructive font-medium bg-destructive/10 px-3 py-1 rounded-full">{t('product.outofstockwarning')}</span>
                 ) : product.stock <= 5 ? (
-                  <span className="text-sm text-yellow-600 dark:text-yellow-400 font-medium">
+                  <span className="inline-flex items-center gap-1.5 text-sm text-warning font-medium bg-warning/10 px-3 py-1 rounded-full">
                     {t('product.lowstock').replace('{count}', String(product.stock))}
                   </span>
                 ) : (
-                  <span className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">{t('product.instock')}</span>
+                  <span className="inline-flex items-center gap-1.5 text-sm text-accent font-medium bg-accent/10 px-3 py-1 rounded-full">{t('product.instock')}</span>
                 )}
               </div>
 
               {description && (
-                <p className="text-muted-foreground text-lg mb-8 leading-relaxed">{description}</p>
+                <p className="text-muted-foreground leading-relaxed mb-6">{description}</p>
               )}
 
-              <div className="mb-8">
-                <label className="block text-sm font-medium mb-2">{t('product.quantity')}</label>
-                <div className="flex items-center gap-3">
-                  <Button variant="outline" size="icon" onClick={() => setQuantity(Math.max(1, quantity - 1))}>
+              {/* Quantity + Add to cart */}
+              <div className="flex items-center gap-3 mb-6">
+                <div className="flex items-center border border-border rounded-lg">
+                  <Button variant="ghost" size="icon" className="h-11 w-11 rounded-r-none" onClick={() => setQuantity(Math.max(1, quantity - 1))}>
                     <Minus className="w-4 h-4" />
                   </Button>
-                  <span className="w-12 text-center font-medium text-lg">{quantity}</span>
-                  <Button variant="outline" size="icon" onClick={() => setQuantity(quantity + 1)}>
+                  <span className="w-12 text-center font-medium text-lg select-none">{quantity}</span>
+                  <Button variant="ghost" size="icon" className="h-11 w-11 rounded-l-none" onClick={() => setQuantity(quantity + 1)}>
                     <Plus className="w-4 h-4" />
                   </Button>
                 </div>
+                <Button
+                  size="lg"
+                  className={`flex-1 h-11 text-sm font-semibold transition-all ${isAdded ? 'bg-accent hover:bg-accent text-accent-foreground' : ''}`}
+                  onClick={handleAddToCart}
+                  disabled={isOutOfStock}
+                >
+                  {isOutOfStock ? (
+                    t('product.outofstock')
+                  ) : isAdded ? (
+                    <><Check className="w-4 h-4 mr-2" />{t('product.added')}</>
+                  ) : (
+                    <><ShoppingCart className="w-4 h-4 mr-2" />{t('product.addtocart')}</>
+                  )}
+                </Button>
+                <Button variant="outline" size="icon" className="h-11 w-11 shrink-0" onClick={handleShare}>
+                  <Share2 className="w-4 h-4" />
+                </Button>
               </div>
 
-              <Button
-                size="lg"
-                className={`h-14 text-base font-semibold transition-all ${isAdded ? 'bg-green-600 hover:bg-green-600' : ''}`}
-                onClick={handleAddToCart}
-                disabled={isOutOfStock}
-              >
-                {isOutOfStock ? (
-                  t('product.outofstock')
-                ) : isAdded ? (
-                  <><Check className="w-5 h-5 mr-2" />{t('product.added')}</>
-                ) : (
-                  <><ShoppingCart className="w-5 h-5 mr-2" />{t('product.addtocart')}</>
-                )}
-              </Button>
-
-              <div className="mt-8 pt-6 border-t border-border space-y-4">
-                <div className="grid grid-cols-3 gap-4 text-center text-sm">
-                  <div className="flex flex-col items-center gap-2">
-                    <Shield className="w-5 h-5 text-primary" />
-                    <span className="text-muted-foreground">{t('product.securepayment')}</span>
+              {/* Trust badges */}
+              <div className="grid grid-cols-3 gap-3 mb-6">
+                {[
+                  { icon: Shield, label: t('product.securepayment') },
+                  { icon: RotateCcw, label: t('product.returns') },
+                  { icon: Truck, label: t('product.fastdelivery') },
+                ].map(({ icon: Icon, label }, i) => (
+                  <div key={i} className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-secondary/40 border border-border/50 text-center">
+                    <Icon className="w-4 h-4 text-accent" />
+                    <span className="text-xs text-muted-foreground leading-tight">{label}</span>
                   </div>
-                  <div className="flex flex-col items-center gap-2">
-                    <RotateCcw className="w-5 h-5 text-primary" />
-                    <span className="text-muted-foreground">{t('product.returns')}</span>
-                  </div>
-                  <div className="flex flex-col items-center gap-2">
-                    <Truck className="w-5 h-5 text-primary" />
-                    <span className="text-muted-foreground">{t('product.fastdelivery')}</span>
-                  </div>
-                </div>
-                <PaymentMethods />
+                ))}
               </div>
+
+              <PaymentMethods />
             </motion.div>
           </div>
 
-          <div className="mt-20 pt-16 border-t border-border">
-            <h2 className="font-display text-2xl md:text-3xl font-semibold mb-8 text-center">
+          {/* Ingredients & Certifications */}
+          {(product.ingredients_sv || product.ingredients_en || (product.certifications && product.certifications.length > 0)) && (
+            <div className="mt-16 grid md:grid-cols-2 gap-6">
+              <ProductIngredients ingredientsSv={product.ingredients_sv} ingredientsEn={product.ingredients_en} />
+              <ProductCertifications certifications={product.certifications} />
+            </div>
+          )}
+
+          {/* Reviews */}
+          <div className="mt-16 pt-12 border-t border-border">
+            <h2 className="font-display text-2xl font-semibold mb-8 text-center">
               {t('product.reviews')}
             </h2>
             <div className="grid lg:grid-cols-2 gap-10">
-              <ReviewList productHandle={handle} limit={5} />
+              <div className="space-y-6">
+                <ReviewList productHandle={handle} limit={5} />
+              </div>
               <ReviewForm
                 productId={product.id}
                 productHandle={handle || ''}

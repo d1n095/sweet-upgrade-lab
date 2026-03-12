@@ -18,6 +18,9 @@ export interface DbProduct {
   badge: 'new' | 'bestseller' | 'sale' | null;
   vendor: string | null;
   display_order: number;
+  ingredients_sv: string | null;
+  ingredients_en: string | null;
+  certifications: string[] | null;
   created_at: string;
   updated_at: string;
 }
