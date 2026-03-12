@@ -77,6 +77,8 @@ const AdminProductManager = () => {
     inventory: 0,
     allowOverselling: false,
     imageUrls: [],
+    ingredients: '',
+    certifications: '',
   });
 
   const { data: products = [], isLoading: productsLoading } = useQuery({
