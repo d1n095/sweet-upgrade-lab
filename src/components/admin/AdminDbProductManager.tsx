@@ -181,6 +181,8 @@ const AdminDbProductManager = () => {
         allow_overselling: formData.allowOverselling,
         vendor: formData.vendor || '4ThePeople',
         image_urls: formData.imageUrls && formData.imageUrls.length > 0 ? formData.imageUrls : null,
+        ingredients_sv: formData.ingredients || null,
+        certifications: formData.certifications ? formData.certifications.split(',').map(s => s.trim()).filter(Boolean) : null,
       });
       toast.success(t.productUpdated);
       queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });
