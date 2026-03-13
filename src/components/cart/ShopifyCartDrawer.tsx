@@ -1,15 +1,13 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus, Minus, Trash2, ShoppingBag, ExternalLink, Loader2, Sparkles, Tag, Package, ArrowLeft } from 'lucide-react';
+import { X, Plus, Minus, Trash2, ShoppingBag, Loader2, Tag, Package, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCartStore } from '@/stores/cartStore';
-import { useNavigate } from 'react-router-dom';
 import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import { useCartDiscounts } from '@/hooks/useCartDiscounts';
 import { useAuth } from '@/hooks/useAuth';
 import ShippingProgressBar from './ShippingProgressBar';
-import InfluencerCodeInput from './InfluencerCodeInput';
-import RoundUpDonation from './RoundUpDonation';
 import LoginIncentives from '@/components/auth/LoginIncentives';
 import AuthModal from '@/components/auth/AuthModal';
 
@@ -28,19 +26,16 @@ const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
     isLoading, 
     updateQuantity, 
     removeItem, 
-    addItem
   } = useCartStore();
   
   const { discounts, totalDiscount, getDiscountedTotal } = useCartDiscounts();
   
-  const [showCheckoutView, setShowCheckoutView] = useState(false);
-  const [donationAmount, setDonationAmount] = useState(0);
   const [showLoginIncentive, setShowLoginIncentive] = useState(true);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const subtotal = items.reduce((sum, item) => sum + (parseFloat(item.price.amount) * item.quantity), 0);
-  const finalTotal = getDiscountedTotal() + donationAmount;
+  const finalTotal = getDiscountedTotal();
   const currencyCode = items[0]?.price.currencyCode || 'SEK';
 
   const content = {
@@ -48,66 +43,23 @@ const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
       cart: 'Kundvagn',
       empty: 'Din kundvagn är tom',
       continue: 'Fortsätt handla',
-      popular: 'Populära produkter',
-      youMightLike: 'Du kanske också gillar',
-      loadingRecs: 'Laddar rekommendationer...',
-      loadingSuggestions: 'Laddar förslag...',
-      add: 'Lägg till',
       subtotal: 'Delsumma',
       total: 'Totalt',
       youSave: 'Du sparar',
       checkout: 'Gå till kassan',
-      creatingCheckout: 'Skapar kassa...',
-      backToCart: 'Tillbaka till kundvagn',
-      orderSummary: 'Ordersammanfattning',
-      proceedToPayment: 'Fortsätt till betalning',
     },
     en: {
       cart: 'Cart',
       empty: 'Your cart is empty',
       continue: 'Continue shopping',
-      popular: 'Popular products',
-      youMightLike: 'You might also like',
-      loadingRecs: 'Loading recommendations...',
-      loadingSuggestions: 'Loading suggestions...',
-      add: 'Add',
       subtotal: 'Subtotal',
       total: 'Total',
       youSave: 'You save',
       checkout: 'Go to checkout',
-      creatingCheckout: 'Creating checkout...',
-      backToCart: 'Back to cart',
-      orderSummary: 'Order summary',
-      proceedToPayment: 'Proceed to payment',
     },
   };
 
-  const t = content[cl];
-
-  // Reset checkout view when drawer closes
-  useEffect(() => {
-    if (!isOpen) setShowCheckoutView(false);
-  }, [isOpen]);
-
-  // Load recommendations when cart opens
-  useEffect(() => {
-    if (isOpen) loadRecommendations();
-  }, [isOpen]);
-
-  const loadRecommendations = async () => {
-    setLoadingRecs(true);
-    try {
-      const allProducts = await fetchProducts(20);
-      const cartProductIds = items.map(item => item.product.node.id);
-      const filtered = allProducts.filter(p => !cartProductIds.includes(p.node.id));
-      const shuffled = filtered.sort(() => 0.5 - Math.random());
-      setRecommendations(shuffled.slice(0, 3));
-    } catch (err) {
-      console.error('Failed to load recommendations:', err);
-    } finally {
-      setLoadingRecs(false);
-    }
-  };
+  const t = content[cl as keyof typeof content] || content.en;
 
   const formatPrice = (price: number, currency: string) => {
     return new Intl.NumberFormat('sv-SE', {
@@ -117,34 +69,9 @@ const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
     }).format(price);
   };
 
-  const handleCheckout = async () => {
-    setIsCheckingOut(true);
-    try {
-      await createCheckout();
-      const url = useCartStore.getState().checkoutUrl;
-      if (url) {
-        window.open(url, '_blank');
-        onClose();
-      }
-    } catch (error) {
-      console.error('Checkout failed:', error);
-    } finally {
-      setIsCheckingOut(false);
-    }
-  };
-
-  const handleAddRecommendation = (product: ShopifyProduct) => {
-    const variant = product.node.variants.edges[0]?.node;
-    if (!variant) return;
-    addItem({
-      product,
-      variantId: variant.id,
-      variantTitle: variant.title,
-      price: variant.price,
-      quantity: 1,
-      selectedOptions: variant.selectedOptions || [],
-    });
-    setRecommendations(prev => prev.filter(p => p.node.id !== product.node.id));
+  const handleCheckout = () => {
+    onClose();
+    navigate('/checkout');
   };
 
   return (
@@ -170,85 +97,30 @@ const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
           >
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-border flex-shrink-0">
-              {showCheckoutView ? (
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowCheckoutView(false)}>
-                    <ArrowLeft className="w-4 h-4" />
-                  </Button>
-                  <h2 className="font-display text-lg font-bold">{t.orderSummary}</h2>
-                </div>
-              ) : (
-                <h2 className="font-display text-xl font-bold flex items-center gap-2">
-                  <ShoppingBag className="w-5 h-5 text-primary" />
-                  {t.cart} ({totalItems})
-                </h2>
-              )}
+              <h2 className="font-display text-xl font-bold flex items-center gap-2">
+                <ShoppingBag className="w-5 h-5 text-primary" />
+                {t.cart} ({totalItems})
+              </h2>
               <Button variant="ghost" size="icon" onClick={onClose}>
                 <X className="w-5 h-5" />
               </Button>
             </div>
 
-            {/* Scrollable content area - full height */}
+            {/* Scrollable content area */}
             <div className="flex-1 overflow-y-auto">
               {items.length === 0 ? (
                 <div className="flex flex-col h-full p-4">
-                  <div className="text-center py-8">
-                    <ShoppingBag className="w-16 h-16 text-muted-foreground/30 mb-4 mx-auto" />
+                  <div className="text-center py-8 flex-1 flex flex-col items-center justify-center">
+                    <ShoppingBag className="w-16 h-16 text-muted-foreground/30 mb-4" />
                     <p className="text-muted-foreground">{t.empty}</p>
                   </div>
-                  
-                  {/* Recommendations for empty cart */}
-                  {loadingRecs ? (
-                    <div className="flex items-center justify-center gap-2 text-muted-foreground py-8">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span className="text-sm">{t.loadingSuggestions}</span>
-                    </div>
-                  ) : recommendations.length > 0 ? (
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-4">
-                        <Sparkles className="w-4 h-4 text-primary" />
-                        <h4 className="font-semibold text-sm">{t.popular}</h4>
-                      </div>
-                      <div className="space-y-3">
-                        {recommendations.map((product) => {
-                          const variant = product.node.variants.edges[0]?.node;
-                          const image = product.node.images.edges[0]?.node;
-                          if (!variant) return null;
-                          return (
-                            <motion.div
-                              key={product.node.id}
-                              initial={{ opacity: 0, y: 10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              className="flex gap-3 p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors"
-                            >
-                              <div className="w-16 h-16 rounded-md bg-muted flex-shrink-0 overflow-hidden">
-                                {image && <img src={image.url} alt={product.node.title} className="w-full h-full object-cover" />}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <h5 className="font-medium text-sm truncate">{product.node.title}</h5>
-                                <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{product.node.description}</p>
-                                <p className="text-primary text-sm font-bold mt-1">
-                                  {formatPrice(parseFloat(variant.price.amount), variant.price.currencyCode)}
-                                </p>
-                              </div>
-                              <Button size="sm" className="flex-shrink-0 h-9" onClick={() => handleAddRecommendation(product)}>
-                                <Plus className="w-4 h-4 mr-1" />
-                                {t.add}
-                              </Button>
-                            </motion.div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ) : null}
-                  
-                  <Button className="mt-auto" variant="outline" onClick={onClose}>
+                  <Button variant="outline" onClick={onClose}>
                     {t.continue}
                   </Button>
                 </div>
               ) : (
                 <div className="p-4 space-y-4">
-                  {/* Cart items - always visible */}
+                  {/* Cart items */}
                   {items.map((item) => (
                     <motion.div
                       key={item.variantId}
@@ -265,7 +137,7 @@ const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-sm truncate">{item.product.node.title}</h3>
-                        {item.variantTitle !== 'Default Title' && (
+                        {item.variantTitle !== 'Default Title' && item.variantTitle !== 'Default' && (
                           <p className="text-xs text-muted-foreground">{item.variantTitle}</p>
                         )}
                         <p className="text-primary font-bold mt-1">
@@ -298,16 +170,6 @@ const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
                     />
                   )}
 
-                  {/* Influencer code */}
-                  <InfluencerCodeInput cartProductIds={items.map(item => item.product.node.id)} />
-
-                  {/* Donation */}
-                  <RoundUpDonation
-                    cartTotal={getDiscountedTotal()}
-                    currencyCode={currencyCode}
-                    onDonationChange={setDonationAmount}
-                  />
-
                   {/* Discounts */}
                   {discounts.length > 0 && (
                     <div className="space-y-2 pb-3 border-b border-border/50">
@@ -324,53 +186,6 @@ const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
                           <span className="text-accent font-medium">-{formatPrice(discount.discountAmount, currencyCode)}</span>
                         </div>
                       ))}
-                    </div>
-                  )}
-
-                  {/* Recommendations */}
-                  {recommendations.length > 0 && (
-                    <div className="pt-2 border-t border-border">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Sparkles className="w-4 h-4 text-primary" />
-                        <h4 className="font-semibold text-sm">{t.youMightLike}</h4>
-                      </div>
-                      <div className="space-y-3">
-                        {recommendations.map((product) => {
-                          const variant = product.node.variants.edges[0]?.node;
-                          const image = product.node.images.edges[0]?.node;
-                          if (!variant) return null;
-                          return (
-                            <motion.div
-                              key={product.node.id}
-                              initial={{ opacity: 0, scale: 0.95 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              className="flex gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
-                            >
-                              <div className="w-14 h-14 rounded-md bg-muted flex-shrink-0 overflow-hidden">
-                                {image && <img src={image.url} alt={product.node.title} className="w-full h-full object-cover" />}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <h5 className="font-medium text-sm truncate">{product.node.title}</h5>
-                                <p className="text-primary text-sm font-semibold">
-                                  {formatPrice(parseFloat(variant.price.amount), variant.price.currencyCode)}
-                                </p>
-                              </div>
-                              <Button size="sm" variant="secondary" className="flex-shrink-0 h-8" onClick={() => handleAddRecommendation(product)}>
-                                <Plus className="w-4 h-4" />
-                              </Button>
-                            </motion.div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {loadingRecs && items.length > 0 && recommendations.length === 0 && (
-                    <div className="pt-4 border-t border-border">
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span className="text-sm">{t.loadingRecs}</span>
-                      </div>
                     </div>
                   )}
                 </div>
@@ -394,19 +209,10 @@ const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
                 <Button 
                   onClick={handleCheckout}
                   className="w-full h-12 text-base font-semibold" 
-                  disabled={items.length === 0 || isLoading || isCheckingOut}
+                  disabled={items.length === 0 || isLoading}
                 >
-                  {isLoading || isCheckingOut ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      {t.creatingCheckout}
-                    </>
-                  ) : (
-                    <>
-                      <ExternalLink className="w-4 h-4 mr-2" />
-                      {t.checkout}
-                    </>
-                  )}
+                  <ArrowRight className="w-4 h-4 mr-2" />
+                  {t.checkout}
                 </Button>
               </div>
             )}
