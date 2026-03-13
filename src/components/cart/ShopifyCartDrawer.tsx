@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Plus, Minus, Trash2, ShoppingBag, ExternalLink, Loader2, Sparkles, Tag, Package, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCartStore } from '@/stores/cartStore';
-import { fetchProducts, ShopifyProduct } from '@/lib/shopify';
+import { useNavigate } from 'react-router-dom';
 import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import { useCartDiscounts } from '@/hooks/useCartDiscounts';
 import { useAuth } from '@/hooks/useAuth';
