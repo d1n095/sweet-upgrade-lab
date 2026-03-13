@@ -13,6 +13,7 @@ import AboutUs from "./pages/AboutUs";
 import Contact from "./pages/Contact";
 import TrackOrder from "./pages/TrackOrder";
 import OrderConfirmation from "./pages/OrderConfirmation";
+import Checkout from "./pages/Checkout";
 
 import CBD from "./pages/CBD";
 import ReturnsPolicy from "./pages/policies/ReturnsPolicy";
