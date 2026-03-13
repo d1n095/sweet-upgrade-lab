@@ -22,12 +22,12 @@ const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
   const { language } = useLanguage();
   const cl = getContentLang(language);
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { 
     items, 
     isLoading, 
     updateQuantity, 
     removeItem, 
-    createCheckout,
     addItem
   } = useCartStore();
   
