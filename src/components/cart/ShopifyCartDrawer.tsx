@@ -33,10 +33,7 @@ const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
   
   const { discounts, totalDiscount, getDiscountedTotal } = useCartDiscounts();
   
-  const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [showCheckoutView, setShowCheckoutView] = useState(false);
-  const [recommendations, setRecommendations] = useState<ShopifyProduct[]>([]);
-  const [loadingRecs, setLoadingRecs] = useState(false);
   const [donationAmount, setDonationAmount] = useState(0);
   const [showLoginIncentive, setShowLoginIncentive] = useState(true);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
