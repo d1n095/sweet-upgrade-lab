@@ -3,68 +3,46 @@ import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import Hero from '@/components/sections/Hero';
 import TrustBadges from '@/components/sections/TrustBadges';
-
 import ProductGridSkeleton from '@/components/loading/ProductGridSkeleton';
-import ShippingInfo from '@/components/sections/ShippingInfo';
-import About from '@/components/sections/About';
-import FAQ from '@/components/sections/FAQ';
-import Newsletter from '@/components/sections/Newsletter';
+import IngredientPhilosophy from '@/components/sections/IngredientPhilosophy';
+import MemberReviewsSection from '@/components/reviews/MemberReviewsSection';
+import AboutCompact from '@/components/sections/AboutCompact';
 import FloatingContactButton from '@/components/trust/FloatingContactButton';
 import SEOHead from '@/components/seo/SEOHead';
-import MemberReviewsSection from '@/components/reviews/MemberReviewsSection';
 import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import { trackPageView } from '@/utils/analytics';
 
-// Lazy load the product grid for better performance
 const DbProductGrid = lazy(() => import('@/components/product/DbProductGrid'));
 
 const Index = () => {
   const { language } = useLanguage();
   const lang = getContentLang(language);
 
-  // Track page view
   useEffect(() => {
     trackPageView('home', language);
   }, [language]);
-  
+
   return (
     <div className="min-h-screen bg-background">
       <SEOHead
         title={lang === 'sv' ? '4thepeople - Giftfria Produkter för Europa' : '4thepeople - Toxin-Free Products for Europe'}
-        description={lang === 'sv' 
-          ? 'Vi är inte det största företaget. Vi är det noggrannaste i vår research. Upptäck noggrant utvalda giftfria produkter till ärliga priser.'
-          : "We're not the biggest company. We're the most thorough in our research. Discover carefully selected toxin-free products at honest prices."}
-        keywords="giftfri, naturlig, kroppsvård, hållbart, europeisk, ekologisk, dropshipping"
+        description={lang === 'sv'
+          ? 'Noggrant utvalda giftfria produkter till ärliga priser.'
+          : 'Carefully curated toxin-free products at honest prices.'}
+        keywords="giftfri, naturlig, kroppsvård, hållbart, europeisk, ekologisk"
         canonical="/"
         schemaType="Store"
       />
       <Header />
       <main>
-        {/* Hero - Professional & brutally honest */}
         <Hero />
-        
-        {/* TrustBadges - Build trust immediately */}
         <TrustBadges />
-        
-        {/* Main product grid with lazy loading */}
         <Suspense fallback={<ProductGridSkeleton />}>
           <DbProductGrid />
         </Suspense>
-        
-        {/* Shipping info - Transparency about delivery */}
-        <ShippingInfo />
-        
-        {/* Member Reviews - Verified customer reviews or honest "no reviews yet" message */}
+        <IngredientPhilosophy />
         <MemberReviewsSection />
-        
-        {/* About - Honest about dropshipping */}
-        <About />
-        
-        {/* FAQ - Answer questions before purchase */}
-        <FAQ />
-        
-        {/* Newsletter - Capture leads */}
-        <Newsletter />
+        <AboutCompact />
       </main>
       <Footer />
       <FloatingContactButton />
