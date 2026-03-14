@@ -6,35 +6,28 @@ const TrustBadges = () => {
   const { t } = useLanguage();
 
   const badges = [
-    { icon: MapPin, titleKey: 'trust.founded', descKey: 'trust.founded.desc' },
-    { icon: Truck, titleKey: 'trust.delivery', descKey: 'trust.delivery.desc' },
-    { icon: Shield, titleKey: 'trust.payment', descKey: 'trust.payment.desc' },
-    { icon: Mail, titleKey: 'trust.support', descKey: 'trust.support.desc' },
-    { icon: RotateCcw, titleKey: 'trust.guarantee', descKey: 'trust.guarantee.desc' },
+    { icon: MapPin, label: t('trust.founded') },
+    { icon: Truck, label: t('trust.delivery') },
+    { icon: Shield, label: t('trust.payment') },
+    { icon: Mail, label: t('trust.support') },
+    { icon: RotateCcw, label: t('trust.guarantee') },
   ];
 
   return (
-    <section className="py-8 md:py-10 border-b border-border/50">
+    <section className="py-6 border-b border-border/40">
       <div className="container mx-auto px-4">
-        <div className="flex flex-wrap justify-center gap-x-10 gap-y-4">
+        <div className="flex flex-wrap justify-center gap-x-8 gap-y-3">
           {badges.map((badge, index) => (
             <motion.div
               key={index}
               initial={{ opacity: 0 }}
               whileInView={{ opacity: 1 }}
               viewport={{ once: true }}
-              transition={{ delay: index * 0.05, duration: 0.4 }}
-              className="flex items-center gap-2.5"
+              transition={{ delay: index * 0.04, duration: 0.4 }}
+              className="flex items-center gap-2 text-xs text-muted-foreground"
             >
-              <badge.icon className="w-4 h-4 text-accent" />
-              <div>
-                <span className="text-xs font-semibold text-foreground">
-                  {t(badge.titleKey)}
-                </span>
-                <span className="text-xs text-muted-foreground ml-1.5">
-                  {t(badge.descKey)}
-                </span>
-              </div>
+              <badge.icon className="w-3.5 h-3.5" />
+              <span>{badge.label}</span>
             </motion.div>
           ))}
         </div>
