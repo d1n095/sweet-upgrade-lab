@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingCart, Menu, X, Leaf, ChevronDown, User, Crown, LogOut, Heart, Moon, Sun } from 'lucide-react';
@@ -17,6 +17,80 @@ import { storeConfig } from '@/config/storeConfig';
 import { useTheme } from 'next-themes';
 import { usePageVisibility } from '@/stores/pageVisibilityStore';
 
+// Dropdown that auto-closes on leave and renders as plain link when only 1 item
+const NavDropdown = ({
+  label,
+  href,
+  items,
+  isActive,
+}: {
+  label: string;
+  href: string;
+  items: { href: string; label: string; icon?: React.ReactNode }[];
+  isActive: boolean;
+}) => {
+  const [open, setOpen] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
+
+  const handleEnter = () => {
+    clearTimeout(timeoutRef.current);
+    setOpen(true);
+  };
+  const handleLeave = () => {
+    timeoutRef.current = setTimeout(() => setOpen(false), 120);
+  };
+
+  // Single item → no dropdown
+  if (items.length <= 1) {
+    return (
+      <Link
+        to={items[0]?.href || href}
+        className={`text-sm text-muted-foreground hover:text-foreground transition-colors font-medium py-2 ${isActive ? 'text-foreground' : ''}`}
+      >
+        {label}
+      </Link>
+    );
+  }
+
+  return (
+    <div className="relative" onMouseEnter={handleEnter} onMouseLeave={handleLeave}>
+      <Link
+        to={href}
+        className={`text-sm text-muted-foreground hover:text-foreground transition-colors font-medium flex items-center gap-1 py-2 ${isActive ? 'text-foreground' : ''}`}
+      >
+        {label}
+        <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+      </Link>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 6 }}
+            transition={{ duration: 0.15 }}
+            className="absolute top-full left-0 pt-2 w-52 z-50"
+          >
+            <div className="rounded-xl bg-card border border-border shadow-[var(--shadow-elevated)] overflow-hidden p-1.5">
+              {items.map((item) => (
+                <Link
+                  key={item.href}
+                  to={item.href}
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
+                >
+                  {item.icon}
+                  <span className="font-medium">{item.label}</span>
+                </Link>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
 const Header = () => {
   const { t, language, contentLang } = useLanguage();
   const location = useLocation();
@@ -30,7 +104,6 @@ const Header = () => {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isProductsHovered, setIsProductsHovered] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -39,78 +112,40 @@ const Header = () => {
     storeConfig.categories.filter(c => c.active)
   );
 
-  // Ensure theme is mounted before rendering
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  useEffect(() => { setMounted(true); }, []);
 
-  // Listen for category visibility updates from AdminCategoryManager
   useEffect(() => {
     const handleCategoriesUpdated = (event: CustomEvent) => {
-      const adminCategories = event.detail as Array<{
-        id: string;
-        name: { [key: string]: string };
-        isVisible: boolean;
-      }>;
-      
-      // Map admin categories to storeConfig format and filter visible ones
-      const visibleIds = adminCategories
-        .filter(c => c.isVisible)
-        .map(c => c.id);
-      
-      // Update activeCategories based on visibility
-      const updatedCategories = storeConfig.categories.filter(c => {
-        // Map storeConfig id to admin category id
-        const mappedId = c.id;
-        return c.active && visibleIds.includes(mappedId);
-      });
-      
+      const adminCategories = event.detail as Array<{ id: string; name: { [key: string]: string }; isVisible: boolean }>;
+      const visibleIds = adminCategories.filter(c => c.isVisible).map(c => c.id);
+      const updatedCategories = storeConfig.categories.filter(c => c.active && visibleIds.includes(c.id));
       setActiveCategories(updatedCategories);
     };
 
-    // Load initial state from localStorage
     const stored = localStorage.getItem('admin_categories');
     if (stored) {
       try {
-        const parsed = JSON.parse(stored);
-        handleCategoriesUpdated({ detail: parsed } as CustomEvent);
-      } catch {
-        // Keep default
-      }
+        handleCategoriesUpdated({ detail: JSON.parse(stored) } as CustomEvent);
+      } catch { /* keep default */ }
     }
 
     window.addEventListener('categories-updated', handleCategoriesUpdated as EventListener);
-    return () => {
-      window.removeEventListener('categories-updated', handleCategoriesUpdated as EventListener);
-    };
+    return () => window.removeEventListener('categories-updated', handleCategoriesUpdated as EventListener);
   }, []);
 
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
-    };
+    const handleScroll = () => setIsScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Close mobile menu on route change
-  useEffect(() => {
-    setIsMobileMenuOpen(false);
-  }, [location.pathname]);
-
-  const [isContactHovered, setIsContactHovered] = useState(false);
-  const [isAboutHovered, setIsAboutHovered] = useState(false);
-
-  const navLinks = [
-    { href: '/shop', label: 'Shop' },
-    ...(isVisible('whats-new') ? [{ href: '/whats-new', label: t('nav.whatsnew') }] : []),
-  ];
+  useEffect(() => { setIsMobileMenuOpen(false); }, [location.pathname]);
 
   const aboutSubMenu = [
     { href: '/about', label: t('nav.aboutus') },
     ...(isVisible('donations') ? [{ href: '/donations', label: t('nav.donations') }] : []),
   ];
-  
+
   const contactSubMenu = [
     { href: '/contact', label: t('nav.contactus') },
     ...(isVisible('affiliate') ? [{ href: '/affiliate', label: t('nav.partnership') }] : []),
@@ -118,17 +153,31 @@ const Header = () => {
     ...(isVisible('suggest-product') ? [{ href: '/suggest-product', label: t('nav.suggestproduct') }] : []),
   ];
 
+  const productDropdownItems = activeCategories.map(c => ({
+    href: `/shop?category=${c.id}`,
+    label: c.name?.[language] ?? c.name?.[contentLang] ?? c.name?.en ?? c.name?.sv ?? '',
+    icon: <Leaf className="w-3.5 h-3.5 text-muted-foreground" />,
+  }));
+
+  const allMobileLinks = [
+    { href: '/shop', label: 'Shop' },
+    ...(isVisible('whats-new') ? [{ href: '/whats-new', label: t('nav.whatsnew') }] : []),
+    ...aboutSubMenu,
+    ...contactSubMenu,
+    { href: '/track-order', label: t('nav.trackorder') },
+  ];
+
   return (
     <>
-      <header 
+      <header
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-          isScrolled 
-            ? 'bg-background/95 backdrop-blur-xl shadow-sm border-b border-border/50' 
+          isScrolled
+            ? 'bg-background/95 backdrop-blur-xl shadow-sm border-b border-border/50'
             : 'bg-transparent'
         }`}
       >
         <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-18 md:h-20">
+          <div className="flex items-center justify-between h-14 md:h-16">
             {/* Logo */}
             <button
               onClick={() => {
@@ -138,170 +187,57 @@ const Header = () => {
                   navigate('/');
                 }
               }}
-              className="flex items-center gap-3 group cursor-pointer"
+              className="flex items-center gap-2.5 group cursor-pointer min-h-[44px]"
             >
-              <div className="relative">
-                <div className="w-11 h-11 rounded-xl bg-gradient-accent flex items-center justify-center shadow-lg shadow-accent/20">
-                  <Leaf className="w-6 h-6 text-accent-foreground" />
-                </div>
+              <div className="w-9 h-9 rounded-lg bg-gradient-accent flex items-center justify-center shadow-sm">
+                <Leaf className="w-5 h-5 text-accent-foreground" />
               </div>
-              <span className="font-display text-xl font-semibold">
+              <span className="font-display text-lg font-semibold">
                 4The<span className="text-gradient">People</span>
               </span>
             </button>
 
             {/* Desktop Nav */}
-            <nav className="hidden md:flex items-center gap-8">
-              {/* Products with dropdown */}
-              <div 
-                className="relative"
-                onMouseEnter={() => setIsProductsHovered(true)}
-                onMouseLeave={() => setIsProductsHovered(false)}
-              >
-                <Link
-                  to="/shop"
-                  className={`text-muted-foreground hover:text-foreground transition-colors relative group flex items-center gap-1.5 font-medium ${
-                    location.pathname === '/shop' ? 'text-foreground' : ''
-                  }`}
-                >
-                  {t('nav.products')}
-                  <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isProductsHovered ? 'rotate-180' : ''}`} />
-                </Link>
-                
-                <AnimatePresence>
-                  {isProductsHovered && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 8, scale: 0.98 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 8, scale: 0.98 }}
-                      transition={{ duration: 0.2, ease: "easeOut" }}
-                      className="absolute top-full left-0 mt-3 w-60 rounded-2xl bg-card border border-border shadow-elevated z-50 overflow-hidden"
-                    >
-                      <div className="p-2">
-                        {activeCategories.map((category) => (
-                          <Link
-                            key={category.id}
-                            to={`/shop?category=${category.id}`}
-                            onClick={() => setIsProductsHovered(false)}
-                            className="flex items-center gap-3 px-4 py-3 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all duration-200"
-                          >
-                            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                              <Leaf className="w-4 h-4 text-primary" />
-                            </div>
-                            <span className="font-medium">{category.name?.[language] ?? category.name?.[contentLang] ?? category.name?.en ?? category.name?.sv ?? ''}</span>
-                          </Link>
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+            <nav className="hidden md:flex items-center gap-6">
+              <NavDropdown
+                label={t('nav.products')}
+                href="/shop"
+                items={productDropdownItems.length > 0 ? productDropdownItems : [{ href: '/shop', label: 'Shop' }]}
+                isActive={location.pathname === '/shop'}
+              />
 
-              {/* About with dropdown */}
-              <div 
-                className="relative"
-                onMouseEnter={() => setIsAboutHovered(true)}
-                onMouseLeave={() => setIsAboutHovered(false)}
-              >
-                <Link
-                  to="/about"
-                  className={`text-muted-foreground hover:text-foreground transition-colors relative group flex items-center gap-1.5 font-medium ${
-                    location.pathname === '/about' || location.pathname === '/donations' ? 'text-foreground' : ''
-                  }`}
-                >
-                  {t('nav.about')}
-                  <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isAboutHovered ? 'rotate-180' : ''}`} />
-                </Link>
-                
-                <AnimatePresence>
-                  {isAboutHovered && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 8, scale: 0.98 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 8, scale: 0.98 }}
-                      transition={{ duration: 0.2, ease: "easeOut" }}
-                      className="absolute top-full left-0 mt-3 w-56 rounded-2xl bg-card border border-border shadow-elevated z-50 overflow-hidden"
-                    >
-                      <div className="p-2">
-                        {aboutSubMenu.map((item) => (
-                          <Link
-                            key={item.href}
-                            to={item.href}
-                            onClick={() => setIsAboutHovered(false)}
-                            className="flex items-center gap-3 px-4 py-3 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all duration-200"
-                          >
-                            <span className="font-medium">{item.label}</span>
-                          </Link>
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+              <NavDropdown
+                label={t('nav.about')}
+                href="/about"
+                items={aboutSubMenu}
+                isActive={location.pathname === '/about' || location.pathname === '/donations'}
+              />
 
-              {navLinks.slice(1).map((link) => (
+              {isVisible('whats-new') && (
                 <Link
-                  key={link.href}
-                  to={link.href}
-                  className={`text-muted-foreground hover:text-foreground transition-colors font-medium ${
-                    location.pathname === link.href ? 'text-foreground' : ''
+                  to="/whats-new"
+                  className={`text-sm text-muted-foreground hover:text-foreground transition-colors font-medium py-2 ${
+                    location.pathname === '/whats-new' ? 'text-foreground' : ''
                   }`}
                 >
-                  {link.label}
+                  {t('nav.whatsnew')}
                 </Link>
-              ))}
+              )}
 
-              {/* Contact with dropdown */}
-              <div 
-                className="relative"
-                onMouseEnter={() => setIsContactHovered(true)}
-                onMouseLeave={() => setIsContactHovered(false)}
-              >
-                <Link
-                  to="/contact"
-                  className={`text-muted-foreground hover:text-foreground transition-colors relative group flex items-center gap-1.5 font-medium ${
-                    location.pathname === '/contact' || location.pathname === '/affiliate' || location.pathname === '/business' ? 'text-foreground' : ''
-                  }`}
-                >
-                  {t('nav.contact')}
-                  <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isContactHovered ? 'rotate-180' : ''}`} />
-                </Link>
-                
-                <AnimatePresence>
-                  {isContactHovered && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 8, scale: 0.98 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 8, scale: 0.98 }}
-                      transition={{ duration: 0.2, ease: "easeOut" }}
-                      className="absolute top-full left-0 mt-3 w-56 rounded-2xl bg-card border border-border shadow-elevated z-50 overflow-hidden"
-                    >
-                      <div className="p-2">
-                        {contactSubMenu.map((item) => (
-                          <Link
-                            key={item.href}
-                            to={item.href}
-                            onClick={() => setIsContactHovered(false)}
-                            className="flex items-center gap-3 px-4 py-3 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all duration-200"
-                          >
-                            <span className="font-medium">{item.label}</span>
-                          </Link>
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+              <NavDropdown
+                label={t('nav.contact')}
+                href="/contact"
+                items={contactSubMenu}
+                isActive={['/contact', '/affiliate', '/business'].includes(location.pathname)}
+              />
             </nav>
 
-            {/* Search + Actions */}
-            <div className="flex items-center gap-3 md:gap-4">
-              {/* Search Field with Suggestions */}
+            {/* Actions */}
+            <div className="flex items-center gap-1 md:gap-1.5">
               <div className="hidden sm:block">
                 <SearchSuggestions />
               </div>
-              
-              {/* Dark mode toggle */}
+
               {mounted && (
                 <Button
                   variant="ghost"
@@ -313,24 +249,19 @@ const Header = () => {
                   <AnimatePresence mode="wait" initial={false}>
                     <motion.div
                       key={resolvedTheme}
-                      initial={{ y: -20, opacity: 0, rotate: -90 }}
-                      animate={{ y: 0, opacity: 1, rotate: 0 }}
-                      exit={{ y: 20, opacity: 0, rotate: 90 }}
-                      transition={{ duration: 0.2 }}
+                      initial={{ y: -16, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      exit={{ y: 16, opacity: 0 }}
+                      transition={{ duration: 0.15 }}
                     >
-                      {resolvedTheme === 'dark' ? (
-                        <Sun className="w-5 h-5" />
-                      ) : (
-                        <Moon className="w-5 h-5" />
-                      )}
+                      {resolvedTheme === 'dark' ? <Sun className="w-[18px] h-[18px]" /> : <Moon className="w-[18px] h-[18px]" />}
                     </motion.div>
                   </AnimatePresence>
                 </Button>
               )}
-              
+
               <LanguageSwitcher />
 
-              {/* Auth/Account button */}
               {user ? (
                 <Button
                   variant="ghost"
@@ -338,9 +269,9 @@ const Header = () => {
                   className="hidden sm:flex h-10 w-10 rounded-full hover:bg-secondary relative"
                   onClick={() => setIsAccountOpen(true)}
                 >
-                  <User className="w-5 h-5" />
+                  <User className="w-[18px] h-[18px]" />
                   {isMember && (
-                    <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-accent border-2 border-background" />
+                    <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-accent border-2 border-background" />
                   )}
                 </Button>
               ) : (
@@ -350,25 +281,24 @@ const Header = () => {
                   className="hidden sm:flex h-10 w-10 rounded-full hover:bg-secondary"
                   onClick={() => setIsAuthOpen(true)}
                 >
-                  <User className="w-5 h-5" />
+                  <User className="w-[18px] h-[18px]" />
                 </Button>
               )}
 
-              {/* Wishlist button */}
               <Button
                 variant="ghost"
                 size="icon"
                 className="relative h-10 w-10 rounded-full hover:bg-secondary"
                 onClick={() => setIsWishlistOpen(true)}
               >
-                <Heart className="w-5 h-5" />
+                <Heart className="w-[18px] h-[18px]" />
                 <AnimatePresence>
                   {wishlistItems.length > 0 && (
                     <motion.span
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       exit={{ scale: 0 }}
-                      className="absolute -top-0.5 -right-0.5 w-5 h-5 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center shadow-lg"
+                      className="absolute -top-0.5 -right-0.5 w-4.5 h-4.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center"
                     >
                       {wishlistItems.length}
                     </motion.span>
@@ -376,21 +306,20 @@ const Header = () => {
                 </AnimatePresence>
               </Button>
 
-              {/* Cart button */}
               <Button
                 variant="ghost"
                 size="icon"
                 className="relative h-10 w-10 rounded-full hover:bg-secondary"
                 onClick={() => setIsCartOpen(true)}
               >
-                <ShoppingCart className="w-5 h-5" />
+                <ShoppingCart className="w-[18px] h-[18px]" />
                 <AnimatePresence>
                   {totalItems > 0 && (
                     <motion.span
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       exit={{ scale: 0 }}
-                      className="absolute -top-0.5 -right-0.5 w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center shadow-lg"
+                      className="absolute -top-0.5 -right-0.5 w-4.5 h-4.5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center"
                     >
                       {totalItems}
                     </motion.span>
@@ -417,99 +346,54 @@ const Header = () => {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3, ease: "easeInOut" }}
-              className="md:hidden bg-background/98 backdrop-blur-xl border-t border-border/50"
+              transition={{ duration: 0.25 }}
+              className="md:hidden bg-background border-t border-border/50 overflow-hidden"
             >
-              <nav className="container mx-auto px-4 py-6 flex flex-col gap-1">
-                {navLinks.map((link) => (
+              <nav className="container mx-auto px-4 py-4 flex flex-col">
+                {allMobileLinks.map((link) => (
                   <Link
                     key={link.href}
                     to={link.href}
-                    className={`text-foreground font-medium py-3 px-4 rounded-xl hover:bg-secondary/50 transition-colors ${
-                      location.pathname === link.href ? 'bg-secondary/50' : ''
+                    className={`text-sm font-medium py-3 px-4 rounded-xl hover:bg-secondary/50 transition-colors min-h-[44px] flex items-center ${
+                      location.pathname === link.href ? 'bg-secondary/50 text-foreground' : 'text-muted-foreground'
                     }`}
                   >
                     {link.label}
                   </Link>
                 ))}
-                {/* About sub-links in mobile */}
-                <div className="pl-4 flex flex-col gap-1 mt-2">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide px-4 py-2">
-                    {t('nav.about')}
-                  </p>
-                  {aboutSubMenu.map((item) => (
-                    <Link
-                      key={item.href}
-                      to={item.href}
-                      className="text-sm text-muted-foreground hover:text-foreground transition-colors py-2.5 px-4 rounded-xl hover:bg-secondary/30"
-                    >
-                      {item.label}
-                    </Link>
-                  ))}
-                </div>
-                <div className="pl-4 flex flex-col gap-1 mt-2">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide px-4 py-2">
-                    {t('nav.categories')}
-                  </p>
-                  {activeCategories.map((category) => (
-                    <Link
-                      key={category.id}
-                      to={`/shop?category=${category.id}`}
-                      className="flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground transition-colors py-2.5 px-4 rounded-xl hover:bg-secondary/30"
-                    >
-                      <Leaf className="w-4 h-4 text-primary" />
-                      {category.name?.[language] ?? category.name?.[contentLang] ?? category.name?.en ?? category.name?.sv ?? ''}
-                    </Link>
-                  ))}
-                </div>
-                <div className="mt-4 pt-4 border-t border-border/50 flex flex-col gap-1">
+
+                <div className="mt-3 pt-3 border-t border-border/50">
                   {user ? (
                     <>
                       <button
-                        onClick={() => {
-                          setIsAccountOpen(true);
-                          setIsMobileMenuOpen(false);
-                        }}
-                        className="flex items-center gap-3 text-foreground font-medium py-3 px-4 rounded-xl hover:bg-secondary/50 transition-colors text-left w-full"
+                        onClick={() => { setIsAccountOpen(true); setIsMobileMenuOpen(false); }}
+                        className="flex items-center gap-3 text-sm font-medium py-3 px-4 rounded-xl hover:bg-secondary/50 transition-colors text-left w-full min-h-[44px]"
                       >
-                        <User className="w-5 h-5" />
+                        <User className="w-4.5 h-4.5" />
                         {t('nav.myaccount')}
                         {isMember && (
                           <span className="ml-auto flex items-center gap-1 text-xs text-accent">
-                            <Crown className="w-4 h-4" />
-                            Medlem
+                            <Crown className="w-3.5 h-3.5" />
                           </span>
                         )}
                       </button>
                       <button
-                        onClick={async () => {
-                          await signOut();
-                          setIsMobileMenuOpen(false);
-                        }}
-                        className="flex items-center gap-3 text-muted-foreground font-medium py-3 px-4 rounded-xl hover:bg-secondary/50 transition-colors text-left"
+                        onClick={async () => { await signOut(); setIsMobileMenuOpen(false); }}
+                        className="flex items-center gap-3 text-sm text-muted-foreground font-medium py-3 px-4 rounded-xl hover:bg-secondary/50 transition-colors text-left w-full min-h-[44px]"
                       >
-                        <LogOut className="w-5 h-5" />
+                        <LogOut className="w-4.5 h-4.5" />
                         {t('nav.signout')}
                       </button>
                     </>
                   ) : (
                     <button
-                      onClick={() => {
-                        setIsAuthOpen(true);
-                        setIsMobileMenuOpen(false);
-                      }}
-                      className="flex items-center gap-3 text-foreground font-medium py-3 px-4 rounded-xl hover:bg-secondary/50 transition-colors text-left"
+                      onClick={() => { setIsAuthOpen(true); setIsMobileMenuOpen(false); }}
+                      className="flex items-center gap-3 text-sm font-medium py-3 px-4 rounded-xl hover:bg-secondary/50 transition-colors text-left w-full min-h-[44px]"
                     >
-                      <User className="w-5 h-5" />
+                      <User className="w-4.5 h-4.5" />
                       {t('nav.signin')}
                     </button>
                   )}
-                  <Link
-                    to="/track-order"
-                    className="text-muted-foreground font-medium py-3 px-4 rounded-xl hover:bg-secondary/50 transition-colors"
-                  >
-                    {t('nav.trackorder')}
-                  </Link>
                 </div>
               </nav>
             </motion.div>
