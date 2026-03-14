@@ -13,7 +13,7 @@ const AboutCompact = () => {
     },
     en: {
       title: 'About 4thepeople',
-      text: 'Founded in 2026 with a simple idea: make it easier to find toxin-free alternatives. We're a selective dropshipping store that carefully reviews every product before listing it.',
+      text: "Founded in 2026 with a simple idea: make it easier to find toxin-free alternatives. We're a selective dropshipping store that carefully reviews every product before listing it.",
       footer: 'Small – but honest.',
     },
   };
