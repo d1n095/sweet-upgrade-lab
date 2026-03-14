@@ -16,12 +16,37 @@ interface DbProductCardProps {
   compact?: boolean;
 }
 
+const FALLBACK_IMAGE = '/placeholder.svg';
+
+const StockIndicator = ({ stock, allowOverselling, lang }: { stock: number; allowOverselling: boolean; lang: 'sv' | 'en' }) => {
+  if (allowOverselling || stock > 10) {
+    return (
+      <span className="text-[11px] text-accent font-medium">
+        {lang === 'sv' ? 'I lager' : 'In stock'}
+      </span>
+    );
+  }
+  if (stock > 0) {
+    return (
+      <span className="text-[11px] text-warning font-medium">
+        {lang === 'sv' ? `Bara ${stock} kvar` : `Only ${stock} left`}
+      </span>
+    );
+  }
+  return (
+    <span className="text-[11px] text-destructive font-medium">
+      {lang === 'sv' ? 'Slutsåld' : 'Sold out'}
+    </span>
+  );
+};
+
 const DbProductCard = ({ product, index, compact = false }: DbProductCardProps) => {
   const { language, t } = useLanguage();
   const lang = getContentLang(language);
   const { items, addItem } = useCartStore();
   const [isAdded, setIsAdded] = useState(false);
   const [quantity, setQuantity] = useState(1);
+  const [imgError, setImgError] = useState(false);
 
   const title = lang === 'sv' ? product.title_sv : (product.title_en || product.title_sv);
   const description = lang === 'sv' ? product.description_sv : (product.description_en || product.description_sv);
@@ -34,6 +59,10 @@ const DbProductCard = ({ product, index, compact = false }: DbProductCardProps) 
 
   const formatPrice = (amount: number) =>
     new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK', minimumFractionDigits: 0 }).format(amount);
+
+  const discountPercent = product.original_price && product.original_price > product.price
+    ? Math.round((1 - product.price / product.original_price) * 100)
+    : null;
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -80,6 +109,8 @@ const DbProductCard = ({ product, index, compact = false }: DbProductCardProps) 
     setTimeout(() => setIsAdded(false), 1500);
   };
 
+  const showImage = imageUrl && !imgError;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -89,19 +120,29 @@ const DbProductCard = ({ product, index, compact = false }: DbProductCardProps) 
       className="group relative"
     >
       <Link to={`/product/${handle}`}>
-        <div className="bg-card border border-border rounded-2xl overflow-hidden transition-all duration-200 hover:shadow-[var(--shadow-elevated)] hover:border-border/80">
+        <div className="bg-card border border-border rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-[var(--shadow-elevated)] hover:-translate-y-1">
           {/* Image */}
           <div className="relative aspect-[4/5] overflow-hidden bg-secondary/30">
-            {imageUrl ? (
+            {showImage ? (
               <img
                 src={imageUrl}
                 alt={title}
                 loading="lazy"
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                onError={() => setImgError(true)}
+                className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.06]"
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <Package className="w-8 h-8 text-muted-foreground/20" />
+              <div className="w-full h-full flex items-center justify-center bg-secondary/50">
+                <Package className="w-10 h-10 text-muted-foreground/20" />
+              </div>
+            )}
+
+            {/* Sold out overlay */}
+            {!isAvailable && (
+              <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
+                <span className="text-sm font-semibold text-foreground">
+                  {lang === 'sv' ? 'Slutsåld' : 'Sold out'}
+                </span>
               </div>
             )}
 
@@ -121,10 +162,10 @@ const DbProductCard = ({ product, index, compact = false }: DbProductCardProps) 
                 </Badge>
               </div>
             )}
-            {product.badge === 'sale' && (
+            {product.badge === 'sale' && discountPercent && (
               <div className="absolute top-3 right-3 z-10">
                 <Badge variant="destructive" className="text-[10px] font-semibold px-2 py-0.5 rounded-full">
-                  REA
+                  -{discountPercent}%
                 </Badge>
               </div>
             )}
@@ -150,12 +191,18 @@ const DbProductCard = ({ product, index, compact = false }: DbProductCardProps) 
 
           {/* Content */}
           <div className="p-4">
-            <h3 className="font-semibold text-sm mb-2 line-clamp-2 group-hover:text-accent transition-colors">
+            <h3 className="font-semibold text-sm mb-1.5 line-clamp-2 group-hover:text-accent transition-colors duration-200">
               {title}
             </h3>
 
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-base font-bold">{formatPrice(product.price)}</span>
+            {/* Stock status */}
+            <div className="mb-2">
+              <StockIndicator stock={product.stock} allowOverselling={product.allow_overselling} lang={lang} />
+            </div>
+
+            {/* Price */}
+            <div className="flex items-baseline gap-2 mb-3">
+              <span className="text-lg font-bold text-foreground">{formatPrice(product.price)}</span>
               {product.original_price && product.original_price > product.price && (
                 <span className="text-xs text-muted-foreground line-through">{formatPrice(product.original_price)}</span>
               )}
@@ -170,10 +217,10 @@ const DbProductCard = ({ product, index, compact = false }: DbProductCardProps) 
                 disabled={!isAvailable}
                 className={`flex-1 h-8 text-xs rounded-lg transition-all ${isAdded ? 'bg-accent hover:bg-accent text-accent-foreground' : ''}`}
               >
-                {!isAvailable 
-                  ? t('product.soldout') 
-                  : isAdded 
-                    ? <Check className="w-3.5 h-3.5" /> 
+                {!isAvailable
+                  ? t('product.soldout')
+                  : isAdded
+                    ? <Check className="w-3.5 h-3.5" />
                     : <><ShoppingCart className="w-3.5 h-3.5 mr-1" />{t('product.buy')}</>
                 }
               </Button>
