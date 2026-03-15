@@ -8,13 +8,13 @@ const AboutCompact = () => {
   const content = {
     sv: {
       title: 'Om 4thepeople',
-      text: 'Grundat 2026 med en enkel idé: göra det enklare att hitta giftfria alternativ. Vi är en selektiv dropshipping-butik som granskar varje produkt noggrant innan den säljs.',
-      footer: 'Små – men ärliga.',
+      text: 'Vi grundades 2026 för att erbjuda noggrant utvalda, giftfria produkter. Varje artikel granskas mot internationella certifieringar innan den når vår butik.',
+      footer: 'Kvalitet framför kvantitet.',
     },
     en: {
       title: 'About 4thepeople',
-      text: "Founded in 2026 with a simple idea: make it easier to find toxin-free alternatives. We're a selective dropshipping store that carefully reviews every product before listing it.",
-      footer: 'Small – but honest.',
+      text: 'Founded in 2026 to offer carefully curated, toxin-free products. Every item is reviewed against international certifications before it reaches our store.',
+      footer: 'Quality over quantity.',
     },
   };
 

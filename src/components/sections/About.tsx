@@ -11,20 +11,20 @@ const About = () => {
   const content = {
     sv: {
       eyebrow: 'Om oss',
-      title: 'Vi är i uppstartsfasen',
-      titleHighlight: '– och det är vår fördel',
-      description: '4thepeople grundades 2026 med en enkel idé: göra det enklare att hitta giftfria alternativ utan att det kostar skjortan. Vi är inte stora. Vi är inte etablerade. Vi är noggranna.',
+      title: 'Noggrant utvalt',
+      titleHighlight: '– aldrig slumpmässigt',
+      description: 'Vi grundades 2026 med en övertygelse: att renare produkter inte ska kräva kompromisser. Varje artikel granskas mot internationella certifieringar innan den når dig.',
       transparency: {
-        title: 'Transparent affärsmodell',
-        text: 'Vi är en dropshipping-butik – men vi är selektiva. Vi väljer leverantörer med spårbar kvalitet och granskar internationella certifieringar noggrant innan produkter läggs upp.'
+        title: 'Vårt löfte',
+        text: 'Vi väljer leverantörer med spårbar kvalitet och verifierar certifieringar innan en produkt når vår butik. Full transparens, inga genvägar.'
       },
       promises: {
         title: 'Vad vi gör',
         items: [
-          'Granskar internationella certifieringar',
+          'Verifierar internationella certifieringar',
           'Väljer leverantörer med spårbar kvalitet',
           'Analyserar globala användarrecensioner',
-          'Finns här om du har frågor'
+          'Personlig support vid varje fråga'
         ]
       },
       notPromises: {
@@ -32,42 +32,42 @@ const About = () => {
         items: [
           'Lovar mirakelprodukter',
           'Använder falska omdömen',
-          'Lovar blixtsnabb leverans',
-          'Gömmer att vi är dropshipping'
+          'Kompromissar med ingredienser',
+          'Döljer hur vi arbetar'
         ]
       },
-      footer: 'Dropshipping – men selektiva. Små – men ärliga.',
+      footer: 'Kvalitet framför kvantitet.',
       impact: 'Vår gemensamma påverkan',
       impactSub: 'Totalt insamlat',
     },
     en: {
       eyebrow: 'About us',
-      title: "We're in the startup phase",
-      titleHighlight: '– and that is our advantage',
-      description: "4thepeople was founded in 2026 with a simple idea: make it easier to find toxin-free alternatives without breaking the bank. We're not big. We're not established. We're thorough.",
+      title: 'Carefully curated',
+      titleHighlight: '– never random',
+      description: 'Founded in 2026 with one conviction: cleaner products shouldn\'t require compromise. Every item is reviewed against international certifications before it reaches you.',
       transparency: {
-        title: 'Transparent business model',
-        text: "We're a dropshipping store – but we're selective. We choose suppliers with traceable quality and carefully review international certifications before listing products."
+        title: 'Our promise',
+        text: 'We select suppliers with traceable quality and verify certifications before a product enters our store. Full transparency, no shortcuts.'
       },
       promises: {
         title: 'What we do',
         items: [
-          'Review international certifications',
-          'Choose suppliers with traceable quality',
-          'Analyze global user reviews',
-          "Here if you have questions"
+          'Verify international certifications',
+          'Select suppliers with traceable quality',
+          'Analyse global user reviews',
+          'Personal support for every question'
         ]
       },
       notPromises: {
         title: 'What we never do',
         items: [
           'Promise miracle products',
-          'Use fake reviews',
-          "Promise instant delivery",
-          "Hide that we're dropshipping"
+          'Use fabricated reviews',
+          'Compromise on ingredients',
+          'Hide how we operate'
         ]
       },
-      footer: "Dropshipping – but selective. Small – but honest.",
+      footer: 'Quality over quantity.',
       impact: 'Our Collective Impact',
       impactSub: 'Total collected',
     }
