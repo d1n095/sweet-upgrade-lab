@@ -16,32 +16,32 @@ const AboutUs = () => {
       icon: Leaf,
       title: { sv: 'Hållbarhet', en: 'Sustainability' },
       description: { 
-        sv: 'Vi väljer produkter som är skonsamma mot miljön och tillverkade med hållbara material.',
-        en: 'We choose products that are gentle on the environment and made with sustainable materials.'
+        sv: 'Produkter som respekterar både dig och planeten.',
+        en: 'Products that respect both you and the planet.'
       },
     },
     {
       icon: Shield,
       title: { sv: 'Giftfritt', en: 'Toxin-free' },
       description: { 
-        sv: 'Alla våra produkter är fria från skadliga kemikalier och tillsatser.',
-        en: 'All our products are free from harmful chemicals and additives.'
+        sv: 'Fria från skadliga kemikalier. Utan undantag.',
+        en: 'Free from harmful chemicals. No exceptions.'
       },
     },
     {
       icon: Heart,
       title: { sv: 'Kvalitet', en: 'Quality' },
       description: { 
-        sv: 'Vi kompromissar aldrig med kvaliteten. Varje produkt är noggrant utvald.',
-        en: 'We never compromise on quality. Every product is carefully selected.'
+        sv: 'Noggrant utvalt. Aldrig kompromisser.',
+        en: 'Carefully curated. Never compromised.'
       },
     },
     {
       icon: Users,
-      title: { sv: 'Gemenskap', en: 'Community' },
+      title: { sv: 'Transparens', en: 'Transparency' },
       description: { 
-        sv: 'Vi bygger en gemenskap av människor som bryr sig om sin hälsa och planeten.',
-        en: 'We build a community of people who care about their health and the planet.'
+        sv: 'Full insyn i hur vi väljer och granskar varje produkt.',
+        en: 'Full visibility into how we select and review every product.'
       },
     },
   ];
@@ -51,24 +51,24 @@ const AboutUs = () => {
       year: '2024',
       title: { sv: 'Idén föds', en: 'The idea is born' },
       description: { 
-        sv: 'Vi såg ett behov av hållbara produkter som inte kompromissar med kvalitet.',
-        en: 'We saw a need for sustainable products that don\'t compromise on quality.'
+        sv: 'Ett behov av renare alternativ – utan kompromisser på kvalitet.',
+        en: 'A need for cleaner alternatives – without compromising quality.'
       },
     },
     {
       year: '2025',
       title: { sv: 'Första produkterna', en: 'First products' },
       description: { 
-        sv: 'Vi lanserade våra första produkter inom teknik och kroppsvård.',
-        en: 'We launched our first products in tech and body care.'
+        sv: 'Lansering av våra första kategorier: teknik och kroppsvård.',
+        en: 'Launch of our first categories: tech and body care.'
       },
     },
     {
       year: '2026',
       title: { sv: 'Expansion', en: 'Expansion' },
       description: { 
-        sv: 'Vi utökar sortimentet med hampa-kläder och fler naturliga produkter.',
-        en: 'We expand our range with hemp clothing and more natural products.'
+        sv: 'Fler kategorier. Fler certifieringar. Samma standard.',
+        en: 'More categories. More certifications. Same standards.'
       },
     },
   ];

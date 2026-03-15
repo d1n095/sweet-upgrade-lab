@@ -9,33 +9,33 @@ const ImpactSection = () => {
 
   const content = {
     sv: {
-      eyebrow: 'Vår Resa',
-      title: 'Vi är i uppstartsfasen',
-      titleHighlight: '– och det är vår styrka',
-      description: 'Varje produkt du köper från oss är inte bara ett köp. Det är ett bidrag till något större.',
+      eyebrow: 'Vår vision',
+      title: 'Varje köp',
+      titleHighlight: 'driver förändring',
+      description: 'Vi bygger en framtid där renare produkter är normen – inte undantaget.',
       promises: [
-        { icon: Users, text: 'Ett steg mot fler jobb i Europa' },
-        { icon: Sparkles, text: 'Ett steg mot giftfria hem' },
-        { icon: Check, text: 'Ett steg mot transparent handel' },
-        { icon: Rocket, text: 'Ditt bidrag till vår gemensamma framtid' }
+        { icon: Users, text: 'Fler jobb i Europa' },
+        { icon: Sparkles, text: 'Giftfria hem' },
+        { icon: Check, text: 'Transparent handel' },
+        { icon: Rocket, text: 'En gemensam framtid' }
       ],
-      footer: 'Just nu är vi små, men vi tänker stort.',
-      cta: 'Din första order gör skillnad',
+      footer: 'Vi tänker stort.',
+      cta: 'Gör skillnad idag',
       ctaButton: 'Utforska produkter'
     },
     en: {
-      eyebrow: 'Our Journey',
-      title: "We're in the startup phase",
-      titleHighlight: '– and that is our strength',
-      description: 'Every product you buy from us is not just a purchase. It is a contribution to something bigger.',
+      eyebrow: 'Our Vision',
+      title: 'Every purchase',
+      titleHighlight: 'drives change',
+      description: 'We\'re building a future where cleaner products are the norm – not the exception.',
       promises: [
-        { icon: Users, text: 'A step towards more jobs in Europe' },
-        { icon: Sparkles, text: 'A step towards toxin-free homes' },
-        { icon: Check, text: 'A step towards transparent trade' },
-        { icon: Rocket, text: 'Your contribution to our shared future' }
+        { icon: Users, text: 'More jobs in Europe' },
+        { icon: Sparkles, text: 'Toxin-free homes' },
+        { icon: Check, text: 'Transparent commerce' },
+        { icon: Rocket, text: 'A shared future' }
       ],
-      footer: "Right now we're small, but we think big.",
-      cta: 'Your first order makes a difference',
+      footer: 'We think big.',
+      cta: 'Make a difference today',
       ctaButton: 'Explore products'
     }
   };
