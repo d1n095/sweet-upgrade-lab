@@ -142,7 +142,7 @@ const ProductDetail = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="pt-24 pb-20">
+      <main className="pt-24 pb-28 md:pb-20">
         <div className="container mx-auto px-4">
           {/* Breadcrumb */}
           <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
@@ -242,8 +242,8 @@ const ProductDetail = () => {
                 <p className="text-muted-foreground leading-relaxed mb-6">{description}</p>
               )}
 
-              {/* Quantity + Add to cart */}
-              <div className="flex items-center gap-3 mb-6">
+              {/* Quantity + Add to cart (desktop) */}
+              <div className="hidden md:flex items-center gap-3 mb-6">
                 <div className="flex items-center border border-border rounded-lg">
                   <Button variant="ghost" size="icon" className="h-11 w-11 rounded-r-none" onClick={() => setQuantity(Math.max(1, quantity - 1))}>
                     <Minus className="w-4 h-4" />
@@ -316,6 +316,42 @@ const ProductDetail = () => {
           </div>
         </div>
       </main>
+
+      {/* Sticky mobile buy bar */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-background/95 backdrop-blur-md border-t border-border px-4 py-3 safe-bottom">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center border border-border rounded-lg shrink-0">
+            <button
+              className="h-11 w-11 flex items-center justify-center active:bg-secondary/60 rounded-l-lg transition-colors"
+              onClick={() => setQuantity(Math.max(1, quantity - 1))}
+            >
+              <Minus className="w-4 h-4" />
+            </button>
+            <span className="w-10 text-center font-medium text-base select-none">{quantity}</span>
+            <button
+              className="h-11 w-11 flex items-center justify-center active:bg-secondary/60 rounded-r-lg transition-colors"
+              onClick={() => setQuantity(quantity + 1)}
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+          </div>
+          <Button
+            size="lg"
+            className={`flex-1 h-12 text-sm font-semibold transition-all ${isAdded ? 'bg-accent hover:bg-accent text-accent-foreground' : ''}`}
+            onClick={handleAddToCart}
+            disabled={isOutOfStock}
+          >
+            {isOutOfStock ? (
+              t('product.outofstock')
+            ) : isAdded ? (
+              <><Check className="w-4 h-4 mr-2" />{t('product.added')}</>
+            ) : (
+              <><ShoppingCart className="w-4 h-4 mr-2" />{formatPrice(product.price)} · {t('product.addtocart')}</>
+            )}
+          </Button>
+        </div>
+      </div>
+
       <Footer />
     </div>
   );
