@@ -40,7 +40,7 @@ const Hero = () => {
             <Button
               size="lg"
               className="h-12 px-10 text-sm font-semibold rounded-full shadow-sm hover:shadow-md transition-all"
-              onClick={() => document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' })}
+              onClick={() => navigate('/produkter')}
             >
               {t('hero.cta.primary')}
             </Button>
