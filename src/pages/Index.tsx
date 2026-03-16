@@ -1,18 +1,13 @@
-import { useEffect, Suspense, lazy } from 'react';
+import { useEffect } from 'react';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import Hero from '@/components/sections/Hero';
-import TrustBadges from '@/components/sections/TrustBadges';
-import ProductGridSkeleton from '@/components/loading/ProductGridSkeleton';
 import IngredientPhilosophy from '@/components/sections/IngredientPhilosophy';
-import MemberReviewsSection from '@/components/reviews/MemberReviewsSection';
 import AboutCompact from '@/components/sections/AboutCompact';
 import FloatingContactButton from '@/components/trust/FloatingContactButton';
 import SEOHead from '@/components/seo/SEOHead';
 import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import { trackPageView } from '@/utils/analytics';
-
-const DbProductGrid = lazy(() => import('@/components/product/DbProductGrid'));
 
 const Index = () => {
   const { language } = useLanguage();
@@ -36,12 +31,7 @@ const Index = () => {
       <Header />
       <main>
         <Hero />
-        <TrustBadges />
-        <Suspense fallback={<ProductGridSkeleton />}>
-          <DbProductGrid />
-        </Suspense>
         <IngredientPhilosophy />
-        <MemberReviewsSection />
         <AboutCompact />
       </main>
       <Footer />

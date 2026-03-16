@@ -2,9 +2,11 @@ import { motion } from 'framer-motion';
 import { ArrowDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/context/LanguageContext';
+import { useNavigate } from 'react-router-dom';
 
 const Hero = () => {
   const { t } = useLanguage();
+  const navigate = useNavigate();
 
   return (
     <section className="relative min-h-[70vh] flex items-center justify-center">
@@ -38,7 +40,7 @@ const Hero = () => {
             <Button
               size="lg"
               className="h-12 px-10 text-sm font-semibold rounded-full shadow-sm hover:shadow-md transition-all"
-              onClick={() => document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' })}
+              onClick={() => navigate('/produkter')}
             >
               {t('hero.cta.primary')}
             </Button>
@@ -51,7 +53,7 @@ const Hero = () => {
             className="mt-16"
           >
             <button
-              onClick={() => document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' })}
+              onClick={() => document.getElementById('philosophy')?.scrollIntoView({ behavior: 'smooth' })}
               className="text-muted-foreground hover:text-foreground transition-colors"
               aria-label="Scroll down"
             >
