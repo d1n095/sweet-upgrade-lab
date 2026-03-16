@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { ArrowDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/context/LanguageContext';
+import { useNavigate } from 'react-router-dom';
 
 const Hero = () => {
   const { t } = useLanguage();
