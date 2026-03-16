@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 
 const Hero = () => {
   const { t } = useLanguage();
+  const navigate = useNavigate();
 
   return (
     <section className="relative min-h-[70vh] flex items-center justify-center">
