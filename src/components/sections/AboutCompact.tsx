@@ -8,12 +8,12 @@ const AboutCompact = () => {
   const content = {
     sv: {
       title: 'Om 4thepeople',
-      text: 'Vi grundades 2026 för att erbjuda noggrant utvalda, giftfria produkter. Varje artikel granskas mot internationella certifieringar innan den når vår butik.',
+      text: 'Noggrant utvalda, giftfria produkter – granskade mot internationella certifieringar.',
       footer: 'Kvalitet framför kvantitet.',
     },
     en: {
       title: 'About 4thepeople',
-      text: 'Founded in 2026 to offer carefully curated, toxin-free products. Every item is reviewed against international certifications before it reaches our store.',
+      text: 'Carefully curated, toxin-free products – reviewed against international certifications.',
       footer: 'Quality over quantity.',
     },
   };

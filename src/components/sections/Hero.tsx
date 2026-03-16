@@ -53,7 +53,7 @@ const Hero = () => {
             className="mt-16"
           >
             <button
-              onClick={() => document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' })}
+              onClick={() => document.getElementById('philosophy')?.scrollIntoView({ behavior: 'smooth' })}
               className="text-muted-foreground hover:text-foreground transition-colors"
               aria-label="Scroll down"
             >

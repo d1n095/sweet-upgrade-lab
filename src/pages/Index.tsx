@@ -31,12 +31,7 @@ const Index = () => {
       <Header />
       <main>
         <Hero />
-        <TrustBadges />
-        <Suspense fallback={<ProductGridSkeleton />}>
-          <DbProductGrid />
-        </Suspense>
         <IngredientPhilosophy />
-        <MemberReviewsSection />
         <AboutCompact />
       </main>
       <Footer />
