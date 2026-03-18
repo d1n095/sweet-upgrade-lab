@@ -47,7 +47,7 @@ const AdminStats = () => {
 
   const fetchAllData = async () => {
     setLoading(true);
-    await Promise.all([fetchSalesData(), fetchSearchData(), fetchAnalyticsData()]);
+    await Promise.all([fetchSalesData(), fetchSearchData(), fetchAnalyticsData(), fetchOrderStats()]);
     setLoading(false);
   };
 
