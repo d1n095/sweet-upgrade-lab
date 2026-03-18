@@ -35,7 +35,7 @@ const SwishIcon = ({ size = 'sm' }: IconProps) => (
     <img
       src={swishLogo}
       alt="Swish"
-      className={size === 'sm' ? 'h-5.5 w-auto object-contain' : 'h-6 w-auto object-contain'}
+      className={size === 'sm' ? 'h-4 w-auto object-contain' : 'h-5 w-auto object-contain'}
       loading="lazy"
       decoding="async"
     />
