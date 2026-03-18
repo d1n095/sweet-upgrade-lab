@@ -52,6 +52,7 @@ import AdminSettingsPage from "./pages/admin/AdminSettingsPage";
 import AdminStats from "./pages/admin/AdminStats";
 import AdminReviews from "./pages/admin/AdminReviews";
 import AdminLogs from "./pages/admin/AdminLogs";
+import AdminContent from "./pages/admin/AdminContent";
 
 const queryClient = new QueryClient();
 
