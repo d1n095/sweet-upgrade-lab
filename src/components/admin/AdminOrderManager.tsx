@@ -176,6 +176,7 @@ const AdminOrderManager = () => {
     delivered: content.delivered,
     cancelled: content.cancelled,
     failed: content.failed,
+    abandoned: content.abandoned,
   };
 
   useEffect(() => {
