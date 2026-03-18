@@ -6,10 +6,11 @@ import { useStoreSettings } from '@/stores/storeSettingsStore';
 import { useAdminSession } from '@/hooks/useAdminSession';
 import {
   Loader2, Package, ClipboardList, BarChart3, Settings, Grid, Users,
-  Handshake, Heart, Eye, LogOut, Home, Shield,
+  Handshake, Heart, Eye, LogOut, Home, Shield, Crown,
   Activity, User, Menu, X, Star, FileText, Percent, Truck, Wallet, Globe,
 } from 'lucide-react';
 import { useEmployeeRole } from '@/hooks/useEmployeeRole';
+import { useFounderRole } from '@/hooks/useFounderRole';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
@@ -18,13 +19,13 @@ import { logAuthEvent } from '@/utils/activityLogger';
 import AdminGlobalSearch from '@/components/admin/AdminGlobalSearch';
 import { AnimatePresence, motion } from 'framer-motion';
 
-// role: 'all' = everyone with admin/employee access, 'admin' = admin only
+// role: 'all' = everyone with admin/employee access, 'admin' = admin only, 'founder' = founder only
 interface NavItem {
   to: string;
   label: string;
   icon: any;
   end?: boolean;
-  role: 'all' | 'admin';
+  role: 'all' | 'admin' | 'founder';
 }
 
 const navItems: NavItem[] = [
@@ -45,11 +46,13 @@ const navItems: NavItem[] = [
   { to: '/admin/logs', label: 'Logg', icon: Activity, role: 'admin' },
   { to: '/admin/settings', label: 'Inställningar', icon: Settings, role: 'admin' },
   { to: '/admin/stats', label: 'Statistik', icon: BarChart3, role: 'admin' },
+  { to: '/admin/staff', label: 'Personal', icon: Crown, role: 'founder' },
 ];
 
 const AdminLayout = () => {
   const { isAdmin, isLoading } = useAdminRole();
   const { isEmployee, isLoading: employeeLoading } = useEmployeeRole();
+  const { isFounder, isLoading: founderLoading } = useFounderRole();
   const { user, signOut } = useAuth();
   const { siteActive, checkoutEnabled, isLoaded, fetchSettings } = useStoreSettings();
   const navigate = useNavigate();
@@ -57,7 +60,7 @@ const AdminLayout = () => {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const hasAccess = isAdmin || isEmployee;
-  const combinedLoading = isLoading || employeeLoading;
+  const combinedLoading = isLoading || employeeLoading || founderLoading;
 
   // Admin session timeout (30 min inactivity)
   useAdminSession();
@@ -74,6 +77,7 @@ const AdminLayout = () => {
 
   // Filter nav items based on role
   const visibleNavItems = navItems.filter(item => {
+    if (item.role === 'founder') return isFounder;
     if (isAdmin) return true;
     return item.role === 'all';
   });
