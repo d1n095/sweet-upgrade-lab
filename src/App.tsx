@@ -47,6 +47,7 @@ import AdminLegal from "./pages/admin/AdminLegal";
 import AdminSettingsPage from "./pages/admin/AdminSettingsPage";
 import AdminStats from "./pages/admin/AdminStats";
 import AdminReviews from "./pages/admin/AdminReviews";
+import AdminLogs from "./pages/admin/AdminLogs";
 
 const queryClient = new QueryClient();
 
