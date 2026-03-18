@@ -35,6 +35,9 @@ const AdminStats = () => {
   const [searchesWithProducts, setSearchesWithProducts] = useState<SearchWithProduct[]>([]);
   const [demandSearches, setDemandSearches] = useState<SearchWithProduct[]>([]);
   const [checkoutStats, setCheckoutStats] = useState({ starts: 0, completes: 0, abandons: 0 });
+  const [cartAdds, setCartAdds] = useState<{ title: string; count: number }[]>([]);
+  const [cartRemoves, setCartRemoves] = useState<{ title: string; count: number }[]>([]);
+  const [abandonedItems, setAbandonedItems] = useState<{ title: string; count: number; totalValue: number }[]>([]);
 
   useEffect(() => {
     fetchAllData();
