@@ -228,14 +228,14 @@ const Header = () => {
         return false;
       })
       .map(c => ({
-        href: `/shop?category=${c.id}`,
+        href: `/produkter?category=${c.id}`,
         label: c.name?.[language] ?? c.name?.[contentLang] ?? c.name?.en ?? c.name?.sv ?? '',
         icon: <Leaf className="w-3.5 h-3.5 text-muted-foreground" />,
       }));
   }, [activeCategories, productCategories, language, contentLang]);
 
   const allMobileLinks = [
-    { href: '/shop', label: 'Shop' },
+    { href: '/produkter', label: 'Shop' },
     ...(isVisible('whats-new') ? [{ href: '/whats-new', label: t('nav.whatsnew') }] : []),
     ...aboutSubMenu,
     ...contactSubMenu,
