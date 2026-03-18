@@ -562,7 +562,39 @@ const AdminMemberManager = () => {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+            // If searching, also search via RPC for emails
+            const q = e.target.value.trim();
+            if (q.length >= 3) {
+              supabase.rpc('admin_search_users', { p_query: q }).then(({ data }) => {
+                if (data) {
+                  // Merge email/username info into members
+                  setMembers(prev => {
+                    const updated = [...prev];
+                    for (const result of data as any[]) {
+                      const idx = updated.findIndex(m => m.user_id === result.user_id);
+                      if (idx >= 0) {
+                        updated[idx] = { ...updated[idx], email: result.email, username: result.username || updated[idx].username };
+                      } else {
+                        // User exists in auth but might not be in our list yet
+                        updated.push({
+                          user_id: result.user_id,
+                          is_member: false,
+                          member_since: null,
+                          created_at: new Date().toISOString(),
+                          email: result.email,
+                          username: result.username,
+                          avatar_url: result.avatar_url,
+                        });
+                      }
+                    }
+                    return updated;
+                  });
+                }
+              });
+            }
+          }}
           placeholder={t.searchPlaceholder}
           className="pl-9"
         />
