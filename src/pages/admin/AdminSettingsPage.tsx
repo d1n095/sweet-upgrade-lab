@@ -6,7 +6,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger, ScrollableTabs } from '@/components/ui/tabs';
 import { useStoreSettings } from '@/stores/storeSettingsStore';
 import { usePageVisibility, ToggleablePage } from '@/stores/pageVisibilityStore';
 import { usePaymentMethodsStore } from '@/stores/paymentMethodsStore';
@@ -88,14 +88,16 @@ const AdminSettingsPage = () => {
       </div>
 
       <Tabs defaultValue="general" className="space-y-6">
-        <TabsList className="bg-secondary/50">
-          <TabsTrigger value="general">Generellt</TabsTrigger>
-          <TabsTrigger value="profile">Profil & Kund</TabsTrigger>
-          <TabsTrigger value="payments">Betalningar</TabsTrigger>
-          <TabsTrigger value="pages">Sidor</TabsTrigger>
-          <TabsTrigger value="homepage">Startsida</TabsTrigger>
-          <TabsTrigger value="advanced">Avancerat</TabsTrigger>
-        </TabsList>
+        <ScrollableTabs>
+          <TabsList className="w-max bg-secondary/50">
+            <TabsTrigger value="general">Generellt</TabsTrigger>
+            <TabsTrigger value="profile">Profil & Kund</TabsTrigger>
+            <TabsTrigger value="payments">Betalningar</TabsTrigger>
+            <TabsTrigger value="pages">Sidor</TabsTrigger>
+            <TabsTrigger value="homepage">Startsida</TabsTrigger>
+            <TabsTrigger value="advanced">Avancerat</TabsTrigger>
+          </TabsList>
+        </ScrollableTabs>
 
         {/* General */}
         <TabsContent value="general" className="space-y-4">

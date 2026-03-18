@@ -1,6 +1,6 @@
 import AdminUnifiedContent from '@/components/admin/AdminUnifiedContent';
 import AdminPageVisibility from '@/components/admin/AdminPageVisibility';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger, ScrollableTabs } from '@/components/ui/tabs';
 import { FileText, Eye } from 'lucide-react';
 
 const AdminContent = () => (
@@ -10,14 +10,16 @@ const AdminContent = () => (
       <p className="text-muted-foreground text-sm mt-1">Sektioner, nyheter, sidsynlighet och e-postmallar</p>
     </div>
     <Tabs defaultValue="content" className="space-y-4">
-      <TabsList className="h-9">
-        <TabsTrigger value="content" className="gap-1.5 text-xs">
-          <FileText className="w-3.5 h-3.5" /> Innehåll
-        </TabsTrigger>
-        <TabsTrigger value="visibility" className="gap-1.5 text-xs">
-          <Eye className="w-3.5 h-3.5" /> Sidsynlighet
-        </TabsTrigger>
-      </TabsList>
+      <ScrollableTabs>
+        <TabsList className="w-max">
+          <TabsTrigger value="content" className="gap-1.5 text-xs">
+            <FileText className="w-3.5 h-3.5" /> Innehåll
+          </TabsTrigger>
+          <TabsTrigger value="visibility" className="gap-1.5 text-xs">
+            <Eye className="w-3.5 h-3.5" /> Sidsynlighet
+          </TabsTrigger>
+        </TabsList>
+      </ScrollableTabs>
       <TabsContent value="content">
         <AdminUnifiedContent />
       </TabsContent>

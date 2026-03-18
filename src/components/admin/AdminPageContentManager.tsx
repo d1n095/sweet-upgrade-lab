@@ -7,7 +7,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger, ScrollableTabs } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
 import {
@@ -484,14 +484,16 @@ const AdminPageContentManager = () => {
       {/* Page tabs */}
       <Tabs value={selectedPage} onValueChange={setSelectedPage}>
         <div className="flex items-center justify-between flex-wrap gap-3">
-          <TabsList className="h-9">
-            {PAGES.map(p => (
-              <TabsTrigger key={p.value} value={p.value} className="gap-1.5 text-xs">
-                <p.icon className="w-3.5 h-3.5" />
-                {p.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
+          <ScrollableTabs>
+            <TabsList className="w-max">
+              {PAGES.map(p => (
+                <TabsTrigger key={p.value} value={p.value} className="gap-1.5 text-xs">
+                  <p.icon className="w-3.5 h-3.5" />
+                  {p.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </ScrollableTabs>
           <Button size="sm" variant="outline" onClick={addSection} className="gap-1 h-8 text-xs">
             <Plus className="w-3.5 h-3.5" /> Ny sektion
           </Button>

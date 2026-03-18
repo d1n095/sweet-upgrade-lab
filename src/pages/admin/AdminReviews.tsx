@@ -8,7 +8,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger, ScrollableTabs } from '@/components/ui/tabs';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import ReviewStars from '@/components/reviews/ReviewStars';
@@ -332,23 +332,25 @@ const AdminReviews = () => {
 
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="mb-6">
-              <TabsTrigger value="pending" className="gap-2">
-                <Clock className="w-4 h-4" />
-                {t.tabs.pending}
-                {stats.pending > 0 && (
-                  <Badge variant="secondary" className="ml-1">{stats.pending}</Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="approved" className="gap-2">
-                <Check className="w-4 h-4" />
-                {t.tabs.approved}
-              </TabsTrigger>
-              <TabsTrigger value="all" className="gap-2">
-                <Users className="w-4 h-4" />
-                {t.tabs.all}
-              </TabsTrigger>
-            </TabsList>
+            <ScrollableTabs>
+              <TabsList className="w-max mb-6">
+                <TabsTrigger value="pending" className="gap-2">
+                  <Clock className="w-4 h-4" />
+                  {t.tabs.pending}
+                  {stats.pending > 0 && (
+                    <Badge variant="secondary" className="ml-1">{stats.pending}</Badge>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="approved" className="gap-2">
+                  <Check className="w-4 h-4" />
+                  {t.tabs.approved}
+                </TabsTrigger>
+                <TabsTrigger value="all" className="gap-2">
+                  <Users className="w-4 h-4" />
+                  {t.tabs.all}
+                </TabsTrigger>
+              </TabsList>
+            </ScrollableTabs>
 
             <TabsContent value={activeTab}>
               {isLoading ? (
