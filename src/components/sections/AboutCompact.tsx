@@ -37,7 +37,7 @@ const AboutCompact = () => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.08 }}
-            className="text-sm text-muted-foreground leading-[1.8] mb-5"
+            className="text-sm text-muted-foreground/80 leading-[1.8] mb-6"
           >
             {t.text}
           </motion.p>

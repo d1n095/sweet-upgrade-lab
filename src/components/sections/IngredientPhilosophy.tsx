@@ -47,13 +47,13 @@ const IngredientPhilosophy = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.08 }}
-              className="text-center bg-card border border-border/60 rounded-2xl p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-[var(--shadow-elevated)]"
+              className="text-center bg-card border border-border/50 rounded-2xl p-7 transition-all duration-200 hover:-translate-y-1 hover:shadow-[var(--shadow-elevated)]"
             >
-              <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center mx-auto mb-5">
+              <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center mx-auto mb-6">
                 <step.icon className="w-5 h-5 text-foreground" />
               </div>
-              <h3 className="text-sm font-semibold mb-2 text-foreground">{step.title}</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">{step.desc}</p>
+              <h3 className="text-sm font-semibold mb-2.5 text-foreground">{step.title}</h3>
+              <p className="text-[13px] text-muted-foreground/80 leading-relaxed">{step.desc}</p>
             </motion.div>
           ))}
         </div>

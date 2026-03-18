@@ -216,7 +216,7 @@ const DbProductCard = ({ product, index, compact = false }: DbProductCardProps) 
                 size="sm"
                 onClick={handleAddToCart}
                 disabled={!isAvailable}
-                className={`flex-1 h-8 text-xs rounded-lg transition-all ${isAdded ? 'bg-accent hover:bg-accent text-accent-foreground' : ''}`}
+                className={`flex-1 h-9 text-xs rounded-xl transition-all min-h-[44px] ${isAdded ? 'bg-accent hover:bg-accent text-accent-foreground' : ''}`}
               >
                 {!isAvailable
                   ? t('product.soldout')
