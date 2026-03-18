@@ -278,7 +278,7 @@ const AdminStats = () => {
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: idx * 0.03 }}
-                    className="flex items-center justify-between p-3 rounded-xl bg-amber-500/5 border border-amber-500/10"
+                    className="flex items-center justify-between p-3 rounded-xl bg-destructive/5 border border-destructive/10"
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-7 h-7 rounded-lg bg-amber-500/10 flex items-center justify-center text-xs font-bold text-amber-600">{idx + 1}</div>
