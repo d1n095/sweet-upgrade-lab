@@ -1812,10 +1812,16 @@ export type Database = {
           created_at: string
           discount_percent: number
           excluded_product_ids: string[] | null
+          first_purchase_discount: number | null
           id: string
           is_global: boolean
           label: string | null
+          max_uses_per_user: number | null
+          min_level: number | null
           min_quantity: number
+          repeat_discount: number | null
+          requirement_type: string
+          requires_account: boolean
           shopify_product_id: string | null
           stackable: boolean | null
         }
@@ -1823,10 +1829,16 @@ export type Database = {
           created_at?: string
           discount_percent: number
           excluded_product_ids?: string[] | null
+          first_purchase_discount?: number | null
           id?: string
           is_global?: boolean
           label?: string | null
+          max_uses_per_user?: number | null
+          min_level?: number | null
           min_quantity: number
+          repeat_discount?: number | null
+          requirement_type?: string
+          requires_account?: boolean
           shopify_product_id?: string | null
           stackable?: boolean | null
         }
@@ -1834,10 +1846,16 @@ export type Database = {
           created_at?: string
           discount_percent?: number
           excluded_product_ids?: string[] | null
+          first_purchase_discount?: number | null
           id?: string
           is_global?: boolean
           label?: string | null
+          max_uses_per_user?: number | null
+          min_level?: number | null
           min_quantity?: number
+          repeat_discount?: number | null
+          requirement_type?: string
+          requires_account?: boolean
           shopify_product_id?: string | null
           stackable?: boolean | null
         }
