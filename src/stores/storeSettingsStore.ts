@@ -102,6 +102,7 @@ supabase
     const { key, value } = payload.new as { key: string; value: boolean };
     if (key === 'site_active') useStoreSettings.setState({ siteActive: value });
     if (key === 'checkout_enabled') useStoreSettings.setState({ checkoutEnabled: value });
+    if (key === 'registration_enabled') useStoreSettings.setState({ registrationEnabled: value });
     if (key === 'homepage_bestsellers') useStoreSettings.setState({ homepageBestsellers: value });
     if (key === 'homepage_reviews') useStoreSettings.setState({ homepageReviews: value });
     if (key === 'homepage_philosophy') useStoreSettings.setState({ homepagePhilosophy: value });
