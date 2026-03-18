@@ -132,9 +132,12 @@ const AdminRecipeTemplateBuilder = () => {
       if (editingTemplate) {
         await supabase.from('recipe_templates').update({ ...payload, updated_at: new Date().toISOString() }).eq('id', editingTemplate.id);
         toast.success('Receptmall uppdaterad!');
+        logRecipeChange('updated', templateForm.name_sv);
       } else {
         await supabase.from('recipe_templates').insert({ ...payload, display_order: templates.length });
         toast.success('Receptmall skapad!');
+        logRecipeChange('created', templateForm.name_sv);
+      }
       }
       setIsTemplateFormOpen(false);
       resetTemplateForm();
