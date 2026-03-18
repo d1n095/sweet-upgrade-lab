@@ -325,7 +325,7 @@ const MemberProfile = () => {
           <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
             <div className="sticky top-16 z-30 bg-background/95 backdrop-blur-sm pb-3 pt-2 -mx-4 px-4 border-b border-border/50 mb-6">
               <div className="relative">
-                <div className="overflow-x-auto scrollbar-hide pb-1">
+                <ScrollableTabs className="pb-1 cursor-grab active:cursor-grabbing">
                   <div className="inline-flex items-center gap-1.5 min-w-max">
                     {[
                       { value: 'orders', icon: Package, label: language === 'sv' ? 'Ordrar' : 'Orders' },
@@ -363,7 +363,7 @@ const MemberProfile = () => {
                       </button>
                     )}
                   </div>
-                </div>
+                </ScrollableTabs>
                 {/* Fade hint on right edge */}
                 <div className="absolute right-0 top-0 bottom-1 w-8 bg-gradient-to-l from-background/95 to-transparent pointer-events-none md:hidden" />
               </div>
