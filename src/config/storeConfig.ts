@@ -26,9 +26,9 @@ export const storeConfig = {
 
   // Contact
   contact: {
-    email: 'support@4thepeople.se',
-    phone: '+46701234567',
-    phoneFormatted: '070-123 45 67',
+    email: 'info@4thepeople.se',
+    phone: '',
+    phoneFormatted: '',
   },
 
   // Social media

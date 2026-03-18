@@ -1,8 +1,8 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { trackProductView } from '@/utils/analyticsTracker';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ShoppingCart, Check, Loader2, Minus, Plus, Shield, RotateCcw, Truck, Share2, X, Copy, Languages } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { ShoppingCart, Check, Loader2, Minus, Plus, Shield, RotateCcw, Truck, Share2, Languages } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -13,88 +13,18 @@ import { useTranslatedProduct } from '@/hooks/useTranslatedProduct';
 import PaymentMethods from '@/components/trust/PaymentMethods';
 import ReviewList from '@/components/reviews/ReviewList';
 import ReviewForm from '@/components/reviews/ReviewForm';
-import ReviewSummary from '@/components/reviews/ReviewSummary';
 import ProductIngredients from '@/components/product/ProductIngredients';
 import ProductCertifications from '@/components/product/ProductCertifications';
+import ZoomableImage from '@/components/product/ZoomableImage';
+import MobileBuyBar from '@/components/product/MobileBuyBar';
+import SEOHead from '@/components/seo/SEOHead';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 
-// ─── Image Zoom Component ───
-const ZoomableImage = ({ src, alt, children }: { src: string; alt: string; children?: React.ReactNode }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
-  const [isZooming, setIsZooming] = useState(false);
-  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
-
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (!containerRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
-    setZoomPos({ x, y });
-  }, []);
-
-  return (
-    <>
-      <div
-        ref={containerRef}
-        className="relative aspect-square rounded-2xl overflow-hidden bg-secondary/30 border border-border cursor-zoom-in group"
-        onMouseEnter={() => setIsZooming(true)}
-        onMouseLeave={() => setIsZooming(false)}
-        onMouseMove={handleMouseMove}
-        onClick={() => setIsLightboxOpen(true)}
-      >
-        <img
-          src={src}
-          alt={alt}
-          loading="eager"
-          className="w-full h-full object-cover transition-transform duration-200"
-          style={isZooming ? {
-            transform: 'scale(2)',
-            transformOrigin: `${zoomPos.x}% ${zoomPos.y}%`,
-          } : undefined}
-        />
-        {children}
-      </div>
-
-      {/* Lightbox */}
-      <AnimatePresence>
-        {isLightboxOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4"
-            onClick={() => setIsLightboxOpen(false)}
-          >
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute top-4 right-4 text-white hover:bg-white/20 z-10"
-              onClick={(e) => { e.stopPropagation(); setIsLightboxOpen(false); }}
-            >
-              <X className="w-6 h-6" />
-            </Button>
-            <motion.img
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              src={src}
-              alt={alt}
-              className="max-w-full max-h-[90vh] object-contain rounded-lg"
-              onClick={(e) => e.stopPropagation()}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </>
-  );
-};
-
 const ProductDetail = () => {
   const { handle } = useParams<{ handle: string }>();
-  const { t, contentLang } = useLanguage();
-  const lang = contentLang;
+  const { t, language } = useLanguage();
+  const lang = (language === 'no' || language === 'da') ? 'sv' : language;
   const { addItem } = useCartStore();
   const [product, setProduct] = useState<DbProduct | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -102,7 +32,7 @@ const ProductDetail = () => {
   const [quantity, setQuantity] = useState(1);
   const [isAdded, setIsAdded] = useState(false);
 
-  // AI translation hook - translates from Swedish when lang != 'sv'
+  // AI translation hook
   const translated = useTranslatedProduct(product);
 
   useEffect(() => {
@@ -121,7 +51,6 @@ const ProductDetail = () => {
     load();
   }, [handle]);
 
-  // Track product view
   useEffect(() => {
     if (product) {
       trackProductView(product.id, product.title_sv, product.price);
@@ -179,17 +108,15 @@ const ProductDetail = () => {
 
   const handleShare = async () => {
     const url = window.location.href;
-    const title = document.title;
-    
+    const shareTitle = document.title;
     try {
       if (typeof navigator.share === 'function') {
-        await navigator.share({ title, url });
+        await navigator.share({ title: shareTitle, url });
       } else {
         await navigator.clipboard.writeText(url);
         toast.success(lang === 'sv' ? 'Länk kopierad!' : 'Link copied!');
       }
     } catch (err: any) {
-      // User cancelled share or clipboard failed — fallback
       if (err?.name !== 'AbortError') {
         try {
           await navigator.clipboard.writeText(url);
@@ -219,7 +146,7 @@ const ProductDetail = () => {
         <Header />
         <div className="container mx-auto px-4 py-32 text-center">
           <h1 className="text-2xl font-bold mb-4">{t('product.notfound')}</h1>
-          <Link to="/shop">
+          <Link to="/produkter">
             <Button>{t('product.back')}</Button>
           </Link>
         </div>
@@ -241,6 +168,25 @@ const ProductDetail = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead
+        title={`${product.title_sv} | 4thepeople`}
+        description={product.description_sv?.substring(0, 155) || `Köp ${product.title_sv} hos 4ThePeople — noggrant utvalt, giftfritt och hållbart.`}
+        canonical={`/product/${handle}`}
+        ogType="product"
+        ogImage={images[0]}
+        schemaType="Product"
+        schemaData={{
+          name: product.title_sv,
+          description: product.description_sv || '',
+          image: images[0] || '',
+          offers: {
+            '@type': 'Offer',
+            price: product.price,
+            priceCurrency: 'SEK',
+            availability: isOutOfStock ? 'https://schema.org/OutOfStock' : 'https://schema.org/InStock',
+          },
+        }}
+      />
       <Header />
       <main className="pt-24 pb-28 md:pb-20">
         <div className="container mx-auto px-4">
@@ -427,40 +373,14 @@ const ProductDetail = () => {
         </div>
       </main>
 
-      {/* Sticky mobile buy bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-background/95 backdrop-blur-md border-t border-border px-4 py-3 safe-bottom">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center border border-border rounded-lg shrink-0">
-            <button
-              className="h-11 w-11 flex items-center justify-center active:bg-secondary/60 rounded-l-lg transition-colors"
-              onClick={() => setQuantity(Math.max(1, quantity - 1))}
-            >
-              <Minus className="w-4 h-4" />
-            </button>
-            <span className="w-10 text-center font-medium text-base select-none">{quantity}</span>
-            <button
-              className="h-11 w-11 flex items-center justify-center active:bg-secondary/60 rounded-r-lg transition-colors"
-              onClick={() => setQuantity(quantity + 1)}
-            >
-              <Plus className="w-4 h-4" />
-            </button>
-          </div>
-          <Button
-            size="lg"
-            className={`flex-1 h-12 text-sm font-semibold transition-all ${isAdded ? 'bg-accent hover:bg-accent text-accent-foreground' : ''}`}
-            onClick={handleAddToCart}
-            disabled={isOutOfStock}
-          >
-            {isOutOfStock ? (
-              t('product.outofstock')
-            ) : isAdded ? (
-              <><Check className="w-4 h-4 mr-2" />{t('product.added')}</>
-            ) : (
-              <><ShoppingCart className="w-4 h-4 mr-2" />{formatPrice(product.price)} · {t('product.addtocart')}</>
-            )}
-          </Button>
-        </div>
-      </div>
+      <MobileBuyBar
+        quantity={quantity}
+        setQuantity={setQuantity}
+        isAdded={isAdded}
+        isOutOfStock={isOutOfStock}
+        price={product.price}
+        onAddToCart={handleAddToCart}
+      />
 
       <Footer />
     </div>

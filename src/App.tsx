@@ -99,6 +99,7 @@ const App = () => (
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/whats-new" element={<PageGuard pageId="whats-new"><WhatsNew /></PageGuard>} />
               <Route path="/donations" element={<PageGuard pageId="donations"><Donations /></PageGuard>} />
+              <Route path="/balance" element={<BalancePage />} />
               <Route path="/affiliate-panel" element={<AffiliatePanel />} />
               <Route path="/donations-panel" element={<DonationsPanel />} />
               <Route path="/r/:code" element={<ReferralLanding />} />
