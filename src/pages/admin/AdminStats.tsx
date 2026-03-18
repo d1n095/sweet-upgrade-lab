@@ -248,7 +248,7 @@ const AdminStats = () => {
       </div>
 
       <Tabs defaultValue="searches" className="space-y-4">
-        <TabsList className="bg-secondary/50">
+        <TabsList className="bg-secondary/50 flex-wrap">
           <TabsTrigger value="searches">Sökningar</TabsTrigger>
           <TabsTrigger value="demand">
             Efterfrågan
@@ -258,7 +258,14 @@ const AdminStats = () => {
           </TabsTrigger>
           <TabsTrigger value="sales">Försäljning</TabsTrigger>
           <TabsTrigger value="views">Visningar</TabsTrigger>
+          <TabsTrigger value="cart">Kundvagn</TabsTrigger>
           <TabsTrigger value="checkout">Checkout</TabsTrigger>
+          <TabsTrigger value="abandoned">
+            Övergivna
+            {abandonedItems.length > 0 && (
+              <Badge variant="destructive" className="ml-2 text-[10px] px-1.5 py-0">{abandonedItems.length}</Badge>
+            )}
+          </TabsTrigger>
         </TabsList>
 
         {/* Searches with product matches */}
