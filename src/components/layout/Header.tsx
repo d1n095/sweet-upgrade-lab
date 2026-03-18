@@ -280,10 +280,10 @@ const Header = () => {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="hidden sm:flex h-9 w-9 md:h-10 md:w-10 rounded-full hover:bg-secondary relative"
+                  className="h-9 w-9 md:h-10 md:w-10 rounded-full hover:bg-secondary relative"
                   onClick={() => setIsAccountOpen(true)}
                 >
-                  <User className="w-[18px] h-[18px]" />
+                  <User className="w-[17px] h-[17px] md:w-[18px] md:h-[18px]" />
                   {isMember && (
                     <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-accent border-2 border-background" />
                   )}
@@ -292,10 +292,10 @@ const Header = () => {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="hidden sm:flex h-9 w-9 md:h-10 md:w-10 rounded-full hover:bg-secondary"
+                  className="h-9 w-9 md:h-10 md:w-10 rounded-full hover:bg-secondary"
                   onClick={() => setIsAuthOpen(true)}
                 >
-                  <User className="w-[18px] h-[18px]" />
+                  <User className="w-[17px] h-[17px] md:w-[18px] md:h-[18px]" />
                 </Button>
               )}
 
@@ -392,6 +392,24 @@ const Header = () => {
                     {link.label}
                   </Link>
                 ))}
+
+                {/* Mobile-only: dark mode & language */}
+                <div className="flex items-center gap-2 px-4 py-3 sm:hidden">
+                  {mounted && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-2 rounded-xl h-10 flex-1"
+                      onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+                    >
+                      {resolvedTheme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                      {resolvedTheme === 'dark' ? (language === 'sv' ? 'Ljust läge' : 'Light mode') : (language === 'sv' ? 'Mörkt läge' : 'Dark mode')}
+                    </Button>
+                  )}
+                  <div className="flex-1 flex justify-center">
+                    <LanguageSwitcher />
+                  </div>
+                </div>
 
                 <div className="mt-3 pt-3 border-t border-border/50">
                   {user ? (
