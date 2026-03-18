@@ -17,6 +17,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { logShippingChange } from '@/utils/activityLogger';
 
 interface ShippingCarrier {
   id: string;
@@ -93,6 +94,7 @@ const ShippingCarriersSection = () => {
 
   const toggleSelected = async (carrier: ShippingCarrier) => {
     await supabase.from('shipping_carriers').update({ is_selected: !carrier.is_selected, updated_at: new Date().toISOString() }).eq('id', carrier.id);
+    logShippingChange(`Fraktbolag ${!carrier.is_selected ? 'valt' : 'avvalt'}: ${carrier.name}`);
     fetchCarriers();
   };
 
@@ -134,9 +136,11 @@ const ShippingCarriersSection = () => {
       if (editing) {
         await supabase.from('shipping_carriers').update({ ...payload, updated_at: new Date().toISOString() }).eq('id', editing.id);
         toast.success('Fraktbolag uppdaterat!');
+        logShippingChange(`Fraktbolag uppdaterat: ${form.name}`);
       } else {
         await supabase.from('shipping_carriers').insert({ ...payload, display_order: carriers.length });
         toast.success('Fraktbolag tillagt!');
+        logShippingChange(`Fraktbolag tillagt: ${form.name}`);
       }
       setIsFormOpen(false);
       resetForm();
@@ -146,8 +150,10 @@ const ShippingCarriersSection = () => {
   };
 
   const handleDelete = async (id: string) => {
+    const carrier = carriers.find(c => c.id === id);
     await supabase.from('shipping_carriers').delete().eq('id', id);
     toast.success('Fraktbolag borttaget');
+    if (carrier) logShippingChange(`Fraktbolag borttaget: ${carrier.name}`);
     fetchCarriers();
   };
 

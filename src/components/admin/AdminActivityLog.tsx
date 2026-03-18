@@ -41,6 +41,10 @@ const categoryConfig: Record<string, { icon: any; label: string }> = {
   system: { icon: Activity, label: 'System' },
   auth: { icon: LogIn, label: 'Inloggning' },
   security: { icon: Shield, label: 'Säkerhet' },
+  shipping: { icon: Package, label: 'Frakt' },
+  campaign: { icon: Settings, label: 'Kampanj' },
+  ingredient: { icon: Package, label: 'Ingrediens' },
+  recipe: { icon: Settings, label: 'Recept' },
 };
 
 const AdminActivityLog = () => {
@@ -287,10 +291,14 @@ const AdminActivityLog = () => {
                   <SelectItem value="order">Order</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
                   <SelectItem value="payment">Betalning</SelectItem>
-                  <SelectItem value="product">Produkt</SelectItem>
-                  <SelectItem value="system">System</SelectItem>
-                  <SelectItem value="auth">Inloggning</SelectItem>
-                  <SelectItem value="security">Säkerhet</SelectItem>
+                   <SelectItem value="product">Produkt</SelectItem>
+                   <SelectItem value="system">System</SelectItem>
+                   <SelectItem value="auth">Inloggning</SelectItem>
+                   <SelectItem value="security">Säkerhet</SelectItem>
+                   <SelectItem value="shipping">Frakt</SelectItem>
+                   <SelectItem value="campaign">Kampanj</SelectItem>
+                   <SelectItem value="ingredient">Ingrediens</SelectItem>
+                   <SelectItem value="recipe">Recept</SelectItem>
                 </SelectContent>
               </Select>
             </div>

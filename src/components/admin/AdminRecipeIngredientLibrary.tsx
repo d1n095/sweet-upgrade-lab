@@ -18,6 +18,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { logIngredientChange } from '@/utils/activityLogger';
 
 interface RecipeIngredient {
   id: string;
@@ -105,6 +106,7 @@ const AdminRecipeIngredientLibrary = () => {
           updated_at: new Date().toISOString(),
         }).eq('id', editing.id);
         toast.success('Ingrediens uppdaterad!');
+        logIngredientChange('updated', form.name_sv, { category: form.category });
       } else {
         await supabase.from('recipe_ingredients').insert({
           name_sv: form.name_sv.trim(),
@@ -116,6 +118,7 @@ const AdminRecipeIngredientLibrary = () => {
           display_order: ingredients.length,
         });
         toast.success('Ingrediens tillagd!');
+        logIngredientChange('created', form.name_sv, { category: form.category });
       }
       setIsFormOpen(false);
       resetForm();
@@ -127,8 +130,10 @@ const AdminRecipeIngredientLibrary = () => {
   };
 
   const handleDelete = async (id: string) => {
+    const item = ingredients.find(i => i.id === id);
     await supabase.from('recipe_ingredients').delete().eq('id', id);
     toast.success('Ingrediens borttagen');
+    if (item) logIngredientChange('deleted', item.name_sv);
     fetchIngredients();
   };
 

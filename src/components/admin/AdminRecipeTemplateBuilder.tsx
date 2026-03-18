@@ -19,6 +19,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { logRecipeChange } from '@/utils/activityLogger';
 
 interface RecipeTemplate {
   id: string;
@@ -131,9 +132,11 @@ const AdminRecipeTemplateBuilder = () => {
       if (editingTemplate) {
         await supabase.from('recipe_templates').update({ ...payload, updated_at: new Date().toISOString() }).eq('id', editingTemplate.id);
         toast.success('Receptmall uppdaterad!');
+        logRecipeChange('updated', templateForm.name_sv);
       } else {
         await supabase.from('recipe_templates').insert({ ...payload, display_order: templates.length });
         toast.success('Receptmall skapad!');
+        logRecipeChange('created', templateForm.name_sv);
       }
       setIsTemplateFormOpen(false);
       resetTemplateForm();
@@ -143,8 +146,10 @@ const AdminRecipeTemplateBuilder = () => {
   };
 
   const deleteTemplate = async (id: string) => {
+    const tmpl = templates.find(t => t.id === id);
     await supabase.from('recipe_templates').delete().eq('id', id);
     toast.success('Receptmall borttagen');
+    if (tmpl) logRecipeChange('deleted', tmpl.name_sv);
     fetchAll();
   };
 
