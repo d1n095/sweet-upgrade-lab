@@ -39,14 +39,29 @@ const NavDropdown = ({
     setOpen(true);
   };
   const handleLeave = () => {
-    timeoutRef.current = setTimeout(() => setOpen(false), 120);
+    timeoutRef.current = setTimeout(() => setOpen(false), 150);
   };
 
-  // Single item → no dropdown
-  if (items.length <= 1) {
+  // Cleanup timeout on unmount
+  useEffect(() => () => clearTimeout(timeoutRef.current), []);
+
+  // No items → plain link
+  if (items.length === 0) {
     return (
       <Link
-        to={items[0]?.href || href}
+        to={href}
+        className={`text-sm text-muted-foreground hover:text-foreground transition-colors font-medium py-2 ${isActive ? 'text-foreground' : ''}`}
+      >
+        {label}
+      </Link>
+    );
+  }
+
+  // Single item → direct link
+  if (items.length === 1) {
+    return (
+      <Link
+        to={items[0].href}
         className={`text-sm text-muted-foreground hover:text-foreground transition-colors font-medium py-2 ${isActive ? 'text-foreground' : ''}`}
       >
         {label}
@@ -58,6 +73,13 @@ const NavDropdown = ({
     <div className="relative" onMouseEnter={handleEnter} onMouseLeave={handleLeave}>
       <Link
         to={href}
+        onClick={(e) => {
+          // Click toggles dropdown on touch devices, navigates on desktop
+          if ('ontouchstart' in window) {
+            e.preventDefault();
+            setOpen(prev => !prev);
+          }
+        }}
         className={`text-sm text-muted-foreground hover:text-foreground transition-colors font-medium flex items-center gap-1 py-2 ${isActive ? 'text-foreground' : ''}`}
       >
         {label}
@@ -125,7 +147,10 @@ const Header = () => {
       .select('category, badge')
       .eq('is_visible', true)
       .then(({ data }) => {
-        if (!data) return;
+        if (!data || data.length === 0) {
+          setProductCategories([]);
+          return;
+        }
         const cats = new Set<string>();
         const hasBestseller = data.some(p => p.badge === 'bestseller');
         if (hasBestseller) cats.add('bestsaljare');
@@ -175,19 +200,32 @@ const Header = () => {
     ...(isVisible('suggest-product') ? [{ href: '/suggest-product', label: t('nav.suggestproduct') }] : []),
   ];
 
-  // Only show categories that actually have products
+  // Only show categories that actually have products — simple ID-based matching
   const productDropdownItems = useMemo(() => {
+    if (productCategories.length === 0) return [];
+    
     return activeCategories
       .filter(c => {
-        if ((c.id as string) === 'all') return false; // skip "all" from dropdown
+        if ((c.id as string) === 'all') return false;
         const catDef = allCategoryDefs.find(cd => cd.id === c.id);
         if (!catDef) return false;
+        
+        // Bestseller filter — check if any product has bestseller badge
         if (catDef.isBestsellerFilter) {
           return productCategories.includes('bestsaljare');
         }
-        const match = catDef.query?.match(/product_type:"?([^"&\s]+)"?/);
-        if (!match) return false;
-        return productCategories.includes(match[1].toLowerCase());
+        
+        // Match category ID directly against product.category values from DB
+        // The product.category field stores values like "Kroppsvård", "Elektronik" etc.
+        // Category query has format: product_type:Kroppsvård or product_type:"Hampa-kläder" OR product_type:Kläder
+        if (!catDef.query) return false;
+        
+        // Extract all product_type values from the query
+        const typeMatches = catDef.query.matchAll(/product_type:"?([^"&\s]+)"?/g);
+        for (const match of typeMatches) {
+          if (productCategories.includes(match[1].toLowerCase())) return true;
+        }
+        return false;
       })
       .map(c => ({
         href: `/shop?category=${c.id}`,
