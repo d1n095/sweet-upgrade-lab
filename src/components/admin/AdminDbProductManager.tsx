@@ -212,6 +212,9 @@ const AdminDbProductManager = () => {
       effects: (source as any).effects_sv || '',
       usage: (source as any).usage_sv || '',
       extendedDescription: (source as any).extended_description_sv || '',
+      metaTitle: (source as any).meta_title || '',
+      metaDescription: (source as any).meta_description || '',
+      metaKeywords: (source as any).meta_keywords || '',
     });
     setIsAddOpen(true);
   };
