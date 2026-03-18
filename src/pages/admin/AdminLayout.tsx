@@ -308,6 +308,20 @@ const AdminLayout = () => {
           )}
         </AnimatePresence>
 
+        {/* Error banner */}
+        {recentErrorCount > 0 && !errorBannerDismissed && (
+          <div className="bg-destructive/10 border-b border-destructive/20 px-4 md:px-8 py-2 flex items-center justify-between">
+            <Link to="/admin/logs" className="flex items-center gap-2 text-sm text-destructive hover:underline">
+              <AlertTriangle className="w-4 h-4" />
+              <span className="font-medium">{recentErrorCount} {recentErrorCount === 1 ? 'fel' : 'fel'} senaste timmen</span>
+              <span className="text-destructive/70">→ Visa loggar</span>
+            </Link>
+            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-destructive hover:text-destructive" onClick={() => setErrorBannerDismissed(true)}>
+              <X className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        )}
+
         {/* Content */}
         <main className="flex-1 overflow-y-auto">
           <div className="md:p-8 p-4 pt-18 pb-8 md:pt-6 md:pb-8 max-w-6xl mx-auto">
