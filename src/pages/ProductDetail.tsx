@@ -316,6 +316,12 @@ const ProductDetail = () => {
               {product.vendor && (
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-2">{product.vendor}</p>
               )}
+              {translated.isTranslating && (
+                <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground animate-pulse mb-2">
+                  <Languages className="w-3.5 h-3.5" />
+                  {lang === 'sv' ? 'Laddar...' : 'Translating...'}
+                </span>
+              )}
               <h1 className="font-display text-2xl md:text-3xl font-bold mb-4 leading-tight">{title}</h1>
 
               {/* Price */}
