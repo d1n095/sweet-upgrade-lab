@@ -1,6 +1,6 @@
 // Shared payment icon components used by both PaymentIcons (footer) and PaymentMethods (product page)
 import React from 'react';
-import swishLogo from '@/assets/payment/swish-logo.svg';
+import swishLogo from '@/assets/payment/swish-logo-official.png';
 
 interface IconProps {
   size?: 'sm' | 'md';
@@ -35,7 +35,7 @@ const SwishIcon = ({ size = 'sm' }: IconProps) => (
     <img
       src={swishLogo}
       alt="Swish"
-      className={size === 'sm' ? 'h-4 w-auto object-contain' : 'h-5 w-auto object-contain'}
+      className={size === 'sm' ? 'h-4.5 w-auto max-w-[42px] object-contain' : 'h-5 w-auto max-w-[46px] object-contain'}
       loading="lazy"
       decoding="async"
     />
@@ -51,14 +51,7 @@ const ApplePayIcon = ({ size = 'sm' }: IconProps) => (
 
 const GooglePayIcon = ({ size = 'sm' }: IconProps) => (
   <div className={`${sizeClasses[size]} rounded-md bg-white border border-border flex items-center justify-center gap-1`}>
-    <span className="font-semibold tracking-tight" style={{ fontSize: size === 'sm' ? 10 : 12 }}>
-      <span className="text-[#4285F4]">G</span>
-      <span className="text-[#EA4335]">o</span>
-      <span className="text-[#FBBC05]">o</span>
-      <span className="text-[#4285F4]">g</span>
-      <span className="text-[#34A853]">l</span>
-      <span className="text-[#EA4335]">e</span>
-    </span>
+    <span className="font-bold text-[#4285F4]" style={{ fontSize: size === 'sm' ? 11 : 13 }}>G</span>
     <span className="font-medium text-[#5F6368]" style={{ fontSize: size === 'sm' ? 10 : 12 }}>Pay</span>
   </div>
 );
