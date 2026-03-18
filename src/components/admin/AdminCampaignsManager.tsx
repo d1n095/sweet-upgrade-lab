@@ -115,6 +115,9 @@ const VolumeDiscountsTab = () => {
   ]);
   const [form, setForm] = useState({
     label: '', stackable: true, excluded_product_ids: [] as string[],
+    requires_account: false, requirement_type: 'none',
+    first_purchase_discount: '', repeat_discount: '',
+    min_level: '', max_uses_per_user: '',
   });
 
   const fetchData = useCallback(async () => {
