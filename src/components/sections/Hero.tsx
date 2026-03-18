@@ -56,16 +56,16 @@ const Hero = ({ getSection, isSectionVisible }: HeroProps) => {
   if (isSectionVisible && !isSectionVisible('hero')) return null;
 
   return (
-    <section className="relative min-h-[75vh] flex items-center justify-center">
+    <section className="relative min-h-[60vh] md:min-h-[75vh] flex items-center justify-center">
       <div className="absolute inset-0 bg-gradient-hero" />
 
-      <div className="container mx-auto px-5 py-28 md:py-36 relative z-10">
+      <div className="container mx-auto px-5 py-16 md:py-36 relative z-10">
         <div className="max-w-xl mx-auto text-center">
           <motion.h1
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
-            className="text-3xl sm:text-4xl md:text-5xl font-semibold leading-[1.08] tracking-tight mb-6 text-foreground"
+            className="text-[1.65rem] sm:text-4xl md:text-5xl font-semibold leading-[1.12] tracking-tight mb-4 md:mb-6 text-foreground"
           >
             {heroSection ? getLang(heroSection.title_sv, heroSection.title_en) : t('hero.title')}
           </motion.h1>
@@ -74,7 +74,7 @@ const Hero = ({ getSection, isSectionVisible }: HeroProps) => {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.12, ease: [0.25, 0.1, 0.25, 1] }}
-            className="text-base text-muted-foreground/80 max-w-md mx-auto mb-8 leading-relaxed"
+            className="text-sm sm:text-base text-muted-foreground/80 max-w-md mx-auto mb-6 md:mb-8 leading-relaxed"
           >
             {heroSection ? getLang(heroSection.content_sv, heroSection.content_en) : t('hero.subtitle')}
           </motion.p>
@@ -104,7 +104,7 @@ const Hero = ({ getSection, isSectionVisible }: HeroProps) => {
           >
             <Button
               size="lg"
-              className="h-13 px-12 text-sm font-semibold rounded-full shadow-sm hover:shadow-md transition-all"
+              className="h-[52px] px-14 text-sm font-semibold rounded-full shadow-md hover:shadow-lg active:scale-[0.97] transition-all"
               onClick={() => navigate('/produkter')}
             >
               {t('hero.cta.primary')}
@@ -131,7 +131,7 @@ const Hero = ({ getSection, isSectionVisible }: HeroProps) => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.6 }}
-            className="mt-16"
+            className="mt-10 md:mt-16"
           >
             <button
               onClick={() => document.getElementById('philosophy')?.scrollIntoView({ behavior: 'smooth' })}
