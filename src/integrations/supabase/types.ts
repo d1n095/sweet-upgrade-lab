@@ -1973,6 +1973,8 @@ export type Database = {
         Returns: {
           avatar_url: string
           email: string
+          phone: string
+          user_created_at: string
           user_id: string
           username: string
         }[]
