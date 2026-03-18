@@ -430,10 +430,16 @@ export type Database = {
           description_en: string | null
           discount_percent: number
           display_order: number
+          first_purchase_discount: number | null
           id: string
           is_active: boolean
+          max_uses_per_user: number | null
+          min_level: number | null
           name: string
           name_en: string | null
+          repeat_discount: number | null
+          requirement_type: string
+          requires_account: boolean
           updated_at: string
         }
         Insert: {
@@ -442,10 +448,16 @@ export type Database = {
           description_en?: string | null
           discount_percent?: number
           display_order?: number
+          first_purchase_discount?: number | null
           id?: string
           is_active?: boolean
+          max_uses_per_user?: number | null
+          min_level?: number | null
           name: string
           name_en?: string | null
+          repeat_discount?: number | null
+          requirement_type?: string
+          requires_account?: boolean
           updated_at?: string
         }
         Update: {
@@ -454,10 +466,16 @@ export type Database = {
           description_en?: string | null
           discount_percent?: number
           display_order?: number
+          first_purchase_discount?: number | null
           id?: string
           is_active?: boolean
+          max_uses_per_user?: number | null
+          min_level?: number | null
           name?: string
           name_en?: string | null
+          repeat_discount?: number | null
+          requirement_type?: string
+          requires_account?: boolean
           updated_at?: string
         }
         Relationships: []
@@ -1876,6 +1894,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_admin: { Args: { _user_id: string }; Returns: boolean }
       validate_affiliate_code: {
         Args: { p_code: string }
         Returns: {

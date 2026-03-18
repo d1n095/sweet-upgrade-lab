@@ -36,6 +36,12 @@ interface Bundle {
   discount_percent: number;
   is_active: boolean;
   display_order: number;
+  requirement_type: string;
+  first_purchase_discount: number | null;
+  repeat_discount: number | null;
+  min_level: number | null;
+  requires_account: boolean;
+  max_uses_per_user: number | null;
 }
 
 interface BundleItem {
@@ -213,7 +219,11 @@ const BundlesTab = () => {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: '', name_en: '', description: '', description_en: '', discount_percent: '' });
+  const [form, setForm] = useState({
+    name: '', name_en: '', description: '', description_en: '', discount_percent: '',
+    requirement_type: 'none', first_purchase_discount: '', repeat_discount: '',
+    min_level: '', requires_account: false, max_uses_per_user: '',
+  });
   const [selectedProducts, setSelectedProducts] = useState<Array<{ productId: string; quantity: number }>>([]);
 
   const fetchData = useCallback(async () => {
@@ -250,6 +260,12 @@ const BundlesTab = () => {
     setSelectedProducts(prev => prev.map(p => p.productId === productId ? { ...p, quantity: Math.max(1, qty) } : p));
   };
 
+  const resetForm = () => setForm({
+    name: '', name_en: '', description: '', description_en: '', discount_percent: '',
+    requirement_type: 'none', first_purchase_discount: '', repeat_discount: '',
+    min_level: '', requires_account: false, max_uses_per_user: '',
+  });
+
   const handleAdd = async () => {
     if (!form.name || !form.discount_percent) { toast.error('Namn och rabatt krävs'); return; }
     if (selectedProducts.length === 0) { toast.error('Välj minst en produkt'); return; }
@@ -262,10 +278,15 @@ const BundlesTab = () => {
       discount_percent: parseFloat(form.discount_percent),
       is_active: false,
       display_order: maxOrder + 1,
+      requirement_type: form.requirement_type,
+      first_purchase_discount: form.first_purchase_discount ? parseFloat(form.first_purchase_discount) : null,
+      repeat_discount: form.repeat_discount ? parseFloat(form.repeat_discount) : null,
+      min_level: form.min_level ? parseInt(form.min_level) : null,
+      requires_account: form.requires_account,
+      max_uses_per_user: form.max_uses_per_user ? parseInt(form.max_uses_per_user) : null,
     }).select().single();
-    if (error || !newBundle) { toast.error('Kunde inte skapa'); return; }
+    if (error || !newBundle) { toast.error('Kunde inte skapa: ' + (error?.message || '')); return; }
 
-    // Insert bundle items
     const items = selectedProducts.map(sp => ({
       bundle_id: newBundle.id,
       shopify_product_id: sp.productId,
@@ -274,7 +295,7 @@ const BundlesTab = () => {
     await supabase.from('bundle_items').insert(items);
 
     toast.success('Paket skapat med produkter');
-    setForm({ name: '', name_en: '', description: '', description_en: '', discount_percent: '' });
+    resetForm();
     setSelectedProducts([]);
     setShowForm(false);
     fetchData();
@@ -409,9 +430,56 @@ const BundlesTab = () => {
                   )}
                 </div>
 
+                {/* Conditions / Requirements */}
+                <div className="border border-border rounded-lg p-3 space-y-3 bg-secondary/20">
+                  <p className="text-xs font-semibold flex items-center gap-1.5">⚙️ Villkor & Krav</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <Label className="text-xs">Typ av krav</Label>
+                      <Select value={form.requirement_type} onValueChange={v => setForm({ ...form, requirement_type: v })}>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none" className="text-xs">Inga krav</SelectItem>
+                          <SelectItem value="first_purchase" className="text-xs">Första köpet</SelectItem>
+                          <SelectItem value="level_required" className="text-xs">Kräver level</SelectItem>
+                          <SelectItem value="account_required" className="text-xs">Kräver konto</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {form.requirement_type === 'first_purchase' && (
+                      <>
+                        <div>
+                          <Label className="text-xs">Rabatt första köpet %</Label>
+                          <Input type="number" step="0.5" value={form.first_purchase_discount} onChange={e => setForm({ ...form, first_purchase_discount: e.target.value })} placeholder="40" className="h-8" />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Rabatt efterföljande köp %</Label>
+                          <Input type="number" step="0.5" value={form.repeat_discount} onChange={e => setForm({ ...form, repeat_discount: e.target.value })} placeholder="20" className="h-8" />
+                        </div>
+                      </>
+                    )}
+                    {form.requirement_type === 'level_required' && (
+                      <div>
+                        <Label className="text-xs">Minsta level</Label>
+                        <Input type="number" value={form.min_level} onChange={e => setForm({ ...form, min_level: e.target.value })} placeholder="5" className="h-8" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="flex items-center gap-2 h-8">
+                      <Switch checked={form.requires_account} onCheckedChange={v => setForm({ ...form, requires_account: v })} />
+                      <span className="text-xs text-muted-foreground">Kräver konto</span>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Max användningar per kund</Label>
+                      <Input type="number" value={form.max_uses_per_user} onChange={e => setForm({ ...form, max_uses_per_user: e.target.value })} placeholder="∞ (lämna tomt)" className="h-8" />
+                    </div>
+                  </div>
+                </div>
+
                 <div className="flex gap-2">
                   <Button size="sm" onClick={handleAdd} className="gap-1 h-7 text-xs"><Save className="w-3 h-3" /> Spara paket</Button>
-                  <Button size="sm" variant="outline" onClick={() => { setShowForm(false); setSelectedProducts([]); }} className="h-7 text-xs">Avbryt</Button>
+                  <Button size="sm" variant="outline" onClick={() => { setShowForm(false); setSelectedProducts([]); resetForm(); }} className="h-7 text-xs">Avbryt</Button>
                 </div>
               </CardContent>
             </Card>
@@ -432,14 +500,20 @@ const BundlesTab = () => {
                   {b.discount_percent}%
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <p className="font-medium text-sm truncate">{b.name}</p>
                     {!b.is_active && <Badge variant="outline" className="text-[9px]">Inaktiv</Badge>}
                     <Badge variant="secondary" className="text-[9px]">{items.length} produkter</Badge>
+                    {b.requirement_type === 'first_purchase' && <Badge className="text-[9px] bg-blue-500/10 text-blue-600 border-blue-200">Första köpet</Badge>}
+                    {b.requirement_type === 'level_required' && <Badge className="text-[9px] bg-amber-500/10 text-amber-600 border-amber-200">Level {b.min_level}+</Badge>}
+                    {b.requires_account && <Badge className="text-[9px] bg-purple-500/10 text-purple-600 border-purple-200">Kräver konto</Badge>}
+                    {b.max_uses_per_user && <Badge className="text-[9px] bg-muted text-muted-foreground">Max {b.max_uses_per_user}x</Badge>}
                   </div>
                   {items.length > 0 && (
                     <p className="text-xs text-muted-foreground">
                       <span className="line-through">{Math.round(prices.original)} kr</span> → <span className="font-semibold text-primary">{Math.round(prices.discounted)} kr</span>
+                      {b.first_purchase_discount && <span className="ml-2">| 1:a köp: {b.first_purchase_discount}%</span>}
+                      {b.repeat_discount && <span className="ml-1">| Sedan: {b.repeat_discount}%</span>}
                     </p>
                   )}
                 </div>
