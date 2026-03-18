@@ -155,7 +155,7 @@ const DbProductCard = ({ product, index, compact = false }: DbProductCardProps) 
               <div className="absolute top-3 right-3 z-10">
                 <Badge className="bg-foreground text-background text-[10px] font-semibold px-2 py-0.5 rounded-full">
                   <Flame className="w-3 h-3 mr-1" />
-                  Popular
+                  {lang === 'sv' ? 'Populär' : 'Popular'}
                 </Badge>
               </div>
             )}
