@@ -81,7 +81,6 @@ const AdminProductManager = () => {
     ingredients: '',
     certifications: '',
     recipe: '',
-    certifications: '',
   });
 
   const { data: products = [], isLoading: productsLoading } = useQuery({
