@@ -364,10 +364,15 @@ const AdminDbProductManager = () => {
       key={product.id}
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
-      className="flex items-center gap-3 p-3 rounded-lg border border-border bg-secondary/30 hover:bg-secondary/60 transition-colors"
+      className="flex items-center gap-3 p-3 rounded-lg border border-border bg-secondary/30 hover:bg-secondary/60 active:bg-secondary/80 transition-colors cursor-pointer"
+      onClick={() => {
+        if (!bulkMode) openEdit(product);
+      }}
+      role="button"
+      tabIndex={0}
     >
       {bulkMode && (
-        <button onClick={() => toggleSelect(product.id)} className="shrink-0">
+        <button onClick={(e) => { e.stopPropagation(); toggleSelect(product.id); }} className="shrink-0">
           {selectedIds.has(product.id)
             ? <CheckSquare className="w-5 h-5 text-primary" />
             : <Square className="w-5 h-5 text-muted-foreground" />
@@ -425,7 +430,7 @@ const AdminDbProductManager = () => {
         </div>
       </div>
 
-      <div className="flex items-center gap-1 flex-shrink-0">
+      <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
         {activeTab === 'active' && (
           <>
             <Button
