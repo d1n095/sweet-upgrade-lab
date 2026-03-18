@@ -79,7 +79,7 @@ const FloatingContactButton = () => {
         <Button
           size="icon"
           onClick={() => setIsOpen(!isOpen)}
-          className="w-14 h-14 rounded-full shadow-lg"
+          className="w-12 h-12 md:w-14 md:h-14 rounded-full shadow-lg"
         >
           <AnimatePresence mode="wait">
             {isOpen ? (
