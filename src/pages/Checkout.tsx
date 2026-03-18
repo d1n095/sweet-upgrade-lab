@@ -365,7 +365,7 @@ const Checkout = () => {
         </div>
       </header>
 
-      <main className="pt-20 pb-20">
+      <main className="pt-20 pb-32 lg:pb-20">
         <div className="container mx-auto px-4 max-w-5xl">
           <h1 className="font-display text-2xl md:text-3xl font-bold mb-2">{t.title}</h1>
 
