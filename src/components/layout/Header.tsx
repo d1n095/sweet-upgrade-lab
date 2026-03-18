@@ -200,24 +200,26 @@ const Header = () => {
 
             {/* Desktop Nav */}
             <nav className="hidden md:flex items-center gap-5 min-w-0 overflow-hidden">
-              <Link
-                to="/shop"
-                className={`text-sm font-semibold px-4 py-1.5 rounded-full transition-all ${
-                  location.pathname === '/shop'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-secondary/60 text-foreground hover:bg-secondary'
-                }`}
-              >
-                Shop
-              </Link>
-
-              {productDropdownItems.length > 0 && (
-                <NavDropdown
-                  label={t('nav.products') || 'Produkter'}
-                  href="/produkter"
-                  items={productDropdownItems}
-                  isActive={location.pathname === '/produkter' || location.pathname.startsWith('/shop?category=')}
-                />
+              {productDropdownItems.length > 0 ? (
+                <div className="relative" onMouseEnter={() => {}} onMouseLeave={() => {}}>
+                  <NavDropdown
+                    label="Shop"
+                    href="/shop"
+                    items={productDropdownItems}
+                    isActive={location.pathname === '/shop' || location.pathname === '/produkter'}
+                  />
+                </div>
+              ) : (
+                <Link
+                  to="/shop"
+                  className={`text-sm font-semibold px-4 py-1.5 rounded-full transition-all ${
+                    location.pathname === '/shop'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-secondary/60 text-foreground hover:bg-secondary'
+                  }`}
+                >
+                  Shop
+                </Link>
               )}
 
               <NavDropdown
