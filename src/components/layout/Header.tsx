@@ -179,7 +179,7 @@ const Header = () => {
   const productDropdownItems = useMemo(() => {
     return activeCategories
       .filter(c => {
-        if (c.id === 'all') return false; // skip "all" from dropdown
+        if ((c.id as string) === 'all') return false; // skip "all" from dropdown
         const catDef = allCategoryDefs.find(cd => cd.id === c.id);
         if (!catDef) return false;
         if (catDef.isBestsellerFilter) {
