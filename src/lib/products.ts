@@ -26,11 +26,12 @@ export interface DbProduct {
   updated_at: string;
 }
 
-export type DbProductInsert = Omit<DbProduct, 'id' | 'created_at' | 'updated_at' | 'handle' | 'ingredients_sv' | 'ingredients_en' | 'certifications'> & {
+export type DbProductInsert = Omit<DbProduct, 'id' | 'created_at' | 'updated_at' | 'handle' | 'ingredients_sv' | 'ingredients_en' | 'certifications' | 'reserved_stock'> & {
   handle?: string;
   ingredients_sv?: string | null;
   ingredients_en?: string | null;
   certifications?: string[] | null;
+  reserved_stock?: number;
 };
 
 export const fetchDbProducts = async (adminView = false): Promise<DbProduct[]> => {
