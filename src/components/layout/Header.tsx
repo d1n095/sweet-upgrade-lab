@@ -201,14 +201,12 @@ const Header = () => {
             {/* Desktop Nav */}
             <nav className="hidden md:flex items-center gap-5 min-w-0 overflow-hidden">
               {productDropdownItems.length > 0 ? (
-                <div className="relative" onMouseEnter={() => {}} onMouseLeave={() => {}}>
-                  <NavDropdown
-                    label="Shop"
-                    href="/shop"
-                    items={productDropdownItems}
-                    isActive={location.pathname === '/shop' || location.pathname === '/produkter'}
-                  />
-                </div>
+                <NavDropdown
+                  label="Shop"
+                  href="/shop"
+                  items={productDropdownItems}
+                  isActive={location.pathname === '/shop' || location.pathname === '/produkter'}
+                />
               ) : (
                 <Link
                   to="/shop"
