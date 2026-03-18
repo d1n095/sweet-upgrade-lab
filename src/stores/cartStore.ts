@@ -48,6 +48,9 @@ export const useCartStore = create<CartStore>()(
         const { items } = get();
         const existingItem = items.find(i => i.variantId === item.variantId);
         
+        const productId = (item.product as any)?.dbId || item.variantId;
+        trackAddToCart(productId, item.product.node.title, parseFloat(item.price.amount), item.quantity);
+        
         if (existingItem) {
           set({
             items: items.map(i =>
