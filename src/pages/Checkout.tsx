@@ -29,6 +29,30 @@ const ZIP_CITY_MAP: Record<string, string> = {
   '85': 'Sundsvall', '90': 'Umeå', '95': 'Luleå',
 };
 
+// Hook to get shipping settings from DB
+const useShippingConfig = () => {
+  const [config, setConfig] = useState({
+    cost: storeConfig.shipping.cost,
+    freeThreshold: storeConfig.shipping.freeShippingThreshold,
+  });
+  useEffect(() => {
+    supabase
+      .from('store_settings')
+      .select('key, text_value')
+      .in('key', ['shipping_cost', 'free_shipping_threshold'])
+      .then(({ data }) => {
+        if (data) {
+          const map = Object.fromEntries(data.map(r => [r.key, r.text_value]));
+          setConfig({
+            cost: map['shipping_cost'] ? parseFloat(map['shipping_cost']) : storeConfig.shipping.cost,
+            freeThreshold: map['free_shipping_threshold'] ? parseFloat(map['free_shipping_threshold']) : storeConfig.shipping.freeShippingThreshold,
+          });
+        }
+      });
+  }, []);
+  return config;
+};
+
 interface FieldErrors {
   email?: string;
   name?: string;

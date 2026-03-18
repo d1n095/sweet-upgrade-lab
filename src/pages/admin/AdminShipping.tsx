@@ -75,17 +75,21 @@ const AdminShipping = () => {
 
   useEffect(() => {
     const load = async () => {
-      const [{ data: c }, { data: e }] = await Promise.all([
+      const [{ data: c }, { data: e }, { data: s }] = await Promise.all([
         supabase.from('shipping_carriers').select('id, name, is_selected, is_international, supports_pickup_points, supports_home_delivery, supports_express, supports_parcel_lockers'),
         supabase.from('shipping_extras').select('*').order('display_order'),
+        supabase.from('store_settings').select('key, text_value').in('key', ['shipping_cost', 'free_shipping_threshold']),
       ]);
       setCarriers((c || []) as ShippingCarrier[]);
       setExtras((e || []) as ShippingExtra[]);
-      // Load local settings
-      try {
-        const saved = localStorage.getItem('shipping_settings');
-        if (saved) setSettings(JSON.parse(saved));
-      } catch {}
+      if (s) {
+        const map = Object.fromEntries(s.map(r => [r.key, r.text_value]));
+        setSettings(prev => ({
+          ...prev,
+          shipping_cost: map['shipping_cost'] || prev.shipping_cost,
+          free_shipping_threshold: map['free_shipping_threshold'] || prev.free_shipping_threshold,
+        }));
+      }
       setLoading(false);
     };
     load();
@@ -93,7 +97,16 @@ const AdminShipping = () => {
 
   const handleSaveSettings = async () => {
     setSaving(true);
-    localStorage.setItem('shipping_settings', JSON.stringify(settings));
+    await Promise.all([
+      supabase.from('store_settings').upsert(
+        { key: 'shipping_cost', value: true, text_value: settings.shipping_cost, updated_at: new Date().toISOString() },
+        { onConflict: 'key' }
+      ),
+      supabase.from('store_settings').upsert(
+        { key: 'free_shipping_threshold', value: true, text_value: settings.free_shipping_threshold, updated_at: new Date().toISOString() },
+        { onConflict: 'key' }
+      ),
+    ]);
     logShippingChange('Fraktinställningar uppdaterade', settings);
     toast.success('Fraktinställningar sparade!');
     setSaving(false);
