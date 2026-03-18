@@ -254,12 +254,8 @@ const AdminReviews = () => {
   // Loading state
   if (authLoading || adminLoading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <Loader2 className="w-10 h-10 text-primary animate-spin" />
-        </div>
-        <Footer />
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-10 h-10 text-primary animate-spin" />
       </div>
     );
   }
