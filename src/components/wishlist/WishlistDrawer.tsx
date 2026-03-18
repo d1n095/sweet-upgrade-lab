@@ -228,6 +228,7 @@ const WishlistDrawer = ({ isOpen, onClose }: WishlistDrawerProps) => {
           </motion.div>
         </>
       )}
+      <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
     </AnimatePresence>
   );
 };
