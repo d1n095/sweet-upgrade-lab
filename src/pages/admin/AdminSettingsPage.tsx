@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Settings, ShoppingCart, Wrench, Home, AlertTriangle, Eye, EyeOff, Globe, Shield, Database, RefreshCw, UserPlus } from 'lucide-react';
+import { Settings, ShoppingCart, Wrench, Home, AlertTriangle, Eye, EyeOff, Globe, Shield, Database, RefreshCw, UserPlus, CreditCard } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useStoreSettings } from '@/stores/storeSettingsStore';
 import { usePageVisibility, ToggleablePage } from '@/stores/pageVisibilityStore';
+import { usePaymentMethodsStore } from '@/stores/paymentMethodsStore';
+import { PAYMENT_ICON_MAP, GenericIcon } from '@/components/trust/PaymentMethodIcons';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -34,12 +36,14 @@ const AdminSettingsPage = () => {
     homepageBestsellers, homepageReviews, homepagePhilosophy, homepageAbout,
   } = useStoreSettings();
   const { isVisible, setVisibility } = usePageVisibility();
+  const { methods, isLoaded: paymentLoaded, load: loadPayments, toggle: togglePayment } = usePaymentMethodsStore();
   const [dbStats, setDbStats] = useState<{ tables: number; totalRows: number } | null>(null);
   const [loadingStats, setLoadingStats] = useState(false);
 
   useEffect(() => {
     if (!isLoaded) fetchSettings();
-  }, [isLoaded, fetchSettings]);
+    if (!paymentLoaded) loadPayments();
+  }, [isLoaded, fetchSettings, paymentLoaded, loadPayments]);
 
   const getHomepageValue = (key: string) => {
     switch (key) {
@@ -78,6 +82,7 @@ const AdminSettingsPage = () => {
       <Tabs defaultValue="general" className="space-y-6">
         <TabsList className="bg-secondary/50">
           <TabsTrigger value="general">Generellt</TabsTrigger>
+          <TabsTrigger value="payments">Betalningar</TabsTrigger>
           <TabsTrigger value="pages">Sidor</TabsTrigger>
           <TabsTrigger value="homepage">Startsida</TabsTrigger>
           <TabsTrigger value="advanced">Avancerat</TabsTrigger>
@@ -155,7 +160,41 @@ const AdminSettingsPage = () => {
           )}
         </TabsContent>
 
-        {/* Pages */}
+        {/* Payments */}
+        <TabsContent value="payments" className="space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold flex items-center gap-2 mb-1">
+              <CreditCard className="w-4 h-4" />
+              Betalningsmetoder
+            </h2>
+            <p className="text-muted-foreground text-sm mb-4">Styr vilka betalningsikoner som visas i footern och på produktsidor</p>
+          </div>
+          <div className="grid gap-3 max-w-xl">
+            {methods.map((method) => {
+              const Icon = PAYMENT_ICON_MAP[method.id];
+              return (
+                <div key={method.id} className="flex items-center justify-between p-4 rounded-xl border border-border bg-card">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 flex justify-center">
+                      {Icon ? <Icon size="sm" /> : <GenericIcon name={method.name} size="sm" />}
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium">{method.name}</Label>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {method.enabled ? 'Visas för kunder' : 'Dold'}
+                      </p>
+                    </div>
+                  </div>
+                  <Switch checked={method.enabled} onCheckedChange={() => togglePayment(method.id)} />
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground max-w-xl">
+            Ändringar sparas direkt och påverkar vilka betalningsikoner som visas på hela sajten.
+          </p>
+        </TabsContent>
+
         <TabsContent value="pages" className="space-y-4">
           <div>
             <h2 className="text-lg font-semibold flex items-center gap-2 mb-1">
