@@ -434,7 +434,7 @@ const AdminMemberManager = () => {
     setIsDialogOpen(true);
 
     try {
-      const [ordersRes, reviewsRes] = await Promise.all([
+      const [ordersRes, reviewsRes, emailRes] = await Promise.all([
         supabase
           .from('orders')
           .select('id, created_at, total_amount, status, shopify_order_number')
@@ -446,7 +446,22 @@ const AdminMemberManager = () => {
           .select('id, product_title, rating, comment, is_approved, created_at')
           .eq('user_id', member.user_id)
           .order('created_at', { ascending: false }),
+        // Fetch email if not already loaded
+        !member.email
+          ? supabase.rpc('admin_search_users', { p_query: member.username || member.user_id.slice(0, 8) })
+          : Promise.resolve({ data: null }),
       ]);
+
+      // Update member with email if found
+      if (emailRes.data) {
+        const match = (emailRes.data as any[]).find((u: any) => u.user_id === member.user_id);
+        if (match) {
+          const updated = { ...member, email: match.email, username: match.username || member.username };
+          setSelectedMember(updated);
+          // Also update in the main list
+          setMembers(prev => prev.map(m => m.user_id === member.user_id ? updated : m));
+        }
+      }
 
       setMemberOrders(ordersRes.data || []);
       setMemberReviews(reviewsRes.data || []);
