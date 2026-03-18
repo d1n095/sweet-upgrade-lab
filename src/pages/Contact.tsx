@@ -39,21 +39,9 @@ const Contact = () => {
       href: `mailto:${storeConfig.contact.email}`,
     },
     {
-      icon: Phone,
-      label: t('contact.name'),
-      value: storeConfig.contact.phoneFormatted,
-      href: `tel:${storeConfig.contact.phone}`,
-    },
-    {
-      icon: MessageSquare,
-      label: t('footer.founded'),
-      value: '2026',
-      href: null,
-    },
-    {
       icon: Clock,
       label: t('contact.responsetime'),
-      value: t('contact.within24h'),
+      value: language === 'sv' ? 'Inom 48 timmar' : 'Within 48 hours',
       href: null,
     },
   ];
