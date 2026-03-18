@@ -53,6 +53,7 @@ import AdminStats from "./pages/admin/AdminStats";
 import AdminReviews from "./pages/admin/AdminReviews";
 import AdminLogs from "./pages/admin/AdminLogs";
 import AdminContent from "./pages/admin/AdminContent";
+import AdminCampaigns from "./pages/admin/AdminCampaigns";
 
 const queryClient = new QueryClient();
 
@@ -112,6 +113,7 @@ const App = () => (
                 <Route path="updates" element={<AdminUpdates />} />
                 <Route path="visibility" element={<AdminVisibility />} />
                 <Route path="content" element={<AdminContent />} />
+                <Route path="campaigns" element={<AdminCampaigns />} />
                 <Route path="legal" element={<AdminLegal />} />
                 <Route path="settings" element={<AdminSettingsPage />} />
                 <Route path="stats" element={<AdminStats />} />
