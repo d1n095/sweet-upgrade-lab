@@ -382,7 +382,7 @@ const AdminAffiliateManager = () => {
                 </Button>
                 <Button
                   type="submit"
-                  disabled={isSubmitting || !formData.name || !formData.email}
+                  disabled={isSubmitting || !selectedUser}
                   className="flex-1"
                 >
                   {isSubmitting ? (
