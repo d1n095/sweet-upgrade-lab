@@ -118,6 +118,7 @@ const AdminRecipeIngredientLibrary = () => {
           display_order: ingredients.length,
         });
         toast.success('Ingrediens tillagd!');
+        logIngredientChange('created', form.name_sv, { category: form.category });
       }
       setIsFormOpen(false);
       resetForm();
