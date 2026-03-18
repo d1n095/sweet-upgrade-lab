@@ -208,8 +208,22 @@ export function AdminProductForm({
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="price">{t.price}</Label>
-          <div className="relative">
-            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <div className="flex gap-2">
+            <Select
+              value={formData.currency || 'SEK'}
+              onValueChange={(value) => setFormData((prev) => ({ ...prev, currency: value }))}
+            >
+              <SelectTrigger className="w-24 shrink-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CURRENCY_OPTIONS.map((c) => (
+                  <SelectItem key={c.value} value={c.value}>
+                    {c.value} ({c.symbol})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Input
               id="price"
               type="number"
@@ -217,9 +231,7 @@ export function AdminProductForm({
               value={formData.price}
               onChange={(e) => setFormData((prev) => ({ ...prev, price: e.target.value }))}
               placeholder="159"
-              className="pl-9"
               required
-              
             />
           </div>
         </div>
