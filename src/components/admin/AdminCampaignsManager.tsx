@@ -31,7 +31,12 @@ interface VolumeDiscount {
   excluded_product_ids: string[];
   stackable: boolean;
   label: string | null;
+  created_at: string;
 }
+
+const fmtDate = (d: string) => {
+  try { return format(new Date(d), 'd MMM yyyy', { locale: sv }); } catch { return ''; }
+};
 
 interface Bundle {
   id: string;
