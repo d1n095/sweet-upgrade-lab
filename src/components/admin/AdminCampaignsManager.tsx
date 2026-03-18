@@ -465,6 +465,7 @@ const VolumeDiscountsTab = () => {
                           {i < sorted.length - 1 && <span className="text-muted-foreground ml-1">·</span>}
                         </span>
                       ))}
+                      <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground ml-1"><Calendar className="w-3 h-3" />{fmtDate(first.created_at)}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
