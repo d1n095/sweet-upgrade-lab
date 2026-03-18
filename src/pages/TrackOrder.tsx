@@ -28,6 +28,7 @@ const TrackOrder = () => {
   const [orderNumber, setOrderNumber] = useState('');
   const [email, setEmail] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
   const [orderData, setOrderData] = useState<OrderData | null>(null);
   const [notFound, setNotFound] = useState(false);
 
