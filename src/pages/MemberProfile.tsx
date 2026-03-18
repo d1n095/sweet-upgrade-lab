@@ -422,46 +422,47 @@ const MemberProfile = () => {
 
           {/* Tabs */}
           <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
-            <div className="flex items-center gap-3 mb-6 flex-wrap">
-              <TabsList className="flex-wrap">
-                <TabsTrigger value="orders" className="gap-2">
-                  <Package className="w-4 h-4" />
-                  {language === 'sv' ? 'Mina ordrar' : 'My Orders'}
+            <div className="mb-6 -mx-4 px-4 overflow-x-auto scrollbar-hide">
+              <TabsList className="inline-flex w-max min-w-full sm:w-auto">
+                <TabsTrigger value="orders" className="gap-1.5 text-xs sm:text-sm">
+                  <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">{language === 'sv' ? 'Mina ordrar' : 'My Orders'}</span>
+                  <span className="sm:hidden">{language === 'sv' ? 'Ordrar' : 'Orders'}</span>
                 </TabsTrigger>
-                <TabsTrigger value="overview" className="gap-2">
-                  <User className="w-4 h-4" />
+                <TabsTrigger value="overview" className="gap-1.5 text-xs sm:text-sm">
+                  <User className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   {t.tabs.overview}
                 </TabsTrigger>
-                <TabsTrigger value="reviews" className="gap-2">
-                  <Star className="w-4 h-4" />
-                  {t.tabs.reviews}
+                <TabsTrigger value="reviews" className="gap-1.5 text-xs sm:text-sm">
+                  <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">{t.tabs.reviews}</span>
+                  <span className="sm:hidden">{language === 'sv' ? 'Recensioner' : 'Reviews'}</span>
                   {reviews.length > 0 && (
-                    <Badge variant="secondary" className="ml-1">{reviews.length}</Badge>
+                    <Badge variant="secondary" className="ml-1 text-[10px] px-1.5">{reviews.length}</Badge>
                   )}
                 </TabsTrigger>
-                <TabsTrigger value="rewards" className="gap-2">
-                  <Gift className="w-4 h-4" />
-                  {t.tabs.rewards}
+                <TabsTrigger value="rewards" className="gap-1.5 text-xs sm:text-sm">
+                  <Gift className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">{t.tabs.rewards}</span>
+                  <span className="sm:hidden">{language === 'sv' ? 'Koder' : 'Codes'}</span>
                   {unusedRewards.length > 0 && (
-                    <Badge variant="secondary" className="ml-1">{unusedRewards.length}</Badge>
+                    <Badge variant="secondary" className="ml-1 text-[10px] px-1.5">{unusedRewards.length}</Badge>
                   )}
                 </TabsTrigger>
-                <TabsTrigger value="donations" className="gap-2">
-                  <TrendingUp className="w-4 h-4" />
+                <TabsTrigger value="donations" className="gap-1.5 text-xs sm:text-sm">
+                  <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   {language === 'sv' ? 'Donationer' : 'Donations'}
                 </TabsTrigger>
-                <TabsTrigger value="balance" className="gap-2">
-                  <Wallet className="w-4 h-4" />
+                <TabsTrigger value="balance" className="gap-1.5 text-xs sm:text-sm">
+                  <Wallet className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   {language === 'sv' ? 'Saldo' : 'Balance'}
                 </TabsTrigger>
-                <TabsTrigger value="settings" className="gap-2">
-                  <Settings className="w-4 h-4" />
-                  {language === 'sv' ? 'Inställningar' : 'Settings'}
+                <TabsTrigger value="settings" className="gap-1.5 text-xs sm:text-sm">
+                  <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">{language === 'sv' ? 'Inställningar' : 'Settings'}</span>
+                  <span className="sm:hidden"><Settings className="w-0 h-0" /></span>
                 </TabsTrigger>
               </TabsList>
-              
-              {/* Balance Badge - shown next to tabs */}
-              <ProfileBalanceBadge />
             </div>
 
             {/* Orders Tab */}
