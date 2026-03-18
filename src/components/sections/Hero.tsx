@@ -56,16 +56,16 @@ const Hero = ({ getSection, isSectionVisible }: HeroProps) => {
   if (isSectionVisible && !isSectionVisible('hero')) return null;
 
   return (
-    <section className="relative min-h-[75vh] flex items-center justify-center">
+    <section className="relative min-h-[60vh] md:min-h-[75vh] flex items-center justify-center">
       <div className="absolute inset-0 bg-gradient-hero" />
 
-      <div className="container mx-auto px-5 py-28 md:py-36 relative z-10">
+      <div className="container mx-auto px-5 py-16 md:py-36 relative z-10">
         <div className="max-w-xl mx-auto text-center">
           <motion.h1
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
-            className="text-3xl sm:text-4xl md:text-5xl font-semibold leading-[1.08] tracking-tight mb-6 text-foreground"
+            className="text-[1.65rem] sm:text-4xl md:text-5xl font-semibold leading-[1.12] tracking-tight mb-4 md:mb-6 text-foreground"
           >
             {heroSection ? getLang(heroSection.title_sv, heroSection.title_en) : t('hero.title')}
           </motion.h1>
