@@ -453,57 +453,126 @@ const AdminStats = () => {
           </Card>
         </TabsContent>
 
-        {/* Checkout */}
+        {/* Checkout + Order stats */}
         <TabsContent value="checkout">
-          <Card className="border-border">
-            <CardHeader><CardTitle className="text-lg font-semibold flex items-center gap-2"><BarChart3 className="w-5 h-5 text-primary" /> Checkout-tratt</CardTitle></CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-3">
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium">Påbörjad</span>
-                    <span className="text-sm font-bold">{checkoutStats.starts}</span>
-                  </div>
-                  <div className="h-8 rounded-lg bg-primary/20 overflow-hidden">
-                    <div className="h-full bg-primary/60 rounded-lg" style={{ width: '100%' }} />
-                  </div>
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium">Genomförd</span>
-                    <span className="text-sm font-bold">{checkoutStats.completes}</span>
-                  </div>
-                  <div className="h-8 rounded-lg bg-accent/20 overflow-hidden">
-                    <div className="h-full bg-accent/60 rounded-lg" style={{ width: checkoutStats.starts > 0 ? `${(checkoutStats.completes / checkoutStats.starts) * 100}%` : '0%' }} />
-                  </div>
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium">Avbrutna</span>
-                    <span className="text-sm font-bold text-destructive">{checkoutStats.abandons}</span>
-                  </div>
-                  <div className="h-8 rounded-lg bg-destructive/10 overflow-hidden">
-                    <div className="h-full bg-destructive/40 rounded-lg" style={{ width: checkoutStats.starts > 0 ? `${(checkoutStats.abandons / checkoutStats.starts) * 100}%` : '0%' }} />
-                  </div>
-                </div>
-              </div>
+          <div className="space-y-4">
+            {/* Average order stats */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <Card className="border-border">
+                <CardContent className="pt-4 pb-3 text-center">
+                  <DollarSign className="w-4 h-4 mx-auto text-accent mb-1" />
+                  <p className="text-xl font-bold">{fmt(orderStats.avgOrder)}</p>
+                  <p className="text-xs text-muted-foreground">Snittorder</p>
+                </CardContent>
+              </Card>
+              <Card className="border-border">
+                <CardContent className="pt-4 pb-3 text-center">
+                  <Target className="w-4 h-4 mx-auto text-primary mb-1" />
+                  <p className="text-xl font-bold">{fmt(orderStats.medianOrder)}</p>
+                  <p className="text-xs text-muted-foreground">Medianorder</p>
+                </CardContent>
+              </Card>
+              <Card className="border-border">
+                <CardContent className="pt-4 pb-3 text-center">
+                  <ShoppingCart className="w-4 h-4 mx-auto text-muted-foreground mb-1" />
+                  <p className="text-xl font-bold">{orderStats.paidCount}</p>
+                  <p className="text-xs text-muted-foreground">Betalda ordrar</p>
+                </CardContent>
+              </Card>
+              <Card className="border-border">
+                <CardContent className="pt-4 pb-3 text-center">
+                  <TrendingUp className="w-4 h-4 mx-auto text-accent mb-1" />
+                  <p className="text-xl font-bold">{fmt(orderStats.totalRevenue)}</p>
+                  <p className="text-xs text-muted-foreground">Total (30d)</p>
+                </CardContent>
+              </Card>
+            </div>
 
-              <div className="grid grid-cols-3 gap-4">
-                <div className="p-4 rounded-xl bg-secondary/50 text-center">
-                  <p className="text-2xl font-bold text-primary">{conversionRate}%</p>
-                  <p className="text-xs text-muted-foreground mt-1">Konvertering</p>
+            {/* Purchase amount ranges */}
+            <Card className="border-border">
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                  <DollarSign className="w-5 h-5 text-accent" /> Populäraste ordersummor
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">Fördelning av ordervärden senaste 30 dagarna</p>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {orderStats.ranges.map(r => {
+                  const maxCount = Math.max(...orderStats.ranges.map(x => x.count), 1);
+                  return (
+                    <div key={r.label} className="flex items-center gap-3">
+                      <span className="text-sm font-medium w-24 shrink-0">{r.label}</span>
+                      <div className="flex-1 h-7 rounded-lg bg-secondary/50 overflow-hidden">
+                        <div
+                          className="h-full bg-primary/40 rounded-lg flex items-center px-2"
+                          style={{ width: `${Math.max((r.count / maxCount) * 100, r.count > 0 ? 8 : 0)}%` }}
+                        >
+                          {r.count > 0 && <span className="text-xs font-bold">{r.count}</span>}
+                        </div>
+                      </div>
+                      <span className="text-xs text-muted-foreground w-16 text-right">
+                        {orderStats.paidCount > 0 ? Math.round((r.count / orderStats.paidCount) * 100) : 0}%
+                      </span>
+                    </div>
+                  );
+                })}
+                {orderStats.paidCount === 0 && (
+                  <p className="text-center py-4 text-muted-foreground text-sm">Inga betalda ordrar ännu</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Conversion funnel */}
+            <Card className="border-border">
+              <CardHeader><CardTitle className="text-lg font-semibold flex items-center gap-2"><BarChart3 className="w-5 h-5 text-primary" /> Checkout-tratt</CardTitle></CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-3">
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-medium">Påbörjad</span>
+                      <span className="text-sm font-bold">{checkoutStats.starts}</span>
+                    </div>
+                    <div className="h-8 rounded-lg bg-primary/20 overflow-hidden">
+                      <div className="h-full bg-primary/60 rounded-lg" style={{ width: '100%' }} />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-medium">Genomförd</span>
+                      <span className="text-sm font-bold">{checkoutStats.completes}</span>
+                    </div>
+                    <div className="h-8 rounded-lg bg-accent/20 overflow-hidden">
+                      <div className="h-full bg-accent/60 rounded-lg" style={{ width: checkoutStats.starts > 0 ? `${(checkoutStats.completes / checkoutStats.starts) * 100}%` : '0%' }} />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-medium">Avbrutna</span>
+                      <span className="text-sm font-bold text-destructive">{checkoutStats.abandons}</span>
+                    </div>
+                    <div className="h-8 rounded-lg bg-destructive/10 overflow-hidden">
+                      <div className="h-full bg-destructive/40 rounded-lg" style={{ width: checkoutStats.starts > 0 ? `${(checkoutStats.abandons / checkoutStats.starts) * 100}%` : '0%' }} />
+                    </div>
+                  </div>
                 </div>
-                <div className="p-4 rounded-xl bg-secondary/50 text-center">
-                  <p className="text-2xl font-bold text-destructive">{checkoutStats.starts > 0 ? 100 - conversionRate : 0}%</p>
-                  <p className="text-xs text-muted-foreground mt-1">Drop-off</p>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="p-4 rounded-xl bg-secondary/50 text-center">
+                    <p className="text-2xl font-bold text-primary">{conversionRate}%</p>
+                    <p className="text-xs text-muted-foreground mt-1">Konvertering</p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-secondary/50 text-center">
+                    <p className="text-2xl font-bold text-destructive">{checkoutStats.starts > 0 ? 100 - conversionRate : 0}%</p>
+                    <p className="text-xs text-muted-foreground mt-1">Drop-off</p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-secondary/50 text-center">
+                    <p className="text-2xl font-bold">{checkoutStats.starts}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Checkout-besök</p>
+                  </div>
                 </div>
-                <div className="p-4 rounded-xl bg-secondary/50 text-center">
-                  <p className="text-2xl font-bold">{checkoutStats.starts}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Checkout-besök</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         {/* Cart activity */}
