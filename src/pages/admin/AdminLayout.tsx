@@ -29,6 +29,7 @@ const navItems = [
   { to: '/admin/updates', label: 'Nytt hos oss', icon: Sparkles },
   { to: '/admin/content', label: 'Sidinnehåll', icon: FileText },
   { to: '/admin/campaigns', label: 'Kampanjer', icon: Percent },
+  { to: '/admin/shipping', label: 'Frakt', icon: Truck },
   { to: '/admin/visibility', label: 'Sidsynlighet', icon: Eye },
   { to: '/admin/legal', label: 'Juridik & Donationer', icon: Heart },
   { to: '/admin/logs', label: 'Logg', icon: Activity },
