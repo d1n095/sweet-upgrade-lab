@@ -214,47 +214,14 @@ const ReviewForm = ({ productId, productHandle, productTitle, onReviewSubmitted 
     }
   };
 
-  // Not logged in
-  if (!user) {
-    return (
-      <div className="bg-secondary/30 rounded-2xl p-6 text-center">
-        <h3 className="font-semibold text-lg mb-2">{t.loginRequired}</h3>
-        <p className="text-muted-foreground text-sm">{t.loginDesc}</p>
-      </div>
-    );
-  }
+  // Not logged in — silently hide
+  if (!user) return null;
 
-  // Loading eligibility
-  if (isCheckingEligibility) {
-    return (
-      <div className="bg-secondary/30 rounded-2xl p-6 text-center">
-        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground mx-auto mb-3" />
-        <p className="text-sm text-muted-foreground">{t.checking}</p>
-      </div>
-    );
-  }
+  // Loading eligibility — silently hide
+  if (isCheckingEligibility) return null;
 
-  // Already reviewed
-  if (alreadyReviewed) {
-    return (
-      <div className="bg-secondary/30 rounded-2xl p-6 text-center">
-        <ShieldCheck className="w-10 h-10 text-primary mx-auto mb-3 opacity-60" />
-        <h3 className="font-semibold text-lg mb-2">{t.alreadyReviewedTitle}</h3>
-        <p className="text-muted-foreground text-sm">{t.alreadyReviewedDesc}</p>
-      </div>
-    );
-  }
-
-  // Not a verified buyer
-  if (!canReview) {
-    return (
-      <div className="bg-secondary/30 rounded-2xl p-6 text-center">
-        <ShieldX className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-60" />
-        <h3 className="font-semibold text-lg mb-2">{t.notPurchased}</h3>
-        <p className="text-muted-foreground text-sm">{t.notPurchasedDesc}</p>
-      </div>
-    );
-  }
+  // Already reviewed or not a verified buyer — silently hide
+  if (alreadyReviewed || !canReview) return null;
 
   // Successfully submitted
   if (isSubmitted) {
