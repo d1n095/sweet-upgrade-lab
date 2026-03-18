@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
   TrendingUp, Package, RefreshCw, Search, Eye, ShoppingCart,
   AlertTriangle, BarChart3, MousePointerClick, Lightbulb, CheckCircle, XCircle,
   Plus, Minus, LogOut, DollarSign, Target, Activity, Trash2, Shield,
-  Clock, User, Info, ArrowRight
+  Clock, User, Info, ArrowRight, Calendar, TrendingDown, Ban
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,12 +20,34 @@ import { useFounderRole } from '@/hooks/useFounderRole';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 
-interface ProductSale {
-  id: string;
-  shopify_product_id: string;
-  product_title: string;
-  total_quantity_sold: number;
-  last_sale_at: string | null;
+// ─── Types ───────────────────────────────────────────────────
+interface DashboardStats {
+  orders: {
+    total_revenue: number;
+    gross_revenue: number;
+    total_refunds: number;
+    paid_count: number;
+    failed_count: number;
+    pending_count: number;
+    refunded_count: number;
+    total_orders: number;
+    avg_order: number;
+    median_order: number;
+    ranges: { label: string; count: number }[];
+  };
+  analytics: {
+    product_views: number;
+    cart_adds: number;
+    cart_removes: number;
+    checkout_starts: number;
+    checkout_completes: number;
+    checkout_abandons: number;
+  };
+  searches: {
+    total_searches: number;
+    with_results: number;
+    without_results: number;
+  };
 }
 
 interface SearchWithProduct {
@@ -47,6 +69,9 @@ interface LogEntry {
   user_id: string | null;
 }
 
+type DateRange = 'today' | '7d' | '30d' | 'all';
+
+// ─── Constants ───────────────────────────────────────────────
 const typeConfig: Record<string, { icon: any; color: string }> = {
   success: { icon: CheckCircle, color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
   error: { icon: AlertTriangle, color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
@@ -54,40 +79,115 @@ const typeConfig: Record<string, { icon: any; color: string }> = {
   info: { icon: Info, color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
 };
 
+const dateRangeOptions: { value: DateRange; label: string }[] = [
+  { value: 'today', label: 'Idag' },
+  { value: '7d', label: '7 dagar' },
+  { value: '30d', label: '30 dagar' },
+  { value: 'all', label: 'Allt' },
+];
+
+function getDateRange(range: DateRange): { from: string; to: string } {
+  const now = new Date();
+  const to = now.toISOString();
+  if (range === 'today') {
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return { from: start.toISOString(), to };
+  }
+  if (range === '7d') {
+    const start = new Date(now);
+    start.setDate(start.getDate() - 7);
+    return { from: start.toISOString(), to };
+  }
+  if (range === '30d') {
+    const start = new Date(now);
+    start.setDate(start.getDate() - 30);
+    return { from: start.toISOString(), to };
+  }
+  // all
+  return { from: '2020-01-01T00:00:00.000Z', to };
+}
+
+const fmt = (n: number) => new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK', minimumFractionDigits: 0 }).format(n);
+
+const formatLogTime = (d: string) => {
+  const date = new Date(d);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 1) return 'Just nu';
+  if (diffMins < 60) return `${diffMins}m sedan`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h sedan`;
+  return date.toLocaleDateString('sv-SE', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+};
+
+const emptyStats: DashboardStats = {
+  orders: { total_revenue: 0, gross_revenue: 0, total_refunds: 0, paid_count: 0, failed_count: 0, pending_count: 0, refunded_count: 0, total_orders: 0, avg_order: 0, median_order: 0, ranges: [] },
+  analytics: { product_views: 0, cart_adds: 0, cart_removes: 0, checkout_starts: 0, checkout_completes: 0, checkout_abandons: 0 },
+  searches: { total_searches: 0, with_results: 0, without_results: 0 },
+};
+
+// ─── Component ───────────────────────────────────────────────
 const AdminStats = () => {
   const { isFounder } = useFounderRole();
   const [loading, setLoading] = useState(true);
-  const [topProducts, setTopProducts] = useState<ProductSale[]>([]);
-  const [totalSold, setTotalSold] = useState(0);
+  const [dateRange, setDateRange] = useState<DateRange>('30d');
+  const [stats, setStats] = useState<DashboardStats>(emptyStats);
+
+  // Detailed data (client-side for lists)
   const [productViews, setProductViews] = useState<{ title: string; count: number }[]>([]);
   const [searchesWithProducts, setSearchesWithProducts] = useState<SearchWithProduct[]>([]);
   const [demandSearches, setDemandSearches] = useState<SearchWithProduct[]>([]);
-  const [checkoutStats, setCheckoutStats] = useState({ starts: 0, completes: 0, abandons: 0 });
   const [cartAdds, setCartAdds] = useState<{ title: string; count: number }[]>([]);
   const [cartRemoves, setCartRemoves] = useState<{ title: string; count: number }[]>([]);
   const [abandonedItems, setAbandonedItems] = useState<{ title: string; count: number; totalValue: number }[]>([]);
-  const [orderStats, setOrderStats] = useState({ avgOrder: 0, medianOrder: 0, totalRevenue: 0, paidCount: 0, ranges: [] as { label: string; count: number }[] });
   const [recentLogs, setRecentLogs] = useState<LogEntry[]>([]);
-  
+
+  const { from, to } = useMemo(() => getDateRange(dateRange), [dateRange]);
 
   useEffect(() => {
     fetchAllData();
+  }, [dateRange]);
 
-    // Realtime activity log subscription
+  useEffect(() => {
+    // Realtime subscriptions
     const channel = supabase
-      .channel('stats-activity-log')
+      .channel('stats-realtime')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'activity_logs' }, (payload) => {
-        const newLog = payload.new as LogEntry;
-        setRecentLogs(prev => [newLog, ...prev].slice(0, 50));
+        setRecentLogs(prev => [payload.new as LogEntry, ...prev].slice(0, 50));
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+        // Refresh stats when orders change
+        fetchDashboardStats();
       })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, []);
+  }, [from, to]);
+
+  const fetchDashboardStats = async () => {
+    try {
+      const { data, error } = await supabase.rpc('get_dashboard_stats', {
+        p_from: from,
+        p_to: to,
+      });
+      if (error) throw error;
+      if (data) {
+        setStats(data as unknown as DashboardStats);
+      }
+    } catch (e) {
+      console.error('Failed to fetch dashboard stats:', e);
+    }
+  };
 
   const fetchAllData = async () => {
     setLoading(true);
-    await Promise.all([fetchSalesData(), fetchSearchData(), fetchAnalyticsData(), fetchOrderStats(), fetchRecentLogs()]);
+    await Promise.all([
+      fetchDashboardStats(),
+      fetchSearchDetails(),
+      fetchAnalyticsDetails(),
+      fetchRecentLogs(),
+    ]);
     setLoading(false);
   };
 
@@ -104,23 +204,10 @@ const AdminStats = () => {
     }
   };
 
-  const fetchSalesData = async () => {
+  const fetchSearchDetails = async () => {
     try {
-      const { data } = await supabase.from('product_sales').select('*').order('total_quantity_sold', { ascending: false });
-      const sales = (data || []) as ProductSale[];
-      setTopProducts(sales.slice(0, 10));
-      setTotalSold(sales.reduce((sum, item) => sum + item.total_quantity_sold, 0));
-    } catch (e) {
-      console.error('Error fetching sales:', e);
-    }
-  };
-
-  const fetchSearchData = async () => {
-    try {
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       const [searchRes, productsRes] = await Promise.all([
-        supabase.from('search_logs').select('search_term, results_count').gte('created_at', thirtyDaysAgo.toISOString()),
+        supabase.from('search_logs').select('search_term, results_count').gte('created_at', from).lte('created_at', to),
         supabase.from('products').select('title_sv, title_en').eq('is_visible', true),
       ]);
       const searches = searchRes.data || [];
@@ -158,50 +245,15 @@ const AdminStats = () => {
     }
   };
 
-  const fetchOrderStats = async () => {
+  const fetchAnalyticsDetails = async () => {
     try {
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const { data } = await supabase
-        .from('orders')
-        .select('total_amount, payment_status')
-        .eq('payment_status', 'paid')
-        .gte('created_at', thirtyDaysAgo.toISOString());
-
-      const amounts = (data || []).map(o => Number(o.total_amount || 0)).filter(a => a > 0).sort((a, b) => a - b);
-      const total = amounts.reduce((s, a) => s + a, 0);
-      const avg = amounts.length > 0 ? Math.round(total / amounts.length) : 0;
-      const median = amounts.length > 0 ? amounts[Math.floor(amounts.length / 2)] : 0;
-
-      const rangesDef = [
-        { label: '0–99 kr', min: 0, max: 99 },
-        { label: '100–249 kr', min: 100, max: 249 },
-        { label: '250–499 kr', min: 250, max: 499 },
-        { label: '500–999 kr', min: 500, max: 999 },
-        { label: '1 000+ kr', min: 1000, max: Infinity },
-      ];
-      const ranges = rangesDef.map(r => ({
-        label: r.label,
-        count: amounts.filter(a => a >= r.min && a <= r.max).length,
-      }));
-
-      setOrderStats({ avgOrder: avg, medianOrder: median, totalRevenue: total, paidCount: amounts.length, ranges });
-    } catch (e) {
-      console.error('Failed to fetch order stats:', e);
-    }
-  };
-
-  const fetchAnalyticsData = async () => {
-    try {
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       const { data } = await supabase
         .from('analytics_events')
         .select('event_type, event_data')
-        .gte('created_at', thirtyDaysAgo.toISOString())
+        .gte('created_at', from)
+        .lte('created_at', to)
         .in('event_type', [
-          'product_view', 'checkout_start', 'checkout_complete', 'checkout_abandon',
-          'add_to_cart', 'remove_from_cart', 'checkout_abandon_detail'
+          'product_view', 'add_to_cart', 'remove_from_cart', 'checkout_abandon_detail'
         ])
         .limit(1000);
 
@@ -210,7 +262,6 @@ const AdminStats = () => {
         const addCounts: Record<string, number> = {};
         const removeCounts: Record<string, number> = {};
         const abandonItemCounts: Record<string, { count: number; totalValue: number }> = {};
-        let starts = 0, completes = 0, abandons = 0;
 
         data.forEach((e: any) => {
           if (e.event_type === 'product_view') {
@@ -233,16 +284,12 @@ const AdminStats = () => {
               abandonItemCounts[title].totalValue += (item.price || 0) * (item.quantity || 1);
             });
           }
-          if (e.event_type === 'checkout_start') starts++;
-          if (e.event_type === 'checkout_complete') completes++;
-          if (e.event_type === 'checkout_abandon') abandons++;
         });
 
         setProductViews(Object.entries(viewCounts).map(([title, count]) => ({ title, count })).sort((a, b) => b.count - a.count).slice(0, 10));
         setCartAdds(Object.entries(addCounts).map(([title, count]) => ({ title, count })).sort((a, b) => b.count - a.count).slice(0, 15));
         setCartRemoves(Object.entries(removeCounts).map(([title, count]) => ({ title, count })).sort((a, b) => b.count - a.count).slice(0, 15));
         setAbandonedItems(Object.entries(abandonItemCounts).map(([title, data]) => ({ title, count: data.count, totalValue: data.totalValue })).sort((a, b) => b.count - a.count).slice(0, 15));
-        setCheckoutStats({ starts, completes, abandons });
       }
     } catch (e) {
       console.error('Failed to fetch analytics:', e);
@@ -254,8 +301,6 @@ const AdminStats = () => {
     const { error } = await supabase.from('product_sales').delete().neq('id', '00000000-0000-0000-0000-000000000000');
     if (error) { toast.error('Kunde inte rensa försäljningsdata'); return; }
     toast.success('Försäljningsdata rensad');
-    setTopProducts([]);
-    setTotalSold(0);
   };
 
   const handleClearSearchLogs = async () => {
@@ -264,6 +309,7 @@ const AdminStats = () => {
     toast.success('Sökloggar rensade');
     setSearchesWithProducts([]);
     setDemandSearches([]);
+    fetchDashboardStats();
   };
 
   const handleClearAnalytics = async () => {
@@ -274,34 +320,14 @@ const AdminStats = () => {
     setCartAdds([]);
     setCartRemoves([]);
     setAbandonedItems([]);
-    setCheckoutStats({ starts: 0, completes: 0, abandons: 0 });
+    fetchDashboardStats();
   };
 
-  const handleDeleteSaleEntry = async (id: string) => {
-    const { error } = await supabase.from('product_sales').delete().eq('id', id);
-    if (error) { toast.error('Kunde inte ta bort'); return; }
-    setTopProducts(prev => prev.filter(p => p.id !== id));
-    toast.success('Post borttagen');
-  };
-
-  const conversionRate = checkoutStats.starts > 0 ? Math.round((checkoutStats.completes / checkoutStats.starts) * 100) : 0;
-  const fmt = (n: number) => new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK', minimumFractionDigits: 0 }).format(n);
-
-  const formatLogTime = (d: string) => {
-    const date = new Date(d);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 1) return 'Just nu';
-    if (diffMins < 60) return `${diffMins}m sedan`;
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours}h sedan`;
-    return date.toLocaleDateString('sv-SE', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-  };
-
-  if (loading) {
-    return <div className="flex items-center justify-center h-64"><RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" /></div>;
-  }
+  // Derived values from single RPC source
+  const { orders, analytics, searches } = stats;
+  const conversionRate = analytics.checkout_starts > 0
+    ? Math.round((analytics.checkout_completes / analytics.checkout_starts) * 100)
+    : 0;
 
   const ConfirmClearButton = ({ onConfirm, label }: { onConfirm: () => void; label: string }) => (
     <AlertDialog>
@@ -327,191 +353,408 @@ const AdminStats = () => {
     </AlertDialog>
   );
 
+  const EmptyState = ({ icon: Icon, message }: { icon: any; message: string }) => (
+    <div className="text-center py-8 text-muted-foreground">
+      <Icon className="w-8 h-8 mx-auto mb-2 opacity-30" />
+      <p className="text-sm">{message}</p>
+    </div>
+  );
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-64"><RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" /></div>;
+  }
+
+  const periodLabel = dateRangeOptions.find(o => o.value === dateRange)?.label || '';
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Header with date filter */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Statistik</h1>
-          <p className="text-muted-foreground text-sm mt-1">Senaste 30 dagarna</p>
+          <p className="text-muted-foreground text-sm mt-1">
+            Visar data för: <span className="font-medium text-foreground">{periodLabel}</span>
+          </p>
         </div>
-        <Button onClick={fetchAllData} variant="outline" size="sm" className="gap-2">
-          <RefreshCw className="w-4 h-4" /> Uppdatera
-        </Button>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center bg-secondary/50 rounded-lg p-1 gap-0.5">
+            {dateRangeOptions.map(opt => (
+              <Button
+                key={opt.value}
+                variant={dateRange === opt.value ? 'default' : 'ghost'}
+                size="sm"
+                className={`text-xs h-7 px-3 ${dateRange === opt.value ? '' : 'hover:bg-secondary'}`}
+                onClick={() => setDateRange(opt.value)}
+              >
+                {opt.label}
+              </Button>
+            ))}
+          </div>
+          <Button onClick={fetchAllData} variant="outline" size="sm" className="gap-1.5 h-7">
+            <RefreshCw className="w-3.5 h-3.5" />
+          </Button>
+        </div>
       </div>
 
-      {/* Overview */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* ─── Overview Cards (all from RPC) ─── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Card className="border-border">
           <CardContent className="pt-5 pb-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-muted-foreground uppercase">Sålda produkter</span>
-              <Package className="w-4 h-4 text-muted-foreground" />
+              <span className="text-xs font-medium text-muted-foreground uppercase">Nettointäkt</span>
+              <DollarSign className="w-4 h-4 text-muted-foreground" />
             </div>
-            <p className="text-2xl font-bold">{totalSold}</p>
+            <p className="text-2xl font-bold">{fmt(orders.total_revenue)}</p>
+            {orders.total_refunds > 0 && (
+              <p className="text-xs text-destructive mt-1 flex items-center gap-1">
+                <TrendingDown className="w-3 h-3" />
+                {fmt(orders.total_refunds)} i returer
+              </p>
+            )}
           </CardContent>
         </Card>
         <Card className="border-border">
           <CardContent className="pt-5 pb-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-muted-foreground uppercase">Visningar</span>
-              <Eye className="w-4 h-4 text-muted-foreground" />
+              <span className="text-xs font-medium text-muted-foreground uppercase">Betalda ordrar</span>
+              <ShoppingCart className="w-4 h-4 text-muted-foreground" />
             </div>
-            <p className="text-2xl font-bold">{productViews.reduce((s, v) => s + v.count, 0)}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-border">
-          <CardContent className="pt-5 pb-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-muted-foreground uppercase">Sökningar</span>
-              <Search className="w-4 h-4 text-muted-foreground" />
+            <p className="text-2xl font-bold">{orders.paid_count}</p>
+            <div className="flex gap-2 mt-1">
+              {orders.failed_count > 0 && (
+                <span className="text-xs text-destructive flex items-center gap-0.5">
+                  <XCircle className="w-3 h-3" /> {orders.failed_count} misslyckade
+                </span>
+              )}
+              {orders.pending_count > 0 && (
+                <span className="text-xs text-yellow-600 flex items-center gap-0.5">
+                  <Clock className="w-3 h-3" /> {orders.pending_count} väntande
+                </span>
+              )}
             </div>
-            <p className="text-2xl font-bold">{searchesWithProducts.reduce((s, t) => s + t.count, 0) + demandSearches.reduce((s, t) => s + t.count, 0)}</p>
           </CardContent>
         </Card>
         <Card className="border-border">
           <CardContent className="pt-5 pb-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-medium text-muted-foreground uppercase">Konvertering</span>
-              <ShoppingCart className="w-4 h-4 text-muted-foreground" />
+              <Target className="w-4 h-4 text-muted-foreground" />
             </div>
-            <p className="text-2xl font-bold">{conversionRate}%</p>
+            <p className={`text-2xl font-bold ${conversionRate >= 50 ? 'text-green-600' : conversionRate > 0 ? 'text-yellow-600' : ''}`}>
+              {conversionRate}%
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {analytics.checkout_completes} av {analytics.checkout_starts} checkout
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="border-border">
+          <CardContent className="pt-5 pb-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium text-muted-foreground uppercase">Snittorder</span>
+              <BarChart3 className="w-4 h-4 text-muted-foreground" />
+            </div>
+            <p className="text-2xl font-bold">{fmt(Math.round(orders.avg_order))}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Median: {fmt(Math.round(orders.median_order))}
+            </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Real-time Activity Summary */}
+      {/* Secondary stats row */}
+      <div className="grid grid-cols-3 lg:grid-cols-6 gap-3">
+        <Card className="border-border">
+          <CardContent className="pt-4 pb-3 text-center">
+            <Eye className="w-4 h-4 mx-auto text-muted-foreground mb-1" />
+            <p className="text-xl font-bold">{analytics.product_views}</p>
+            <p className="text-[11px] text-muted-foreground">Visningar</p>
+          </CardContent>
+        </Card>
+        <Card className="border-border">
+          <CardContent className="pt-4 pb-3 text-center">
+            <Search className="w-4 h-4 mx-auto text-muted-foreground mb-1" />
+            <p className="text-xl font-bold">{searches.total_searches}</p>
+            <p className="text-[11px] text-muted-foreground">Sökningar</p>
+          </CardContent>
+        </Card>
+        <Card className="border-border">
+          <CardContent className="pt-4 pb-3 text-center">
+            <Plus className="w-4 h-4 mx-auto text-green-600 mb-1" />
+            <p className="text-xl font-bold">{analytics.cart_adds}</p>
+            <p className="text-[11px] text-muted-foreground">Lagt i vagn</p>
+          </CardContent>
+        </Card>
+        <Card className="border-border">
+          <CardContent className="pt-4 pb-3 text-center">
+            <Minus className="w-4 h-4 mx-auto text-destructive mb-1" />
+            <p className="text-xl font-bold">{analytics.cart_removes}</p>
+            <p className="text-[11px] text-muted-foreground">Borttagna</p>
+          </CardContent>
+        </Card>
+        <Card className={`border-border ${analytics.checkout_abandons > 0 ? 'border-destructive/20' : ''}`}>
+          <CardContent className="pt-4 pb-3 text-center">
+            <LogOut className={`w-4 h-4 mx-auto mb-1 ${analytics.checkout_abandons > 0 ? 'text-destructive' : 'text-muted-foreground'}`} />
+            <p className={`text-xl font-bold ${analytics.checkout_abandons > 0 ? 'text-destructive' : ''}`}>{analytics.checkout_abandons}</p>
+            <p className="text-[11px] text-muted-foreground">Övergivna</p>
+          </CardContent>
+        </Card>
+        <Card className={`border-border ${orders.refunded_count > 0 ? 'border-yellow-400/20' : ''}`}>
+          <CardContent className="pt-4 pb-3 text-center">
+            <Ban className={`w-4 h-4 mx-auto mb-1 ${orders.refunded_count > 0 ? 'text-yellow-600' : 'text-muted-foreground'}`} />
+            <p className={`text-xl font-bold ${orders.refunded_count > 0 ? 'text-yellow-600' : ''}`}>{orders.refunded_count}</p>
+            <p className="text-[11px] text-muted-foreground">Returnerade</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ─── Activity log summary ─── */}
       {(() => {
         const errorLogs = recentLogs.filter(l => l.log_type === 'error');
         const warningLogs = recentLogs.filter(l => l.log_type === 'warning');
         const securityLogs = recentLogs.filter(l => l.category === 'security');
-        const adminLogs = recentLogs.filter(l => l.category === 'admin');
-        const orderLogs = recentLogs.filter(l => l.category === 'order');
 
         return (
-          <div className="space-y-4">
-            {/* Summary cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-              <div className="rounded-lg border border-border bg-secondary/30 p-3 text-center">
-                <div className="relative mx-auto w-fit">
-                  <Activity className="w-4 h-4 text-primary mx-auto mb-1" />
-                  <span className="absolute -top-0.5 -right-1.5 w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                </div>
-                <p className="text-2xl font-bold">{recentLogs.length}</p>
-                <p className="text-xs text-muted-foreground">Totalt</p>
+          <Card className="border-border">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <div className="relative">
+                    <Activity className="w-4 h-4 text-primary" />
+                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                  </div>
+                  Aktivitet
+                  <div className="flex gap-1.5 ml-2">
+                    {errorLogs.length > 0 && (
+                      <Badge variant="destructive" className="text-[10px] px-1.5 py-0">{errorLogs.length} fel</Badge>
+                    )}
+                    {warningLogs.length > 0 && (
+                      <Badge className="text-[10px] px-1.5 py-0 bg-yellow-500/10 text-yellow-700 border-yellow-400/30">{warningLogs.length} varningar</Badge>
+                    )}
+                    {securityLogs.length > 0 && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">{securityLogs.length} säkerhet</Badge>
+                    )}
+                  </div>
+                </CardTitle>
+                <Link to="/admin/logs" className="text-xs text-primary hover:underline flex items-center gap-1">
+                  Visa alla <ArrowRight className="w-3 h-3" />
+                </Link>
               </div>
-              <div className={`rounded-lg border p-3 text-center ${errorLogs.length > 0 ? 'border-destructive/30 bg-destructive/5' : 'border-border bg-secondary/30'}`}>
-                <AlertTriangle className={`w-4 h-4 mx-auto mb-1 ${errorLogs.length > 0 ? 'text-destructive' : 'text-muted-foreground'}`} />
-                <p className={`text-2xl font-bold ${errorLogs.length > 0 ? 'text-destructive' : ''}`}>{errorLogs.length}</p>
-                <p className="text-xs text-muted-foreground">Fel</p>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-1.5">
+                {recentLogs.length === 0 ? (
+                  <EmptyState icon={Activity} message="Inga loggposter ännu" />
+                ) : (
+                  recentLogs.slice(0, 5).map((log) => {
+                    const cfg = typeConfig[log.log_type] || typeConfig.info;
+                    const Icon = cfg.icon;
+                    return (
+                      <motion.div
+                        key={log.id}
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="flex items-center gap-2.5 rounded-lg bg-secondary/20 px-3 py-2"
+                      >
+                        <div className={`p-1 rounded ${cfg.color}`}>
+                          <Icon className="w-3 h-3" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{log.message}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                              <Clock className="w-2.5 h-2.5" />
+                              {formatLogTime(log.created_at)}
+                            </span>
+                            <Badge variant="outline" className="text-[10px] h-4">{log.category}</Badge>
+                          </div>
+                        </div>
+                      </motion.div>
+                    );
+                  })
+                )}
               </div>
-              <div className={`rounded-lg border p-3 text-center ${warningLogs.length > 0 ? 'border-yellow-400/30 bg-yellow-50 dark:bg-yellow-900/10' : 'border-border bg-secondary/30'}`}>
-                <AlertTriangle className={`w-4 h-4 mx-auto mb-1 ${warningLogs.length > 0 ? 'text-yellow-600' : 'text-muted-foreground'}`} />
-                <p className={`text-2xl font-bold ${warningLogs.length > 0 ? 'text-yellow-600' : ''}`}>{warningLogs.length}</p>
-                <p className="text-xs text-muted-foreground">Varningar</p>
-              </div>
-              <div className="rounded-lg border border-border bg-secondary/30 p-3 text-center">
-                <Shield className="w-4 h-4 text-muted-foreground mx-auto mb-1" />
-                <p className="text-2xl font-bold">{securityLogs.length}</p>
-                <p className="text-xs text-muted-foreground">Säkerhet</p>
-              </div>
-              <div className="rounded-lg border border-border bg-secondary/30 p-3 text-center">
-                <User className="w-4 h-4 text-muted-foreground mx-auto mb-1" />
-                <p className="text-2xl font-bold">{adminLogs.length}</p>
-                <p className="text-xs text-muted-foreground">Admin</p>
-              </div>
-            </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
-            {/* Recent 5 entries preview */}
+      {/* ─── Tabs ─── */}
+      <Tabs defaultValue="checkout" className="space-y-4">
+        <TabsList className="bg-secondary/50 flex-wrap">
+          <TabsTrigger value="checkout">💳 Checkout</TabsTrigger>
+          <TabsTrigger value="cart">🛒 Kundvagn</TabsTrigger>
+          <TabsTrigger value="abandoned">
+            🚪 Övergivna
+            {abandonedItems.length > 0 && (
+              <Badge variant="destructive" className="ml-1.5 text-[10px] px-1.5 py-0">{abandonedItems.length}</Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="searches">📈 Sökningar</TabsTrigger>
+          <TabsTrigger value="demand">
+            💡 Efterfrågan
+            {demandSearches.length > 0 && (
+              <Badge variant="destructive" className="ml-1.5 text-[10px] px-1.5 py-0">{demandSearches.length}</Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="views">👁 Visningar</TabsTrigger>
+          <TabsTrigger value="orders">🧾 Ordrar</TabsTrigger>
+          {isFounder && <TabsTrigger value="settings">⚙️ Hantera</TabsTrigger>}
+        </TabsList>
+
+        {/* ─── Checkout Tab ─── */}
+        <TabsContent value="checkout">
+          <div className="space-y-4">
             <Card className="border-border">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                    <div className="relative">
-                      <Activity className="w-4 h-4 text-primary" />
-                      <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5 text-primary" /> Checkout-tratt
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">Start → Köp → Avbruten ({periodLabel})</p>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {analytics.checkout_starts === 0 ? (
+                  <EmptyState icon={ShoppingCart} message="Inga checkout-händelser ännu" />
+                ) : (
+                  <>
+                    <div className="space-y-3">
+                      {[
+                        { label: 'Påbörjad', value: analytics.checkout_starts, total: analytics.checkout_starts, color: 'bg-primary/60' },
+                        { label: 'Genomförd', value: analytics.checkout_completes, total: analytics.checkout_starts, color: 'bg-green-500/60' },
+                        { label: 'Avbrutna', value: analytics.checkout_abandons, total: analytics.checkout_starts, color: 'bg-destructive/50' },
+                      ].map(bar => (
+                        <div key={bar.label}>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm font-medium">{bar.label}</span>
+                            <span className={`text-sm font-bold ${bar.label === 'Avbrutna' && bar.value > 0 ? 'text-destructive' : ''}`}>{bar.value}</span>
+                          </div>
+                          <div className="h-8 rounded-lg bg-secondary/50 overflow-hidden">
+                            <div className={`h-full ${bar.color} rounded-lg`} style={{ width: `${(bar.value / bar.total) * 100}%` }} />
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    Senaste händelser
-                  </CardTitle>
-                  <Link to="/admin/logs" className="text-xs text-primary hover:underline flex items-center gap-1">
-                    Visa alla loggar <ArrowRight className="w-3 h-3" />
-                  </Link>
-                </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="p-4 rounded-xl bg-secondary/50 text-center">
+                        <p className={`text-2xl font-bold ${conversionRate >= 50 ? 'text-green-600' : 'text-primary'}`}>{conversionRate}%</p>
+                        <p className="text-xs text-muted-foreground mt-1">Konvertering</p>
+                      </div>
+                      <div className="p-4 rounded-xl bg-secondary/50 text-center">
+                        <p className={`text-2xl font-bold ${analytics.checkout_starts > 0 && conversionRate < 50 ? 'text-destructive' : ''}`}>
+                          {analytics.checkout_starts > 0 ? 100 - conversionRate : 0}%
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">Drop-off</p>
+                      </div>
+                      <div className="p-4 rounded-xl bg-secondary/50 text-center">
+                        <p className="text-2xl font-bold">{analytics.checkout_starts}</p>
+                        <p className="text-xs text-muted-foreground mt-1">Checkout-besök</p>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* ─── Cart Tab ─── */}
+        <TabsContent value="cart">
+          <div className="grid lg:grid-cols-2 gap-4">
+            <Card className="border-border">
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                  <Plus className="w-5 h-5 text-green-600" /> Lagt i kundvagn
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-1.5">
-                  {recentLogs.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-6 text-sm">Inga loggposter ännu</p>
-                  ) : (
-                    recentLogs.slice(0, 5).map((log) => {
-                      const cfg = typeConfig[log.log_type] || typeConfig.info;
-                      const Icon = cfg.icon;
-                      return (
-                        <motion.div
-                          key={log.id}
-                          initial={{ opacity: 0, y: -4 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          className="flex items-center gap-2.5 rounded-lg bg-secondary/20 px-3 py-2"
-                        >
-                          <div className={`p-1 rounded ${cfg.color}`}>
-                            <Icon className="w-3 h-3" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">{log.message}</p>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                                <Clock className="w-2.5 h-2.5" />
-                                {formatLogTime(log.created_at)}
-                              </span>
-                              <Badge variant="outline" className="text-[10px] h-4">{log.category}</Badge>
-                              {log.details?.user_email && (
-                                <span className="text-[11px] text-muted-foreground flex items-center gap-1 truncate max-w-[150px]">
-                                  <User className="w-2.5 h-2.5 shrink-0" />
-                                  {log.details.user_email}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </motion.div>
-                      );
-                    })
-                  )}
+                <div className="space-y-2">
+                  {cartAdds.map((item, idx) => (
+                    <div key={item.title} className="flex items-center justify-between p-3 rounded-xl bg-secondary/50">
+                      <div className="flex items-center gap-3">
+                        <div className="w-7 h-7 rounded-lg bg-green-500/10 flex items-center justify-center text-xs font-bold text-green-600">{idx + 1}</div>
+                        <span className="font-medium text-sm">{item.title}</span>
+                      </div>
+                      <Badge variant="outline">{item.count} st</Badge>
+                    </div>
+                  ))}
+                  {cartAdds.length === 0 && <EmptyState icon={ShoppingCart} message="Ingen data ännu" />}
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-border">
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                  <Minus className="w-5 h-5 text-destructive" /> Borttagna ur kundvagn
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {cartRemoves.map((item, idx) => (
+                    <div key={item.title} className="flex items-center justify-between p-3 rounded-xl bg-destructive/5 border border-destructive/10">
+                      <div className="flex items-center gap-3">
+                        <div className="w-7 h-7 rounded-lg bg-destructive/10 flex items-center justify-center text-xs font-bold text-destructive">{idx + 1}</div>
+                        <span className="font-medium text-sm">{item.title}</span>
+                      </div>
+                      <Badge className="bg-destructive/10 text-destructive border-0">{item.count} st</Badge>
+                    </div>
+                  ))}
+                  {cartRemoves.length === 0 && <EmptyState icon={CheckCircle} message="Inga borttagningar — bra!" />}
                 </div>
               </CardContent>
             </Card>
           </div>
-        );
-      })()}
+        </TabsContent>
 
-      <Tabs defaultValue="searches" className="space-y-4">
-        <TabsList className="bg-secondary/50 flex-wrap">
-          <TabsTrigger value="searches">Sökningar</TabsTrigger>
-          <TabsTrigger value="demand">
-            Efterfrågan
-            {demandSearches.length > 0 && (
-              <Badge variant="destructive" className="ml-2 text-[10px] px-1.5 py-0">{demandSearches.length}</Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="sales">Försäljning</TabsTrigger>
-          <TabsTrigger value="views">Visningar</TabsTrigger>
-          <TabsTrigger value="cart">Kundvagn</TabsTrigger>
-          <TabsTrigger value="checkout">Checkout</TabsTrigger>
-          <TabsTrigger value="abandoned">
-            Övergivna
-            {abandonedItems.length > 0 && (
-              <Badge variant="destructive" className="ml-2 text-[10px] px-1.5 py-0">{abandonedItems.length}</Badge>
-            )}
-          </TabsTrigger>
-          {isFounder && <TabsTrigger value="settings">⚙️ Hantera</TabsTrigger>}
-        </TabsList>
+        {/* ─── Abandoned Tab ─── */}
+        <TabsContent value="abandoned">
+          <Card className="border-border">
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <LogOut className="w-5 h-5 text-destructive" /> Övergivna produkter i kassan
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Produkter kunder hade i kassan när de lämnade ({periodLabel})
+              </p>
+            </CardHeader>
+            <CardContent>
+              {abandonedItems.length > 0 && (
+                <div className="mb-4 p-3 rounded-lg bg-destructive/5 border border-destructive/10">
+                  <p className="text-sm font-medium text-destructive">
+                    Totalt förlorat värde: {fmt(abandonedItems.reduce((s, i) => s + i.totalValue, 0))}
+                  </p>
+                </div>
+              )}
+              <div className="space-y-2">
+                {abandonedItems.map((item, idx) => (
+                  <div key={item.title} className="flex items-center justify-between p-3 rounded-xl bg-destructive/5 border border-destructive/10">
+                    <div className="flex items-center gap-3">
+                      <div className="w-7 h-7 rounded-lg bg-destructive/10 flex items-center justify-center text-xs font-bold text-destructive">{idx + 1}</div>
+                      <div>
+                        <span className="font-medium text-sm">{item.title}</span>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Förlorat: {fmt(item.totalValue)}
+                        </p>
+                      </div>
+                    </div>
+                    <Badge className="bg-destructive/10 text-destructive border-0 font-bold">{item.count} st</Badge>
+                  </div>
+                ))}
+                {abandonedItems.length === 0 && <EmptyState icon={CheckCircle} message="Inga övergivna kassor ännu" />}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-        {/* Searches */}
+        {/* ─── Searches Tab ─── */}
         <TabsContent value="searches">
           <Card className="border-border">
             <CardHeader>
               <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                <Search className="w-5 h-5 text-primary" /> Sökningar som hittade produkter
+                <Search className="w-5 h-5 text-primary" /> Sökningar ({periodLabel})
               </CardTitle>
-              <p className="text-sm text-muted-foreground">Visar vad kunder söker på och vilka produkter som matchas</p>
+              <p className="text-sm text-muted-foreground">
+                {searches.total_searches} totalt · {searches.with_results} med resultat · {searches.without_results} utan
+              </p>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
@@ -530,31 +773,26 @@ const AdminStats = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline">{s.count} sökningar</Badge>
-                      <Badge className="bg-accent/10 text-accent border-0">{s.results_count} träffar</Badge>
+                      <Badge variant="outline">{s.count}×</Badge>
+                      <Badge className="bg-green-500/10 text-green-700 border-0">{s.results_count} träffar</Badge>
                     </div>
                   </div>
                 ))}
-                {searchesWithProducts.length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Search className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                    <p>Inga sökningar registrerade ännu</p>
-                  </div>
-                )}
+                {searchesWithProducts.length === 0 && <EmptyState icon={Search} message="Inga sökningar ännu" />}
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* Demand */}
+        {/* ─── Demand Tab ─── */}
         <TabsContent value="demand">
           <Card className="border-border">
             <CardHeader>
               <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                <Lightbulb className="w-5 h-5 text-primary" /> Efterfrågade produkter
+                <Lightbulb className="w-5 h-5 text-yellow-500" /> Efterfrågade produkter
               </CardTitle>
               <p className="text-sm text-muted-foreground">
-                Sökningar som <strong>inte gav resultat</strong> — kunder letar efter dessa men ni har inga matchande produkter
+                Sökningar som <strong>inte gav resultat</strong> — potential för nya produkter
               </p>
             </CardHeader>
             <CardContent>
@@ -582,61 +820,20 @@ const AdminStats = () => {
                     </Badge>
                   </motion.div>
                 ))}
-                {demandSearches.length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-500/30" />
-                    <p>Alla sökningar har hittat produkter — bra jobbat!</p>
-                  </div>
-                )}
+                {demandSearches.length === 0 && <EmptyState icon={CheckCircle} message="Alla sökningar har hittat produkter — bra jobbat!" />}
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* Sales */}
-        <TabsContent value="sales">
-          <Card className="border-border">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg font-semibold flex items-center gap-2"><TrendingUp className="w-5 h-5 text-accent" /> Topprodukter</CardTitle>
-                {isFounder && <ConfirmClearButton onConfirm={handleClearProductSales} label="Rensa" />}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {topProducts.map((product, idx) => (
-                  <div key={product.id} className="flex items-center justify-between p-3 rounded-xl bg-secondary/50">
-                    <div className="flex items-center gap-3">
-                      <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">{idx + 1}</div>
-                      <div>
-                        <p className="font-medium text-sm">{product.product_title}</p>
-                        {product.last_sale_at && (
-                          <p className="text-xs text-muted-foreground">
-                            Senast: {new Date(product.last_sale_at).toLocaleDateString('sv-SE', { month: 'short', day: 'numeric' })}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-lg">{product.total_quantity_sold} st</span>
-                      {isFounder && (
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => handleDeleteSaleEntry(product.id)}>
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                {topProducts.length === 0 && <div className="text-center py-8 text-muted-foreground">Ingen försäljningsdata ännu</div>}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Views */}
+        {/* ─── Views Tab ─── */}
         <TabsContent value="views">
           <Card className="border-border">
-            <CardHeader><CardTitle className="text-lg font-semibold flex items-center gap-2"><Eye className="w-5 h-5 text-primary" /> Mest visade produkter</CardTitle></CardHeader>
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <Eye className="w-5 h-5 text-primary" /> Mest visade produkter ({periodLabel})
+              </CardTitle>
+            </CardHeader>
             <CardContent>
               <div className="space-y-2">
                 {productViews.map((pv, idx) => (
@@ -651,61 +848,54 @@ const AdminStats = () => {
                     </div>
                   </div>
                 ))}
-                {productViews.length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Eye className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                    <p>Ingen data ännu</p>
-                  </div>
-                )}
+                {productViews.length === 0 && <EmptyState icon={Eye} message="Ingen visningsdata ännu" />}
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* Checkout */}
-        <TabsContent value="checkout">
+        {/* ─── Orders Tab ─── */}
+        <TabsContent value="orders">
           <div className="space-y-4">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               <Card className="border-border">
                 <CardContent className="pt-4 pb-3 text-center">
-                  <DollarSign className="w-4 h-4 mx-auto text-accent mb-1" />
-                  <p className="text-xl font-bold">{fmt(orderStats.avgOrder)}</p>
-                  <p className="text-xs text-muted-foreground">Snittorder</p>
+                  <DollarSign className="w-4 h-4 mx-auto text-green-600 mb-1" />
+                  <p className="text-xl font-bold text-green-600">{fmt(orders.total_revenue)}</p>
+                  <p className="text-xs text-muted-foreground">Netto</p>
+                </CardContent>
+              </Card>
+              <Card className="border-border">
+                <CardContent className="pt-4 pb-3 text-center">
+                  <TrendingUp className="w-4 h-4 mx-auto text-muted-foreground mb-1" />
+                  <p className="text-xl font-bold">{fmt(orders.gross_revenue)}</p>
+                  <p className="text-xs text-muted-foreground">Brutto</p>
                 </CardContent>
               </Card>
               <Card className="border-border">
                 <CardContent className="pt-4 pb-3 text-center">
                   <Target className="w-4 h-4 mx-auto text-primary mb-1" />
-                  <p className="text-xl font-bold">{fmt(orderStats.medianOrder)}</p>
-                  <p className="text-xs text-muted-foreground">Medianorder</p>
+                  <p className="text-xl font-bold">{fmt(Math.round(orders.avg_order))}</p>
+                  <p className="text-xs text-muted-foreground">Snitt</p>
                 </CardContent>
               </Card>
               <Card className="border-border">
                 <CardContent className="pt-4 pb-3 text-center">
-                  <ShoppingCart className="w-4 h-4 mx-auto text-muted-foreground mb-1" />
-                  <p className="text-xl font-bold">{orderStats.paidCount}</p>
-                  <p className="text-xs text-muted-foreground">Betalda ordrar</p>
-                </CardContent>
-              </Card>
-              <Card className="border-border">
-                <CardContent className="pt-4 pb-3 text-center">
-                  <TrendingUp className="w-4 h-4 mx-auto text-accent mb-1" />
-                  <p className="text-xl font-bold">{fmt(orderStats.totalRevenue)}</p>
-                  <p className="text-xs text-muted-foreground">Total (30d)</p>
+                  <BarChart3 className="w-4 h-4 mx-auto text-muted-foreground mb-1" />
+                  <p className="text-xl font-bold">{fmt(Math.round(orders.median_order))}</p>
+                  <p className="text-xs text-muted-foreground">Median</p>
                 </CardContent>
               </Card>
             </div>
 
             <Card className="border-border">
               <CardHeader>
-                <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                  <DollarSign className="w-5 h-5 text-accent" /> Populäraste ordersummor
-                </CardTitle>
-                <p className="text-sm text-muted-foreground">Fördelning av ordervärden senaste 30 dagarna</p>
+                <CardTitle className="text-lg font-semibold">Orderfördelning</CardTitle>
+                <p className="text-sm text-muted-foreground">Betalda ordrar per prisintervall ({periodLabel})</p>
               </CardHeader>
               <CardContent className="space-y-2">
-                {orderStats.ranges.map(r => {
-                  const maxCount = Math.max(...orderStats.ranges.map(x => x.count), 1);
+                {orders.ranges && orders.ranges.length > 0 ? orders.ranges.map((r: any) => {
+                  const maxCount = Math.max(...orders.ranges.map((x: any) => x.count), 1);
                   return (
                     <div key={r.label} className="flex items-center gap-3">
                       <span className="text-sm font-medium w-24 shrink-0">{r.label}</span>
@@ -717,168 +907,20 @@ const AdminStats = () => {
                           {r.count > 0 && <span className="text-xs font-bold">{r.count}</span>}
                         </div>
                       </div>
-                      <span className="text-xs text-muted-foreground w-16 text-right">
-                        {orderStats.paidCount > 0 ? Math.round((r.count / orderStats.paidCount) * 100) : 0}%
+                      <span className="text-xs text-muted-foreground w-12 text-right">
+                        {orders.paid_count > 0 ? Math.round((r.count / orders.paid_count) * 100) : 0}%
                       </span>
                     </div>
                   );
-                })}
-                {orderStats.paidCount === 0 && (
-                  <p className="text-center py-4 text-muted-foreground text-sm">Inga betalda ordrar ännu</p>
+                }) : (
+                  <EmptyState icon={BarChart3} message="Inga betalda ordrar ännu" />
                 )}
-              </CardContent>
-            </Card>
-
-            <Card className="border-border">
-              <CardHeader><CardTitle className="text-lg font-semibold flex items-center gap-2"><BarChart3 className="w-5 h-5 text-primary" /> Checkout-tratt</CardTitle></CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-3">
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium">Påbörjad</span>
-                      <span className="text-sm font-bold">{checkoutStats.starts}</span>
-                    </div>
-                    <div className="h-8 rounded-lg bg-primary/20 overflow-hidden">
-                      <div className="h-full bg-primary/60 rounded-lg" style={{ width: '100%' }} />
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium">Genomförd</span>
-                      <span className="text-sm font-bold">{checkoutStats.completes}</span>
-                    </div>
-                    <div className="h-8 rounded-lg bg-accent/20 overflow-hidden">
-                      <div className="h-full bg-accent/60 rounded-lg" style={{ width: checkoutStats.starts > 0 ? `${(checkoutStats.completes / checkoutStats.starts) * 100}%` : '0%' }} />
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium">Avbrutna</span>
-                      <span className="text-sm font-bold text-destructive">{checkoutStats.abandons}</span>
-                    </div>
-                    <div className="h-8 rounded-lg bg-destructive/10 overflow-hidden">
-                      <div className="h-full bg-destructive/40 rounded-lg" style={{ width: checkoutStats.starts > 0 ? `${(checkoutStats.abandons / checkoutStats.starts) * 100}%` : '0%' }} />
-                    </div>
-                  </div>
-                </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="p-4 rounded-xl bg-secondary/50 text-center">
-                    <p className="text-2xl font-bold text-primary">{conversionRate}%</p>
-                    <p className="text-xs text-muted-foreground mt-1">Konvertering</p>
-                  </div>
-                  <div className="p-4 rounded-xl bg-secondary/50 text-center">
-                    <p className="text-2xl font-bold text-destructive">{checkoutStats.starts > 0 ? 100 - conversionRate : 0}%</p>
-                    <p className="text-xs text-muted-foreground mt-1">Drop-off</p>
-                  </div>
-                  <div className="p-4 rounded-xl bg-secondary/50 text-center">
-                    <p className="text-2xl font-bold">{checkoutStats.starts}</p>
-                    <p className="text-xs text-muted-foreground mt-1">Checkout-besök</p>
-                  </div>
-                </div>
               </CardContent>
             </Card>
           </div>
         </TabsContent>
 
-        {/* Cart */}
-        <TabsContent value="cart">
-          <div className="grid lg:grid-cols-2 gap-4">
-            <Card className="border-border">
-              <CardHeader>
-                <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                  <Plus className="w-5 h-5 text-accent" /> Lagt i kundvagn
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {cartAdds.map((item, idx) => (
-                    <div key={item.title} className="flex items-center justify-between p-3 rounded-xl bg-secondary/50">
-                      <div className="flex items-center gap-3">
-                        <div className="w-7 h-7 rounded-lg bg-accent/10 flex items-center justify-center text-xs font-bold text-accent">{idx + 1}</div>
-                        <span className="font-medium text-sm">{item.title}</span>
-                      </div>
-                      <Badge variant="outline">{item.count} st</Badge>
-                    </div>
-                  ))}
-                  {cartAdds.length === 0 && (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <ShoppingCart className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                      <p>Ingen data ännu</p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border-border">
-              <CardHeader>
-                <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                  <Minus className="w-5 h-5 text-destructive" /> Borttagna ur kundvagn
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {cartRemoves.map((item, idx) => (
-                    <div key={item.title} className="flex items-center justify-between p-3 rounded-xl bg-destructive/5 border border-destructive/10">
-                      <div className="flex items-center gap-3">
-                        <div className="w-7 h-7 rounded-lg bg-destructive/10 flex items-center justify-center text-xs font-bold text-destructive">{idx + 1}</div>
-                        <span className="font-medium text-sm">{item.title}</span>
-                      </div>
-                      <Badge className="bg-destructive/10 text-destructive border-0">{item.count} st</Badge>
-                    </div>
-                  ))}
-                  {cartRemoves.length === 0 && (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <CheckCircle className="w-8 h-8 mx-auto mb-2 opacity-30 text-accent" />
-                      <p>Inga borttagningar — bra!</p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* Abandoned */}
-        <TabsContent value="abandoned">
-          <Card className="border-border">
-            <CardHeader>
-              <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                <LogOut className="w-5 h-5 text-destructive" /> Övergivna produkter i kassan
-              </CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Exakt vilka produkter kunder hade i kassan när de lämnade utan att köpa
-              </p>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {abandonedItems.map((item, idx) => (
-                  <div key={item.title} className="flex items-center justify-between p-3 rounded-xl bg-destructive/5 border border-destructive/10">
-                    <div className="flex items-center gap-3">
-                      <div className="w-7 h-7 rounded-lg bg-destructive/10 flex items-center justify-center text-xs font-bold text-destructive">{idx + 1}</div>
-                      <div>
-                        <span className="font-medium text-sm">{item.title}</span>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          Totalt förlorat värde: {fmt(item.totalValue)}
-                        </p>
-                      </div>
-                    </div>
-                    <Badge className="bg-destructive/10 text-destructive border-0 font-bold">
-                      {item.count} st
-                    </Badge>
-                  </div>
-                ))}
-                {abandonedItems.length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <CheckCircle className="w-8 h-8 mx-auto mb-2 opacity-30 text-accent" />
-                    <p>Inga övergivna kassor ännu</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Founder-only settings tab */}
+        {/* ─── Founder Settings Tab ─── */}
         {isFounder && (
           <TabsContent value="settings">
             <Card className="border-border">
@@ -894,10 +936,10 @@ const AdminStats = () => {
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="p-4 rounded-xl border border-border bg-secondary/20 space-y-3">
                     <div className="flex items-center gap-2">
-                      <TrendingUp className="w-4 h-4 text-accent" />
+                      <TrendingUp className="w-4 h-4 text-green-600" />
                       <h4 className="font-medium text-sm">Försäljningsdata</h4>
                     </div>
-                    <p className="text-xs text-muted-foreground">{topProducts.length} poster i product_sales</p>
+                    <p className="text-xs text-muted-foreground">product_sales-tabellen</p>
                     <ConfirmClearButton onConfirm={handleClearProductSales} label="Rensa allt" />
                   </div>
 
@@ -906,7 +948,7 @@ const AdminStats = () => {
                       <Search className="w-4 h-4 text-primary" />
                       <h4 className="font-medium text-sm">Sökloggar</h4>
                     </div>
-                    <p className="text-xs text-muted-foreground">{searchesWithProducts.length + demandSearches.length} unika söktermer</p>
+                    <p className="text-xs text-muted-foreground">search_logs-tabellen</p>
                     <ConfirmClearButton onConfirm={handleClearSearchLogs} label="Rensa allt" />
                   </div>
 
