@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Outlet, useNavigate, NavLink, useLocation } from 'react-router-dom';
+import { Outlet, useNavigate, NavLink, useLocation, Link } from 'react-router-dom';
 import { useAdminRole } from '@/hooks/useAdminRole';
 import { useAuth } from '@/hooks/useAuth';
 import { useStoreSettings } from '@/stores/storeSettingsStore';
@@ -8,6 +8,7 @@ import {
   Loader2, Package, ClipboardList, BarChart3, Settings, Grid, Users,
   Handshake, Heart, Eye, LogOut, Home, Shield, Crown,
   Activity, User, Menu, X, Star, FileText, Percent, Truck, Wallet, Globe,
+  AlertTriangle,
 } from 'lucide-react';
 import { useEmployeeRole } from '@/hooks/useEmployeeRole';
 import { useFounderRole } from '@/hooks/useFounderRole';
@@ -18,6 +19,7 @@ import { toast } from 'sonner';
 import { logAuthEvent } from '@/utils/activityLogger';
 import AdminGlobalSearch from '@/components/admin/AdminGlobalSearch';
 import { AnimatePresence, motion } from 'framer-motion';
+import { supabase } from '@/integrations/supabase/client';
 
 // role: 'all' = everyone with admin/employee access, 'admin' = admin only, 'founder' = founder only
 interface NavItem {
