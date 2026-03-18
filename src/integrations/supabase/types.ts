@@ -1129,6 +1129,7 @@ export type Database = {
           recipe_en: string | null
           recipe_sv: string | null
           reserved_stock: number
+          status: string
           stock: number
           tags: string[] | null
           title_en: string | null
@@ -1157,6 +1158,7 @@ export type Database = {
           recipe_en?: string | null
           recipe_sv?: string | null
           reserved_stock?: number
+          status?: string
           stock?: number
           tags?: string[] | null
           title_en?: string | null
@@ -1185,6 +1187,7 @@ export type Database = {
           recipe_en?: string | null
           recipe_sv?: string | null
           reserved_stock?: number
+          status?: string
           stock?: number
           tags?: string[] | null
           title_en?: string | null
