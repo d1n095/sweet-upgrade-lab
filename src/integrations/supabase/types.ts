@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_logs: {
+        Row: {
+          category: string
+          created_at: string
+          details: Json | null
+          id: string
+          log_type: string
+          message: string
+          order_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          log_type?: string
+          message: string
+          order_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          log_type?: string
+          message?: string
+          order_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_logs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       affiliate_applications: {
         Row: {
           admin_notes: string | null
