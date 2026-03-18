@@ -5,6 +5,7 @@ import { logSettingsChange } from '@/utils/activityLogger';
 interface StoreSettingsState {
   siteActive: boolean;
   checkoutEnabled: boolean;
+  registrationEnabled: boolean;
   homepageBestsellers: boolean;
   homepageReviews: boolean;
   homepagePhilosophy: boolean;
@@ -13,6 +14,7 @@ interface StoreSettingsState {
   fetchSettings: () => Promise<void>;
   setSiteActive: (enabled: boolean) => Promise<void>;
   setCheckoutEnabled: (enabled: boolean) => Promise<void>;
+  setRegistrationEnabled: (enabled: boolean) => Promise<void>;
   setHomepageSetting: (key: string, enabled: boolean) => Promise<void>;
 }
 
