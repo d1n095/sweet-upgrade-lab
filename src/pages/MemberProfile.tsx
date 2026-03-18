@@ -188,16 +188,12 @@ const MemberProfile = () => {
     if (user) {
       loadUserData();
     }
-    if (isAdmin) {
-      loadAdminStats();
-    }
-  }, [user, isAdmin]);
+  }, [user]);
 
   const loadUserData = async () => {
     if (!user) return;
 
     try {
-      // Load reviews
       const { data: reviewsData } = await supabase
         .from('reviews')
         .select('id, product_title, rating, comment, is_approved, created_at')
@@ -206,7 +202,6 @@ const MemberProfile = () => {
 
       setReviews(reviewsData || []);
 
-      // Load rewards
       const { data: rewardsData } = await supabase
         .from('review_rewards')
         .select('id, discount_code, discount_percent, is_used, expires_at, created_at')
@@ -218,40 +213,6 @@ const MemberProfile = () => {
       console.error('Failed to load user data:', error);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const loadAdminStats = async () => {
-    try {
-      // Load review stats
-      const { data: allReviews } = await supabase
-        .from('reviews')
-        .select('rating, is_approved');
-
-      // Load member count
-      const { count: memberCount } = await supabase
-        .from('profiles')
-        .select('*', { count: 'exact', head: true })
-        .eq('is_member', true);
-
-      if (allReviews) {
-        const total = allReviews.length;
-        const pending = allReviews.filter(r => !r.is_approved).length;
-        const approved = allReviews.filter(r => r.is_approved).length;
-        const avgRating = total > 0 
-          ? Math.round((allReviews.reduce((sum, r) => sum + r.rating, 0) / total) * 10) / 10
-          : 0;
-
-        setAdminStats({
-          totalReviews: total,
-          pendingReviews: pending,
-          approvedReviews: approved,
-          averageRating: avgRating,
-          totalMembers: memberCount || 0,
-        });
-      }
-    } catch (error) {
-      console.error('Failed to load admin stats:', error);
     }
   };
 
