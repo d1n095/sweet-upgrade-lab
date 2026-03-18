@@ -6,10 +6,11 @@ import { useStoreSettings } from '@/stores/storeSettingsStore';
 import { useAdminSession } from '@/hooks/useAdminSession';
 import {
   Loader2, Package, ClipboardList, BarChart3, Settings, Grid, Users,
-  Handshake, Heart, Eye, LogOut, Home, Shield,
+  Handshake, Heart, Eye, LogOut, Home, Shield, Crown,
   Activity, User, Menu, X, Star, FileText, Percent, Truck, Wallet, Globe,
 } from 'lucide-react';
 import { useEmployeeRole } from '@/hooks/useEmployeeRole';
+import { useFounderRole } from '@/hooks/useFounderRole';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
