@@ -365,7 +365,7 @@ const Checkout = () => {
         </div>
       </header>
 
-      <main className="pt-20 pb-20">
+      <main className="pt-20 pb-32 lg:pb-20">
         <div className="container mx-auto px-4 max-w-5xl">
           <h1 className="font-display text-2xl md:text-3xl font-bold mb-2">{t.title}</h1>
 
@@ -398,6 +398,9 @@ const Checkout = () => {
                       <Input
                         id="email"
                         type="email"
+                        inputMode="email"
+                        autoComplete="email"
+                        autoCapitalize="off"
                         required
                         value={form.email}
                         onChange={(e) => updateField('email', e.target.value)}
@@ -412,6 +415,8 @@ const Checkout = () => {
                       <Label htmlFor="name">{t.name} *</Label>
                       <Input
                         id="name"
+                        autoComplete="name"
+                        autoCapitalize="words"
                         required
                         value={form.name}
                         onChange={(e) => updateField('name', e.target.value)}
@@ -425,6 +430,7 @@ const Checkout = () => {
                       <Label htmlFor="address">{t.address} *</Label>
                       <Input
                         id="address"
+                        autoComplete="street-address"
                         required
                         value={form.address}
                         onChange={(e) => updateField('address', e.target.value)}
@@ -439,6 +445,8 @@ const Checkout = () => {
                         <Label htmlFor="zip">{t.zip} *</Label>
                         <Input
                           id="zip"
+                          inputMode="numeric"
+                          autoComplete="postal-code"
                           required
                           value={form.zip}
                           onChange={(e) => updateField('zip', e.target.value)}
@@ -450,14 +458,15 @@ const Checkout = () => {
                       </div>
                       <div>
                         <Label htmlFor="city">{t.city} *</Label>
-                        <Input
-                          id="city"
-                          required
-                          value={form.city}
-                          onChange={(e) => updateField('city', e.target.value)}
-                          onBlur={() => handleBlur('city')}
-                          className={touched.city && errors.city ? 'border-destructive' : ''}
-                        />
+                      <Input
+                        id="city"
+                        autoComplete="address-level2"
+                        required
+                        value={form.city}
+                        onChange={(e) => updateField('city', e.target.value)}
+                        onBlur={() => handleBlur('city')}
+                        className={touched.city && errors.city ? 'border-destructive' : ''}
+                      />
                         {renderFieldError('city')}
                       </div>
                     </div>
@@ -467,30 +476,12 @@ const Checkout = () => {
                       <Input
                         id="phone"
                         type="tel"
+                        inputMode="tel"
+                        autoComplete="tel"
                         value={form.phone}
                         onChange={(e) => updateField('phone', e.target.value)}
                       />
                     </div>
-                  </div>
-                </div>
-
-                {/* Pay button — visible on mobile */}
-                <div className="lg:hidden space-y-4">
-                  <Button
-                    type="submit"
-                    size="lg"
-                    className="w-full h-14 text-base font-semibold"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? (
-                      <><Loader2 className="w-5 h-5 animate-spin mr-2" />{t.processing}</>
-                    ) : (
-                      <><Lock className="w-4 h-4 mr-2" />{t.paySecurely} — {formatPrice(total)}</>
-                    )}
-                  </Button>
-                  <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
-                    <Lock className="w-3 h-3" />
-                    {t.encrypted}
                   </div>
                 </div>
 
@@ -606,6 +597,27 @@ const Checkout = () => {
           </div>
         </div>
       </main>
+
+      {/* Sticky mobile pay button */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-background/95 backdrop-blur-md border-t border-border px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+        <Button
+          type="button"
+          size="lg"
+          className="w-full h-14 text-base font-semibold"
+          disabled={isSubmitting}
+          onClick={handleSubmit}
+        >
+          {isSubmitting ? (
+            <><Loader2 className="w-5 h-5 animate-spin mr-2" />{t.processing}</>
+          ) : (
+            <><Lock className="w-4 h-4 mr-2" />{t.paySecurely} — {formatPrice(total)}</>
+          )}
+        </Button>
+        <div className="flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground mt-1.5">
+          <Lock className="w-3 h-3" />
+          {t.encrypted}
+        </div>
+      </div>
     </div>
   );
 };
