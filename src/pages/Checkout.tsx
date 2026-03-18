@@ -398,6 +398,9 @@ const Checkout = () => {
                       <Input
                         id="email"
                         type="email"
+                        inputMode="email"
+                        autoComplete="email"
+                        autoCapitalize="off"
                         required
                         value={form.email}
                         onChange={(e) => updateField('email', e.target.value)}
@@ -412,6 +415,8 @@ const Checkout = () => {
                       <Label htmlFor="name">{t.name} *</Label>
                       <Input
                         id="name"
+                        autoComplete="name"
+                        autoCapitalize="words"
                         required
                         value={form.name}
                         onChange={(e) => updateField('name', e.target.value)}
@@ -425,6 +430,7 @@ const Checkout = () => {
                       <Label htmlFor="address">{t.address} *</Label>
                       <Input
                         id="address"
+                        autoComplete="street-address"
                         required
                         value={form.address}
                         onChange={(e) => updateField('address', e.target.value)}
@@ -439,6 +445,8 @@ const Checkout = () => {
                         <Label htmlFor="zip">{t.zip} *</Label>
                         <Input
                           id="zip"
+                          inputMode="numeric"
+                          autoComplete="postal-code"
                           required
                           value={form.zip}
                           onChange={(e) => updateField('zip', e.target.value)}
