@@ -48,11 +48,15 @@ const navItems: NavItem[] = [
 
 const AdminLayout = () => {
   const { isAdmin, isLoading } = useAdminRole();
+  const { isEmployee, isLoading: employeeLoading } = useEmployeeRole();
   const { user, signOut } = useAuth();
   const { siteActive, checkoutEnabled, isLoaded, fetchSettings } = useStoreSettings();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  const hasAccess = isAdmin || isEmployee;
+  const combinedLoading = isLoading || employeeLoading;
 
   // Admin session timeout (30 min inactivity)
   useAdminSession();
@@ -62,10 +66,16 @@ const AdminLayout = () => {
   }, [isLoaded, fetchSettings]);
 
   useEffect(() => {
-    if (!isLoading && !isAdmin) {
+    if (!combinedLoading && !hasAccess) {
       navigate('/');
     }
-  }, [isAdmin, isLoading, navigate]);
+  }, [hasAccess, combinedLoading, navigate]);
+
+  // Filter nav items based on role
+  const visibleNavItems = navItems.filter(item => {
+    if (isAdmin) return true;
+    return item.role === 'all';
+  });
 
   useEffect(() => { setMobileNavOpen(false); }, [location.pathname]);
 
