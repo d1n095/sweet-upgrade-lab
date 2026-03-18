@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import { useStoreSettings } from '@/stores/storeSettingsStore';
 import { logActivity } from '@/utils/activityLogger';
 import { trackCheckoutStart, trackCheckoutStep, trackCheckoutAbandon } from '@/utils/analyticsTracker';
+import { useAuth } from '@/hooks/useAuth';
 
 // Swedish postal code → city lookup (common codes)
 const ZIP_CITY_MAP: Record<string, string> = {
