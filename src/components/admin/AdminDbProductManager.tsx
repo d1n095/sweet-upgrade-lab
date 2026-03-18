@@ -44,6 +44,7 @@ const emptyForm = (): ProductFormData => ({
   title: '',
   description: '',
   price: '',
+  currency: 'SEK',
   productType: '',
   tags: '',
   vendor: '4ThePeople',
@@ -53,6 +54,7 @@ const emptyForm = (): ProductFormData => ({
   imageUrls: [],
   ingredients: '',
   certifications: '',
+  recipe: '',
 });
 
 const AdminDbProductManager = () => {
@@ -129,6 +131,7 @@ const AdminDbProductManager = () => {
       title: product.title_sv,
       description: product.description_sv || '',
       price: product.price.toString(),
+      currency: product.currency || 'SEK',
       productType: product.category || '',
       tags: (product.tags || []).join(', '),
       vendor: product.vendor || '4ThePeople',
@@ -138,6 +141,7 @@ const AdminDbProductManager = () => {
       imageUrls: product.image_urls || [],
       ingredients: product.ingredients_sv || '',
       certifications: (product.certifications || []).join(', '),
+      recipe: product.recipe_sv || '',
     });
     setIsEditOpen(true);
   };
@@ -162,6 +166,9 @@ const AdminDbProductManager = () => {
         display_order: product.display_order,
         ingredients_sv: product.ingredients_sv || null,
         certifications: product.certifications || null,
+        currency: product.currency || 'SEK',
+        recipe_sv: product.recipe_sv || null,
+        recipe_en: product.recipe_en || null,
       });
       toast.success(sv ? 'Produkt duplicerad!' : 'Product duplicated!');
       queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });
@@ -202,6 +209,8 @@ const AdminDbProductManager = () => {
         display_order: 0,
         ingredients_sv: formData.ingredients || null,
         certifications: formData.certifications ? formData.certifications.split(',').map(s => s.trim()).filter(Boolean) : null,
+        currency: formData.currency || 'SEK',
+        recipe_sv: formData.recipe || null,
       });
       toast.success(t.productAdded);
       queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });
@@ -232,6 +241,8 @@ const AdminDbProductManager = () => {
         image_urls: formData.imageUrls && formData.imageUrls.length > 0 ? formData.imageUrls : null,
         ingredients_sv: formData.ingredients || null,
         certifications: formData.certifications ? formData.certifications.split(',').map(s => s.trim()).filter(Boolean) : null,
+        currency: formData.currency || 'SEK',
+        recipe_sv: formData.recipe || null,
       });
       toast.success(t.productUpdated);
       queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });

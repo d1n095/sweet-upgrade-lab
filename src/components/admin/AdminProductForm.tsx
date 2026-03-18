@@ -19,6 +19,7 @@ export interface ProductFormData {
   title: string;
   description: string;
   price: string;
+  currency: string;
   productType: string;
   tags: string;
   vendor: string;
@@ -28,7 +29,17 @@ export interface ProductFormData {
   imageUrls: string[];
   ingredients: string;
   certifications: string;
+  recipe: string;
 }
+
+const CURRENCY_OPTIONS = [
+  { value: 'SEK', symbol: 'kr' },
+  { value: 'EUR', symbol: '€' },
+  { value: 'USD', symbol: '$' },
+  { value: 'NOK', symbol: 'kr' },
+  { value: 'DKK', symbol: 'kr' },
+  { value: 'GBP', symbol: '£' },
+];
 
 export type ProductCategoryOption = {
   value: string;
@@ -197,8 +208,22 @@ export function AdminProductForm({
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="price">{t.price}</Label>
-          <div className="relative">
-            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <div className="flex gap-2">
+            <Select
+              value={formData.currency || 'SEK'}
+              onValueChange={(value) => setFormData((prev) => ({ ...prev, currency: value }))}
+            >
+              <SelectTrigger className="w-24 shrink-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CURRENCY_OPTIONS.map((c) => (
+                  <SelectItem key={c.value} value={c.value}>
+                    {c.value} ({c.symbol})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Input
               id="price"
               type="number"
@@ -206,9 +231,7 @@ export function AdminProductForm({
               value={formData.price}
               onChange={(e) => setFormData((prev) => ({ ...prev, price: e.target.value }))}
               placeholder="159"
-              className="pl-9"
               required
-              
             />
           </div>
         </div>
@@ -452,6 +475,28 @@ export function AdminProductForm({
           onChange={(e) => setFormData((prev) => ({ ...prev, certifications: e.target.value }))}
           placeholder="Cruelty-Free, Vegan, Organic..."
         />
+      </div>
+
+      {/* Recipe */}
+      <div className="space-y-2">
+        <Label htmlFor="recipe">
+          {language === 'sv' ? 'Recept / Användningsinstruktioner' : 'Recipe / Usage Instructions'}
+        </Label>
+        <Textarea
+          id="recipe"
+          value={formData.recipe}
+          onChange={(e) => setFormData((prev) => ({ ...prev, recipe: e.target.value }))}
+          placeholder={language === 'sv'
+            ? 'Beskriv recept eller hur produkten används (visas automatiskt i produktbeskrivningen)...'
+            : 'Describe recipe or how to use the product (shown automatically in the product description)...'
+          }
+          rows={3}
+        />
+        <p className="text-xs text-muted-foreground">
+          {language === 'sv'
+            ? 'Visas automatiskt som en del av produktbeskrivningen på produktsidan.'
+            : 'Automatically shown as part of the product description on the product page.'}
+        </p>
       </div>
 
       <div className="flex gap-2 pt-2">

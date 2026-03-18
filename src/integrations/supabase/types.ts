@@ -1114,6 +1114,7 @@ export type Database = {
           category: string | null
           certifications: string[] | null
           created_at: string
+          currency: string
           description_en: string | null
           description_sv: string | null
           display_order: number | null
@@ -1125,6 +1126,8 @@ export type Database = {
           is_visible: boolean
           original_price: number | null
           price: number
+          recipe_en: string | null
+          recipe_sv: string | null
           reserved_stock: number
           stock: number
           tags: string[] | null
@@ -1139,6 +1142,7 @@ export type Database = {
           category?: string | null
           certifications?: string[] | null
           created_at?: string
+          currency?: string
           description_en?: string | null
           description_sv?: string | null
           display_order?: number | null
@@ -1150,6 +1154,8 @@ export type Database = {
           is_visible?: boolean
           original_price?: number | null
           price?: number
+          recipe_en?: string | null
+          recipe_sv?: string | null
           reserved_stock?: number
           stock?: number
           tags?: string[] | null
@@ -1164,6 +1170,7 @@ export type Database = {
           category?: string | null
           certifications?: string[] | null
           created_at?: string
+          currency?: string
           description_en?: string | null
           description_sv?: string | null
           display_order?: number | null
@@ -1175,6 +1182,8 @@ export type Database = {
           is_visible?: boolean
           original_price?: number | null
           price?: number
+          recipe_en?: string | null
+          recipe_sv?: string | null
           reserved_stock?: number
           stock?: number
           tags?: string[] | null

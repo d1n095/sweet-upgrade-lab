@@ -22,16 +22,22 @@ export interface DbProduct {
   ingredients_sv: string | null;
   ingredients_en: string | null;
   certifications: string[] | null;
+  currency: string;
+  recipe_sv: string | null;
+  recipe_en: string | null;
   created_at: string;
   updated_at: string;
 }
 
-export type DbProductInsert = Omit<DbProduct, 'id' | 'created_at' | 'updated_at' | 'handle' | 'ingredients_sv' | 'ingredients_en' | 'certifications' | 'reserved_stock'> & {
+export type DbProductInsert = Omit<DbProduct, 'id' | 'created_at' | 'updated_at' | 'handle' | 'ingredients_sv' | 'ingredients_en' | 'certifications' | 'reserved_stock' | 'currency' | 'recipe_sv' | 'recipe_en'> & {
   handle?: string;
   ingredients_sv?: string | null;
   ingredients_en?: string | null;
   certifications?: string[] | null;
   reserved_stock?: number;
+  currency?: string;
+  recipe_sv?: string | null;
+  recipe_en?: string | null;
 };
 
 export const fetchDbProducts = async (adminView = false): Promise<DbProduct[]> => {

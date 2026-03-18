@@ -70,6 +70,7 @@ const AdminProductManager = () => {
     title: '',
     description: '',
     price: '',
+    currency: 'SEK',
     productType: '',
     tags: '',
     vendor: '4ThePeople',
@@ -79,6 +80,7 @@ const AdminProductManager = () => {
     imageUrls: [],
     ingredients: '',
     certifications: '',
+    recipe: '',
   });
 
   const { data: products = [], isLoading: productsLoading } = useQuery({
@@ -483,6 +485,7 @@ const AdminProductManager = () => {
       title: '',
       description: '',
       price: '',
+      currency: 'SEK',
       productType: '',
       tags: '',
       vendor: '4ThePeople',
@@ -492,6 +495,7 @@ const AdminProductManager = () => {
       imageUrls: [],
       ingredients: '',
       certifications: '',
+      recipe: '',
     });
     setSelectedProduct(null);
   };
@@ -513,6 +517,7 @@ const AdminProductManager = () => {
         title: (node.title as string) || '',
         description: (node.description as string) || '',
         price: ((node.priceRange as any)?.minVariantPrice?.amount as string) || '0',
+        currency: 'SEK',
         productType: (node.productType as string) || '',
         tags,
         vendor: (node.vendor as string) || '4ThePeople',
@@ -522,6 +527,7 @@ const AdminProductManager = () => {
         imageUrls: [],
         ingredients: '',
         certifications: '',
+        recipe: '',
       });
 
       setIsEditDialogOpen(true);
