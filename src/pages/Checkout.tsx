@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ShoppingBag, Truck, Shield, Loader2, CreditCard } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, Truck, Shield, Loader2, CreditCard, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,14 +13,15 @@ import { storeConfig } from '@/config/storeConfig';
 import PaymentMethods from '@/components/trust/PaymentMethods';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useStoreSettings } from '@/stores/storeSettingsStore';
 
 const Checkout = () => {
   const navigate = useNavigate();
   const { language } = useLanguage();
   const cl = getContentLang(language);
   const { items, clearCart } = useCartStore();
+  const { checkoutEnabled } = useStoreSettings();
   const [isSubmitting, setIsSubmitting] = useState(false);
-
   const [form, setForm] = useState({
     email: '',
     name: '',
@@ -145,6 +146,31 @@ const Checkout = () => {
   const updateField = (field: string, value: string) => {
     setForm(prev => ({ ...prev, [field]: value }));
   };
+
+  if (!checkoutEnabled) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="pt-24 pb-20">
+          <div className="container mx-auto px-4 max-w-md text-center">
+            <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-secondary flex items-center justify-center">
+              <AlertTriangle className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <h1 className="text-xl font-semibold mb-3">
+              {language === 'sv' ? 'Kassan är tillfälligt stängd' : 'Checkout is temporarily closed'}
+            </h1>
+            <p className="text-muted-foreground mb-6">
+              {language === 'sv' ? 'Vi kan just nu inte ta emot beställningar. Försök igen senare.' : 'We cannot accept orders at this time. Please try again later.'}
+            </p>
+            <Button onClick={() => navigate('/produkter')}>
+              {language === 'sv' ? 'Tillbaka till produkter' : 'Back to products'}
+            </Button>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   if (items.length === 0) {
     return (

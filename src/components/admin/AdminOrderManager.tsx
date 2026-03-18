@@ -42,6 +42,7 @@ const statusOptions = [
   { value: 'processing', color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' },
   { value: 'shipped', color: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400' },
   { value: 'delivered', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
+  { value: 'failed', color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' },
   { value: 'cancelled', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
 ];
 
@@ -82,6 +83,7 @@ const AdminOrderManager = () => {
       shipped: 'Skickad',
       delivered: 'Levererad',
       cancelled: 'Avbruten',
+      failed: 'Misslyckad',
       items: 'Artiklar',
       address: 'Leveransadress',
       estimatedDelivery: 'Beräknad leverans',
@@ -110,6 +112,7 @@ const AdminOrderManager = () => {
       shipped: 'Shipped',
       delivered: 'Delivered',
       cancelled: 'Cancelled',
+      failed: 'Failed',
       items: 'Items',
       address: 'Shipping address',
       estimatedDelivery: 'Estimated delivery',
@@ -127,6 +130,7 @@ const AdminOrderManager = () => {
     shipped: content.shipped,
     delivered: content.delivered,
     cancelled: content.cancelled,
+    failed: content.failed,
   };
 
   useEffect(() => {
@@ -262,8 +266,8 @@ const AdminOrderManager = () => {
         })}
       </div>
 
-      {/* Orders List */}
-      <div className="space-y-2 max-h-[500px] overflow-y-auto">
+  {/* Orders List */}
+      <div className="space-y-2">
         {filteredOrders.length === 0 ? (
           <p className="text-center text-muted-foreground py-4">{content.noOrders}</p>
         ) : (
