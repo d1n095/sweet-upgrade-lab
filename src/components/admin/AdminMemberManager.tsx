@@ -740,9 +740,27 @@ const AdminMemberManager = () => {
           ) : selectedMember && (
             <div className="space-y-4">
               {/* Member Info */}
-              <div className="p-4 bg-secondary/50 rounded-lg">
-                <p className="text-sm font-mono break-all">{selectedMember.user_id}</p>
-                <div className="flex items-center gap-2 mt-2">
+              <div className="p-4 bg-secondary/50 rounded-lg space-y-2">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    {selectedMember.avatar_url ? (
+                      <img src={selectedMember.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover" />
+                    ) : (
+                      <Users className="w-6 h-6 text-primary" />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-base">{selectedMember.username || 'Inget användarnamn'}</p>
+                    {selectedMember.email && (
+                      <p className="text-sm text-muted-foreground flex items-center gap-1">
+                        <Mail className="w-3.5 h-3.5" /> {selectedMember.email}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <p className="text-xs font-mono text-muted-foreground break-all">{selectedMember.user_id}</p>
+                <p className="text-xs text-muted-foreground">Registrerad: {formatDate(selectedMember.created_at)}</p>
+                <div className="flex items-center gap-2 flex-wrap">
                   {selectedMember.is_member && (
                     <Badge variant="outline">
                       {t.memberSince} {selectedMember.member_since ? formatDate(selectedMember.member_since) : '-'}
