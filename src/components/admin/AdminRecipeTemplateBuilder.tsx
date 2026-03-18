@@ -147,8 +147,10 @@ const AdminRecipeTemplateBuilder = () => {
   };
 
   const deleteTemplate = async (id: string) => {
+    const tmpl = templates.find(t => t.id === id);
     await supabase.from('recipe_templates').delete().eq('id', id);
     toast.success('Receptmall borttagen');
+    if (tmpl) logRecipeChange('deleted', tmpl.name_sv);
     fetchAll();
   };
 
