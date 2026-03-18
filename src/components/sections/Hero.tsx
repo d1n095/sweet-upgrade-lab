@@ -6,6 +6,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { PageSection } from '@/hooks/usePageSections';
+import { storeConfig } from '@/config/storeConfig';
 
 interface HeroProps {
   sections?: PageSection[];
