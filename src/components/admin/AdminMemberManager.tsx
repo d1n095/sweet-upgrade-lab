@@ -35,6 +35,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/context/LanguageContext';
 import { useFounderRole } from '@/hooks/useFounderRole';
+import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
 interface Member {
@@ -87,6 +88,8 @@ const ITEMS_PER_PAGE = 50;
 const AdminMemberManager = ({ roleFilter = 'all' }: AdminMemberManagerProps) => {
   const { language } = useLanguage();
   const { isFounder } = useFounderRole();
+  const { user } = useAuth();
+  const currentUserId = user?.id;
   const [members, setMembers] = useState<Member[]>([]);
   const [userRoles, setUserRoles] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -506,6 +509,22 @@ const AdminMemberManager = ({ roleFilter = 'all' }: AdminMemberManagerProps) => 
   const [pendingRoleChange, setPendingRoleChange] = useState<{ userId: string; role: string; username: string | null } | null>(null);
 
   const requestRoleChange = (userId: string, role: string) => {
+    // Security: prevent self-role changes
+    if (userId === currentUserId) {
+      toast.error('Du kan inte ändra din egen roll');
+      return;
+    }
+    // Security: prevent changing a founder's role (unless you're a founder)
+    const currentRole = userRoles[userId];
+    if (currentRole === 'founder' && !isFounder) {
+      toast.error('Bara grundare kan ändra en grundar-roll');
+      return;
+    }
+    // Security: prevent assigning founder role (unless you're a founder)
+    if (role === 'founder' && !isFounder) {
+      toast.error('Bara grundare kan tilldela grundar-rollen');
+      return;
+    }
     const member = members.find(m => m.user_id === userId);
     setPendingRoleChange({ userId, role, username: member?.username || member?.email || userId.slice(0, 8) });
   };
@@ -717,7 +736,12 @@ const AdminMemberManager = ({ roleFilter = 'all' }: AdminMemberManagerProps) => 
                   )}
                 </div>
                 <div className="min-w-0">
-                  <p className="font-medium text-sm truncate">{member.username || member.user_id.slice(0, 12) + '...'}</p>
+                  <p className="font-medium text-sm truncate flex items-center gap-1.5">
+                    {member.username || member.user_id.slice(0, 12) + '...'}
+                    {member.user_id === currentUserId && (
+                      <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">du</span>
+                    )}
+                  </p>
                   {member.email && (
                     <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
                       <Mail className="w-3 h-3 shrink-0" /> {member.email}
@@ -747,14 +771,18 @@ const AdminMemberManager = ({ roleFilter = 'all' }: AdminMemberManagerProps) => 
                 <Select
                   value={userRoles[member.user_id] || 'none'}
                   onValueChange={(value) => requestRoleChange(member.user_id, value)}
-                  disabled={assigningRole}
+                  disabled={
+                    assigningRole ||
+                    member.user_id === currentUserId ||
+                    (userRoles[member.user_id] === 'founder' && !isFounder)
+                  }
                 >
                   <SelectTrigger className="w-28 h-8 text-xs">
                     <SelectValue placeholder={t.assignRole} />
                   </SelectTrigger>
                    <SelectContent>
                     <SelectItem value="none">{t.noRole}</SelectItem>
-                    <SelectItem value="founder">👑 Grundare</SelectItem>
+                    {isFounder && <SelectItem value="founder">👑 Grundare</SelectItem>}
                     <SelectItem value="admin">🛡️ {t.admin}</SelectItem>
                     <SelectItem value="it">💻 IT</SelectItem>
                     <SelectItem value="manager">📋 Manager</SelectItem>
