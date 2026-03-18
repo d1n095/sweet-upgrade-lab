@@ -777,7 +777,7 @@ const AdminMemberManager = ({ roleFilter = 'all' }: AdminMemberManagerProps) => 
                   </SelectTrigger>
                    <SelectContent>
                     <SelectItem value="none">{t.noRole}</SelectItem>
-                    <SelectItem value="founder">👑 Grundare</SelectItem>
+                    {isFounder && <SelectItem value="founder">👑 Grundare</SelectItem>}
                     <SelectItem value="admin">🛡️ {t.admin}</SelectItem>
                     <SelectItem value="it">💻 IT</SelectItem>
                     <SelectItem value="manager">📋 Manager</SelectItem>
