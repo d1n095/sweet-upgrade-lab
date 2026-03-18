@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { 
   Users, Search, Shield, UserCheck, Briefcase, 
   Loader2, ChevronDown, ChevronUp, Package, Star,
-  Eye, X, Mail, ExternalLink, ChevronLeft, ChevronRight
+  Eye, X, Mail, ExternalLink, ChevronLeft, ChevronRight, Phone
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,6 +33,7 @@ interface Member {
   email?: string;
   username?: string | null;
   avatar_url?: string | null;
+  phone?: string | null;
 }
 
 type AppRole = 'admin' | 'founder' | 'it' | 'moderator' | 'support' | 'affiliate' | 'donor' | 'manager' | 'marketing' | 'finance' | 'warehouse';
@@ -456,9 +457,8 @@ const AdminMemberManager = () => {
       if (emailRes.data) {
         const match = (emailRes.data as any[]).find((u: any) => u.user_id === member.user_id);
         if (match) {
-          const updated = { ...member, email: match.email, username: match.username || member.username };
+          const updated = { ...member, email: match.email, username: match.username || member.username, phone: match.phone || null };
           setSelectedMember(updated);
-          // Also update in the main list
           setMembers(prev => prev.map(m => m.user_id === member.user_id ? updated : m));
         }
       }
@@ -595,21 +595,21 @@ const AdminMemberManager = () => {
                 if (data) {
                   // Merge email/username info into members
                   setMembers(prev => {
-                    const updated = [...prev];
+                  const updated = [...prev];
                     for (const result of data as any[]) {
                       const idx = updated.findIndex(m => m.user_id === result.user_id);
                       if (idx >= 0) {
-                        updated[idx] = { ...updated[idx], email: result.email, username: result.username || updated[idx].username };
+                        updated[idx] = { ...updated[idx], email: result.email, username: result.username || updated[idx].username, phone: result.phone || null };
                       } else {
-                        // User exists in auth but might not be in our list yet
                         updated.push({
                           user_id: result.user_id,
                           is_member: false,
                           member_since: null,
-                          created_at: new Date().toISOString(),
+                          created_at: result.user_created_at || new Date().toISOString(),
                           email: result.email,
                           username: result.username,
                           avatar_url: result.avatar_url,
+                          phone: result.phone || null,
                         });
                       }
                     }
@@ -769,6 +769,11 @@ const AdminMemberManager = () => {
                     {selectedMember.email && (
                       <p className="text-sm text-muted-foreground flex items-center gap-1">
                         <Mail className="w-3.5 h-3.5" /> {selectedMember.email}
+                      </p>
+                    )}
+                    {selectedMember.phone && (
+                      <p className="text-sm text-muted-foreground flex items-center gap-1">
+                        <Phone className="w-3.5 h-3.5" /> {selectedMember.phone}
                       </p>
                     )}
                   </div>
