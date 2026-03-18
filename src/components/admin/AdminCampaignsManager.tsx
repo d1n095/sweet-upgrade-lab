@@ -537,6 +537,10 @@ const VolumeDiscountsTab = () => {
                   {(d.excluded_product_ids?.length || 0) > 0 && (
                     <Badge variant="secondary" className="text-[9px]">{d.excluded_product_ids.length} uteslutna</Badge>
                   )}
+                  {d.requires_account && <Badge variant="outline" className="text-[9px]">Kräver konto</Badge>}
+                  {d.requirement_type === 'first_purchase' && <Badge variant="outline" className="text-[9px]">Första köpet</Badge>}
+                  {d.requirement_type === 'level_required' && <Badge variant="outline" className="text-[9px]">Level {d.min_level}+</Badge>}
+                  {d.max_uses_per_user && <Badge variant="outline" className="text-[9px]">Max {d.max_uses_per_user}x</Badge>}
                 </div>
                 <p className="text-xs text-muted-foreground flex items-center gap-1">
                   Gäller hela varukorgen
