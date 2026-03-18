@@ -57,7 +57,7 @@ const HomepageReviews = () => {
           {t.title}
         </motion.h2>
 
-        <div className="grid md:grid-cols-3 gap-6 max-w-3xl mx-auto">
+        <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
           {reviews.map((review, i) => (
             <motion.div
               key={review.id}

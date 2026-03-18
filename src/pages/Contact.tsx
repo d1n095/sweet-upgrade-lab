@@ -63,10 +63,6 @@ const Contact = () => {
             animate={{ opacity: 1, y: 0 }}
             className="text-center mb-12"
           >
-            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
-              <MessageSquare className="w-4 h-4" />
-              {t('contact.title')}
-            </span>
             <h1 className="font-display text-4xl md:text-5xl font-semibold mb-4">
               {t('contact.heading')}
             </h1>

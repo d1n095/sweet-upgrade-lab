@@ -71,7 +71,7 @@ const HomepageBestsellers = () => {
           {t.title}
         </motion.h2>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 max-w-5xl mx-auto mb-10">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 max-w-5xl mx-auto mb-14">
           {products.map((product, index) => (
             <DbProductCard key={product.id} product={product} index={index} />
           ))}
