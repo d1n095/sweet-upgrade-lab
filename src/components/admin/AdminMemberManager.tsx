@@ -440,40 +440,61 @@ const AdminMemberManager = ({ roleFilter = 'all', onStatsUpdate }: AdminMemberMa
 
   const loadMembers = useCallback(async () => {
     try {
-      // Load profiles with username
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('user_id, is_member, member_since, created_at, username, avatar_url, xp, level, trust_score, referral_code')
-        .order('created_at', { ascending: false });
+      // Load profiles and emails+roles in parallel
+      const [profilesRes, rolesRes, emailsRes, businessRes] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('user_id, is_member, member_since, created_at, username, avatar_url, xp, level, trust_score, referral_code')
+          .order('created_at', { ascending: false }),
+        supabase.from('user_roles').select('user_id, role'),
+        // Fetch all users with emails via RPC (empty query = all)
+        supabase.rpc('admin_search_users', { p_query: '' }),
+        supabase.from('business_accounts').select('*', { count: 'exact', head: true }),
+      ]);
 
-      if (profiles) {
-        // Also fetch emails for all members via RPC (founders/admins can see this)
-        const membersList = profiles as Member[];
-        
-        // Batch-fetch emails: search with empty string returns nothing, so we fetch by chunks
-        // Instead, just load emails for all visible members via individual lookups
-        // We'll use the RPC when searching
-        setMembers(membersList);
+      const profiles = profilesRes.data || [];
+      const roles = rolesRes.data || [];
+      const emails = (emailsRes.data || []) as any[];
+
+      // Build email/phone map
+      const emailMap: Record<string, { email: string; phone: string | null; user_created_at: string | null }> = {};
+      for (const e of emails) {
+        emailMap[e.user_id] = { email: e.email, phone: e.phone, user_created_at: e.user_created_at };
       }
 
-      // Load user roles
-      const { data: roles } = await supabase
-        .from('user_roles')
-        .select('user_id, role');
+      // Merge emails into profiles
+      const membersList: Member[] = profiles.map(p => ({
+        ...p,
+        email: emailMap[p.user_id]?.email || null,
+        phone: emailMap[p.user_id]?.phone || null,
+      }));
+      setMembers(membersList);
 
-      if (roles) {
-        const rolesMap: Record<string, string> = {};
-        roles.forEach((r) => {
-          rolesMap[r.user_id] = r.role;
-        });
-        setUserRoles(rolesMap);
-      }
+      // Build roles map
+      const rolesMap: Record<string, string> = {};
+      roles.forEach((r) => { rolesMap[r.user_id] = r.role; });
+      setUserRoles(rolesMap);
+
+      // Compute stats from the SAME data
+      const roleCounts: Record<string, number> = {};
+      roles.forEach(r => { roleCounts[r.role] = (roleCounts[r.role] || 0) + 1; });
+
+      onStatsUpdate?.({
+        total: membersList.length,
+        members: membersList.filter(m => m.is_member).length,
+        businesses: businessRes.count || 0,
+        founders: roleCounts['founder'] || 0,
+        admins: (roleCounts['admin'] || 0) + (roleCounts['it'] || 0) + (roleCounts['founder'] || 0),
+        moderators: roleCounts['moderator'] || 0,
+        support: roleCounts['support'] || 0,
+        warehouse: roleCounts['warehouse'] || 0,
+      });
     } catch (error) {
       console.error('Failed to load members:', error);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [onStatsUpdate]);
 
   const loadMemberDetails = async (member: Member) => {
     setLoadingDetails(true);
