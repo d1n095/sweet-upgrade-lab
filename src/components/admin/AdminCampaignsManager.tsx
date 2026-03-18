@@ -219,7 +219,11 @@ const BundlesTab = () => {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: '', name_en: '', description: '', description_en: '', discount_percent: '' });
+  const [form, setForm] = useState({
+    name: '', name_en: '', description: '', description_en: '', discount_percent: '',
+    requirement_type: 'none', first_purchase_discount: '', repeat_discount: '',
+    min_level: '', requires_account: false, max_uses_per_user: '',
+  });
   const [selectedProducts, setSelectedProducts] = useState<Array<{ productId: string; quantity: number }>>([]);
 
   const fetchData = useCallback(async () => {
