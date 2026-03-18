@@ -14,6 +14,7 @@ import PaymentMethods from '@/components/trust/PaymentMethods';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useStoreSettings } from '@/stores/storeSettingsStore';
+import { logActivity } from '@/utils/activityLogger';
 
 const Checkout = () => {
   const navigate = useNavigate();
@@ -131,12 +132,23 @@ const Checkout = () => {
       if (data?.error) throw new Error(data.error);
 
       if (data?.url) {
-        // Redirect to Stripe Checkout
+        logActivity({
+          log_type: 'success',
+          category: 'order',
+          message: 'Checkout session created',
+          details: { email: form.email, total, itemCount: items.length },
+        });
         clearCart();
         window.location.href = data.url;
       }
     } catch (err: any) {
       console.error('Checkout error:', err);
+      logActivity({
+        log_type: 'error',
+        category: 'payment',
+        message: 'Checkout failed',
+        details: { error: err.message, email: form.email },
+      });
       toast.error(cl === 'sv' ? 'Något gick fel. Försök igen.' : 'Something went wrong. Please try again.');
     } finally {
       setIsSubmitting(false);

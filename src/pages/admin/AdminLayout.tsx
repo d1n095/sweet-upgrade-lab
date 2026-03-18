@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Outlet, useNavigate, NavLink, useLocation } from 'react-router-dom';
 import { useAdminRole } from '@/hooks/useAdminRole';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2, Package, ClipboardList, BarChart3, Settings, Grid, Users, Handshake, MessageCircle, Heart, Sparkles, Eye, LogOut, Home, Shield } from 'lucide-react';
+import { Loader2, Package, ClipboardList, BarChart3, Settings, Grid, Users, Handshake, MessageCircle, Heart, Sparkles, Eye, LogOut, Home, Shield, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
@@ -19,6 +19,7 @@ const navItems = [
   { to: '/admin/updates', label: 'Nytt hos oss', icon: Sparkles },
   { to: '/admin/visibility', label: 'Sidsynlighet', icon: Eye },
   { to: '/admin/legal', label: 'Juridik & Donationer', icon: Heart },
+  { to: '/admin/logs', label: 'Aktivitetslogg', icon: Activity },
   { to: '/admin/settings', label: 'Inställningar', icon: Settings },
 ];
 

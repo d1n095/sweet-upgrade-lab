@@ -20,6 +20,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/context/LanguageContext';
 import { toast } from 'sonner';
+import { logActivity } from '@/utils/activityLogger';
 
 interface Order {
   id: string;
@@ -228,6 +229,13 @@ const AdminOrderManager = () => {
         )
       );
       setEditingOrder(null);
+      logActivity({
+        log_type: 'info',
+        category: 'admin',
+        message: `Order status updated to ${editData.status}`,
+        details: { old_status: order.status, new_status: editData.status, tracking: editData.tracking_number || null },
+        order_id: order.id,
+      });
       toast.success(content.updated);
     } catch (error) {
       console.error('Failed to update order:', error);
