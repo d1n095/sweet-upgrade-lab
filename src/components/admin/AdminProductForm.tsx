@@ -753,17 +753,73 @@ export function AdminProductForm({
           id="recipe"
           value={formData.recipe}
           onChange={(e) => setFormData((prev) => ({ ...prev, recipe: e.target.value }))}
-          placeholder={language === 'sv'
-            ? 'Beskriv recept eller hur produkten används (visas automatiskt i produktbeskrivningen)...'
-            : 'Describe recipe or how to use the product (shown automatically in the product description)...'
-          }
+          placeholder={language === 'sv' ? 'Beskriv recept eller hur produkten används...' : 'Describe recipe or how to use the product...'}
           rows={3}
         />
-        <p className="text-xs text-muted-foreground">
-          {language === 'sv'
-            ? 'Visas automatiskt som en del av produktbeskrivningen på produktsidan.'
-            : 'Automatically shown as part of the product description on the product page.'}
+      </div>
+
+      {/* ── Storytelling Fields ── */}
+      <div className="border-t border-border pt-4 mt-2">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+          {language === 'sv' ? '✨ Storytelling' : '✨ Storytelling'}
         </p>
+
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="feeling" className="text-xs">
+              {language === 'sv' ? 'Känsla / Upplevelse' : 'Feeling / Experience'}
+            </Label>
+            <Textarea
+              id="feeling"
+              value={formData.feeling}
+              onChange={(e) => setFormData((prev) => ({ ...prev, feeling: e.target.value }))}
+              placeholder={language === 'sv' ? 'Tänk dig att öppna bastudörren och mötas av frisk luft...' : 'Imagine opening the sauna door and being met by fresh air...'}
+              rows={2}
+              className="text-xs"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="effects" className="text-xs">
+              {language === 'sv' ? 'Effekt / Fördelar (en per rad)' : 'Effects / Benefits (one per line)'}
+            </Label>
+            <Textarea
+              id="effects"
+              value={formData.effects}
+              onChange={(e) => setFormData((prev) => ({ ...prev, effects: e.target.value }))}
+              placeholder={language === 'sv' ? 'Uppiggande & kylande känsla\nFräsch mentholton\nRen bastuupplevelse' : 'Invigorating & cooling\nFresh menthol tone\nPure sauna experience'}
+              rows={3}
+              className="text-xs"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="usage" className="text-xs">
+              {language === 'sv' ? 'Användning' : 'How to use'}
+            </Label>
+            <Input
+              id="usage"
+              value={formData.usage}
+              onChange={(e) => setFormData((prev) => ({ ...prev, usage: e.target.value }))}
+              placeholder={language === 'sv' ? '5 droppar per skopa vatten' : '5 drops per scoop of water'}
+              className="text-xs"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="extendedDescription" className="text-xs">
+              {language === 'sv' ? 'Utökad beskrivning (fritext)' : 'Extended description (freeform)'}
+            </Label>
+            <Textarea
+              id="extendedDescription"
+              value={formData.extendedDescription}
+              onChange={(e) => setFormData((prev) => ({ ...prev, extendedDescription: e.target.value }))}
+              placeholder={language === 'sv' ? 'Beskriv produktens historia, filosofi eller säljargument...' : 'Describe the product story, philosophy or selling points...'}
+              rows={4}
+              className="text-xs"
+            />
+          </div>
+        </div>
       </div>
 
       <div className="flex gap-2 pt-2">
