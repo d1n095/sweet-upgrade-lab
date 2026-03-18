@@ -51,10 +51,11 @@ import AdminLogs from "./pages/admin/AdminLogs";
 
 const queryClient = new QueryClient();
 
-// Guard component for toggleable pages
+// Guard component for toggleable pages — admins can always preview
 const PageGuard = ({ pageId, children }: { pageId: ToggleablePage; children: React.ReactNode }) => {
   const { isVisible } = usePageVisibility();
-  if (!isVisible(pageId)) return <NotFound />;
+  const { isAdmin } = useAdminRole();
+  if (!isVisible(pageId) && !isAdmin) return <NotFound />;
   return <>{children}</>;
 };
 
