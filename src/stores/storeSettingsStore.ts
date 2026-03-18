@@ -137,5 +137,9 @@ supabase
     if (key === 'homepage_reviews') useStoreSettings.setState({ homepageReviews: value });
     if (key === 'homepage_philosophy') useStoreSettings.setState({ homepagePhilosophy: value });
     if (key === 'homepage_about') useStoreSettings.setState({ homepageAbout: value });
+    if (key === 'require_phone') useStoreSettings.setState({ requirePhone: value });
+    if (key === 'require_address') useStoreSettings.setState({ requireAddress: value });
+    if (key === 'guest_checkout') useStoreSettings.setState({ guestCheckout: value });
+    if (key === 'auto_save_profile') useStoreSettings.setState({ autoSaveProfile: value });
   })
   .subscribe();
