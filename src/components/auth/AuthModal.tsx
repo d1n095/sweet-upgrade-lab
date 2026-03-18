@@ -52,7 +52,7 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
         toast.success(lang === 'sv' ? 'Välkommen tillbaka!' : 'Welcome back!');
         onClose();
       } else {
-        const { error } = await signUp(email, password);
+        const { error } = await signUp(email, password, username || undefined);
         if (error) throw error;
         
         // Send welcome email in background
