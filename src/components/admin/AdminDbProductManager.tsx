@@ -132,6 +132,10 @@ const AdminDbProductManager = () => {
       ingredients: product.ingredients_sv || '',
       certifications: (product.certifications || []).join(', '),
       recipe: product.recipe_sv || '',
+      feeling: (product as any).feeling_sv || '',
+      effects: (product as any).effects_sv || '',
+      usage: (product as any).usage_sv || '',
+      extendedDescription: (product as any).extended_description_sv || '',
     });
     setIsEditOpen(true);
   };
