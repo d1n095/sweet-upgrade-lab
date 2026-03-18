@@ -137,6 +137,9 @@ const AdminDbProductManager = () => {
       effects: (product as any).effects_sv || '',
       usage: (product as any).usage_sv || '',
       extendedDescription: (product as any).extended_description_sv || '',
+      metaTitle: (product as any).meta_title || '',
+      metaDescription: (product as any).meta_description || '',
+      metaKeywords: (product as any).meta_keywords || '',
     });
     setIsEditOpen(true);
   };
