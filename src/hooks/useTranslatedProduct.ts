@@ -74,7 +74,7 @@ export function useTranslatedProduct(product: DbProduct | null) {
     (async () => {
       try {
         const { data, error } = await supabase.functions.invoke('translate-product', {
-          body: { texts: textsToTranslate, targetLang: lang },
+          body: { texts: textsToTranslate, targetLang: lang, productId: product.id },
         });
 
         // Only update if this is still the active request

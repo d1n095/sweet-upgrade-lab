@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,7 +10,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { texts, targetLang } = await req.json();
+    const { texts, targetLang, productId } = await req.json();
 
     if (!texts || !targetLang || typeof texts !== "object") {
       return new Response(JSON.stringify({ error: "Missing texts or targetLang" }), {
@@ -25,6 +26,26 @@ serve(async (req) => {
       });
     }
 
+    // Check DB cache first (if productId provided)
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const sb = createClient(supabaseUrl, serviceKey);
+
+    if (productId) {
+      const { data: cached } = await sb
+        .from("product_translation_cache")
+        .select("translated_fields")
+        .eq("product_id", productId)
+        .eq("language_code", targetLang)
+        .maybeSingle();
+
+      if (cached?.translated_fields && Object.keys(cached.translated_fields).length > 0) {
+        return new Response(JSON.stringify({ translations: cached.translated_fields, cached: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
@@ -36,7 +57,6 @@ serve(async (req) => {
     };
     const langName = langNames[targetLang] || targetLang;
 
-    // Build a structured prompt
     const entries = Object.entries(texts).filter(([_, v]) => v && String(v).trim());
     if (entries.length === 0) {
       return new Response(JSON.stringify({ translations: {} }), {
@@ -88,7 +108,6 @@ serve(async (req) => {
     const aiData = await response.json();
     const rawContent = aiData.choices?.[0]?.message?.content || "";
 
-    // Extract JSON from response (strip markdown fences if present)
     let jsonStr = rawContent.trim();
     if (jsonStr.startsWith("```")) {
       jsonStr = jsonStr.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
@@ -96,12 +115,24 @@ serve(async (req) => {
 
     try {
       const translations = JSON.parse(jsonStr);
+
+      // Save to DB cache (fire-and-forget)
+      if (productId) {
+        sb.from("product_translation_cache")
+          .upsert({
+            product_id: productId,
+            language_code: targetLang,
+            translated_fields: translations,
+          }, { onConflict: "product_id,language_code" })
+          .then(() => {})
+          .catch((err: unknown) => console.error("Cache save error:", err));
+      }
+
       return new Response(JSON.stringify({ translations }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     } catch {
       console.error("Failed to parse AI response:", jsonStr);
-      // Return originals as fallback
       return new Response(JSON.stringify({ translations: Object.fromEntries(entries) }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
