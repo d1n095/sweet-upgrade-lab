@@ -334,6 +334,60 @@ const AdminOrderManager = () => {
     );
   }
 
+  const handlePrintOrder = (order: Order) => {
+    const addr = parseShippingAddress(order.shipping_address);
+    const items = Array.isArray(order.items) ? order.items : [];
+    const html = `<html><head><title>${order.order_number || order.id.slice(0,8)}</title><style>body{font-family:system-ui;padding:40px;font-size:14px}h1{font-size:20px}table{width:100%;border-collapse:collapse;margin:16px 0}td,th{border:1px solid #ddd;padding:8px;text-align:left}th{background:#f5f5f5}.header{display:flex;justify-content:space-between;margin-bottom:24px}</style></head><body>
+      <div class="header"><div><h1>Order ${order.order_number || ''}</h1><p>${formatDate(order.created_at)}</p></div><div><strong>Status:</strong> ${statusLabels[order.status] || order.status}<br><strong>Betalning:</strong> ${order.payment_status}</div></div>
+      <h3>Kund</h3><p>${order.order_email}${addr ? `<br>${addr.name || ''}<br>${addr.address || ''}<br>${addr.zip || ''} ${addr.city || ''}<br>${addr.country || ''}${addr.phone ? '<br>Tel: '+addr.phone : ''}` : ''}</p>
+      <h3>Produkter</h3><table><tr><th>Produkt</th><th>Antal</th><th>Pris</th></tr>${items.map((i:any) => `<tr><td>${i.title || i.name || '-'}</td><td>${i.quantity || 1}</td><td>${i.price || '-'}</td></tr>`).join('')}</table>
+      <p><strong>Totalt: ${formatCurrency(order.total_amount, order.currency)}</strong></p>
+      ${order.tracking_number ? `<p><strong>Spårning:</strong> ${order.tracking_number}</p>` : ''}
+      ${order.notes ? `<p><strong>Anteckningar:</strong> ${order.notes}</p>` : ''}
+      <script>window.print()</script></body></html>`;
+    const w = window.open('', '_blank');
+    if (w) { w.document.write(html); w.document.close(); }
+  };
+
+  const handlePrintShippingLabel = (order: Order) => {
+    const addr = parseShippingAddress(order.shipping_address);
+    if (!addr) { toast.error(language === 'sv' ? 'Ingen leveransadress' : 'No shipping address'); return; }
+    const html = `<html><head><title>Fraktsedel</title><style>body{font-family:system-ui;padding:40px}div{border:2px solid #000;padding:32px;max-width:400px;margin:0 auto}.from{margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid #ccc;font-size:12px}h2{margin:0 0 8px}p{margin:4px 0;font-size:16px}.order{font-size:12px;color:#666;margin-top:16px}</style></head><body>
+      <div><div class="from"><strong>Avsändare:</strong><br>4ThePeople<br>Sverige</div>
+      <h2>Mottagare</h2>
+      <p><strong>${addr.name || ''}</strong></p>
+      <p>${addr.address || ''}</p>
+      <p>${addr.zip || ''} ${addr.city || ''}</p>
+      <p>${addr.country || 'Sverige'}</p>
+      ${addr.phone ? `<p>Tel: ${addr.phone}</p>` : ''}
+      <p class="order">${order.order_number || ''}</p></div>
+      <script>window.print()</script></body></html>`;
+    const w = window.open('', '_blank');
+    if (w) { w.document.write(html); w.document.close(); }
+  };
+
+  const handleExportCSV = () => {
+    const headers = ['Ordernummer', 'Email', 'Status', 'Betalning', 'Totalt', 'Valuta', 'Spårning', 'Skapad'];
+    const rows = filteredOrders.map(o => [
+      o.order_number || o.id.slice(0,8),
+      o.order_email,
+      o.status,
+      o.payment_status,
+      o.total_amount,
+      o.currency,
+      o.tracking_number || '',
+      o.created_at,
+    ]);
+    const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `orders-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -347,7 +401,13 @@ const AdminOrderManager = () => {
             <p className="text-sm text-muted-foreground">{content.subtitle}</p>
           </div>
         </div>
-        <Badge variant="outline">{orders.length} {content.order.toLowerCase()}</Badge>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleExportCSV} className="gap-1.5 text-xs">
+            <Download className="w-3.5 h-3.5" />
+            CSV
+          </Button>
+          <Badge variant="outline">{orders.length} {content.order.toLowerCase()}</Badge>
+        </div>
       </div>
 
       {/* Status Filters */}
