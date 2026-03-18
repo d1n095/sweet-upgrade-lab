@@ -468,6 +468,107 @@ const AdminStats = () => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Cart activity */}
+        <TabsContent value="cart">
+          <div className="grid lg:grid-cols-2 gap-4">
+            <Card className="border-border">
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                  <Plus className="w-5 h-5 text-accent" /> Lagt i kundvagn
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">Produkter som lagts till i kundvagnen</p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {cartAdds.map((item, idx) => (
+                    <div key={item.title} className="flex items-center justify-between p-3 rounded-xl bg-secondary/50">
+                      <div className="flex items-center gap-3">
+                        <div className="w-7 h-7 rounded-lg bg-accent/10 flex items-center justify-center text-xs font-bold text-accent">{idx + 1}</div>
+                        <span className="font-medium text-sm">{item.title}</span>
+                      </div>
+                      <Badge variant="outline">{item.count} st</Badge>
+                    </div>
+                  ))}
+                  {cartAdds.length === 0 && (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <ShoppingCart className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                      <p>Ingen data ännu</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border">
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                  <Minus className="w-5 h-5 text-destructive" /> Borttagna ur kundvagn
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">Produkter som tagits bort innan köp</p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {cartRemoves.map((item, idx) => (
+                    <div key={item.title} className="flex items-center justify-between p-3 rounded-xl bg-destructive/5 border border-destructive/10">
+                      <div className="flex items-center gap-3">
+                        <div className="w-7 h-7 rounded-lg bg-destructive/10 flex items-center justify-center text-xs font-bold text-destructive">{idx + 1}</div>
+                        <span className="font-medium text-sm">{item.title}</span>
+                      </div>
+                      <Badge className="bg-destructive/10 text-destructive border-0">{item.count} st</Badge>
+                    </div>
+                  ))}
+                  {cartRemoves.length === 0 && (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <CheckCircle className="w-8 h-8 mx-auto mb-2 opacity-30 text-accent" />
+                      <p>Inga borttagningar — bra!</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* Abandoned checkout items */}
+        <TabsContent value="abandoned">
+          <Card className="border-border">
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <LogOut className="w-5 h-5 text-destructive" /> Övergivna produkter i kassan
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Exakt vilka produkter kunder hade i kassan när de lämnade utan att köpa
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {abandonedItems.map((item, idx) => (
+                  <div key={item.title} className="flex items-center justify-between p-3 rounded-xl bg-destructive/5 border border-destructive/10">
+                    <div className="flex items-center gap-3">
+                      <div className="w-7 h-7 rounded-lg bg-destructive/10 flex items-center justify-center text-xs font-bold text-destructive">{idx + 1}</div>
+                      <div>
+                        <span className="font-medium text-sm">{item.title}</span>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Totalt förlorat värde: {new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK', minimumFractionDigits: 0 }).format(item.totalValue)}
+                        </p>
+                      </div>
+                    </div>
+                    <Badge className="bg-destructive/10 text-destructive border-0 font-bold">
+                      {item.count} st
+                    </Badge>
+                  </div>
+                ))}
+                {abandonedItems.length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <CheckCircle className="w-8 h-8 mx-auto mb-2 opacity-30 text-accent" />
+                    <p>Inga övergivna kassor ännu</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
     </div>
   );
