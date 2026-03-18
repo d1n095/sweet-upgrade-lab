@@ -286,7 +286,7 @@ const OrderConfirmation = () => {
               </Link>
             </Button>
             <Button variant="outline" asChild>
-              <Link to="/shop">{t.continueShopping}</Link>
+              <Link to="/produkter">{t.continueShopping}</Link>
             </Button>
           </motion.div>
 

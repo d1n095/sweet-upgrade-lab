@@ -187,7 +187,7 @@ const OrderTracker = () => {
       <div className="text-center py-12 bg-secondary/30 rounded-2xl">
         <Package className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-50" />
         <p className="text-lg font-medium mb-2">{t.noOrders}</p>
-        <Link to="/shop">
+        <Link to="/produkter">
           <Button className="mt-4">{t.shopNow}</Button>
         </Link>
       </div>

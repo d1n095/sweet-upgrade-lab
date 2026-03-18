@@ -110,7 +110,7 @@ const Testimonials = () => {
           className="text-center space-y-6"
         >
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link to="/shop">
+            <Link to="/produkter">
               <Button size="lg" className="group">
                 {t.ctaPrimary}
                 <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />

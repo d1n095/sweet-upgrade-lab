@@ -148,7 +148,7 @@ const Bestsellers = () => {
           viewport={{ once: true }}
           className="text-center"
         >
-          <Link to="/shop">
+          <Link to="/produkter">
             <Button variant="outline" size="lg" className="group">
               {t.cta}
               <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />

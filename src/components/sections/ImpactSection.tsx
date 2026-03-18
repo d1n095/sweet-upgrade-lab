@@ -123,7 +123,7 @@ const ImpactSection = () => {
           <p className="text-primary font-semibold text-lg">
             {t.cta}
           </p>
-          <Link to="/shop">
+          <Link to="/produkter">
             <Button
               size="lg"
               className="bg-gradient-to-r from-primary to-primary/80 hover:opacity-90 text-primary-foreground font-semibold px-8 group"

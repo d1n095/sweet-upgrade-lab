@@ -7,7 +7,7 @@ import { useAdminSession } from '@/hooks/useAdminSession';
 import {
   Loader2, Package, ClipboardList, BarChart3, Settings, Grid, Users,
   Handshake, Heart, Eye, LogOut, Home, Shield,
-  Activity, User, Menu, X, Star, FileText, Percent, Truck, Wallet,
+  Activity, User, Menu, X, Star, FileText, Percent, Truck, Wallet, Globe,
 } from 'lucide-react';
 import { useEmployeeRole } from '@/hooks/useEmployeeRole';
 import { Button } from '@/components/ui/button';
@@ -39,6 +39,7 @@ const navItems: NavItem[] = [
   { to: '/admin/content', label: 'Innehåll', icon: FileText, role: 'admin' },
   { to: '/admin/campaigns', label: 'Kampanjer', icon: Percent, role: 'admin' },
   { to: '/admin/shipping', label: 'Frakt', icon: Truck, role: 'admin' },
+  { to: '/admin/seo', label: 'SEO', icon: Globe, role: 'admin' },
   { to: '/admin/visibility', label: 'Sidsynlighet', icon: Eye, role: 'admin' },
   { to: '/admin/legal', label: 'Juridik & Donationer', icon: Heart, role: 'admin' },
   { to: '/admin/logs', label: 'Logg', icon: Activity, role: 'admin' },
