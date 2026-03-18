@@ -29,6 +29,13 @@ const pageToggles: { id: ToggleablePage; label: string; desc: string }[] = [
   { id: 'whats-new', label: 'Nytt hos oss', desc: 'Nyheter och uppdateringar' },
 ];
 
+const profileSettings = [
+  { key: 'require_phone', label: 'Kräv telefonnummer', desc: 'Kunder uppmanas att ange telefon för komplett profil' },
+  { key: 'require_address', label: 'Kräv adress', desc: 'Kunder uppmanas att ange leveransadress' },
+  { key: 'guest_checkout', label: 'Tillåt gästcheckout', desc: 'Kunder kan köpa utan att skapa konto' },
+  { key: 'auto_save_profile', label: 'Auto-spara efter köp', desc: 'Checkout-info sparas automatiskt till kundprofil' },
+];
+
 const AdminSettingsPage = () => {
   const {
     siteActive, checkoutEnabled, registrationEnabled, isLoaded, fetchSettings,
