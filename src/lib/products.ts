@@ -1,5 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 
+export type ProductStatus = 'active' | 'draft' | 'archived';
+
 export interface DbProduct {
   id: string;
   title_sv: string;
@@ -25,11 +27,12 @@ export interface DbProduct {
   currency: string;
   recipe_sv: string | null;
   recipe_en: string | null;
+  status: ProductStatus;
   created_at: string;
   updated_at: string;
 }
 
-export type DbProductInsert = Omit<DbProduct, 'id' | 'created_at' | 'updated_at' | 'handle' | 'ingredients_sv' | 'ingredients_en' | 'certifications' | 'reserved_stock' | 'currency' | 'recipe_sv' | 'recipe_en'> & {
+export type DbProductInsert = Omit<DbProduct, 'id' | 'created_at' | 'updated_at' | 'handle' | 'ingredients_sv' | 'ingredients_en' | 'certifications' | 'reserved_stock' | 'currency' | 'recipe_sv' | 'recipe_en' | 'status'> & {
   handle?: string;
   ingredients_sv?: string | null;
   ingredients_en?: string | null;
@@ -38,12 +41,13 @@ export type DbProductInsert = Omit<DbProduct, 'id' | 'created_at' | 'updated_at'
   currency?: string;
   recipe_sv?: string | null;
   recipe_en?: string | null;
+  status?: ProductStatus;
 };
 
 export const fetchDbProducts = async (adminView = false): Promise<DbProduct[]> => {
   let query = supabase.from('products').select('*').order('display_order', { ascending: true });
   if (!adminView) {
-    query = query.eq('is_visible', true);
+    query = query.eq('is_visible', true).eq('status', 'active');
   }
   const { data, error } = await query;
   if (error) throw error;
@@ -82,6 +86,7 @@ export const fetchDbProductByHandle = async (handle: string): Promise<DbProduct 
     .select('*')
     .eq('handle', handle)
     .eq('is_visible', true)
+    .eq('status', 'active')
     .maybeSingle();
   if (error) throw error;
   return data as DbProduct | null;

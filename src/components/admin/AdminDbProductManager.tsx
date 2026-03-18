@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
   Plus, Package, Edit, Trash2, Loader2, AlertTriangle,
   Copy, EyeOff, Eye, CheckSquare, Square, Trash, MoreHorizontal,
+  Archive, FileText, RotateCcw, Image, Type,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from '@/components/ui/dialog';
@@ -22,7 +24,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AdminProductForm, ProductFormData, AdminProductFormStrings
 } from '@/components/admin/AdminProductForm';
-import { fetchDbProducts, createDbProduct, updateDbProduct, deleteDbProduct, DbProduct } from '@/lib/products';
+import { fetchDbProducts, createDbProduct, updateDbProduct, deleteDbProduct, DbProduct, ProductStatus } from '@/lib/products';
 
 const productCategories = [
   { value: 'Kroppsvård', label: { sv: 'Kroppsvård', en: 'Body Care' } },
@@ -41,25 +43,16 @@ const suggestedTags = [
 ];
 
 const emptyForm = (): ProductFormData => ({
-  title: '',
-  description: '',
-  price: '',
-  currency: 'SEK',
-  productType: '',
-  tags: '',
-  vendor: '4ThePeople',
-  isVisible: true,
-  inventory: 0,
-  allowOverselling: false,
-  imageUrls: [],
-  ingredients: '',
-  certifications: '',
-  recipe: '',
+  title: '', description: '', price: '', currency: 'SEK',
+  productType: '', tags: '', vendor: '4ThePeople',
+  isVisible: true, inventory: 0, allowOverselling: false,
+  imageUrls: [], ingredients: '', certifications: '', recipe: '',
 });
 
 const AdminDbProductManager = () => {
   const { language } = useLanguage();
   const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState<ProductStatus>('active');
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -70,7 +63,7 @@ const AdminDbProductManager = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkMode, setBulkMode] = useState(false);
 
-  const { data: products = [], isLoading } = useQuery({
+  const { data: allProducts = [], isLoading } = useQuery({
     queryKey: ['admin-db-products'],
     queryFn: () => fetchDbProducts(true),
     staleTime: 5_000,
@@ -79,49 +72,45 @@ const AdminDbProductManager = () => {
 
   const sv = language === 'sv';
 
-  const content: Record<string, AdminProductFormStrings & {
-    title: string; subtitle: string; addProduct: string; editProduct: string;
-    delete: string; noProducts: string; loading: string; deleteConfirm: string;
-    deleteDescription: string; productAdded: string; productUpdated: string;
-    productDeleted: string; error: string; inStock: string; outOfStock: string;
-  }> = {
-    sv: {
-      title: 'Produkthantering', subtitle: 'Lägg till, redigera och ta bort produkter',
-      addProduct: 'Lägg till produkt', editProduct: 'Redigera produkt',
-      productName: 'Produktnamn (svenska)', description: 'Beskrivning (svenska)',
-      price: 'Pris (SEK)', category: 'Kategori', selectCategory: 'Välj kategori',
-      tags: 'Taggar', tagsPlaceholder: 'Klicka på förslag eller skriv egna',
-      suggestedTags: 'Föreslagna taggar:', vendor: 'Leverantör',
-      save: 'Spara produkt', update: 'Uppdatera', cancel: 'Avbryt',
-      delete: 'Ta bort', noProducts: 'Inga produkter', loading: 'Laddar...',
-      deleteConfirm: 'Är du säker?', deleteDescription: 'Produkten tas bort permanent.',
-      productAdded: 'Produkt tillagd!', productUpdated: 'Produkt uppdaterad!',
-      productDeleted: 'Produkt borttagen!', error: 'Något gick fel',
-      inStock: 'I lager', outOfStock: 'Slut',
-      visibility: 'Synlighet', visibleInStore: 'Synlig i butiken', hiddenFromStore: 'Dold från butiken',
-      inventory: 'Lager', currentStock: 'Nuvarande lager',
-      allowOverselling: 'Tillåt försäljning när slut', oversellHint: 'Kunder kan köpa även när lagret är 0',
-    },
-    en: {
-      title: 'Product Management', subtitle: 'Add, edit and delete products',
-      addProduct: 'Add Product', editProduct: 'Edit Product',
-      productName: 'Product name (Swedish)', description: 'Description (Swedish)',
-      price: 'Price (SEK)', category: 'Category', selectCategory: 'Select category',
-      tags: 'Tags', tagsPlaceholder: 'Click suggestions or type your own',
-      suggestedTags: 'Suggested tags:', vendor: 'Vendor',
-      save: 'Save Product', update: 'Update', cancel: 'Cancel',
-      delete: 'Delete', noProducts: 'No products', loading: 'Loading...',
-      deleteConfirm: 'Are you sure?', deleteDescription: 'Product will be permanently deleted.',
-      productAdded: 'Product added!', productUpdated: 'Product updated!',
-      productDeleted: 'Product deleted!', error: 'Something went wrong',
-      inStock: 'In stock', outOfStock: 'Out of stock',
-      visibility: 'Visibility', visibleInStore: 'Visible in store', hiddenFromStore: 'Hidden from store',
-      inventory: 'Inventory', currentStock: 'Current stock',
-      allowOverselling: 'Allow overselling', oversellHint: 'Customers can buy even when stock is 0',
-    },
-  };
+  const activeProducts = useMemo(() => allProducts.filter(p => (p.status || 'active') === 'active'), [allProducts]);
+  const draftProducts = useMemo(() => allProducts.filter(p => p.status === 'draft'), [allProducts]);
+  const archivedProducts = useMemo(() => allProducts.filter(p => p.status === 'archived'), [allProducts]);
 
-  const t = content[language as keyof typeof content] || content.en;
+  const currentProducts = activeTab === 'active' ? activeProducts : activeTab === 'draft' ? draftProducts : archivedProducts;
+
+  const t = sv ? {
+    title: 'Produkthantering', subtitle: 'Lägg till, redigera och hantera produkter',
+    addProduct: 'Lägg till produkt', editProduct: 'Redigera produkt',
+    productName: 'Produktnamn (svenska)', description: 'Beskrivning (svenska)',
+    price: 'Pris (SEK)', category: 'Kategori', selectCategory: 'Välj kategori',
+    tags: 'Taggar', tagsPlaceholder: 'Klicka på förslag eller skriv egna',
+    suggestedTags: 'Föreslagna taggar:', vendor: 'Leverantör',
+    save: 'Spara produkt', update: 'Uppdatera', cancel: 'Avbryt',
+    delete: 'Ta bort', noProducts: 'Inga produkter', loading: 'Laddar...',
+    deleteConfirm: 'Är du säker?', deleteDescription: 'Produkten tas bort permanent.',
+    productAdded: 'Produkt tillagd!', productUpdated: 'Produkt uppdaterad!',
+    productDeleted: 'Produkt borttagen!', error: 'Något gick fel',
+    inStock: 'I lager', outOfStock: 'Slut',
+    visibility: 'Synlighet', visibleInStore: 'Synlig i butiken', hiddenFromStore: 'Dold från butiken',
+    inventory: 'Lager', currentStock: 'Nuvarande lager',
+    allowOverselling: 'Tillåt försäljning när slut', oversellHint: 'Kunder kan köpa även när lagret är 0',
+  } : {
+    title: 'Product Management', subtitle: 'Add, edit and delete products',
+    addProduct: 'Add Product', editProduct: 'Edit Product',
+    productName: 'Product name (Swedish)', description: 'Description (Swedish)',
+    price: 'Price (SEK)', category: 'Category', selectCategory: 'Select category',
+    tags: 'Tags', tagsPlaceholder: 'Click suggestions or type your own',
+    suggestedTags: 'Suggested tags:', vendor: 'Vendor',
+    save: 'Save Product', update: 'Update', cancel: 'Cancel',
+    delete: 'Delete', noProducts: 'No products', loading: 'Loading...',
+    deleteConfirm: 'Are you sure?', deleteDescription: 'Product will be permanently deleted.',
+    productAdded: 'Product added!', productUpdated: 'Product updated!',
+    productDeleted: 'Product deleted!', error: 'Something went wrong',
+    inStock: 'In stock', outOfStock: 'Out of stock',
+    visibility: 'Visibility', visibleInStore: 'Visible in store', hiddenFromStore: 'Hidden from store',
+    inventory: 'Inventory', currentStock: 'Current stock',
+    allowOverselling: 'Allow overselling', oversellHint: 'Customers can buy even when stock is 0',
+  };
 
   const resetForm = () => setFormData(emptyForm());
 
@@ -157,7 +146,7 @@ const AdminDbProductManager = () => {
         original_price: product.original_price || null,
         category: product.category || null,
         tags: product.tags || null,
-        is_visible: false, // Start hidden
+        is_visible: false,
         stock: 0,
         allow_overselling: product.allow_overselling,
         image_urls: product.image_urls || null,
@@ -169,22 +158,49 @@ const AdminDbProductManager = () => {
         currency: product.currency || 'SEK',
         recipe_sv: product.recipe_sv || null,
         recipe_en: product.recipe_en || null,
+        status: 'draft',
       });
-      toast.success(sv ? 'Produkt duplicerad!' : 'Product duplicated!');
+      toast.success(sv ? 'Produkt duplicerad till utkast!' : 'Product duplicated to drafts!');
       queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });
     } catch (err: any) {
       toast.error(t.error + ': ' + (err?.message || ''));
     }
   };
 
-  const handleSoftDelete = async (product: DbProduct) => {
+  const handleStatusChange = async (product: DbProduct, newStatus: ProductStatus) => {
     try {
-      await updateDbProduct(product.id, { is_visible: false });
-      toast.success(sv ? 'Produkt dold från butiken' : 'Product hidden from store');
+      const updates: Record<string, any> = { status: newStatus };
+      if (newStatus !== 'active') updates.is_visible = false;
+      await updateDbProduct(product.id, updates);
+      const labels: Record<ProductStatus, string> = sv
+        ? { active: 'Aktiverad', draft: 'Flyttad till utkast', archived: 'Arkiverad' }
+        : { active: 'Activated', draft: 'Moved to drafts', archived: 'Archived' };
+      toast.success(labels[newStatus]);
       queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });
     } catch (err: any) {
       toast.error(t.error + ': ' + (err?.message || ''));
     }
+  };
+
+  const handleCopyFrom = async (source: DbProduct) => {
+    // Pre-fill form with source data and open add dialog (as new active product)
+    setFormData({
+      title: source.title_sv,
+      description: source.description_sv || '',
+      price: source.price.toString(),
+      currency: source.currency || 'SEK',
+      productType: source.category || '',
+      tags: (source.tags || []).join(', '),
+      vendor: source.vendor || '4ThePeople',
+      isVisible: false,
+      inventory: 0,
+      allowOverselling: source.allow_overselling,
+      imageUrls: source.image_urls || [],
+      ingredients: source.ingredients_sv || '',
+      certifications: (source.certifications || []).join(', '),
+      recipe: source.recipe_sv || '',
+    });
+    setIsAddOpen(true);
   };
 
   const handleAdd = async (e: React.FormEvent) => {
@@ -211,6 +227,7 @@ const AdminDbProductManager = () => {
         certifications: formData.certifications ? formData.certifications.split(',').map(s => s.trim()).filter(Boolean) : null,
         currency: formData.currency || 'SEK',
         recipe_sv: formData.recipe || null,
+        status: 'active',
       });
       toast.success(t.productAdded);
       queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });
@@ -269,7 +286,6 @@ const AdminDbProductManager = () => {
     }
   };
 
-  // Bulk operations
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
       const next = new Set(prev);
@@ -279,20 +295,17 @@ const AdminDbProductManager = () => {
   };
 
   const toggleSelectAll = () => {
-    if (selectedIds.size === products.length) {
+    if (selectedIds.size === currentProducts.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(products.map(p => p.id)));
+      setSelectedIds(new Set(currentProducts.map(p => p.id)));
     }
   };
 
   const handleBulkDelete = async () => {
     let deleted = 0;
     for (const id of selectedIds) {
-      try {
-        await deleteDbProduct(id);
-        deleted++;
-      } catch { /* skip */ }
+      try { await deleteDbProduct(id); deleted++; } catch { /* skip */ }
     }
     toast.success(sv ? `${deleted} produkter borttagna` : `${deleted} products deleted`);
     setSelectedIds(new Set());
@@ -301,17 +314,194 @@ const AdminDbProductManager = () => {
     queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });
   };
 
-  const handleBulkVisibility = async (visible: boolean) => {
+  const handleBulkStatusChange = async (status: ProductStatus) => {
     let updated = 0;
+    const updates: Record<string, any> = { status };
+    if (status !== 'active') updates.is_visible = false;
     for (const id of selectedIds) {
-      try {
-        await updateDbProduct(id, { is_visible: visible });
-        updated++;
-      } catch { /* skip */ }
+      try { await updateDbProduct(id, updates); updated++; } catch { /* skip */ }
     }
-    toast.success(sv ? `${updated} produkter uppdaterade` : `${updated} products updated`);
+    const labels: Record<ProductStatus, string> = sv
+      ? { active: 'aktiverade', draft: 'flyttade till utkast', archived: 'arkiverade' }
+      : { active: 'activated', draft: 'moved to drafts', archived: 'archived' };
+    toast.success(`${updated} ${sv ? 'produkter' : 'products'} ${labels[status]}`);
     setSelectedIds(new Set());
     queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });
+  };
+
+  const renderProductRow = (product: DbProduct) => (
+    <motion.div
+      key={product.id}
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      className="flex items-center gap-3 p-3 rounded-lg border border-border bg-secondary/30 hover:bg-secondary/60 transition-colors"
+    >
+      {bulkMode && (
+        <button onClick={() => toggleSelect(product.id)} className="shrink-0">
+          {selectedIds.has(product.id)
+            ? <CheckSquare className="w-5 h-5 text-primary" />
+            : <Square className="w-5 h-5 text-muted-foreground" />
+          }
+        </button>
+      )}
+
+      <div className="w-12 h-12 rounded-md bg-muted flex-shrink-0 overflow-hidden">
+        {product.image_urls?.[0] ? (
+          <img src={product.image_urls[0]} alt={product.title_sv} loading="lazy" className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <Package className="w-5 h-5 text-muted-foreground" />
+          </div>
+        )}
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="font-medium text-sm truncate">{product.title_sv}</p>
+          {!product.is_visible && product.status === 'active' && (
+            <Badge variant="outline" className="text-xs text-muted-foreground">Dold</Badge>
+          )}
+          {product.badge && (
+            <Badge variant={product.badge === 'sale' ? 'destructive' : 'secondary'} className="text-xs">
+              {product.badge}
+            </Badge>
+          )}
+        </div>
+        <div className="flex items-center gap-3 mt-0.5">
+          <p className="text-xs text-primary font-semibold">
+            {new Intl.NumberFormat('sv-SE', { style: 'currency', currency: product.currency || 'SEK', minimumFractionDigits: 0 }).format(product.price)}
+          </p>
+          {activeTab === 'active' && (
+            <>
+              <p className="text-xs text-muted-foreground">
+                {product.stock > 0 ? `${product.stock} i lager` : t.outOfStock}
+              </p>
+              {product.stock > 0 && product.stock < 5 && !product.allow_overselling && (
+                <Badge variant="outline" className="text-xs text-orange-600 border-orange-400 gap-1">
+                  <AlertTriangle className="w-3 h-3" />
+                  {sv ? 'Lågt lager' : 'Low stock'}
+                </Badge>
+              )}
+            </>
+          )}
+          {activeTab === 'draft' && (
+            <p className="text-xs text-muted-foreground">{sv ? 'Utkast' : 'Draft'}</p>
+          )}
+          {activeTab === 'archived' && (
+            <p className="text-xs text-muted-foreground">
+              {product.image_urls?.length || 0} {sv ? 'bilder' : 'images'}
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-1 flex-shrink-0">
+        {activeTab === 'active' && (
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(product)}>
+            <Edit className="w-4 h-4" />
+          </Button>
+        )}
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <MoreHorizontal className="w-4 h-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {/* Active tab actions */}
+            {activeTab === 'active' && (
+              <>
+                <DropdownMenuItem onClick={() => handleDuplicate(product)}>
+                  <Copy className="w-4 h-4 mr-2" />
+                  {sv ? 'Duplicera' : 'Duplicate'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleStatusChange(product, 'draft')}>
+                  <FileText className="w-4 h-4 mr-2" />
+                  {sv ? 'Flytta till utkast' : 'Move to drafts'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleStatusChange(product, 'archived')}>
+                  <Archive className="w-4 h-4 mr-2" />
+                  {sv ? 'Arkivera' : 'Archive'}
+                </DropdownMenuItem>
+              </>
+            )}
+
+            {/* Draft tab actions */}
+            {activeTab === 'draft' && (
+              <>
+                <DropdownMenuItem onClick={() => handleStatusChange(product, 'active')}>
+                  <RotateCcw className="w-4 h-4 mr-2" />
+                  {sv ? 'Återställ till aktiva' : 'Restore to active'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => openEdit(product)}>
+                  <Edit className="w-4 h-4 mr-2" />
+                  {sv ? 'Redigera' : 'Edit'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleCopyFrom(product)}>
+                  <Copy className="w-4 h-4 mr-2" />
+                  {sv ? 'Kopiera till ny produkt' : 'Copy to new product'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleStatusChange(product, 'archived')}>
+                  <Archive className="w-4 h-4 mr-2" />
+                  {sv ? 'Arkivera' : 'Archive'}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={() => { setSelected(product); setIsDeleteOpen(true); }}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  {sv ? 'Ta bort permanent' : 'Delete permanently'}
+                </DropdownMenuItem>
+              </>
+            )}
+
+            {/* Archived tab actions */}
+            {activeTab === 'archived' && (
+              <>
+                <DropdownMenuItem onClick={() => handleStatusChange(product, 'active')}>
+                  <RotateCcw className="w-4 h-4 mr-2" />
+                  {sv ? 'Återställ till aktiva' : 'Restore to active'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleStatusChange(product, 'draft')}>
+                  <FileText className="w-4 h-4 mr-2" />
+                  {sv ? 'Flytta till utkast' : 'Move to drafts'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleCopyFrom(product)}>
+                  <Copy className="w-4 h-4 mr-2" />
+                  {sv ? 'Kopiera text & bilder till ny' : 'Copy text & images to new'}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={() => { setSelected(product); setIsDeleteOpen(true); }}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  {sv ? 'Ta bort permanent' : 'Delete permanently'}
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </motion.div>
+  );
+
+  const renderEmptyState = (tab: ProductStatus) => {
+    const config = {
+      active: { icon: Package, text: sv ? 'Inga aktiva produkter' : 'No active products', sub: sv ? 'Klicka "Lägg till produkt" för att börja' : 'Click "Add Product" to get started' },
+      draft: { icon: FileText, text: sv ? 'Inga utkast' : 'No drafts', sub: sv ? 'Produkter du flyttar hit hamnar här' : 'Products you move here will appear' },
+      archived: { icon: Archive, text: sv ? 'Inga arkiverade produkter' : 'No archived products', sub: sv ? 'Spara produkter här för att bevara bilder och information' : 'Save products here to preserve images and info' },
+    };
+    const c = config[tab];
+    return (
+      <div className="text-center py-8">
+        <c.icon className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
+        <p className="text-muted-foreground text-sm">{c.text}</p>
+        <p className="text-muted-foreground/70 text-xs mt-1">{c.sub}</p>
+      </div>
+    );
   };
 
   return (
@@ -358,164 +548,92 @@ const AdminDbProductManager = () => {
         </div>
       </div>
 
-      {/* Bulk action bar */}
-      {bulkMode && selectedIds.size > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-2 p-3 rounded-lg bg-primary/5 border border-primary/20"
-        >
-          <span className="text-sm font-medium">
-            {selectedIds.size} {sv ? 'valda' : 'selected'}
-          </span>
-          <div className="flex-1" />
-          <Button variant="outline" size="sm" onClick={() => handleBulkVisibility(true)} className="gap-1">
-            <Eye className="w-3.5 h-3.5" />
-            {sv ? 'Visa' : 'Show'}
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => handleBulkVisibility(false)} className="gap-1">
-            <EyeOff className="w-3.5 h-3.5" />
-            {sv ? 'Dölj' : 'Hide'}
-          </Button>
-          <Button variant="destructive" size="sm" onClick={() => setIsBulkDeleteOpen(true)} className="gap-1">
-            <Trash className="w-3.5 h-3.5" />
-            {sv ? 'Ta bort' : 'Delete'}
-          </Button>
-        </motion.div>
-      )}
+      {/* Status tabs */}
+      <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v as ProductStatus); setSelectedIds(new Set()); setBulkMode(false); }}>
+        <TabsList className="h-9">
+          <TabsTrigger value="active" className="gap-1.5 text-xs">
+            <Package className="w-3.5 h-3.5" />
+            {sv ? 'Aktiva' : 'Active'}
+            {activeProducts.length > 0 && <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">{activeProducts.length}</Badge>}
+          </TabsTrigger>
+          <TabsTrigger value="draft" className="gap-1.5 text-xs">
+            <FileText className="w-3.5 h-3.5" />
+            {sv ? 'Utkast' : 'Drafts'}
+            {draftProducts.length > 0 && <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">{draftProducts.length}</Badge>}
+          </TabsTrigger>
+          <TabsTrigger value="archived" className="gap-1.5 text-xs">
+            <Archive className="w-3.5 h-3.5" />
+            {sv ? 'Arkiverade' : 'Archived'}
+            {archivedProducts.length > 0 && <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">{archivedProducts.length}</Badge>}
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Loading */}
-      {isLoading && (
-        <div className="flex justify-center py-8">
-          <Loader2 className="w-6 h-6 animate-spin text-primary" />
-        </div>
-      )}
+        {/* Bulk action bar */}
+        {bulkMode && selectedIds.size > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center gap-2 p-3 rounded-lg bg-primary/5 border border-primary/20 mt-3"
+          >
+            <span className="text-sm font-medium">
+              {selectedIds.size} {sv ? 'valda' : 'selected'}
+            </span>
+            <div className="flex-1" />
+            {activeTab !== 'active' && (
+              <Button variant="outline" size="sm" onClick={() => handleBulkStatusChange('active')} className="gap-1">
+                <RotateCcw className="w-3.5 h-3.5" />
+                {sv ? 'Återställ' : 'Restore'}
+              </Button>
+            )}
+            {activeTab === 'active' && (
+              <>
+                <Button variant="outline" size="sm" onClick={() => handleBulkStatusChange('draft')} className="gap-1">
+                  <FileText className="w-3.5 h-3.5" />
+                  {sv ? 'Till utkast' : 'To drafts'}
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => handleBulkStatusChange('archived')} className="gap-1">
+                  <Archive className="w-3.5 h-3.5" />
+                  {sv ? 'Arkivera' : 'Archive'}
+                </Button>
+              </>
+            )}
+            {activeTab !== 'active' && (
+              <Button variant="destructive" size="sm" onClick={() => setIsBulkDeleteOpen(true)} className="gap-1">
+                <Trash className="w-3.5 h-3.5" />
+                {sv ? 'Ta bort' : 'Delete'}
+              </Button>
+            )}
+          </motion.div>
+        )}
 
-      {/* Select all row */}
-      {bulkMode && !isLoading && products.length > 0 && (
-        <button
-          onClick={toggleSelectAll}
-          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors px-1"
-        >
-          {selectedIds.size === products.length
-            ? <CheckSquare className="w-4 h-4 text-primary" />
-            : <Square className="w-4 h-4" />
-          }
-          {sv ? 'Välj alla' : 'Select all'} ({products.length})
-        </button>
-      )}
+        {isLoading && (
+          <div className="flex justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          </div>
+        )}
 
-      {/* Product list */}
-      {!isLoading && (
-        <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
-          {products.length === 0 ? (
-            <div className="text-center py-8">
-              <Package className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
-              <p className="text-muted-foreground text-sm">{t.noProducts}</p>
-              <p className="text-muted-foreground/70 text-xs mt-1">
-                {sv ? 'Klicka "Lägg till produkt" för att börja' : 'Click "Add Product" to get started'}
-              </p>
-            </div>
-          ) : (
-            products.map((product) => (
-              <motion.div
-                key={product.id}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="flex items-center gap-3 p-3 rounded-lg border border-border bg-secondary/30 hover:bg-secondary/60 transition-colors"
-              >
-                {/* Checkbox */}
-                {bulkMode && (
-                  <button onClick={() => toggleSelect(product.id)} className="shrink-0">
-                    {selectedIds.has(product.id)
-                      ? <CheckSquare className="w-5 h-5 text-primary" />
-                      : <Square className="w-5 h-5 text-muted-foreground" />
-                    }
-                  </button>
-                )}
+        {bulkMode && !isLoading && currentProducts.length > 0 && (
+          <button
+            onClick={toggleSelectAll}
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors px-1 mt-2"
+          >
+            {selectedIds.size === currentProducts.length
+              ? <CheckSquare className="w-4 h-4 text-primary" />
+              : <Square className="w-4 h-4" />
+            }
+            {sv ? 'Välj alla' : 'Select all'} ({currentProducts.length})
+          </button>
+        )}
 
-                {/* Image thumbnail */}
-                <div className="w-12 h-12 rounded-md bg-muted flex-shrink-0 overflow-hidden">
-                  {product.image_urls?.[0] ? (
-                    <img src={product.image_urls[0]} alt={product.title_sv} loading="lazy" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Package className="w-5 h-5 text-muted-foreground" />
-                    </div>
-                  )}
-                </div>
-
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-medium text-sm truncate">{product.title_sv}</p>
-                    {!product.is_visible && (
-                      <Badge variant="outline" className="text-xs text-muted-foreground">Dold</Badge>
-                    )}
-                    {product.badge && (
-                      <Badge variant={product.badge === 'sale' ? 'destructive' : 'secondary'} className="text-xs">
-                        {product.badge}
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3 mt-0.5">
-                    <p className="text-xs text-primary font-semibold">
-                      {new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK', minimumFractionDigits: 0 }).format(product.price)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {product.stock > 0 ? `${product.stock} i lager${(product as any).reserved_stock > 0 ? ` (${(product as any).reserved_stock} reserverade)` : ''}` : t.outOfStock}
-                    </p>
-                    {product.stock > 0 && product.stock < 5 && !product.allow_overselling && (
-                      <Badge variant="outline" className="text-xs text-orange-600 border-orange-400 gap-1">
-                        <AlertTriangle className="w-3 h-3" />
-                        {sv ? 'Lågt lager' : 'Low stock'}
-                      </Badge>
-                    )}
-                    {product.stock === 0 && !product.allow_overselling && (
-                      <Badge variant="destructive" className="text-xs gap-1">
-                        <AlertTriangle className="w-3 h-3" />
-                        {sv ? 'Slutsåld' : 'Sold out'}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(product)}>
-                    <Edit className="w-4 h-4" />
-                  </Button>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreHorizontal className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleDuplicate(product)}>
-                        <Copy className="w-4 h-4 mr-2" />
-                        {sv ? 'Duplicera' : 'Duplicate'}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleSoftDelete(product)}>
-                        <EyeOff className="w-4 h-4 mr-2" />
-                        {sv ? 'Dölj (soft delete)' : 'Hide (soft delete)'}
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        className="text-destructive focus:text-destructive"
-                        onClick={() => { setSelected(product); setIsDeleteOpen(true); }}
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        {sv ? 'Ta bort permanent' : 'Delete permanently'}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </motion.div>
-            ))
-          )}
-        </div>
-      )}
+        {!isLoading && (
+          <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1 mt-2">
+            {currentProducts.length === 0
+              ? renderEmptyState(activeTab)
+              : currentProducts.map(renderProductRow)
+            }
+          </div>
+        )}
+      </Tabs>
 
       {/* Edit Dialog */}
       <Dialog open={isEditOpen} onOpenChange={(open) => { setIsEditOpen(open); if (!open) { setSelected(null); resetForm(); } }}>
