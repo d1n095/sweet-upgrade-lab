@@ -29,8 +29,8 @@ const pageToggles: { id: ToggleablePage; label: string; desc: string }[] = [
 
 const AdminSettingsPage = () => {
   const {
-    siteActive, checkoutEnabled, isLoaded, fetchSettings,
-    setSiteActive, setCheckoutEnabled, setHomepageSetting,
+    siteActive, checkoutEnabled, registrationEnabled, isLoaded, fetchSettings,
+    setSiteActive, setCheckoutEnabled, setRegistrationEnabled, setHomepageSetting,
     homepageBestsellers, homepageReviews, homepagePhilosophy, homepageAbout,
   } = useStoreSettings();
   const { isVisible, setVisibility } = usePageVisibility();
