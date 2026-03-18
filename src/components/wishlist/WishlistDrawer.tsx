@@ -18,9 +18,11 @@ interface WishlistDrawerProps {
 
 const WishlistDrawer = ({ isOpen, onClose }: WishlistDrawerProps) => {
   const { language } = useLanguage();
+  const { user } = useAuth();
   const { items, removeItem, clearWishlist } = useWishlistStore();
   const { addItem: addToCart } = useCartStore();
   const [addedItems, setAddedItems] = useState<Set<string>>(new Set());
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
   const navigate = useNavigate();
 
   const handleExploreProducts = () => {
