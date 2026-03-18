@@ -12,6 +12,7 @@ export interface DbProduct {
   tags: string[] | null;
   is_visible: boolean;
   stock: number;
+  reserved_stock: number;
   allow_overselling: boolean;
   image_urls: string[] | null;
   handle: string | null;
