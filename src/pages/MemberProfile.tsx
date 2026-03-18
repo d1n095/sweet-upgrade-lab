@@ -405,7 +405,11 @@ const MemberProfile = () => {
 
             {/* Settings Tab */}
             <TabsContent value="settings">
-              <AccountSettings />
+              <div className="space-y-6">
+                <AccountSettings />
+                <BusinessAccountForm />
+                <TrustBadges level={level} trustScore={trustScore} xp={xp} />
+              </div>
             </TabsContent>
 
             {/* Overview Tab */}
