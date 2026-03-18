@@ -6,6 +6,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { PageSection } from '@/hooks/usePageSections';
+import { storeConfig } from '@/config/storeConfig';
 
 interface HeroProps {
   sections?: PageSection[];
@@ -39,15 +40,18 @@ const Hero = ({ getSection, isSectionVisible }: HeroProps) => {
     load();
   }, []);
 
+  const threshold = storeConfig.shipping.freeShippingThreshold;
   const trustItems = contentLang === 'sv'
     ? [
         { icon: ShieldCheck, text: 'Certifierade ingredienser' },
-        { icon: Truck, text: 'Fri frakt över 499 kr' },
+        { icon: Truck, text: `Fri frakt över ${threshold} kr` },
       ]
     : [
         { icon: ShieldCheck, text: 'Certified ingredients' },
-        { icon: Truck, text: 'Free shipping over 499 kr' },
+        { icon: Truck, text: `Free shipping over ${threshold} kr` },
       ];
+
+  const showBadges = isSectionVisible ? isSectionVisible('hero_badges') : true;
 
   if (isSectionVisible && !isSectionVisible('hero')) return null;
 
@@ -107,19 +111,21 @@ const Hero = ({ getSection, isSectionVisible }: HeroProps) => {
             </Button>
           </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.4 }}
-            className="flex items-center justify-center gap-6 mt-10"
-          >
-            {trustItems.map(({ icon: Icon, text }) => (
-              <div key={text} className="flex items-center gap-1.5 text-muted-foreground/60">
-                <Icon className="w-3.5 h-3.5" />
-                <span className="text-xs font-medium">{text}</span>
-              </div>
-            ))}
-          </motion.div>
+          {showBadges && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+              className="flex items-center justify-center gap-6 mt-10"
+            >
+              {trustItems.map(({ icon: Icon, text }) => (
+                <div key={text} className="flex items-center gap-1.5 text-muted-foreground/60">
+                  <Icon className="w-3.5 h-3.5" />
+                  <span className="text-xs font-medium">{text}</span>
+                </div>
+              ))}
+            </motion.div>
+          )}
 
           <motion.div
             initial={{ opacity: 0 }}
