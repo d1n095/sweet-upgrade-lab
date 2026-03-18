@@ -36,13 +36,48 @@ serve(async (req) => {
       });
     }
 
-    // Calculate totals
+    // 1. Reserve stock for each item
+    const reservedItems: { id: string; quantity: number }[] = [];
+    for (const item of items) {
+      if (!item.id) continue;
+
+      const { data: product } = await supabase
+        .from('products')
+        .select('stock, reserved_stock, allow_overselling')
+        .eq('id', item.id)
+        .single();
+
+      if (!product) continue;
+
+      const available = product.stock - product.reserved_stock;
+      if (available < item.quantity && !product.allow_overselling) {
+        // Release any already-reserved items from this checkout
+        for (const reserved of reservedItems) {
+          await supabase
+            .from('products')
+            .update({ reserved_stock: Math.max(0, (await supabase.from('products').select('reserved_stock').eq('id', reserved.id).single()).data!.reserved_stock - reserved.quantity) })
+            .eq('id', reserved.id);
+        }
+        return new Response(JSON.stringify({ error: `${item.title} is out of stock` }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      await supabase
+        .from('products')
+        .update({ reserved_stock: product.reserved_stock + item.quantity })
+        .eq('id', item.id);
+
+      reservedItems.push({ id: item.id, quantity: item.quantity });
+    }
+
+    // 2. Calculate totals
     const subtotal = items.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0);
     const freeShippingThreshold = 500;
     const shippingCost = subtotal >= freeShippingThreshold ? 0 : 39;
     const totalAmount = subtotal + shippingCost;
 
-    // 1. Create order BEFORE Stripe with status "pending"
+    // 3. Create order with status "pending"
     const orderData = {
       order_email: email,
       user_id: '00000000-0000-0000-0000-000000000000',
@@ -64,7 +99,7 @@ serve(async (req) => {
         country: shipping?.country || 'SE',
         phone: shipping?.phone || '',
       },
-      status_history: [{ status: 'pending', timestamp: new Date().toISOString(), note: 'Order created, awaiting payment' }],
+      status_history: [{ status: 'pending', timestamp: new Date().toISOString(), note: 'Order created, stock reserved, awaiting payment' }],
       notes: '',
     };
 
@@ -75,19 +110,25 @@ serve(async (req) => {
       .single();
 
     if (orderError) {
+      // Release reserved stock on order creation failure
+      for (const reserved of reservedItems) {
+        const { data: p } = await supabase.from('products').select('reserved_stock').eq('id', reserved.id).single();
+        if (p) {
+          await supabase.from('products').update({ reserved_stock: Math.max(0, p.reserved_stock - reserved.quantity) }).eq('id', reserved.id);
+        }
+      }
       console.error('Failed to create order:', orderError);
       await supabase.from('activity_logs').insert({
-        log_type: 'error',
-        category: 'order',
+        log_type: 'error', category: 'order',
         message: 'Failed to create pre-payment order',
         details: { error: orderError.message, email },
       });
       throw new Error('Failed to create order');
     }
 
-    console.log('Pre-payment order created:', order.id);
+    console.log('Pre-payment order created with stock reserved:', order.id);
 
-    // 2. Create Stripe session with order ID in metadata
+    // 4. Create Stripe session
     const lineItems = items.map((item: any) => ({
       price_data: {
         currency: 'sek',
@@ -136,32 +177,26 @@ serve(async (req) => {
       ],
     });
 
-    // 3. Save stripe_session_id on the order for dedup
+    // 5. Save stripe_session_id on the order
     await supabase
       .from('orders')
-      .update({
-        stripe_session_id: session.id,
-        notes: `Stripe session: ${session.id}`,
-      })
+      .update({ stripe_session_id: session.id, notes: `Stripe session: ${session.id}` })
       .eq('id', order.id);
 
     await supabase.from('activity_logs').insert({
-      log_type: 'info',
-      category: 'order',
-      message: 'Checkout session created, awaiting payment',
-      details: { order_id: order.id, stripe_session: session.id, total: totalAmount },
+      log_type: 'info', category: 'order',
+      message: 'Checkout session created, stock reserved',
+      details: { order_id: order.id, stripe_session: session.id, total: totalAmount, reserved_items: reservedItems },
       order_id: order.id,
     });
 
     return new Response(JSON.stringify({ url: session.url, sessionId: session.id, orderId: order.id }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error: any) {
     console.error('Checkout error:', error);
     return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });
