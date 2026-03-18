@@ -13,28 +13,32 @@ serve(async (req) => {
   }
 
   try {
-    // HMAC signature verification
+    // HMAC signature verification — mandatory
     const shopifySecret = Deno.env.get('SHOPIFY_WEBHOOK_SECRET');
     const rawBody = await req.text();
     const hmacHeader = req.headers.get('x-shopify-hmac-sha256');
 
-    if (shopifySecret && hmacHeader) {
-      const key = await crypto.subtle.importKey(
-        'raw',
-        new TextEncoder().encode(shopifySecret),
-        { name: 'HMAC', hash: 'SHA-256' },
-        false,
-        ['sign']
-      );
-      const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(rawBody));
-      const computedHmac = btoa(String.fromCharCode(...new Uint8Array(signature)));
-      if (computedHmac !== hmacHeader) {
-        console.error('Invalid HMAC signature');
-        return new Response('Unauthorized', { status: 401 });
-      }
-    } else if (shopifySecret) {
-      // Secret configured but no HMAC header — reject
+    if (!shopifySecret) {
+      console.error('SHOPIFY_WEBHOOK_SECRET not configured — rejecting all requests');
+      return new Response('Server misconfigured', { status: 500 });
+    }
+
+    if (!hmacHeader) {
       console.error('Missing HMAC header');
+      return new Response('Unauthorized', { status: 401 });
+    }
+
+    const key = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(shopifySecret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
+    const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(rawBody));
+    const computedHmac = btoa(String.fromCharCode(...new Uint8Array(signature)));
+    if (computedHmac !== hmacHeader) {
+      console.error('Invalid HMAC signature');
       return new Response('Unauthorized', { status: 401 });
     }
 
