@@ -610,24 +610,37 @@ const AdminMemberManager = () => {
       </div>
 
       {/* Members List */}
-      <div className="max-h-80 overflow-y-auto space-y-2">
+      <p className="text-xs text-muted-foreground">{filteredMembers.length} användare totalt • Sida {page + 1} av {Math.max(1, Math.ceil(filteredMembers.length / ITEMS_PER_PAGE))}</p>
+      <div className="max-h-[500px] overflow-y-auto space-y-2">
         {filteredMembers.length === 0 ? (
           <p className="text-center text-muted-foreground py-4">{t.noMembers}</p>
         ) : (
-          filteredMembers.slice(0, 20).map((member) => (
+          filteredMembers.slice(page * ITEMS_PER_PAGE, (page + 1) * ITEMS_PER_PAGE).map((member) => (
             <motion.div
               key={member.user_id}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg hover:bg-secondary transition-colors"
+              className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg hover:bg-secondary transition-colors cursor-pointer"
+              onClick={() => loadMemberDetails(member)}
             >
               <div className="flex items-center gap-3 flex-1 min-w-0">
                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <Users className="w-5 h-5 text-primary" />
+                  {member.avatar_url ? (
+                    <img src={member.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover" />
+                  ) : (
+                    <Users className="w-5 h-5 text-primary" />
+                  )}
                 </div>
                 <div className="min-w-0">
                   <p className="font-medium text-sm truncate">{member.username || member.user_id.slice(0, 12) + '...'}</p>
-                  <p className="text-xs text-muted-foreground truncate">{member.user_id.slice(0, 8)}...</p>
+                  {member.email && (
+                    <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                      <Mail className="w-3 h-3 shrink-0" /> {member.email}
+                    </p>
+                  )}
+                  {!member.email && (
+                    <p className="text-xs text-muted-foreground truncate">{member.user_id.slice(0, 8)}...</p>
+                  )}
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     {member.is_member && (
                       <Badge variant="outline" className="text-xs">
@@ -639,7 +652,7 @@ const AdminMemberManager = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                 {userRoles[member.user_id] && (
                   <Badge className={getRoleBadgeColor(userRoles[member.user_id])}>
                     <Shield className="w-3 h-3 mr-1" />
@@ -673,7 +686,7 @@ const AdminMemberManager = () => {
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8"
-                  onClick={() => loadMemberDetails(member)}
+                  onClick={(e) => { e.stopPropagation(); loadMemberDetails(member); }}
                 >
                   <Eye className="w-4 h-4" />
                 </Button>
@@ -682,6 +695,33 @@ const AdminMemberManager = () => {
           ))
         )}
       </div>
+
+      {/* Pagination */}
+      {filteredMembers.length > ITEMS_PER_PAGE && (
+        <div className="flex items-center justify-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page === 0}
+            onClick={() => setPage(p => p - 1)}
+            className="h-8 gap-1"
+          >
+            <ChevronLeft className="w-3.5 h-3.5" /> Föregående
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            {page + 1} / {Math.ceil(filteredMembers.length / ITEMS_PER_PAGE)}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={(page + 1) * ITEMS_PER_PAGE >= filteredMembers.length}
+            onClick={() => setPage(p => p + 1)}
+            className="h-8 gap-1"
+          >
+            Nästa <ChevronRight className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+      )}
 
       {/* Member Details Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
