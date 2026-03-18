@@ -425,7 +425,10 @@ const VolumeDiscountsTab = () => {
                     <Badge variant="secondary" className="text-[9px]">{d.excluded_product_ids.length} uteslutna</Badge>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground">Gäller hela varukorgen</p>
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  Gäller hela varukorgen
+                  <span className="inline-flex items-center gap-0.5 ml-1 text-[10px]"><Calendar className="w-3 h-3" />{fmtDate(d.created_at)}</span>
+                </p>
               </div>
               <div className="flex items-center gap-1">
                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(d)}><Pencil className="w-3.5 h-3.5" /></Button>
