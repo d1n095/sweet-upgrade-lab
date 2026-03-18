@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Mail, Lock, Loader2, Crown, ArrowLeft, CheckCircle, Eye, EyeOff, UserCircle, AlertCircle, ShieldAlert } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Mail, Lock, Loader2, Crown, ArrowLeft, CheckCircle, Eye, EyeOff, UserCircle, AlertCircle, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/useAuth';
@@ -31,12 +31,14 @@ const BANNED_WORDS = [
 ];
 
 const validateUsername = (username: string, lang: string): string | null => {
-  if (!username) return null; // optional
+  if (!username || !username.trim()) {
+    return lang === 'sv' ? 'Användarnamn krävs' : 'Username is required';
+  }
   if (username.length < 3) {
     return lang === 'sv' ? 'Minst 3 tecken' : 'At least 3 characters';
   }
-  if (username.length > 24) {
-    return lang === 'sv' ? 'Max 24 tecken' : 'Max 24 characters';
+  if (username.length > 20) {
+    return lang === 'sv' ? 'Max 20 tecken' : 'Max 20 characters';
   }
   if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
     return lang === 'sv' ? 'Bara bokstäver, siffror, _ och -' : 'Only letters, numbers, _ and -';
@@ -63,20 +65,64 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [usernameError, setUsernameError] = useState('');
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [checkingUsername, setCheckingUsername] = useState(false);
   const [loading, setLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [signupComplete, setSignupComplete] = useState(false);
   const [signupEmail, setSignupEmail] = useState('');
+  const [formError, setFormError] = useState('');
+  const usernameCheckTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Debounced username uniqueness check
+  const checkUsernameAvailability = (value: string) => {
+    if (usernameCheckTimeout.current) clearTimeout(usernameCheckTimeout.current);
+    setUsernameAvailable(null);
+    
+    const validationError = validateUsername(value, lang);
+    if (validationError) {
+      setUsernameError(validationError);
+      return;
+    }
+    
+    setUsernameError('');
+    setCheckingUsername(true);
+    
+    usernameCheckTimeout.current = setTimeout(async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('username', value)
+          .maybeSingle();
+        
+        if (error) throw error;
+        setUsernameAvailable(!data);
+        if (data) {
+          setUsernameError(lang === 'sv' ? 'Användarnamnet är redan taget' : 'Username is already taken');
+        }
+      } catch {
+        // Silently fail - server will catch duplicates
+      } finally {
+        setCheckingUsername(false);
+      }
+    }, 400);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError('');
 
-    // Validate username before submitting registration
-    if (mode === 'register' && username) {
+    // Validate username for registration (REQUIRED)
+    if (mode === 'register') {
       const error = validateUsername(username, lang);
       if (error) {
         setUsernameError(error);
+        return;
+      }
+      if (usernameAvailable === false) {
+        setUsernameError(lang === 'sv' ? 'Användarnamnet är redan taget' : 'Username is already taken');
         return;
       }
     }
@@ -85,7 +131,7 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
     if (mode === 'login') {
       const { allowed, remainingSeconds } = checkRateLimit();
       if (!allowed) {
-        toast.error(
+        setFormError(
           lang === 'sv'
             ? `För många försök. Vänta ${remainingSeconds} sekunder.`
             : `Too many attempts. Wait ${remainingSeconds} seconds.`
@@ -101,24 +147,33 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
         const { error } = await resetPassword(email);
         if (error) throw error;
         setResetSent(true);
-        toast.success(
-          lang === 'sv' 
-            ? 'Återställningslänk skickad till din e-post!' 
-            : 'Reset link sent to your email!'
-        );
       } else if (mode === 'login') {
         const { error } = await signIn(email, password);
         if (error) {
           logAuthEvent('login_failed', email, { error: error.message });
-          throw error;
+          if (error.message.includes('Invalid login credentials')) {
+            setFormError(lang === 'sv' ? 'Fel e-post eller lösenord' : 'Wrong email or password');
+          } else if (error.message.includes('Email not confirmed')) {
+            setFormError(lang === 'sv' ? 'Du måste verifiera din e-post först. Kolla din inkorg.' : 'You must verify your email first. Check your inbox.');
+          } else {
+            setFormError(error.message);
+          }
+          return;
         }
         resetAttempts();
         logAuthEvent('login', email);
         toast.success(lang === 'sv' ? 'Välkommen tillbaka!' : 'Welcome back!');
         onClose();
       } else {
-        const { error } = await signUp(email, password, username || undefined);
-        if (error) throw error;
+        const { error } = await signUp(email, password, username);
+        if (error) {
+          if (error.message.includes('already registered')) {
+            setFormError(lang === 'sv' ? 'E-postadressen är redan registrerad. Logga in istället.' : 'Email is already registered. Sign in instead.');
+          } else {
+            setFormError(error.message);
+          }
+          return;
+        }
         
         // Send welcome email in background
         supabase.functions.invoke('send-welcome-email', {
@@ -132,7 +187,7 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
         setSignupComplete(true);
       }
     } catch (error: any) {
-      toast.error(error.message || 'Ett fel uppstod');
+      setFormError(error.message || (lang === 'sv' ? 'Ett fel uppstod. Försök igen.' : 'An error occurred. Please try again.'));
     } finally {
       setLoading(false);
     }
@@ -143,6 +198,9 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
     setMode(newMode);
     setResetSent(false);
     setSignupComplete(false);
+    setFormError('');
+    setUsernameError('');
+    setUsernameAvailable(null);
   };
 
   // Reset state when modal opens
@@ -150,13 +208,18 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
     if (isOpen) {
       setSignupComplete(false);
       setResetSent(false);
+      setFormError('');
+      setUsernameError('');
+      setUsernameAvailable(null);
+      setUsername('');
     }
   }, [isOpen]);
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => {
-      // Prevent closing during loading
+      // Prevent closing during loading or after signup (force user to see verify message)
       if (loading) return;
+      if (signupComplete) return; // Don't let user accidentally close before seeing verify info
       if (!open) onClose();
     }}>
       <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
@@ -206,7 +269,7 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
               <Mail className="w-8 h-8 text-primary" />
             </div>
             <h3 className="font-semibold text-lg mb-2">
-              {lang === 'sv' ? 'Verifiera din e-post' : 'Verify Your Email'}
+              {lang === 'sv' ? 'Verifieringsmail skickat!' : 'Verification Email Sent!'}
             </h3>
             <p className="text-muted-foreground text-sm mb-2">
               {lang === 'sv' 
@@ -214,11 +277,21 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                 : 'We sent a verification link to:'}
             </p>
             <p className="font-medium text-sm mb-4">{signupEmail}</p>
-            <p className="text-muted-foreground text-xs mb-6">
-              {lang === 'sv' 
-                ? 'Klicka på länken i mailet för att aktivera ditt konto. Kolla även skräpposten.' 
-                : 'Click the link in the email to activate your account. Also check your spam folder.'}
-            </p>
+            
+            <div className="mb-6 p-4 rounded-xl bg-secondary border border-border text-left space-y-2">
+              <p className="text-sm font-medium">
+                {lang === 'sv' ? 'Nästa steg:' : 'Next steps:'}
+              </p>
+              <ol className="text-sm text-muted-foreground space-y-1.5 list-decimal list-inside">
+                <li>{lang === 'sv' ? 'Öppna din e-post' : 'Open your email'}</li>
+                <li>{lang === 'sv' ? 'Klicka på verifieringslänken' : 'Click the verification link'}</li>
+                <li>{lang === 'sv' ? 'Logga in med ditt konto' : 'Sign in with your account'}</li>
+              </ol>
+              <p className="text-xs text-muted-foreground mt-2">
+                {lang === 'sv' ? '💡 Kolla även skräpposten om du inte hittar mailet.' : '💡 Check your spam folder if you can\'t find the email.'}
+              </p>
+            </div>
+
             {username && (
               <div className="mb-6 p-3 rounded-xl bg-accent/10 border border-accent/20">
                 <p className="text-sm">
@@ -249,8 +322,8 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
           </div>
         ) : mode === 'forgot' && resetSent ? (
           <div className="text-center py-8">
-            <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
-              <CheckCircle className="w-8 h-8 text-green-600" />
+            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="w-8 h-8 text-primary" />
             </div>
             <h3 className="font-semibold text-lg mb-2">
               {lang === 'sv' ? 'E-post skickad!' : 'Email Sent!'}
@@ -284,38 +357,63 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
               </div>
             )}
 
+            {/* Form error banner */}
+            {formError && (
+              <div className="mb-4 p-3 rounded-xl bg-destructive/10 border border-destructive/20 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
+                <p className="text-sm text-destructive">{formError}</p>
+              </div>
+            )}
+
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Username field for registration */}
+              {/* Username field for registration - REQUIRED */}
               {mode === 'register' && (
                 <div>
                   <div className="relative">
                     <UserCircle className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                     <Input
                       type="text"
-                      placeholder={lang === 'sv' ? 'Användarnamn (valfritt)' : 'Username (optional)'}
+                      placeholder={lang === 'sv' ? 'Användarnamn *' : 'Username *'}
                       value={username}
                       onChange={(e) => {
                         const val = e.target.value.replace(/[^a-zA-Z0-9_-]/g, '');
                         setUsername(val);
+                        setFormError('');
                         if (val) {
-                          const err = validateUsername(val, lang);
-                          setUsernameError(err || '');
+                          checkUsernameAvailability(val);
                         } else {
-                          setUsernameError('');
+                          setUsernameError(lang === 'sv' ? 'Användarnamn krävs' : 'Username is required');
+                          setUsernameAvailable(null);
                         }
                       }}
-                      className="pl-11 h-12 rounded-xl"
-                      maxLength={24}
+                      className="pl-11 pr-10 h-12 rounded-xl"
+                      maxLength={20}
+                      required
                     />
+                    {/* Status indicator */}
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      {checkingUsername && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+                      {!checkingUsername && usernameAvailable === true && !usernameError && (
+                        <CheckCircle2 className="w-4 h-4 text-green-600" />
+                      )}
+                      {!checkingUsername && (usernameAvailable === false || usernameError) && username && (
+                        <AlertCircle className="w-4 h-4 text-destructive" />
+                      )}
+                    </div>
                   </div>
                   {usernameError && (
                     <p className="text-xs text-destructive mt-1 flex items-center gap-1">
                       <AlertCircle className="w-3 h-3" /> {usernameError}
                     </p>
                   )}
+                  {!usernameError && usernameAvailable === true && (
+                    <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" /> {lang === 'sv' ? 'Användarnamnet är tillgängligt' : 'Username is available'}
+                    </p>
+                  )}
                   <p className="text-[10px] text-muted-foreground mt-1">
-                    {lang === 'sv' ? 'Lämna tomt för automatiskt genererat namn' : 'Leave empty for auto-generated name'}
+                    {lang === 'sv' ? '3–20 tecken: bokstäver, siffror, _ och -' : '3–20 characters: letters, numbers, _ and -'}
                   </p>
                 </div>
               )}
@@ -326,7 +424,7 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                   type="email"
                   placeholder={lang === 'sv' ? 'E-postadress' : 'Email address'}
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => { setEmail(e.target.value); setFormError(''); }}
                   className="pl-11 h-12 rounded-xl"
                   required
                 />
@@ -339,7 +437,7 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                     type={showPassword ? 'text' : 'password'}
                     placeholder={lang === 'sv' ? 'Lösenord' : 'Password'}
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => { setPassword(e.target.value); setFormError(''); }}
                     className="pl-11 pr-11 h-12 rounded-xl"
                     required
                     minLength={6}
@@ -370,11 +468,18 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
 
               <Button
                 type="submit"
-                disabled={loading || (mode === 'register' && !!usernameError)}
+                disabled={loading || (mode === 'register' && (!!usernameError || !username || checkingUsername))}
                 className="w-full h-12 rounded-xl font-semibold"
               >
                 {loading ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    {mode === 'login'
+                      ? (lang === 'sv' ? 'Loggar in...' : 'Signing in...')
+                      : mode === 'register'
+                        ? (lang === 'sv' ? 'Skapar konto...' : 'Creating account...')
+                        : (lang === 'sv' ? 'Skickar...' : 'Sending...')}
+                  </span>
                 ) : mode === 'forgot' ? (
                   lang === 'sv' ? 'Skicka återställningslänk' : 'Send Reset Link'
                 ) : mode === 'login' ? (
