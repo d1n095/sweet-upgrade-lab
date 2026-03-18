@@ -128,9 +128,9 @@ const AdminLayout = () => {
               </div>
             )}
             {!checkoutEnabled && (
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                <span className="text-xs font-medium text-amber-600 dark:text-amber-400">Kassa av</span>
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-warning/10 border border-warning/20">
+                <span className="w-1.5 h-1.5 rounded-full bg-warning" />
+                <span className="text-xs font-medium text-warning">Kassa av</span>
               </div>
             )}
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/50">
