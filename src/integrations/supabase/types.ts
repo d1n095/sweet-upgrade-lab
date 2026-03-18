@@ -2023,6 +2023,10 @@ export type Database = {
         }[]
       }
       generate_random_username: { Args: never; Returns: string }
+      get_dashboard_stats: {
+        Args: { p_from: string; p_to: string }
+        Returns: Json
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
