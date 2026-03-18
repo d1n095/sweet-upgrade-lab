@@ -33,7 +33,7 @@ const AdminSettingsPage = () => {
     setSiteActive, setCheckoutEnabled, setHomepageSetting,
     homepageBestsellers, homepageReviews, homepagePhilosophy, homepageAbout,
   } = useStoreSettings();
-  const { isVisible, togglePage } = usePageVisibility();
+  const { isVisible, setVisibility } = usePageVisibility();
   const [dbStats, setDbStats] = useState<{ tables: number; totalRows: number } | null>(null);
   const [loadingStats, setLoadingStats] = useState(false);
 
