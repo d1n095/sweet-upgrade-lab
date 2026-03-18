@@ -485,9 +485,6 @@ const Checkout = () => {
                   </div>
                 </div>
 
-              </form>
-            </motion.div>
-
                 {/* Desktop: encryption + returns under form */}
                 <div className="hidden lg:block space-y-3">
                   <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
