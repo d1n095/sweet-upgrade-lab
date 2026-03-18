@@ -129,7 +129,7 @@ serve(async (req) => {
 
     console.log('Pre-payment order created with stock reserved:', order.id);
 
-    // 4. Create Stripe session
+    // 4. Create Stripe session with all payment methods
     const lineItems = items.map((item: any) => ({
       price_data: {
         currency: 'sek',
@@ -144,8 +144,9 @@ serve(async (req) => {
 
     const origin = req.headers.get('origin') || 'https://4thepeople.se';
 
+    // Payment methods: card (covers Apple Pay & Google Pay via Stripe), Klarna, Swish
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card', 'klarna'],
+      payment_method_types: ['card', 'klarna', 'swish'],
       mode: 'payment',
       customer_email: email,
       line_items: lineItems,
@@ -160,6 +161,12 @@ serve(async (req) => {
         shipping_city: shipping?.city || '',
         shipping_country: shipping?.country || 'SE',
         shipping_phone: shipping?.phone || '',
+      },
+      payment_method_options: {
+        card: {
+          // Apple Pay and Google Pay are automatically available when card is enabled
+          // They show up based on the customer's device/browser
+        },
       },
       shipping_options: [
         {
@@ -187,7 +194,7 @@ serve(async (req) => {
     await supabase.from('activity_logs').insert({
       log_type: 'info', category: 'order',
       message: 'Checkout session created, stock reserved',
-      details: { order_id: order.id, stripe_session: session.id, total: totalAmount, reserved_items: reservedItems },
+      details: { order_id: order.id, stripe_session: session.id, total: totalAmount, reserved_items: reservedItems, payment_methods: ['card', 'klarna', 'swish', 'apple_pay', 'google_pay'] },
       order_id: order.id,
     });
 

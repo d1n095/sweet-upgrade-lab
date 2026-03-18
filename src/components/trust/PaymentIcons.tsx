@@ -35,19 +35,11 @@ const SwishIcon = () => (
   </svg>
 );
 
-const PayPalIcon = () => (
-  <svg viewBox="0 0 50 35" className="w-11 h-8">
-    <rect width="50" height="35" rx="4" fill="#FFFFFF"/>
-    <rect x="1" y="1" width="48" height="33" rx="3" stroke="#E5E5E5" strokeWidth="1" fill="none"/>
-    <text x="25" y="20" textAnchor="middle" fill="#003087" fontSize="9" fontWeight="bold" fontFamily="Arial">Pay</text>
-    <text x="25" y="28" textAnchor="middle" fill="#009CDE" fontSize="9" fontWeight="bold" fontFamily="Arial">Pal</text>
-  </svg>
-);
-
 const ApplePayIcon = () => (
   <svg viewBox="0 0 50 35" className="w-11 h-8">
     <rect width="50" height="35" rx="4" fill="#000000"/>
-    <text x="25" y="22" textAnchor="middle" fill="white" fontSize="9" fontWeight="500" fontFamily="system-ui">Pay</text>
+    <text x="14" y="22" fill="white" fontSize="11" fontWeight="500" fontFamily="system-ui"></text>
+    <text x="25" y="22" textAnchor="middle" fill="white" fontSize="9" fontWeight="500" fontFamily="system-ui"> Pay</text>
   </svg>
 );
 
@@ -55,25 +47,23 @@ const GooglePayIcon = () => (
   <svg viewBox="0 0 50 35" className="w-11 h-8">
     <rect width="50" height="35" rx="4" fill="#FFFFFF"/>
     <rect x="1" y="1" width="48" height="33" rx="3" stroke="#E5E5E5" strokeWidth="1" fill="none"/>
-    <circle cx="16" cy="17.5" r="5" fill="#4285F4"/>
-    <circle cx="24" cy="17.5" r="5" fill="#EA4335"/>
-    <circle cx="32" cy="17.5" r="5" fill="#FBBC05"/>
-    <circle cx="40" cy="17.5" r="3" fill="#34A853"/>
+    <text x="25" y="22" textAnchor="middle" fill="#5F6368" fontSize="8" fontWeight="500" fontFamily="system-ui">G Pay</text>
   </svg>
 );
 
-const paymentMethods = [
-  { id: 'visa', Icon: VisaIcon, name: 'Visa' },
-  { id: 'mastercard', Icon: MastercardIcon, name: 'Mastercard' },
-  { id: 'klarna', Icon: KlarnaIcon, name: 'Klarna' },
-  { id: 'swish', Icon: SwishIcon, name: 'Swish' },
-  { id: 'paypal', Icon: PayPalIcon, name: 'PayPal' },
-  { id: 'applepay', Icon: ApplePayIcon, name: 'Apple Pay' },
-  { id: 'googlepay', Icon: GooglePayIcon, name: 'Google Pay' },
+// Active payment methods — these are the ones enabled in Stripe checkout
+const activePaymentMethods = [
+  { id: 'visa', Icon: VisaIcon, name: 'Visa', active: true },
+  { id: 'mastercard', Icon: MastercardIcon, name: 'Mastercard', active: true },
+  { id: 'klarna', Icon: KlarnaIcon, name: 'Klarna', active: true },
+  { id: 'swish', Icon: SwishIcon, name: 'Swish', active: true },
+  { id: 'applepay', Icon: ApplePayIcon, name: 'Apple Pay', active: true },
+  { id: 'googlepay', Icon: GooglePayIcon, name: 'Google Pay', active: true },
 ];
 
 const PaymentIcons = () => {
   const { language } = useLanguage();
+  const visibleMethods = activePaymentMethods.filter(m => m.active);
 
   return (
     <motion.div
@@ -86,7 +76,7 @@ const PaymentIcons = () => {
         <span>{language === 'sv' ? 'Säkra betalningar via' : 'Secure payments via'}</span>
       </div>
       <div className="flex flex-wrap items-center justify-center gap-2">
-        {paymentMethods.map((payment) => (
+        {visibleMethods.map((payment) => (
           <motion.div
             key={payment.id}
             whileHover={{ scale: 1.05 }}
