@@ -15,33 +15,29 @@ interface Props {
   isSectionVisible?: (key: string) => boolean;
 }
 
-const HomepageBestsellers = ({ getSection }: Props) => {
+const HomepageNewProducts = ({ getSection }: Props) => {
   const { language } = useLanguage();
   const lang = getContentLang(language);
   const [products, setProducts] = useState<DbProduct[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const t = {
-    sv: { title: 'Populära just nu', cta: 'Se alla produkter' },
-    en: { title: 'Popular right now', cta: 'View all products' },
-  }[lang];
+  const section = getSection?.('new_products');
+  const getLang = (sv: string | null | undefined, en: string | null | undefined) =>
+    (lang === 'sv' ? sv : en) || sv || '';
+
+  const title = section ? getLang(section.title_sv, section.title_en) : (lang === 'sv' ? 'Nya produkter' : 'New products');
 
   useEffect(() => {
     const load = async () => {
       try {
         const data = await fetchDbProducts(false);
-        // Prioritize bestseller-badged, then by display_order
-        const bestsellers = data
+        const newest = data
           .filter(p => p.is_visible)
-          .sort((a, b) => {
-            if (a.badge === 'bestseller' && b.badge !== 'bestseller') return -1;
-            if (b.badge === 'bestseller' && a.badge !== 'bestseller') return 1;
-            return (a.display_order ?? 999) - (b.display_order ?? 999);
-          })
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
           .slice(0, 4);
-        setProducts(bestsellers);
+        setProducts(newest);
       } catch (err) {
-        console.error('Failed to load bestsellers:', err);
+        console.error('Failed to load new products:', err);
       } finally {
         setLoading(false);
       }
@@ -51,7 +47,7 @@ const HomepageBestsellers = ({ getSection }: Props) => {
 
   if (loading) {
     return (
-      <section className="py-24 md:py-32">
+      <section className="py-24 md:py-32 border-t border-border/30">
         <div className="container mx-auto px-5">
           <Skeleton className="h-8 w-48 mx-auto mb-14" />
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 max-w-5xl mx-auto">
@@ -75,7 +71,7 @@ const HomepageBestsellers = ({ getSection }: Props) => {
           viewport={{ once: true }}
           className="text-2xl md:text-3xl font-semibold text-center mb-16 text-foreground"
         >
-          {t.title}
+          {title}
         </motion.h2>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 max-w-5xl mx-auto mb-14">
@@ -92,7 +88,7 @@ const HomepageBestsellers = ({ getSection }: Props) => {
         >
           <Link to="/produkter">
             <Button variant="outline" size="lg" className="group rounded-full">
-              {t.cta}
+              {lang === 'sv' ? 'Se alla produkter' : 'View all products'}
               <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Button>
           </Link>
@@ -102,4 +98,4 @@ const HomepageBestsellers = ({ getSection }: Props) => {
   );
 };
 
-export default HomepageBestsellers;
+export default HomepageNewProducts;

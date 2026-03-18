@@ -67,20 +67,11 @@ const AdminProductManager = () => {
   const [selectedProduct, setSelectedProduct] = useState<ShopifyProduct | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<ProductFormData>({
-    title: '',
-    description: '',
-    price: '',
-    currency: 'SEK',
-    productType: '',
-    tags: '',
-    vendor: '4ThePeople',
-    isVisible: true,
-    inventory: 0,
-    allowOverselling: false,
-    imageUrls: [],
-    ingredients: '',
-    certifications: '',
-    recipe: '',
+    title: '', description: '', price: '', currency: 'SEK',
+    productType: '', tags: '', vendor: '4ThePeople',
+    isVisible: true, inventory: 0, allowOverselling: false,
+    imageUrls: [], ingredients: '', certifications: '', recipe: '',
+    feeling: '', effects: '', usage: '', extendedDescription: '',
   });
 
   const { data: products = [], isLoading: productsLoading } = useQuery({
@@ -482,20 +473,11 @@ const AdminProductManager = () => {
 
   const resetForm = () => {
     setFormData({
-      title: '',
-      description: '',
-      price: '',
-      currency: 'SEK',
-      productType: '',
-      tags: '',
-      vendor: '4ThePeople',
-      isVisible: true,
-      inventory: 0,
-      allowOverselling: false,
-      imageUrls: [],
-      ingredients: '',
-      certifications: '',
-      recipe: '',
+      title: '', description: '', price: '', currency: 'SEK',
+      productType: '', tags: '', vendor: '4ThePeople',
+      isVisible: true, inventory: 0, allowOverselling: false,
+      imageUrls: [], ingredients: '', certifications: '', recipe: '',
+      feeling: '', effects: '', usage: '', extendedDescription: '',
     });
     setSelectedProduct(null);
   };
@@ -514,20 +496,14 @@ const AdminProductManager = () => {
       const tags = Array.isArray(rawTags) ? rawTags.join(', ') : (typeof rawTags === 'string' ? rawTags : '');
 
       setFormData({
-        title: (node.title as string) || '',
-        description: (node.description as string) || '',
+        title: (node.title as string) || '', description: (node.description as string) || '',
         price: ((node.priceRange as any)?.minVariantPrice?.amount as string) || '0',
-        currency: 'SEK',
-        productType: (node.productType as string) || '',
-        tags,
+        currency: 'SEK', productType: (node.productType as string) || '', tags,
         vendor: (node.vendor as string) || '4ThePeople',
         isVisible: (node.availableForSale as boolean) !== false,
-        inventory: 0,
-        allowOverselling: false,
-        imageUrls: [],
-        ingredients: '',
-        certifications: '',
-        recipe: '',
+        inventory: 0, allowOverselling: false, imageUrls: [],
+        ingredients: '', certifications: '', recipe: '',
+        feeling: '', effects: '', usage: '', extendedDescription: '',
       });
 
       setIsEditDialogOpen(true);

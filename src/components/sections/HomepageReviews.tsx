@@ -3,6 +3,13 @@ import { motion } from 'framer-motion';
 import { Star } from 'lucide-react';
 import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
+import { PageSection } from '@/hooks/usePageSections';
+
+interface Props {
+  sections?: PageSection[];
+  getSection?: (key: string) => PageSection | undefined;
+  isSectionVisible?: (key: string) => boolean;
+}
 
 interface Review {
   id: string;
@@ -12,7 +19,7 @@ interface Review {
   created_at: string;
 }
 
-const HomepageReviews = () => {
+const HomepageReviews = ({ getSection }: Props) => {
   const { language } = useLanguage();
   const lang = getContentLang(language);
   const [reviews, setReviews] = useState<Review[]>([]);

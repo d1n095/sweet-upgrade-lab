@@ -1118,6 +1118,12 @@ export type Database = {
           description_en: string | null
           description_sv: string | null
           display_order: number | null
+          effects_en: string | null
+          effects_sv: string | null
+          extended_description_en: string | null
+          extended_description_sv: string | null
+          feeling_en: string | null
+          feeling_sv: string | null
           handle: string | null
           id: string
           image_urls: string[] | null
@@ -1135,6 +1141,8 @@ export type Database = {
           title_en: string | null
           title_sv: string
           updated_at: string
+          usage_en: string | null
+          usage_sv: string | null
           vendor: string | null
         }
         Insert: {
@@ -1147,6 +1155,12 @@ export type Database = {
           description_en?: string | null
           description_sv?: string | null
           display_order?: number | null
+          effects_en?: string | null
+          effects_sv?: string | null
+          extended_description_en?: string | null
+          extended_description_sv?: string | null
+          feeling_en?: string | null
+          feeling_sv?: string | null
           handle?: string | null
           id?: string
           image_urls?: string[] | null
@@ -1164,6 +1178,8 @@ export type Database = {
           title_en?: string | null
           title_sv: string
           updated_at?: string
+          usage_en?: string | null
+          usage_sv?: string | null
           vendor?: string | null
         }
         Update: {
@@ -1176,6 +1192,12 @@ export type Database = {
           description_en?: string | null
           description_sv?: string | null
           display_order?: number | null
+          effects_en?: string | null
+          effects_sv?: string | null
+          extended_description_en?: string | null
+          extended_description_sv?: string | null
+          feeling_en?: string | null
+          feeling_sv?: string | null
           handle?: string | null
           id?: string
           image_urls?: string[] | null
@@ -1193,6 +1215,8 @@ export type Database = {
           title_en?: string | null
           title_sv?: string
           updated_at?: string
+          usage_en?: string | null
+          usage_sv?: string | null
           vendor?: string | null
         }
         Relationships: []

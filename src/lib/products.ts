@@ -27,12 +27,20 @@ export interface DbProduct {
   currency: string;
   recipe_sv: string | null;
   recipe_en: string | null;
+  feeling_sv: string | null;
+  feeling_en: string | null;
+  effects_sv: string | null;
+  effects_en: string | null;
+  usage_sv: string | null;
+  usage_en: string | null;
+  extended_description_sv: string | null;
+  extended_description_en: string | null;
   status: ProductStatus;
   created_at: string;
   updated_at: string;
 }
 
-export type DbProductInsert = Omit<DbProduct, 'id' | 'created_at' | 'updated_at' | 'handle' | 'ingredients_sv' | 'ingredients_en' | 'certifications' | 'reserved_stock' | 'currency' | 'recipe_sv' | 'recipe_en' | 'status'> & {
+export type DbProductInsert = Omit<DbProduct, 'id' | 'created_at' | 'updated_at' | 'handle' | 'ingredients_sv' | 'ingredients_en' | 'certifications' | 'reserved_stock' | 'currency' | 'recipe_sv' | 'recipe_en' | 'feeling_sv' | 'feeling_en' | 'effects_sv' | 'effects_en' | 'usage_sv' | 'usage_en' | 'extended_description_sv' | 'extended_description_en' | 'status'> & {
   handle?: string;
   ingredients_sv?: string | null;
   ingredients_en?: string | null;
@@ -41,6 +49,14 @@ export type DbProductInsert = Omit<DbProduct, 'id' | 'created_at' | 'updated_at'
   currency?: string;
   recipe_sv?: string | null;
   recipe_en?: string | null;
+  feeling_sv?: string | null;
+  feeling_en?: string | null;
+  effects_sv?: string | null;
+  effects_en?: string | null;
+  usage_sv?: string | null;
+  usage_en?: string | null;
+  extended_description_sv?: string | null;
+  extended_description_en?: string | null;
   status?: ProductStatus;
 };
 

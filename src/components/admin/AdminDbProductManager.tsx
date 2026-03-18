@@ -47,6 +47,7 @@ const emptyForm = (): ProductFormData => ({
   productType: '', tags: '', vendor: '4ThePeople',
   isVisible: true, inventory: 0, allowOverselling: false,
   imageUrls: [], ingredients: '', certifications: '', recipe: '',
+  feeling: '', effects: '', usage: '', extendedDescription: '',
 });
 
 const AdminDbProductManager = () => {
@@ -131,6 +132,10 @@ const AdminDbProductManager = () => {
       ingredients: product.ingredients_sv || '',
       certifications: (product.certifications || []).join(', '),
       recipe: product.recipe_sv || '',
+      feeling: (product as any).feeling_sv || '',
+      effects: (product as any).effects_sv || '',
+      usage: (product as any).usage_sv || '',
+      extendedDescription: (product as any).extended_description_sv || '',
     });
     setIsEditOpen(true);
   };
@@ -199,6 +204,10 @@ const AdminDbProductManager = () => {
       ingredients: source.ingredients_sv || '',
       certifications: (source.certifications || []).join(', '),
       recipe: source.recipe_sv || '',
+      feeling: (source as any).feeling_sv || '',
+      effects: (source as any).effects_sv || '',
+      usage: (source as any).usage_sv || '',
+      extendedDescription: (source as any).extended_description_sv || '',
     });
     setIsAddOpen(true);
   };

@@ -182,6 +182,18 @@ const AdminProductImportExport = () => {
     await handleExportRecipeTemplates();
   }, [handleExportProducts, handleExportIngredients, handleExportRecipeTemplates]);
 
+  // ── DOWNLOAD TEMPLATE ──
+  const handleDownloadTemplate = useCallback(() => {
+    const headers = ['name', 'description', 'price', 'stock', 'active', 'category', 'images', 'ingredients', 'certifications', 'recipe'];
+    const exampleRow = [
+      'Naturlig Deodorant', 'Aluminiumfri deodorant med naturlig doft', '149', '50', 'true',
+      'Kroppsvård', 'https://example.com/img1.jpg|https://example.com/img2.jpg',
+      'Kokosolja, Sheasmör, Bivax', 'Cruelty-Free, Vegan', '5 droppar per skopa'
+    ].map(v => escapeCSV(v));
+    downloadCSV([headers.join(','), exampleRow.join(',')], `product-import-template.csv`);
+    toast.success(sv ? 'Mall nedladdad!' : 'Template downloaded!');
+  }, [sv]);
+
   // ── FILE SELECT (auto-detect type) ──
   const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -436,6 +448,10 @@ const AdminProductImportExport = () => {
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleExportAll}>
               📁 {sv ? 'Exportera allt' : 'Export all'}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleDownloadTemplate}>
+              📋 {sv ? 'Ladda ner importmall' : 'Download import template'}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
