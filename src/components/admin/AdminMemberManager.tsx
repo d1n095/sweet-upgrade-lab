@@ -718,7 +718,7 @@ const AdminMemberManager = ({ roleFilter = 'all' }: AdminMemberManagerProps) => 
                 )}
                 <Select
                   value={userRoles[member.user_id] || 'none'}
-                  onValueChange={(value) => handleAssignRole(member.user_id, value)}
+                  onValueChange={(value) => requestRoleChange(member.user_id, value)}
                   disabled={assigningRole}
                 >
                   <SelectTrigger className="w-28 h-8 text-xs">
