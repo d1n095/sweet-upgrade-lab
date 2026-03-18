@@ -72,7 +72,7 @@ interface Review {
 
 const ITEMS_PER_PAGE = 50;
 
-const AdminMemberManager = () => {
+const AdminMemberManager = ({ roleFilter = 'all' }: AdminMemberManagerProps) => {
   const { language } = useLanguage();
   const [members, setMembers] = useState<Member[]>([]);
   const [userRoles, setUserRoles] = useState<Record<string, string>>({});
