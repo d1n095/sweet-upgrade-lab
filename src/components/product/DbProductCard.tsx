@@ -198,7 +198,7 @@ const DbProductCard = ({ product, index, compact = false }: DbProductCardProps) 
 
             {/* Stock status */}
             <div className="mb-2">
-              <StockIndicator stock={product.stock} allowOverselling={product.allow_overselling} lang={lang} />
+              <StockIndicator stock={availableStock} allowOverselling={product.allow_overselling} lang={lang} />
             </div>
 
             {/* Price */}

@@ -230,9 +230,9 @@ const ProductDetail = () => {
               <div className="mb-5">
                 {isOutOfStock ? (
                   <span className="inline-flex items-center gap-1.5 text-sm text-destructive font-medium bg-destructive/10 px-3 py-1 rounded-full">{t('product.outofstockwarning')}</span>
-                ) : product.stock <= 5 ? (
+                ) : availableStock <= 5 ? (
                   <span className="inline-flex items-center gap-1.5 text-sm text-warning font-medium bg-warning/10 px-3 py-1 rounded-full">
-                    {t('product.lowstock').replace('{count}', String(product.stock))}
+                    {t('product.lowstock').replace('{count}', String(availableStock))}
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1.5 text-sm text-accent font-medium bg-accent/10 px-3 py-1 rounded-full">{t('product.instock')}</span>
