@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import UserSearchInput from '@/components/admin/UserSearchInput';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -60,6 +61,7 @@ const AdminInfluencerManager = () => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [productHistory, setProductHistory] = useState<Record<string, InfluencerProduct[]>>({});
   const [productStats, setProductStats] = useState<ProductStats[]>([]);
+  const [selectedUser, setSelectedUser] = useState<{ user_id: string; email: string; username: string | null; avatar_url: string | null } | null>(null);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -223,6 +225,7 @@ const AdminInfluencerManager = () => {
       validUntil: '',
       notes: '',
     });
+    setSelectedUser(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -430,30 +433,23 @@ const AdminInfluencerManager = () => {
             
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name">{t.name}</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Anna Svensson"
-                  required
+                <Label>{language === 'sv' ? 'Sök användare' : 'Search user'}</Label>
+                <UserSearchInput
+                  placeholder={language === 'sv' ? 'Sök användarnamn, email eller telefon...' : 'Search username, email or phone...'}
+                  selectedUser={selectedUser}
+                  onSelect={(user) => {
+                    setSelectedUser(user);
+                    setFormData(prev => ({
+                      ...prev,
+                      name: user.username || user.email.split('@')[0],
+                      email: user.email,
+                    }));
+                  }}
+                  onClear={() => {
+                    setSelectedUser(null);
+                    setFormData(prev => ({ ...prev, name: '', email: '' }));
+                  }}
                 />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="email">{t.email}</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="anna@example.com"
-                    className="pl-9"
-                    required
-                  />
-                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -513,7 +509,7 @@ const AdminInfluencerManager = () => {
                 </Button>
                 <Button
                   type="submit"
-                  disabled={isSubmitting || !formData.name || !formData.email}
+                  disabled={isSubmitting || !selectedUser}
                   className="flex-1"
                 >
                   {isSubmitting ? (
