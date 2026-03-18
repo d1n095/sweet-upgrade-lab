@@ -60,7 +60,9 @@ const DbProductGrid = () => {
     return categoryFiltered.filter(p =>
       p.title_sv.toLowerCase().includes(q) ||
       (p.title_en || '').toLowerCase().includes(q) ||
-      (p.description_sv || '').toLowerCase().includes(q)
+      (p.description_sv || '').toLowerCase().includes(q) ||
+      (p.ingredients_sv || '').toLowerCase().includes(q) ||
+      (p.ingredients_en || '').toLowerCase().includes(q)
     );
   }, [categoryFiltered, searchQuery]);
 
