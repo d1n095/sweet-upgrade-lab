@@ -37,7 +37,7 @@ const statusColors: Record<string, string> = {
 
 const AdminOverview = () => {
   const navigate = useNavigate();
-  const { siteActive, checkoutEnabled, updateSetting } = useStoreSettings();
+  const { siteActive, checkoutEnabled, setSiteActive, setCheckoutEnabled } = useStoreSettings();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalProducts: 0,
