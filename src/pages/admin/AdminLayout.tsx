@@ -27,8 +27,13 @@ const navItems = [
 const AdminLayout = () => {
   const { isAdmin, isLoading } = useAdminRole();
   const { signOut } = useAuth();
+  const { siteActive, checkoutEnabled, isLoaded, fetchSettings } = useStoreSettings();
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    if (!isLoaded) fetchSettings();
+  }, [isLoaded, fetchSettings]);
 
   useEffect(() => {
     if (!isLoading && !isAdmin) {
