@@ -88,9 +88,9 @@ const AdminSettingsPage = () => {
       </div>
 
       {(!siteActive || !checkoutEnabled) && (
-        <div className="flex items-center gap-3 p-4 rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 max-w-xl">
-          <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
-          <p className="text-sm">
+        <div className="flex items-center gap-3 p-4 rounded-xl border border-warning/30 bg-warning/5 max-w-xl">
+          <AlertTriangle className="w-5 h-5 text-warning shrink-0" />
+          <p className="text-sm text-foreground">
             {!siteActive && 'Sajten är inaktiv — besökare ser underhållssidan. '}
             {!checkoutEnabled && 'Kassan är avstängd — kunder kan inte slutföra köp.'}
           </p>
