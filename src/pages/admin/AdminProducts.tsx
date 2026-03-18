@@ -1,11 +1,35 @@
+import { useState, useEffect } from 'react';
+import { Package, FlaskConical, ChefHat, AlertTriangle, Eye } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Package, FlaskConical, ChefHat } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import AdminDbProductManager from '@/components/admin/AdminDbProductManager';
 import AdminProductImportExport from '@/components/admin/AdminProductImportExport';
 import AdminRecipeIngredientLibrary from '@/components/admin/AdminRecipeIngredientLibrary';
 import AdminRecipeTemplateBuilder from '@/components/admin/AdminRecipeTemplateBuilder';
 
 const AdminProducts = () => {
+  const [stats, setStats] = useState({ total: 0, visible: 0, lowStock: 0, ingredients: 0 });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      const [{ data: products }, { count: ingredients }] = await Promise.all([
+        supabase.from('products').select('id, is_visible, stock, allow_overselling'),
+        supabase.from('recipe_ingredients').select('*', { count: 'exact', head: true }),
+      ]);
+      const prods = products || [];
+      setStats({
+        total: prods.length,
+        visible: prods.filter(p => p.is_visible).length,
+        lowStock: prods.filter(p => !p.allow_overselling && p.stock <= 5).length,
+        ingredients: ingredients || 0,
+      });
+      setLoading(false);
+    };
+    load();
+  }, []);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -14,6 +38,25 @@ const AdminProducts = () => {
           <p className="text-muted-foreground text-sm mt-1">Skapa, redigera och hantera produkter och lager</p>
         </div>
         <AdminProductImportExport />
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[
+          { label: 'Totalt produkter', value: stats.total, icon: Package, color: 'text-primary' },
+          { label: 'Synliga', value: stats.visible, icon: Eye, color: 'text-green-600' },
+          { label: 'Lågt lager', value: stats.lowStock, icon: AlertTriangle, color: 'text-amber-600' },
+          { label: 'Ingredienser', value: stats.ingredients, icon: FlaskConical, color: 'text-purple-600' },
+        ].map(s => (
+          <Card key={s.label} className="border-border">
+            <CardContent className="pt-4 pb-3">
+              <div className="flex items-center gap-2 mb-1">
+                <s.icon className={`w-4 h-4 ${s.color}`} />
+                <span className="text-xs text-muted-foreground">{s.label}</span>
+              </div>
+              <p className="text-xl font-bold">{loading ? '–' : s.value}</p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       <Tabs defaultValue="products" className="space-y-4">
@@ -29,15 +72,9 @@ const AdminProducts = () => {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="products">
-          <AdminDbProductManager />
-        </TabsContent>
-        <TabsContent value="ingredients">
-          <AdminRecipeIngredientLibrary />
-        </TabsContent>
-        <TabsContent value="recipes">
-          <AdminRecipeTemplateBuilder />
-        </TabsContent>
+        <TabsContent value="products"><AdminDbProductManager /></TabsContent>
+        <TabsContent value="ingredients"><AdminRecipeIngredientLibrary /></TabsContent>
+        <TabsContent value="recipes"><AdminRecipeTemplateBuilder /></TabsContent>
       </Tabs>
     </div>
   );
