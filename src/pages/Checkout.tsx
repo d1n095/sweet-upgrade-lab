@@ -66,22 +66,26 @@ const Checkout = () => {
       try {
         const { data } = await supabase
           .from('profiles')
-          .select('full_name, phone, address, zip, city, country')
+          .select('first_name, last_name, full_name, phone, address, zip, city, country')
           .eq('user_id', user.id)
           .maybeSingle();
+
+        const d = data as any;
+        const profileName = d?.first_name && d?.last_name 
+          ? `${d.first_name} ${d.last_name}` 
+          : d?.full_name || '';
 
         setForm(prev => ({
           ...prev,
           email: user.email || prev.email,
-          name: data?.full_name || prev.name,
-          phone: data?.phone || prev.phone,
-          address: data?.address || prev.address,
-          zip: data?.zip || prev.zip,
-          city: data?.city || prev.city,
-          country: data?.country || prev.country,
+          name: profileName || prev.name,
+          phone: d?.phone || prev.phone,
+          address: d?.address || prev.address,
+          zip: d?.zip || prev.zip,
+          city: d?.city || prev.city,
+          country: d?.country || prev.country,
         }));
       } catch (err) {
-        // Just use email as fallback
         setForm(prev => ({ ...prev, email: user.email || prev.email }));
       }
       setProfileLoaded(true);
