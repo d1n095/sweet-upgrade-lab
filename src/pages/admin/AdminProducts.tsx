@@ -9,21 +9,24 @@ import AdminRecipeIngredientLibrary from '@/components/admin/AdminRecipeIngredie
 import AdminRecipeTemplateBuilder from '@/components/admin/AdminRecipeTemplateBuilder';
 
 const AdminProducts = () => {
-  const [stats, setStats] = useState({ total: 0, visible: 0, lowStock: 0, ingredients: 0 });
+  const [stats, setStats] = useState({ total: 0, visible: 0, lowStock: 0, ingredients: 0, drafts: 0, archived: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
       const [{ data: products }, { count: ingredients }] = await Promise.all([
-        supabase.from('products').select('id, is_visible, stock, allow_overselling'),
+        supabase.from('products').select('id, is_visible, stock, allow_overselling, status'),
         supabase.from('recipe_ingredients').select('*', { count: 'exact', head: true }),
       ]);
-      const prods = products || [];
+      const prods = (products || []) as any[];
+      const active = prods.filter(p => (p.status || 'active') === 'active');
       setStats({
-        total: prods.length,
-        visible: prods.filter(p => p.is_visible).length,
-        lowStock: prods.filter(p => !p.allow_overselling && p.stock <= 5).length,
+        total: active.length,
+        visible: active.filter(p => p.is_visible).length,
+        lowStock: active.filter(p => !p.allow_overselling && p.stock <= 5).length,
         ingredients: ingredients || 0,
+        drafts: prods.filter(p => p.status === 'draft').length,
+        archived: prods.filter(p => p.status === 'archived').length,
       });
       setLoading(false);
     };
