@@ -500,9 +500,15 @@ const AdminMemberManager = () => {
     }).format(amount);
   };
 
-  const filteredMembers = members.filter((member) =>
-    member.user_id.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredMembers = members.filter((member) => {
+    const q = searchQuery.toLowerCase();
+    if (!q) return true;
+    return (
+      member.user_id.toLowerCase().includes(q) ||
+      (member.username && member.username.toLowerCase().includes(q)) ||
+      (member.email && member.email.toLowerCase().includes(q))
+    );
+  });
 
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
