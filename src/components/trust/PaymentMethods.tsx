@@ -1,18 +1,30 @@
+import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Shield } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
+import { usePaymentMethodsStore } from '@/stores/paymentMethodsStore';
 
 const PaymentMethods = () => {
   const { language } = useLanguage();
+  const { methods, isLoaded, load } = usePaymentMethodsStore();
 
-  const paymentIcons = [
-    { name: 'Visa', color: '#1A1F71' },
-    { name: 'MC', color: '#EB001B' },
-    { name: 'Klarna', color: '#FFB3C7' },
-    { name: 'Swish', color: '#00A0DE' },
-    { name: ' Pay', color: '#000000' },
-    { name: 'G Pay', color: '#4285F4' },
-  ];
+  useEffect(() => {
+    if (!isLoaded) load();
+  }, [isLoaded, load]);
+
+  const visibleMethods = methods.filter(m => m.enabled);
+
+  const colorMap: Record<string, string> = {
+    visa: '#1A1F71',
+    mastercard: '#EB001B',
+    klarna: '#FFB3C7',
+    swish: '#00A0DE',
+    applepay: '#000000',
+    googlepay: '#4285F4',
+    paypal: '#003087',
+  };
+
+  if (visibleMethods.length === 0) return null;
 
   return (
     <motion.div
@@ -25,11 +37,11 @@ const PaymentMethods = () => {
         <span>{language === 'sv' ? 'Säkra betalningar med' : 'Secure payments with'}</span>
       </div>
       <div className="flex items-center gap-2 flex-wrap justify-center">
-        {paymentIcons.map((payment) => (
+        {visibleMethods.map((payment) => (
           <div
-            key={payment.name}
+            key={payment.id}
             className="w-12 h-8 rounded bg-card border border-border flex items-center justify-center text-[9px] font-bold"
-            style={{ color: payment.color }}
+            style={{ color: colorMap[payment.id] || '#374151' }}
             title={payment.name}
           >
             {payment.name}

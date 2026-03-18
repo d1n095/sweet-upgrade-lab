@@ -93,9 +93,15 @@ const ShippingCarriersSection = () => {
   const selectedCount = carriers.filter(c => c.is_selected).length;
 
   const toggleSelected = async (carrier: ShippingCarrier) => {
-    await supabase.from('shipping_carriers').update({ is_selected: !carrier.is_selected, updated_at: new Date().toISOString() }).eq('id', carrier.id);
+    // Optimistic update
+    setCarriers(prev => prev.map(c => c.id === carrier.id ? { ...c, is_selected: !c.is_selected } : c));
+    const { error } = await supabase.from('shipping_carriers').update({ is_selected: !carrier.is_selected, updated_at: new Date().toISOString() }).eq('id', carrier.id);
+    if (error) {
+      // Revert on error
+      setCarriers(prev => prev.map(c => c.id === carrier.id ? { ...c, is_selected: carrier.is_selected } : c));
+      toast.error('Kunde inte uppdatera');
+    }
     logShippingChange(`Fraktbolag ${!carrier.is_selected ? 'valt' : 'avvalt'}: ${carrier.name}`);
-    fetchCarriers();
   };
 
   const resetForm = () => {

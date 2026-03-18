@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  Truck, Package, Globe, MapPin, Home, Zap, Box, Gift,
+  Truck, Package, Globe, MapPin, Home, Zap, Box, Gift, CreditCard,
   Plus, Save, Pencil, Trash2, RefreshCw, Eye, EyeOff, ArrowUp, ArrowDown, X,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import ShippingCarriersSection from '@/components/admin/ShippingCarriersSection';
 import { logShippingChange } from '@/utils/activityLogger';
+import { usePaymentMethodsStore, PaymentMethod } from '@/stores/paymentMethodsStore';
 
 // ─── Shipping Extras ───
 interface ShippingExtra {
@@ -164,6 +165,9 @@ const AdminShipping = () => {
           <TabsTrigger value="extras" className="gap-1.5 text-xs">
             <Gift className="w-3.5 h-3.5" /> Vi skickar med
           </TabsTrigger>
+          <TabsTrigger value="payments" className="gap-1.5 text-xs">
+            <CreditCard className="w-3.5 h-3.5" /> Betalningar
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="carriers">
@@ -181,6 +185,10 @@ const AdminShipping = () => {
 
         <TabsContent value="extras">
           <ShippingExtrasTab />
+        </TabsContent>
+
+        <TabsContent value="payments">
+          <PaymentMethodsTab />
         </TabsContent>
       </Tabs>
     </div>
@@ -467,6 +475,76 @@ const ShippingExtrasTab = () => {
         </div>
       )}
     </div>
+  );
+};
+
+// ─── Payment Methods Tab ───
+const PaymentMethodsTab = () => {
+  const { methods, isLoaded, load, toggle } = usePaymentMethodsStore();
+
+  useEffect(() => {
+    if (!isLoaded) load();
+  }, [isLoaded, load]);
+
+  const enabledCount = methods.filter(m => m.enabled).length;
+
+  return (
+    <Card>
+      <CardContent className="pt-6 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+            <CreditCard className="w-4.5 h-4.5 text-primary" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-sm">Betalningsmetoder</h3>
+            <p className="text-xs text-muted-foreground">
+              {enabledCount} aktiva · Visas i &quot;Säkra betalningar med&quot; och checkout
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-secondary/30 rounded-lg p-3 text-xs text-muted-foreground">
+          <p>💡 Betalningsmetoderna som visas här synkroniseras automatiskt med alla ställen i butiken där betalningsikoner visas — produktsidor, checkout, footer och trust-badges.</p>
+        </div>
+
+        <div className="space-y-1">
+          {methods.map((method) => (
+            <div
+              key={method.id}
+              className={`flex items-center justify-between p-3 rounded-lg border transition-all ${
+                method.enabled ? 'border-primary/20 bg-primary/5' : 'border-border bg-card'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className={`w-8 h-6 rounded flex items-center justify-center text-[8px] font-bold border ${
+                  method.enabled ? 'border-primary/30 bg-background' : 'border-border bg-muted/50'
+                }`}>
+                  {method.name.slice(0, 4)}
+                </div>
+                <span className={`text-sm font-medium ${method.enabled ? 'text-foreground' : 'text-muted-foreground'}`}>
+                  {method.name}
+                </span>
+              </div>
+              <Switch
+                checked={method.enabled}
+                onCheckedChange={() => toggle(method.id)}
+              />
+            </div>
+          ))}
+        </div>
+
+        <div className="border-t border-border pt-4">
+          <p className="text-xs font-medium mb-2">Förhandsvisning</p>
+          <div className="flex flex-wrap gap-2">
+            {methods.filter(m => m.enabled).map(m => (
+              <Badge key={m.id} variant="outline" className="text-xs">
+                {m.name}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 
