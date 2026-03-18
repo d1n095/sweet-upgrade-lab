@@ -121,9 +121,9 @@ const DbProductCard = ({ product, index, compact = false }: DbProductCardProps) 
       className="group relative"
     >
       <Link to={`/product/${handle}`}>
-        <div className="bg-card border border-border/60 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-[var(--shadow-elevated)] hover:-translate-y-1 h-full flex flex-col">
+        <div className="bg-card border border-border/40 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-[var(--shadow-elevated)] hover:-translate-y-1 h-full flex flex-col">
           {/* Image */}
-          <div className="relative aspect-[4/5] overflow-hidden bg-secondary/30">
+          <div className="relative aspect-square overflow-hidden bg-secondary/20">
             {showImage ? (
               <img
                 src={imageUrl}
@@ -216,7 +216,7 @@ const DbProductCard = ({ product, index, compact = false }: DbProductCardProps) 
                 size="sm"
                 onClick={handleAddToCart}
                 disabled={!isAvailable}
-                className={`flex-1 h-8 text-xs rounded-lg transition-all ${isAdded ? 'bg-accent hover:bg-accent text-accent-foreground' : ''}`}
+                className={`flex-1 h-9 text-xs rounded-xl transition-all min-h-[44px] ${isAdded ? 'bg-accent hover:bg-accent text-accent-foreground' : ''}`}
               >
                 {!isAvailable
                   ? t('product.soldout')

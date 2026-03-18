@@ -21,14 +21,14 @@ const AboutCompact = () => {
   const t = content[lang];
 
   return (
-    <section id="about" className="py-20 md:py-28 border-t border-border/40">
-      <div className="container mx-auto px-4">
+    <section id="about" className="py-24 md:py-32 border-t border-border/30">
+      <div className="container mx-auto px-5">
         <div className="max-w-2xl mx-auto text-center">
           <motion.h2
             initial={{ opacity: 0, y: 12 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-2xl md:text-3xl font-semibold mb-3 text-foreground"
+            className="text-2xl md:text-3xl font-semibold mb-4 text-foreground"
           >
             {t.title}
           </motion.h2>
@@ -37,7 +37,7 @@ const AboutCompact = () => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.08 }}
-            className="text-sm text-muted-foreground leading-[1.8] mb-5"
+            className="text-sm text-muted-foreground/80 leading-[1.8] mb-6"
           >
             {t.text}
           </motion.p>

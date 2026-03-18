@@ -12,13 +12,13 @@ const Hero = () => {
     <section className="relative min-h-[75vh] flex items-center justify-center">
       <div className="absolute inset-0 bg-gradient-hero" />
 
-      <div className="container mx-auto px-4 py-24 md:py-32 relative z-10">
+      <div className="container mx-auto px-5 py-28 md:py-36 relative z-10">
         <div className="max-w-xl mx-auto text-center">
           <motion.h1
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
-            className="text-3xl sm:text-4xl md:text-5xl font-semibold leading-[1.08] tracking-tight mb-5 text-foreground"
+            className="text-3xl sm:text-4xl md:text-5xl font-semibold leading-[1.08] tracking-tight mb-6 text-foreground"
           >
             {t('hero.title')}
           </motion.h1>
@@ -27,7 +27,7 @@ const Hero = () => {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.12, ease: [0.25, 0.1, 0.25, 1] }}
-            className="text-base text-muted-foreground max-w-md mx-auto mb-10 leading-relaxed"
+            className="text-base text-muted-foreground/80 max-w-md mx-auto mb-12 leading-relaxed"
           >
             {t('hero.subtitle')}
           </motion.p>
@@ -39,7 +39,7 @@ const Hero = () => {
           >
             <Button
               size="lg"
-              className="h-12 px-10 text-sm font-semibold rounded-full shadow-sm hover:shadow-md transition-all"
+              className="h-13 px-12 text-sm font-semibold rounded-full shadow-sm hover:shadow-md transition-all"
               onClick={() => navigate('/produkter')}
             >
               {t('hero.cta.primary')}
@@ -50,7 +50,7 @@ const Hero = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.6 }}
-            className="mt-16"
+            className="mt-20"
           >
             <button
               onClick={() => document.getElementById('philosophy')?.scrollIntoView({ behavior: 'smooth' })}

@@ -28,18 +28,18 @@ const IngredientPhilosophy = () => {
   const t = content[lang];
 
   return (
-    <section id="philosophy" className="py-20 md:py-28">
-      <div className="container mx-auto px-4">
+    <section id="philosophy" className="py-24 md:py-32">
+      <div className="container mx-auto px-5">
         <motion.h2
           initial={{ opacity: 0, y: 12 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="text-2xl md:text-3xl font-semibold text-center mb-14 text-foreground"
+          className="text-2xl md:text-3xl font-semibold text-center mb-16 text-foreground"
         >
           {t.title}
         </motion.h2>
 
-        <div className="grid md:grid-cols-3 gap-6 max-w-2xl mx-auto">
+        <div className="grid md:grid-cols-3 gap-8 max-w-2xl mx-auto">
           {t.steps.map((step, i) => (
             <motion.div
               key={i}
@@ -47,13 +47,13 @@ const IngredientPhilosophy = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.08 }}
-              className="text-center bg-card border border-border/60 rounded-2xl p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-[var(--shadow-elevated)]"
+              className="text-center bg-card border border-border/50 rounded-2xl p-7 transition-all duration-200 hover:-translate-y-1 hover:shadow-[var(--shadow-elevated)]"
             >
-              <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center mx-auto mb-5">
+              <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center mx-auto mb-6">
                 <step.icon className="w-5 h-5 text-foreground" />
               </div>
-              <h3 className="text-sm font-semibold mb-2 text-foreground">{step.title}</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">{step.desc}</p>
+              <h3 className="text-sm font-semibold mb-2.5 text-foreground">{step.title}</h3>
+              <p className="text-[13px] text-muted-foreground/80 leading-relaxed">{step.desc}</p>
             </motion.div>
           ))}
         </div>
