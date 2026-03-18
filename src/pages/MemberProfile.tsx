@@ -3,17 +3,12 @@ import { motion } from 'framer-motion';
 import { 
   User, Package, Star, Gift, Settings, LogOut, 
   ChevronRight, Loader2, Clock, Check, BadgeCheck,
-  Shield, BarChart3, Users, TrendingUp, MessageCircle,
-  ChevronDown, Boxes, UserCog, Handshake, FileText, Heart, Wallet, Grid, Sparkles, ClipboardList, Eye
+  Shield, BarChart3, Users, TrendingUp,
+  Wallet
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import ReviewStars from '@/components/reviews/ReviewStars';
@@ -25,27 +20,13 @@ import { useLanguage } from '@/context/LanguageContext';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import OrderTracker from '@/components/orders/OrderTracker';
-import AdminDbProductManager from '@/components/admin/AdminDbProductManager';
-import AdminInfluencerManager from '@/components/admin/AdminInfluencerManager';
-import AdminAffiliateManager from '@/components/admin/AdminAffiliateManager';
-import AdminPayoutManager from '@/components/admin/AdminPayoutManager';
-import AdminApplicationsManager from '@/components/admin/AdminApplicationsManager';
-import AdminLegalDocuments from '@/components/admin/AdminLegalDocuments';
-import AdminEmailTemplates from '@/components/admin/AdminEmailTemplates';
-import AdminDonationManager from '@/components/admin/AdminDonationManager';
-import AdminMemberManager from '@/components/admin/AdminMemberManager';
-import AdminOrderManager from '@/components/admin/AdminOrderManager';
-import AdminCategoryManager from '@/components/admin/AdminCategoryManager';
-import AdminSiteUpdatesManager from '@/components/admin/AdminSiteUpdatesManager';
 import InfluencerDashboard from '@/components/dashboard/InfluencerDashboard';
 import AffiliateDashboard from '@/components/dashboard/AffiliateDashboard';
 import EmployeeDashboard from '@/components/dashboard/EmployeeDashboard';
 import DonationImpact from '@/components/donations/DonationImpact';
 import AccountSettings from '@/components/profile/AccountSettings';
 import BalanceOverview from '@/components/profile/BalanceOverview';
-import ProfileBalanceBadge from '@/components/profile/ProfileBalanceBadge';
 import BalancePage from '@/pages/BalancePage';
-import AdminPageVisibility from '@/components/admin/AdminPageVisibility';
 
 interface Review {
   id: string;
@@ -72,42 +53,6 @@ interface AdminStats {
   averageRating: number;
   totalMembers: number;
 }
-
-// Collapsible Admin Section Component
-const AdminSection = ({ 
-  title, 
-  icon: Icon, 
-  children, 
-  defaultOpen = false 
-}: { 
-  title: string; 
-  icon: React.ElementType; 
-  children: React.ReactNode;
-  defaultOpen?: boolean;
-}) => {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
-  
-  return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="border border-border rounded-xl overflow-hidden">
-      <CollapsibleTrigger asChild>
-        <button className="flex items-center justify-between w-full p-4 bg-secondary/30 hover:bg-secondary/50 transition-colors">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Icon className="w-4 h-4 text-primary" />
-            </div>
-            <span className="font-semibold">{title}</span>
-          </div>
-          <ChevronDown className={`w-5 h-5 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-        </button>
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <div className="p-4 space-y-4">
-          {children}
-        </div>
-      </CollapsibleContent>
-    </Collapsible>
-  );
-};
 
 const MemberProfile = () => {
   const { language } = useLanguage();
@@ -422,46 +367,47 @@ const MemberProfile = () => {
 
           {/* Tabs */}
           <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
-            <div className="flex items-center gap-3 mb-6 flex-wrap">
-              <TabsList className="flex-wrap">
-                <TabsTrigger value="orders" className="gap-2">
-                  <Package className="w-4 h-4" />
-                  {language === 'sv' ? 'Mina ordrar' : 'My Orders'}
+            <div className="mb-6 -mx-4 px-4 overflow-x-auto scrollbar-hide">
+              <TabsList className="inline-flex w-max min-w-full sm:w-auto">
+                <TabsTrigger value="orders" className="gap-1.5 text-xs sm:text-sm">
+                  <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">{language === 'sv' ? 'Mina ordrar' : 'My Orders'}</span>
+                  <span className="sm:hidden">{language === 'sv' ? 'Ordrar' : 'Orders'}</span>
                 </TabsTrigger>
-                <TabsTrigger value="overview" className="gap-2">
-                  <User className="w-4 h-4" />
+                <TabsTrigger value="overview" className="gap-1.5 text-xs sm:text-sm">
+                  <User className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   {t.tabs.overview}
                 </TabsTrigger>
-                <TabsTrigger value="reviews" className="gap-2">
-                  <Star className="w-4 h-4" />
-                  {t.tabs.reviews}
+                <TabsTrigger value="reviews" className="gap-1.5 text-xs sm:text-sm">
+                  <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">{t.tabs.reviews}</span>
+                  <span className="sm:hidden">{language === 'sv' ? 'Recensioner' : 'Reviews'}</span>
                   {reviews.length > 0 && (
-                    <Badge variant="secondary" className="ml-1">{reviews.length}</Badge>
+                    <Badge variant="secondary" className="ml-1 text-[10px] px-1.5">{reviews.length}</Badge>
                   )}
                 </TabsTrigger>
-                <TabsTrigger value="rewards" className="gap-2">
-                  <Gift className="w-4 h-4" />
-                  {t.tabs.rewards}
+                <TabsTrigger value="rewards" className="gap-1.5 text-xs sm:text-sm">
+                  <Gift className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">{t.tabs.rewards}</span>
+                  <span className="sm:hidden">{language === 'sv' ? 'Koder' : 'Codes'}</span>
                   {unusedRewards.length > 0 && (
-                    <Badge variant="secondary" className="ml-1">{unusedRewards.length}</Badge>
+                    <Badge variant="secondary" className="ml-1 text-[10px] px-1.5">{unusedRewards.length}</Badge>
                   )}
                 </TabsTrigger>
-                <TabsTrigger value="donations" className="gap-2">
-                  <TrendingUp className="w-4 h-4" />
+                <TabsTrigger value="donations" className="gap-1.5 text-xs sm:text-sm">
+                  <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   {language === 'sv' ? 'Donationer' : 'Donations'}
                 </TabsTrigger>
-                <TabsTrigger value="balance" className="gap-2">
-                  <Wallet className="w-4 h-4" />
+                <TabsTrigger value="balance" className="gap-1.5 text-xs sm:text-sm">
+                  <Wallet className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   {language === 'sv' ? 'Saldo' : 'Balance'}
                 </TabsTrigger>
-                <TabsTrigger value="settings" className="gap-2">
-                  <Settings className="w-4 h-4" />
-                  {language === 'sv' ? 'Inställningar' : 'Settings'}
+                <TabsTrigger value="settings" className="gap-1.5 text-xs sm:text-sm">
+                  <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">{language === 'sv' ? 'Inställningar' : 'Settings'}</span>
+                  <span className="sm:hidden"><Settings className="w-0 h-0" /></span>
                 </TabsTrigger>
               </TabsList>
-              
-              {/* Balance Badge - shown next to tabs */}
-              <ProfileBalanceBadge />
             </div>
 
             {/* Orders Tab */}
@@ -563,221 +509,57 @@ const MemberProfile = () => {
                 </motion.div>
               </div>
 
-              {/* Admin Panel - Only visible to admins */}
-              {isAdmin && adminStats && (
+              {/* Admin Quick Access - Only visible to admins */}
+              {isAdmin && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.3 }}
                   className="mt-8"
                 >
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <Shield className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-lg">{t.admin.panel}</h3>
-                      <p className="text-sm text-muted-foreground">{t.admin.panelDesc}</p>
-                    </div>
-                  </div>
-
-                  {/* Admin Stats Grid */}
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
-                    <div className="bg-card border border-border rounded-lg p-3">
-                      <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
-                        <BarChart3 className="w-3.5 h-3.5" />
-                        <span className="text-xs">{t.admin.reviews}</span>
-                      </div>
-                      <p className="text-xl font-bold">{adminStats.totalReviews}</p>
-                    </div>
-                    <div className="bg-card border border-border rounded-lg p-3">
-                      <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
-                        <Clock className="w-3.5 h-3.5" />
-                        <span className="text-xs">{t.admin.pending}</span>
-                      </div>
-                      <p className="text-xl font-bold text-yellow-600">{adminStats.pendingReviews}</p>
-                    </div>
-                    <div className="bg-card border border-border rounded-lg p-3">
-                      <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
-                        <Check className="w-3.5 h-3.5" />
-                        <span className="text-xs">{t.admin.approved}</span>
-                      </div>
-                      <p className="text-xl font-bold text-green-600">{adminStats.approvedReviews}</p>
-                    </div>
-                    <div className="bg-card border border-border rounded-lg p-3">
-                      <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
-                        <TrendingUp className="w-3.5 h-3.5" />
-                        <span className="text-xs">{t.admin.avgRating}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <p className="text-xl font-bold">{adminStats.averageRating}</p>
-                        <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                      </div>
-                    </div>
-                    <div className="bg-card border border-border rounded-lg p-3">
-                      <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
-                        <Users className="w-3.5 h-3.5" />
-                        <span className="text-xs">{t.admin.members}</span>
-                      </div>
-                      <p className="text-xl font-bold">{adminStats.totalMembers}</p>
-                    </div>
-                  </div>
-
-                  {/* Admin Quick Navigation */}
-                  <div className="flex flex-wrap gap-2 mb-6 p-3 bg-secondary/30 rounded-xl">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="gap-2"
-                      onClick={() => document.getElementById('admin-products')?.scrollIntoView({ behavior: 'smooth' })}
-                    >
-                      <Boxes className="w-4 h-4" />
-                      {language === 'sv' ? 'Produkter' : 'Products'}
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="gap-2"
-                      onClick={() => document.getElementById('admin-categories')?.scrollIntoView({ behavior: 'smooth' })}
-                    >
-                      <Grid className="w-4 h-4" />
-                      {language === 'sv' ? 'Kategorier' : 'Categories'}
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="gap-2"
-                      onClick={() => document.getElementById('admin-orders')?.scrollIntoView({ behavior: 'smooth' })}
-                    >
-                      <ClipboardList className="w-4 h-4" />
-                      {language === 'sv' ? 'Ordrar' : 'Orders'}
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="gap-2"
-                      onClick={() => document.getElementById('admin-members')?.scrollIntoView({ behavior: 'smooth' })}
-                    >
-                      <UserCog className="w-4 h-4" />
-                      {language === 'sv' ? 'Medlemmar' : 'Members'}
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="gap-2"
-                      onClick={() => document.getElementById('admin-partners')?.scrollIntoView({ behavior: 'smooth' })}
-                    >
-                      <Handshake className="w-4 h-4" />
-                      {language === 'sv' ? 'Partners' : 'Partners'}
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="gap-2"
-                      onClick={() => document.getElementById('admin-communication')?.scrollIntoView({ behavior: 'smooth' })}
-                    >
-                      <MessageCircle className="w-4 h-4" />
-                      {language === 'sv' ? 'Kommunikation' : 'Communication'}
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="gap-2"
-                      onClick={() => document.getElementById('admin-legal')?.scrollIntoView({ behavior: 'smooth' })}
-                    >
-                      <Heart className="w-4 h-4" />
-                      {language === 'sv' ? 'Juridik & Donationer' : 'Legal & Donations'}
-                    </Button>
-                    <Link to="/admin/reviews">
-                      <Button size="sm" variant="default" className="gap-2">
-                        <MessageCircle className="w-4 h-4" />
-                        {t.admin.manageReviews}
-                        {adminStats.pendingReviews > 0 && (
-                          <Badge variant="secondary" className="ml-1">
-                            {adminStats.pendingReviews}
-                          </Badge>
-                        )}
-                      </Button>
-                    </Link>
-                  </div>
-
-                  {/* Collapsible Admin Sections */}
-                  <div className="space-y-4">
-                    {/* Products */}
-                    <div id="admin-products">
-                      <AdminSection title={language === 'sv' ? 'Produkthantering' : 'Product Management'} icon={Boxes} defaultOpen>
-                        <AdminDbProductManager />
-                      </AdminSection>
-                    </div>
-
-                    {/* Categories */}
-                    <div id="admin-categories">
-                      <AdminSection title={language === 'sv' ? 'Kategorihantering' : 'Category Management'} icon={Grid}>
-                        <AdminCategoryManager />
-                      </AdminSection>
-                    </div>
-
-                    {/* Order Management */}
-                    <div id="admin-orders">
-                      <AdminSection title={language === 'sv' ? 'Orderhantering' : 'Order Management'} icon={ClipboardList}>
-                        <AdminOrderManager />
-                      </AdminSection>
-                    </div>
-
-                    {/* Members & Roles */}
-                    <div id="admin-members">
-                      <AdminSection title={t.admin.membersRoles} icon={UserCog}>
-                        <AdminMemberManager />
-                      </AdminSection>
-                    </div>
-
-                    {/* Partners */}
-                    <div id="admin-partners">
-                      <AdminSection title={t.admin.partners} icon={Handshake}>
-                        <AdminInfluencerManager />
-                        <div className="pt-4 border-t border-border">
-                          <AdminAffiliateManager />
+                  <Link to="/admin" className="block">
+                    <div className="bg-card border border-border rounded-xl p-5 hover:border-primary/30 hover:bg-primary/5 transition-colors group">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                            <Shield className="w-6 h-6 text-primary" />
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-lg">{t.admin.panel}</h3>
+                            <p className="text-sm text-muted-foreground">{t.admin.panelDesc}</p>
+                          </div>
                         </div>
-                        <div className="pt-4 border-t border-border">
-                          <AdminApplicationsManager />
+                        <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                      </div>
+                      {adminStats && (
+                        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-4 pt-4 border-t border-border">
+                          <div className="text-center">
+                            <p className="text-lg font-bold">{adminStats.totalReviews}</p>
+                            <p className="text-[10px] text-muted-foreground">{t.admin.reviews}</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-lg font-bold text-warning">{adminStats.pendingReviews}</p>
+                            <p className="text-[10px] text-muted-foreground">{t.admin.pending}</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-lg font-bold text-primary">{adminStats.approvedReviews}</p>
+                            <p className="text-[10px] text-muted-foreground">{t.admin.approved}</p>
+                          </div>
+                          <div className="text-center hidden sm:block">
+                            <div className="flex items-center justify-center gap-1">
+                              <p className="text-lg font-bold">{adminStats.averageRating}</p>
+                              <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
+                            </div>
+                            <p className="text-[10px] text-muted-foreground">{t.admin.avgRating}</p>
+                          </div>
+                          <div className="text-center hidden sm:block">
+                            <p className="text-lg font-bold">{adminStats.totalMembers}</p>
+                            <p className="text-[10px] text-muted-foreground">{t.admin.members}</p>
+                          </div>
                         </div>
-                        <div className="pt-4 border-t border-border">
-                          <AdminPayoutManager />
-                        </div>
-                      </AdminSection>
+                      )}
                     </div>
-
-                    {/* Reviews & Communication */}
-                    <div id="admin-communication">
-                      <AdminSection title={t.admin.reviewsCommunication} icon={MessageCircle}>
-                        <AdminEmailTemplates />
-                      </AdminSection>
-                    </div>
-
-                    {/* Site Updates (What's New) */}
-                    <div id="admin-updates">
-                      <AdminSection title={language === 'sv' ? 'Nytt hos oss' : "What's New"} icon={Sparkles}>
-                        <AdminSiteUpdatesManager />
-                      </AdminSection>
-                    </div>
-
-                    {/* Page Visibility */}
-                    <div id="admin-visibility">
-                      <AdminSection title={language === 'sv' ? 'Sidsynlighet' : 'Page Visibility'} icon={Eye}>
-                        <AdminPageVisibility />
-                      </AdminSection>
-                    </div>
-
-                    {/* Legal & Donations */}
-                    <div id="admin-legal">
-                      <AdminSection title={t.admin.legalDonations} icon={Heart}>
-                        <AdminDonationManager />
-                        <div className="pt-4 border-t border-border">
-                          <AdminLegalDocuments />
-                        </div>
-                      </AdminSection>
-                    </div>
-                  </div>
+                  </Link>
                 </motion.div>
               )}
             </TabsContent>
