@@ -198,6 +198,21 @@ const DbProductCard = ({ product, index, compact = false }: DbProductCardProps) 
               {title}
             </h3>
 
+            {/* Review stars */}
+            {reviewStats.count > 0 && (
+              <div className="flex items-center gap-1 mb-1">
+                <div className="flex gap-px">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star
+                      key={i}
+                      className={`w-3 h-3 ${i < Math.round(reviewStats.average) ? 'fill-yellow-400 text-yellow-400' : 'fill-muted text-muted-foreground/30'}`}
+                    />
+                  ))}
+                </div>
+                <span className="text-[10px] text-muted-foreground">({reviewStats.count})</span>
+              </div>
+            )}
+
             {/* Stock status */}
             <div className="mb-1.5">
               <StockIndicator stock={availableStock} allowOverselling={product.allow_overselling} lang={lang} />
