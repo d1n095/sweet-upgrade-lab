@@ -241,6 +241,8 @@ const AdminDbProductManager = () => {
         image_urls: formData.imageUrls && formData.imageUrls.length > 0 ? formData.imageUrls : null,
         ingredients_sv: formData.ingredients || null,
         certifications: formData.certifications ? formData.certifications.split(',').map(s => s.trim()).filter(Boolean) : null,
+        currency: formData.currency || 'SEK',
+        recipe_sv: formData.recipe || null,
       });
       toast.success(t.productUpdated);
       queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });
