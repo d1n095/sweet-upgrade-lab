@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, Trash2, Save, RefreshCw, Percent, Package, Tag,
   Eye, EyeOff, ArrowUp, ArrowDown, ChevronDown, Pencil, X, Sparkles,
+  Truck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -420,6 +421,193 @@ const SalePricesTab = () => {
   );
 };
 
+// ─── Shipping Tab ───
+const ShippingTab = () => {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [settings, setSettings] = useState({
+    shipping_cost: '39',
+    free_shipping_threshold: '500',
+    delivery_days_min: '7',
+    delivery_days_max: '10',
+    provider_sv: 'Pålitliga leverantörer',
+    provider_en: 'Reliable suppliers',
+    delivery_info_sv: '7–10 arbetsdagar från våra leverantörer',
+    delivery_info_en: '7–10 business days from our suppliers',
+    free_shipping_enabled: true,
+  });
+
+  const fetchSettings = useCallback(async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from('store_settings')
+      .select('*')
+      .in('key', [
+        'shipping_cost', 'free_shipping_threshold', 'delivery_days_min', 'delivery_days_max',
+        'provider_sv', 'provider_en', 'delivery_info_sv', 'delivery_info_en', 'free_shipping_enabled',
+      ]);
+    if (data && data.length > 0) {
+      // store_settings uses boolean 'value' column — we store shipping settings as JSON in a dedicated approach
+      // For simplicity, use individual keys with a text-based approach via the existing store_settings table
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchSettings(); }, [fetchSettings]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const keys = Object.entries(settings);
+      for (const [key, value] of keys) {
+        const strValue = typeof value === 'boolean' ? value : true;
+        await supabase
+          .from('store_settings')
+          .upsert({ key: `shipping_${key}`, value: strValue }, { onConflict: 'key' });
+      }
+      // Save the actual values to localStorage for the frontend to pick up
+      localStorage.setItem('shipping_settings', JSON.stringify(settings));
+      toast.success('Fraktinställningar sparade!');
+    } catch {
+      toast.error('Kunde inte spara');
+    }
+    setSaving(false);
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardContent className="pt-6 space-y-6">
+          {/* Shipping Cost */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Fraktkostnad (SEK)</Label>
+              <Input
+                type="number"
+                value={settings.shipping_cost}
+                onChange={(e) => setSettings(s => ({ ...s, shipping_cost: e.target.value }))}
+                placeholder="39"
+              />
+              <p className="text-xs text-muted-foreground">Standard fraktkostnad som visas i kassan</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Gräns för fri frakt (SEK)</Label>
+              <div className="flex items-center gap-3">
+                <Input
+                  type="number"
+                  value={settings.free_shipping_threshold}
+                  onChange={(e) => setSettings(s => ({ ...s, free_shipping_threshold: e.target.value }))}
+                  placeholder="500"
+                  disabled={!settings.free_shipping_enabled}
+                  className="flex-1"
+                />
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={settings.free_shipping_enabled}
+                    onCheckedChange={(v) => setSettings(s => ({ ...s, free_shipping_enabled: v }))}
+                  />
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                    {settings.free_shipping_enabled ? 'Aktiv' : 'Av'}
+                  </span>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">Ordrar över detta belopp får fri frakt</p>
+            </div>
+          </div>
+
+          {/* Delivery Time */}
+          <div className="border-t border-border pt-4">
+            <Label className="text-sm font-medium mb-3 block">Leveranstid</Label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Min dagar</Label>
+                <Input
+                  type="number"
+                  value={settings.delivery_days_min}
+                  onChange={(e) => setSettings(s => ({ ...s, delivery_days_min: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Max dagar</Label>
+                <Input
+                  type="number"
+                  value={settings.delivery_days_max}
+                  onChange={(e) => setSettings(s => ({ ...s, delivery_days_max: e.target.value }))}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Delivery Info Text */}
+          <div className="border-t border-border pt-4 space-y-4">
+            <Label className="text-sm font-medium block">Leveransinformation (visas för kunder)</Label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Svenska</Label>
+                <Input
+                  value={settings.delivery_info_sv}
+                  onChange={(e) => setSettings(s => ({ ...s, delivery_info_sv: e.target.value }))}
+                  placeholder="7–10 arbetsdagar"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">English</Label>
+                <Input
+                  value={settings.delivery_info_en}
+                  onChange={(e) => setSettings(s => ({ ...s, delivery_info_en: e.target.value }))}
+                  placeholder="7–10 business days"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Provider */}
+          <div className="border-t border-border pt-4 space-y-4">
+            <Label className="text-sm font-medium block">Leverantör / Fraktpartner</Label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Svenska</Label>
+                <Input
+                  value={settings.provider_sv}
+                  onChange={(e) => setSettings(s => ({ ...s, provider_sv: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">English</Label>
+                <Input
+                  value={settings.provider_en}
+                  onChange={(e) => setSettings(s => ({ ...s, provider_en: e.target.value }))}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Summary card */}
+          <div className="border-t border-border pt-4">
+            <div className="bg-secondary/40 rounded-lg p-4 space-y-2">
+              <p className="text-sm font-medium">Förhandsvisning</p>
+              <div className="text-sm text-muted-foreground space-y-1">
+                <p>🚚 Frakt: <span className="text-foreground font-medium">{settings.shipping_cost} kr</span></p>
+                {settings.free_shipping_enabled && (
+                  <p>🎉 Fri frakt vid köp över <span className="text-foreground font-medium">{settings.free_shipping_threshold} kr</span></p>
+                )}
+                <p>📦 Leverans: <span className="text-foreground font-medium">{settings.delivery_days_min}–{settings.delivery_days_max} dagar</span></p>
+                <p>🏷️ {settings.provider_sv}</p>
+              </div>
+            </div>
+          </div>
+
+          <Button onClick={handleSave} disabled={saving} className="gap-2">
+            {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            Spara fraktinställningar
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
 // ─── Main Component ───
 const AdminCampaignsManager = () => {
   return (
@@ -434,11 +622,15 @@ const AdminCampaignsManager = () => {
         <TabsTrigger value="sales" className="gap-1.5 text-xs">
           <Tag className="w-3.5 h-3.5" /> Kampanjpriser
         </TabsTrigger>
+        <TabsTrigger value="shipping" className="gap-1.5 text-xs">
+          <Truck className="w-3.5 h-3.5" /> Frakt
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="volume"><VolumeDiscountsTab /></TabsContent>
       <TabsContent value="bundles"><BundlesTab /></TabsContent>
       <TabsContent value="sales"><SalePricesTab /></TabsContent>
+      <TabsContent value="shipping"><ShippingTab /></TabsContent>
     </Tabs>
   );
 };
