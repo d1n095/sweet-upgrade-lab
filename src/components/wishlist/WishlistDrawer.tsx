@@ -23,7 +23,7 @@ const WishlistDrawer = ({ isOpen, onClose }: WishlistDrawerProps) => {
 
   const handleExploreProducts = () => {
     onClose();
-    navigate('/shop');
+    navigate('/produkter');
   };
 
   const formatPrice = (amount: string, currency: string) => {

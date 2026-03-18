@@ -229,7 +229,7 @@ const SearchSuggestions = () => {
                 ))}
                 {searchQuery.trim() && (
                   <Link
-                    to="/shop"
+                    to="/produkter"
                     onClick={() => setShowSuggestions(false)}
                     className="flex items-center justify-center gap-2 px-3 py-2.5 mt-1 text-sm text-primary hover:bg-primary/5 rounded-xl transition-colors"
                   >

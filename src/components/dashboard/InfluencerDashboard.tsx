@@ -221,7 +221,7 @@ const InfluencerDashboard = () => {
             </div>
           ))}
         </div>
-        <Link to="/shop">
+        <Link to="/produkter">
           <Button className="w-full mt-4" disabled={isExpired || isInactive || productsRemaining <= 0}>
             <ExternalLink className="w-4 h-4 mr-2" />
             {t.shopNow}

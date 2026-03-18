@@ -533,7 +533,7 @@ const MemberProfile = () => {
                   <Gift className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
                   <p className="text-lg font-medium mb-2">{t.rewards.empty}</p>
                   <p className="text-muted-foreground mb-6">{t.rewards.getFirst}</p>
-                  <Link to="/shop">
+                  <Link to="/produkter">
                     <Button>{t.actions.shopNow}</Button>
                   </Link>
                 </div>
