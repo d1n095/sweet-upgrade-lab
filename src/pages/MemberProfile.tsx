@@ -270,7 +270,7 @@ const MemberProfile = () => {
                 <div className="min-w-0">
                   <p className="text-sm text-muted-foreground">{t.welcome}</p>
                   <h1 className="font-display text-2xl font-semibold truncate">
-                    {username || (user.email ? maskEmail(user.email) : '')}
+                    {username || (language === 'sv' ? 'Användare' : 'User')}
                   </h1>
                   <div className="flex items-center flex-wrap gap-2 mt-1.5">
                     {/* Role badge */}
