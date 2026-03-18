@@ -190,7 +190,7 @@ const AdminOverview = () => {
           size="sm"
           variant={siteActive ? 'outline' : 'destructive'}
           className="gap-2"
-          onClick={() => updateSetting('site_active', !siteActive)}
+          onClick={() => setSiteActive(!siteActive)}
         >
           <Power className="w-4 h-4" />
           {siteActive ? 'Stäng butiken' : 'Öppna butiken'}
@@ -200,7 +200,7 @@ const AdminOverview = () => {
             size="sm"
             variant="outline"
             className="gap-2"
-            onClick={() => updateSetting('checkout_enabled', false)}
+            onClick={() => setCheckoutEnabled(false)}
           >
             Stäng av kassa
           </Button>
@@ -208,8 +208,8 @@ const AdminOverview = () => {
           <Button
             size="sm"
             variant="outline"
-            className="gap-2 border-amber-300 text-amber-700 hover:bg-amber-50"
-            onClick={() => updateSetting('checkout_enabled', true)}
+            className="gap-2"
+            onClick={() => setCheckoutEnabled(true)}
           >
             Aktivera kassa
           </Button>
