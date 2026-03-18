@@ -102,6 +102,9 @@ const ProductDetail = () => {
   const [quantity, setQuantity] = useState(1);
   const [isAdded, setIsAdded] = useState(false);
 
+  // AI translation hook - translates from Swedish when lang != 'sv'
+  const translated = useTranslatedProduct(product);
+
   useEffect(() => {
     const load = async () => {
       if (!handle) return;
