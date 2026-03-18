@@ -36,6 +36,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/context/LanguageContext';
 import { useFounderRole } from '@/hooks/useFounderRole';
 import { useAuth } from '@/hooks/useAuth';
+import { logActivity } from '@/utils/activityLogger';
 import { toast } from 'sonner';
 
 interface Member {
