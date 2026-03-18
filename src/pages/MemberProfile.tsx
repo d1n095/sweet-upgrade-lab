@@ -407,6 +407,16 @@ const MemberProfile = () => {
                   <span className="hidden sm:inline">{language === 'sv' ? 'Inställningar' : 'Settings'}</span>
                   <span className="sm:hidden"><Settings className="w-0 h-0" /></span>
                 </TabsTrigger>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => navigate('/admin')}
+                    className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1 text-xs sm:text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 text-primary hover:bg-primary/10"
+                  >
+                    <Shield className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    Admin
+                  </button>
+                )}
               </TabsList>
             </div>
 
