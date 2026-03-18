@@ -31,6 +31,10 @@ export interface ProductFormData {
   ingredients: string;
   certifications: string;
   recipe: string;
+  feeling: string;
+  effects: string;
+  usage: string;
+  extendedDescription: string;
 }
 
 const CURRENCY_OPTIONS = [
