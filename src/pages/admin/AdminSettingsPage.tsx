@@ -123,6 +123,25 @@ const AdminSettingsPage = () => {
                 </div>
               </CardContent>
             </Card>
+
+            <Card className="border-border">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <UserPlus className="w-4 h-4" />
+                  Registrering
+                  {!registrationEnabled && <Badge variant="secondary" className="text-xs">Avstängd</Badge>}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-sm">Tillåt registrering</Label>
+                    <p className="text-xs text-muted-foreground mt-1">Stäng av för att blockera nya registreringar. "Bli medlem" döljs.</p>
+                  </div>
+                  <Switch checked={registrationEnabled} onCheckedChange={setRegistrationEnabled} />
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {(!siteActive || !checkoutEnabled) && (
