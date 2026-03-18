@@ -94,6 +94,7 @@ const ShippingCarriersSection = () => {
 
   const toggleSelected = async (carrier: ShippingCarrier) => {
     await supabase.from('shipping_carriers').update({ is_selected: !carrier.is_selected, updated_at: new Date().toISOString() }).eq('id', carrier.id);
+    logShippingChange(`Fraktbolag ${!carrier.is_selected ? 'valt' : 'avvalt'}: ${carrier.name}`);
     fetchCarriers();
   };
 
