@@ -36,29 +36,37 @@ serve(async (req) => {
       });
     }
 
-    // 1. Reserve stock for each item
+    // 1. Fetch trusted prices from DB and reserve stock
     const reservedItems: { id: string; quantity: number }[] = [];
+    const trustedItems: { id: string; title: string; price: number; quantity: number; image: string }[] = [];
+
     for (const item of items) {
       if (!item.id) continue;
 
       const { data: product } = await supabase
         .from('products')
-        .select('stock, reserved_stock, allow_overselling')
+        .select('stock, reserved_stock, allow_overselling, price, title_sv, title_en, image_urls, is_visible')
         .eq('id', item.id)
         .single();
 
-      if (!product) continue;
+      if (!product || !product.is_visible) {
+        // Release any already-reserved items
+        for (const reserved of reservedItems) {
+          const { data: p } = await supabase.from('products').select('reserved_stock').eq('id', reserved.id).single();
+          if (p) await supabase.from('products').update({ reserved_stock: Math.max(0, p.reserved_stock - reserved.quantity) }).eq('id', reserved.id);
+        }
+        return new Response(JSON.stringify({ error: `Product not found or unavailable` }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
 
       const available = product.stock - product.reserved_stock;
       if (available < item.quantity && !product.allow_overselling) {
-        // Release any already-reserved items from this checkout
         for (const reserved of reservedItems) {
-          await supabase
-            .from('products')
-            .update({ reserved_stock: Math.max(0, (await supabase.from('products').select('reserved_stock').eq('id', reserved.id).single()).data!.reserved_stock - reserved.quantity) })
-            .eq('id', reserved.id);
+          const { data: p } = await supabase.from('products').select('reserved_stock').eq('id', reserved.id).single();
+          if (p) await supabase.from('products').update({ reserved_stock: Math.max(0, p.reserved_stock - reserved.quantity) }).eq('id', reserved.id);
         }
-        return new Response(JSON.stringify({ error: `${item.title} is out of stock` }), {
+        return new Response(JSON.stringify({ error: `${product.title_sv || item.title} is out of stock` }), {
           status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
@@ -69,10 +77,17 @@ serve(async (req) => {
         .eq('id', item.id);
 
       reservedItems.push({ id: item.id, quantity: item.quantity });
+      trustedItems.push({
+        id: item.id,
+        title: (language === 'en' && product.title_en) ? product.title_en : product.title_sv,
+        price: product.price, // TRUSTED price from DB
+        quantity: item.quantity,
+        image: product.image_urls?.[0] || item.image || '',
+      });
     }
 
-    // 2. Calculate totals
-    const subtotal = items.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0);
+    // 2. Calculate totals using TRUSTED prices
+    const subtotal = trustedItems.reduce((sum: number, item) => sum + item.price * item.quantity, 0);
     const freeShippingThreshold = 500;
     const shippingCost = subtotal >= freeShippingThreshold ? 0 : 39;
     const totalAmount = subtotal + shippingCost;
