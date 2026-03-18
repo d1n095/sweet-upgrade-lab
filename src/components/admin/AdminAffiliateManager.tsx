@@ -290,30 +290,23 @@ const AdminAffiliateManager = () => {
             
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name">{t.name}</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Anders Andersson"
-                  required
+                <Label>{language === 'sv' ? 'Sök användare' : 'Search user'}</Label>
+                <UserSearchInput
+                  placeholder={language === 'sv' ? 'Sök användarnamn, email eller telefon...' : 'Search username, email or phone...'}
+                  selectedUser={selectedUser}
+                  onSelect={(user) => {
+                    setSelectedUser(user);
+                    setFormData(prev => ({
+                      ...prev,
+                      name: user.username || user.email.split('@')[0],
+                      email: user.email,
+                    }));
+                  }}
+                  onClear={() => {
+                    setSelectedUser(null);
+                    setFormData(prev => ({ ...prev, name: '', email: '' }));
+                  }}
                 />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="email">{t.email}</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="anders@example.com"
-                    className="pl-9"
-                    required
-                  />
-                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
