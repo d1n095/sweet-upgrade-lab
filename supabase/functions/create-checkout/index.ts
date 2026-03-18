@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0?target=deno";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,6 +18,10 @@ serve(async (req) => {
 
     const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16', httpClient: Stripe.createFetchHttpClient() });
 
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
     const { items, shipping, email, language = 'sv' } = await req.json();
 
     if (!items || items.length === 0) {
@@ -31,7 +36,58 @@ serve(async (req) => {
       });
     }
 
-    // Build line items
+    // Calculate totals
+    const subtotal = items.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0);
+    const freeShippingThreshold = 500;
+    const shippingCost = subtotal >= freeShippingThreshold ? 0 : 39;
+    const totalAmount = subtotal + shippingCost;
+
+    // 1. Create order BEFORE Stripe with status "pending"
+    const orderData = {
+      order_email: email,
+      user_id: '00000000-0000-0000-0000-000000000000',
+      total_amount: totalAmount,
+      currency: 'SEK',
+      status: 'pending',
+      items: items.map((i: any) => ({
+        id: i.id,
+        title: i.title,
+        price: i.price,
+        quantity: i.quantity,
+        image: i.image || '',
+      })),
+      shipping_address: {
+        name: shipping?.name || '',
+        address: shipping?.address || '',
+        zip: shipping?.zip || '',
+        city: shipping?.city || '',
+        country: shipping?.country || 'SE',
+        phone: shipping?.phone || '',
+      },
+      status_history: [{ status: 'pending', timestamp: new Date().toISOString(), note: 'Order created, awaiting payment' }],
+      notes: '',
+    };
+
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .insert(orderData)
+      .select('id')
+      .single();
+
+    if (orderError) {
+      console.error('Failed to create order:', orderError);
+      await supabase.from('activity_logs').insert({
+        log_type: 'error',
+        category: 'order',
+        message: 'Failed to create pre-payment order',
+        details: { error: orderError.message, email },
+      });
+      throw new Error('Failed to create order');
+    }
+
+    console.log('Pre-payment order created:', order.id);
+
+    // 2. Create Stripe session with order ID in metadata
     const lineItems = items.map((item: any) => ({
       price_data: {
         currency: 'sek',
@@ -39,20 +95,14 @@ serve(async (req) => {
           name: item.title,
           ...(item.image ? { images: [item.image] } : {}),
         },
-        unit_amount: Math.round(item.price * 100), // Convert to öre
+        unit_amount: Math.round(item.price * 100),
       },
       quantity: item.quantity,
     }));
 
-    // Add shipping cost if applicable
-    const subtotal = items.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0);
-    const freeShippingThreshold = 500;
-    const shippingCost = subtotal >= freeShippingThreshold ? 0 : 39;
-
-    // Determine success/cancel URLs
     const origin = req.headers.get('origin') || 'https://4thepeople.se';
 
-    const sessionParams: any = {
+    const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card', 'klarna'],
       mode: 'payment',
       customer_email: email,
@@ -61,18 +111,13 @@ serve(async (req) => {
       success_url: `${origin}/order-confirmation?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/checkout`,
       metadata: {
+        order_id: order.id,
         shipping_name: shipping?.name || '',
         shipping_address: shipping?.address || '',
         shipping_zip: shipping?.zip || '',
         shipping_city: shipping?.city || '',
         shipping_country: shipping?.country || 'SE',
         shipping_phone: shipping?.phone || '',
-        items_json: JSON.stringify(items.map((i: any) => ({
-          id: i.id,
-          title: i.title,
-          price: i.price,
-          quantity: i.quantity,
-        }))),
       },
       shipping_options: [
         {
@@ -89,11 +134,26 @@ serve(async (req) => {
           },
         },
       ],
-    };
+    });
 
-    const session = await stripe.checkout.sessions.create(sessionParams);
+    // 3. Save stripe_session_id on the order for dedup
+    await supabase
+      .from('orders')
+      .update({
+        stripe_session_id: session.id,
+        notes: `Stripe session: ${session.id}`,
+      })
+      .eq('id', order.id);
 
-    return new Response(JSON.stringify({ url: session.url, sessionId: session.id }), {
+    await supabase.from('activity_logs').insert({
+      log_type: 'info',
+      category: 'order',
+      message: 'Checkout session created, awaiting payment',
+      details: { order_id: order.id, stripe_session: session.id, total: totalAmount },
+      order_id: order.id,
+    });
+
+    return new Response(JSON.stringify({ url: session.url, sessionId: session.id, orderId: order.id }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
