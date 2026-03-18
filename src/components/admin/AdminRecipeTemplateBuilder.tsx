@@ -138,7 +138,6 @@ const AdminRecipeTemplateBuilder = () => {
         toast.success('Receptmall skapad!');
         logRecipeChange('created', templateForm.name_sv);
       }
-      }
       setIsTemplateFormOpen(false);
       resetTemplateForm();
       fetchAll();
