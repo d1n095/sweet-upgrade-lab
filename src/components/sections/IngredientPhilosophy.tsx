@@ -28,7 +28,7 @@ const IngredientPhilosophy = () => {
   const t = content[lang];
 
   return (
-    <section id="philosophy" className="py-24 md:py-32">
+    <section id="philosophy" className="py-28 md:py-36">
       <div className="container mx-auto px-5">
         <motion.h2
           initial={{ opacity: 0, y: 12 }}
