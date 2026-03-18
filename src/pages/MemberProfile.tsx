@@ -391,6 +391,11 @@ const MemberProfile = () => {
               </div>
             </TabsContent>
 
+            {/* Referral Tab */}
+            <TabsContent value="referral">
+              <ReferralDashboard />
+            </TabsContent>
+
             {/* Donations Tab */}
             <TabsContent value="donations">
               <DonationImpact />
