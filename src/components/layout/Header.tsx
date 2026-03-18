@@ -16,6 +16,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { storeConfig } from '@/config/storeConfig';
 import { useTheme } from 'next-themes';
 import { usePageVisibility } from '@/stores/pageVisibilityStore';
+import { supabase } from '@/integrations/supabase/client';
+import { categories as allCategoryDefs } from '@/data/categories';
 
 // Dropdown that auto-closes on leave and renders as plain link when only 1 item
 const NavDropdown = ({
