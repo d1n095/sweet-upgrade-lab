@@ -40,15 +40,18 @@ const Hero = ({ getSection, isSectionVisible }: HeroProps) => {
     load();
   }, []);
 
+  const threshold = storeConfig.shipping.freeShippingThreshold;
   const trustItems = contentLang === 'sv'
     ? [
         { icon: ShieldCheck, text: 'Certifierade ingredienser' },
-        { icon: Truck, text: 'Fri frakt över 499 kr' },
+        { icon: Truck, text: `Fri frakt över ${threshold} kr` },
       ]
     : [
         { icon: ShieldCheck, text: 'Certified ingredients' },
-        { icon: Truck, text: 'Free shipping over 499 kr' },
+        { icon: Truck, text: `Free shipping over ${threshold} kr` },
       ];
+
+  const showBadges = isSectionVisible ? isSectionVisible('hero_badges') : true;
 
   if (isSectionVisible && !isSectionVisible('hero')) return null;
 
