@@ -31,6 +31,8 @@ interface Member {
   member_since: string | null;
   created_at: string;
   email?: string;
+  username?: string | null;
+  avatar_url?: string | null;
 }
 
 type AppRole = 'admin' | 'founder' | 'it' | 'moderator' | 'support' | 'affiliate' | 'donor' | 'manager' | 'marketing' | 'finance' | 'warehouse';
@@ -388,14 +390,14 @@ const AdminMemberManager = () => {
 
   const loadMembers = async () => {
     try {
-      // Load profiles
+      // Load profiles with username
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('*')
+        .select('user_id, is_member, member_since, created_at, username, avatar_url')
         .order('created_at', { ascending: false });
 
       if (profiles) {
-        setMembers(profiles);
+        setMembers(profiles as Member[]);
       }
 
       // Load user roles
@@ -498,9 +500,15 @@ const AdminMemberManager = () => {
     }).format(amount);
   };
 
-  const filteredMembers = members.filter((member) =>
-    member.user_id.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredMembers = members.filter((member) => {
+    const q = searchQuery.toLowerCase();
+    if (!q) return true;
+    return (
+      member.user_id.toLowerCase().includes(q) ||
+      (member.username && member.username.toLowerCase().includes(q)) ||
+      (member.email && member.email.toLowerCase().includes(q))
+    );
+  });
 
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
@@ -554,7 +562,39 @@ const AdminMemberManager = () => {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+            // If searching, also search via RPC for emails
+            const q = e.target.value.trim();
+            if (q.length >= 3) {
+              supabase.rpc('admin_search_users', { p_query: q }).then(({ data }) => {
+                if (data) {
+                  // Merge email/username info into members
+                  setMembers(prev => {
+                    const updated = [...prev];
+                    for (const result of data as any[]) {
+                      const idx = updated.findIndex(m => m.user_id === result.user_id);
+                      if (idx >= 0) {
+                        updated[idx] = { ...updated[idx], email: result.email, username: result.username || updated[idx].username };
+                      } else {
+                        // User exists in auth but might not be in our list yet
+                        updated.push({
+                          user_id: result.user_id,
+                          is_member: false,
+                          member_since: null,
+                          created_at: new Date().toISOString(),
+                          email: result.email,
+                          username: result.username,
+                          avatar_url: result.avatar_url,
+                        });
+                      }
+                    }
+                    return updated;
+                  });
+                }
+              });
+            }
+          }}
           placeholder={t.searchPlaceholder}
           className="pl-9"
         />
@@ -577,7 +617,8 @@ const AdminMemberManager = () => {
                   <Users className="w-5 h-5 text-primary" />
                 </div>
                 <div className="min-w-0">
-                  <p className="font-medium text-sm truncate">{member.user_id.slice(0, 20)}...</p>
+                  <p className="font-medium text-sm truncate">{member.username || member.user_id.slice(0, 12) + '...'}</p>
+                  <p className="text-xs text-muted-foreground truncate">{member.user_id.slice(0, 8)}...</p>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     {member.is_member && (
                       <Badge variant="outline" className="text-xs">

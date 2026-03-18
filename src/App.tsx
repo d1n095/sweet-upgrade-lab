@@ -115,7 +115,7 @@ const App = () => (
                 <Route path="partners" element={<AdminPartners />} />
                 <Route path="communication" element={<Navigate to="/admin/content" replace />} />
                 <Route path="updates" element={<Navigate to="/admin/content" replace />} />
-                <Route path="visibility" element={<AdminVisibility />} />
+                <Route path="visibility" element={<Navigate to="/admin/settings" replace />} />
                 <Route path="content" element={<AdminContent />} />
                 <Route path="campaigns" element={<AdminCampaigns />} />
                 <Route path="shipping" element={<AdminShipping />} />

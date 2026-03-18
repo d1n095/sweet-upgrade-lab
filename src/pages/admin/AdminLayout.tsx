@@ -41,7 +41,6 @@ const navItems: NavItem[] = [
   { to: '/admin/campaigns', label: 'Kampanjer', icon: Percent, role: 'admin' },
   { to: '/admin/shipping', label: 'Frakt', icon: Truck, role: 'admin' },
   { to: '/admin/seo', label: 'SEO', icon: Globe, role: 'admin' },
-  { to: '/admin/visibility', label: 'Sidsynlighet', icon: Eye, role: 'admin' },
   { to: '/admin/legal', label: 'Juridik & Donationer', icon: Heart, role: 'admin' },
   { to: '/admin/logs', label: 'Logg', icon: Activity, role: 'admin' },
   { to: '/admin/settings', label: 'Inställningar', icon: Settings, role: 'admin' },
