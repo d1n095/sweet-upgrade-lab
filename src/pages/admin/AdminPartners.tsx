@@ -60,12 +60,14 @@ const AdminPartners = () => {
       </div>
 
       <Tabs defaultValue="affiliates">
-        <TabsList>
-          <TabsTrigger value="affiliates">Affiliates</TabsTrigger>
-          <TabsTrigger value="influencers">Influencers</TabsTrigger>
-          <TabsTrigger value="applications">Ansökningar</TabsTrigger>
-          <TabsTrigger value="payouts">Utbetalningar</TabsTrigger>
-        </TabsList>
+        <ScrollableTabs>
+          <TabsList className="w-max">
+            <TabsTrigger value="affiliates">Affiliates</TabsTrigger>
+            <TabsTrigger value="influencers">Influencers</TabsTrigger>
+            <TabsTrigger value="applications">Ansökningar</TabsTrigger>
+            <TabsTrigger value="payouts">Utbetalningar</TabsTrigger>
+          </TabsList>
+        </ScrollableTabs>
         <TabsContent value="affiliates"><AdminAffiliateManager /></TabsContent>
         <TabsContent value="influencers"><AdminInfluencerManager /></TabsContent>
         <TabsContent value="applications"><AdminApplicationsManager /></TabsContent>
