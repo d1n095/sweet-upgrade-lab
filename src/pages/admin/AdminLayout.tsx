@@ -79,7 +79,7 @@ const AdminLayout = () => {
 
   useEffect(() => { setMobileNavOpen(false); }, [location.pathname]);
 
-  if (isLoading) {
+  if (combinedLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
@@ -87,7 +87,7 @@ const AdminLayout = () => {
     );
   }
 
-  if (!isAdmin) return null;
+  if (!hasAccess) return null;
 
   const handleSignOut = async () => {
     logAuthEvent('logout', user?.email || undefined);
