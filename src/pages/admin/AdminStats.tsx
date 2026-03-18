@@ -112,6 +112,41 @@ const AdminStats = () => {
     }
   };
 
+  const fetchOrderStats = async () => {
+    try {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const { data } = await supabase
+        .from('orders')
+        .select('total_amount, payment_status')
+        .eq('payment_status', 'paid')
+        .gte('created_at', thirtyDaysAgo.toISOString());
+
+      const amounts = (data || []).map(o => Number(o.total_amount || 0)).filter(a => a > 0).sort((a, b) => a - b);
+      const total = amounts.reduce((s, a) => s + a, 0);
+      const avg = amounts.length > 0 ? Math.round(total / amounts.length) : 0;
+      const median = amounts.length > 0 ? amounts[Math.floor(amounts.length / 2)] : 0;
+
+      // Build ranges
+      const rangesDef = [
+        { label: '0–99 kr', min: 0, max: 99 },
+        { label: '100–249 kr', min: 100, max: 249 },
+        { label: '250–499 kr', min: 250, max: 499 },
+        { label: '500–999 kr', min: 500, max: 999 },
+        { label: '1 000+ kr', min: 1000, max: Infinity },
+      ];
+      const ranges = rangesDef.map(r => ({
+        label: r.label,
+        count: amounts.filter(a => a >= r.min && a <= r.max).length,
+      }));
+
+      setOrderStats({ avgOrder: avg, medianOrder: median, totalRevenue: total, paidCount: amounts.length, ranges });
+      setCheckoutAmounts(amounts);
+    } catch (e) {
+      console.error('Failed to fetch order stats:', e);
+    }
+  };
+
   const fetchAnalyticsData = async () => {
     try {
       const thirtyDaysAgo = new Date();
