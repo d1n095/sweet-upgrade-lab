@@ -211,6 +211,15 @@ const Header = () => {
                 Shop
               </Link>
 
+              {productDropdownItems.length > 0 && (
+                <NavDropdown
+                  label={t('nav.products') || 'Produkter'}
+                  href="/produkter"
+                  items={productDropdownItems}
+                  isActive={location.pathname === '/produkter' || location.pathname.startsWith('/shop?category=')}
+                />
+              )}
+
               <NavDropdown
                 label={t('nav.about')}
                 href="/about"
