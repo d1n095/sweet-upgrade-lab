@@ -1,17 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { CartItem, useCartStore } from '@/stores/cartStore';
-
-interface VolumeDiscount {
-  id: string;
-  min_quantity: number;
-  discount_percent: number;
-  shopify_product_id: string | null;
-  is_global: boolean;
-  excluded_product_ids: string[];
-  stackable: boolean;
-  label: string | null;
-}
+import { useCartStore } from '@/stores/cartStore';
 
 interface BundlePricing {
   id: string;
@@ -32,7 +21,6 @@ export interface CartDiscount {
 
 export function useCartDiscounts() {
   const items = useCartStore(state => state.items);
-  const [volumeDiscounts, setVolumeDiscounts] = useState<VolumeDiscount[]>([]);
   const [bundles, setBundles] = useState<BundlePricing[]>([]);
   const [discounts, setDiscounts] = useState<CartDiscount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -42,12 +30,6 @@ export function useCartDiscounts() {
     const fetchDiscountRules = async () => {
       setIsLoading(true);
       try {
-        // Fetch volume discounts
-        const { data: volumeData } = await supabase
-          .from('volume_discounts')
-          .select('*')
-          .order('min_quantity', { ascending: true });
-
         // Fetch bundle pricing with products
         const { data: bundleData } = await supabase
           .from('bundle_pricing')
@@ -61,14 +43,6 @@ export function useCartDiscounts() {
             )
           `)
           .eq('is_active', true);
-
-        if (volumeData) {
-          setVolumeDiscounts(volumeData.map((v: any) => ({
-            ...v,
-            excluded_product_ids: v.excluded_product_ids || [],
-            stackable: v.stackable ?? true,
-          })));
-        }
 
         if (bundleData) {
           const formattedBundles = bundleData.map(bundle => ({
@@ -98,88 +72,26 @@ export function useCartDiscounts() {
     }
 
     const calculatedDiscounts: CartDiscount[] = [];
-    
-    // Calculate total items in cart for global volume discount (excluding excluded products)
-    const applicableGlobalDiscounts = volumeDiscounts
-      .filter(vd => vd.is_global && !vd.shopify_product_id)
-      .map(vd => {
-        const excluded = vd.excluded_product_ids || [];
-        const eligibleItems = items.filter(item => !excluded.includes(item.product.node.id));
-        const eligibleQty = eligibleItems.reduce((sum, item) => sum + item.quantity, 0);
-        return { ...vd, eligibleItems, eligibleQty };
-      })
-      .filter(vd => vd.eligibleQty >= vd.min_quantity)
-      .sort((a, b) => b.discount_percent - a.discount_percent);
-
-    const bestGlobalDiscount = applicableGlobalDiscounts[0];
-
-    if (bestGlobalDiscount) {
-      const cartTotal = bestGlobalDiscount.eligibleItems.reduce(
-        (sum, item) => sum + parseFloat(item.price.amount) * item.quantity,
-        0
-      );
-      const discountAmount = cartTotal * (bestGlobalDiscount.discount_percent / 100);
-      
-      calculatedDiscounts.push({
-        type: 'volume',
-        name: bestGlobalDiscount.label || `Mängdrabatt ${bestGlobalDiscount.discount_percent}%`,
-        description: `${bestGlobalDiscount.eligibleQty} produkter i korgen${bestGlobalDiscount.excluded_product_ids.length > 0 ? ` (${bestGlobalDiscount.excluded_product_ids.length} uteslutna)` : ''}`,
-        discountPercent: bestGlobalDiscount.discount_percent,
-        applicableItems: bestGlobalDiscount.eligibleItems.map(i => i.variantId),
-        discountAmount: discountAmount
-      });
-
-      // If not stackable, skip bundle discounts for these items
-      if (!bestGlobalDiscount.stackable) {
-        setDiscounts(calculatedDiscounts);
-        return;
-      }
-    }
-
-    // Also check product-specific volume discounts
-    items.forEach(item => {
-      const productId = item.product.node.id;
-      
-      const productDiscount = volumeDiscounts.find(
-        vd => vd.shopify_product_id === productId && item.quantity >= vd.min_quantity
-      );
-      
-      if (productDiscount) {
-        const itemTotal = parseFloat(item.price.amount) * item.quantity;
-        const discountAmount = itemTotal * (productDiscount.discount_percent / 100);
-        
-        calculatedDiscounts.push({
-          type: 'volume',
-          name: `Mängdrabatt ${productDiscount.discount_percent}%`,
-          description: `${item.quantity}+ st ${item.product.node.title}`,
-          discountPercent: productDiscount.discount_percent,
-          applicableItems: [item.variantId],
-          discountAmount: discountAmount
-        });
-      }
-    });
 
     // Calculate bundle discounts
     bundles.forEach(bundle => {
       if (bundle.product_ids.length < 2) return;
 
-      // Check if all bundle products are in cart
       const cartProductIds = items.map(item => item.product.node.id);
       const allProductsInCart = bundle.product_ids.every(pid => cartProductIds.includes(pid));
 
       if (allProductsInCart) {
-        // Calculate discount on the bundle items
-        const bundleItems = items.filter(item => 
+        const bundleItems = items.filter(item =>
           bundle.product_ids.includes(item.product.node.id)
         );
-        
+
         const bundleTotal = bundleItems.reduce(
           (sum, item) => sum + parseFloat(item.price.amount) * item.quantity,
           0
         );
-        
+
         const discountAmount = bundleTotal * (bundle.discount_percent / 100);
-        
+
         calculatedDiscounts.push({
           type: 'bundle',
           name: bundle.name,
@@ -192,7 +104,7 @@ export function useCartDiscounts() {
     });
 
     setDiscounts(calculatedDiscounts);
-  }, [items, volumeDiscounts, bundles, isLoading]);
+  }, [items, bundles, isLoading]);
 
   const totalDiscount = discounts.reduce((sum, d) => sum + d.discountAmount, 0);
 
@@ -209,7 +121,6 @@ export function useCartDiscounts() {
     totalDiscount,
     getDiscountedTotal,
     isLoading,
-    volumeDiscounts,
     bundles
   };
 }
