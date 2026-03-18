@@ -126,7 +126,7 @@ const SearchSuggestions = () => {
     e.preventDefault();
     if (searchQuery.trim()) {
       setShowSuggestions(false);
-      navigate('/shop');
+      navigate('/produkter');
     }
   };
 
