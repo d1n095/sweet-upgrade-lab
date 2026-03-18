@@ -7,7 +7,7 @@ import { useAdminSession } from '@/hooks/useAdminSession';
 import {
   Loader2, Package, ClipboardList, BarChart3, Settings, Grid, Users,
   Handshake, Heart, Eye, LogOut, Home, Shield,
-  Activity, User, Menu, X, Star, FileText, Percent, Truck, Wallet,
+  Activity, User, Menu, X, Star, FileText, Percent, Truck, Wallet, Globe,
 } from 'lucide-react';
 import { useEmployeeRole } from '@/hooks/useEmployeeRole';
 import { Button } from '@/components/ui/button';
