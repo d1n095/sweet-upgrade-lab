@@ -87,10 +87,10 @@ const Footer = () => {
             <h4 className="text-[11px] font-semibold uppercase tracking-wider text-foreground/80 mb-5">{t('footer.payment')}</h4>
             <div className="space-y-3.5">
               <PaymentIcons />
-              <div className="flex items-center gap-2 text-[11px] text-muted-foreground/80">
+              <a href={`mailto:${storeConfig.contact.email}`} className="flex items-center gap-2 text-[11px] text-muted-foreground/80 hover:text-foreground transition-colors">
                 <Mail className="w-3.5 h-3.5 flex-shrink-0" />
                 {storeConfig.contact.email}
-              </div>
+              </a>
               <div className="flex items-center gap-2 text-[11px] text-muted-foreground/80">
                 <Clock className="w-3.5 h-3.5 flex-shrink-0" />
                 {t('footer.response')}
