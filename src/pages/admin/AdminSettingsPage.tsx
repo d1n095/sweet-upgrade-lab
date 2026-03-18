@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useStoreSettings } from '@/stores/storeSettingsStore';
 import { usePageVisibility, ToggleablePage } from '@/stores/pageVisibilityStore';
+import { usePaymentMethodsStore } from '@/stores/paymentMethodsStore';
+import { PAYMENT_ICON_MAP, GenericIcon } from '@/components/trust/PaymentMethodIcons';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
