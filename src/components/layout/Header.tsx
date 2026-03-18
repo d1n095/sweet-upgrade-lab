@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingCart, Menu, X, Leaf, ChevronDown, User, Crown, LogOut, Heart, Moon, Sun, Search } from 'lucide-react';
@@ -16,6 +16,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { storeConfig } from '@/config/storeConfig';
 import { useTheme } from 'next-themes';
 import { usePageVisibility } from '@/stores/pageVisibilityStore';
+import { supabase } from '@/integrations/supabase/client';
+import { categories as allCategoryDefs } from '@/data/categories';
 
 // Dropdown that auto-closes on leave and renders as plain link when only 1 item
 const NavDropdown = ({
@@ -112,8 +114,27 @@ const Header = () => {
   const [activeCategories, setActiveCategories] = useState(
     storeConfig.categories.filter(c => c.active)
   );
+  const [productCategories, setProductCategories] = useState<string[]>([]);
 
   useEffect(() => { setMounted(true); }, []);
+
+  // Fetch product categories once to know which categories have products
+  useEffect(() => {
+    supabase
+      .from('products')
+      .select('category, badge')
+      .eq('is_visible', true)
+      .then(({ data }) => {
+        if (!data) return;
+        const cats = new Set<string>();
+        const hasBestseller = data.some(p => p.badge === 'bestseller');
+        if (hasBestseller) cats.add('bestsaljare');
+        data.forEach(p => {
+          if (p.category) cats.add(p.category.toLowerCase());
+        });
+        setProductCategories(Array.from(cats));
+      });
+  }, []);
 
   useEffect(() => {
     const handleCategoriesUpdated = (event: CustomEvent) => {
@@ -154,11 +175,26 @@ const Header = () => {
     ...(isVisible('suggest-product') ? [{ href: '/suggest-product', label: t('nav.suggestproduct') }] : []),
   ];
 
-  const productDropdownItems = activeCategories.map(c => ({
-    href: `/shop?category=${c.id}`,
-    label: c.name?.[language] ?? c.name?.[contentLang] ?? c.name?.en ?? c.name?.sv ?? '',
-    icon: <Leaf className="w-3.5 h-3.5 text-muted-foreground" />,
-  }));
+  // Only show categories that actually have products
+  const productDropdownItems = useMemo(() => {
+    return activeCategories
+      .filter(c => {
+        if ((c.id as string) === 'all') return false; // skip "all" from dropdown
+        const catDef = allCategoryDefs.find(cd => cd.id === c.id);
+        if (!catDef) return false;
+        if (catDef.isBestsellerFilter) {
+          return productCategories.includes('bestsaljare');
+        }
+        const match = catDef.query?.match(/product_type:"?([^"&\s]+)"?/);
+        if (!match) return false;
+        return productCategories.includes(match[1].toLowerCase());
+      })
+      .map(c => ({
+        href: `/shop?category=${c.id}`,
+        label: c.name?.[language] ?? c.name?.[contentLang] ?? c.name?.en ?? c.name?.sv ?? '',
+        icon: <Leaf className="w-3.5 h-3.5 text-muted-foreground" />,
+      }));
+  }, [activeCategories, productCategories, language, contentLang]);
 
   const allMobileLinks = [
     { href: '/shop', label: 'Shop' },
