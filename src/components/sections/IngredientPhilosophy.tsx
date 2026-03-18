@@ -1,26 +1,30 @@
 import { motion } from 'framer-motion';
 import { Search, ShieldCheck, FlaskConical } from 'lucide-react';
 import { useLanguage, getContentLang } from '@/context/LanguageContext';
-import { usePageSections } from '@/hooks/usePageSections';
+import { PageSection } from '@/hooks/usePageSections';
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   FlaskConical, ShieldCheck, Search,
 };
 
-const IngredientPhilosophy = () => {
+interface IngredientPhilosophyProps {
+  sections?: PageSection[];
+  getSection?: (key: string) => PageSection | undefined;
+  isSectionVisible?: (key: string) => boolean;
+}
+
+const IngredientPhilosophy = ({ sections = [], getSection, isSectionVisible }: IngredientPhilosophyProps) => {
   const { language } = useLanguage();
   const lang = getContentLang(language);
-  const { sections, getSection, isSectionVisible } = usePageSections('home');
 
   const getLang = (sv: string | null | undefined, en: string | null | undefined) =>
     (lang === 'sv' ? sv : en) || sv || '';
 
-  const titleSection = getSection('philosophy');
+  const titleSection = getSection?.('philosophy');
   const steps = sections
     .filter(s => s.section_key.startsWith('philosophy_step_') && s.is_visible)
     .sort((a, b) => a.display_order - b.display_order);
 
-  // Fallback content if no CMS data yet
   const fallbackSteps = lang === 'sv'
     ? [
         { icon: FlaskConical, title: 'Ingrediensanalys', desc: 'Vi granskar varje ingredienslista och undviker skadliga ämnen.' },
@@ -33,7 +37,7 @@ const IngredientPhilosophy = () => {
         { icon: Search, title: 'User reviews', desc: 'We analyse global reviews for real-world quality.' },
       ];
 
-  if (!isSectionVisible('philosophy')) return null;
+  if (isSectionVisible && !isSectionVisible('philosophy')) return null;
 
   const titleText = titleSection
     ? getLang(titleSection.title_sv, titleSection.title_en)

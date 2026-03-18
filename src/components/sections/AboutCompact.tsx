@@ -1,18 +1,23 @@
 import { motion } from 'framer-motion';
 import { useLanguage, getContentLang } from '@/context/LanguageContext';
-import { usePageSections } from '@/hooks/usePageSections';
+import { PageSection } from '@/hooks/usePageSections';
 
-const AboutCompact = () => {
+interface AboutCompactProps {
+  sections?: PageSection[];
+  getSection?: (key: string) => PageSection | undefined;
+  isSectionVisible?: (key: string) => boolean;
+}
+
+const AboutCompact = ({ getSection, isSectionVisible }: AboutCompactProps) => {
   const { language } = useLanguage();
   const lang = getContentLang(language);
-  const { getSection, isSectionVisible } = usePageSections('home');
 
   const getLang = (sv: string | null | undefined, en: string | null | undefined) =>
     (lang === 'sv' ? sv : en) || sv || '';
 
-  const section = getSection('about_compact');
+  const section = getSection?.('about_compact');
 
-  if (!isSectionVisible('about_compact')) return null;
+  if (isSectionVisible && !isSectionVisible('about_compact')) return null;
 
   const title = section
     ? getLang(section.title_sv, section.title_en)
