@@ -97,15 +97,30 @@ serve(async (req) => {
       return ok({ received: true, duplicate: true, method: 'status_check' });
     }
 
-    // Update status to confirmed + payment_status to paid + store payment_intent_id
+    // Resolve payment method from Stripe
+    let paymentMethodType: string | null = null;
+    if (paymentIntentId) {
+      try {
+        const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+        if (pi.payment_method) {
+          const pm = await stripe.paymentMethods.retrieve(pi.payment_method as string);
+          paymentMethodType = pm.type; // 'card', 'klarna', 'swish', etc.
+        }
+      } catch (e) {
+        console.warn('Could not resolve payment method:', e);
+      }
+    }
+
+    // Update status to confirmed + payment_status to paid + store payment_intent_id + payment_method
     const history = Array.isArray(order.status_history) ? [...order.status_history] : [];
-    history.push({ status: 'confirmed', timestamp: new Date().toISOString(), note: 'Payment confirmed via Stripe — payment_status: paid' });
+    history.push({ status: 'confirmed', timestamp: new Date().toISOString(), note: `Payment confirmed via Stripe (${paymentMethodType || 'unknown'}) — payment_status: paid` });
 
     const { error: updateError } = await supabase
       .from('orders')
       .update({
         status: 'confirmed',
         payment_status: 'paid',
+        payment_method: paymentMethodType,
         status_history: history,
         total_amount: (session.amount_total || 0) / 100,
         stripe_session_id: session.id,
@@ -146,6 +161,7 @@ serve(async (req) => {
       email: session.customer_email,
       total: (session.amount_total || 0) / 100,
       payment_intent_id: paymentIntentId,
+      payment_method: paymentMethodType,
     }, resolvedOrderId);
 
     return ok({ received: true, order_id: resolvedOrderId });
@@ -182,16 +198,88 @@ serve(async (req) => {
           }
         }
 
-        // Update order to failed
+        // Update order to abandoned (session expired = user abandoned)
         const history = Array.isArray(order.status_history) ? [...order.status_history] : [];
-        history.push({ status: 'failed', timestamp: new Date().toISOString(), note: 'Payment session expired — reserved stock released' });
+        history.push({ status: 'abandoned', timestamp: new Date().toISOString(), note: 'Payment session expired — reserved stock released' });
 
         await supabase
           .from('orders')
-          .update({ status: 'failed', payment_status: 'failed', status_history: history })
+          .update({ status: 'abandoned', payment_status: 'abandoned', status_history: history })
           .eq('id', orderId);
 
-        await logEvent(supabase, 'warning', 'payment', 'Payment expired — reserved stock released', { stripe_session: session.id }, orderId);
+        await logEvent(supabase, 'warning', 'payment', 'Payment abandoned — session expired, reserved stock released', { stripe_session: session.id }, orderId);
+      }
+    }
+
+    return ok({ received: true });
+  }
+
+  // ── payment_intent.payment_failed → mark order as failed ──
+  if (event.type === 'payment_intent.payment_failed') {
+    const paymentIntent = event.data.object as Stripe.PaymentIntent;
+    const failureMessage = paymentIntent.last_payment_error?.message || 'Payment failed';
+
+    // Find order by payment_intent_id
+    const { data: order } = await supabase
+      .from('orders')
+      .select('id, status, status_history')
+      .eq('payment_intent_id', paymentIntent.id)
+      .maybeSingle();
+
+    if (order && order.status === 'pending') {
+      const history = Array.isArray(order.status_history) ? [...order.status_history] : [];
+      history.push({ status: 'failed', timestamp: new Date().toISOString(), note: `Payment failed: ${failureMessage}` });
+
+      await supabase
+        .from('orders')
+        .update({ status: 'failed', payment_status: 'failed', status_history: history })
+        .eq('id', order.id);
+
+      await logEvent(supabase, 'error', 'payment', `Payment failed: ${failureMessage}`, {
+        payment_intent_id: paymentIntent.id,
+        failure_code: paymentIntent.last_payment_error?.code,
+      }, order.id);
+    }
+
+    return ok({ received: true });
+  }
+
+  // ── charge.refunded → mark order as refunded ──
+  if (event.type === 'charge.refunded') {
+    const charge = event.data.object as Stripe.Charge;
+    const paymentIntentId = charge.payment_intent as string | null;
+
+    if (paymentIntentId) {
+      const { data: order } = await supabase
+        .from('orders')
+        .select('id, status_history')
+        .eq('payment_intent_id', paymentIntentId)
+        .maybeSingle();
+
+      if (order) {
+        const refundAmount = (charge.amount_refunded || 0) / 100;
+        const isFullRefund = charge.refunded;
+        const history = Array.isArray(order.status_history) ? [...order.status_history] : [];
+        history.push({
+          status: isFullRefund ? 'refunded' : 'partially_refunded',
+          timestamp: new Date().toISOString(),
+          note: `Refund processed: ${refundAmount} SEK${isFullRefund ? ' (full)' : ' (partial)'}`,
+        });
+
+        await supabase
+          .from('orders')
+          .update({
+            refund_status: isFullRefund ? 'refunded' : 'partially_refunded',
+            refund_amount: refundAmount,
+            refunded_at: new Date().toISOString(),
+            status_history: history,
+          })
+          .eq('id', order.id);
+
+        await logEvent(supabase, 'info', 'payment', `Refund processed: ${refundAmount} SEK`, {
+          payment_intent_id: paymentIntentId,
+          full_refund: isFullRefund,
+        }, order.id);
       }
     }
 
