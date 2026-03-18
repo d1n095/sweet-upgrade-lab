@@ -5,20 +5,25 @@ import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/context/LanguageContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { usePageSections } from '@/hooks/usePageSections';
+import { PageSection } from '@/hooks/usePageSections';
 
-const Hero = () => {
+interface HeroProps {
+  sections?: PageSection[];
+  getSection?: (key: string) => PageSection | undefined;
+  isSectionVisible?: (key: string) => boolean;
+}
+
+const Hero = ({ getSection, isSectionVisible }: HeroProps) => {
   const { t, contentLang } = useLanguage();
   const navigate = useNavigate();
   const [reviewCount, setReviewCount] = useState(0);
   const [avgRating, setAvgRating] = useState(0);
-  const { getSection, isSectionVisible } = usePageSections('home');
 
   const lang = contentLang;
   const getLang = (sv: string | null | undefined, en: string | null | undefined) =>
     (lang === 'sv' ? sv : en) || sv || '';
 
-  const heroSection = getSection('hero');
+  const heroSection = getSection?.('hero');
 
   useEffect(() => {
     const load = async () => {
@@ -44,7 +49,7 @@ const Hero = () => {
         { icon: Truck, text: 'Free shipping over 499 kr' },
       ];
 
-  if (!isSectionVisible('hero')) return null;
+  if (isSectionVisible && !isSectionVisible('hero')) return null;
 
   return (
     <section className="relative min-h-[75vh] flex items-center justify-center">

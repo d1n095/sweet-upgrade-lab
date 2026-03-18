@@ -11,6 +11,7 @@ import SEOHead from '@/components/seo/SEOHead';
 import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import { trackPageView } from '@/utils/analytics';
 import { useStoreSettings } from '@/stores/storeSettingsStore';
+import { usePageSections, PageSection } from '@/hooks/usePageSections';
 
 const Index = () => {
   const { language } = useLanguage();
@@ -23,6 +24,9 @@ const Index = () => {
     isLoaded,
     fetchSettings,
   } = useStoreSettings();
+
+  // Single fetch for all home page sections — passed down to children
+  const { sections, loading: sectionsLoading, getSection, isSectionVisible } = usePageSections('home');
 
   useEffect(() => {
     trackPageView('home', language);
@@ -45,11 +49,17 @@ const Index = () => {
       />
       <Header />
       <main>
-        <Hero />
-        {homepagePhilosophy && <IngredientPhilosophy />}
+        {homepagePhilosophy !== false && (
+          <Hero sections={sections} getSection={getSection} isSectionVisible={isSectionVisible} />
+        )}
+        {homepagePhilosophy && (
+          <IngredientPhilosophy sections={sections} getSection={getSection} isSectionVisible={isSectionVisible} />
+        )}
         {homepageBestsellers && <HomepageBestsellers />}
         {homepageReviews && <HomepageReviews />}
-        {homepageAbout && <AboutCompact />}
+        {homepageAbout && (
+          <AboutCompact sections={sections} getSection={getSection} isSectionVisible={isSectionVisible} />
+        )}
       </main>
       <Footer />
       <FloatingContactButton />
