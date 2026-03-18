@@ -546,6 +546,30 @@ const AdminMemberManager = ({ roleFilter = 'all' }: AdminMemberManagerProps) => 
     }
   };
 
+  const handleSaveUsername = async () => {
+    if (!selectedMember || !newUsername.trim()) return;
+    const trimmed = newUsername.trim();
+    if (trimmed.length < 2 || trimmed.length > 30) {
+      toast.error('Användarnamn måste vara 2–30 tecken');
+      return;
+    }
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ username: trimmed })
+        .eq('user_id', selectedMember.user_id);
+      if (error) throw error;
+      toast.success('Användarnamn uppdaterat');
+      const updated = { ...selectedMember, username: trimmed };
+      setSelectedMember(updated);
+      setMembers(prev => prev.map(m => m.user_id === selectedMember.user_id ? { ...m, username: trimmed } : m));
+      setEditingUsername(false);
+    } catch (error) {
+      console.error('Failed to update username:', error);
+      toast.error('Kunde inte uppdatera användarnamnet');
+    }
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('sv-SE', {
       year: 'numeric',
