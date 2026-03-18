@@ -112,10 +112,18 @@ const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
                 <div className="flex flex-col h-full p-4">
                   <div className="text-center py-8 flex-1 flex flex-col items-center justify-center">
                     <ShoppingBag className="w-16 h-16 text-muted-foreground/30 mb-4" />
-                    <p className="text-muted-foreground">{t.empty}</p>
+                    <p className="text-muted-foreground mb-1">{t.empty}</p>
+                    <p className="text-xs text-muted-foreground/60">
+                      {cl === 'sv' ? 'Utforska våra produkter och hitta något du gillar' : 'Explore our products and find something you like'}
+                    </p>
                   </div>
-                  <Button variant="outline" onClick={onClose}>
-                    {t.continue}
+                  <Button 
+                    variant="outline" 
+                    onClick={() => { onClose(); navigate('/produkter'); }}
+                    className="gap-2"
+                  >
+                    <Package className="w-4 h-4" />
+                    {cl === 'sv' ? 'Börja handla' : 'Start shopping'}
                   </Button>
                 </div>
               ) : (

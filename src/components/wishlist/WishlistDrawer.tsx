@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Heart, Trash2, ShoppingCart, Lightbulb } from 'lucide-react';
+import { X, Heart, Trash2, ShoppingCart, Lightbulb, LogIn } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useWishlistStore } from '@/stores/wishlistStore';
 import { useCartStore } from '@/stores/cartStore';
 import { useLanguage } from '@/context/LanguageContext';
+import { useAuth } from '@/hooks/useAuth';
 import { ShopifyProduct } from '@/lib/shopify';
+import AuthModal from '@/components/auth/AuthModal';
 
 interface WishlistDrawerProps {
   isOpen: boolean;
@@ -16,9 +18,11 @@ interface WishlistDrawerProps {
 
 const WishlistDrawer = ({ isOpen, onClose }: WishlistDrawerProps) => {
   const { language } = useLanguage();
+  const { user } = useAuth();
   const { items, removeItem, clearWishlist } = useWishlistStore();
   const { addItem: addToCart } = useCartStore();
   const [addedItems, setAddedItems] = useState<Set<string>>(new Set());
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
   const navigate = useNavigate();
 
   const handleExploreProducts = () => {
@@ -114,17 +118,17 @@ const WishlistDrawer = ({ isOpen, onClose }: WishlistDrawerProps) => {
                     <Button onClick={handleExploreProducts} variant="outline">
                       {language === 'sv' ? 'Utforska produkter' : 'Explore products'}
                     </Button>
-                    <Button 
-                      onClick={() => {
-                        onClose();
-                        navigate('/#product-suggestions');
-                      }} 
-                      variant="ghost"
-                      size="sm"
-                      className="text-primary"
-                    >
-                      {language === 'sv' ? 'Önska en produkt' : 'Suggest a product'}
-                    </Button>
+                    {!user && (
+                      <Button
+                        onClick={() => { onClose(); setIsAuthOpen(true); }}
+                        variant="ghost"
+                        size="sm"
+                        className="text-primary"
+                      >
+                        <LogIn className="w-4 h-4 mr-1.5" />
+                        {language === 'sv' ? 'Logga in för att spara din lista' : 'Log in to save your list'}
+                      </Button>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -224,6 +228,7 @@ const WishlistDrawer = ({ isOpen, onClose }: WishlistDrawerProps) => {
           </motion.div>
         </>
       )}
+      <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
     </AnimatePresence>
   );
 };
