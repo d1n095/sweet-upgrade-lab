@@ -1305,9 +1305,11 @@ export type Database = {
           city: string | null
           country: string | null
           created_at: string
+          first_name: string | null
           full_name: string | null
           id: string
           is_member: boolean
+          last_name: string | null
           level: number
           member_since: string | null
           phone: string | null
@@ -1325,9 +1327,11 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string
+          first_name?: string | null
           full_name?: string | null
           id?: string
           is_member?: boolean
+          last_name?: string | null
           level?: number
           member_since?: string | null
           phone?: string | null
@@ -1345,9 +1349,11 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string
+          first_name?: string | null
           full_name?: string | null
           id?: string
           is_member?: boolean
+          last_name?: string | null
           level?: number
           member_since?: string | null
           phone?: string | null
