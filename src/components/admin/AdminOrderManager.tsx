@@ -259,6 +259,7 @@ const AdminOrderManager = () => {
         .from('orders')
         .update({
           status: 'confirmed',
+          payment_status: 'paid',
           status_history: newHistory,
         })
         .eq('id', order.id);
@@ -268,7 +269,7 @@ const AdminOrderManager = () => {
       setOrders(prev =>
         prev.map(o =>
           o.id === order.id
-            ? { ...o, status: 'confirmed', status_history: newHistory, updated_at: new Date().toISOString() }
+            ? { ...o, status: 'confirmed', payment_status: 'paid', status_history: newHistory, updated_at: new Date().toISOString() }
             : o
         )
       );
