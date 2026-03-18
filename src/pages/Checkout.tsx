@@ -42,7 +42,7 @@ const Checkout = () => {
   const { language } = useLanguage();
   const cl = getContentLang(language);
   const { items, clearCart } = useCartStore();
-  const { checkoutEnabled } = useStoreSettings();
+  const { checkoutEnabled, autoSaveProfile } = useStoreSettings();
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
