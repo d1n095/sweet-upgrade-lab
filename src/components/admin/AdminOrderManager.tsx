@@ -112,6 +112,7 @@ const AdminOrderManager = () => {
       shipped: 'Shipped',
       delivered: 'Delivered',
       cancelled: 'Cancelled',
+      failed: 'Failed',
       items: 'Items',
       address: 'Shipping address',
       estimatedDelivery: 'Estimated delivery',
