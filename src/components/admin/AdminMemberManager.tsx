@@ -4,7 +4,7 @@ import {
   Users, Search, Shield, UserCheck, Briefcase, 
   Loader2, ChevronDown, ChevronUp, Package, Star,
   Eye, X, Mail, ExternalLink, ChevronLeft, ChevronRight, Phone,
-  Award, TrendingUp, Hash, Link2, Calendar, Heart, ShoppingBag
+  Award, TrendingUp, Hash, Link2, Calendar, Heart, ShoppingBag, Pencil, Check
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
