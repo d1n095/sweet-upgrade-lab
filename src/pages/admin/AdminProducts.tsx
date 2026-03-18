@@ -43,11 +43,13 @@ const AdminProducts = () => {
         <AdminProductImportExport />
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
         {[
-          { label: 'Totalt produkter', value: stats.total, icon: Package, color: 'text-primary' },
+          { label: 'Aktiva', value: stats.total, icon: Package, color: 'text-primary' },
           { label: 'Synliga', value: stats.visible, icon: Eye, color: 'text-green-600' },
-          { label: 'Lågt lager', value: stats.lowStock, icon: AlertTriangle, color: 'text-amber-600' },
+          { label: 'Utkast', value: stats.drafts, icon: FileText, color: 'text-amber-600' },
+          { label: 'Arkiverade', value: stats.archived, icon: Archive, color: 'text-blue-600' },
+          { label: 'Lågt lager', value: stats.lowStock, icon: AlertTriangle, color: 'text-orange-600' },
           { label: 'Ingredienser', value: stats.ingredients, icon: FlaskConical, color: 'text-purple-600' },
         ].map(s => (
           <Card key={s.label} className="border-border">
