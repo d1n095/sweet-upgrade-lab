@@ -1432,6 +1432,15 @@ export type Database = {
         Args: { p_reason?: string; p_user_id: string; p_xp: number }
         Returns: undefined
       }
+      admin_search_users: {
+        Args: { p_query: string }
+        Returns: {
+          avatar_url: string
+          email: string
+          user_id: string
+          username: string
+        }[]
+      }
       calculate_level: { Args: { p_xp: number }; Returns: number }
       check_review_eligibility: {
         Args: { p_product_id: string; p_user_id: string }
