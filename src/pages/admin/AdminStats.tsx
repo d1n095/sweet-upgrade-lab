@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import {
   TrendingUp, Package, RefreshCw, Search, Eye, ShoppingCart,
   AlertTriangle, BarChart3, MousePointerClick, Lightbulb, CheckCircle, XCircle,
-  Plus, Minus, LogOut
+  Plus, Minus, LogOut, DollarSign, Target
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
