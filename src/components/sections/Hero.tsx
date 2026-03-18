@@ -12,7 +12,7 @@ const Hero = () => {
     <section className="relative min-h-[75vh] flex items-center justify-center">
       <div className="absolute inset-0 bg-gradient-hero" />
 
-      <div className="container mx-auto px-4 py-24 md:py-32 relative z-10">
+      <div className="container mx-auto px-5 py-28 md:py-36 relative z-10">
         <div className="max-w-xl mx-auto text-center">
           <motion.h1
             initial={{ opacity: 0, y: 12 }}
