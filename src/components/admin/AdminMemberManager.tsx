@@ -977,6 +977,27 @@ const AdminMemberManager = ({ roleFilter = 'all' }: AdminMemberManagerProps) => 
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Role change confirmation dialog */}
+      <AlertDialog open={!!pendingRoleChange} onOpenChange={(open) => !open && setPendingRoleChange(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Bekräfta rolländring</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingRoleChange?.role === 'none'
+                ? `Är du säker på att du vill ta bort rollen för "${pendingRoleChange?.username}"?`
+                : `Är du säker på att du vill tilldela rollen "${pendingRoleChange?.role}" till "${pendingRoleChange?.username}"?`}
+              {' '}Denna åtgärd ändrar användarens behörigheter omedelbart.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Avbryt</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmRoleChange}>
+              Ja, ändra roll
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
