@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAutoTranslate } from '@/hooks/useAutoTranslate';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -13,10 +12,11 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 import {
-  Eye, EyeOff, Save, Plus, Trash2, ChevronDown, ChevronUp,
-  ArrowUp, ArrowDown, FileText, Home, Phone, Info, Pencil, X,
+  Eye, EyeOff, Save, Plus, Trash2,
+  ArrowUp, ArrowDown, Pencil, X,
   LayoutList, Clock, RefreshCw, Sparkles, Package, FolderOpen,
-  Zap, Mail, Loader2, Languages, Globe,
+  Zap, Mail, Loader2, ChevronUp,
+  Home, Info, Phone,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -62,10 +62,10 @@ interface SiteUpdate {
 
 // ─── Module definitions ───
 const MODULES = [
-  { key: 'sections', label: 'Sektioner', icon: LayoutList, description: 'Redigera sektioner per sida' },
+  { key: 'timeline', label: 'Vår Resa', icon: Clock, description: 'Milstolpar i företagets historia' },
+  { key: 'sections', label: 'Sidsektioner', icon: LayoutList, description: 'Redigera innehåll per sida' },
   { key: 'updates', label: 'Nyheter', icon: Sparkles, description: 'Blogginlägg & uppdateringar' },
-  { key: 'timeline', label: 'Tidslinje', icon: Clock, description: 'Milstolpar & händelser' },
-  { key: 'email', label: 'E-postmallar', icon: Mail, description: 'Välkomstmail mm.' },
+  { key: 'email', label: 'E-post', icon: Mail, description: 'Välkomstmail' },
 ] as const;
 
 type ModuleKey = typeof MODULES[number]['key'];
@@ -80,10 +80,16 @@ const ICON_OPTIONS = ['Leaf', 'Heart', 'Shield', 'Users', 'Award', 'Star', 'Spar
 const CORE_SECTIONS = ['hero', 'timeline', 'promise', 'values'];
 
 const AdminUnifiedContent = () => {
-  const [activeModule, setActiveModule] = useState<ModuleKey>('sections');
+  const [activeModule, setActiveModule] = useState<ModuleKey>('timeline');
 
   return (
     <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-semibold">Innehåll</h1>
+        <p className="text-muted-foreground text-sm mt-1">Hantera hemsidans texter, tidslinje och nyheter</p>
+      </div>
+
       {/* Module switcher */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1">
         {MODULES.map(mod => {
@@ -115,9 +121,9 @@ const AdminUnifiedContent = () => {
           exit={{ opacity: 0, y: -8 }}
           transition={{ duration: 0.15 }}
         >
+          {activeModule === 'timeline' && <TimelineModule />}
           {activeModule === 'sections' && <SectionsModule />}
           {activeModule === 'updates' && <UpdatesModule />}
-          {activeModule === 'timeline' && <TimelineModule />}
           {activeModule === 'email' && <EmailModule />}
         </motion.div>
       </AnimatePresence>
@@ -126,10 +132,189 @@ const AdminUnifiedContent = () => {
 };
 
 // ═══════════════════════════════════════════════
+//  TIMELINE MODULE ("Vår Resa")
+// ═══════════════════════════════════════════════
+const TimelineModule = () => {
+  const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState({ year: '', title: '', title_en: '', description: '', description_en: '' });
+  const [saving, setSaving] = useState(false);
+
+  const fetchTimeline = useCallback(async () => {
+    setLoading(true);
+    const { data } = await supabase.from('timeline_entries').select('*').order('display_order', { ascending: true });
+    if (data) setTimeline(data as TimelineEntry[]);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchTimeline(); }, [fetchTimeline]);
+
+  const resetForm = () => {
+    setForm({ year: '', title: '', title_en: '', description: '', description_en: '' });
+    setEditingId(null);
+    setShowForm(false);
+  };
+
+  const startEdit = (entry: TimelineEntry) => {
+    setForm({
+      year: entry.year,
+      title: entry.title_sv,
+      title_en: entry.title_en || '',
+      description: entry.description_sv || '',
+      description_en: entry.description_en || '',
+    });
+    setEditingId(entry.id);
+    setShowForm(true);
+  };
+
+  const saveEntry = async () => {
+    if (!form.year || !form.title) { toast.error('År och titel krävs'); return; }
+    setSaving(true);
+
+    const payload = {
+      year: form.year,
+      title_sv: form.title,
+      title_en: form.title_en || form.title,
+      description_sv: form.description || null,
+      description_en: form.description_en || form.description || null,
+    };
+
+    if (editingId) {
+      await supabase.from('timeline_entries').update(payload).eq('id', editingId);
+      toast.success('Uppdaterad');
+    } else {
+      const maxOrder = timeline.reduce((max, e) => Math.max(max, e.display_order), 0);
+      await supabase.from('timeline_entries').insert({ ...payload, display_order: maxOrder + 1 });
+      toast.success('Tillagd');
+    }
+
+    resetForm();
+    setSaving(false);
+    fetchTimeline();
+  };
+
+  const toggleVisibility = async (id: string, current: boolean) => {
+    await supabase.from('timeline_entries').update({ is_visible: !current }).eq('id', id);
+    setTimeline(prev => prev.map(e => e.id === id ? { ...e, is_visible: !current } : e));
+    toast.success(!current ? 'Synlig' : 'Dold');
+  };
+
+  const deleteEntry = async (id: string) => {
+    if (!confirm('Ta bort denna milstolpe?')) return;
+    await supabase.from('timeline_entries').delete().eq('id', id);
+    setTimeline(prev => prev.filter(e => e.id !== id));
+    toast.success('Borttagen');
+  };
+
+  const moveEntry = async (id: string, direction: 'up' | 'down') => {
+    const idx = timeline.findIndex(e => e.id === id);
+    if ((direction === 'up' && idx === 0) || (direction === 'down' && idx === timeline.length - 1)) return;
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+    const a = timeline[idx], b = timeline[swapIdx];
+    await Promise.all([
+      supabase.from('timeline_entries').update({ display_order: b.display_order }).eq('id', a.id),
+      supabase.from('timeline_entries').update({ display_order: a.display_order }).eq('id', b.id),
+    ]);
+    fetchTimeline();
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold">Vår Resa</h2>
+          <p className="text-sm text-muted-foreground">Milstolpar och händelser som visas på hemsidan</p>
+        </div>
+        <Button size="sm" onClick={() => { resetForm(); setShowForm(true); }} className="gap-1.5">
+          <Plus className="w-4 h-4" /> Ny milstolpe
+        </Button>
+      </div>
+
+      <AnimatePresence>
+        {showForm && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
+            <Card className="border-primary/20">
+              <CardContent className="pt-4 space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <Label className="text-xs">År *</Label>
+                    <Input value={form.year} onChange={e => setForm({ ...form, year: e.target.value })} placeholder="2026" className="h-9" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Titel (SV) *</Label>
+                    <Input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="Vad hände?" className="h-9" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Titel (EN)</Label>
+                    <Input value={form.title_en} onChange={e => setForm({ ...form, title_en: e.target.value })} placeholder="English title" className="h-9" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Beskrivning (SV)</Label>
+                    <Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={2} placeholder="Kort beskrivning..." />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Description (EN)</Label>
+                    <Textarea value={form.description_en} onChange={e => setForm({ ...form, description_en: e.target.value })} rows={2} placeholder="Short description..." />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={saveEntry} disabled={saving} className="gap-1.5">
+                    {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                    {editingId ? 'Uppdatera' : 'Lägg till'}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={resetForm}>Avbryt</Button>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {loading ? (
+        <div className="flex justify-center py-8"><RefreshCw className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+      ) : timeline.length === 0 ? (
+        <div className="text-center py-16 text-muted-foreground">
+          <Clock className="w-10 h-10 mx-auto mb-3 opacity-30" />
+          <p className="text-sm">Inga milstolpar ännu</p>
+          <Button size="sm" variant="outline" className="mt-3 gap-1" onClick={() => setShowForm(true)}>
+            <Plus className="w-3.5 h-3.5" /> Skapa första
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-1.5">
+          {timeline.map((entry, idx) => (
+            <div key={entry.id} className={`flex items-center gap-2 p-3 rounded-xl border border-border bg-card transition-opacity ${!entry.is_visible ? 'opacity-40' : ''}`}>
+              <div className="flex flex-col gap-0.5">
+                <button onClick={() => moveEntry(entry.id, 'up')} disabled={idx === 0} className="text-muted-foreground hover:text-foreground disabled:opacity-20 p-0.5"><ArrowUp className="w-3 h-3" /></button>
+                <button onClick={() => moveEntry(entry.id, 'down')} disabled={idx === timeline.length - 1} className="text-muted-foreground hover:text-foreground disabled:opacity-20 p-0.5"><ArrowDown className="w-3 h-3" /></button>
+              </div>
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary text-sm shrink-0">{entry.year}</div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm truncate">{entry.title_sv}</p>
+                {entry.title_en && <p className="text-xs text-muted-foreground truncate">{entry.title_en}</p>}
+                {entry.description_sv && <p className="text-xs text-muted-foreground/70 truncate mt-0.5">{entry.description_sv}</p>}
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => startEdit(entry)}><Pencil className="w-3.5 h-3.5" /></Button>
+                <Switch checked={entry.is_visible} onCheckedChange={() => toggleVisibility(entry.id, entry.is_visible)} />
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => deleteEntry(entry.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════
 //  SECTIONS MODULE
 // ═══════════════════════════════════════════════
 const SectionsModule = () => {
-  const { translate, isTranslating } = useAutoTranslate();
   const [selectedPage, setSelectedPage] = useState('about');
   const [sections, setSections] = useState<PageSection[]>([]);
   const [loading, setLoading] = useState(true);
@@ -175,30 +360,17 @@ const SectionsModule = () => {
     if (!form) return;
     setSavingId(id);
 
-    // Auto-translate title and content
-    let titleEn = form.title_en;
-    let contentEn = form.content_en;
-
-    if (form.title_sv) {
-      const t = await translate(form.title_sv as string, 'sv', 'page section title');
-      if (t) titleEn = t.en || form.title_en;
-    }
-    if (form.content_sv) {
-      const t = await translate(form.content_sv as string, 'sv', 'page section content');
-      if (t) contentEn = t.en || form.content_en;
-    }
-
     const { error } = await supabase.from('page_sections').update({
       title_sv: form.title_sv,
-      title_en: titleEn,
+      title_en: form.title_en,
       content_sv: form.content_sv,
-      content_en: contentEn,
+      content_en: form.content_en,
       icon: form.icon,
     } as any).eq('id', id);
     
     setSavingId(null);
     if (error) { toast.error('Kunde inte spara'); return; }
-    toast.success('Sparad & översatt');
+    toast.success('Sparad');
     setDirtyIds(prev => { const n = new Set(prev); n.delete(id); return n; });
     fetchSections();
   };
@@ -237,7 +409,6 @@ const SectionsModule = () => {
 
   return (
     <div className="space-y-4">
-      {/* Page selector */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2">
           {PAGES.map(p => {
@@ -306,7 +477,7 @@ const SectionsModule = () => {
                       {isDirty && (
                         <Button size="sm" variant="default" className="h-7 text-xs gap-1" onClick={() => saveSection(section.id)} disabled={isSaving}>
                           {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                          {isSaving ? 'Översätter...' : 'Spara'}
+                          Spara
                         </Button>
                       )}
                       <Switch checked={section.is_visible} onCheckedChange={() => toggleVisibility(section)} />
@@ -337,18 +508,26 @@ const SectionsModule = () => {
                               </div>
                             </div>
                           )}
-                          <div className="space-y-3">
-                            <div>
-                              <Label className="text-xs text-muted-foreground mb-1 flex items-center gap-1.5">
-                                Titel <Languages className="w-3 h-3" /> <span className="text-[10px] text-primary">Auto-översätts</span>
-                              </Label>
-                              <Input value={(form.title_sv as string) || ''} onChange={e => updateField(section.id, 'title_sv', e.target.value)} />
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-3">
+                              <div>
+                                <Label className="text-xs text-muted-foreground mb-1 block">Titel (SV)</Label>
+                                <Input value={(form.title_sv as string) || ''} onChange={e => updateField(section.id, 'title_sv', e.target.value)} />
+                              </div>
+                              <div>
+                                <Label className="text-xs text-muted-foreground mb-1 block">Innehåll (SV)</Label>
+                                <Textarea rows={4} value={(form.content_sv as string) || ''} onChange={e => updateField(section.id, 'content_sv', e.target.value)} />
+                              </div>
                             </div>
-                            <div>
-                              <Label className="text-xs text-muted-foreground mb-1 flex items-center gap-1.5">
-                                Innehåll <Languages className="w-3 h-3" /> <span className="text-[10px] text-primary">Auto-översätts</span>
-                              </Label>
-                              <Textarea rows={4} value={(form.content_sv as string) || ''} onChange={e => updateField(section.id, 'content_sv', e.target.value)} />
+                            <div className="space-y-3">
+                              <div>
+                                <Label className="text-xs text-muted-foreground mb-1 block">Title (EN)</Label>
+                                <Input value={(form.title_en as string) || ''} onChange={e => updateField(section.id, 'title_en', e.target.value)} />
+                              </div>
+                              <div>
+                                <Label className="text-xs text-muted-foreground mb-1 block">Content (EN)</Label>
+                                <Textarea rows={4} value={(form.content_en as string) || ''} onChange={e => updateField(section.id, 'content_en', e.target.value)} />
+                              </div>
                             </div>
                           </div>
                           <div className="flex justify-end gap-2 pt-2">
@@ -356,7 +535,7 @@ const SectionsModule = () => {
                             {isDirty && (
                               <Button size="sm" onClick={() => saveSection(section.id)} disabled={isSaving} className="gap-1">
                                 {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                                {isSaving ? 'Översätter...' : 'Spara ändringar'}
+                                Spara ändringar
                               </Button>
                             )}
                           </div>
@@ -375,16 +554,18 @@ const SectionsModule = () => {
 };
 
 // ═══════════════════════════════════════════════
-//  UPDATES MODULE (blog-like)
+//  UPDATES MODULE
 // ═══════════════════════════════════════════════
 const UpdatesModule = () => {
-  const { translate, isTranslating } = useAutoTranslate();
   const [updates, setUpdates] = useState<SiteUpdate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUpdate, setEditingUpdate] = useState<SiteUpdate | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState({ title: '', description: '', update_type: 'general', image_url: '', is_published: true });
+  const [formData, setFormData] = useState({
+    title_sv: '', title_en: '', description_sv: '', description_en: '',
+    update_type: 'general', image_url: '', is_published: true,
+  });
 
   useEffect(() => {
     fetchUpdates();
@@ -401,25 +582,34 @@ const UpdatesModule = () => {
     setIsLoading(false);
   };
 
-  const resetForm = () => { setFormData({ title: '', description: '', update_type: 'general', image_url: '', is_published: true }); setEditingUpdate(null); };
+  const resetForm = () => {
+    setFormData({ title_sv: '', title_en: '', description_sv: '', description_en: '', update_type: 'general', image_url: '', is_published: true });
+    setEditingUpdate(null);
+  };
 
   const handleEdit = (update: SiteUpdate) => {
     setEditingUpdate(update);
-    setFormData({ title: update.title_sv, description: update.description_sv || '', update_type: update.update_type, image_url: update.image_url || '', is_published: update.is_published });
+    setFormData({
+      title_sv: update.title_sv,
+      title_en: update.title_en || '',
+      description_sv: update.description_sv || '',
+      description_en: update.description_en || '',
+      update_type: update.update_type,
+      image_url: update.image_url || '',
+      is_published: update.is_published,
+    });
     setIsDialogOpen(true);
   };
 
   const handleSubmit = async () => {
-    if (!formData.title.trim()) return;
+    if (!formData.title_sv.trim()) return;
     setIsSubmitting(true);
     try {
-      const titleTranslations = await translate(formData.title, 'sv', 'site update title');
-      const descTranslations = formData.description ? await translate(formData.description, 'sv', 'site update description') : null;
       const payload = {
-        title_sv: formData.title,
-        title_en: titleTranslations?.en || formData.title,
-        description_sv: formData.description || null,
-        description_en: descTranslations?.en || formData.description || null,
+        title_sv: formData.title_sv,
+        title_en: formData.title_en || formData.title_sv,
+        description_sv: formData.description_sv || null,
+        description_en: formData.description_en || formData.description_sv || null,
         update_type: formData.update_type,
         image_url: formData.image_url || null,
         is_published: formData.is_published,
@@ -430,7 +620,7 @@ const UpdatesModule = () => {
       } else {
         await supabase.from('site_updates').insert(payload);
       }
-      toast.success('Sparad & översatt!');
+      toast.success('Sparad!');
       resetForm();
       setIsDialogOpen(false);
     } catch { toast.error('Något gick fel'); }
@@ -438,6 +628,7 @@ const UpdatesModule = () => {
   };
 
   const handleDelete = async (id: string) => {
+    if (!confirm('Ta bort denna nyhet?')) return;
     await supabase.from('site_updates').delete().eq('id', id);
     toast.success('Borttagen');
   };
@@ -452,16 +643,19 @@ const UpdatesModule = () => {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">Skapa och hantera nyheter & uppdateringar</p>
+        <div>
+          <h2 className="text-lg font-semibold">Nyheter & Uppdateringar</h2>
+          <p className="text-sm text-muted-foreground">Skapa och hantera nyheter som visas på sidan</p>
+        </div>
         <Button size="sm" className="gap-2" onClick={() => { resetForm(); setIsDialogOpen(true); }}>
-          <Plus className="w-4 h-4" /> Ny uppdatering
+          <Plus className="w-4 h-4" /> Ny nyhet
         </Button>
       </div>
 
       {isLoading ? (
         <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
       ) : updates.length === 0 ? (
-        <p className="text-center text-muted-foreground py-8">Inga uppdateringar ännu</p>
+        <p className="text-center text-muted-foreground py-8">Inga nyheter ännu</p>
       ) : (
         <div className="space-y-2">
           {updates.map(update => {
@@ -490,35 +684,48 @@ const UpdatesModule = () => {
       )}
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-primary" />
-              {editingUpdate ? 'Redigera' : 'Ny uppdatering'}
+              {editingUpdate ? 'Redigera nyhet' : 'Ny nyhet'}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label className="flex items-center gap-1.5">Titel <Languages className="w-3 h-3 text-primary" /></Label>
-              <Input value={formData.title} onChange={e => setFormData(p => ({ ...p, title: e.target.value }))} placeholder="Ny uppdatering..." />
-              <p className="text-xs text-muted-foreground flex items-center gap-1"><Globe className="w-3 h-3" /> Översätts automatiskt till alla språk</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Titel (SV) *</Label>
+                <Input value={formData.title_sv} onChange={e => setFormData(p => ({ ...p, title_sv: e.target.value }))} placeholder="Nyhet..." />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Title (EN)</Label>
+                <Input value={formData.title_en} onChange={e => setFormData(p => ({ ...p, title_en: e.target.value }))} placeholder="News..." />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label className="flex items-center gap-1.5">Beskrivning <Languages className="w-3 h-3 text-primary" /></Label>
-              <Textarea value={formData.description} onChange={e => setFormData(p => ({ ...p, description: e.target.value }))} placeholder="Beskrivning..." rows={3} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Beskrivning (SV)</Label>
+                <Textarea value={formData.description_sv} onChange={e => setFormData(p => ({ ...p, description_sv: e.target.value }))} placeholder="Beskrivning..." rows={3} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Description (EN)</Label>
+                <Textarea value={formData.description_en} onChange={e => setFormData(p => ({ ...p, description_en: e.target.value }))} placeholder="Description..." rows={3} />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Typ</Label>
-              <Select value={formData.update_type} onValueChange={v => setFormData(p => ({ ...p, update_type: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {Object.entries(typeLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Bild-URL (valfritt)</Label>
-              <Input value={formData.image_url} onChange={e => setFormData(p => ({ ...p, image_url: e.target.value }))} placeholder="https://..." />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Typ</Label>
+                <Select value={formData.update_type} onValueChange={v => setFormData(p => ({ ...p, update_type: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(typeLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Bild-URL (valfritt)</Label>
+                <Input value={formData.image_url} onChange={e => setFormData(p => ({ ...p, image_url: e.target.value }))} placeholder="https://..." />
+              </div>
             </div>
             <div className="flex items-center justify-between">
               <Label>Publicerad</Label>
@@ -526,9 +733,9 @@ const UpdatesModule = () => {
             </div>
             <div className="flex gap-2 pt-2">
               <Button variant="outline" onClick={() => { resetForm(); setIsDialogOpen(false); }} className="flex-1">Avbryt</Button>
-              <Button onClick={handleSubmit} disabled={isSubmitting || !formData.title.trim()} className="flex-1">
+              <Button onClick={handleSubmit} disabled={isSubmitting || !formData.title_sv.trim()} className="flex-1">
                 {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-                {isSubmitting ? 'Översätter...' : 'Spara'}
+                Spara
               </Button>
             </div>
           </div>
@@ -539,148 +746,19 @@ const UpdatesModule = () => {
 };
 
 // ═══════════════════════════════════════════════
-//  TIMELINE MODULE
-// ═══════════════════════════════════════════════
-const TimelineModule = () => {
-  const { translate } = useAutoTranslate();
-  const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ year: '', title: '', description: '' });
-  const [saving, setSaving] = useState(false);
-
-  const fetchTimeline = useCallback(async () => {
-    setLoading(true);
-    const { data } = await supabase.from('timeline_entries').select('*').order('display_order', { ascending: true });
-    if (data) setTimeline(data as TimelineEntry[]);
-    setLoading(false);
-  }, []);
-
-  useEffect(() => { fetchTimeline(); }, [fetchTimeline]);
-
-  const addEntry = async () => {
-    if (!form.year || !form.title) { toast.error('År och titel krävs'); return; }
-    setSaving(true);
-    const titleT = await translate(form.title, 'sv', 'timeline title');
-    const descT = form.description ? await translate(form.description, 'sv', 'timeline description') : null;
-    const maxOrder = timeline.reduce((max, e) => Math.max(max, e.display_order), 0);
-    await supabase.from('timeline_entries').insert({
-      year: form.year, title_sv: form.title, title_en: titleT?.en || null,
-      description_sv: form.description || null, description_en: descT?.en || null,
-      display_order: maxOrder + 1,
-    });
-    toast.success('Tillagd & översatt');
-    setForm({ year: '', title: '', description: '' });
-    setShowForm(false);
-    setSaving(false);
-    fetchTimeline();
-  };
-
-  const toggleVisibility = async (id: string, current: boolean) => {
-    await supabase.from('timeline_entries').update({ is_visible: !current }).eq('id', id);
-    setTimeline(prev => prev.map(e => e.id === id ? { ...e, is_visible: !current } : e));
-    toast.success(!current ? 'Synlig' : 'Dold');
-  };
-
-  const deleteEntry = async (id: string) => {
-    if (!confirm('Ta bort?')) return;
-    await supabase.from('timeline_entries').delete().eq('id', id);
-    setTimeline(prev => prev.filter(e => e.id !== id));
-    toast.success('Borttagen');
-  };
-
-  const moveEntry = async (id: string, direction: 'up' | 'down') => {
-    const idx = timeline.findIndex(e => e.id === id);
-    if ((direction === 'up' && idx === 0) || (direction === 'down' && idx === timeline.length - 1)) return;
-    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
-    const a = timeline[idx], b = timeline[swapIdx];
-    await Promise.all([
-      supabase.from('timeline_entries').update({ display_order: b.display_order }).eq('id', a.id),
-      supabase.from('timeline_entries').update({ display_order: a.display_order }).eq('id', b.id),
-    ]);
-    fetchTimeline();
-  };
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">Milstolpar och händelser i företagets historia</p>
-        <Button size="sm" variant="outline" onClick={() => setShowForm(!showForm)} className="gap-1 h-7 text-xs">
-          <Plus className="w-3 h-3" /> Lägg till
-        </Button>
-      </div>
-
-      <AnimatePresence>
-        {showForm && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-            <Card className="border-primary/20">
-              <CardContent className="pt-4 space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-xs">År *</Label>
-                    <Input value={form.year} onChange={e => setForm({ ...form, year: e.target.value })} placeholder="2026" className="h-8" />
-                  </div>
-                  <div>
-                    <Label className="text-xs flex items-center gap-1">Titel * <Languages className="w-3 h-3 text-primary" /></Label>
-                    <Input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="h-8" />
-                  </div>
-                </div>
-                <div>
-                  <Label className="text-xs flex items-center gap-1">Beskrivning <Languages className="w-3 h-3 text-primary" /></Label>
-                  <Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={2} />
-                </div>
-                <p className="text-xs text-muted-foreground flex items-center gap-1"><Globe className="w-3 h-3" /> Översätts automatiskt till alla språk vid sparande</p>
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={addEntry} disabled={saving} className="gap-1 h-7 text-xs">
-                    {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                    {saving ? 'Översätter...' : 'Spara'}
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => setShowForm(false)} className="h-7 text-xs">Avbryt</Button>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {loading ? (
-        <div className="flex justify-center py-6"><RefreshCw className="w-5 h-5 animate-spin text-muted-foreground" /></div>
-      ) : (
-        <div className="space-y-1.5">
-          {timeline.map((entry, idx) => (
-            <div key={entry.id} className={`flex items-center gap-2 p-2.5 rounded-xl border border-border bg-card transition-opacity ${!entry.is_visible ? 'opacity-40' : ''}`}>
-              <div className="flex flex-col gap-0.5">
-                <button onClick={() => moveEntry(entry.id, 'up')} disabled={idx === 0} className="text-muted-foreground hover:text-foreground disabled:opacity-20 p-0.5"><ArrowUp className="w-3 h-3" /></button>
-                <button onClick={() => moveEntry(entry.id, 'down')} disabled={idx === timeline.length - 1} className="text-muted-foreground hover:text-foreground disabled:opacity-20 p-0.5"><ArrowDown className="w-3 h-3" /></button>
-              </div>
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary text-xs shrink-0">{entry.year}</div>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm truncate">{entry.title_sv}</p>
-                {entry.description_sv && <p className="text-xs text-muted-foreground truncate">{entry.description_sv}</p>}
-              </div>
-              <div className="flex items-center gap-1 shrink-0">
-                <Switch checked={entry.is_visible} onCheckedChange={() => toggleVisibility(entry.id, entry.is_visible)} />
-                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => deleteEntry(entry.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
-              </div>
-            </div>
-          ))}
-          {timeline.length === 0 && <p className="text-center text-muted-foreground text-xs py-6">Inga tidslinje-inlägg ännu</p>}
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ═══════════════════════════════════════════════
-//  EMAIL MODULE (simplified, single-language input)
+//  EMAIL MODULE
 // ═══════════════════════════════════════════════
 const EmailModule = () => {
-  const { translate, isTranslating } = useAutoTranslate();
   const [template, setTemplate] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [form, setForm] = useState({
-    subject: '', greeting: '', intro: '', benefits: '', cta_text: '', footer: '',
+    subject_sv: '', subject_en: '',
+    greeting_sv: '', greeting_en: '',
+    intro_sv: '', intro_en: '',
+    benefits_sv: '', benefits_en: '',
+    cta_sv: '', cta_en: '',
+    footer_sv: '', footer_en: '',
   });
 
   useEffect(() => {
@@ -689,12 +767,12 @@ const EmailModule = () => {
       if (data) {
         setTemplate(data);
         setForm({
-          subject: data.subject_sv || '',
-          greeting: data.greeting_sv || '',
-          intro: data.intro_sv || '',
-          benefits: (data.benefits_sv || []).join('\n'),
-          cta_text: data.cta_text_sv || '',
-          footer: data.footer_sv || '',
+          subject_sv: data.subject_sv || '', subject_en: data.subject_en || '',
+          greeting_sv: data.greeting_sv || '', greeting_en: data.greeting_en || '',
+          intro_sv: data.intro_sv || '', intro_en: data.intro_en || '',
+          benefits_sv: (data.benefits_sv || []).join('\n'), benefits_en: (data.benefits_en || []).join('\n'),
+          cta_sv: data.cta_text_sv || '', cta_en: data.cta_text_en || '',
+          footer_sv: data.footer_sv || '', footer_en: data.footer_en || '',
         });
       }
       setIsLoading(false);
@@ -706,100 +784,106 @@ const EmailModule = () => {
     if (!template) return;
     setIsSaving(true);
     try {
-      const [subjectT, greetingT, introT, ctaT, footerT] = await Promise.all([
-        translate(form.subject, 'sv', 'email subject'),
-        translate(form.greeting, 'sv', 'email greeting'),
-        translate(form.intro, 'sv', 'email introduction'),
-        translate(form.cta_text, 'sv', 'email button text'),
-        translate(form.footer, 'sv', 'email footer'),
-      ]);
-      const benefitsSv = form.benefits.split('\n').filter(b => b.trim());
-      // Translate each benefit
-      let benefitsEn = benefitsSv;
-      if (form.benefits.trim()) {
-        const bT = await translate(form.benefits, 'sv', 'email benefit list');
-        if (bT?.en) benefitsEn = bT.en.split('\n').filter((b: string) => b.trim());
-      }
+      const benefitsSv = form.benefits_sv.split('\n').filter(b => b.trim());
+      const benefitsEn = form.benefits_en.split('\n').filter(b => b.trim());
 
       await supabase.from('email_templates').update({
-        subject_sv: form.subject, subject_en: subjectT?.en || form.subject,
-        greeting_sv: form.greeting, greeting_en: greetingT?.en || form.greeting,
-        intro_sv: form.intro, intro_en: introT?.en || form.intro,
-        benefits_sv: benefitsSv, benefits_en: benefitsEn,
-        cta_text_sv: form.cta_text, cta_text_en: ctaT?.en || form.cta_text,
-        footer_sv: form.footer, footer_en: footerT?.en || form.footer,
+        subject_sv: form.subject_sv, subject_en: form.subject_en || form.subject_sv,
+        greeting_sv: form.greeting_sv, greeting_en: form.greeting_en || form.greeting_sv,
+        intro_sv: form.intro_sv, intro_en: form.intro_en || form.intro_sv,
+        benefits_sv: benefitsSv, benefits_en: benefitsEn.length > 0 ? benefitsEn : benefitsSv,
+        cta_text_sv: form.cta_sv, cta_text_en: form.cta_en || form.cta_sv,
+        footer_sv: form.footer_sv, footer_en: form.footer_en || form.footer_sv,
       }).eq('template_type', 'welcome');
 
-      toast.success('Mall sparad & översatt!');
+      toast.success('Mall sparad!');
     } catch { toast.error('Kunde inte spara'); }
     finally { setIsSaving(false); }
   };
 
   if (isLoading) return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
 
+  const fields = [
+    { key: 'subject', label: 'Ämnesrad / Subject', type: 'input' as const },
+    { key: 'greeting', label: 'Hälsning / Greeting', type: 'input' as const },
+    { key: 'intro', label: 'Introduktion / Introduction', type: 'textarea' as const },
+    { key: 'benefits', label: 'Fördelar / Benefits (en per rad)', type: 'textarea' as const },
+    { key: 'cta', label: 'Knapptext / Button text', type: 'input' as const },
+    { key: 'footer', label: 'Avslutning / Footer', type: 'input' as const },
+  ];
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">Anpassa välkomstmail – skriv på valfritt språk, översätts automatiskt</p>
+        <div>
+          <h2 className="text-lg font-semibold">Välkomstmail</h2>
+          <p className="text-sm text-muted-foreground">Anpassa välkomstmailet — fyll i SV och EN</p>
+        </div>
         <Button size="sm" onClick={handleSave} disabled={isSaving} className="gap-1.5">
           {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          {isSaving ? 'Översätter...' : 'Spara'}
+          Spara
         </Button>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="space-y-4">
-          {[
-            { key: 'subject', label: 'Ämnesrad', type: 'input' },
-            { key: 'greeting', label: 'Hälsning', type: 'input' },
-            { key: 'intro', label: 'Introduktion', type: 'textarea' },
-            { key: 'benefits', label: 'Fördelar (en per rad)', type: 'textarea' },
-            { key: 'cta_text', label: 'Knapptext', type: 'input' },
-            { key: 'footer', label: 'Avslutning', type: 'input' },
-          ].map(field => (
-            <div key={field.key} className="space-y-1.5">
-              <Label className="text-xs flex items-center gap-1.5">
-                {field.label} <Languages className="w-3 h-3 text-primary" />
-              </Label>
+      <div className="space-y-4">
+        {fields.map(field => (
+          <div key={field.key} className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">{field.label.split(' / ')[0]} (SV)</Label>
               {field.type === 'input' ? (
                 <Input
-                  value={(form as any)[field.key]}
-                  onChange={e => setForm(p => ({ ...p, [field.key]: e.target.value }))}
+                  value={(form as any)[`${field.key}_sv`]}
+                  onChange={e => setForm(p => ({ ...p, [`${field.key}_sv`]: e.target.value }))}
                 />
               ) : (
                 <Textarea
-                  value={(form as any)[field.key]}
-                  onChange={e => setForm(p => ({ ...p, [field.key]: e.target.value }))}
+                  value={(form as any)[`${field.key}_sv`]}
+                  onChange={e => setForm(p => ({ ...p, [`${field.key}_sv`]: e.target.value }))}
                   rows={field.key === 'benefits' ? 4 : 3}
                 />
               )}
             </div>
-          ))}
-        </div>
-
-        {/* Simple preview */}
-        <Card className="bg-muted/20">
-          <CardContent className="pt-4 space-y-3">
-            <p className="text-xs font-medium text-muted-foreground">Förhandsgranskning</p>
-            <div className="bg-card rounded-lg p-4 space-y-3 border border-border">
-              <p className="text-xs text-muted-foreground">Ämne: <span className="font-medium text-foreground">{form.subject}</span></p>
-              <div className="bg-primary text-primary-foreground rounded-lg p-3 text-center text-sm font-medium">{form.greeting}</div>
-              <p className="text-sm text-muted-foreground">{form.intro}</p>
-              {form.benefits && (
-                <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-2.5">
-                  {form.benefits.split('\n').filter(b => b.trim()).map((b, i) => (
-                    <p key={i} className="text-xs text-green-700 dark:text-green-300">{b}</p>
-                  ))}
-                </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">{field.label.split(' / ')[1] || 'EN'} (EN)</Label>
+              {field.type === 'input' ? (
+                <Input
+                  value={(form as any)[`${field.key}_en`]}
+                  onChange={e => setForm(p => ({ ...p, [`${field.key}_en`]: e.target.value }))}
+                />
+              ) : (
+                <Textarea
+                  value={(form as any)[`${field.key}_en`]}
+                  onChange={e => setForm(p => ({ ...p, [`${field.key}_en`]: e.target.value }))}
+                  rows={field.key === 'benefits' ? 4 : 3}
+                />
               )}
-              <div className="text-center">
-                <span className="inline-block bg-primary text-primary-foreground px-5 py-1.5 rounded-lg text-xs font-medium">{form.cta_text} →</span>
-              </div>
-              <p className="text-xs text-center text-muted-foreground border-t pt-2">{form.footer}</p>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        ))}
       </div>
+
+      {/* Simple preview */}
+      <Card className="bg-muted/20">
+        <CardContent className="pt-4 space-y-3">
+          <p className="text-xs font-medium text-muted-foreground">Förhandsgranskning (SV)</p>
+          <div className="bg-card rounded-lg p-4 space-y-3 border border-border">
+            <p className="text-xs text-muted-foreground">Ämne: <span className="font-medium text-foreground">{form.subject_sv}</span></p>
+            <div className="bg-primary text-primary-foreground rounded-lg p-3 text-center text-sm font-medium">{form.greeting_sv}</div>
+            <p className="text-sm text-muted-foreground">{form.intro_sv}</p>
+            {form.benefits_sv && (
+              <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-2.5">
+                {form.benefits_sv.split('\n').filter(b => b.trim()).map((b, i) => (
+                  <p key={i} className="text-xs text-green-700 dark:text-green-300">{b}</p>
+                ))}
+              </div>
+            )}
+            <div className="text-center">
+              <span className="inline-block bg-primary text-primary-foreground px-5 py-1.5 rounded-lg text-xs font-medium">{form.cta_sv} →</span>
+            </div>
+            <p className="text-xs text-center text-muted-foreground border-t pt-2">{form.footer_sv}</p>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
