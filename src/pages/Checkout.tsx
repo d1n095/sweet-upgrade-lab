@@ -14,7 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useStoreSettings } from '@/stores/storeSettingsStore';
 import { logActivity } from '@/utils/activityLogger';
-import { trackCheckoutStart, trackCheckoutStep, trackCheckoutAbandon } from '@/utils/analyticsTracker';
+import { trackCheckoutStart, trackCheckoutStep, trackCheckoutAbandon, trackEvent } from '@/utils/analyticsTracker';
 import { useAuth } from '@/hooks/useAuth';
 
 // Swedish postal code → city lookup (common codes)
