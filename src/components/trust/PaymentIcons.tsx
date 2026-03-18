@@ -4,14 +4,14 @@ import { useLanguage } from '@/context/LanguageContext';
 
 // SVG Payment Icons
 const VisaIcon = () => (
-  <svg viewBox="0 0 50 35" className="w-10 h-7">
+  <svg viewBox="0 0 50 35" className="w-11 h-8">
     <rect width="50" height="35" rx="4" fill="#1A1F71"/>
     <text x="25" y="22" textAnchor="middle" fill="white" fontSize="12" fontWeight="bold" fontFamily="Arial">VISA</text>
   </svg>
 );
 
 const MastercardIcon = () => (
-  <svg viewBox="0 0 50 35" className="w-10 h-7">
+  <svg viewBox="0 0 50 35" className="w-11 h-8">
     <rect width="50" height="35" rx="4" fill="#F7F7F7"/>
     <circle cx="20" cy="17.5" r="10" fill="#EB001B"/>
     <circle cx="30" cy="17.5" r="10" fill="#F79E1B"/>
@@ -20,14 +20,14 @@ const MastercardIcon = () => (
 );
 
 const KlarnaIcon = () => (
-  <svg viewBox="0 0 50 35" className="w-10 h-7">
+  <svg viewBox="0 0 50 35" className="w-11 h-8">
     <rect width="50" height="35" rx="4" fill="#FFB3C7"/>
     <text x="25" y="22" textAnchor="middle" fill="#0A0B09" fontSize="10" fontWeight="bold" fontFamily="Arial">Klarna</text>
   </svg>
 );
 
 const SwishIcon = () => (
-  <svg viewBox="0 0 50 35" className="w-10 h-7">
+  <svg viewBox="0 0 50 35" className="w-11 h-8">
     <rect width="50" height="35" rx="4" fill="#FFFFFF"/>
     <rect x="1" y="1" width="48" height="33" rx="3" stroke="#E5E5E5" strokeWidth="1" fill="none"/>
     <path d="M15 12c8-4 12 10 20 6" stroke="#00A0DE" strokeWidth="3" fill="none" strokeLinecap="round"/>
@@ -36,7 +36,7 @@ const SwishIcon = () => (
 );
 
 const PayPalIcon = () => (
-  <svg viewBox="0 0 50 35" className="w-10 h-7">
+  <svg viewBox="0 0 50 35" className="w-11 h-8">
     <rect width="50" height="35" rx="4" fill="#FFFFFF"/>
     <rect x="1" y="1" width="48" height="33" rx="3" stroke="#E5E5E5" strokeWidth="1" fill="none"/>
     <text x="25" y="20" textAnchor="middle" fill="#003087" fontSize="9" fontWeight="bold" fontFamily="Arial">Pay</text>
@@ -45,14 +45,14 @@ const PayPalIcon = () => (
 );
 
 const ApplePayIcon = () => (
-  <svg viewBox="0 0 50 35" className="w-10 h-7">
+  <svg viewBox="0 0 50 35" className="w-11 h-8">
     <rect width="50" height="35" rx="4" fill="#000000"/>
     <text x="25" y="22" textAnchor="middle" fill="white" fontSize="9" fontWeight="500" fontFamily="system-ui">Pay</text>
   </svg>
 );
 
 const GooglePayIcon = () => (
-  <svg viewBox="0 0 50 35" className="w-10 h-7">
+  <svg viewBox="0 0 50 35" className="w-11 h-8">
     <rect width="50" height="35" rx="4" fill="#FFFFFF"/>
     <rect x="1" y="1" width="48" height="33" rx="3" stroke="#E5E5E5" strokeWidth="1" fill="none"/>
     <circle cx="16" cy="17.5" r="5" fill="#4285F4"/>
