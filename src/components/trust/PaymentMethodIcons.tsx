@@ -31,13 +31,23 @@ const KlarnaIcon = ({ size = 'sm' }: IconProps) => (
 
 const SwishIcon = ({ size = 'sm' }: IconProps) => (
   <div className={`${sizeClasses[size]} rounded-md bg-white border border-border flex items-center justify-center gap-1`}>
-    <div
-      className="w-3 h-3 rounded-full"
-      style={{
-        background: 'linear-gradient(135deg, #00AEEF 0%, #4FA757 48%, #EE4023 100%)',
-      }}
-    />
-    <span className="font-semibold text-[#111827]" style={{ fontSize: size === 'sm' ? 10 : 12 }}>
+    <svg viewBox="0 0 64 24" className="h-3.5 w-auto" aria-hidden="true">
+      <path
+        d="M4 7c8 0 11 6 18 6s10-6 18-6"
+        stroke="hsl(9 86% 53%)"
+        strokeWidth="4"
+        strokeLinecap="round"
+        fill="none"
+      />
+      <path
+        d="M4 17c8 0 11-6 18-6s10 6 18 6"
+        stroke="hsl(126 36% 48%)"
+        strokeWidth="4"
+        strokeLinecap="round"
+        fill="none"
+      />
+    </svg>
+    <span className="font-semibold text-foreground" style={{ fontSize: size === 'sm' ? 10 : 12 }}>
       Swish
     </span>
   </div>
