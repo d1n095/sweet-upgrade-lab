@@ -233,7 +233,7 @@ const Header = () => {
             </nav>
 
             {/* Actions */}
-            <div className="flex items-center gap-0.5 md:gap-1">
+            <div className="flex items-center gap-0 sm:gap-0.5 md:gap-1 shrink-0">
               <div className="hidden sm:block">
                 <SearchSuggestions />
               </div>
@@ -242,7 +242,7 @@ const Header = () => {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-10 w-10 rounded-full hover:bg-secondary"
+                  className="hidden sm:flex h-9 w-9 md:h-10 md:w-10 rounded-full hover:bg-secondary"
                   onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
                   aria-label="Toggle dark mode"
                 >
@@ -260,13 +260,15 @@ const Header = () => {
                 </Button>
               )}
 
-              <LanguageSwitcher />
+              <div className="hidden sm:block">
+                <LanguageSwitcher />
+              </div>
 
               {user ? (
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="hidden sm:flex h-10 w-10 rounded-full hover:bg-secondary relative"
+                  className="hidden sm:flex h-9 w-9 md:h-10 md:w-10 rounded-full hover:bg-secondary relative"
                   onClick={() => setIsAccountOpen(true)}
                 >
                   <User className="w-[18px] h-[18px]" />
@@ -278,7 +280,7 @@ const Header = () => {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="hidden sm:flex h-10 w-10 rounded-full hover:bg-secondary"
+                  className="hidden sm:flex h-9 w-9 md:h-10 md:w-10 rounded-full hover:bg-secondary"
                   onClick={() => setIsAuthOpen(true)}
                 >
                   <User className="w-[18px] h-[18px]" />
@@ -288,17 +290,17 @@ const Header = () => {
               <Button
                 variant="ghost"
                 size="icon"
-                className="relative h-10 w-10 rounded-full hover:bg-secondary"
+                className="relative h-9 w-9 md:h-10 md:w-10 rounded-full hover:bg-secondary"
                 onClick={() => setIsWishlistOpen(true)}
               >
-                <Heart className="w-[18px] h-[18px]" />
+                <Heart className="w-[17px] h-[17px] md:w-[18px] md:h-[18px]" />
                 <AnimatePresence>
                   {wishlistItems.length > 0 && (
                     <motion.span
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       exit={{ scale: 0 }}
-                      className="absolute -top-0.5 -right-0.5 w-4.5 h-4.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center"
+                      className="absolute -top-0.5 -right-0.5 w-4 h-4 md:w-4.5 md:h-4.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center"
                     >
                       {wishlistItems.length}
                     </motion.span>
@@ -309,17 +311,17 @@ const Header = () => {
               <Button
                 variant="ghost"
                 size="icon"
-                className="relative h-10 w-10 rounded-full hover:bg-secondary"
+                className="relative h-9 w-9 md:h-10 md:w-10 rounded-full hover:bg-secondary"
                 onClick={() => setIsCartOpen(true)}
               >
-                <ShoppingCart className="w-[18px] h-[18px]" />
+                <ShoppingCart className="w-[17px] h-[17px] md:w-[18px] md:h-[18px]" />
                 <AnimatePresence>
                   {totalItems > 0 && (
                     <motion.span
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       exit={{ scale: 0 }}
-                      className="absolute -top-0.5 -right-0.5 w-4.5 h-4.5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center"
+                      className="absolute -top-0.5 -right-0.5 w-4 h-4 md:w-4.5 md:h-4.5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center"
                     >
                       {totalItems}
                     </motion.span>
@@ -330,7 +332,7 @@ const Header = () => {
               <Button
                 variant="ghost"
                 size="icon"
-                className="md:hidden h-10 w-10 rounded-full"
+                className="md:hidden h-9 w-9 rounded-full"
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               >
                 {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
