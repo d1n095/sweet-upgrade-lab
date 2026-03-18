@@ -493,9 +493,6 @@ const AdminReviews = () => {
               )}
             </TabsContent>
           </Tabs>
-        </div>
-      </main>
-      <Footer />
     </div>
   );
 };
