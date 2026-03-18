@@ -614,6 +614,13 @@ export function AdminProductForm({
         </div>
       </div>
 
+      {/* Recipe Template Picker */}
+      <RecipeTemplatePicker
+        formData={formData}
+        setFormData={setFormData}
+        language={language}
+      />
+
       {/* Ingredients with library picker */}
       <IngredientPickerSection
         language={language}
