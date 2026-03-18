@@ -54,42 +54,6 @@ interface AdminStats {
   totalMembers: number;
 }
 
-// Collapsible Admin Section Component
-const AdminSection = ({ 
-  title, 
-  icon: Icon, 
-  children, 
-  defaultOpen = false 
-}: { 
-  title: string; 
-  icon: React.ElementType; 
-  children: React.ReactNode;
-  defaultOpen?: boolean;
-}) => {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
-  
-  return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="border border-border rounded-xl overflow-hidden">
-      <CollapsibleTrigger asChild>
-        <button className="flex items-center justify-between w-full p-4 bg-secondary/30 hover:bg-secondary/50 transition-colors">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Icon className="w-4 h-4 text-primary" />
-            </div>
-            <span className="font-semibold">{title}</span>
-          </div>
-          <ChevronDown className={`w-5 h-5 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-        </button>
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <div className="p-4 space-y-4">
-          {children}
-        </div>
-      </CollapsibleContent>
-    </Collapsible>
-  );
-};
-
 const MemberProfile = () => {
   const { language } = useLanguage();
   const { user, profile, loading: authLoading, signOut, isMember } = useAuth();
