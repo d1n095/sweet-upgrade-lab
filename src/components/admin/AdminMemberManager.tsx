@@ -34,6 +34,16 @@ interface Member {
   username?: string | null;
   avatar_url?: string | null;
   phone?: string | null;
+  xp?: number;
+  level?: number;
+  trust_score?: number;
+  referral_code?: string | null;
+}
+
+import type { RoleFilter } from '@/pages/admin/AdminMembers';
+
+interface AdminMemberManagerProps {
+  roleFilter?: RoleFilter;
 }
 
 type AppRole = 'admin' | 'founder' | 'it' | 'moderator' | 'support' | 'affiliate' | 'donor' | 'manager' | 'marketing' | 'finance' | 'warehouse';
