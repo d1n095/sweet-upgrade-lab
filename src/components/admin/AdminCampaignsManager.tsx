@@ -234,6 +234,15 @@ const VolumeDiscountsTab = () => {
     }
 
     // Insert all tiers
+    const requirementFields = {
+      requires_account: form.requires_account,
+      requirement_type: form.requirement_type,
+      first_purchase_discount: form.first_purchase_discount ? parseFloat(form.first_purchase_discount) : null,
+      repeat_discount: form.repeat_discount ? parseFloat(form.repeat_discount) : null,
+      min_level: form.min_level ? parseInt(form.min_level) : null,
+      max_uses_per_user: form.max_uses_per_user ? parseInt(form.max_uses_per_user) : null,
+    };
+
     const rows = validTiers.map(t => ({
       min_quantity: parseInt(t.min_quantity),
       discount_percent: parseFloat(t.discount_percent),
@@ -242,6 +251,7 @@ const VolumeDiscountsTab = () => {
       label: form.label || null,
       stackable: form.stackable,
       excluded_product_ids: isGlobal ? form.excluded_product_ids : [],
+      ...requirementFields,
     }));
 
     const { error } = await supabase.from('volume_discounts').insert(rows);
