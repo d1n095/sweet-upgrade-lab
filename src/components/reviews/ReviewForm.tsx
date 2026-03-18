@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Send, Loader2, Gift, CheckCircle } from 'lucide-react';
+import { Send, Loader2, Gift, CheckCircle, ShieldX, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import ReviewStars from './ReviewStars';
@@ -23,6 +23,11 @@ const ReviewForm = ({ productId, productHandle, productTitle, onReviewSubmitted 
   const [comment, setComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isCheckingEligibility, setIsCheckingEligibility] = useState(true);
+  const [canReview, setCanReview] = useState(false);
+  const [isVerifiedPurchase, setIsVerifiedPurchase] = useState(false);
+  const [alreadyReviewed, setAlreadyReviewed] = useState(false);
+  const [eligibilityMessage, setEligibilityMessage] = useState('');
 
   const content = {
     sv: {
@@ -41,7 +46,13 @@ const ReviewForm = ({ productId, productHandle, productTitle, onReviewSubmitted 
       errorRating: 'Välj ett betyg',
       errorComment: 'Skriv en kommentar (minst 10 tecken)',
       errorSubmit: 'Något gick fel. Försök igen.',
-      success: 'Recension skickad!'
+      errorDuplicate: 'Du har redan recenserat denna produkt',
+      success: 'Recension skickad!',
+      notPurchased: 'Endast verifierade köpare kan lämna recension',
+      notPurchasedDesc: 'Köp produkten och invänta bekräftad betalning för att kunna recensera.',
+      alreadyReviewedTitle: 'Du har redan recenserat',
+      alreadyReviewedDesc: 'Du kan bara lämna en recension per produkt.',
+      checking: 'Kontrollerar köpstatus...',
     },
     en: {
       title: 'Write a review',
@@ -59,11 +70,54 @@ const ReviewForm = ({ productId, productHandle, productTitle, onReviewSubmitted 
       errorRating: 'Select a rating',
       errorComment: 'Write a comment (at least 10 characters)',
       errorSubmit: 'Something went wrong. Please try again.',
-      success: 'Review submitted!'
+      errorDuplicate: 'You have already reviewed this product',
+      success: 'Review submitted!',
+      notPurchased: 'Only verified buyers can leave a review',
+      notPurchasedDesc: 'Purchase the product and wait for payment confirmation to leave a review.',
+      alreadyReviewedTitle: 'Already reviewed',
+      alreadyReviewedDesc: 'You can only leave one review per product.',
+      checking: 'Checking purchase status...',
     }
   };
 
   const t = content[language as keyof typeof content] || content.en;
+
+  // Check eligibility when user or product changes
+  useEffect(() => {
+    const checkEligibility = async () => {
+      if (!user) {
+        setIsCheckingEligibility(false);
+        return;
+      }
+
+      setIsCheckingEligibility(true);
+      try {
+        const { data, error } = await supabase.rpc('check_review_eligibility', {
+          p_user_id: user.id,
+          p_product_id: productId,
+        });
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          const result = data[0];
+          setCanReview(result.can_review);
+          setIsVerifiedPurchase(result.is_verified_purchase);
+          setAlreadyReviewed(result.already_reviewed);
+          setEligibilityMessage(result.message);
+        } else {
+          setCanReview(false);
+        }
+      } catch (err) {
+        console.error('Failed to check review eligibility:', err);
+        setCanReview(false);
+      } finally {
+        setIsCheckingEligibility(false);
+      }
+    };
+
+    checkEligibility();
+  }, [user, productId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,7 +140,19 @@ const ReviewForm = ({ productId, productHandle, productTitle, onReviewSubmitted 
     setIsSubmitting(true);
 
     try {
-      // Insert review
+      // Double-check eligibility server-side before insert
+      const { data: eligibility } = await supabase.rpc('check_review_eligibility', {
+        p_user_id: user.id,
+        p_product_id: productId,
+      });
+
+      if (!eligibility || eligibility.length === 0 || !eligibility[0].can_review) {
+        const msg = eligibility?.[0]?.already_reviewed ? t.errorDuplicate : t.notPurchased;
+        toast.error(msg);
+        setIsSubmitting(false);
+        return;
+      }
+
       const { data: review, error: reviewError } = await supabase
         .from('reviews')
         .insert({
@@ -96,15 +162,24 @@ const ReviewForm = ({ productId, productHandle, productTitle, onReviewSubmitted 
           product_title: productTitle,
           rating,
           comment: comment.trim(),
-          is_verified_purchase: true, // We assume verified for now
-          is_approved: false // Requires admin approval
+          is_verified_purchase: true,
+          is_approved: false,
         })
         .select()
         .single();
 
-      if (reviewError) throw reviewError;
+      if (reviewError) {
+        // Handle unique constraint violation
+        if (reviewError.code === '23505') {
+          toast.error(t.errorDuplicate);
+          setAlreadyReviewed(true);
+          setCanReview(false);
+          return;
+        }
+        throw reviewError;
+      }
 
-      // Notify admin about new review
+      // Notify admin
       supabase.functions.invoke('notify-review', {
         body: {
           productTitle,
@@ -113,20 +188,20 @@ const ReviewForm = ({ productId, productHandle, productTitle, onReviewSubmitted 
           userEmail: user.email,
         }
       }).catch(err => console.error('Failed to notify admin:', err));
+
+      // Create reward
       const discountCode = `REV${Date.now().toString(36).toUpperCase()}`;
-      
-      const { error: rewardError } = await supabase
+      await supabase
         .from('review_rewards')
         .insert({
           user_id: user.id,
           review_id: review.id,
           discount_code: discountCode,
-          discount_percent: 10
+          discount_percent: 10,
+        })
+        .then(({ error }) => {
+          if (error) console.error('Failed to create reward:', error);
         });
-
-      if (rewardError) {
-        console.error('Failed to create reward:', rewardError);
-      }
 
       setIsSubmitted(true);
       toast.success(t.success);
@@ -139,6 +214,7 @@ const ReviewForm = ({ productId, productHandle, productTitle, onReviewSubmitted 
     }
   };
 
+  // Not logged in
   if (!user) {
     return (
       <div className="bg-secondary/30 rounded-2xl p-6 text-center">
@@ -148,6 +224,39 @@ const ReviewForm = ({ productId, productHandle, productTitle, onReviewSubmitted 
     );
   }
 
+  // Loading eligibility
+  if (isCheckingEligibility) {
+    return (
+      <div className="bg-secondary/30 rounded-2xl p-6 text-center">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground mx-auto mb-3" />
+        <p className="text-sm text-muted-foreground">{t.checking}</p>
+      </div>
+    );
+  }
+
+  // Already reviewed
+  if (alreadyReviewed) {
+    return (
+      <div className="bg-secondary/30 rounded-2xl p-6 text-center">
+        <ShieldCheck className="w-10 h-10 text-primary mx-auto mb-3 opacity-60" />
+        <h3 className="font-semibold text-lg mb-2">{t.alreadyReviewedTitle}</h3>
+        <p className="text-muted-foreground text-sm">{t.alreadyReviewedDesc}</p>
+      </div>
+    );
+  }
+
+  // Not a verified buyer
+  if (!canReview) {
+    return (
+      <div className="bg-secondary/30 rounded-2xl p-6 text-center">
+        <ShieldX className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-60" />
+        <h3 className="font-semibold text-lg mb-2">{t.notPurchased}</h3>
+        <p className="text-muted-foreground text-sm">{t.notPurchasedDesc}</p>
+      </div>
+    );
+  }
+
+  // Successfully submitted
   if (isSubmitted) {
     return (
       <motion.div
@@ -162,6 +271,7 @@ const ReviewForm = ({ productId, productHandle, productTitle, onReviewSubmitted 
     );
   }
 
+  // Review form for verified buyers
   return (
     <motion.form
       initial={{ opacity: 0, y: 20 }}
