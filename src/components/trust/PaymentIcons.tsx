@@ -11,7 +11,7 @@ const VisaIcon = () => (
 );
 
 const MastercardIcon = () => (
-  <svg viewBox="0 0 50 35" className="w-10 h-7">
+  <svg viewBox="0 0 50 35" className="w-11 h-8">
     <rect width="50" height="35" rx="4" fill="#F7F7F7"/>
     <circle cx="20" cy="17.5" r="10" fill="#EB001B"/>
     <circle cx="30" cy="17.5" r="10" fill="#F79E1B"/>
