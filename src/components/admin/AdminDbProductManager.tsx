@@ -131,6 +131,7 @@ const AdminDbProductManager = () => {
       title: product.title_sv,
       description: product.description_sv || '',
       price: product.price.toString(),
+      currency: product.currency || 'SEK',
       productType: product.category || '',
       tags: (product.tags || []).join(', '),
       vendor: product.vendor || '4ThePeople',
@@ -140,6 +141,7 @@ const AdminDbProductManager = () => {
       imageUrls: product.image_urls || [],
       ingredients: product.ingredients_sv || '',
       certifications: (product.certifications || []).join(', '),
+      recipe: product.recipe_sv || '',
     });
     setIsEditOpen(true);
   };
