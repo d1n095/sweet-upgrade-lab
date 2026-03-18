@@ -33,6 +33,7 @@ interface Member {
   email?: string;
   username?: string | null;
   avatar_url?: string | null;
+  phone?: string | null;
 }
 
 type AppRole = 'admin' | 'founder' | 'it' | 'moderator' | 'support' | 'affiliate' | 'donor' | 'manager' | 'marketing' | 'finance' | 'warehouse';
