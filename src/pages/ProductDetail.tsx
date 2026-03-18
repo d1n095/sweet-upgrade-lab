@@ -133,8 +133,8 @@ const ProductDetail = () => {
 
   const handleAddToCart = () => {
     if (!product) return;
-    const title = (lang === 'sv' ? product.title_sv : product.title_en) || product.title_sv;
-    const description = (lang === 'sv' ? product.description_sv : product.description_en) || product.description_sv;
+    const cartTitle = translated.title || product.title_sv;
+    const cartDescription = translated.description || product.description_sv;
     const imageUrl = product.image_urls?.[0];
     const pHandle = product.handle || product.id;
 
