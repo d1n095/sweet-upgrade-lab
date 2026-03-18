@@ -149,21 +149,6 @@ const MemberProfile = () => {
       },
       loginRequired: 'You must be logged in to view your profile',
       backToHome: 'Back to home',
-      admin: {
-        panel: 'Admin Panel',
-        panelDesc: 'Quick overview and management',
-        productsInventory: 'Products & Inventory',
-        membersRoles: 'Members & Roles',
-        partners: 'Partners',
-        reviewsCommunication: 'Reviews & Communication',
-        legalDonations: 'Legal & Donations',
-        reviews: 'Reviews',
-        pending: 'Pending',
-        approved: 'Approved',
-        avgRating: 'Avg Rating',
-        members: 'Members',
-        manageReviews: 'Manage Reviews'
-      }
     }
   };
 
