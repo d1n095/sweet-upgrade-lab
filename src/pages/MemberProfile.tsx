@@ -46,7 +46,7 @@ interface Reward {
 
 const MemberProfile = () => {
   const { language } = useLanguage();
-  const { user, profile, loading: authLoading, signOut, isMember } = useAuth();
+  const { user, profile, loading: authLoading, signOut, isMember, username, maskEmail, xp, level, xpProgress, trustScore } = useAuth();
   const { isAdmin, isLoading: adminLoading } = useAdminRole();
   const { isEmployee, isLoading: employeeLoading } = useEmployeeRole();
   const navigate = useNavigate();
