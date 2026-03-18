@@ -70,6 +70,7 @@ const AdminProductManager = () => {
     title: '',
     description: '',
     price: '',
+    currency: 'SEK',
     productType: '',
     tags: '',
     vendor: '4ThePeople',
@@ -78,6 +79,8 @@ const AdminProductManager = () => {
     allowOverselling: false,
     imageUrls: [],
     ingredients: '',
+    certifications: '',
+    recipe: '',
     certifications: '',
   });
 
