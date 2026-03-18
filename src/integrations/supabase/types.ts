@@ -1020,28 +1020,43 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
           created_at: string
           id: string
           is_member: boolean
+          level: number
           member_since: string | null
+          trust_score: number
           updated_at: string
           user_id: string
+          username: string | null
+          xp: number
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string
           id?: string
           is_member?: boolean
+          level?: number
           member_since?: string | null
+          trust_score?: number
           updated_at?: string
           user_id: string
+          username?: string | null
+          xp?: number
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string
           id?: string
           is_member?: boolean
+          level?: number
           member_since?: string | null
+          trust_score?: number
           updated_at?: string
           user_id?: string
+          username?: string | null
+          xp?: number
         }
         Relationships: []
       }
@@ -1307,6 +1322,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_user_xp: {
+        Args: { p_reason?: string; p_user_id: string; p_xp: number }
+        Returns: undefined
+      }
+      calculate_level: { Args: { p_xp: number }; Returns: number }
       check_review_eligibility: {
         Args: { p_product_id: string; p_user_id: string }
         Returns: {
@@ -1316,6 +1336,7 @@ export type Database = {
           message: string
         }[]
       }
+      generate_random_username: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

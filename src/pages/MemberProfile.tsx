@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { 
   User, Package, Star, Gift, Settings, LogOut, 
   ChevronRight, Loader2, Clock, Check, BadgeCheck,
-  Shield, TrendingUp
+  Shield, TrendingUp, Zap, Award
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -46,7 +46,7 @@ interface Reward {
 
 const MemberProfile = () => {
   const { language } = useLanguage();
-  const { user, profile, loading: authLoading, signOut, isMember } = useAuth();
+  const { user, profile, loading: authLoading, signOut, isMember, username, maskEmail, xp, level, xpProgress, trustScore } = useAuth();
   const { isAdmin, isLoading: adminLoading } = useAdminRole();
   const { isEmployee, isLoading: employeeLoading } = useEmployeeRole();
   const navigate = useNavigate();
@@ -258,24 +258,54 @@ const MemberProfile = () => {
           >
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-                  <User className="w-8 h-8 text-primary" />
+                {/* Avatar with initials */}
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground text-xl font-bold shrink-0">
+                  {(username || user.email || '?')[0].toUpperCase()}
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="text-sm text-muted-foreground">{t.welcome}</p>
-                  <h1 className="font-display text-2xl font-semibold">{user.email}</h1>
-                  <div className="flex items-center gap-2 mt-1">
+                  <h1 className="font-display text-2xl font-semibold truncate">
+                    {username || (user.email ? maskEmail(user.email) : '')}
+                  </h1>
+                  <div className="flex items-center flex-wrap gap-2 mt-1.5">
+                    {/* Role badge */}
+                    {isAdmin ? (
+                      <Badge className="bg-destructive/10 text-destructive text-[10px]">
+                        <Shield className="w-3 h-3 mr-1" />
+                        Admin
+                      </Badge>
+                    ) : isEmployee ? (
+                      <Badge className="bg-warning/10 text-warning text-[10px]">
+                        <Shield className="w-3 h-3 mr-1" />
+                        {language === 'sv' ? 'Anställd' : 'Staff'}
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-secondary text-muted-foreground text-[10px]">
+                        {language === 'sv' ? 'Kund' : 'Customer'}
+                      </Badge>
+                    )}
                     {isMember && (
-                      <Badge className="bg-primary/10 text-primary">
+                      <Badge className="bg-primary/10 text-primary text-[10px]">
                         <BadgeCheck className="w-3 h-3 mr-1" />
                         {t.member}
                       </Badge>
                     )}
-                    {profile?.member_since && (
-                      <span className="text-sm text-muted-foreground">
-                        {t.memberSince} {formatDate(profile.member_since)}
-                      </span>
-                    )}
+                    {/* Level badge */}
+                    <Badge className="bg-accent/10 text-accent text-[10px]">
+                      <Award className="w-3 h-3 mr-1" />
+                      Level {level}
+                    </Badge>
+                  </div>
+                  {/* XP Progress bar */}
+                  <div className="mt-2 flex items-center gap-2 max-w-[280px]">
+                    <Zap className="w-3.5 h-3.5 text-accent shrink-0" />
+                    <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-accent to-primary rounded-full transition-all duration-500"
+                        style={{ width: `${xpProgress}%` }}
+                      />
+                    </div>
+                    <span className="text-[10px] text-muted-foreground shrink-0">{xp} XP</span>
                   </div>
                 </div>
               </div>

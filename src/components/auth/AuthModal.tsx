@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Mail, Lock, Loader2, Crown, ArrowLeft, CheckCircle, Eye, EyeOff } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Mail, Lock, Loader2, Crown, ArrowLeft, CheckCircle, Eye, EyeOff, UserCircle, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/useAuth';
@@ -26,6 +26,8 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
   const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
+  const [usernameError, setUsernameError] = useState('');
   const [loading, setLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -50,7 +52,7 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
         toast.success(lang === 'sv' ? 'Välkommen tillbaka!' : 'Welcome back!');
         onClose();
       } else {
-        const { error } = await signUp(email, password);
+        const { error } = await signUp(email, password, username || undefined);
         if (error) throw error;
         
         // Send welcome email in background
@@ -157,6 +159,35 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Username field for registration */}
+              {mode === 'register' && (
+                <div>
+                  <div className="relative">
+                    <UserCircle className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <Input
+                      type="text"
+                      placeholder={lang === 'sv' ? 'Användarnamn (valfritt)' : 'Username (optional)'}
+                      value={username}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^a-zA-Z0-9_-]/g, '');
+                        setUsername(val);
+                        setUsernameError('');
+                      }}
+                      className="pl-11 h-12 rounded-xl"
+                      maxLength={24}
+                    />
+                  </div>
+                  {usernameError && (
+                    <p className="text-xs text-destructive mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" /> {usernameError}
+                    </p>
+                  )}
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    {lang === 'sv' ? 'Lämna tomt för automatiskt genererat namn' : 'Leave empty for auto-generated name'}
+                  </p>
+                </div>
+              )}
+
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
