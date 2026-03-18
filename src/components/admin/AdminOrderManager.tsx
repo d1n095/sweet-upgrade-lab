@@ -28,6 +28,7 @@ interface Order {
   order_email: string;
   status: string;
   payment_status: string;
+  payment_method: string | null;
   total_amount: number;
   currency: string;
   tracking_number: string | null;
@@ -40,6 +41,9 @@ interface Order {
   shipping_address: any;
   estimated_delivery: string | null;
   status_history: any;
+  refund_status: string | null;
+  refund_amount: number | null;
+  refunded_at: string | null;
 }
 
 const statusOptions = [
@@ -49,6 +53,7 @@ const statusOptions = [
   { value: 'shipped', color: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400' },
   { value: 'delivered', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
   { value: 'failed', color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' },
+  { value: 'abandoned', color: 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400' },
   { value: 'cancelled', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
 ];
 
