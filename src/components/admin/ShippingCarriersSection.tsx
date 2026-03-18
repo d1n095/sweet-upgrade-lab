@@ -136,9 +136,11 @@ const ShippingCarriersSection = () => {
       if (editing) {
         await supabase.from('shipping_carriers').update({ ...payload, updated_at: new Date().toISOString() }).eq('id', editing.id);
         toast.success('Fraktbolag uppdaterat!');
+        logShippingChange(`Fraktbolag uppdaterat: ${form.name}`);
       } else {
         await supabase.from('shipping_carriers').insert({ ...payload, display_order: carriers.length });
         toast.success('Fraktbolag tillagt!');
+        logShippingChange(`Fraktbolag tillagt: ${form.name}`);
       }
       setIsFormOpen(false);
       resetForm();
