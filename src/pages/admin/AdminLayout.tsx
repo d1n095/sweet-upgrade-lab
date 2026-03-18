@@ -86,6 +86,31 @@ const AdminLayout = () => {
 
   useEffect(() => { setMobileNavOpen(false); }, [location.pathname]);
 
+  // Fetch recent error count (last hour)
+  useEffect(() => {
+    const fetchErrors = async () => {
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const { count } = await supabase
+        .from('activity_logs')
+        .select('*', { count: 'exact', head: true })
+        .eq('log_type', 'error')
+        .gte('created_at', oneHourAgo);
+      setRecentErrorCount(count || 0);
+    };
+    fetchErrors();
+
+    // Listen for new errors
+    const channel = supabase
+      .channel('admin-error-banner')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'activity_logs', filter: 'log_type=eq.error' }, () => {
+        setRecentErrorCount(prev => prev + 1);
+        setErrorBannerDismissed(false);
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
   if (combinedLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
