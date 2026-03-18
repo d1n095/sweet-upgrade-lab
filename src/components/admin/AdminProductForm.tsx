@@ -19,6 +19,7 @@ export interface ProductFormData {
   title: string;
   description: string;
   price: string;
+  currency: string;
   productType: string;
   tags: string;
   vendor: string;
@@ -28,7 +29,17 @@ export interface ProductFormData {
   imageUrls: string[];
   ingredients: string;
   certifications: string;
+  recipe: string;
 }
+
+const CURRENCY_OPTIONS = [
+  { value: 'SEK', symbol: 'kr' },
+  { value: 'EUR', symbol: '€' },
+  { value: 'USD', symbol: '$' },
+  { value: 'NOK', symbol: 'kr' },
+  { value: 'DKK', symbol: 'kr' },
+  { value: 'GBP', symbol: '£' },
+];
 
 export type ProductCategoryOption = {
   value: string;
