@@ -572,9 +572,11 @@ const AdminMemberManager = ({ roleFilter = 'all', onStatsUpdate }: AdminMemberMa
 
   const confirmRoleChange = async () => {
     if (!pendingRoleChange) return;
-    const { userId, role } = pendingRoleChange;
+    const { userId, role, username: targetName } = pendingRoleChange;
+    const previousRole = userRoles[userId] || 'none';
     setPendingRoleChange(null);
     setAssigningRole(true);
+    setLastRoleChangeTime(Date.now());
     try {
       if (role === 'none') {
         await supabase.from('user_roles').delete().eq('user_id', userId);
@@ -598,6 +600,22 @@ const AdminMemberManager = ({ roleFilter = 'all', onStatsUpdate }: AdminMemberMa
         toast.success(t.roleAssigned);
         setUserRoles((prev) => ({ ...prev, [userId]: role }));
       }
+
+      // Log role change to activity log
+      logActivity({
+        log_type: 'warning',
+        category: 'security',
+        message: `Rolländring: ${targetName} → ${role === 'none' ? 'borttagen' : role} (från: ${previousRole})`,
+        details: {
+          target_user_id: userId,
+          target_username: targetName,
+          previous_role: previousRole,
+          new_role: role,
+        },
+      });
+
+      // Reload data to sync counts
+      loadMembers();
     } catch (error) {
       console.error('Failed to assign role:', error);
       toast.error(t.error);
