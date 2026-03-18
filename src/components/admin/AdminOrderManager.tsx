@@ -605,7 +605,7 @@ const AdminOrderManager = () => {
                         <RotateCcw className="w-3.5 h-3.5" />
                         {content.refund}
                       </Button>
-                    )
+                    )}
                     <span className="font-semibold text-sm">
                       {formatCurrency(order.total_amount, order.currency)}
                     </span>
