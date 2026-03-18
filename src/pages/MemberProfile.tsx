@@ -324,8 +324,8 @@ const MemberProfile = () => {
           {/* Tabs */}
           <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
             <div className="sticky top-16 z-30 bg-background/95 backdrop-blur-sm pb-4 pt-2 -mx-4 px-4 border-b border-border/50 mb-6">
-              <div className="overflow-x-auto scrollbar-hide">
-                <TabsList className="inline-flex w-max min-w-full sm:w-auto">
+              <div className="overflow-x-auto scrollbar-hide -mx-1 px-1">
+                <TabsList className="inline-flex w-max gap-1">
                   <TabsTrigger value="orders" className="gap-1.5 text-xs sm:text-sm">
                     <Package className="w-3.5 h-3.5" />
                     <span className="hidden sm:inline">{language === 'sv' ? 'Mina ordrar' : 'My Orders'}</span>
