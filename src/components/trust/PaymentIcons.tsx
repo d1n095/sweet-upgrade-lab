@@ -20,7 +20,7 @@ const MastercardIcon = () => (
 );
 
 const KlarnaIcon = () => (
-  <svg viewBox="0 0 50 35" className="w-10 h-7">
+  <svg viewBox="0 0 50 35" className="w-11 h-8">
     <rect width="50" height="35" rx="4" fill="#FFB3C7"/>
     <text x="25" y="22" textAnchor="middle" fill="#0A0B09" fontSize="10" fontWeight="bold" fontFamily="Arial">Klarna</text>
   </svg>
