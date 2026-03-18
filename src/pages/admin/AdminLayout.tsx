@@ -41,6 +41,9 @@ const AdminLayout = () => {
   const location = useLocation();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
+  // Admin session timeout (30 min inactivity)
+  useAdminSession();
+
   useEffect(() => {
     if (!isLoaded) fetchSettings();
   }, [isLoaded, fetchSettings]);
@@ -64,6 +67,7 @@ const AdminLayout = () => {
   if (!isAdmin) return null;
 
   const handleSignOut = async () => {
+    logAuthEvent('logout', user?.email || undefined);
     await signOut();
     toast.success('Utloggad');
     navigate('/');
