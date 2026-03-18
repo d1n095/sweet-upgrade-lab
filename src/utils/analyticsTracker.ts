@@ -18,7 +18,7 @@ const getUserId = async (): Promise<string | null> => {
   }
 };
 
-const trackEvent = async (eventType: string, eventData: Record<string, any> = {}) => {
+export const trackEvent = async (eventType: string, eventData: Record<string, any> = {}) => {
   try {
     const userId = await getUserId();
     await supabase.from('analytics_events').insert({

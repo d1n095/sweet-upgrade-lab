@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   TrendingUp, Package, DollarSign, ArrowUpRight, RefreshCw,
-  Search, Eye, ShoppingCart, AlertTriangle, BarChart3, MousePointerClick
+  Search, Eye, ShoppingCart, AlertTriangle, BarChart3, MousePointerClick, FlaskConical
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -38,6 +38,7 @@ const AdminStats = () => {
   const [topSearches, setTopSearches] = useState<SearchLog[]>([]);
   const [productViews, setProductViews] = useState<{ title: string; count: number }[]>([]);
   const [checkoutStats, setCheckoutStats] = useState({ starts: 0, completes: 0, abandons: 0, dropOffRate: 0 });
+  const [ingredientStats, setIngredientStats] = useState<{ name: string; searches: number; clicks: number }[]>([]);
 
   useEffect(() => {
     fetchAllData();
@@ -49,7 +50,7 @@ const AdminStats = () => {
   }, []);
 
   const fetchAllData = async () => {
-    await Promise.all([fetchSalesData(), fetchSearchData(), fetchAnalyticsData()]);
+    await Promise.all([fetchSalesData(), fetchSearchData(), fetchAnalyticsData(), fetchIngredientStats()]);
   };
 
   const fetchSalesData = async () => {
@@ -134,6 +135,42 @@ const AdminStats = () => {
     }
   };
 
+  const fetchIngredientStats = async () => {
+    try {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const { data } = await supabase
+        .from('analytics_events')
+        .select('event_type, event_data')
+        .in('event_type', ['ingredient_search', 'ingredient_click'])
+        .gte('created_at', thirtyDaysAgo.toISOString())
+        .limit(1000);
+
+      if (data) {
+        const stats: Record<string, { searches: number; clicks: number }> = {};
+        (data as unknown as AnalyticsEvent[]).forEach(e => {
+          if (e.event_type === 'ingredient_search' && e.event_data?.matched_ingredients) {
+            (e.event_data.matched_ingredients as string[]).forEach(ing => {
+              if (!stats[ing]) stats[ing] = { searches: 0, clicks: 0 };
+              stats[ing].searches++;
+            });
+          }
+          if (e.event_type === 'ingredient_click' && e.event_data?.ingredient) {
+            const ing = e.event_data.ingredient as string;
+            if (!stats[ing]) stats[ing] = { searches: 0, clicks: 0 };
+            stats[ing].clicks++;
+          }
+        });
+        const sorted = Object.entries(stats)
+          .map(([name, s]) => ({ name, ...s }))
+          .sort((a, b) => (b.searches + b.clicks) - (a.searches + a.clicks))
+          .slice(0, 20);
+        setIngredientStats(sorted);
+      }
+    } catch (e) {
+      console.error('Failed to fetch ingredient stats:', e);
+    }
+  };
   const getStatusBadge = (count: number) => {
     if (count > 25) return <Badge className="bg-accent/20 text-accent border-0">Många har upptäckt</Badge>;
     if (count > 15) return <Badge className="bg-primary/20 text-primary border-0">🔥 Trendar</Badge>;
@@ -177,6 +214,7 @@ const AdminStats = () => {
           <TabsTrigger value="views">Produktvisningar</TabsTrigger>
           <TabsTrigger value="searches">Sökningar</TabsTrigger>
           <TabsTrigger value="checkout">Checkout-flöde</TabsTrigger>
+          <TabsTrigger value="ingredients">Ingredienser</TabsTrigger>
         </TabsList>
 
         {/* Sales tab */}
@@ -353,6 +391,36 @@ const AdminStats = () => {
                   </div>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Ingredients tab */}
+        <TabsContent value="ingredients">
+          <Card className="border-border">
+            <CardHeader><CardTitle className="text-lg font-semibold flex items-center gap-2"><FlaskConical className="w-5 h-5 text-primary" /> Ingrediens-sökningar (30 dagar)</CardTitle></CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-4">Visar vilka ingredienser kunder söker efter och klickar på i sökfältet.</p>
+              <div className="space-y-2">
+                {ingredientStats.map((ing, idx) => (
+                  <div key={ing.name} className="flex items-center justify-between p-3 rounded-xl bg-secondary/50">
+                    <div className="flex items-center gap-3">
+                      <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">{idx + 1}</div>
+                      <span className="font-medium text-sm">{ing.name}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Badge variant="outline" className="gap-1"><Search className="w-3 h-3" />{ing.searches} sökningar</Badge>
+                      <Badge variant="outline" className="gap-1"><MousePointerClick className="w-3 h-3" />{ing.clicks} klick</Badge>
+                    </div>
+                  </div>
+                ))}
+                {ingredientStats.length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <FlaskConical className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                    <p>Ingen ingrediens-data ännu — spåras automatiskt när kunder söker</p>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

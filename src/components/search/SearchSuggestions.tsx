@@ -1,17 +1,31 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Loader2, Package, ArrowRight } from 'lucide-react';
+import { Search, Loader2, Package, ArrowRight, FlaskConical } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useSearchStore } from '@/stores/searchStore';
 import { useLanguage } from '@/context/LanguageContext';
-import { fetchProducts, ShopifyProduct } from '@/lib/shopify';
 import { Link, useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { trackEvent } from '@/utils/analyticsTracker';
+
+interface DbProductResult {
+  id: string;
+  title_sv: string;
+  title_en: string | null;
+  handle: string | null;
+  price: number;
+  currency: string;
+  image_urls: string[] | null;
+  ingredients_sv: string | null;
+  ingredients_en: string | null;
+}
 
 const SearchSuggestions = () => {
   const { language } = useLanguage();
   const navigate = useNavigate();
   const { searchQuery, setSearchQuery } = useSearchStore();
-  const [suggestions, setSuggestions] = useState<ShopifyProduct[]>([]);
+  const [suggestions, setSuggestions] = useState<DbProductResult[]>([]);
+  const [ingredientMatches, setIngredientMatches] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -28,7 +42,6 @@ const SearchSuggestions = () => {
       if (event.key === 'Escape') {
         setShowSuggestions(false);
         setSearchQuery('');
-        // Blur the input
         const input = containerRef.current?.querySelector('input');
         input?.blur();
       }
@@ -42,42 +55,71 @@ const SearchSuggestions = () => {
   }, [setSearchQuery]);
 
   useEffect(() => {
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
+    if (debounceRef.current) clearTimeout(debounceRef.current);
 
     debounceRef.current = setTimeout(async () => {
-      if (isFocused) {
-        setIsLoading(true);
-        try {
-          let products: ShopifyProduct[];
-          if (searchQuery.trim()) {
-            // Search with query
-            products = await fetchProducts(5, `title:*${searchQuery}*`);
-          } else {
-            // Random suggestions when empty
-            products = await fetchProducts(5);
+      if (!isFocused) return;
+      setIsLoading(true);
+      try {
+        const q = searchQuery.trim().toLowerCase();
+
+        if (q) {
+          // Search products by title AND ingredients
+          const { data } = await supabase
+            .from('products')
+            .select('id, title_sv, title_en, handle, price, currency, image_urls, ingredients_sv, ingredients_en')
+            .eq('is_visible', true)
+            .or(`title_sv.ilike.%${q}%,title_en.ilike.%${q}%,ingredients_sv.ilike.%${q}%,ingredients_en.ilike.%${q}%`)
+            .limit(6);
+
+          setSuggestions((data || []) as DbProductResult[]);
+
+          // Find which ingredients matched
+          const matched = new Set<string>();
+          (data || []).forEach((p: any) => {
+            const ingStr = language === 'sv' ? p.ingredients_sv : (p.ingredients_en || p.ingredients_sv);
+            if (ingStr) {
+              ingStr.split(',').map((s: string) => s.trim()).filter(Boolean).forEach((ing: string) => {
+                if (ing.toLowerCase().includes(q)) matched.add(ing);
+              });
+            }
+          });
+          setIngredientMatches([...matched].slice(0, 3));
+
+          // Track ingredient search
+          if (matched.size > 0) {
+            trackEvent('ingredient_search', { query: q, matched_ingredients: [...matched] });
           }
-          setSuggestions(products);
-          setShowSuggestions(true);
-        } catch (error) {
-          console.error('Failed to fetch suggestions:', error);
-        } finally {
-          setIsLoading(false);
+        } else {
+          // Random suggestions
+          const { data } = await supabase
+            .from('products')
+            .select('id, title_sv, title_en, handle, price, currency, image_urls, ingredients_sv, ingredients_en')
+            .eq('is_visible', true)
+            .limit(5);
+          setSuggestions((data || []) as DbProductResult[]);
+          setIngredientMatches([]);
         }
+        setShowSuggestions(true);
+      } catch (error) {
+        console.error('Failed to fetch suggestions:', error);
+      } finally {
+        setIsLoading(false);
       }
     }, 300);
 
-    return () => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
-    };
-  }, [searchQuery, isFocused]);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [searchQuery, isFocused, language]);
 
-  const handleProductClick = (handle: string) => {
+  const handleProductClick = (handle: string | null, productId: string) => {
     setShowSuggestions(false);
-    navigate(`/product/${handle}`);
+    trackEvent('search_product_click', { product_id: productId, query: searchQuery });
+    if (handle) navigate(`/product/${handle}`);
+  };
+
+  const handleIngredientClick = (ingredient: string) => {
+    trackEvent('ingredient_click', { ingredient, query: searchQuery });
+    setSearchQuery(ingredient);
   };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -88,13 +130,16 @@ const SearchSuggestions = () => {
     }
   };
 
-  const formatPrice = (amount: string, currencyCode: string) => {
+  const formatPrice = (price: number, currency: string) => {
     return new Intl.NumberFormat('sv-SE', {
       style: 'currency',
-      currency: currencyCode,
+      currency,
       minimumFractionDigits: 0,
-    }).format(parseFloat(amount));
+    }).format(price);
   };
+
+  const sv = language === 'sv';
+  const title = (p: DbProductResult) => sv ? p.title_sv : (p.title_en || p.title_sv);
 
   return (
     <div ref={containerRef} className="relative">
@@ -103,13 +148,10 @@ const SearchSuggestions = () => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             type="text"
-            placeholder={language === 'sv' ? 'Sök...' : 'Search...'}
+            placeholder={sv ? 'Sök produkt eller ingrediens...' : 'Search product or ingredient...'}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            onFocus={() => {
-              setIsFocused(true);
-              setShowSuggestions(true);
-            }}
+            onFocus={() => { setIsFocused(true); setShowSuggestions(true); }}
             onBlur={() => setIsFocused(false)}
             className="pl-9 w-full sm:w-40 md:w-44 lg:w-48 max-w-xs h-10 bg-secondary/50 border-transparent hover:border-border focus:border-primary/50 rounded-full text-sm transition-all"
           />
@@ -131,28 +173,45 @@ const SearchSuggestions = () => {
               </div>
             ) : suggestions.length === 0 ? (
               <div className="p-4 text-center text-sm text-muted-foreground">
-                {language === 'sv' ? 'Inga produkter hittades' : 'No products found'}
+                {sv ? 'Inga produkter hittades' : 'No products found'}
               </div>
             ) : (
               <div className="p-2">
+                {/* Ingredient matches */}
+                {ingredientMatches.length > 0 && (
+                  <div className="px-3 py-2">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1.5 flex items-center gap-1">
+                      <FlaskConical className="w-3 h-3" />
+                      {sv ? 'Matchande ingredienser' : 'Matching ingredients'}
+                    </p>
+                    <div className="flex flex-wrap gap-1">
+                      {ingredientMatches.map(ing => (
+                        <button
+                          key={ing}
+                          onMouseDown={(e) => { e.preventDefault(); handleIngredientClick(ing); }}
+                          className="inline-flex items-center px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs hover:bg-primary/20 transition-colors"
+                        >
+                          {ing}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <p className="px-3 py-2 text-xs text-muted-foreground uppercase tracking-wide">
-                  {searchQuery.trim() 
-                    ? (language === 'sv' ? 'Sökresultat' : 'Results')
-                    : (language === 'sv' ? 'Populära produkter' : 'Popular products')}
+                  {searchQuery.trim()
+                    ? (sv ? 'Sökresultat' : 'Results')
+                    : (sv ? 'Populära produkter' : 'Popular products')}
                 </p>
                 {suggestions.map((product) => (
                   <button
-                    key={product.node.id}
-                    onClick={() => handleProductClick(product.node.handle)}
+                    key={product.id}
+                    onMouseDown={(e) => { e.preventDefault(); handleProductClick(product.handle, product.id); }}
                     className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left hover:bg-secondary/50 transition-colors"
                   >
                     <div className="w-10 h-10 rounded-lg bg-muted overflow-hidden flex-shrink-0">
-                      {product.node.images.edges[0]?.node ? (
-                        <img
-                          src={product.node.images.edges[0].node.url}
-                          alt={product.node.title}
-                          className="w-full h-full object-cover"
-                        />
+                      {product.image_urls?.[0] ? (
+                        <img src={product.image_urls[0]} alt={title(product)} className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
                           <Package className="w-4 h-4 text-muted-foreground" />
@@ -160,12 +219,9 @@ const SearchSuggestions = () => {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{product.node.title}</p>
+                      <p className="text-sm font-medium truncate">{title(product)}</p>
                       <p className="text-xs text-muted-foreground">
-                        {formatPrice(
-                          product.node.priceRange.minVariantPrice.amount,
-                          product.node.priceRange.minVariantPrice.currencyCode
-                        )}
+                        {formatPrice(product.price, product.currency)}
                       </p>
                     </div>
                     <ArrowRight className="w-4 h-4 text-muted-foreground" />
@@ -177,7 +233,7 @@ const SearchSuggestions = () => {
                     onClick={() => setShowSuggestions(false)}
                     className="flex items-center justify-center gap-2 px-3 py-2.5 mt-1 text-sm text-primary hover:bg-primary/5 rounded-xl transition-colors"
                   >
-                    {language === 'sv' ? 'Se alla resultat' : 'View all results'}
+                    {sv ? 'Se alla resultat' : 'View all results'}
                     <ArrowRight className="w-4 h-4" />
                   </Link>
                 )}
