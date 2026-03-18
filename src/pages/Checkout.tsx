@@ -29,6 +29,27 @@ const ZIP_CITY_MAP: Record<string, string> = {
   '85': 'Sundsvall', '90': 'Umeå', '95': 'Luleå',
 };
 
+// Hook to get shipping settings from DB
+const useShippingConfig = () => {
+  const [config, setConfig] = useState({ cost: 39 as number, freeThreshold: 500 as number });
+  useEffect(() => {
+    supabase
+      .from('store_settings')
+      .select('key, text_value')
+      .in('key', ['shipping_cost', 'free_shipping_threshold'])
+      .then(({ data }) => {
+        if (data) {
+          const map = Object.fromEntries(data.map(r => [r.key, r.text_value]));
+          setConfig({
+            cost: map['shipping_cost'] ? parseFloat(map['shipping_cost']) : 39,
+            freeThreshold: map['free_shipping_threshold'] ? parseFloat(map['free_shipping_threshold']) : 500,
+          });
+        }
+      });
+  }, []);
+  return config;
+};
+
 interface FieldErrors {
   email?: string;
   name?: string;
@@ -44,6 +65,7 @@ const Checkout = () => {
   const { items, clearCart } = useCartStore();
   const { checkoutEnabled, autoSaveProfile } = useStoreSettings();
   const { user } = useAuth();
+  const shippingConfig = useShippingConfig();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -98,7 +120,7 @@ const Checkout = () => {
     items.reduce((sum, item) => sum + (parseFloat(item.price.amount) * item.quantity), 0),
     [items]
   );
-  const shippingCost = subtotal >= storeConfig.shipping.freeShippingThreshold ? 0 : storeConfig.shipping.cost;
+  const shippingCost = subtotal >= shippingConfig.freeThreshold ? 0 : shippingConfig.cost;
   const total = subtotal + shippingCost;
 
   const isSv = cl === 'sv';

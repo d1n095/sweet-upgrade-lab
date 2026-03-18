@@ -86,10 +86,24 @@ serve(async (req) => {
       });
     }
 
-    // 2. Calculate totals using TRUSTED prices
+    // 2. Calculate totals using TRUSTED prices + DB shipping config
     const subtotal = trustedItems.reduce((sum: number, item) => sum + item.price * item.quantity, 0);
-    const freeShippingThreshold = 500;
-    const shippingCost = subtotal >= freeShippingThreshold ? 0 : 39;
+
+    // Read shipping settings from DB
+    let shippingCostValue = 39;
+    let freeShippingThreshold = 500;
+    const { data: shippingSettings } = await supabase
+      .from('store_settings')
+      .select('key, text_value')
+      .in('key', ['shipping_cost', 'free_shipping_threshold']);
+    if (shippingSettings) {
+      for (const s of shippingSettings) {
+        if (s.key === 'shipping_cost' && s.text_value) shippingCostValue = parseFloat(s.text_value);
+        if (s.key === 'free_shipping_threshold' && s.text_value) freeShippingThreshold = parseFloat(s.text_value);
+      }
+    }
+
+    const shippingCost = subtotal >= freeShippingThreshold ? 0 : shippingCostValue;
     const totalAmount = subtotal + shippingCost;
 
     // 3. Create order with status "pending", payment_status "unpaid"
