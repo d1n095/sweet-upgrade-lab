@@ -5,12 +5,20 @@ import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/context/LanguageContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { usePageSections } from '@/hooks/usePageSections';
 
 const Hero = () => {
   const { t, contentLang } = useLanguage();
   const navigate = useNavigate();
   const [reviewCount, setReviewCount] = useState(0);
   const [avgRating, setAvgRating] = useState(0);
+  const { getSection, isSectionVisible } = usePageSections('home');
+
+  const lang = contentLang;
+  const getLang = (sv: string | null | undefined, en: string | null | undefined) =>
+    (lang === 'sv' ? sv : en) || sv || '';
+
+  const heroSection = getSection('hero');
 
   useEffect(() => {
     const load = async () => {
@@ -36,6 +44,8 @@ const Hero = () => {
         { icon: Truck, text: 'Free shipping over 499 kr' },
       ];
 
+  if (!isSectionVisible('hero')) return null;
+
   return (
     <section className="relative min-h-[75vh] flex items-center justify-center">
       <div className="absolute inset-0 bg-gradient-hero" />
@@ -48,7 +58,7 @@ const Hero = () => {
             transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
             className="text-3xl sm:text-4xl md:text-5xl font-semibold leading-[1.08] tracking-tight mb-6 text-foreground"
           >
-            {t('hero.title')}
+            {heroSection ? getLang(heroSection.title_sv, heroSection.title_en) : t('hero.title')}
           </motion.h1>
 
           <motion.p
@@ -57,10 +67,9 @@ const Hero = () => {
             transition={{ duration: 0.6, delay: 0.12, ease: [0.25, 0.1, 0.25, 1] }}
             className="text-base text-muted-foreground/80 max-w-md mx-auto mb-8 leading-relaxed"
           >
-            {t('hero.subtitle')}
+            {heroSection ? getLang(heroSection.content_sv, heroSection.content_en) : t('hero.subtitle')}
           </motion.p>
 
-          {/* Social proof */}
           {reviewCount > 0 && (
             <motion.div
               initial={{ opacity: 0 }}
@@ -93,7 +102,6 @@ const Hero = () => {
             </Button>
           </motion.div>
 
-          {/* Trust signals */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
