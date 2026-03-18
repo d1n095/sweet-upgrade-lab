@@ -99,19 +99,22 @@ export function useCartDiscounts() {
 
     const calculatedDiscounts: CartDiscount[] = [];
     
-    // Calculate total items in cart for global volume discount
-    const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
-
-    // Find the best applicable global volume discount based on total cart quantity
+    // Calculate total items in cart for global volume discount (excluding excluded products)
     const applicableGlobalDiscounts = volumeDiscounts
-      .filter(vd => vd.is_global && !vd.shopify_product_id && totalQuantity >= vd.min_quantity)
+      .filter(vd => vd.is_global && !vd.shopify_product_id)
+      .map(vd => {
+        const excluded = vd.excluded_product_ids || [];
+        const eligibleItems = items.filter(item => !excluded.includes(item.product.node.id));
+        const eligibleQty = eligibleItems.reduce((sum, item) => sum + item.quantity, 0);
+        return { ...vd, eligibleItems, eligibleQty };
+      })
+      .filter(vd => vd.eligibleQty >= vd.min_quantity)
       .sort((a, b) => b.discount_percent - a.discount_percent);
-    
+
     const bestGlobalDiscount = applicableGlobalDiscounts[0];
 
     if (bestGlobalDiscount) {
-      // Apply global discount to entire cart
-      const cartTotal = items.reduce(
+      const cartTotal = bestGlobalDiscount.eligibleItems.reduce(
         (sum, item) => sum + parseFloat(item.price.amount) * item.quantity,
         0
       );
@@ -119,12 +122,18 @@ export function useCartDiscounts() {
       
       calculatedDiscounts.push({
         type: 'volume',
-        name: `Mängdrabatt ${bestGlobalDiscount.discount_percent}%`,
-        description: `${totalQuantity} produkter i korgen`,
+        name: bestGlobalDiscount.label || `Mängdrabatt ${bestGlobalDiscount.discount_percent}%`,
+        description: `${bestGlobalDiscount.eligibleQty} produkter i korgen${bestGlobalDiscount.excluded_product_ids.length > 0 ? ` (${bestGlobalDiscount.excluded_product_ids.length} uteslutna)` : ''}`,
         discountPercent: bestGlobalDiscount.discount_percent,
-        applicableItems: items.map(i => i.variantId),
+        applicableItems: bestGlobalDiscount.eligibleItems.map(i => i.variantId),
         discountAmount: discountAmount
       });
+
+      // If not stackable, skip bundle discounts for these items
+      if (!bestGlobalDiscount.stackable) {
+        setDiscounts(calculatedDiscounts);
+        return;
+      }
     }
 
     // Also check product-specific volume discounts
