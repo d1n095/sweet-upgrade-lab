@@ -280,10 +280,10 @@ const Header = () => {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="hidden sm:flex h-9 w-9 md:h-10 md:w-10 rounded-full hover:bg-secondary relative"
+                  className="h-9 w-9 md:h-10 md:w-10 rounded-full hover:bg-secondary relative"
                   onClick={() => setIsAccountOpen(true)}
                 >
-                  <User className="w-[18px] h-[18px]" />
+                  <User className="w-[17px] h-[17px] md:w-[18px] md:h-[18px]" />
                   {isMember && (
                     <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-accent border-2 border-background" />
                   )}
@@ -292,10 +292,10 @@ const Header = () => {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="hidden sm:flex h-9 w-9 md:h-10 md:w-10 rounded-full hover:bg-secondary"
+                  className="h-9 w-9 md:h-10 md:w-10 rounded-full hover:bg-secondary"
                   onClick={() => setIsAuthOpen(true)}
                 >
-                  <User className="w-[18px] h-[18px]" />
+                  <User className="w-[17px] h-[17px] md:w-[18px] md:h-[18px]" />
                 </Button>
               )}
 
