@@ -9,7 +9,7 @@ const Hero = () => {
   const navigate = useNavigate();
 
   return (
-    <section className="relative min-h-[70vh] flex items-center justify-center">
+    <section className="relative min-h-[75vh] flex items-center justify-center">
       <div className="absolute inset-0 bg-gradient-hero" />
 
       <div className="container mx-auto px-4 py-24 md:py-32 relative z-10">
