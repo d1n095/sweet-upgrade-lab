@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   TrendingUp, Package, RefreshCw, Search, Eye, ShoppingCart,
-  AlertTriangle, BarChart3, MousePointerClick, Lightbulb, CheckCircle, XCircle
+  AlertTriangle, BarChart3, MousePointerClick, Lightbulb, CheckCircle, XCircle,
+  Plus, Minus, LogOut
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
