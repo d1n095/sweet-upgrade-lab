@@ -50,7 +50,7 @@ const AdminStats = () => {
   }, []);
 
   const fetchAllData = async () => {
-    await Promise.all([fetchSalesData(), fetchSearchData(), fetchAnalyticsData()]);
+    await Promise.all([fetchSalesData(), fetchSearchData(), fetchAnalyticsData(), fetchIngredientStats()]);
   };
 
   const fetchSalesData = async () => {
