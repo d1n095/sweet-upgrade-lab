@@ -1999,6 +1999,7 @@ export type Database = {
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_founder: { Args: { _user_id: string }; Returns: boolean }
+      is_staff: { Args: { _user_id: string }; Returns: boolean }
       validate_affiliate_code: {
         Args: { p_code: string }
         Returns: {
