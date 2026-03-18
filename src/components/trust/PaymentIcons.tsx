@@ -4,7 +4,7 @@ import { useLanguage } from '@/context/LanguageContext';
 
 // SVG Payment Icons
 const VisaIcon = () => (
-  <svg viewBox="0 0 50 35" className="w-10 h-7">
+  <svg viewBox="0 0 50 35" className="w-11 h-8">
     <rect width="50" height="35" rx="4" fill="#1A1F71"/>
     <text x="25" y="22" textAnchor="middle" fill="white" fontSize="12" fontWeight="bold" fontFamily="Arial">VISA</text>
   </svg>
