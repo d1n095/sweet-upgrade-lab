@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { 
   Users, Search, Shield, UserCheck, Briefcase, 
   Loader2, ChevronDown, ChevronUp, Package, Star,
-  Eye, X, Mail, ExternalLink, ChevronLeft, ChevronRight
+  Eye, X, Mail, ExternalLink, ChevronLeft, ChevronRight, Phone
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
