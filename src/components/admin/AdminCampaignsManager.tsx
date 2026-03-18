@@ -218,6 +218,12 @@ const VolumeDiscountsTab = () => {
           label: form.label || null,
           stackable: form.stackable,
           excluded_product_ids: form.excluded_product_ids,
+          requires_account: form.requires_account,
+          requirement_type: form.requirement_type,
+          first_purchase_discount: form.first_purchase_discount ? parseFloat(form.first_purchase_discount) : null,
+          repeat_discount: form.repeat_discount ? parseFloat(form.repeat_discount) : null,
+          min_level: form.min_level ? parseInt(form.min_level) : null,
+          max_uses_per_user: form.max_uses_per_user ? parseInt(form.max_uses_per_user) : null,
         }).eq('id', editingId);
         if (error) { toast.error('Kunde inte uppdatera'); return; }
         toast.success('Mängdrabatt uppdaterad');
