@@ -48,6 +48,7 @@ const emptyForm = (): ProductFormData => ({
   isVisible: true, inventory: 0, allowOverselling: false,
   imageUrls: [], ingredients: '', certifications: '', recipe: '',
   feeling: '', effects: '', usage: '', extendedDescription: '',
+  metaTitle: '', metaDescription: '', metaKeywords: '',
 });
 
 const AdminDbProductManager = () => {
@@ -136,6 +137,9 @@ const AdminDbProductManager = () => {
       effects: (product as any).effects_sv || '',
       usage: (product as any).usage_sv || '',
       extendedDescription: (product as any).extended_description_sv || '',
+      metaTitle: (product as any).meta_title || '',
+      metaDescription: (product as any).meta_description || '',
+      metaKeywords: (product as any).meta_keywords || '',
     });
     setIsEditOpen(true);
   };
@@ -208,6 +212,9 @@ const AdminDbProductManager = () => {
       effects: (source as any).effects_sv || '',
       usage: (source as any).usage_sv || '',
       extendedDescription: (source as any).extended_description_sv || '',
+      metaTitle: (source as any).meta_title || '',
+      metaDescription: (source as any).meta_description || '',
+      metaKeywords: (source as any).meta_keywords || '',
     });
     setIsAddOpen(true);
   };
@@ -240,8 +247,11 @@ const AdminDbProductManager = () => {
         effects_sv: formData.effects || null,
         usage_sv: formData.usage || null,
         extended_description_sv: formData.extendedDescription || null,
+        meta_title: formData.metaTitle || null,
+        meta_description: formData.metaDescription || null,
+        meta_keywords: formData.metaKeywords || null,
         status: 'active',
-      });
+      } as any);
       toast.success(t.productAdded);
       queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });
       setIsAddOpen(false);
@@ -277,7 +287,10 @@ const AdminDbProductManager = () => {
         effects_sv: formData.effects || null,
         usage_sv: formData.usage || null,
         extended_description_sv: formData.extendedDescription || null,
-      });
+        meta_title: formData.metaTitle || null,
+        meta_description: formData.metaDescription || null,
+        meta_keywords: formData.metaKeywords || null,
+      } as any);
       toast.success(t.productUpdated);
       queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });
       setIsEditOpen(false);

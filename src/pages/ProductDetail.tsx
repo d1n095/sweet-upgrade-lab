@@ -21,6 +21,33 @@ import SEOHead from '@/components/seo/SEOHead';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 
+// Auto-generate SEO description from product data
+function generateAutoSeoDescription(product: DbProduct): string {
+  const parts: string[] = [];
+  if (product.description_sv) parts.push(product.description_sv.substring(0, 80));
+  if (product.ingredients_sv) {
+    const ingList = product.ingredients_sv.split(',').slice(0, 3).map(s => s.trim()).join(', ');
+    parts.push(`Innehåller ${ingList}`);
+  }
+  if (product.certifications?.length) parts.push(product.certifications.join(', '));
+  const result = parts.join('. ').substring(0, 155);
+  return result || `Köp ${product.title_sv} hos 4ThePeople — noggrant utvalt, giftfritt och hållbart.`;
+}
+
+// Auto-generate SEO keywords from product data
+function generateAutoSeoKeywords(product: DbProduct): string {
+  const keywords: string[] = [product.title_sv];
+  if (product.category) keywords.push(product.category);
+  if (product.tags?.length) keywords.push(...product.tags.slice(0, 5));
+  if (product.vendor) keywords.push(product.vendor);
+  if (product.certifications?.length) keywords.push(...product.certifications.slice(0, 3));
+  if (product.ingredients_sv) {
+    keywords.push(...product.ingredients_sv.split(',').slice(0, 3).map(s => s.trim()));
+  }
+  keywords.push('4thepeople', 'köp online');
+  return [...new Set(keywords)].join(', ');
+}
+
 const ProductDetail = () => {
   const { handle } = useParams<{ handle: string }>();
   const { t, language } = useLanguage();
@@ -169,8 +196,15 @@ const ProductDetail = () => {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead
-        title={`${product.title_sv} | 4thepeople`}
-        description={product.description_sv?.substring(0, 155) || `Köp ${product.title_sv} hos 4ThePeople — noggrant utvalt, giftfritt och hållbart.`}
+        title={product.meta_title || `${product.title_sv} — Köp online | 4thepeople`}
+        description={
+          product.meta_description ||
+          generateAutoSeoDescription(product)
+        }
+        keywords={
+          product.meta_keywords ||
+          generateAutoSeoKeywords(product)
+        }
         canonical={`/product/${handle}`}
         ogType="product"
         ogImage={images[0]}

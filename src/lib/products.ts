@@ -35,12 +35,15 @@ export interface DbProduct {
   usage_en: string | null;
   extended_description_sv: string | null;
   extended_description_en: string | null;
+  meta_title: string | null;
+  meta_description: string | null;
+  meta_keywords: string | null;
   status: ProductStatus;
   created_at: string;
   updated_at: string;
 }
 
-export type DbProductInsert = Omit<DbProduct, 'id' | 'created_at' | 'updated_at' | 'handle' | 'ingredients_sv' | 'ingredients_en' | 'certifications' | 'reserved_stock' | 'currency' | 'recipe_sv' | 'recipe_en' | 'feeling_sv' | 'feeling_en' | 'effects_sv' | 'effects_en' | 'usage_sv' | 'usage_en' | 'extended_description_sv' | 'extended_description_en' | 'status'> & {
+export type DbProductInsert = Omit<DbProduct, 'id' | 'created_at' | 'updated_at' | 'handle' | 'ingredients_sv' | 'ingredients_en' | 'certifications' | 'reserved_stock' | 'currency' | 'recipe_sv' | 'recipe_en' | 'feeling_sv' | 'feeling_en' | 'effects_sv' | 'effects_en' | 'usage_sv' | 'usage_en' | 'extended_description_sv' | 'extended_description_en' | 'meta_title' | 'meta_description' | 'meta_keywords' | 'status'> & {
   handle?: string;
   ingredients_sv?: string | null;
   ingredients_en?: string | null;
@@ -57,6 +60,9 @@ export type DbProductInsert = Omit<DbProduct, 'id' | 'created_at' | 'updated_at'
   usage_en?: string | null;
   extended_description_sv?: string | null;
   extended_description_en?: string | null;
+  meta_title?: string | null;
+  meta_description?: string | null;
+  meta_keywords?: string | null;
   status?: ProductStatus;
 };
 

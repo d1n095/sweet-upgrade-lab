@@ -1183,6 +1183,9 @@ export type Database = {
           ingredients_en: string | null
           ingredients_sv: string | null
           is_visible: boolean
+          meta_description: string | null
+          meta_keywords: string | null
+          meta_title: string | null
           original_price: number | null
           price: number
           recipe_en: string | null
@@ -1220,6 +1223,9 @@ export type Database = {
           ingredients_en?: string | null
           ingredients_sv?: string | null
           is_visible?: boolean
+          meta_description?: string | null
+          meta_keywords?: string | null
+          meta_title?: string | null
           original_price?: number | null
           price?: number
           recipe_en?: string | null
@@ -1257,6 +1263,9 @@ export type Database = {
           ingredients_en?: string | null
           ingredients_sv?: string | null
           is_visible?: boolean
+          meta_description?: string | null
+          meta_keywords?: string | null
+          meta_title?: string | null
           original_price?: number | null
           price?: number
           recipe_en?: string | null
