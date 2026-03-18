@@ -272,10 +272,7 @@ const AdminReviews = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <main className="pt-24 pb-20">
-        <div className="container mx-auto px-4">
+    <div className="space-y-6">
           {/* Header */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
