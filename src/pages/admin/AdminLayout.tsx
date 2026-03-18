@@ -2,7 +2,8 @@ import { useEffect } from 'react';
 import { Outlet, useNavigate, NavLink, useLocation } from 'react-router-dom';
 import { useAdminRole } from '@/hooks/useAdminRole';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2, Package, ClipboardList, BarChart3, Settings, Grid, Users, Handshake, MessageCircle, Heart, Sparkles, Eye, LogOut, Home, Shield, Activity } from 'lucide-react';
+import { useStoreSettings } from '@/stores/storeSettingsStore';
+import { Loader2, Package, ClipboardList, BarChart3, Settings, Grid, Users, Handshake, MessageCircle, Heart, Sparkles, Eye, LogOut, Home, Shield, Activity, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
@@ -26,8 +27,13 @@ const navItems = [
 const AdminLayout = () => {
   const { isAdmin, isLoading } = useAdminRole();
   const { signOut } = useAuth();
+  const { siteActive, checkoutEnabled, isLoaded, fetchSettings } = useStoreSettings();
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    if (!isLoaded) fetchSettings();
+  }, [isLoaded, fetchSettings]);
 
   useEffect(() => {
     if (!isLoading && !isAdmin) {
@@ -138,6 +144,22 @@ const AdminLayout = () => {
       {/* Main content */}
       <main className="flex-1 overflow-y-auto">
         <div className="md:p-8 p-4 pt-18 pb-24 md:pt-8 md:pb-8 max-w-6xl mx-auto">
+          {(!siteActive || !checkoutEnabled) && (
+            <div className="mb-6 space-y-2">
+              {!siteActive && (
+                <div className="flex items-center gap-3 p-3 rounded-lg border border-destructive/30 bg-destructive/5">
+                  <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
+                  <p className="text-sm font-medium text-destructive">Sajten är inaktiv — besökare ser underhållssidan</p>
+                </div>
+              )}
+              {!checkoutEnabled && (
+                <div className="flex items-center gap-3 p-3 rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/30">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <p className="text-sm font-medium text-amber-700 dark:text-amber-400">Kassan är avstängd — kunder kan inte beställa</p>
+                </div>
+              )}
+            </div>
+          )}
           <Outlet />
         </div>
       </main>
