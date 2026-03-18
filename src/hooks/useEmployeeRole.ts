@@ -20,14 +20,13 @@ export const useEmployeeRole = () => {
           .from('user_roles')
           .select('role')
           .eq('user_id', user.id)
-          .eq('role', 'moderator')
-          .maybeSingle();
+          .in('role', ['moderator', 'support', 'warehouse', 'marketing']);
 
         if (error) {
           console.error('Error checking employee role:', error);
           setIsEmployee(false);
         } else {
-          setIsEmployee(!!data);
+          setIsEmployee((data || []).length > 0);
         }
       } catch (err) {
         console.error('Failed to check employee role:', err);
