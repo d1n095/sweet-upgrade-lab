@@ -42,7 +42,7 @@ const Checkout = () => {
   const { language } = useLanguage();
   const cl = getContentLang(language);
   const { items, clearCart } = useCartStore();
-  const { checkoutEnabled } = useStoreSettings();
+  const { checkoutEnabled, autoSaveProfile } = useStoreSettings();
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -66,22 +66,26 @@ const Checkout = () => {
       try {
         const { data } = await supabase
           .from('profiles')
-          .select('full_name, phone, address, zip, city, country')
+          .select('first_name, last_name, full_name, phone, address, zip, city, country')
           .eq('user_id', user.id)
           .maybeSingle();
+
+        const d = data as any;
+        const profileName = d?.first_name && d?.last_name 
+          ? `${d.first_name} ${d.last_name}` 
+          : d?.full_name || '';
 
         setForm(prev => ({
           ...prev,
           email: user.email || prev.email,
-          name: data?.full_name || prev.name,
-          phone: data?.phone || prev.phone,
-          address: data?.address || prev.address,
-          zip: data?.zip || prev.zip,
-          city: data?.city || prev.city,
-          country: data?.country || prev.country,
+          name: profileName || prev.name,
+          phone: d?.phone || prev.phone,
+          address: d?.address || prev.address,
+          zip: d?.zip || prev.zip,
+          city: d?.city || prev.city,
+          country: d?.country || prev.country,
         }));
       } catch (err) {
-        // Just use email as fallback
         setForm(prev => ({ ...prev, email: user.email || prev.email }));
       }
       setProfileLoaded(true);
@@ -238,15 +242,20 @@ const Checkout = () => {
         trackCheckoutStep('payment_redirect', { total });
         
         // Save shipping info to profile for future auto-fill
-        if (user) {
+        if (user && autoSaveProfile) {
+          const nameParts = form.name.trim().split(' ');
+          const firstName = nameParts[0] || '';
+          const lastName = nameParts.slice(1).join(' ') || '';
           supabase.from('profiles').update({
+            first_name: firstName || null,
+            last_name: lastName || null,
             full_name: form.name,
             phone: form.phone || null,
             address: form.address,
             zip: form.zip,
             city: form.city,
             country: form.country,
-          }).eq('user_id', user.id).then(() => {});
+          } as any).eq('user_id', user.id).then(() => {});
         }
         
         clearCart();

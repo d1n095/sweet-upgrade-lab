@@ -10,15 +10,27 @@ interface StoreSettingsState {
   homepageReviews: boolean;
   homepagePhilosophy: boolean;
   homepageAbout: boolean;
+  requirePhone: boolean;
+  requireAddress: boolean;
+  guestCheckout: boolean;
+  autoSaveProfile: boolean;
   isLoaded: boolean;
   fetchSettings: () => Promise<void>;
   setSiteActive: (enabled: boolean) => Promise<void>;
   setCheckoutEnabled: (enabled: boolean) => Promise<void>;
   setRegistrationEnabled: (enabled: boolean) => Promise<void>;
   setHomepageSetting: (key: string, enabled: boolean) => Promise<void>;
+  setProfileSetting: (key: string, enabled: boolean) => Promise<void>;
 }
 
 const HOMEPAGE_KEYS = ['homepage_bestsellers', 'homepage_reviews', 'homepage_philosophy', 'homepage_about'];
+
+const PROFILE_SETTING_MAP: Record<string, keyof StoreSettingsState> = {
+  require_phone: 'requirePhone',
+  require_address: 'requireAddress',
+  guest_checkout: 'guestCheckout',
+  auto_save_profile: 'autoSaveProfile',
+};
 
 export const useStoreSettings = create<StoreSettingsState>((set, get) => ({
   siteActive: true,
@@ -28,6 +40,10 @@ export const useStoreSettings = create<StoreSettingsState>((set, get) => ({
   homepageReviews: false,
   homepagePhilosophy: true,
   homepageAbout: true,
+  requirePhone: false,
+  requireAddress: false,
+  guestCheckout: true,
+  autoSaveProfile: true,
   isLoaded: false,
 
   fetchSettings: async () => {
@@ -45,6 +61,10 @@ export const useStoreSettings = create<StoreSettingsState>((set, get) => ({
         homepageReviews: map['homepage_reviews'] ?? false,
         homepagePhilosophy: map['homepage_philosophy'] ?? true,
         homepageAbout: map['homepage_about'] ?? true,
+        requirePhone: map['require_phone'] ?? false,
+        requireAddress: map['require_address'] ?? false,
+        guestCheckout: map['guest_checkout'] ?? true,
+        autoSaveProfile: map['auto_save_profile'] ?? true,
         isLoaded: true,
       });
     } else {
@@ -80,7 +100,6 @@ export const useStoreSettings = create<StoreSettingsState>((set, get) => ({
   },
 
   setHomepageSetting: async (key, enabled) => {
-    const stateKey = key.replace('homepage_', 'homepage') as string;
     const camelKey = key === 'homepage_bestsellers' ? 'homepageBestsellers'
       : key === 'homepage_reviews' ? 'homepageReviews'
       : key === 'homepage_philosophy' ? 'homepagePhilosophy'
@@ -92,6 +111,17 @@ export const useStoreSettings = create<StoreSettingsState>((set, get) => ({
     await supabase
       .from('store_settings')
       .upsert({ key, value: enabled, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+  },
+
+  setProfileSetting: async (key, enabled) => {
+    const stateKey = PROFILE_SETTING_MAP[key];
+    if (stateKey) {
+      set({ [stateKey]: enabled } as any);
+    }
+    await supabase
+      .from('store_settings')
+      .upsert({ key, value: enabled, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+    logSettingsChange(key, !enabled, enabled);
   },
 }));
 
@@ -107,5 +137,9 @@ supabase
     if (key === 'homepage_reviews') useStoreSettings.setState({ homepageReviews: value });
     if (key === 'homepage_philosophy') useStoreSettings.setState({ homepagePhilosophy: value });
     if (key === 'homepage_about') useStoreSettings.setState({ homepageAbout: value });
+    if (key === 'require_phone') useStoreSettings.setState({ requirePhone: value });
+    if (key === 'require_address') useStoreSettings.setState({ requireAddress: value });
+    if (key === 'guest_checkout') useStoreSettings.setState({ guestCheckout: value });
+    if (key === 'auto_save_profile') useStoreSettings.setState({ autoSaveProfile: value });
   })
   .subscribe();

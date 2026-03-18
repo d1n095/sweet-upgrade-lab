@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Settings, ShoppingCart, Wrench, Home, AlertTriangle, Eye, EyeOff, Globe, Shield, Database, RefreshCw, UserPlus, CreditCard } from 'lucide-react';
+import { Settings, ShoppingCart, Wrench, Home, AlertTriangle, Eye, EyeOff, Globe, Shield, Database, RefreshCw, UserPlus, CreditCard, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -29,11 +29,19 @@ const pageToggles: { id: ToggleablePage; label: string; desc: string }[] = [
   { id: 'whats-new', label: 'Nytt hos oss', desc: 'Nyheter och uppdateringar' },
 ];
 
+const profileSettings = [
+  { key: 'require_phone', label: 'Kräv telefonnummer', desc: 'Kunder uppmanas att ange telefon för komplett profil' },
+  { key: 'require_address', label: 'Kräv adress', desc: 'Kunder uppmanas att ange leveransadress' },
+  { key: 'guest_checkout', label: 'Tillåt gästcheckout', desc: 'Kunder kan köpa utan att skapa konto' },
+  { key: 'auto_save_profile', label: 'Auto-spara efter köp', desc: 'Checkout-info sparas automatiskt till kundprofil' },
+];
+
 const AdminSettingsPage = () => {
   const {
     siteActive, checkoutEnabled, registrationEnabled, isLoaded, fetchSettings,
     setSiteActive, setCheckoutEnabled, setRegistrationEnabled, setHomepageSetting,
     homepageBestsellers, homepageReviews, homepagePhilosophy, homepageAbout,
+    requirePhone, requireAddress, guestCheckout, autoSaveProfile, setProfileSetting,
   } = useStoreSettings();
   const { isVisible, setVisibility } = usePageVisibility();
   const { methods, isLoaded: paymentLoaded, load: loadPayments, toggle: togglePayment } = usePaymentMethodsStore();
@@ -82,6 +90,7 @@ const AdminSettingsPage = () => {
       <Tabs defaultValue="general" className="space-y-6">
         <TabsList className="bg-secondary/50">
           <TabsTrigger value="general">Generellt</TabsTrigger>
+          <TabsTrigger value="profile">Profil & Kund</TabsTrigger>
           <TabsTrigger value="payments">Betalningar</TabsTrigger>
           <TabsTrigger value="pages">Sidor</TabsTrigger>
           <TabsTrigger value="homepage">Startsida</TabsTrigger>
@@ -160,7 +169,45 @@ const AdminSettingsPage = () => {
           )}
         </TabsContent>
 
-        {/* Payments */}
+        {/* Profile & Customer */}
+        <TabsContent value="profile" className="space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold flex items-center gap-2 mb-1">
+              <User className="w-4 h-4" />
+              Profil & Kundinställningar
+            </h2>
+            <p className="text-muted-foreground text-sm mb-4">Styr vilken information som krävs av kunder</p>
+          </div>
+          <div className="grid gap-3 max-w-xl">
+            {profileSettings.map((setting) => {
+              const getValue = () => {
+                switch (setting.key) {
+                  case 'require_phone': return requirePhone;
+                  case 'require_address': return requireAddress;
+                  case 'guest_checkout': return guestCheckout;
+                  case 'auto_save_profile': return autoSaveProfile;
+                  default: return false;
+                }
+              };
+              return (
+                <div key={setting.key} className="flex items-center justify-between p-4 rounded-xl border border-border bg-card">
+                  <div>
+                    <Label className="text-sm font-medium">{setting.label}</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">{setting.desc}</p>
+                  </div>
+                  <Switch
+                    checked={getValue()}
+                    onCheckedChange={(checked) => setProfileSetting(setting.key, checked)}
+                  />
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground max-w-xl">
+            Ändringar sparas direkt. "Kräv"-inställningar visar en banner för kunder med ofullständig profil.
+          </p>
+        </TabsContent>
+
         <TabsContent value="payments" className="space-y-4">
           <div>
             <h2 className="text-lg font-semibold flex items-center gap-2 mb-1">
