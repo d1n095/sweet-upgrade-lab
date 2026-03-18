@@ -4,7 +4,7 @@ import {
   Users, Search, Shield, UserCheck, Briefcase, 
   Loader2, ChevronDown, ChevronUp, Package, Star,
   Eye, X, Mail, ExternalLink, ChevronLeft, ChevronRight, Phone,
-  Award, TrendingUp, Hash, Link2, Calendar, Heart, ShoppingBag
+  Award, TrendingUp, Hash, Link2, Calendar, Heart, ShoppingBag, Pencil, Check
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,6 +34,7 @@ import {
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/context/LanguageContext';
+import { useFounderRole } from '@/hooks/useFounderRole';
 import { toast } from 'sonner';
 
 interface Member {
@@ -85,6 +86,7 @@ const ITEMS_PER_PAGE = 50;
 
 const AdminMemberManager = ({ roleFilter = 'all' }: AdminMemberManagerProps) => {
   const { language } = useLanguage();
+  const { isFounder } = useFounderRole();
   const [members, setMembers] = useState<Member[]>([]);
   const [userRoles, setUserRoles] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -96,6 +98,8 @@ const AdminMemberManager = ({ roleFilter = 'all' }: AdminMemberManagerProps) => 
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [page, setPage] = useState(0);
   const [assigningRole, setAssigningRole] = useState(false);
+  const [editingUsername, setEditingUsername] = useState(false);
+  const [newUsername, setNewUsername] = useState('');
 
   const content: Record<string, {
     title: string;
@@ -542,6 +546,30 @@ const AdminMemberManager = ({ roleFilter = 'all' }: AdminMemberManagerProps) => 
     }
   };
 
+  const handleSaveUsername = async () => {
+    if (!selectedMember || !newUsername.trim()) return;
+    const trimmed = newUsername.trim();
+    if (trimmed.length < 2 || trimmed.length > 30) {
+      toast.error('Användarnamn måste vara 2–30 tecken');
+      return;
+    }
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ username: trimmed })
+        .eq('user_id', selectedMember.user_id);
+      if (error) throw error;
+      toast.success('Användarnamn uppdaterat');
+      const updated = { ...selectedMember, username: trimmed };
+      setSelectedMember(updated);
+      setMembers(prev => prev.map(m => m.user_id === selectedMember.user_id ? { ...m, username: trimmed } : m));
+      setEditingUsername(false);
+    } catch (error) {
+      console.error('Failed to update username:', error);
+      toast.error('Kunde inte uppdatera användarnamnet');
+    }
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('sv-SE', {
       year: 'numeric',
@@ -807,7 +835,42 @@ const AdminMemberManager = ({ roleFilter = 'all' }: AdminMemberManagerProps) => 
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-base">{selectedMember.username || 'Inget användarnamn'}</p>
+                    {editingUsername ? (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={newUsername}
+                          onChange={(e) => setNewUsername(e.target.value)}
+                          className="h-8 text-sm w-40"
+                          maxLength={30}
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSaveUsername();
+                            if (e.key === 'Escape') setEditingUsername(false);
+                          }}
+                        />
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={handleSaveUsername}>
+                          <Check className="w-4 h-4 text-green-600" />
+                        </Button>
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditingUsername(false)}>
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="font-semibold text-base flex items-center gap-2">
+                        {selectedMember.username || 'Inget användarnamn'}
+                        {isFounder && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6"
+                            onClick={() => { setNewUsername(selectedMember.username || ''); setEditingUsername(true); }}
+                            title="Ändra användarnamn"
+                          >
+                            <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+                          </Button>
+                        )}
+                      </p>
+                    )}
                     <div className="flex items-center gap-2 flex-wrap mt-1">
                       {selectedMember.is_member && (
                         <Badge variant="outline" className="text-xs">
