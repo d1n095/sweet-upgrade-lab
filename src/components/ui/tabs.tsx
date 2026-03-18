@@ -57,76 +57,67 @@ TabsContent.displayName = TabsPrimitive.Content.displayName;
 const ScrollableTabs = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
->(({ className, onPointerDown, onPointerMove, onPointerUp, onPointerCancel, ...props }, ref) => {
+>(({ className, ...props }, ref) => {
   const localRef = React.useRef<HTMLDivElement | null>(null);
   const dragState = React.useRef({
-    isDragging: false,
+    isDown: false,
+    hasDragged: false,
     startX: 0,
     startScrollLeft: 0,
-    pointerId: -1,
   });
 
   const setRefs = React.useCallback(
     (node: HTMLDivElement | null) => {
       localRef.current = node;
-      if (typeof ref === "function") {
-        ref(node);
-      } else if (ref) {
-        (ref as React.MutableRefObject<HTMLDivElement | null>).current = node;
-      }
+      if (typeof ref === "function") ref(node);
+      else if (ref) (ref as React.MutableRefObject<HTMLDivElement | null>).current = node;
     },
     [ref],
   );
 
-  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    onPointerDown?.(e);
-    if (e.pointerType === "mouse" && e.button !== 0) return;
-
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
     const el = localRef.current;
     if (!el) return;
-
-    dragState.current.isDragging = true;
-    dragState.current.startX = e.clientX;
-    dragState.current.startScrollLeft = el.scrollLeft;
-    dragState.current.pointerId = e.pointerId;
-
-    el.setPointerCapture(e.pointerId);
+    dragState.current = {
+      isDown: true,
+      hasDragged: false,
+      startX: e.clientX,
+      startScrollLeft: el.scrollLeft,
+    };
   };
 
-  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    onPointerMove?.(e);
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const el = localRef.current;
-    if (!el || !dragState.current.isDragging) return;
-
+    if (!el || !dragState.current.isDown) return;
     const deltaX = e.clientX - dragState.current.startX;
-    if (Math.abs(deltaX) > 2) e.preventDefault();
-    el.scrollLeft = dragState.current.startScrollLeft - deltaX;
+    if (Math.abs(deltaX) > 4) {
+      dragState.current.hasDragged = true;
+      el.scrollLeft = dragState.current.startScrollLeft - deltaX;
+    }
   };
 
-  const stopDragging = (e: React.PointerEvent<HTMLDivElement>) => {
-    onPointerUp?.(e);
-    const el = localRef.current;
-    if (!el) return;
+  const handleMouseUp = () => {
+    dragState.current.isDown = false;
+  };
 
-    if (dragState.current.pointerId >= 0 && el.hasPointerCapture(dragState.current.pointerId)) {
-      el.releasePointerCapture(dragState.current.pointerId);
+  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // If we dragged, prevent the click from reaching buttons
+    if (dragState.current.hasDragged) {
+      e.stopPropagation();
+      dragState.current.hasDragged = false;
     }
-
-    dragState.current.isDragging = false;
-    dragState.current.pointerId = -1;
   };
 
   return (
     <div
       ref={setRefs}
-      className={cn("overflow-x-auto scrollbar-hide -mx-1 px-1 touch-pan-x select-none", className)}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={stopDragging}
-      onPointerCancel={(e) => {
-        onPointerCancel?.(e);
-        stopDragging(e);
-      }}
+      className={cn("overflow-x-auto scrollbar-hide -mx-1 px-1 touch-pan-x", className)}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+      onClickCapture={handleClick}
       {...props}
     />
   );
