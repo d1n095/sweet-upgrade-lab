@@ -26,6 +26,7 @@ interface Order {
   id: string;
   order_email: string;
   status: string;
+  payment_status: string;
   total_amount: number;
   currency: string;
   tracking_number: string | null;
