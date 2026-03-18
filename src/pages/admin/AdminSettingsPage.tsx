@@ -160,7 +160,41 @@ const AdminSettingsPage = () => {
           )}
         </TabsContent>
 
-        {/* Pages */}
+        {/* Payments */}
+        <TabsContent value="payments" className="space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold flex items-center gap-2 mb-1">
+              <CreditCard className="w-4 h-4" />
+              Betalningsmetoder
+            </h2>
+            <p className="text-muted-foreground text-sm mb-4">Styr vilka betalningsikoner som visas i footern och på produktsidor</p>
+          </div>
+          <div className="grid gap-3 max-w-xl">
+            {methods.map((method) => {
+              const Icon = PAYMENT_ICON_MAP[method.id];
+              return (
+                <div key={method.id} className="flex items-center justify-between p-4 rounded-xl border border-border bg-card">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 flex justify-center">
+                      {Icon ? <Icon size="sm" /> : <GenericIcon name={method.name} size="sm" />}
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium">{method.name}</Label>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {method.enabled ? 'Visas för kunder' : 'Dold'}
+                      </p>
+                    </div>
+                  </div>
+                  <Switch checked={method.enabled} onCheckedChange={() => togglePayment(method.id)} />
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground max-w-xl">
+            Ändringar sparas direkt och påverkar vilka betalningsikoner som visas på hela sajten.
+          </p>
+        </TabsContent>
+
         <TabsContent value="pages" className="space-y-4">
           <div>
             <h2 className="text-lg font-semibold flex items-center gap-2 mb-1">
