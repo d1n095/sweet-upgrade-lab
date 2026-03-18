@@ -134,7 +134,11 @@ const VolumeDiscountsTab = () => {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const resetForm = () => {
-    setForm({ label: '', stackable: true, excluded_product_ids: [] });
+    setForm({ label: '', stackable: true, excluded_product_ids: [],
+      requires_account: false, requirement_type: 'none',
+      first_purchase_discount: '', repeat_discount: '',
+      min_level: '', max_uses_per_user: '',
+    });
     setTiers([{ min_quantity: '', discount_percent: '' }]);
     setMode('global');
     setSelectedProductId(null);
