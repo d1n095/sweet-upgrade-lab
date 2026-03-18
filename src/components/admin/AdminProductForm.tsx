@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { DollarSign, Tag, Save, Eye, EyeOff, Boxes, Minus, Plus, Upload, X, Image } from 'lucide-react';
+import { DollarSign, Tag, Save, Eye, EyeOff, Boxes, Minus, Plus, Upload, X, Image, FlaskConical } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -68,6 +68,169 @@ export type AdminProductFormStrings = {
   save: string;
   update: string;
 };
+
+// ─── Ingredient Library Picker ───
+interface LibraryIngredient {
+  id: string;
+  name_sv: string;
+  name_en: string | null;
+  category: string;
+}
+
+function IngredientPickerSection({
+  language,
+  formData,
+  setFormData,
+}: {
+  language: string;
+  formData: ProductFormData;
+  setFormData: React.Dispatch<React.SetStateAction<ProductFormData>>;
+}) {
+  const [libraryItems, setLibraryItems] = React.useState<LibraryIngredient[]>([]);
+  const [loaded, setLoaded] = React.useState(false);
+  const [showPicker, setShowPicker] = React.useState(false);
+  const [filterCat, setFilterCat] = React.useState<string>('all');
+
+  React.useEffect(() => {
+    if (!loaded) {
+      supabase
+        .from('recipe_ingredients')
+        .select('id, name_sv, name_en, category')
+        .eq('is_active', true)
+        .order('category')
+        .order('display_order')
+        .then(({ data }) => {
+          if (data) setLibraryItems(data as LibraryIngredient[]);
+          setLoaded(true);
+        });
+    }
+  }, [loaded]);
+
+  const currentIngredients = React.useMemo(
+    () => formData.ingredients.split(',').map(s => s.trim()).filter(Boolean),
+    [formData.ingredients]
+  );
+
+  const addIngredient = React.useCallback((name: string) => {
+    if (!currentIngredients.includes(name)) {
+      const next = [...currentIngredients, name].join(', ');
+      setFormData(prev => ({ ...prev, ingredients: next }));
+    }
+  }, [currentIngredients, setFormData]);
+
+  const removeIngredient = React.useCallback((name: string) => {
+    const next = currentIngredients.filter(i => i !== name).join(', ');
+    setFormData(prev => ({ ...prev, ingredients: next }));
+  }, [currentIngredients, setFormData]);
+
+  const categories = React.useMemo(
+    () => [...new Set(libraryItems.map(i => i.category))].sort(),
+    [libraryItems]
+  );
+
+  const filteredItems = filterCat === 'all'
+    ? libraryItems
+    : libraryItems.filter(i => i.category === filterCat);
+
+  const sv = language === 'sv';
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label className="flex items-center gap-1.5">
+          <FlaskConical className="w-4 h-4" />
+          {sv ? 'Ingredienser' : 'Ingredients'}
+        </Label>
+        <button
+          type="button"
+          onClick={() => setShowPicker(!showPicker)}
+          className="text-xs text-primary hover:underline flex items-center gap-1"
+        >
+          <FlaskConical className="w-3 h-3" />
+          {showPicker ? (sv ? 'Dölj bibliotek' : 'Hide library') : (sv ? 'Välj från bibliotek' : 'Pick from library')}
+        </button>
+      </div>
+
+      {/* Current ingredients as removable chips */}
+      {currentIngredients.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {currentIngredients.map(ing => (
+            <span
+              key={ing}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs cursor-pointer hover:bg-destructive/20 hover:text-destructive transition-colors"
+              onClick={() => removeIngredient(ing)}
+            >
+              {ing} <X className="w-3 h-3" />
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Library picker */}
+      {showPicker && (
+        <div className="border border-border rounded-lg p-3 bg-secondary/20 space-y-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-medium text-muted-foreground">{sv ? 'Kategori:' : 'Category:'}</span>
+            <button
+              type="button"
+              onClick={() => setFilterCat('all')}
+              className={`text-xs px-2 py-0.5 rounded-full transition-colors ${
+                filterCat === 'all' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'
+              }`}
+            >
+              {sv ? 'Alla' : 'All'}
+            </button>
+            {categories.map(cat => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setFilterCat(cat)}
+                className={`text-xs px-2 py-0.5 rounded-full transition-colors ${
+                  filterCat === cat ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto">
+            {filteredItems.map(item => {
+              const isSelected = currentIngredients.includes(item.name_sv);
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => isSelected ? removeIngredient(item.name_sv) : addIngredient(item.name_sv)}
+                  className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                    isSelected
+                      ? 'bg-primary/15 border-primary/30 text-primary font-medium'
+                      : 'bg-background border-border text-foreground hover:bg-primary/5 hover:border-primary/20'
+                  }`}
+                >
+                  {isSelected ? '✓ ' : '+ '}{item.name_sv}
+                </button>
+              );
+            })}
+            {filteredItems.length === 0 && (
+              <p className="text-xs text-muted-foreground py-2">{sv ? 'Inga ingredienser i denna kategori' : 'No ingredients in this category'}</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Manual input fallback */}
+      <Textarea
+        id="ingredients"
+        value={formData.ingredients}
+        onChange={(e) => setFormData((prev) => ({ ...prev, ingredients: e.target.value }))}
+        placeholder={sv ? 'Kokosolja, Sheasmör, Bivax... (eller välj från biblioteket)' : 'Coconut Oil, Shea Butter... (or pick from library)'}
+        rows={2}
+        className="text-xs"
+      />
+    </div>
+  );
+}
 
 function parseTags(value: string): string[] {
   return value
@@ -450,19 +613,12 @@ export function AdminProductForm({
         </div>
       </div>
 
-      {/* Ingredients */}
-      <div className="space-y-2">
-        <Label htmlFor="ingredients">
-          {language === 'sv' ? 'Ingredienser (kommaseparerade)' : 'Ingredients (comma-separated)'}
-        </Label>
-        <Textarea
-          id="ingredients"
-          value={formData.ingredients}
-          onChange={(e) => setFormData((prev) => ({ ...prev, ingredients: e.target.value }))}
-          placeholder="Kokosolja, Sheasmör, Bivax..."
-          rows={2}
-        />
-      </div>
+      {/* Ingredients with library picker */}
+      <IngredientPickerSection
+        language={language}
+        formData={formData}
+        setFormData={setFormData}
+      />
 
       {/* Certifications */}
       <div className="space-y-2">
