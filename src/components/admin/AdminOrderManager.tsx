@@ -83,6 +83,7 @@ const AdminOrderManager = () => {
       shipped: 'Skickad',
       delivered: 'Levererad',
       cancelled: 'Avbruten',
+      failed: 'Misslyckad',
       items: 'Artiklar',
       address: 'Leveransadress',
       estimatedDelivery: 'Beräknad leverans',
