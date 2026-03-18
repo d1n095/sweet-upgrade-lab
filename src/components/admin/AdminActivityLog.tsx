@@ -41,6 +41,10 @@ const categoryConfig: Record<string, { icon: any; label: string }> = {
   system: { icon: Activity, label: 'System' },
   auth: { icon: LogIn, label: 'Inloggning' },
   security: { icon: Shield, label: 'Säkerhet' },
+  shipping: { icon: Package, label: 'Frakt' },
+  campaign: { icon: Settings, label: 'Kampanj' },
+  ingredient: { icon: Package, label: 'Ingrediens' },
+  recipe: { icon: Settings, label: 'Recept' },
 };
 
 const AdminActivityLog = () => {
