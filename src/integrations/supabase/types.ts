@@ -823,6 +823,7 @@ export type Database = {
           items: Json
           notes: string | null
           order_email: string
+          payment_intent_id: string | null
           shipping_address: Json | null
           shopify_order_id: string | null
           shopify_order_number: string | null
@@ -842,6 +843,7 @@ export type Database = {
           items?: Json
           notes?: string | null
           order_email: string
+          payment_intent_id?: string | null
           shipping_address?: Json | null
           shopify_order_id?: string | null
           shopify_order_number?: string | null
@@ -861,6 +863,7 @@ export type Database = {
           items?: Json
           notes?: string | null
           order_email?: string
+          payment_intent_id?: string | null
           shipping_address?: Json | null
           shopify_order_id?: string | null
           shopify_order_number?: string | null
