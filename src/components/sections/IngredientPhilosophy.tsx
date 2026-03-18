@@ -34,7 +34,7 @@ const IngredientPhilosophy = () => {
           initial={{ opacity: 0, y: 12 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="text-2xl md:text-3xl font-semibold text-center mb-14 text-foreground"
+          className="text-2xl md:text-3xl font-semibold text-center mb-16 text-foreground"
         >
           {t.title}
         </motion.h2>
