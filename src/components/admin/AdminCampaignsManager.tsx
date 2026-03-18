@@ -36,6 +36,12 @@ interface Bundle {
   discount_percent: number;
   is_active: boolean;
   display_order: number;
+  requirement_type: string;
+  first_purchase_discount: number | null;
+  repeat_discount: number | null;
+  min_level: number | null;
+  requires_account: boolean;
+  max_uses_per_user: number | null;
 }
 
 interface BundleItem {
