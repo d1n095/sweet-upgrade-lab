@@ -4,7 +4,7 @@ import {
   TrendingUp, Package, RefreshCw, Search, Eye, ShoppingCart,
   AlertTriangle, BarChart3, MousePointerClick, Lightbulb, CheckCircle, XCircle,
   Plus, Minus, LogOut, DollarSign, Target, Activity, Trash2, Shield,
-  Clock, User, Info, ChevronDown, ChevronUp
+  Clock, User, Info, ArrowRight
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
