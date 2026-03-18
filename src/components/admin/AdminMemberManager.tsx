@@ -59,6 +59,8 @@ interface Review {
   created_at: string;
 }
 
+const ITEMS_PER_PAGE = 50;
+
 const AdminMemberManager = () => {
   const { language } = useLanguage();
   const [members, setMembers] = useState<Member[]>([]);
@@ -70,6 +72,7 @@ const AdminMemberManager = () => {
   const [memberReviews, setMemberReviews] = useState<Review[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const [page, setPage] = useState(0);
   const [assigningRole, setAssigningRole] = useState(false);
 
   const content: Record<string, {
