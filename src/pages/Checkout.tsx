@@ -242,15 +242,20 @@ const Checkout = () => {
         trackCheckoutStep('payment_redirect', { total });
         
         // Save shipping info to profile for future auto-fill
-        if (user) {
+        if (user && autoSaveProfile) {
+          const nameParts = form.name.trim().split(' ');
+          const firstName = nameParts[0] || '';
+          const lastName = nameParts.slice(1).join(' ') || '';
           supabase.from('profiles').update({
+            first_name: firstName || null,
+            last_name: lastName || null,
             full_name: form.name,
             phone: form.phone || null,
             address: form.address,
             zip: form.zip,
             city: form.city,
             country: form.country,
-          }).eq('user_id', user.id).then(() => {});
+          } as any).eq('user_id', user.id).then(() => {});
         }
         
         clearCart();
