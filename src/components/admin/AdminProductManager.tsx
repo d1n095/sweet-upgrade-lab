@@ -486,6 +486,7 @@ const AdminProductManager = () => {
       title: '',
       description: '',
       price: '',
+      currency: 'SEK',
       productType: '',
       tags: '',
       vendor: '4ThePeople',
@@ -495,6 +496,7 @@ const AdminProductManager = () => {
       imageUrls: [],
       ingredients: '',
       certifications: '',
+      recipe: '',
     });
     setSelectedProduct(null);
   };
