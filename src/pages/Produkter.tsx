@@ -209,7 +209,12 @@ const Produkter = () => {
 
           {/* Grid – max 4 columns */}
           {!isLoading && sortedProducts.length > 0 && (
-            <motion.div layout className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5">
+            <motion.div layout className={cn(
+              "grid gap-4 md:gap-5",
+              sortedProducts.length <= 3
+                ? "grid-cols-2 md:grid-cols-3 max-w-3xl mx-auto"
+                : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
+            )}>
               <AnimatePresence mode="popLayout">
                 {sortedProducts.map((product, index) => (
                   <motion.div
