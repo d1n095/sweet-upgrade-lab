@@ -461,117 +461,68 @@ const MemberProfile = () => {
             <TabsContent value="overview">
               {/* Balance Overview for admin/affiliate */}
               <BalanceOverview />
-              <div className="grid md:grid-cols-3 gap-4">
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-card border border-border rounded-xl p-5"
-                >
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <Star className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="font-semibold">{t.overview.reviewsTitle}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {reviews.length} {t.overview.reviewsDesc}
-                      </p>
-                    </div>
-                  </div>
-                </motion.div>
 
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 }}
-                  className="bg-card border border-border rounded-xl p-5"
-                >
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
-                      <Gift className="w-5 h-5 text-green-600" />
-                    </div>
-                    <div>
-                      <p className="font-semibold">{t.overview.rewardsTitle}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {unusedRewards.length} {t.overview.rewardsDesc}
-                      </p>
-                    </div>
+              {/* Stats cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-card border border-border rounded-xl p-4 text-center">
+                  <div className="w-10 h-10 mx-auto mb-2 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Star className="w-5 h-5 text-primary" />
                   </div>
+                  <p className="text-2xl font-bold">{reviews.length}</p>
+                  <p className="text-xs text-muted-foreground">{t.overview.reviewsDesc}</p>
                 </motion.div>
-
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 }}
-                  className="bg-card border border-border rounded-xl p-5"
-                >
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                      <BadgeCheck className="w-5 h-5 text-amber-600" />
-                    </div>
-                    <div>
-                      <p className="font-semibold">{t.overview.memberTitle}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {isMember ? '✓' : '○'} {t.overview.memberDesc}
-                      </p>
-                    </div>
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="bg-card border border-border rounded-xl p-4 text-center">
+                  <div className="w-10 h-10 mx-auto mb-2 rounded-lg bg-accent/10 flex items-center justify-center">
+                    <Gift className="w-5 h-5 text-accent" />
                   </div>
+                  <p className="text-2xl font-bold">{unusedRewards.length}</p>
+                  <p className="text-xs text-muted-foreground">{t.overview.rewardsDesc}</p>
+                </motion.div>
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-card border border-border rounded-xl p-4 text-center">
+                  <div className="w-10 h-10 mx-auto mb-2 rounded-lg bg-secondary flex items-center justify-center">
+                    <BadgeCheck className="w-5 h-5 text-foreground" />
+                  </div>
+                  <p className="text-2xl font-bold">{isMember ? '✓' : '—'}</p>
+                  <p className="text-xs text-muted-foreground">{t.overview.memberDesc}</p>
+                </motion.div>
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="bg-card border border-border rounded-xl p-4 text-center">
+                  <div className="w-10 h-10 mx-auto mb-2 rounded-lg bg-secondary flex items-center justify-center">
+                    <Package className="w-5 h-5 text-foreground" />
+                  </div>
+                  <p className="text-2xl font-bold">—</p>
+                  <p className="text-xs text-muted-foreground">{language === 'sv' ? 'Ordrar' : 'Orders'}</p>
                 </motion.div>
               </div>
 
-              {/* Admin Quick Access - Only visible to admins */}
-              {isAdmin && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                  className="mt-8"
-                >
-                  <Link to="/admin" className="block">
-                    <div className="bg-card border border-border rounded-xl p-5 hover:border-primary/30 hover:bg-primary/5 transition-colors group">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                            <Shield className="w-6 h-6 text-primary" />
-                          </div>
-                          <div>
-                            <h3 className="font-semibold text-lg">{t.admin.panel}</h3>
-                            <p className="text-sm text-muted-foreground">{t.admin.panelDesc}</p>
-                          </div>
-                        </div>
-                        <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
-                      </div>
-                      {adminStats && (
-                        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-4 pt-4 border-t border-border">
-                          <div className="text-center">
-                            <p className="text-lg font-bold">{adminStats.totalReviews}</p>
-                            <p className="text-[10px] text-muted-foreground">{t.admin.reviews}</p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-lg font-bold text-warning">{adminStats.pendingReviews}</p>
-                            <p className="text-[10px] text-muted-foreground">{t.admin.pending}</p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-lg font-bold text-primary">{adminStats.approvedReviews}</p>
-                            <p className="text-[10px] text-muted-foreground">{t.admin.approved}</p>
-                          </div>
-                          <div className="text-center hidden sm:block">
-                            <div className="flex items-center justify-center gap-1">
-                              <p className="text-lg font-bold">{adminStats.averageRating}</p>
-                              <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
-                            </div>
-                            <p className="text-[10px] text-muted-foreground">{t.admin.avgRating}</p>
-                          </div>
-                          <div className="text-center hidden sm:block">
-                            <p className="text-lg font-bold">{adminStats.totalMembers}</p>
-                            <p className="text-[10px] text-muted-foreground">{t.admin.members}</p>
-                          </div>
-                        </div>
-                      )}
+              {/* Quick navigation */}
+              <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider mb-3">
+                {language === 'sv' ? 'Snabbnavigering' : 'Quick Navigation'}
+              </h3>
+              <div className="grid sm:grid-cols-2 gap-2">
+                {[
+                  { tab: 'orders', icon: Package, label: language === 'sv' ? 'Mina ordrar' : 'My Orders', desc: language === 'sv' ? 'Se och spåra dina beställningar' : 'View and track your orders' },
+                  { tab: 'reviews', icon: Star, label: t.tabs.reviews, desc: language === 'sv' ? 'Läs och skriv produktrecensioner' : 'Read and write product reviews' },
+                  { tab: 'rewards', icon: Gift, label: t.tabs.rewards, desc: language === 'sv' ? 'Se dina rabattkoder' : 'View your discount codes' },
+                  { tab: 'donations', icon: TrendingUp, label: language === 'sv' ? 'Donationer' : 'Donations', desc: language === 'sv' ? 'Din påverkan och bidrag' : 'Your impact and contributions' },
+                  { tab: 'balance', icon: Wallet, label: language === 'sv' ? 'Saldo' : 'Balance', desc: language === 'sv' ? 'Se ditt kontosaldo' : 'View your account balance' },
+                  { tab: 'settings', icon: Settings, label: language === 'sv' ? 'Inställningar' : 'Settings', desc: language === 'sv' ? 'Hantera ditt konto' : 'Manage your account' },
+                ].map((item) => (
+                  <button
+                    key={item.tab}
+                    onClick={() => handleTabChange(item.tab)}
+                    className="flex items-center gap-3 p-3 rounded-xl border border-border bg-card hover:bg-secondary/50 hover:border-primary/20 transition-colors text-left group"
+                  >
+                    <div className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center shrink-0 group-hover:bg-primary/10 transition-colors">
+                      <item.icon className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
                     </div>
-                  </Link>
-                </motion.div>
-              )}
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">{item.label}</p>
+                      <p className="text-xs text-muted-foreground truncate">{item.desc}</p>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground ml-auto shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </button>
+                ))}
+              </div>
             </TabsContent>
 
             {/* Reviews Tab */}
