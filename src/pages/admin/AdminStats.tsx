@@ -244,7 +244,7 @@ const AdminStats = () => {
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge variant="outline">{s.count} sökningar</Badge>
-                      <Badge className="bg-green-500/10 text-green-600 border-0">{s.results_count} träffar</Badge>
+                      <Badge className="bg-accent/10 text-accent border-0">{s.results_count} träffar</Badge>
                     </div>
                   </div>
                 ))}
