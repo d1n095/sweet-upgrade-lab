@@ -143,6 +143,12 @@ const Checkout = () => {
       }
     } catch (err: any) {
       console.error('Checkout error:', err);
+      logActivity({
+        log_type: 'error',
+        category: 'payment',
+        message: 'Checkout failed',
+        details: { error: err.message, email: form.email },
+      });
       toast.error(cl === 'sv' ? 'Något gick fel. Försök igen.' : 'Something went wrong. Please try again.');
     } finally {
       setIsSubmitting(false);
