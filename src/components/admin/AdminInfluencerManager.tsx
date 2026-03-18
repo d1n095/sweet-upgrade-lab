@@ -225,6 +225,7 @@ const AdminInfluencerManager = () => {
       validUntil: '',
       notes: '',
     });
+    setSelectedUser(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
