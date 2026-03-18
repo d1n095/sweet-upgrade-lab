@@ -100,12 +100,12 @@ serve(async (req) => {
       currency: 'SEK',
       status: 'pending',
       payment_status: 'unpaid',
-      items: items.map((i: any) => ({
+      items: trustedItems.map((i) => ({
         id: i.id,
         title: i.title,
         price: i.price,
         quantity: i.quantity,
-        image: i.image || '',
+        image: i.image,
       })),
       shipping_address: {
         name: shipping?.name || '',
