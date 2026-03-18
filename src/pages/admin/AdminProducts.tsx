@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Package, FlaskConical, ChefHat, AlertTriangle, Eye, FileText, Archive } from 'lucide-react';
+import { Package, FlaskConical, ChefHat, AlertTriangle, Eye, FileText, Archive, Image } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,6 +7,7 @@ import AdminDbProductManager from '@/components/admin/AdminDbProductManager';
 import AdminProductImportExport from '@/components/admin/AdminProductImportExport';
 import AdminRecipeIngredientLibrary from '@/components/admin/AdminRecipeIngredientLibrary';
 import AdminRecipeTemplateBuilder from '@/components/admin/AdminRecipeTemplateBuilder';
+import AdminImageGallery from '@/components/admin/AdminImageGallery';
 
 const AdminProducts = () => {
   const [stats, setStats] = useState({ total: 0, visible: 0, lowStock: 0, ingredients: 0, drafts: 0, archived: 0 });
@@ -75,11 +76,15 @@ const AdminProducts = () => {
           <TabsTrigger value="recipes" className="gap-1.5 text-xs">
             <ChefHat className="w-3.5 h-3.5" /> Receptmallar
           </TabsTrigger>
+          <TabsTrigger value="gallery" className="gap-1.5 text-xs">
+            <Image className="w-3.5 h-3.5" /> Bildgalleri
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="products"><AdminDbProductManager /></TabsContent>
         <TabsContent value="ingredients"><AdminRecipeIngredientLibrary /></TabsContent>
         <TabsContent value="recipes"><AdminRecipeTemplateBuilder /></TabsContent>
+        <TabsContent value="gallery"><AdminImageGallery /></TabsContent>
       </Tabs>
     </div>
   );

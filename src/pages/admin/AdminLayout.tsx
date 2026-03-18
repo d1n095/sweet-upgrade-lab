@@ -6,7 +6,7 @@ import { useStoreSettings } from '@/stores/storeSettingsStore';
 import { useAdminSession } from '@/hooks/useAdminSession';
 import {
   Loader2, Package, ClipboardList, BarChart3, Settings, Grid, Users,
-  Handshake, MessageCircle, Heart, Sparkles, Eye, LogOut, Home, Shield,
+  Handshake, Heart, Eye, LogOut, Home, Shield,
   Activity, User, Menu, X, Star, FileText, Percent, Truck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -25,9 +25,7 @@ const navItems = [
   { to: '/admin/members', label: 'Användare', icon: Users },
   { to: '/admin/reviews', label: 'Recensioner', icon: Star },
   { to: '/admin/partners', label: 'Partners', icon: Handshake },
-  { to: '/admin/communication', label: 'Kommunikation', icon: MessageCircle },
-  { to: '/admin/updates', label: 'Nytt hos oss', icon: Sparkles },
-  { to: '/admin/content', label: 'Sidinnehåll', icon: FileText },
+  { to: '/admin/content', label: 'Innehåll', icon: FileText },
   { to: '/admin/campaigns', label: 'Kampanjer', icon: Percent },
   { to: '/admin/shipping', label: 'Frakt', icon: Truck },
   { to: '/admin/visibility', label: 'Sidsynlighet', icon: Eye },

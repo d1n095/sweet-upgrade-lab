@@ -44,15 +44,13 @@ import AdminProducts from "./pages/admin/AdminProducts";
 import AdminCategories from "./pages/admin/AdminCategories";
 import AdminMembers from "./pages/admin/AdminMembers";
 import AdminPartners from "./pages/admin/AdminPartners";
-import AdminCommunication from "./pages/admin/AdminCommunication";
-import AdminUpdates from "./pages/admin/AdminUpdates";
+import AdminContent from "./pages/admin/AdminContent";
 import AdminVisibility from "./pages/admin/AdminVisibility";
 import AdminLegal from "./pages/admin/AdminLegal";
 import AdminSettingsPage from "./pages/admin/AdminSettingsPage";
 import AdminStats from "./pages/admin/AdminStats";
 import AdminReviews from "./pages/admin/AdminReviews";
 import AdminLogs from "./pages/admin/AdminLogs";
-import AdminContent from "./pages/admin/AdminContent";
 import AdminCampaigns from "./pages/admin/AdminCampaigns";
 import AdminShipping from "./pages/admin/AdminShipping";
 
@@ -110,8 +108,8 @@ const App = () => (
                 <Route path="categories" element={<AdminCategories />} />
                 <Route path="members" element={<AdminMembers />} />
                 <Route path="partners" element={<AdminPartners />} />
-                <Route path="communication" element={<AdminCommunication />} />
-                <Route path="updates" element={<AdminUpdates />} />
+                <Route path="communication" element={<Navigate to="/admin/content" replace />} />
+                <Route path="updates" element={<Navigate to="/admin/content" replace />} />
                 <Route path="visibility" element={<AdminVisibility />} />
                 <Route path="content" element={<AdminContent />} />
                 <Route path="campaigns" element={<AdminCampaigns />} />
