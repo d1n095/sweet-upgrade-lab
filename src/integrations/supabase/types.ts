@@ -1444,6 +1444,45 @@ export type Database = {
         }
         Relationships: []
       }
+      shipping_extras: {
+        Row: {
+          created_at: string
+          description_en: string | null
+          description_sv: string | null
+          display_order: number
+          icon: string | null
+          id: string
+          is_active: boolean
+          title_en: string | null
+          title_sv: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description_en?: string | null
+          description_sv?: string | null
+          display_order?: number
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          title_en?: string | null
+          title_sv: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description_en?: string | null
+          description_sv?: string | null
+          display_order?: number
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          title_en?: string | null
+          title_sv?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       site_updates: {
         Row: {
           created_at: string
