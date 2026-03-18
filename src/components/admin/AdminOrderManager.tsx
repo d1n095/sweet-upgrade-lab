@@ -266,8 +266,8 @@ const AdminOrderManager = () => {
         })}
       </div>
 
-      {/* Orders List */}
-      <div className="space-y-2 max-h-[500px] overflow-y-auto">
+  {/* Orders List */}
+      <div className="space-y-2">
         {filteredOrders.length === 0 ? (
           <p className="text-center text-muted-foreground py-4">{content.noOrders}</p>
         ) : (
