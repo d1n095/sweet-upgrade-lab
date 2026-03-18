@@ -66,20 +66,22 @@ const AdminProducts = () => {
       </div>
 
       <Tabs defaultValue="products" className="space-y-4">
-        <TabsList className="h-9">
-          <TabsTrigger value="products" className="gap-1.5 text-xs">
-            <Package className="w-3.5 h-3.5" /> Produkter
-          </TabsTrigger>
-          <TabsTrigger value="ingredients" className="gap-1.5 text-xs">
-            <FlaskConical className="w-3.5 h-3.5" /> Ingrediensbibliotek
-          </TabsTrigger>
-          <TabsTrigger value="recipes" className="gap-1.5 text-xs">
-            <ChefHat className="w-3.5 h-3.5" /> Receptmallar
-          </TabsTrigger>
-          <TabsTrigger value="gallery" className="gap-1.5 text-xs">
-            <Image className="w-3.5 h-3.5" /> Bildgalleri
-          </TabsTrigger>
-        </TabsList>
+        <ScrollableTabs>
+          <TabsList className="w-max">
+            <TabsTrigger value="products" className="gap-1.5 text-xs">
+              <Package className="w-3.5 h-3.5" /> Produkter
+            </TabsTrigger>
+            <TabsTrigger value="ingredients" className="gap-1.5 text-xs">
+              <FlaskConical className="w-3.5 h-3.5" /> Ingrediensbibliotek
+            </TabsTrigger>
+            <TabsTrigger value="recipes" className="gap-1.5 text-xs">
+              <ChefHat className="w-3.5 h-3.5" /> Receptmallar
+            </TabsTrigger>
+            <TabsTrigger value="gallery" className="gap-1.5 text-xs">
+              <Image className="w-3.5 h-3.5" /> Bildgalleri
+            </TabsTrigger>
+          </TabsList>
+        </ScrollableTabs>
 
         <TabsContent value="products"><AdminDbProductManager /></TabsContent>
         <TabsContent value="ingredients"><AdminRecipeIngredientLibrary /></TabsContent>
