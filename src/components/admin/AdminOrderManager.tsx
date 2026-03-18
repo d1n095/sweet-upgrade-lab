@@ -245,6 +245,48 @@ const AdminOrderManager = () => {
     }
   };
 
+  const handleMarkAsPaid = async (order: Order) => {
+    try {
+      const existingHistory = Array.isArray(order.status_history) ? order.status_history : [];
+      const newHistory = [...existingHistory, {
+        status: 'confirmed',
+        timestamp: new Date().toISOString(),
+        note: 'Manuellt markerad som betald av admin',
+      }];
+
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          status: 'confirmed',
+          status_history: newHistory,
+        })
+        .eq('id', order.id);
+
+      if (error) throw error;
+
+      setOrders(prev =>
+        prev.map(o =>
+          o.id === order.id
+            ? { ...o, status: 'confirmed', status_history: newHistory, updated_at: new Date().toISOString() }
+            : o
+        )
+      );
+
+      logActivity({
+        log_type: 'success',
+        category: 'admin',
+        message: 'Order manually marked as paid by admin',
+        details: { old_status: order.status },
+        order_id: order.id,
+      });
+
+      toast.success(language === 'sv' ? 'Order markerad som betald' : 'Order marked as paid');
+    } catch (error) {
+      console.error('Failed to mark as paid:', error);
+      toast.error(content.error);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     return statusOptions.find(s => s.value === status)?.color || 'bg-secondary text-secondary-foreground';
   };
