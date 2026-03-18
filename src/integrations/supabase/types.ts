@@ -1537,6 +1537,63 @@ export type Database = {
         }
         Relationships: []
       }
+      shipping_carriers: {
+        Row: {
+          created_at: string
+          display_order: number
+          id: string
+          is_international: boolean
+          is_selected: boolean
+          logo_url: string | null
+          name: string
+          notes: string | null
+          pricing_url: string | null
+          supports_express: boolean
+          supports_home_delivery: boolean
+          supports_parcel_lockers: boolean
+          supports_pickup_points: boolean
+          tracking_url_template: string | null
+          updated_at: string
+          website_url: string | null
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_international?: boolean
+          is_selected?: boolean
+          logo_url?: string | null
+          name: string
+          notes?: string | null
+          pricing_url?: string | null
+          supports_express?: boolean
+          supports_home_delivery?: boolean
+          supports_parcel_lockers?: boolean
+          supports_pickup_points?: boolean
+          tracking_url_template?: string | null
+          updated_at?: string
+          website_url?: string | null
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_international?: boolean
+          is_selected?: boolean
+          logo_url?: string | null
+          name?: string
+          notes?: string | null
+          pricing_url?: string | null
+          supports_express?: boolean
+          supports_home_delivery?: boolean
+          supports_parcel_lockers?: boolean
+          supports_pickup_points?: boolean
+          tracking_url_template?: string | null
+          updated_at?: string
+          website_url?: string | null
+        }
+        Relationships: []
+      }
       shipping_extras: {
         Row: {
           created_at: string
