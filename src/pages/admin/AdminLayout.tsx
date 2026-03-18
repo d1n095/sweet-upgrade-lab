@@ -233,7 +233,7 @@ const AdminLayout = () => {
                     </div>
                     <div className="min-w-0">
                       <p className="text-xs font-medium truncate">{user?.email || '—'}</p>
-                      <p className="text-[10px] text-muted-foreground">Administratör</p>
+                      <p className="text-[10px] text-muted-foreground">{isAdmin ? 'Administratör' : 'Anställd'}</p>
                     </div>
                   </div>
                 </div>
