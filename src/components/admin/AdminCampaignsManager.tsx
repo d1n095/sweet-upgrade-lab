@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, Trash2, Save, RefreshCw, Percent, Package, Tag,
   Eye, EyeOff, ArrowUp, ArrowDown, ChevronDown, Pencil, X, Sparkles,
-  Truck,
+  Truck, Gift, GripVertical,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -58,41 +58,69 @@ const VolumeDiscountsTab = () => {
   const [discounts, setDiscounts] = useState<VolumeDiscount[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ min_quantity: '', discount_percent: '', is_global: true });
 
-  const fetch = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     const { data } = await supabase.from('volume_discounts').select('*').order('min_quantity');
     if (data) setDiscounts(data as VolumeDiscount[]);
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetch(); }, [fetch]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
-  const handleAdd = async () => {
+  const resetForm = () => {
+    setForm({ min_quantity: '', discount_percent: '', is_global: true });
+    setEditingId(null);
+    setShowForm(false);
+  };
+
+  const openEdit = (d: VolumeDiscount) => {
+    setForm({
+      min_quantity: String(d.min_quantity),
+      discount_percent: String(d.discount_percent),
+      is_global: d.is_global,
+    });
+    setEditingId(d.id);
+    setShowForm(true);
+  };
+
+  const handleSave = async () => {
     const minQty = parseInt(form.min_quantity);
     const pct = parseFloat(form.discount_percent);
     if (!minQty || minQty < 1 || !pct || pct <= 0 || pct > 100) {
       toast.error('Ange giltiga värden'); return;
     }
-    const { error } = await supabase.from('volume_discounts').insert({
-      min_quantity: minQty,
-      discount_percent: pct,
-      is_global: form.is_global,
-      shopify_product_id: null,
-    });
-    if (error) { toast.error('Kunde inte skapa'); return; }
-    toast.success('Mängdrabatt skapad');
-    setForm({ min_quantity: '', discount_percent: '', is_global: true });
-    setShowForm(false);
-    fetch();
+
+    if (editingId) {
+      const { error } = await supabase.from('volume_discounts').update({
+        min_quantity: minQty,
+        discount_percent: pct,
+        is_global: form.is_global,
+      }).eq('id', editingId);
+      if (error) { toast.error('Kunde inte uppdatera'); return; }
+      toast.success('Mängdrabatt uppdaterad');
+    } else {
+      const { error } = await supabase.from('volume_discounts').insert({
+        min_quantity: minQty,
+        discount_percent: pct,
+        is_global: form.is_global,
+        shopify_product_id: null,
+      });
+      if (error) { toast.error('Kunde inte skapa'); return; }
+      toast.success('Mängdrabatt skapad');
+    }
+    resetForm();
+    fetchData();
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm('Ta bort denna mängdrabatt?')) return;
     await supabase.from('volume_discounts').delete().eq('id', id);
     toast.success('Borttagen');
-    fetch();
+    if (editingId === id) resetForm();
+    fetchData();
   };
 
   if (loading) return <div className="flex justify-center py-8"><RefreshCw className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
@@ -104,7 +132,7 @@ const VolumeDiscountsTab = () => {
           <h3 className="font-semibold text-sm">Mängdrabatter</h3>
           <p className="text-xs text-muted-foreground">Automatisk rabatt baserat på antal produkter i varukorgen</p>
         </div>
-        <Button size="sm" variant="outline" onClick={() => setShowForm(!showForm)} className="gap-1 h-7 text-xs">
+        <Button size="sm" variant="outline" onClick={() => { if (showForm && !editingId) { resetForm(); } else { resetForm(); setShowForm(true); } }} className="gap-1 h-7 text-xs">
           <Plus className="w-3 h-3" /> Lägg till
         </Button>
       </div>
@@ -114,6 +142,9 @@ const VolumeDiscountsTab = () => {
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
             <Card className="border-primary/20">
               <CardContent className="pt-4 space-y-3">
+                <p className="text-xs font-medium text-primary">
+                  {editingId ? '✏️ Redigerar mängdrabatt' : '➕ Ny mängdrabatt'}
+                </p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div>
                     <Label className="text-xs">Min. antal produkter *</Label>
@@ -131,8 +162,10 @@ const VolumeDiscountsTab = () => {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={handleAdd} className="gap-1 h-7 text-xs"><Save className="w-3 h-3" /> Spara</Button>
-                  <Button size="sm" variant="outline" onClick={() => setShowForm(false)} className="h-7 text-xs">Avbryt</Button>
+                  <Button size="sm" onClick={handleSave} className="gap-1 h-7 text-xs">
+                    <Save className="w-3 h-3" /> {editingId ? 'Uppdatera' : 'Spara'}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={resetForm} className="h-7 text-xs">Avbryt</Button>
                 </div>
               </CardContent>
             </Card>
@@ -142,7 +175,7 @@ const VolumeDiscountsTab = () => {
 
       <div className="space-y-1.5">
         {discounts.map(d => (
-          <div key={d.id} className="flex items-center gap-3 p-3 rounded-xl border border-border bg-card">
+          <div key={d.id} className={`flex items-center gap-3 p-3 rounded-xl border transition-colors ${editingId === d.id ? 'border-primary/40 bg-primary/5' : 'border-border bg-card'}`}>
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary text-sm shrink-0">
               {d.discount_percent}%
             </div>
@@ -154,9 +187,14 @@ const VolumeDiscountsTab = () => {
                 {d.is_global ? 'Gäller hela varukorgen' : `Produktspecifik: ${d.shopify_product_id}`}
               </p>
             </div>
-            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDelete(d.id)}>
-              <Trash2 className="w-3.5 h-3.5" />
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(d)}>
+                <Pencil className="w-3.5 h-3.5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDelete(d.id)}>
+                <Trash2 className="w-3.5 h-3.5" />
+              </Button>
+            </div>
           </div>
         ))}
         {discounts.length === 0 && (
@@ -421,9 +459,272 @@ const SalePricesTab = () => {
   );
 };
 
+// ─── Shipping Extras ("Vi skickar med") ───
+interface ShippingExtra {
+  id: string;
+  title_sv: string;
+  title_en: string | null;
+  description_sv: string | null;
+  description_en: string | null;
+  icon: string | null;
+  is_active: boolean;
+  display_order: number;
+}
+
+const ICON_OPTIONS = [
+  { value: 'gift', label: '🎁 Gåva' },
+  { value: 'heart', label: '❤️ Hjärta' },
+  { value: 'leaf', label: '🌿 Löv' },
+  { value: 'star', label: '⭐ Stjärna' },
+  { value: 'sparkles', label: '✨ Glitter' },
+  { value: 'shield', label: '🛡️ Sköld' },
+  { value: 'ribbon', label: '🎀 Rosett' },
+  { value: 'box', label: '📦 Paket' },
+  { value: 'card', label: '💌 Kort' },
+  { value: 'sample', label: '🧪 Prov' },
+];
+
+const ShippingExtrasSection = () => {
+  const [extras, setExtras] = useState<ShippingExtra[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [form, setForm] = useState({
+    title_sv: '', title_en: '', description_sv: '', description_en: '', icon: 'gift', is_active: true,
+  });
+
+  const fetchExtras = useCallback(async () => {
+    setLoading(true);
+    const { data } = await supabase.from('shipping_extras').select('*').order('display_order');
+    if (data) setExtras(data as ShippingExtra[]);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchExtras(); }, [fetchExtras]);
+
+  const resetForm = () => {
+    setForm({ title_sv: '', title_en: '', description_sv: '', description_en: '', icon: 'gift', is_active: true });
+    setEditingId(null);
+    setShowForm(false);
+  };
+
+  const openEdit = (item: ShippingExtra) => {
+    setForm({
+      title_sv: item.title_sv,
+      title_en: item.title_en || '',
+      description_sv: item.description_sv || '',
+      description_en: item.description_en || '',
+      icon: item.icon || 'gift',
+      is_active: item.is_active,
+    });
+    setEditingId(item.id);
+    setShowForm(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.title_sv.trim()) { toast.error('Ange en titel'); return; }
+    if (editingId) {
+      await supabase.from('shipping_extras').update({
+        title_sv: form.title_sv.trim(),
+        title_en: form.title_en.trim() || null,
+        description_sv: form.description_sv.trim() || null,
+        description_en: form.description_en.trim() || null,
+        icon: form.icon,
+        is_active: form.is_active,
+        updated_at: new Date().toISOString(),
+      }).eq('id', editingId);
+      toast.success('Uppdaterad!');
+    } else {
+      await supabase.from('shipping_extras').insert({
+        title_sv: form.title_sv.trim(),
+        title_en: form.title_en.trim() || null,
+        description_sv: form.description_sv.trim() || null,
+        description_en: form.description_en.trim() || null,
+        icon: form.icon,
+        is_active: form.is_active,
+        display_order: extras.length,
+      });
+      toast.success('Tillagd!');
+    }
+    resetForm();
+    fetchExtras();
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Ta bort?')) return;
+    await supabase.from('shipping_extras').delete().eq('id', id);
+    if (editingId === id) resetForm();
+    toast.success('Borttagen');
+    fetchExtras();
+  };
+
+  const toggleActive = async (item: ShippingExtra) => {
+    await supabase.from('shipping_extras').update({ is_active: !item.is_active }).eq('id', item.id);
+    fetchExtras();
+  };
+
+  const moveItem = async (id: string, dir: 'up' | 'down') => {
+    const idx = extras.findIndex(e => e.id === id);
+    const swapIdx = dir === 'up' ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= extras.length) return;
+    const a = extras[idx], b = extras[swapIdx];
+    await Promise.all([
+      supabase.from('shipping_extras').update({ display_order: b.display_order }).eq('id', a.id),
+      supabase.from('shipping_extras').update({ display_order: a.display_order }).eq('id', b.id),
+    ]);
+    fetchExtras();
+  };
+
+  const iconEmoji = (icon: string) => ICON_OPTIONS.find(o => o.value === icon)?.label.split(' ')[0] || '🎁';
+
+  const filtered = search.trim()
+    ? extras.filter(e => e.title_sv.toLowerCase().includes(search.toLowerCase()) || (e.title_en || '').toLowerCase().includes(search.toLowerCase()))
+    : extras;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <Gift className="w-4 h-4 text-primary" />
+          <div>
+            <h4 className="font-semibold text-sm">Vi skickar med</h4>
+            <p className="text-xs text-muted-foreground">Extras som ingår vid frakt (visas för kunder)</p>
+          </div>
+        </div>
+        <Button size="sm" variant="outline" onClick={() => { resetForm(); setShowForm(true); }} className="gap-1 h-7 text-xs">
+          <Plus className="w-3 h-3" /> Lägg till
+        </Button>
+      </div>
+
+      {/* Search */}
+      {extras.length > 3 && (
+        <Input
+          placeholder="Sök bland extras..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="h-8 text-xs"
+        />
+      )}
+
+      {/* Add/Edit Form */}
+      <AnimatePresence>
+        {showForm && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
+            <Card className="border-primary/20">
+              <CardContent className="pt-4 space-y-3">
+                <p className="text-xs font-medium text-primary">
+                  {editingId ? '✏️ Redigera' : '➕ Ny extra'}
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Titel (svenska) *</Label>
+                    <Input value={form.title_sv} onChange={e => setForm(f => ({ ...f, title_sv: e.target.value }))} placeholder="Gratis produktprover" className="h-8" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Title (English)</Label>
+                    <Input value={form.title_en} onChange={e => setForm(f => ({ ...f, title_en: e.target.value }))} placeholder="Free product samples" className="h-8" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Beskrivning (sv)</Label>
+                    <Input value={form.description_sv} onChange={e => setForm(f => ({ ...f, description_sv: e.target.value }))} placeholder="Vi lägger alltid med..." className="h-8" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Description (en)</Label>
+                    <Input value={form.description_en} onChange={e => setForm(f => ({ ...f, description_en: e.target.value }))} placeholder="We always include..." className="h-8" />
+                  </div>
+                </div>
+                <div className="flex items-end gap-3 flex-wrap">
+                  <div>
+                    <Label className="text-xs">Ikon</Label>
+                    <Select value={form.icon} onValueChange={v => setForm(f => ({ ...f, icon: v }))}>
+                      <SelectTrigger className="h-8 w-36 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ICON_OPTIONS.map(o => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center gap-2 h-8">
+                    <Switch checked={form.is_active} onCheckedChange={v => setForm(f => ({ ...f, is_active: v }))} />
+                    <span className="text-xs text-muted-foreground">{form.is_active ? 'Aktiv' : 'Inaktiv'}</span>
+                  </div>
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <Button size="sm" onClick={handleSave} disabled={!form.title_sv.trim()} className="gap-1 h-7 text-xs">
+                    <Save className="w-3 h-3" /> {editingId ? 'Uppdatera' : 'Spara'}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={resetForm} className="h-7 text-xs">Avbryt</Button>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* List */}
+      {loading ? (
+        <div className="flex justify-center py-6"><RefreshCw className="w-4 h-4 animate-spin text-muted-foreground" /></div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-6 text-muted-foreground text-xs">
+          <Gift className="w-8 h-8 mx-auto mb-2 opacity-30" />
+          {search ? 'Inga träffar' : 'Inga extras ännu. Lägg till vad ni skickar med!'}
+        </div>
+      ) : (
+        <div className="space-y-1.5">
+          {filtered.map((item, idx) => (
+            <div
+              key={item.id}
+              className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                editingId === item.id
+                  ? 'border-primary/40 bg-primary/5'
+                  : item.is_active
+                    ? 'border-border bg-card'
+                    : 'border-border bg-muted/30 opacity-60'
+              }`}
+            >
+              <span className="text-lg shrink-0">{iconEmoji(item.icon || 'gift')}</span>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm truncate">{item.title_sv}</p>
+                {item.description_sv && (
+                  <p className="text-xs text-muted-foreground truncate">{item.description_sv}</p>
+                )}
+                {item.title_en && (
+                  <p className="text-xs text-muted-foreground/60 truncate">{item.title_en}</p>
+                )}
+              </div>
+              <div className="flex items-center gap-0.5 shrink-0">
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => moveItem(item.id, 'up')} disabled={idx === 0}>
+                  <ArrowUp className="w-3 h-3" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => moveItem(item.id, 'down')} disabled={idx === filtered.length - 1}>
+                  <ArrowDown className="w-3 h-3" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => toggleActive(item)}>
+                  {item.is_active ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                </Button>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(item)}>
+                  <Pencil className="w-3.5 h-3.5" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(item.id)}>
+                  <Trash2 className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── Shipping Tab ───
 const ShippingTab = () => {
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState({
     shipping_cost: '39',
@@ -437,35 +738,9 @@ const ShippingTab = () => {
     free_shipping_enabled: true,
   });
 
-  const fetchSettings = useCallback(async () => {
-    setLoading(true);
-    const { data } = await supabase
-      .from('store_settings')
-      .select('*')
-      .in('key', [
-        'shipping_cost', 'free_shipping_threshold', 'delivery_days_min', 'delivery_days_max',
-        'provider_sv', 'provider_en', 'delivery_info_sv', 'delivery_info_en', 'free_shipping_enabled',
-      ]);
-    if (data && data.length > 0) {
-      // store_settings uses boolean 'value' column — we store shipping settings as JSON in a dedicated approach
-      // For simplicity, use individual keys with a text-based approach via the existing store_settings table
-    }
-    setLoading(false);
-  }, []);
-
-  useEffect(() => { fetchSettings(); }, [fetchSettings]);
-
   const handleSave = async () => {
     setSaving(true);
     try {
-      const keys = Object.entries(settings);
-      for (const [key, value] of keys) {
-        const strValue = typeof value === 'boolean' ? value : true;
-        await supabase
-          .from('store_settings')
-          .upsert({ key: `shipping_${key}`, value: strValue }, { onConflict: 'key' });
-      }
-      // Save the actual values to localStorage for the frontend to pick up
       localStorage.setItem('shipping_settings', JSON.stringify(settings));
       toast.success('Fraktinställningar sparade!');
     } catch {
@@ -604,6 +879,9 @@ const ShippingTab = () => {
           </Button>
         </CardContent>
       </Card>
+
+      {/* Vi skickar med section */}
+      <ShippingExtrasSection />
     </div>
   );
 };
