@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ShoppingBag, Truck, Shield, Loader2, CreditCard } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, Truck, Shield, Loader2, CreditCard, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,6 +13,7 @@ import { storeConfig } from '@/config/storeConfig';
 import PaymentMethods from '@/components/trust/PaymentMethods';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useStoreSettings } from '@/stores/storeSettingsStore';
 
 const Checkout = () => {
   const navigate = useNavigate();
