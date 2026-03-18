@@ -25,6 +25,8 @@ import AffiliateDashboard from '@/components/dashboard/AffiliateDashboard';
 import EmployeeDashboard from '@/components/dashboard/EmployeeDashboard';
 import DonationImpact from '@/components/donations/DonationImpact';
 import AccountSettings from '@/components/profile/AccountSettings';
+import ProfileInfoForm from '@/components/profile/ProfileInfoForm';
+import CompleteProfileBanner from '@/components/profile/CompleteProfileBanner';
 import BusinessAccountForm from '@/components/profile/BusinessAccountForm';
 import TrustBadges from '@/components/trust/TrustBadges';
 
