@@ -43,7 +43,6 @@ const SEOHead = ({
           description: description,
           url: siteUrl,
           email: storeConfig.contact.email,
-          telephone: storeConfig.contact.phone,
           address: {
             '@type': 'PostalAddress',
             addressLocality: 'Stockholm',

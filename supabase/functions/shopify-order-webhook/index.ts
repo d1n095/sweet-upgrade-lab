@@ -13,12 +13,37 @@ serve(async (req) => {
   }
 
   try {
+    // HMAC signature verification
+    const shopifySecret = Deno.env.get('SHOPIFY_WEBHOOK_SECRET');
+    const rawBody = await req.text();
+    const hmacHeader = req.headers.get('x-shopify-hmac-sha256');
+
+    if (shopifySecret && hmacHeader) {
+      const key = await crypto.subtle.importKey(
+        'raw',
+        new TextEncoder().encode(shopifySecret),
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['sign']
+      );
+      const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(rawBody));
+      const computedHmac = btoa(String.fromCharCode(...new Uint8Array(signature)));
+      if (computedHmac !== hmacHeader) {
+        console.error('Invalid HMAC signature');
+        return new Response('Unauthorized', { status: 401 });
+      }
+    } else if (shopifySecret) {
+      // Secret configured but no HMAC header — reject
+      console.error('Missing HMAC header');
+      return new Response('Unauthorized', { status: 401 });
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const topic = req.headers.get('x-shopify-topic');
-    const body = await req.json();
+    const body = JSON.parse(rawBody);
 
     console.log(`Received webhook: ${topic}`);
 
