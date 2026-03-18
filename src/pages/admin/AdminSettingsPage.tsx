@@ -159,7 +159,7 @@ const AdminSettingsPage = () => {
                     <p className="text-xs text-muted-foreground mt-0.5">{page.desc}</p>
                   </div>
                 </div>
-                <Switch checked={isVisible(page.id)} onCheckedChange={() => togglePage(page.id)} />
+                <Switch checked={isVisible(page.id)} onCheckedChange={(checked) => setVisibility(page.id, checked)} />
               </div>
             ))}
           </div>
