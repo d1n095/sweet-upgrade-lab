@@ -1,11 +1,9 @@
 import * as React from 'react';
-import { ChefHat, Check, ChevronDown, X } from 'lucide-react';
+import { ChefHat, Check, Plus, Save, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { ProductFormData } from './AdminProductForm';
 
@@ -50,23 +48,33 @@ export function RecipeTemplatePicker({
   const [selectedTemplateId, setSelectedTemplateId] = React.useState<string>('');
   const [slotSelections, setSlotSelections] = React.useState<Record<string, string[]>>({});
   const [showPicker, setShowPicker] = React.useState(false);
+  const [searchTerms, setSearchTerms] = React.useState<Record<string, string>>({});
+  const [templateSearch, setTemplateSearch] = React.useState('');
+
+  const [addingInSlot, setAddingInSlot] = React.useState<string | null>(null);
+  const [newIngName, setNewIngName] = React.useState('');
+  const [savingNew, setSavingNew] = React.useState(false);
 
   const sv = language === 'sv';
+
+  const fetchIngredients = React.useCallback(() => {
+    supabase.from('recipe_ingredients').select('id, name_sv, category').eq('is_active', true).order('category').order('display_order')
+      .then(({ data }) => { if (data) setIngredients(data as Ingredient[]); });
+  }, []);
 
   React.useEffect(() => {
     if (!loaded) {
       Promise.all([
         supabase.from('recipe_templates').select('id, name_sv, description_sv').eq('is_active', true).order('display_order'),
         supabase.from('recipe_template_slots').select('*').order('display_order'),
-        supabase.from('recipe_ingredients').select('id, name_sv, category').eq('is_active', true).order('category').order('display_order'),
-      ]).then(([tRes, sRes, iRes]) => {
+      ]).then(([tRes, sRes]) => {
         if (tRes.data) setTemplates(tRes.data as Template[]);
         if (sRes.data) setSlots(sRes.data as Slot[]);
-        if (iRes.data) setIngredients(iRes.data as Ingredient[]);
         setLoaded(true);
       });
+      fetchIngredients();
     }
-  }, [loaded]);
+  }, [loaded, fetchIngredients]);
 
   const activeSlots = React.useMemo(
     () => slots.filter(s => s.template_id === selectedTemplateId).sort((a, b) => a.display_order - b.display_order),
@@ -74,11 +82,25 @@ export function RecipeTemplatePicker({
   );
 
   const getIngredientName = (id: string) => ingredients.find(i => i.id === id)?.name_sv || '';
-  const getIngredientsByCategory = (cat: string) => ingredients.filter(i => i.category === cat);
+  const getIngredientsByCategory = (cat: string, slotSearch: string) => {
+    let items = ingredients.filter(i => i.category === cat);
+    if (slotSearch.trim()) {
+      const q = slotSearch.toLowerCase();
+      items = items.filter(i => i.name_sv.toLowerCase().includes(q));
+    }
+    return items;
+  };
+
+  const filteredTemplates = React.useMemo(() => {
+    if (!templateSearch.trim()) return templates;
+    const q = templateSearch.toLowerCase();
+    return templates.filter(t => t.name_sv.toLowerCase().includes(q));
+  }, [templates, templateSearch]);
 
   const handleTemplateSelect = (id: string) => {
     setSelectedTemplateId(id);
     setSlotSelections({});
+    setSearchTerms({});
   };
 
   const toggleSlotIngredient = (slotId: string, ingredientId: string, allowMultiple: boolean) => {
@@ -94,9 +116,28 @@ export function RecipeTemplatePicker({
     });
   };
 
+  const handleAddNewIngredient = async (slotId: string, category: string) => {
+    if (!newIngName.trim()) return;
+    setSavingNew(true);
+    const { data, error } = await supabase.from('recipe_ingredients').insert({
+      name_sv: newIngName.trim(),
+      category,
+      display_order: ingredients.length,
+    }).select('id').single();
+    if (!error && data) {
+      fetchIngredients();
+      setSlotSelections(prev => ({
+        ...prev,
+        [slotId]: [...(prev[slotId] || []), data.id],
+      }));
+    }
+    setNewIngName('');
+    setAddingInSlot(null);
+    setSavingNew(false);
+  };
+
   const applyRecipe = () => {
     const allIngredients: string[] = [];
-
     activeSlots.forEach(slot => {
       if (slot.slot_type === 'fixed' && slot.fixed_ingredient_id) {
         const name = getIngredientName(slot.fixed_ingredient_id);
@@ -109,7 +150,6 @@ export function RecipeTemplatePicker({
         });
       }
     });
-
     const unique = [...new Set(allIngredients)];
     setFormData(prev => ({ ...prev, ingredients: unique.join(', ') }));
     setShowPicker(false);
@@ -142,11 +182,19 @@ export function RecipeTemplatePicker({
 
       {showPicker && (
         <div className="border border-border rounded-lg p-3 bg-secondary/20 space-y-3">
-          {/* Template selector */}
+          {/* Template selector with search */}
           <div className="space-y-1.5">
             <p className="text-xs font-medium text-muted-foreground">{sv ? 'Välj en grund:' : 'Select a base:'}</p>
+            {templates.length > 4 && (
+              <Input
+                value={templateSearch}
+                onChange={e => setTemplateSearch(e.target.value)}
+                placeholder={sv ? 'Sök mall...' : 'Search template...'}
+                className="h-7 text-xs mb-1.5"
+              />
+            )}
             <div className="flex flex-wrap gap-1.5">
-              {templates.map(t => (
+              {filteredTemplates.map(t => (
                 <button
                   key={t.id}
                   type="button"
@@ -185,9 +233,10 @@ export function RecipeTemplatePicker({
                   );
                 }
 
-                // Choice slot
-                const categoryIngredients = getIngredientsByCategory(slot.ingredient_category || '');
+                const slotSearch = searchTerms[slot.id] || '';
+                const categoryIngredients = getIngredientsByCategory(slot.ingredient_category || '', slotSearch);
                 const selected = slotSelections[slot.id] || [];
+                const noResults = slotSearch.trim() && categoryIngredients.length === 0;
 
                 return (
                   <div key={slot.id} className="space-y-1.5">
@@ -197,27 +246,77 @@ export function RecipeTemplatePicker({
                       {slot.allow_multiple && <Badge variant="outline" className="text-[10px] px-1.5 py-0">Flera</Badge>}
                       {!slot.is_required && <Badge variant="outline" className="text-[10px] px-1.5 py-0">Valfri</Badge>}
                     </div>
-                    <div className="ml-7 flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
-                      {categoryIngredients.length === 0 ? (
-                        <p className="text-xs text-muted-foreground">{sv ? 'Inga ingredienser i denna kategori' : 'No ingredients'}</p>
-                      ) : (
-                        categoryIngredients.map(ing => {
-                          const isSelected = selected.includes(ing.id);
-                          return (
-                            <button
-                              key={ing.id}
-                              type="button"
-                              onClick={() => toggleSlotIngredient(slot.id, ing.id, slot.allow_multiple)}
-                              className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
-                                isSelected
-                                  ? 'bg-primary/15 border-primary/30 text-primary font-medium'
-                                  : 'bg-background border-border hover:bg-primary/5 hover:border-primary/20'
-                              }`}
-                            >
-                              {isSelected ? '✓ ' : '+ '}{ing.name_sv}
-                            </button>
-                          );
-                        })
+                    <div className="ml-7 space-y-1.5">
+                      <Input
+                        value={slotSearch}
+                        onChange={e => setSearchTerms(prev => ({ ...prev, [slot.id]: e.target.value }))}
+                        placeholder={sv ? 'Sök ingrediens...' : 'Search...'}
+                        className="h-7 text-xs"
+                      />
+                      <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
+                        {categoryIngredients.length === 0 && !noResults ? (
+                          <p className="text-xs text-muted-foreground">{sv ? 'Inga ingredienser i denna kategori' : 'No ingredients'}</p>
+                        ) : (
+                          categoryIngredients.map(ing => {
+                            const isSelected = selected.includes(ing.id);
+                            return (
+                              <button
+                                key={ing.id}
+                                type="button"
+                                onClick={() => toggleSlotIngredient(slot.id, ing.id, slot.allow_multiple)}
+                                className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                                  isSelected
+                                    ? 'bg-primary/15 border-primary/30 text-primary font-medium'
+                                    : 'bg-background border-border hover:bg-primary/5 hover:border-primary/20'
+                                }`}
+                              >
+                                {isSelected ? '✓ ' : '+ '}{ing.name_sv}
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+
+                      {noResults && (
+                        <div className="bg-background rounded p-2 border border-dashed border-primary/30">
+                          <p className="text-xs text-muted-foreground mb-1.5">
+                            {sv ? `"${slotSearch}" finns inte. Lägg till?` : `"${slotSearch}" not found. Add?`}
+                          </p>
+                          {addingInSlot === slot.id ? (
+                            <div className="flex items-center gap-1.5">
+                              <Input value={newIngName} onChange={e => setNewIngName(e.target.value)} className="h-7 text-xs flex-1" autoFocus />
+                              <Button type="button" size="sm" className="h-7 text-xs gap-1" onClick={() => handleAddNewIngredient(slot.id, slot.ingredient_category || 'Övrigt')} disabled={savingNew}>
+                                <Save className="w-3 h-3" />
+                              </Button>
+                              <Button type="button" size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setAddingInSlot(null)}>
+                                <X className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button type="button" size="sm" variant="outline" className="text-xs h-7 gap-1" onClick={() => { setNewIngName(slotSearch); setAddingInSlot(slot.id); }}>
+                              <Plus className="w-3 h-3" /> {sv ? 'Lägg till' : 'Add'}
+                            </Button>
+                          )}
+                        </div>
+                      )}
+
+                      {!noResults && (
+                        <button
+                          type="button"
+                          className="text-[10px] text-primary hover:underline flex items-center gap-0.5"
+                          onClick={() => { setNewIngName(''); setAddingInSlot(addingInSlot === slot.id ? null : slot.id); }}
+                        >
+                          <Plus className="w-2.5 h-2.5" /> {sv ? 'Ny ingrediens' : 'New ingredient'}
+                        </button>
+                      )}
+
+                      {addingInSlot === slot.id && !noResults && (
+                        <div className="flex items-center gap-1.5">
+                          <Input value={newIngName} onChange={e => setNewIngName(e.target.value)} placeholder={sv ? 'Nytt namn' : 'New name'} className="h-7 text-xs flex-1" autoFocus />
+                          <Button type="button" size="sm" className="h-7 text-xs gap-1" onClick={() => handleAddNewIngredient(slot.id, slot.ingredient_category || 'Övrigt')} disabled={savingNew || !newIngName.trim()}>
+                            <Save className="w-3 h-3" />
+                          </Button>
+                        </div>
                       )}
                     </div>
                   </div>
