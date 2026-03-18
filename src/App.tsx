@@ -44,15 +44,13 @@ import AdminProducts from "./pages/admin/AdminProducts";
 import AdminCategories from "./pages/admin/AdminCategories";
 import AdminMembers from "./pages/admin/AdminMembers";
 import AdminPartners from "./pages/admin/AdminPartners";
-import AdminCommunication from "./pages/admin/AdminCommunication";
-import AdminUpdates from "./pages/admin/AdminUpdates";
+import AdminContent from "./pages/admin/AdminContent";
 import AdminVisibility from "./pages/admin/AdminVisibility";
 import AdminLegal from "./pages/admin/AdminLegal";
 import AdminSettingsPage from "./pages/admin/AdminSettingsPage";
 import AdminStats from "./pages/admin/AdminStats";
 import AdminReviews from "./pages/admin/AdminReviews";
 import AdminLogs from "./pages/admin/AdminLogs";
-import AdminContent from "./pages/admin/AdminContent";
 import AdminCampaigns from "./pages/admin/AdminCampaigns";
 import AdminShipping from "./pages/admin/AdminShipping";
 
