@@ -440,6 +440,38 @@ const AdminSEO = () => {
                       <p className="text-xs text-muted-foreground">
                         {editData.metaKeywords ? editData.metaKeywords.split(',').filter(k => k.trim()).length : 0} nyckelord
                       </p>
+
+                      {/* Suggestion chips */}
+                      {(() => {
+                        const currentKws = editData.metaKeywords.split(',').map(k => k.trim().toLowerCase()).filter(Boolean);
+                        const suggestions = generateSuggestions(p).filter(s => !currentKws.includes(s));
+                        if (suggestions.length === 0) return null;
+                        return (
+                          <div className="pt-1">
+                            <p className="text-xs text-muted-foreground mb-1.5">Förslag — klicka för att lägga till:</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {suggestions.slice(0, 20).map(s => (
+                                <button
+                                  key={s}
+                                  type="button"
+                                  onClick={() => {
+                                    setEditData(prev => ({
+                                      ...prev,
+                                      metaKeywords: prev.metaKeywords
+                                        ? `${prev.metaKeywords}, ${s}`
+                                        : s,
+                                    }));
+                                  }}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-secondary hover:bg-primary/10 hover:text-primary text-muted-foreground transition-colors cursor-pointer border border-border"
+                                >
+                                  <Plus className="w-3 h-3" />
+                                  {s}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     <div className="flex gap-2 pt-1">
