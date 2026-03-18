@@ -199,7 +199,7 @@ const Header = () => {
             </button>
 
             {/* Desktop Nav */}
-            <nav className="hidden md:flex items-center gap-5 min-w-0 overflow-hidden">
+            <nav className="hidden md:flex items-center gap-5 min-w-0 overflow-visible">
               {productDropdownItems.length > 0 ? (
                 <NavDropdown
                   label="Shop"
