@@ -34,6 +34,7 @@ import {
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/context/LanguageContext';
+import { useFounderRole } from '@/hooks/useFounderRole';
 import { toast } from 'sonner';
 
 interface Member {
