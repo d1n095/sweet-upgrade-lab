@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Mail, Phone, MapPin, Send, Clock, MessageSquare } from 'lucide-react';
+import { Mail, Send, Clock } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -39,21 +39,9 @@ const Contact = () => {
       href: `mailto:${storeConfig.contact.email}`,
     },
     {
-      icon: Phone,
-      label: t('contact.name'),
-      value: storeConfig.contact.phoneFormatted,
-      href: `tel:${storeConfig.contact.phone}`,
-    },
-    {
-      icon: MessageSquare,
-      label: t('footer.founded'),
-      value: '2026',
-      href: null,
-    },
-    {
       icon: Clock,
       label: t('contact.responsetime'),
-      value: t('contact.within24h'),
+      value: language === 'sv' ? 'Inom 48 timmar' : 'Within 48 hours',
       href: null,
     },
   ];
@@ -75,10 +63,6 @@ const Contact = () => {
             animate={{ opacity: 1, y: 0 }}
             className="text-center mb-12"
           >
-            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
-              <MessageSquare className="w-4 h-4" />
-              {t('contact.title')}
-            </span>
             <h1 className="font-display text-4xl md:text-5xl font-semibold mb-4">
               {t('contact.heading')}
             </h1>

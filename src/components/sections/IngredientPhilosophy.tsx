@@ -28,18 +28,18 @@ const IngredientPhilosophy = () => {
   const t = content[lang];
 
   return (
-    <section id="philosophy" className="py-24 md:py-32">
+    <section id="philosophy" className="py-28 md:py-36">
       <div className="container mx-auto px-5">
         <motion.h2
           initial={{ opacity: 0, y: 12 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="text-2xl md:text-3xl font-semibold text-center mb-16 text-foreground"
+          className="text-2xl md:text-3xl font-semibold text-center mb-20 text-foreground"
         >
           {t.title}
         </motion.h2>
 
-        <div className="grid md:grid-cols-3 gap-8 max-w-2xl mx-auto">
+        <div className="grid md:grid-cols-3 gap-6 md:gap-8 max-w-3xl mx-auto">
           {t.steps.map((step, i) => (
             <motion.div
               key={i}

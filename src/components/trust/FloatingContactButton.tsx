@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, X, Mail, Phone, HelpCircle } from 'lucide-react';
+import { MessageCircle, X, Mail, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/context/LanguageContext';
 
@@ -12,14 +12,8 @@ const FloatingContactButton = () => {
     {
       icon: Mail,
       label: { sv: 'E-post', en: 'Email' },
-      value: 'hej@4thepeople.se',
-      href: 'mailto:hej@4thepeople.se',
-    },
-    {
-      icon: Phone,
-      label: { sv: 'Telefon', en: 'Phone' },
-      value: '070-123 45 67',
-      href: 'tel:+46701234567',
+      value: 'support@4thepeople.se',
+      href: 'mailto:support@4thepeople.se',
     },
     {
       icon: HelpCircle,
