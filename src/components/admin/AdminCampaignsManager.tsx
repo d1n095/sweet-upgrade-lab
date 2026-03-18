@@ -419,6 +419,84 @@ const VolumeDiscountsTab = () => {
                   </div>
                 )}
 
+                {/* Conditions */}
+                <div className="border border-border rounded-lg p-3 space-y-3 bg-secondary/20">
+                  <p className="text-xs font-semibold">⚙️ Villkor & Krav</p>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Aktiva villkor (välj ett eller flera)</Label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {[
+                        { key: 'requires_account', label: 'Kräver konto', desc: 'Kunden måste vara inloggad' },
+                        { key: 'first_purchase', label: 'Första köpet-rabatt', desc: 'Högre rabatt vid första köp, lägre sedan' },
+                        { key: 'level_required', label: 'Kräver level', desc: 'Kunden måste nå en viss level' },
+                        { key: 'max_uses', label: 'Max antal per kund', desc: 'Begränsa hur många gånger kunden kan köpa' },
+                      ].map(opt => {
+                        const isActive = opt.key === 'requires_account' ? form.requires_account
+                          : opt.key === 'first_purchase' ? form.requirement_type === 'first_purchase'
+                          : opt.key === 'level_required' ? form.requirement_type === 'level_required'
+                          : !!form.max_uses_per_user;
+                        
+                        const toggle = () => {
+                          if (opt.key === 'requires_account') {
+                            setForm(f => ({ ...f, requires_account: !f.requires_account }));
+                          } else if (opt.key === 'first_purchase') {
+                            setForm(f => ({ ...f, requirement_type: f.requirement_type === 'first_purchase' ? 'none' : 'first_purchase' }));
+                          } else if (opt.key === 'level_required') {
+                            setForm(f => ({ ...f, requirement_type: f.requirement_type === 'level_required' ? 'none' : 'level_required' }));
+                          } else if (opt.key === 'max_uses') {
+                            setForm(f => ({ ...f, max_uses_per_user: f.max_uses_per_user ? '' : '1' }));
+                          }
+                        };
+
+                        return (
+                          <div
+                            key={opt.key}
+                            className={`flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors ${isActive ? 'border-primary/40 bg-primary/5' : 'border-border hover:bg-secondary/50'}`}
+                            onClick={toggle}
+                          >
+                            <Switch checked={isActive} onCheckedChange={toggle} onClick={e => e.stopPropagation()} />
+                            <div>
+                              <p className="text-xs font-medium">{opt.label}</p>
+                              <p className="text-[10px] text-muted-foreground">{opt.desc}</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <AnimatePresence>
+                    {form.requirement_type === 'first_purchase' && (
+                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-xs">Första köpet %</Label>
+                          <Input type="number" step="0.5" value={form.first_purchase_discount} onChange={e => setForm({ ...form, first_purchase_discount: e.target.value })} placeholder="40" className="h-8" />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Efterföljande %</Label>
+                          <Input type="number" step="0.5" value={form.repeat_discount} onChange={e => setForm({ ...form, repeat_discount: e.target.value })} placeholder="20" className="h-8" />
+                        </div>
+                      </motion.div>
+                    )}
+                    {form.requirement_type === 'level_required' && (
+                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
+                        <div className="w-32">
+                          <Label className="text-xs">Minsta level</Label>
+                          <Input type="number" value={form.min_level} onChange={e => setForm({ ...form, min_level: e.target.value })} placeholder="5" className="h-8" />
+                        </div>
+                      </motion.div>
+                    )}
+                    {form.max_uses_per_user && (
+                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
+                        <div className="w-32">
+                          <Label className="text-xs">Max köp per kund</Label>
+                          <Input type="number" value={form.max_uses_per_user} onChange={e => setForm({ ...form, max_uses_per_user: e.target.value })} placeholder="1" className="h-8" />
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
                 <div className="flex gap-2">
                   <Button size="sm" onClick={handleSave} className="gap-1 h-7 text-xs"><Save className="w-3 h-3" /> {editingId ? 'Uppdatera' : 'Spara'}</Button>
                   <Button size="sm" variant="outline" onClick={resetForm} className="h-7 text-xs">Avbryt</Button>
