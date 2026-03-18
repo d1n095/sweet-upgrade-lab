@@ -42,14 +42,14 @@ const Footer = () => {
             <p className="text-[11px] text-muted-foreground/80 leading-[1.7] mb-5 max-w-[200px]">
               {t('footer.description')}
             </p>
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-3">
               <a href={storeConfig.social.instagram} target="_blank" rel="noopener noreferrer" aria-label="Instagram"
-                className="w-9 h-9 rounded-xl bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-all min-h-[44px] min-w-[44px]">
-                <Instagram className="w-4 h-4" />
+                className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-all min-h-[44px] min-w-[44px]">
+                <Instagram className="w-5 h-5" />
               </a>
               <a href={storeConfig.social.facebook} target="_blank" rel="noopener noreferrer" aria-label="Facebook"
-                className="w-9 h-9 rounded-xl bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-all min-h-[44px] min-w-[44px]">
-                <Facebook className="w-4 h-4" />
+                className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-all min-h-[44px] min-w-[44px]">
+                <Facebook className="w-5 h-5" />
               </a>
             </div>
           </div>
