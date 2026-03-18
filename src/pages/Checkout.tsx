@@ -14,6 +14,7 @@ import PaymentMethods from '@/components/trust/PaymentMethods';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useStoreSettings } from '@/stores/storeSettingsStore';
+import { logActivity } from '@/utils/activityLogger';
 
 const Checkout = () => {
   const navigate = useNavigate();
