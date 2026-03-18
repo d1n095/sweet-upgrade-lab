@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '@/integrations/supabase/client';
+import { logSettingsChange } from '@/utils/activityLogger';
 
 interface StoreSettingsState {
   siteActive: boolean;
