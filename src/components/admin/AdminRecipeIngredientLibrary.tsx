@@ -47,6 +47,7 @@ const AdminRecipeIngredientLibrary = () => {
   const [editing, setEditing] = useState<RecipeIngredient | null>(null);
   const [saving, setSaving] = useState(false);
   const [filterCategory, setFilterCategory] = useState<string>('all');
+  const [search, setSearch] = useState('');
   const [form, setForm] = useState({
     name_sv: '',
     name_en: '',
