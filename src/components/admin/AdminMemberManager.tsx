@@ -97,7 +97,7 @@ interface Review {
 
 const ITEMS_PER_PAGE = 50;
 
-const AdminMemberManager = ({ roleFilter = 'all' }: AdminMemberManagerProps) => {
+const AdminMemberManager = ({ roleFilter = 'all', onStatsUpdate }: AdminMemberManagerProps) => {
   const { language } = useLanguage();
   const { isFounder } = useFounderRole();
   const { user } = useAuth();
