@@ -133,7 +133,8 @@ const ProductDetail = () => {
   const description = (lang === 'sv' ? product.description_sv : product.description_en) || product.description_sv;
   const images = product.image_urls || [];
   const imageUrl = images[selectedImage] || null;
-  const isOutOfStock = !product.allow_overselling && product.stock <= 0;
+  const availableStock = product.stock - (product.reserved_stock || 0);
+  const isOutOfStock = !product.allow_overselling && availableStock <= 0;
   const hasDiscount = product.original_price && product.original_price > product.price;
   const discountPercent = hasDiscount
     ? Math.round((1 - product.price / product.original_price!) * 100)
