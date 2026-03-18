@@ -475,7 +475,7 @@ export function AdminProductForm({
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="price">{t.price}</Label>
           <div className="flex gap-2">
@@ -483,7 +483,7 @@ export function AdminProductForm({
               value={formData.currency || 'SEK'}
               onValueChange={(value) => setFormData((prev) => ({ ...prev, currency: value }))}
             >
-              <SelectTrigger className="w-24 shrink-0">
+              <SelectTrigger className="w-20 shrink-0">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -497,10 +497,12 @@ export function AdminProductForm({
             <Input
               id="price"
               type="number"
+              inputMode="decimal"
               step="0.01"
               value={formData.price}
               onChange={(e) => setFormData((prev) => ({ ...prev, price: e.target.value }))}
               placeholder="159"
+              className="text-lg font-semibold"
               required
             />
           </div>
