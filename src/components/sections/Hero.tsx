@@ -104,7 +104,7 @@ const Hero = ({ getSection, isSectionVisible }: HeroProps) => {
           >
             <Button
               size="lg"
-              className="h-13 px-12 text-sm font-semibold rounded-full shadow-sm hover:shadow-md transition-all"
+              className="h-[52px] px-14 text-sm font-semibold rounded-full shadow-md hover:shadow-lg active:scale-[0.97] transition-all"
               onClick={() => navigate('/produkter')}
             >
               {t('hero.cta.primary')}
