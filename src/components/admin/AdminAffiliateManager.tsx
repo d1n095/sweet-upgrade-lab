@@ -60,6 +60,7 @@ const AdminAffiliateManager = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [selectedUser, setSelectedUser] = useState<{ user_id: string; email: string; username: string | null; avatar_url: string | null } | null>(null);
   
   const [formData, setFormData] = useState({
     name: '',
