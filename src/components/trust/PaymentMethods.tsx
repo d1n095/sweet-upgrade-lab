@@ -1,16 +1,17 @@
 import { motion } from 'framer-motion';
-import { CreditCard, Shield } from 'lucide-react';
+import { Shield } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 
 const PaymentMethods = () => {
   const { language } = useLanguage();
 
-  // SVG icons for payment methods
   const paymentIcons = [
     { name: 'Visa', color: '#1A1F71' },
-    { name: 'Mastercard', color: '#EB001B' },
+    { name: 'MC', color: '#EB001B' },
     { name: 'Klarna', color: '#FFB3C7' },
     { name: 'Swish', color: '#00A0DE' },
+    { name: ' Pay', color: '#000000' },
+    { name: 'G Pay', color: '#4285F4' },
   ];
 
   return (
@@ -23,15 +24,15 @@ const PaymentMethods = () => {
         <Shield className="w-4 h-4 text-primary" />
         <span>{language === 'sv' ? 'Säkra betalningar med' : 'Secure payments with'}</span>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 flex-wrap justify-center">
         {paymentIcons.map((payment) => (
           <div
             key={payment.name}
-            className="w-12 h-8 rounded bg-white/10 border border-white/20 flex items-center justify-center text-xs font-bold"
+            className="w-12 h-8 rounded bg-card border border-border flex items-center justify-center text-[9px] font-bold"
             style={{ color: payment.color }}
             title={payment.name}
           >
-            {payment.name.substring(0, 2)}
+            {payment.name}
           </div>
         ))}
       </div>

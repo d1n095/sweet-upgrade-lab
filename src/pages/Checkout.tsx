@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, ShoppingBag, Truck, Shield, Loader2, CreditCard, AlertTriangle, Lock, RotateCcw, Package, Clock } from 'lucide-react';
@@ -14,6 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useStoreSettings } from '@/stores/storeSettingsStore';
 import { logActivity } from '@/utils/activityLogger';
+import { trackCheckoutStart, trackCheckoutStep, trackCheckoutAbandon } from '@/utils/analyticsTracker';
 
 // Swedish postal code → city lookup (common codes)
 const ZIP_CITY_MAP: Record<string, string> = {
@@ -198,6 +199,8 @@ const Checkout = () => {
       if (data?.error) throw new Error(data.error);
 
       if (data?.url) {
+        completedRef.current = true;
+        trackCheckoutStep('payment_redirect', { total });
         clearCart();
         window.location.href = data.url;
       }
@@ -225,6 +228,19 @@ const Checkout = () => {
     }
     return null;
   };
+
+  // Track checkout page view (must be before early returns)
+  const completedRef = useRef(false);
+  useEffect(() => {
+    if (items.length > 0) {
+      trackCheckoutStart(items.length, total);
+    }
+    return () => {
+      if (items.length > 0 && !completedRef.current) {
+        trackCheckoutAbandon('checkout_page', items.length, total);
+      }
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!checkoutEnabled) {
     return (

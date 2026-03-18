@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { trackProductView } from '@/utils/analyticsTracker';
 import { motion } from 'framer-motion';
 import { ArrowLeft, ShoppingCart, Check, Loader2, Minus, Plus, Shield, RotateCcw, Truck, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -43,6 +44,13 @@ const ProductDetail = () => {
     };
     load();
   }, [handle]);
+
+  // Track product view
+  useEffect(() => {
+    if (product) {
+      trackProductView(product.id, product.title_sv, product.price);
+    }
+  }, [product]);
 
   const formatPrice = (amount: number) =>
     new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK', minimumFractionDigits: 0 }).format(amount);
