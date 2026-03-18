@@ -152,6 +152,12 @@ const VolumeDiscountsTab = () => {
     setSelectedProductId(d.shopify_product_id);
     setForm({
       label: d.label || '', stackable: d.stackable, excluded_product_ids: d.excluded_product_ids || [],
+      requires_account: d.requires_account || false,
+      requirement_type: d.requirement_type || 'none',
+      first_purchase_discount: d.first_purchase_discount ? String(d.first_purchase_discount) : '',
+      repeat_discount: d.repeat_discount ? String(d.repeat_discount) : '',
+      min_level: d.min_level ? String(d.min_level) : '',
+      max_uses_per_user: d.max_uses_per_user ? String(d.max_uses_per_user) : '',
     });
 
     if (isProduct && d.shopify_product_id) {
