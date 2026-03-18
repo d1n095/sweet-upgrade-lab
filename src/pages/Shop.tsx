@@ -15,7 +15,7 @@ const Shop = () => {
         title={t('shop.title')}
         description={t('shop.subtitle')}
         keywords="butik, shop, giftfri, naturlig, kroppsvård, powerbank, ekologiska kläder"
-        canonical="/shop"
+        canonical="/produkter"
       />
       <Header />
       
