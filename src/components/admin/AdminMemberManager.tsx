@@ -595,21 +595,21 @@ const AdminMemberManager = () => {
                 if (data) {
                   // Merge email/username info into members
                   setMembers(prev => {
-                    const updated = [...prev];
+                  const updated = [...prev];
                     for (const result of data as any[]) {
                       const idx = updated.findIndex(m => m.user_id === result.user_id);
                       if (idx >= 0) {
-                        updated[idx] = { ...updated[idx], email: result.email, username: result.username || updated[idx].username };
+                        updated[idx] = { ...updated[idx], email: result.email, username: result.username || updated[idx].username, phone: result.phone || null };
                       } else {
-                        // User exists in auth but might not be in our list yet
                         updated.push({
                           user_id: result.user_id,
                           is_member: false,
                           member_since: null,
-                          created_at: new Date().toISOString(),
+                          created_at: result.user_created_at || new Date().toISOString(),
                           email: result.email,
                           username: result.username,
                           avatar_url: result.avatar_url,
+                          phone: result.phone || null,
                         });
                       }
                     }
