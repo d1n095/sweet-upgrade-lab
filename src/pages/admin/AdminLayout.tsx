@@ -19,13 +19,13 @@ import { logAuthEvent } from '@/utils/activityLogger';
 import AdminGlobalSearch from '@/components/admin/AdminGlobalSearch';
 import { AnimatePresence, motion } from 'framer-motion';
 
-// role: 'all' = everyone with admin/employee access, 'admin' = admin only
+// role: 'all' = everyone with admin/employee access, 'admin' = admin only, 'founder' = founder only
 interface NavItem {
   to: string;
   label: string;
   icon: any;
   end?: boolean;
-  role: 'all' | 'admin';
+  role: 'all' | 'admin' | 'founder';
 }
 
 const navItems: NavItem[] = [
