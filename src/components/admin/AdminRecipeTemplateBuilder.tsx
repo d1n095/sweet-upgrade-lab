@@ -19,6 +19,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { logRecipeChange } from '@/utils/activityLogger';
 
 interface RecipeTemplate {
   id: string;
