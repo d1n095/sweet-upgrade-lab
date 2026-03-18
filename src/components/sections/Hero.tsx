@@ -111,19 +111,21 @@ const Hero = ({ getSection, isSectionVisible }: HeroProps) => {
             </Button>
           </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.4 }}
-            className="flex items-center justify-center gap-6 mt-10"
-          >
-            {trustItems.map(({ icon: Icon, text }) => (
-              <div key={text} className="flex items-center gap-1.5 text-muted-foreground/60">
-                <Icon className="w-3.5 h-3.5" />
-                <span className="text-xs font-medium">{text}</span>
-              </div>
-            ))}
-          </motion.div>
+          {showBadges && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+              className="flex items-center justify-center gap-6 mt-10"
+            >
+              {trustItems.map(({ icon: Icon, text }) => (
+                <div key={text} className="flex items-center gap-1.5 text-muted-foreground/60">
+                  <Icon className="w-3.5 h-3.5" />
+                  <span className="text-xs font-medium">{text}</span>
+                </div>
+              ))}
+            </motion.div>
+          )}
 
           <motion.div
             initial={{ opacity: 0 }}
