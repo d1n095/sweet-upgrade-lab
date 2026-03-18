@@ -28,7 +28,7 @@ const AboutCompact = () => {
             initial={{ opacity: 0, y: 12 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-2xl md:text-3xl font-semibold mb-3 text-foreground"
+            className="text-2xl md:text-3xl font-semibold mb-4 text-foreground"
           >
             {t.title}
           </motion.h2>
