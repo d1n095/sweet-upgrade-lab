@@ -7,8 +7,9 @@ import { useAdminSession } from '@/hooks/useAdminSession';
 import {
   Loader2, Package, ClipboardList, BarChart3, Settings, Grid, Users,
   Handshake, Heart, Eye, LogOut, Home, Shield,
-  Activity, User, Menu, X, Star, FileText, Percent, Truck,
+  Activity, User, Menu, X, Star, FileText, Percent, Truck, Wallet,
 } from 'lucide-react';
+import { useEmployeeRole } from '@/hooks/useEmployeeRole';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
@@ -17,30 +18,45 @@ import { logAuthEvent } from '@/utils/activityLogger';
 import AdminGlobalSearch from '@/components/admin/AdminGlobalSearch';
 import { AnimatePresence, motion } from 'framer-motion';
 
-const navItems = [
-  { to: '/admin', label: 'Dashboard', icon: BarChart3, end: true },
-  { to: '/admin/orders', label: 'Ordrar', icon: ClipboardList },
-  { to: '/admin/products', label: 'Produkter', icon: Package },
-  { to: '/admin/categories', label: 'Kategorier', icon: Grid },
-  { to: '/admin/members', label: 'Användare', icon: Users },
-  { to: '/admin/reviews', label: 'Recensioner', icon: Star },
-  { to: '/admin/partners', label: 'Partners', icon: Handshake },
-  { to: '/admin/content', label: 'Innehåll', icon: FileText },
-  { to: '/admin/campaigns', label: 'Kampanjer', icon: Percent },
-  { to: '/admin/shipping', label: 'Frakt', icon: Truck },
-  { to: '/admin/visibility', label: 'Sidsynlighet', icon: Eye },
-  { to: '/admin/legal', label: 'Juridik & Donationer', icon: Heart },
-  { to: '/admin/logs', label: 'Logg', icon: Activity },
-  { to: '/admin/settings', label: 'Inställningar', icon: Settings },
+// role: 'all' = everyone with admin/employee access, 'admin' = admin only
+interface NavItem {
+  to: string;
+  label: string;
+  icon: any;
+  end?: boolean;
+  role: 'all' | 'admin';
+}
+
+const navItems: NavItem[] = [
+  { to: '/admin', label: 'Dashboard', icon: BarChart3, end: true, role: 'all' },
+  { to: '/admin/orders', label: 'Ordrar', icon: ClipboardList, role: 'all' },
+  { to: '/admin/products', label: 'Produkter', icon: Package, role: 'all' },
+  { to: '/admin/categories', label: 'Kategorier', icon: Grid, role: 'admin' },
+  { to: '/admin/members', label: 'Användare', icon: Users, role: 'admin' },
+  { to: '/admin/reviews', label: 'Recensioner', icon: Star, role: 'all' },
+  { to: '/admin/partners', label: 'Partners', icon: Handshake, role: 'admin' },
+  { to: '/admin/finance', label: 'Betalning', icon: Wallet, role: 'admin' },
+  { to: '/admin/content', label: 'Innehåll', icon: FileText, role: 'admin' },
+  { to: '/admin/campaigns', label: 'Kampanjer', icon: Percent, role: 'admin' },
+  { to: '/admin/shipping', label: 'Frakt', icon: Truck, role: 'admin' },
+  { to: '/admin/visibility', label: 'Sidsynlighet', icon: Eye, role: 'admin' },
+  { to: '/admin/legal', label: 'Juridik & Donationer', icon: Heart, role: 'admin' },
+  { to: '/admin/logs', label: 'Logg', icon: Activity, role: 'admin' },
+  { to: '/admin/settings', label: 'Inställningar', icon: Settings, role: 'admin' },
+  { to: '/admin/stats', label: 'Statistik', icon: BarChart3, role: 'admin' },
 ];
 
 const AdminLayout = () => {
   const { isAdmin, isLoading } = useAdminRole();
+  const { isEmployee, isLoading: employeeLoading } = useEmployeeRole();
   const { user, signOut } = useAuth();
   const { siteActive, checkoutEnabled, isLoaded, fetchSettings } = useStoreSettings();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  const hasAccess = isAdmin || isEmployee;
+  const combinedLoading = isLoading || employeeLoading;
 
   // Admin session timeout (30 min inactivity)
   useAdminSession();
@@ -50,14 +66,20 @@ const AdminLayout = () => {
   }, [isLoaded, fetchSettings]);
 
   useEffect(() => {
-    if (!isLoading && !isAdmin) {
+    if (!combinedLoading && !hasAccess) {
       navigate('/');
     }
-  }, [isAdmin, isLoading, navigate]);
+  }, [hasAccess, combinedLoading, navigate]);
+
+  // Filter nav items based on role
+  const visibleNavItems = navItems.filter(item => {
+    if (isAdmin) return true;
+    return item.role === 'all';
+  });
 
   useEffect(() => { setMobileNavOpen(false); }, [location.pathname]);
 
-  if (isLoading) {
+  if (combinedLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
@@ -65,7 +87,7 @@ const AdminLayout = () => {
     );
   }
 
-  if (!isAdmin) return null;
+  if (!hasAccess) return null;
 
   const handleSignOut = async () => {
     logAuthEvent('logout', user?.email || undefined);
@@ -74,9 +96,9 @@ const AdminLayout = () => {
     navigate('/');
   };
 
-  const currentPage = navItems.find(item =>
+  const currentPage = visibleNavItems.find(item =>
     item.end ? location.pathname === item.to : location.pathname.startsWith(item.to + '/')
-  ) || (location.pathname === '/admin' ? navItems[0] : undefined);
+  ) || (location.pathname === '/admin' ? visibleNavItems[0] : undefined);
 
   return (
     <div className="min-h-screen flex bg-background">
@@ -91,7 +113,7 @@ const AdminLayout = () => {
 
         <ScrollArea className="flex-1 py-3">
           <nav className="space-y-0.5 px-3">
-            {navItems.map((item) => (
+            {visibleNavItems.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
@@ -211,14 +233,14 @@ const AdminLayout = () => {
                     </div>
                     <div className="min-w-0">
                       <p className="text-xs font-medium truncate">{user?.email || '—'}</p>
-                      <p className="text-[10px] text-muted-foreground">Administratör</p>
+                      <p className="text-[10px] text-muted-foreground">{isAdmin ? 'Administratör' : 'Anställd'}</p>
                     </div>
                   </div>
                 </div>
 
                 <ScrollArea className="flex-1 py-2">
                   <nav className="space-y-0.5 px-3">
-                    {navItems.map((item) => (
+                    {visibleNavItems.map((item) => (
                       <NavLink
                         key={item.to}
                         to={item.to}
