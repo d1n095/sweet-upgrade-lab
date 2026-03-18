@@ -277,9 +277,9 @@ const Header = () => {
               {productDropdownItems.length > 0 ? (
                 <NavDropdown
                   label="Shop"
-                  href="/shop"
+                  href="/produkter"
                   items={productDropdownItems}
-                  isActive={location.pathname === '/shop' || location.pathname === '/produkter'}
+                  isActive={location.pathname === '/produkter'}
                 />
               ) : (
                 <Link
