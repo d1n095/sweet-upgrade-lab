@@ -236,6 +236,19 @@ const Checkout = () => {
       if (data?.url) {
         completedRef.current = true;
         trackCheckoutStep('payment_redirect', { total });
+        
+        // Save shipping info to profile for future auto-fill
+        if (user) {
+          supabase.from('profiles').update({
+            full_name: form.name,
+            phone: form.phone || null,
+            address: form.address,
+            zip: form.zip,
+            city: form.city,
+            country: form.country,
+          }).eq('user_id', user.id).then(() => {});
+        }
+        
         clearCart();
         window.location.href = data.url;
       }
