@@ -498,11 +498,21 @@ const AdminMemberManager = ({ roleFilter = 'all' }: AdminMemberManagerProps) => 
     }
   };
 
-  const handleAssignRole = async (userId: string, role: string) => {
+  // Pending role change confirmation state
+  const [pendingRoleChange, setPendingRoleChange] = useState<{ userId: string; role: string; username: string | null } | null>(null);
+
+  const requestRoleChange = (userId: string, role: string) => {
+    const member = members.find(m => m.user_id === userId);
+    setPendingRoleChange({ userId, role, username: member?.username || member?.email || userId.slice(0, 8) });
+  };
+
+  const confirmRoleChange = async () => {
+    if (!pendingRoleChange) return;
+    const { userId, role } = pendingRoleChange;
+    setPendingRoleChange(null);
     setAssigningRole(true);
     try {
       if (role === 'none') {
-        // Remove role
         await supabase.from('user_roles').delete().eq('user_id', userId);
         toast.success(t.roleRemoved);
         setUserRoles((prev) => {
@@ -511,9 +521,7 @@ const AdminMemberManager = ({ roleFilter = 'all' }: AdminMemberManagerProps) => 
           return updated;
         });
       } else {
-        // Validate role is correct type
         const validRole = role as AppRole;
-        // Check if user already has a role
         const existingRole = userRoles[userId];
         if (existingRole) {
           await supabase
