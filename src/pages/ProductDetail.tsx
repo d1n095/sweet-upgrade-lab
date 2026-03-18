@@ -398,9 +398,12 @@ const ProductDetail = () => {
           </div>
 
           {/* Ingredients & Certifications */}
-          {(product.ingredients_sv || product.ingredients_en || (product.certifications && product.certifications.length > 0)) && (
+          {(product.ingredients_sv || (product.certifications && product.certifications.length > 0)) && (
             <div className="mt-16 grid md:grid-cols-2 gap-6">
-              <ProductIngredients ingredientsSv={product.ingredients_sv} ingredientsEn={product.ingredients_en} />
+              <ProductIngredients
+                ingredientsSv={product.ingredients_sv}
+                translatedIngredients={translated.ingredients || undefined}
+              />
               <ProductCertifications certifications={product.certifications} />
             </div>
           )}
