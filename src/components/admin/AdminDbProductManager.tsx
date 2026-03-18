@@ -424,7 +424,7 @@ const AdminDbProductManager = () => {
                 {/* Image thumbnail */}
                 <div className="w-12 h-12 rounded-md bg-muted flex-shrink-0 overflow-hidden">
                   {product.image_urls?.[0] ? (
-                    <img src={product.image_urls[0]} alt={product.title_sv} className="w-full h-full object-cover" />
+                    <img src={product.image_urls[0]} alt={product.title_sv} loading="lazy" className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       <Package className="w-5 h-5 text-muted-foreground" />

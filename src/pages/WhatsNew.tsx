@@ -202,7 +202,7 @@ const WhatsNew = () => {
                       </div>
                     </div>
                     {update.image_url && (
-                      <img src={update.image_url} alt={title} className="w-full h-48 object-cover rounded-lg mt-4" />
+                      <img src={update.image_url} alt={title} loading="lazy" className="w-full h-48 object-cover rounded-lg mt-4" />
                     )}
                   </motion.div>
                 );
