@@ -52,6 +52,7 @@ import AdminSettingsPage from "./pages/admin/AdminSettingsPage";
 import AdminStats from "./pages/admin/AdminStats";
 import AdminReviews from "./pages/admin/AdminReviews";
 import AdminLogs from "./pages/admin/AdminLogs";
+import AdminContent from "./pages/admin/AdminContent";
 
 const queryClient = new QueryClient();
 
@@ -110,6 +111,7 @@ const App = () => (
                 <Route path="communication" element={<AdminCommunication />} />
                 <Route path="updates" element={<AdminUpdates />} />
                 <Route path="visibility" element={<AdminVisibility />} />
+                <Route path="content" element={<AdminContent />} />
                 <Route path="legal" element={<AdminLegal />} />
                 <Route path="settings" element={<AdminSettingsPage />} />
                 <Route path="stats" element={<AdminStats />} />

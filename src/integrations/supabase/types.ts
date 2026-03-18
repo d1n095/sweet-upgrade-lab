@@ -1002,6 +1002,51 @@ export type Database = {
         }
         Relationships: []
       }
+      page_sections: {
+        Row: {
+          content_en: string | null
+          content_sv: string | null
+          created_at: string
+          display_order: number
+          icon: string | null
+          id: string
+          is_visible: boolean
+          page: string
+          section_key: string
+          title_en: string | null
+          title_sv: string | null
+          updated_at: string
+        }
+        Insert: {
+          content_en?: string | null
+          content_sv?: string | null
+          created_at?: string
+          display_order?: number
+          icon?: string | null
+          id?: string
+          is_visible?: boolean
+          page: string
+          section_key: string
+          title_en?: string | null
+          title_sv?: string | null
+          updated_at?: string
+        }
+        Update: {
+          content_en?: string | null
+          content_sv?: string | null
+          created_at?: string
+          display_order?: number
+          icon?: string | null
+          id?: string
+          is_visible?: boolean
+          page?: string
+          section_key?: string
+          title_en?: string | null
+          title_sv?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       product_sales: {
         Row: {
           created_at: string
