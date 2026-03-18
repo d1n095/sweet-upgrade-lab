@@ -188,7 +188,7 @@ serve(async (req) => {
 
         await supabase
           .from('orders')
-          .update({ status: 'failed', status_history: history })
+          .update({ status: 'failed', payment_status: 'failed', status_history: history })
           .eq('id', orderId);
 
         await logEvent(supabase, 'warning', 'payment', 'Payment expired — reserved stock released', { stripe_session: session.id }, orderId);
