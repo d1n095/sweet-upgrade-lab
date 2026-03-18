@@ -264,7 +264,7 @@ const AdminStats = () => {
           <Card className="border-border">
             <CardHeader>
               <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                <Lightbulb className="w-5 h-5 text-amber-500" /> Efterfrågade produkter
+                <Lightbulb className="w-5 h-5 text-primary" /> Efterfrågade produkter
               </CardTitle>
               <p className="text-sm text-muted-foreground">
                 Sökningar som <strong>inte gav resultat</strong> — kunder letar efter dessa men ni har inga matchande produkter
