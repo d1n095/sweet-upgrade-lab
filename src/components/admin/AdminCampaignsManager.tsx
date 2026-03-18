@@ -574,6 +574,10 @@ const VolumeDiscountsTab = () => {
                       <p className="font-medium text-sm truncate">{getProductName(productId)}</p>
                       {!first.stackable && <Badge variant="outline" className="text-[9px]">Ej kombinerbar</Badge>}
                       {first.label && <Badge variant="secondary" className="text-[9px]">{first.label}</Badge>}
+                      {first.requires_account && <Badge variant="outline" className="text-[9px]">Kräver konto</Badge>}
+                      {first.requirement_type === 'first_purchase' && <Badge variant="outline" className="text-[9px]">Första köpet</Badge>}
+                      {first.requirement_type === 'level_required' && <Badge variant="outline" className="text-[9px]">Level {first.min_level}+</Badge>}
+                      {first.max_uses_per_user && <Badge variant="outline" className="text-[9px]">Max {first.max_uses_per_user}x</Badge>}
                     </div>
                     <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                       {sorted.map((t, i) => (
