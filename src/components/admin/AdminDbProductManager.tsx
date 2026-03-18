@@ -244,8 +244,11 @@ const AdminDbProductManager = () => {
         effects_sv: formData.effects || null,
         usage_sv: formData.usage || null,
         extended_description_sv: formData.extendedDescription || null,
+        meta_title: formData.metaTitle || null,
+        meta_description: formData.metaDescription || null,
+        meta_keywords: formData.metaKeywords || null,
         status: 'active',
-      });
+      } as any);
       toast.success(t.productAdded);
       queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });
       setIsAddOpen(false);
