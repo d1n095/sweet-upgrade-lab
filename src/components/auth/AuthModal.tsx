@@ -25,6 +25,7 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
   const { language } = useLanguage();
   const lang = getContentLang(language);
   const { signIn, signUp, resetPassword } = useAuth();
+  const { checkRateLimit, resetAttempts } = useLoginRateLimit();
   const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
