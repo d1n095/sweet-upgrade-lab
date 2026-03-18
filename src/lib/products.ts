@@ -35,6 +35,9 @@ export interface DbProduct {
   usage_en: string | null;
   extended_description_sv: string | null;
   extended_description_en: string | null;
+  meta_title: string | null;
+  meta_description: string | null;
+  meta_keywords: string | null;
   status: ProductStatus;
   created_at: string;
   updated_at: string;
