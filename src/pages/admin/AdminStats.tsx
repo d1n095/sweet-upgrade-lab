@@ -214,6 +214,7 @@ const AdminStats = () => {
           <TabsTrigger value="views">Produktvisningar</TabsTrigger>
           <TabsTrigger value="searches">Sökningar</TabsTrigger>
           <TabsTrigger value="checkout">Checkout-flöde</TabsTrigger>
+          <TabsTrigger value="ingredients">Ingredienser</TabsTrigger>
         </TabsList>
 
         {/* Sales tab */}
