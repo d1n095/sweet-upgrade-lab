@@ -233,7 +233,7 @@ const Header = () => {
             </nav>
 
             {/* Actions */}
-            <div className="flex items-center gap-1 md:gap-1.5">
+            <div className="flex items-center gap-0.5 md:gap-1">
               <div className="hidden sm:block">
                 <SearchSuggestions />
               </div>
