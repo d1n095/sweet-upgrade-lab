@@ -53,6 +53,7 @@ import AdminReviews from "./pages/admin/AdminReviews";
 import AdminLogs from "./pages/admin/AdminLogs";
 import AdminCampaigns from "./pages/admin/AdminCampaigns";
 import AdminShipping from "./pages/admin/AdminShipping";
+import AdminFinance from "./pages/admin/AdminFinance";
 
 const queryClient = new QueryClient();
 
