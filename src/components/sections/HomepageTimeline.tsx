@@ -28,6 +28,15 @@ const HomepageTimeline = ({ getSection }: Props) => {
   const getLang = (sv: string | null | undefined, en: string | null | undefined) =>
     (lang === 'sv' ? sv : en) || sv || '';
 
+  const MONTH_NAMES_SV = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'Maj', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dec'];
+  const MONTH_NAMES_EN = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const formatTimelineDate = (yearStr: string) => {
+    const match = yearStr.match(/^(\d{4})-(\d{2})$/);
+    if (!match) return yearStr;
+    const months = lang === 'sv' ? MONTH_NAMES_SV : MONTH_NAMES_EN;
+    return `${months[parseInt(match[2])]} ${match[1]}`;
+  };
+
   const title = section ? getLang(section.title_sv, section.title_en) : (lang === 'sv' ? 'Vår resa' : 'Our journey');
 
   useEffect(() => {
