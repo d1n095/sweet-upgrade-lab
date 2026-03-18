@@ -260,6 +260,12 @@ const BundlesTab = () => {
     setSelectedProducts(prev => prev.map(p => p.productId === productId ? { ...p, quantity: Math.max(1, qty) } : p));
   };
 
+  const resetForm = () => setForm({
+    name: '', name_en: '', description: '', description_en: '', discount_percent: '',
+    requirement_type: 'none', first_purchase_discount: '', repeat_discount: '',
+    min_level: '', requires_account: false, max_uses_per_user: '',
+  });
+
   const handleAdd = async () => {
     if (!form.name || !form.discount_percent) { toast.error('Namn och rabatt krävs'); return; }
     if (selectedProducts.length === 0) { toast.error('Välj minst en produkt'); return; }
@@ -272,10 +278,15 @@ const BundlesTab = () => {
       discount_percent: parseFloat(form.discount_percent),
       is_active: false,
       display_order: maxOrder + 1,
+      requirement_type: form.requirement_type,
+      first_purchase_discount: form.first_purchase_discount ? parseFloat(form.first_purchase_discount) : null,
+      repeat_discount: form.repeat_discount ? parseFloat(form.repeat_discount) : null,
+      min_level: form.min_level ? parseInt(form.min_level) : null,
+      requires_account: form.requires_account,
+      max_uses_per_user: form.max_uses_per_user ? parseInt(form.max_uses_per_user) : null,
     }).select().single();
-    if (error || !newBundle) { toast.error('Kunde inte skapa'); return; }
+    if (error || !newBundle) { toast.error('Kunde inte skapa: ' + (error?.message || '')); return; }
 
-    // Insert bundle items
     const items = selectedProducts.map(sp => ({
       bundle_id: newBundle.id,
       shopify_product_id: sp.productId,
@@ -284,7 +295,7 @@ const BundlesTab = () => {
     await supabase.from('bundle_items').insert(items);
 
     toast.success('Paket skapat med produkter');
-    setForm({ name: '', name_en: '', description: '', description_en: '', discount_percent: '' });
+    resetForm();
     setSelectedProducts([]);
     setShowForm(false);
     fetchData();
