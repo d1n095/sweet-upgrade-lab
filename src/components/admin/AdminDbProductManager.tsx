@@ -71,6 +71,8 @@ const AdminDbProductManager = () => {
   const { data: products = [], isLoading } = useQuery({
     queryKey: ['admin-db-products'],
     queryFn: () => fetchDbProducts(true),
+    staleTime: 5_000,
+    refetchOnWindowFocus: true,
   });
 
   const sv = language === 'sv';
