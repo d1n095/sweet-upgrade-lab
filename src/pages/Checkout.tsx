@@ -603,20 +603,16 @@ const Checkout = () => {
         <Button
           type="button"
           size="lg"
-          className="w-full h-14 text-base font-semibold"
+          className="w-full h-12 text-sm font-semibold"
           disabled={isSubmitting}
           onClick={handleSubmit}
         >
           {isSubmitting ? (
-            <><Loader2 className="w-5 h-5 animate-spin mr-2" />{t.processing}</>
+            <><Loader2 className="w-4 h-4 animate-spin mr-1.5" />{t.processing}</>
           ) : (
-            <><Lock className="w-4 h-4 mr-2" />{t.paySecurely} — {formatPrice(total)}</>
+            <><Lock className="w-3.5 h-3.5 mr-1.5 shrink-0" /><span className="truncate">{t.paySecurely}</span><span className="ml-1 shrink-0">{formatPrice(total)}</span></>
           )}
         </Button>
-        <div className="flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground mt-1.5">
-          <Lock className="w-3 h-3" />
-          {t.encrypted}
-        </div>
       </div>
     </div>
   );
