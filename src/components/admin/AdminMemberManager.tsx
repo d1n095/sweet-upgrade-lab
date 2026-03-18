@@ -535,6 +535,14 @@ const AdminMemberManager = ({ roleFilter = 'all' }: AdminMemberManagerProps) => 
   };
 
   const filteredMembers = members.filter((member) => {
+    // Role filter
+    if (roleFilter === 'members' && !member.is_member) return false;
+    if (roleFilter === 'founder' && userRoles[member.user_id] !== 'founder') return false;
+    if (roleFilter === 'admin_level' && !['admin', 'it', 'founder'].includes(userRoles[member.user_id] || '')) return false;
+    if (roleFilter === 'moderator' && userRoles[member.user_id] !== 'moderator') return false;
+    if (roleFilter === 'support' && userRoles[member.user_id] !== 'support') return false;
+    if (roleFilter === 'warehouse' && userRoles[member.user_id] !== 'warehouse') return false;
+
     const q = searchQuery.toLowerCase();
     if (!q) return true;
     return (
