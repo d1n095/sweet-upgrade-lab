@@ -132,7 +132,12 @@ const Checkout = () => {
       if (data?.error) throw new Error(data.error);
 
       if (data?.url) {
-        // Redirect to Stripe Checkout
+        logActivity({
+          log_type: 'success',
+          category: 'order',
+          message: 'Checkout session created',
+          details: { email: form.email, total, itemCount: items.length },
+        });
         clearCart();
         window.location.href = data.url;
       }
