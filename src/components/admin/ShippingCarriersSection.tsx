@@ -150,8 +150,10 @@ const ShippingCarriersSection = () => {
   };
 
   const handleDelete = async (id: string) => {
+    const carrier = carriers.find(c => c.id === id);
     await supabase.from('shipping_carriers').delete().eq('id', id);
     toast.success('Fraktbolag borttaget');
+    if (carrier) logShippingChange(`Fraktbolag borttaget: ${carrier.name}`);
     fetchCarriers();
   };
 
