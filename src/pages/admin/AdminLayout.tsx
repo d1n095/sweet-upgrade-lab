@@ -113,7 +113,7 @@ const AdminLayout = () => {
 
         <ScrollArea className="flex-1 py-3">
           <nav className="space-y-0.5 px-3">
-            {navItems.map((item) => (
+            {visibleNavItems.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
