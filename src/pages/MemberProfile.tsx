@@ -3,17 +3,12 @@ import { motion } from 'framer-motion';
 import { 
   User, Package, Star, Gift, Settings, LogOut, 
   ChevronRight, Loader2, Clock, Check, BadgeCheck,
-  Shield, BarChart3, Users, TrendingUp, MessageCircle,
-  ChevronDown, Boxes, UserCog, Handshake, FileText, Heart, Wallet, Grid, Sparkles, ClipboardList, Eye
+  Shield, BarChart3, Users, TrendingUp,
+  Wallet
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import ReviewStars from '@/components/reviews/ReviewStars';
@@ -25,27 +20,13 @@ import { useLanguage } from '@/context/LanguageContext';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import OrderTracker from '@/components/orders/OrderTracker';
-import AdminDbProductManager from '@/components/admin/AdminDbProductManager';
-import AdminInfluencerManager from '@/components/admin/AdminInfluencerManager';
-import AdminAffiliateManager from '@/components/admin/AdminAffiliateManager';
-import AdminPayoutManager from '@/components/admin/AdminPayoutManager';
-import AdminApplicationsManager from '@/components/admin/AdminApplicationsManager';
-import AdminLegalDocuments from '@/components/admin/AdminLegalDocuments';
-import AdminEmailTemplates from '@/components/admin/AdminEmailTemplates';
-import AdminDonationManager from '@/components/admin/AdminDonationManager';
-import AdminMemberManager from '@/components/admin/AdminMemberManager';
-import AdminOrderManager from '@/components/admin/AdminOrderManager';
-import AdminCategoryManager from '@/components/admin/AdminCategoryManager';
-import AdminSiteUpdatesManager from '@/components/admin/AdminSiteUpdatesManager';
 import InfluencerDashboard from '@/components/dashboard/InfluencerDashboard';
 import AffiliateDashboard from '@/components/dashboard/AffiliateDashboard';
 import EmployeeDashboard from '@/components/dashboard/EmployeeDashboard';
 import DonationImpact from '@/components/donations/DonationImpact';
 import AccountSettings from '@/components/profile/AccountSettings';
 import BalanceOverview from '@/components/profile/BalanceOverview';
-import ProfileBalanceBadge from '@/components/profile/ProfileBalanceBadge';
 import BalancePage from '@/pages/BalancePage';
-import AdminPageVisibility from '@/components/admin/AdminPageVisibility';
 
 interface Review {
   id: string;
