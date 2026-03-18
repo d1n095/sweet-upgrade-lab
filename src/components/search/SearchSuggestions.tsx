@@ -99,7 +99,7 @@ const SearchSuggestions = () => {
               setShowSuggestions(true);
             }}
             onBlur={() => setIsFocused(false)}
-            className="pl-9 w-32 md:w-40 h-10 bg-secondary/50 border-transparent hover:border-border focus:border-primary/50 rounded-full text-sm transition-all"
+            className="pl-9 w-full sm:w-40 md:w-44 lg:w-48 max-w-xs h-10 bg-secondary/50 border-transparent hover:border-border focus:border-primary/50 rounded-full text-sm transition-all"
           />
         </div>
       </form>
