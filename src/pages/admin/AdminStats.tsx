@@ -4,7 +4,7 @@ import {
   TrendingUp, Package, RefreshCw, Search, Eye, ShoppingCart,
   AlertTriangle, BarChart3, MousePointerClick, Lightbulb, CheckCircle, XCircle,
   Plus, Minus, LogOut, DollarSign, Target, Activity, Trash2, Shield,
-  Clock, User, Info, ArrowRight, Calendar, TrendingDown, Ban
+  Clock, User, Info, ArrowRight, Calendar, TrendingDown, Ban, HelpCircle
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
 import { useFounderRole } from '@/hooks/useFounderRole';
 import { Link } from 'react-router-dom';
@@ -77,6 +78,18 @@ const typeConfig: Record<string, { icon: any; color: string }> = {
   error: { icon: AlertTriangle, color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
   warning: { icon: AlertTriangle, color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' },
   info: { icon: Info, color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
+  purchase: { icon: DollarSign, color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
+  order: { icon: ShoppingCart, color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
+};
+
+// Helper: show "–" for zero values with no data context
+const noData = (value: number, formatted?: string) => {
+  if (value === 0) return '–';
+  return formatted ?? String(value);
+};
+
+const hasAnyData = (stats: DashboardStats) => {
+  return stats.orders.total_orders > 0 || stats.analytics.product_views > 0 || stats.searches.total_searches > 0;
 };
 
 const dateRangeOptions: { value: DateRange; label: string }[] = [
@@ -396,117 +409,175 @@ const AdminStats = () => {
         </div>
       </div>
 
-      {/* ─── Overview Cards (all from RPC) ─── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card className="border-border">
-          <CardContent className="pt-5 pb-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-muted-foreground uppercase">Nettointäkt</span>
-              <DollarSign className="w-4 h-4 text-muted-foreground" />
-            </div>
-            <p className="text-2xl font-bold">{fmt(orders.total_revenue)}</p>
-            {orders.total_refunds > 0 && (
-              <p className="text-xs text-destructive mt-1 flex items-center gap-1">
-                <TrendingDown className="w-3 h-3" />
-                {fmt(orders.total_refunds)} i returer
-              </p>
-            )}
-          </CardContent>
-        </Card>
-        <Card className="border-border">
-          <CardContent className="pt-5 pb-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-muted-foreground uppercase">Betalda ordrar</span>
-              <ShoppingCart className="w-4 h-4 text-muted-foreground" />
-            </div>
-            <p className="text-2xl font-bold">{orders.paid_count}</p>
-            <div className="flex gap-2 mt-1">
-              {orders.failed_count > 0 && (
-                <span className="text-xs text-destructive flex items-center gap-0.5">
-                  <XCircle className="w-3 h-3" /> {orders.failed_count} misslyckade
-                </span>
-              )}
-              {orders.pending_count > 0 && (
-                <span className="text-xs text-yellow-600 flex items-center gap-0.5">
-                  <Clock className="w-3 h-3" /> {orders.pending_count} väntande
-                </span>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-border">
-          <CardContent className="pt-5 pb-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-muted-foreground uppercase">Konvertering</span>
-              <Target className="w-4 h-4 text-muted-foreground" />
-            </div>
-            <p className={`text-2xl font-bold ${conversionRate >= 50 ? 'text-green-600' : conversionRate > 0 ? 'text-yellow-600' : ''}`}>
-              {conversionRate}%
+      {/* No data banner */}
+      {!hasAnyData(stats) && (
+        <div className="rounded-lg border border-yellow-400/30 bg-yellow-50/50 dark:bg-yellow-900/10 p-4 flex items-center gap-3">
+          <Info className="w-5 h-5 text-yellow-600 shrink-0" />
+          <div>
+            <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">Ingen data ännu för denna period</p>
+            <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-0.5">
+              Data samlas in automatiskt när besökare interagerar med butiken. Prova ett annat tidsintervall eller vänta på aktivitet.
             </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {analytics.checkout_completes} av {analytics.checkout_starts} checkout
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="border-border">
-          <CardContent className="pt-5 pb-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-muted-foreground uppercase">Snittorder</span>
-              <BarChart3 className="w-4 h-4 text-muted-foreground" />
-            </div>
-            <p className="text-2xl font-bold">{fmt(Math.round(orders.avg_order))}</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Median: {fmt(Math.round(orders.median_order))}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </div>
+      )}
 
-      {/* Secondary stats row */}
-      <div className="grid grid-cols-3 lg:grid-cols-6 gap-3">
-        <Card className="border-border">
-          <CardContent className="pt-4 pb-3 text-center">
-            <Eye className="w-4 h-4 mx-auto text-muted-foreground mb-1" />
-            <p className="text-xl font-bold">{analytics.product_views}</p>
-            <p className="text-[11px] text-muted-foreground">Visningar</p>
-          </CardContent>
-        </Card>
-        <Card className="border-border">
-          <CardContent className="pt-4 pb-3 text-center">
-            <Search className="w-4 h-4 mx-auto text-muted-foreground mb-1" />
-            <p className="text-xl font-bold">{searches.total_searches}</p>
-            <p className="text-[11px] text-muted-foreground">Sökningar</p>
-          </CardContent>
-        </Card>
-        <Card className="border-border">
-          <CardContent className="pt-4 pb-3 text-center">
-            <Plus className="w-4 h-4 mx-auto text-green-600 mb-1" />
-            <p className="text-xl font-bold">{analytics.cart_adds}</p>
-            <p className="text-[11px] text-muted-foreground">Lagt i vagn</p>
-          </CardContent>
-        </Card>
-        <Card className="border-border">
-          <CardContent className="pt-4 pb-3 text-center">
-            <Minus className="w-4 h-4 mx-auto text-destructive mb-1" />
-            <p className="text-xl font-bold">{analytics.cart_removes}</p>
-            <p className="text-[11px] text-muted-foreground">Borttagna</p>
-          </CardContent>
-        </Card>
-        <Card className={`border-border ${analytics.checkout_abandons > 0 ? 'border-destructive/20' : ''}`}>
-          <CardContent className="pt-4 pb-3 text-center">
-            <LogOut className={`w-4 h-4 mx-auto mb-1 ${analytics.checkout_abandons > 0 ? 'text-destructive' : 'text-muted-foreground'}`} />
-            <p className={`text-xl font-bold ${analytics.checkout_abandons > 0 ? 'text-destructive' : ''}`}>{analytics.checkout_abandons}</p>
-            <p className="text-[11px] text-muted-foreground">Övergivna</p>
-          </CardContent>
-        </Card>
-        <Card className={`border-border ${orders.refunded_count > 0 ? 'border-yellow-400/20' : ''}`}>
-          <CardContent className="pt-4 pb-3 text-center">
-            <Ban className={`w-4 h-4 mx-auto mb-1 ${orders.refunded_count > 0 ? 'text-yellow-600' : 'text-muted-foreground'}`} />
-            <p className={`text-xl font-bold ${orders.refunded_count > 0 ? 'text-yellow-600' : ''}`}>{orders.refunded_count}</p>
-            <p className="text-[11px] text-muted-foreground">Returnerade</p>
-          </CardContent>
-        </Card>
-      </div>
+      {/* ─── Overview Cards (all from RPC) ─── */}
+      <TooltipProvider delayDuration={200}>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <Card className="border-border">
+            <CardContent className="pt-5 pb-4">
+              <div className="flex items-center justify-between mb-2">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="text-xs font-medium text-muted-foreground uppercase cursor-help flex items-center gap-1">
+                      Nettointäkt <HelpCircle className="w-3 h-3" />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent><p className="text-xs max-w-[200px]">Bruttointäkt minus returer. Räknar bara betalda ordrar.</p></TooltipContent>
+                </Tooltip>
+                <DollarSign className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <p className="text-2xl font-bold">{orders.paid_count > 0 ? fmt(orders.total_revenue) : '–'}</p>
+              {orders.total_refunds > 0 && (
+                <p className="text-xs text-destructive mt-1 flex items-center gap-1">
+                  <TrendingDown className="w-3 h-3" />
+                  {fmt(orders.total_refunds)} i returer
+                </p>
+              )}
+              {orders.paid_count === 0 && (
+                <p className="text-xs text-muted-foreground mt-1">Ingen försäljning ännu</p>
+              )}
+            </CardContent>
+          </Card>
+          <Card className="border-border">
+            <CardContent className="pt-5 pb-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-medium text-muted-foreground uppercase">Betalda ordrar</span>
+                <ShoppingCart className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <p className="text-2xl font-bold">{noData(orders.paid_count)}</p>
+              <div className="flex gap-2 mt-1">
+                {orders.failed_count > 0 && (
+                  <span className="text-xs text-destructive flex items-center gap-0.5">
+                    <XCircle className="w-3 h-3" /> {orders.failed_count} misslyckade
+                  </span>
+                )}
+                {orders.pending_count > 0 && (
+                  <span className="text-xs text-yellow-600 flex items-center gap-0.5">
+                    <Clock className="w-3 h-3" /> {orders.pending_count} väntande
+                  </span>
+                )}
+                {orders.paid_count === 0 && orders.failed_count === 0 && orders.pending_count === 0 && (
+                  <span className="text-xs text-muted-foreground">Inga ordrar ännu</span>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-border">
+            <CardContent className="pt-5 pb-4">
+              <div className="flex items-center justify-between mb-2">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="text-xs font-medium text-muted-foreground uppercase cursor-help flex items-center gap-1">
+                      Konvertering <HelpCircle className="w-3 h-3" />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent><p className="text-xs max-w-[220px]">Andel som slutför köp av de som påbörjar checkout. Misslyckade och avbrutna exkluderas.</p></TooltipContent>
+                </Tooltip>
+                <Target className="w-4 h-4 text-muted-foreground" />
+              </div>
+              {analytics.checkout_starts > 0 ? (
+                <>
+                  <p className={`text-2xl font-bold ${conversionRate >= 50 ? 'text-green-600' : conversionRate > 0 ? 'text-yellow-600' : ''}`}>
+                    {conversionRate}%
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {analytics.checkout_completes} av {analytics.checkout_starts} checkout
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-2xl font-bold text-muted-foreground">–</p>
+                  <p className="text-xs text-muted-foreground mt-1">Ingen checkout-data ännu</p>
+                </>
+              )}
+            </CardContent>
+          </Card>
+          <Card className="border-border">
+            <CardContent className="pt-5 pb-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-medium text-muted-foreground uppercase">Snittorder</span>
+                <BarChart3 className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <p className="text-2xl font-bold">{orders.paid_count > 0 ? fmt(Math.round(orders.avg_order)) : '–'}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {orders.paid_count > 0 ? `Median: ${fmt(Math.round(orders.median_order))}` : 'Ingen orderdata ännu'}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Secondary stats row */}
+        <div className="grid grid-cols-3 lg:grid-cols-6 gap-3">
+          <Card className="border-border">
+            <CardContent className="pt-4 pb-3 text-center">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="cursor-help">
+                    <Eye className="w-4 h-4 mx-auto text-muted-foreground mb-1" />
+                    <p className="text-xl font-bold">{noData(analytics.product_views)}</p>
+                    <p className="text-[11px] text-muted-foreground">Produktvisningar</p>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent><p className="text-xs">Antal gånger en produktsida öppnats ({periodLabel})</p></TooltipContent>
+              </Tooltip>
+            </CardContent>
+          </Card>
+          <Card className="border-border">
+            <CardContent className="pt-4 pb-3 text-center">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="cursor-help">
+                    <Search className="w-4 h-4 mx-auto text-muted-foreground mb-1" />
+                    <p className="text-xl font-bold">{noData(searches.total_searches)}</p>
+                    <p className="text-[11px] text-muted-foreground">Sökningar</p>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent><p className="text-xs">Antal sökningar i butiken ({periodLabel})</p></TooltipContent>
+              </Tooltip>
+            </CardContent>
+          </Card>
+          <Card className="border-border">
+            <CardContent className="pt-4 pb-3 text-center">
+              <Plus className="w-4 h-4 mx-auto text-green-600 mb-1" />
+              <p className="text-xl font-bold">{noData(analytics.cart_adds)}</p>
+              <p className="text-[11px] text-muted-foreground">Lagt i vagn</p>
+            </CardContent>
+          </Card>
+          <Card className="border-border">
+            <CardContent className="pt-4 pb-3 text-center">
+              <Minus className="w-4 h-4 mx-auto text-destructive mb-1" />
+              <p className="text-xl font-bold">{noData(analytics.cart_removes)}</p>
+              <p className="text-[11px] text-muted-foreground">Borttagna</p>
+            </CardContent>
+          </Card>
+          <Card className={`border-border ${analytics.checkout_abandons > 0 ? 'border-destructive/20' : ''}`}>
+            <CardContent className="pt-4 pb-3 text-center">
+              <LogOut className={`w-4 h-4 mx-auto mb-1 ${analytics.checkout_abandons > 0 ? 'text-destructive' : 'text-muted-foreground'}`} />
+              <p className={`text-xl font-bold ${analytics.checkout_abandons > 0 ? 'text-destructive' : ''}`}>{noData(analytics.checkout_abandons)}</p>
+              <p className="text-[11px] text-muted-foreground">Övergivna</p>
+            </CardContent>
+          </Card>
+          <Card className={`border-border ${orders.refunded_count > 0 ? 'border-yellow-400/20' : ''}`}>
+            <CardContent className="pt-4 pb-3 text-center">
+              <Ban className={`w-4 h-4 mx-auto mb-1 ${orders.refunded_count > 0 ? 'text-yellow-600' : 'text-muted-foreground'}`} />
+              <p className={`text-xl font-bold ${orders.refunded_count > 0 ? 'text-yellow-600' : ''}`}>{noData(orders.refunded_count)}</p>
+              <p className="text-[11px] text-muted-foreground">Returnerade</p>
+            </CardContent>
+          </Card>
+        </div>
+      </TooltipProvider>
 
       {/* ─── Activity log summary ─── */}
       {(() => {

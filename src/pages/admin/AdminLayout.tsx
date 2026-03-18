@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Outlet, useNavigate, NavLink, useLocation } from 'react-router-dom';
+import { Outlet, useNavigate, NavLink, useLocation, Link } from 'react-router-dom';
 import { useAdminRole } from '@/hooks/useAdminRole';
 import { useAuth } from '@/hooks/useAuth';
 import { useStoreSettings } from '@/stores/storeSettingsStore';
@@ -8,6 +8,7 @@ import {
   Loader2, Package, ClipboardList, BarChart3, Settings, Grid, Users,
   Handshake, Heart, Eye, LogOut, Home, Shield, Crown,
   Activity, User, Menu, X, Star, FileText, Percent, Truck, Wallet, Globe,
+  AlertTriangle,
 } from 'lucide-react';
 import { useEmployeeRole } from '@/hooks/useEmployeeRole';
 import { useFounderRole } from '@/hooks/useFounderRole';
@@ -18,6 +19,7 @@ import { toast } from 'sonner';
 import { logAuthEvent } from '@/utils/activityLogger';
 import AdminGlobalSearch from '@/components/admin/AdminGlobalSearch';
 import { AnimatePresence, motion } from 'framer-motion';
+import { supabase } from '@/integrations/supabase/client';
 
 // role: 'all' = everyone with admin/employee access, 'admin' = admin only, 'founder' = founder only
 interface NavItem {
@@ -57,7 +59,8 @@ const AdminLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-
+  const [recentErrorCount, setRecentErrorCount] = useState(0);
+  const [errorBannerDismissed, setErrorBannerDismissed] = useState(false);
   const hasAccess = isAdmin || isEmployee;
   const combinedLoading = isLoading || employeeLoading || founderLoading;
 
@@ -82,6 +85,31 @@ const AdminLayout = () => {
   });
 
   useEffect(() => { setMobileNavOpen(false); }, [location.pathname]);
+
+  // Fetch recent error count (last hour)
+  useEffect(() => {
+    const fetchErrors = async () => {
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const { count } = await supabase
+        .from('activity_logs')
+        .select('*', { count: 'exact', head: true })
+        .eq('log_type', 'error')
+        .gte('created_at', oneHourAgo);
+      setRecentErrorCount(count || 0);
+    };
+    fetchErrors();
+
+    // Listen for new errors
+    const channel = supabase
+      .channel('admin-error-banner')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'activity_logs', filter: 'log_type=eq.error' }, () => {
+        setRecentErrorCount(prev => prev + 1);
+        setErrorBannerDismissed(false);
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   if (combinedLoading) {
     return (
@@ -279,6 +307,20 @@ const AdminLayout = () => {
             </>
           )}
         </AnimatePresence>
+
+        {/* Error banner */}
+        {recentErrorCount > 0 && !errorBannerDismissed && (
+          <div className="bg-destructive/10 border-b border-destructive/20 px-4 md:px-8 py-2 flex items-center justify-between">
+            <Link to="/admin/logs" className="flex items-center gap-2 text-sm text-destructive hover:underline">
+              <AlertTriangle className="w-4 h-4" />
+              <span className="font-medium">{recentErrorCount} {recentErrorCount === 1 ? 'fel' : 'fel'} senaste timmen</span>
+              <span className="text-destructive/70">→ Visa loggar</span>
+            </Link>
+            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-destructive hover:text-destructive" onClick={() => setErrorBannerDismissed(true)}>
+              <X className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        )}
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto">
