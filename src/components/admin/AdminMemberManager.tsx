@@ -113,6 +113,7 @@ const AdminMemberManager = ({ roleFilter = 'all', onStatsUpdate }: AdminMemberMa
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [page, setPage] = useState(0);
   const [assigningRole, setAssigningRole] = useState(false);
+  const [lastRoleChangeTime, setLastRoleChangeTime] = useState(0);
   const [editingUsername, setEditingUsername] = useState(false);
   const [newUsername, setNewUsername] = useState('');
 
