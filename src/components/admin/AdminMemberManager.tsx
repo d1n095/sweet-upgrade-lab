@@ -86,6 +86,7 @@ const ITEMS_PER_PAGE = 50;
 
 const AdminMemberManager = ({ roleFilter = 'all' }: AdminMemberManagerProps) => {
   const { language } = useLanguage();
+  const { isFounder } = useFounderRole();
   const [members, setMembers] = useState<Member[]>([]);
   const [userRoles, setUserRoles] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -97,6 +98,8 @@ const AdminMemberManager = ({ roleFilter = 'all' }: AdminMemberManagerProps) => 
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [page, setPage] = useState(0);
   const [assigningRole, setAssigningRole] = useState(false);
+  const [editingUsername, setEditingUsername] = useState(false);
+  const [newUsername, setNewUsername] = useState('');
 
   const content: Record<string, {
     title: string;
