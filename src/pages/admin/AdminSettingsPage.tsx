@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Settings, AlertTriangle, ShoppingCart, Wrench } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -6,34 +7,38 @@ import { Badge } from '@/components/ui/badge';
 import { useStoreSettings } from '@/stores/storeSettingsStore';
 
 const AdminSettingsPage = () => {
-  const { maintenanceMode, checkoutEnabled, setMaintenanceMode, setCheckoutEnabled } = useStoreSettings();
+  const { siteActive, checkoutEnabled, isLoaded, fetchSettings, setSiteActive, setCheckoutEnabled } = useStoreSettings();
+
+  useEffect(() => {
+    if (!isLoaded) fetchSettings();
+  }, [isLoaded, fetchSettings]);
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">Inställningar</h1>
-        <p className="text-muted-foreground text-sm mt-1">Butikinställningar och kontroller</p>
+        <p className="text-muted-foreground text-sm mt-1">Globala butikinställningar</p>
       </div>
 
       <div className="grid gap-4 max-w-xl">
-        {/* Maintenance Mode */}
+        {/* Site Active */}
         <Card className="border-border">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <Wrench className="w-4 h-4" />
-              Underhållsläge
-              {maintenanceMode && <Badge variant="destructive" className="text-xs">Aktivt</Badge>}
+              Sajtstatus
+              {!siteActive && <Badge variant="destructive" className="text-xs">Inaktiv</Badge>}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between">
               <div>
-                <Label className="text-sm">Sätt butiken i underhållsläge</Label>
+                <Label className="text-sm">Sajten aktiv</Label>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Besökare ser ett underhållsmeddelande istället för butiken
+                  Stäng av för att visa underhållssida för alla besökare
                 </p>
               </div>
-              <Switch checked={maintenanceMode} onCheckedChange={setMaintenanceMode} />
+              <Switch checked={siteActive} onCheckedChange={setSiteActive} />
             </div>
           </CardContent>
         </Card>
@@ -61,12 +66,12 @@ const AdminSettingsPage = () => {
         </Card>
       </div>
 
-      {(maintenanceMode || !checkoutEnabled) && (
+      {(!siteActive || !checkoutEnabled) && (
         <div className="flex items-center gap-3 p-4 rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 max-w-xl">
           <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
           <p className="text-sm">
-            {maintenanceMode && 'Butiken är i underhållsläge. '}
-            {!checkoutEnabled && 'Kassan är avstängd – kunder kan inte slutföra köp.'}
+            {!siteActive && 'Sajten är inaktiv — besökare ser underhållssidan. '}
+            {!checkoutEnabled && 'Kassan är avstängd — kunder kan inte slutföra köp.'}
           </p>
         </div>
       )}
