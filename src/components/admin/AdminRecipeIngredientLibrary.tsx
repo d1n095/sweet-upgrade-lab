@@ -106,6 +106,7 @@ const AdminRecipeIngredientLibrary = () => {
           updated_at: new Date().toISOString(),
         }).eq('id', editing.id);
         toast.success('Ingrediens uppdaterad!');
+        logIngredientChange('updated', form.name_sv, { category: form.category });
       } else {
         await supabase.from('recipe_ingredients').insert({
           name_sv: form.name_sv.trim(),
