@@ -477,6 +477,28 @@ export function AdminProductForm({
         />
       </div>
 
+      {/* Recipe */}
+      <div className="space-y-2">
+        <Label htmlFor="recipe">
+          {language === 'sv' ? 'Recept / Användningsinstruktioner' : 'Recipe / Usage Instructions'}
+        </Label>
+        <Textarea
+          id="recipe"
+          value={formData.recipe}
+          onChange={(e) => setFormData((prev) => ({ ...prev, recipe: e.target.value }))}
+          placeholder={language === 'sv'
+            ? 'Beskriv recept eller hur produkten används (visas automatiskt i produktbeskrivningen)...'
+            : 'Describe recipe or how to use the product (shown automatically in the product description)...'
+          }
+          rows={3}
+        />
+        <p className="text-xs text-muted-foreground">
+          {language === 'sv'
+            ? 'Visas automatiskt som en del av produktbeskrivningen på produktsidan.'
+            : 'Automatically shown as part of the product description on the product page.'}
+        </p>
+      </div>
+
       <div className="flex gap-2 pt-2">
         <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
           {t.cancel}

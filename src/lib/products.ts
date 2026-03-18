@@ -22,6 +22,9 @@ export interface DbProduct {
   ingredients_sv: string | null;
   ingredients_en: string | null;
   certifications: string[] | null;
+  currency: string;
+  recipe_sv: string | null;
+  recipe_en: string | null;
   created_at: string;
   updated_at: string;
 }
