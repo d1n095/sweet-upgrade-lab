@@ -166,6 +166,9 @@ const AdminDbProductManager = () => {
         display_order: product.display_order,
         ingredients_sv: product.ingredients_sv || null,
         certifications: product.certifications || null,
+        currency: product.currency || 'SEK',
+        recipe_sv: product.recipe_sv || null,
+        recipe_en: product.recipe_en || null,
       });
       toast.success(sv ? 'Produkt duplicerad!' : 'Product duplicated!');
       queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });
