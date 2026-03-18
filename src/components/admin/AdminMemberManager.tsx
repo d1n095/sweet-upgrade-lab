@@ -87,6 +87,8 @@ const ITEMS_PER_PAGE = 50;
 const AdminMemberManager = ({ roleFilter = 'all' }: AdminMemberManagerProps) => {
   const { language } = useLanguage();
   const { isFounder } = useFounderRole();
+  const { user } = useAuth();
+  const currentUserId = user?.id;
   const [members, setMembers] = useState<Member[]>([]);
   const [userRoles, setUserRoles] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
