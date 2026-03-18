@@ -16,7 +16,7 @@ import {
   ArrowUp, ArrowDown, Pencil, X,
   LayoutList, Clock, RefreshCw, Sparkles, Package, FolderOpen,
   Zap, Mail, Loader2, ChevronUp,
-  Home, Info, Phone,
+  Home, Phone, GripVertical,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -62,35 +62,35 @@ interface SiteUpdate {
 
 // ─── Module definitions ───
 const MODULES = [
-  { key: 'timeline', label: 'Vår Resa', icon: Clock, description: 'Milstolpar i företagets historia' },
-  { key: 'sections', label: 'Sidsektioner', icon: LayoutList, description: 'Redigera innehåll per sida' },
-  { key: 'updates', label: 'Nyheter', icon: Sparkles, description: 'Blogginlägg & uppdateringar' },
+  { key: 'timeline', label: 'Vår Resa', icon: Clock, description: 'Milstolpar' },
+  { key: 'homepage', label: 'Startsida', icon: Home, description: 'Sektioner & ordning' },
+  { key: 'contact', label: 'Kontakt', icon: Phone, description: 'Kontaktsidan' },
+  { key: 'updates', label: 'Nyheter', icon: Sparkles, description: 'Uppdateringar' },
   { key: 'email', label: 'E-post', icon: Mail, description: 'Välkomstmail' },
 ] as const;
 
 type ModuleKey = typeof MODULES[number]['key'];
 
-const PAGES = [
-  { value: 'about', label: 'Om oss', icon: Info },
-  { value: 'home', label: 'Startsidan', icon: Home },
-  { value: 'contact', label: 'Kontakt', icon: Phone },
+const MONTHS = [
+  { value: '', label: '—' },
+  { value: '01', label: 'Jan' }, { value: '02', label: 'Feb' }, { value: '03', label: 'Mar' },
+  { value: '04', label: 'Apr' }, { value: '05', label: 'Maj' }, { value: '06', label: 'Jun' },
+  { value: '07', label: 'Jul' }, { value: '08', label: 'Aug' }, { value: '09', label: 'Sep' },
+  { value: '10', label: 'Okt' }, { value: '11', label: 'Nov' }, { value: '12', label: 'Dec' },
 ];
 
 const ICON_OPTIONS = ['Leaf', 'Heart', 'Shield', 'Users', 'Award', 'Star', 'Sparkles', 'Globe'];
-const CORE_SECTIONS = ['hero', 'timeline', 'promise', 'values'];
 
 const AdminUnifiedContent = () => {
   const [activeModule, setActiveModule] = useState<ModuleKey>('timeline');
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-2xl font-semibold">Innehåll</h1>
         <p className="text-muted-foreground text-sm mt-1">Hantera hemsidans texter, tidslinje och nyheter</p>
       </div>
 
-      {/* Module switcher */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1">
         {MODULES.map(mod => {
           const Icon = mod.icon;
@@ -112,7 +112,6 @@ const AdminUnifiedContent = () => {
         })}
       </div>
 
-      {/* Module content */}
       <AnimatePresence mode="wait">
         <motion.div
           key={activeModule}
@@ -122,7 +121,8 @@ const AdminUnifiedContent = () => {
           transition={{ duration: 0.15 }}
         >
           {activeModule === 'timeline' && <TimelineModule />}
-          {activeModule === 'sections' && <SectionsModule />}
+          {activeModule === 'homepage' && <HomepageModule />}
+          {activeModule === 'contact' && <ContactModule />}
           {activeModule === 'updates' && <UpdatesModule />}
           {activeModule === 'email' && <EmailModule />}
         </motion.div>
@@ -132,14 +132,14 @@ const AdminUnifiedContent = () => {
 };
 
 // ═══════════════════════════════════════════════
-//  TIMELINE MODULE ("Vår Resa")
+//  TIMELINE MODULE
 // ═══════════════════════════════════════════════
 const TimelineModule = () => {
   const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ year: '', title: '', title_en: '', description: '', description_en: '' });
+  const [form, setForm] = useState({ year: '', month: '', title: '', description: '' });
   const [saving, setSaving] = useState(false);
 
   const fetchTimeline = useCallback(async () => {
@@ -151,19 +151,38 @@ const TimelineModule = () => {
 
   useEffect(() => { fetchTimeline(); }, [fetchTimeline]);
 
+  const parseYearMonth = (yearStr: string) => {
+    // Format: "2026" or "2026-03" or "Mars 2026"
+    const dashMatch = yearStr.match(/^(\d{4})-(\d{2})$/);
+    if (dashMatch) return { year: dashMatch[1], month: dashMatch[2] };
+    return { year: yearStr.replace(/\D/g, '').slice(0, 4) || yearStr, month: '' };
+  };
+
+  const formatYearMonth = (year: string, month: string) => {
+    if (!month) return year;
+    return `${year}-${month}`;
+  };
+
+  const displayYearMonth = (yearStr: string) => {
+    const { year, month } = parseYearMonth(yearStr);
+    if (!month) return year;
+    const m = MONTHS.find(m => m.value === month);
+    return m ? `${m.label} ${year}` : yearStr;
+  };
+
   const resetForm = () => {
-    setForm({ year: '', title: '', title_en: '', description: '', description_en: '' });
+    setForm({ year: '', month: '', title: '', description: '' });
     setEditingId(null);
     setShowForm(false);
   };
 
   const startEdit = (entry: TimelineEntry) => {
+    const { year, month } = parseYearMonth(entry.year);
     setForm({
-      year: entry.year,
+      year,
+      month,
       title: entry.title_sv,
-      title_en: entry.title_en || '',
       description: entry.description_sv || '',
-      description_en: entry.description_en || '',
     });
     setEditingId(entry.id);
     setShowForm(true);
@@ -173,12 +192,13 @@ const TimelineModule = () => {
     if (!form.year || !form.title) { toast.error('År och titel krävs'); return; }
     setSaving(true);
 
+    const yearValue = formatYearMonth(form.year, form.month);
     const payload = {
-      year: form.year,
+      year: yearValue,
       title_sv: form.title,
-      title_en: form.title_en || form.title,
+      title_en: form.title, // Same as SV, will be auto-translated publicly
       description_sv: form.description || null,
-      description_en: form.description_en || form.description || null,
+      description_en: form.description || null,
     };
 
     if (editingId) {
@@ -237,29 +257,28 @@ const TimelineModule = () => {
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
             <Card className="border-primary/20">
               <CardContent className="pt-4 space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <div>
                     <Label className="text-xs">År *</Label>
                     <Input value={form.year} onChange={e => setForm({ ...form, year: e.target.value })} placeholder="2026" className="h-9" />
                   </div>
                   <div>
-                    <Label className="text-xs">Titel (SV) *</Label>
+                    <Label className="text-xs">Månad</Label>
+                    <Select value={form.month} onValueChange={v => setForm({ ...form, month: v })}>
+                      <SelectTrigger className="h-9"><SelectValue placeholder="Valfritt" /></SelectTrigger>
+                      <SelectContent>
+                        {MONTHS.map(m => <SelectItem key={m.value || 'none'} value={m.value || 'none'}>{m.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="col-span-2">
+                    <Label className="text-xs">Titel *</Label>
                     <Input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="Vad hände?" className="h-9" />
                   </div>
-                  <div>
-                    <Label className="text-xs">Titel (EN)</Label>
-                    <Input value={form.title_en} onChange={e => setForm({ ...form, title_en: e.target.value })} placeholder="English title" className="h-9" />
-                  </div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-xs">Beskrivning (SV)</Label>
-                    <Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={2} placeholder="Kort beskrivning..." />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Description (EN)</Label>
-                    <Textarea value={form.description_en} onChange={e => setForm({ ...form, description_en: e.target.value })} rows={2} placeholder="Short description..." />
-                  </div>
+                <div>
+                  <Label className="text-xs">Beskrivning</Label>
+                  <Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={2} placeholder="Kort beskrivning..." />
                 </div>
                 <div className="flex gap-2">
                   <Button size="sm" onClick={saveEntry} disabled={saving} className="gap-1.5">
@@ -292,10 +311,11 @@ const TimelineModule = () => {
                 <button onClick={() => moveEntry(entry.id, 'up')} disabled={idx === 0} className="text-muted-foreground hover:text-foreground disabled:opacity-20 p-0.5"><ArrowUp className="w-3 h-3" /></button>
                 <button onClick={() => moveEntry(entry.id, 'down')} disabled={idx === timeline.length - 1} className="text-muted-foreground hover:text-foreground disabled:opacity-20 p-0.5"><ArrowDown className="w-3 h-3" /></button>
               </div>
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary text-sm shrink-0">{entry.year}</div>
+              <div className="w-14 h-10 rounded-lg bg-primary/10 flex items-center justify-center font-bold text-primary text-xs shrink-0">
+                {displayYearMonth(entry.year)}
+              </div>
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-sm truncate">{entry.title_sv}</p>
-                {entry.title_en && <p className="text-xs text-muted-foreground truncate">{entry.title_en}</p>}
                 {entry.description_sv && <p className="text-xs text-muted-foreground/70 truncate mt-0.5">{entry.description_sv}</p>}
               </div>
               <div className="flex items-center gap-1 shrink-0">
@@ -312,13 +332,110 @@ const TimelineModule = () => {
 };
 
 // ═══════════════════════════════════════════════
-//  SECTIONS MODULE
+//  HOMEPAGE MODULE (Startsida - sektionsordning)
 // ═══════════════════════════════════════════════
-const SectionsModule = () => {
-  const [selectedPage, setSelectedPage] = useState('about');
+const HOMEPAGE_BLOCK_LABELS: Record<string, string> = {
+  hero: 'Hero-banner',
+  philosophy: 'Vår filosofi',
+  about_compact: 'Om oss (kompakt)',
+  bestsellers: 'Populära produkter',
+  reviews: 'Kundrecensioner',
+  contact: 'Kontakt-sektion',
+  sustainability: 'Hållbarhet',
+  new_products: 'Nya produkter',
+  values: 'Våra värderingar',
+  timeline: 'Vår resa (tidslinje)',
+};
+
+const HomepageModule = () => {
   const [sections, setSections] = useState<PageSection[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const fetchSections = useCallback(async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from('page_sections')
+      .select('*')
+      .eq('page', 'home')
+      .order('display_order', { ascending: true });
+    if (data) setSections(data as unknown as PageSection[]);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchSections(); }, [fetchSections]);
+
+  const toggleVisibility = async (section: PageSection) => {
+    await supabase.from('page_sections').update({ is_visible: !section.is_visible } as any).eq('id', section.id);
+    setSections(prev => prev.map(s => s.id === section.id ? { ...s, is_visible: !s.is_visible } : s));
+    toast.success(section.is_visible ? 'Dold från startsidan' : 'Synlig på startsidan');
+  };
+
+  const moveSection = async (id: string, direction: 'up' | 'down') => {
+    const idx = sections.findIndex(s => s.id === id);
+    if ((direction === 'up' && idx === 0) || (direction === 'down' && idx === sections.length - 1)) return;
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+    const a = sections[idx], b = sections[swapIdx];
+    await Promise.all([
+      supabase.from('page_sections').update({ display_order: b.display_order } as any).eq('id', a.id),
+      supabase.from('page_sections').update({ display_order: a.display_order } as any).eq('id', b.id),
+    ]);
+    fetchSections();
+  };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-lg font-semibold">Startsidans sektioner</h2>
+        <p className="text-sm text-muted-foreground">Välj vilka sektioner som visas och i vilken ordning</p>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-8"><RefreshCw className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+      ) : sections.length === 0 ? (
+        <p className="text-center text-muted-foreground py-8">Inga sektioner hittades. Kontrollera att page_sections har rader med page='home'.</p>
+      ) : (
+        <div className="space-y-1.5 max-w-xl">
+          {sections.map((section, idx) => {
+            const label = HOMEPAGE_BLOCK_LABELS[section.section_key] || section.title_sv || section.section_key;
+            return (
+              <div
+                key={section.id}
+                className={`flex items-center gap-3 p-3 rounded-xl border border-border bg-card transition-opacity ${!section.is_visible ? 'opacity-40' : ''}`}
+              >
+                <div className="flex flex-col gap-0.5">
+                  <button onClick={() => moveSection(section.id, 'up')} disabled={idx === 0} className="text-muted-foreground hover:text-foreground disabled:opacity-20 p-0.5"><ArrowUp className="w-3 h-3" /></button>
+                  <button onClick={() => moveSection(section.id, 'down')} disabled={idx === sections.length - 1} className="text-muted-foreground hover:text-foreground disabled:opacity-20 p-0.5"><ArrowDown className="w-3 h-3" /></button>
+                </div>
+                <GripVertical className="w-4 h-4 text-muted-foreground/40" />
+                <div className="w-7 h-7 rounded-lg bg-secondary flex items-center justify-center text-xs font-bold text-muted-foreground shrink-0">{idx + 1}</div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm">{label}</p>
+                  <p className="text-[11px] text-muted-foreground font-mono">{section.section_key}</p>
+                </div>
+                <Switch checked={section.is_visible} onCheckedChange={() => toggleVisibility(section)} />
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════
+//  CONTACT MODULE (Kontaktsidan)
+// ═══════════════════════════════════════════════
+const CONTACT_SECTION_LABELS: Record<string, { label: string; desc: string }> = {
+  heading: { label: 'Rubrik & undertext', desc: 'Sidans huvudrubrik och beskrivning' },
+  form: { label: 'Kontaktformulär', desc: 'Formulärets rubrik' },
+  info: { label: 'Kontaktuppgifter', desc: 'E-post, svarstid etc.' },
+  faq_link: { label: 'FAQ-länk', desc: 'Kort text + länk till vanliga frågor' },
+};
+
+const ContactModule = () => {
+  const [sections, setSections] = useState<PageSection[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [editForms, setEditForms] = useState<Record<string, Partial<PageSection>>>({});
   const [dirtyIds, setDirtyIds] = useState<Set<string>>(new Set());
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -328,9 +445,8 @@ const SectionsModule = () => {
     const { data } = await supabase
       .from('page_sections')
       .select('*')
-      .eq('page', selectedPage)
+      .eq('page', 'contact')
       .order('display_order', { ascending: true });
-
     if (data) {
       const typed = data as unknown as PageSection[];
       setSections(typed);
@@ -340,7 +456,7 @@ const SectionsModule = () => {
       setDirtyIds(new Set());
     }
     setLoading(false);
-  }, [selectedPage]);
+  }, []);
 
   useEffect(() => { fetchSections(); }, [fetchSections]);
 
@@ -360,191 +476,84 @@ const SectionsModule = () => {
     if (!form) return;
     setSavingId(id);
 
-    const { error } = await supabase.from('page_sections').update({
+    await supabase.from('page_sections').update({
       title_sv: form.title_sv,
-      title_en: form.title_en,
+      title_en: form.title_sv, // Auto-copy SV to EN as fallback
       content_sv: form.content_sv,
-      content_en: form.content_en,
-      icon: form.icon,
+      content_en: form.content_sv,
     } as any).eq('id', id);
-    
+
     setSavingId(null);
-    if (error) { toast.error('Kunde inte spara'); return; }
     toast.success('Sparad');
     setDirtyIds(prev => { const n = new Set(prev); n.delete(id); return n; });
     fetchSections();
   };
 
-  const moveSection = async (id: string, direction: 'up' | 'down') => {
-    const idx = sections.findIndex(s => s.id === id);
-    if ((direction === 'up' && idx === 0) || (direction === 'down' && idx === sections.length - 1)) return;
-    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
-    const a = sections[idx], b = sections[swapIdx];
-    await Promise.all([
-      supabase.from('page_sections').update({ display_order: b.display_order } as any).eq('id', a.id),
-      supabase.from('page_sections').update({ display_order: a.display_order } as any).eq('id', b.id),
-    ]);
-    fetchSections();
-  };
-
-  const addSection = async () => {
-    const key = `custom_${Date.now()}`;
-    await supabase.from('page_sections').insert({
-      page: selectedPage, section_key: key,
-      title_sv: 'Ny sektion', title_en: 'New section',
-      content_sv: '', content_en: '', is_visible: false,
-      display_order: sections.length,
-    } as any);
-    toast.success('Ny sektion skapad');
-    fetchSections();
-  };
-
-  const deleteSection = async (id: string, key: string) => {
-    if (CORE_SECTIONS.includes(key)) { toast.error('Kan inte radera standardsektioner'); return; }
-    if (!confirm('Ta bort denna sektion?')) return;
-    await supabase.from('page_sections').delete().eq('id', id);
-    toast.success('Raderad');
-    fetchSections();
-  };
-
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-2">
-          {PAGES.map(p => {
-            const Icon = p.icon;
-            return (
-              <button
-                key={p.value}
-                onClick={() => setSelectedPage(p.value)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                  selectedPage === p.value
-                    ? 'bg-secondary text-foreground font-medium'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                {p.label}
-              </button>
-            );
-          })}
-        </div>
-        <Button size="sm" variant="outline" onClick={addSection} className="gap-1 h-8 text-xs">
-          <Plus className="w-3.5 h-3.5" /> Ny sektion
-        </Button>
+      <div>
+        <h2 className="text-lg font-semibold">Kontaktsidan</h2>
+        <p className="text-sm text-muted-foreground">Anpassa rubrik, formulär och kontaktinformation</p>
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-12"><RefreshCw className="w-6 h-6 animate-spin text-muted-foreground" /></div>
-      ) : sections.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">
-          <LayoutList className="w-10 h-10 mx-auto mb-3 opacity-30" />
-          <p className="text-sm">Inga sektioner ännu.</p>
-          <Button size="sm" variant="outline" className="mt-3 gap-1" onClick={addSection}>
-            <Plus className="w-3.5 h-3.5" /> Skapa första sektionen
-          </Button>
-        </div>
+        <div className="flex justify-center py-8"><RefreshCw className="w-5 h-5 animate-spin text-muted-foreground" /></div>
       ) : (
-        <div className="space-y-2">
-          {sections.map((section, idx) => {
-            const isExpanded = expandedId === section.id;
+        <div className="space-y-3 max-w-xl">
+          {sections.map(section => {
+            const meta = CONTACT_SECTION_LABELS[section.section_key] || { label: section.section_key, desc: '' };
+            const isExpanded = editingId === section.id;
             const isDirty = dirtyIds.has(section.id);
             const form = editForms[section.id] || {};
-            const isCore = CORE_SECTIONS.includes(section.section_key);
             const isSaving = savingId === section.id;
 
             return (
-              <motion.div key={section.id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.03 }}>
-                <Card className={`transition-all ${!section.is_visible ? 'opacity-50 border-dashed' : ''} ${isExpanded ? 'ring-1 ring-primary/30' : ''}`}>
-                  <div className="flex items-center gap-2 p-3">
-                    <div className="flex flex-col gap-0.5">
-                      <button onClick={() => moveSection(section.id, 'up')} disabled={idx === 0} className="text-muted-foreground hover:text-foreground disabled:opacity-20 p-0.5">
-                        <ArrowUp className="w-3.5 h-3.5" />
-                      </button>
-                      <button onClick={() => moveSection(section.id, 'down')} disabled={idx === sections.length - 1} className="text-muted-foreground hover:text-foreground disabled:opacity-20 p-0.5">
-                        <ArrowDown className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                    <div className="w-7 h-7 rounded-lg bg-secondary flex items-center justify-center text-xs font-bold text-muted-foreground shrink-0">{idx + 1}</div>
-                    <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setExpandedId(isExpanded ? null : section.id)}>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm truncate">{(form.title_sv as string) || section.section_key}</span>
-                        <Badge variant="outline" className="text-[10px] font-mono shrink-0">{section.section_key}</Badge>
-                        {isCore && <Badge variant="secondary" className="text-[9px] shrink-0">System</Badge>}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      {isDirty && (
-                        <Button size="sm" variant="default" className="h-7 text-xs gap-1" onClick={() => saveSection(section.id)} disabled={isSaving}>
-                          {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                          Spara
-                        </Button>
-                      )}
-                      <Switch checked={section.is_visible} onCheckedChange={() => toggleVisibility(section)} />
-                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setExpandedId(isExpanded ? null : section.id)}>
-                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <Pencil className="w-4 h-4" />}
-                      </Button>
-                      {!isCore && (
-                        <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => deleteSection(section.id, section.section_key)}>
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      )}
-                    </div>
+              <Card key={section.id} className={`transition-all ${!section.is_visible ? 'opacity-50 border-dashed' : ''} ${isExpanded ? 'ring-1 ring-primary/30' : ''}`}>
+                <div className="flex items-center gap-3 p-3">
+                  <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setEditingId(isExpanded ? null : section.id)}>
+                    <p className="font-medium text-sm">{meta.label}</p>
+                    <p className="text-xs text-muted-foreground">{meta.desc}</p>
                   </div>
-
-                  <AnimatePresence>
-                    {isExpanded && (
-                      <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                        <CardContent className="pt-0 pb-4 px-4 border-t border-border/50 mt-0 space-y-4">
-                          {(section.section_key.startsWith('value_') || section.section_key === 'promise') && (
-                            <div>
-                              <Label className="text-xs text-muted-foreground mb-1.5 block">Ikon</Label>
-                              <div className="flex flex-wrap gap-1.5">
-                                {ICON_OPTIONS.map(icon => (
-                                  <button key={icon} onClick={() => updateField(section.id, 'icon', icon)} className={`px-2.5 py-1 rounded-md text-xs border transition-colors ${form.icon === icon ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary/50 border-border text-muted-foreground hover:border-primary/50'}`}>
-                                    {icon}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-3">
-                              <div>
-                                <Label className="text-xs text-muted-foreground mb-1 block">Titel (SV)</Label>
-                                <Input value={(form.title_sv as string) || ''} onChange={e => updateField(section.id, 'title_sv', e.target.value)} />
-                              </div>
-                              <div>
-                                <Label className="text-xs text-muted-foreground mb-1 block">Innehåll (SV)</Label>
-                                <Textarea rows={4} value={(form.content_sv as string) || ''} onChange={e => updateField(section.id, 'content_sv', e.target.value)} />
-                              </div>
-                            </div>
-                            <div className="space-y-3">
-                              <div>
-                                <Label className="text-xs text-muted-foreground mb-1 block">Title (EN)</Label>
-                                <Input value={(form.title_en as string) || ''} onChange={e => updateField(section.id, 'title_en', e.target.value)} />
-                              </div>
-                              <div>
-                                <Label className="text-xs text-muted-foreground mb-1 block">Content (EN)</Label>
-                                <Textarea rows={4} value={(form.content_en as string) || ''} onChange={e => updateField(section.id, 'content_en', e.target.value)} />
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex justify-end gap-2 pt-2">
-                            <Button size="sm" variant="outline" onClick={() => setExpandedId(null)} className="gap-1"><X className="w-3 h-3" /> Stäng</Button>
-                            {isDirty && (
-                              <Button size="sm" onClick={() => saveSection(section.id)} disabled={isSaving} className="gap-1">
-                                {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                                Spara ändringar
-                              </Button>
-                            )}
-                          </div>
-                        </CardContent>
-                      </motion.div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {isDirty && (
+                      <Button size="sm" variant="default" className="h-7 text-xs gap-1" onClick={() => saveSection(section.id)} disabled={isSaving}>
+                        {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                        Spara
+                      </Button>
                     )}
-                  </AnimatePresence>
-                </Card>
-              </motion.div>
+                    <Switch checked={section.is_visible} onCheckedChange={() => toggleVisibility(section)} />
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditingId(isExpanded ? null : section.id)}>
+                      {isExpanded ? <ChevronUp className="w-4 h-4" /> : <Pencil className="w-4 h-4" />}
+                    </Button>
+                  </div>
+                </div>
+
+                <AnimatePresence>
+                  {isExpanded && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                      <CardContent className="pt-0 pb-4 px-4 border-t border-border/50 space-y-3">
+                        <div>
+                          <Label className="text-xs text-muted-foreground mb-1 block">Titel</Label>
+                          <Input value={(form.title_sv as string) || ''} onChange={e => updateField(section.id, 'title_sv', e.target.value)} />
+                        </div>
+                        <div>
+                          <Label className="text-xs text-muted-foreground mb-1 block">Innehåll / Beskrivning</Label>
+                          <Textarea rows={3} value={(form.content_sv as string) || ''} onChange={e => updateField(section.id, 'content_sv', e.target.value)} />
+                        </div>
+                        <div className="flex justify-end gap-2 pt-1">
+                          <Button size="sm" variant="outline" onClick={() => setEditingId(null)} className="gap-1"><X className="w-3 h-3" /> Stäng</Button>
+                          {isDirty && (
+                            <Button size="sm" onClick={() => saveSection(section.id)} disabled={isSaving} className="gap-1">
+                              {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                              Spara
+                            </Button>
+                          )}
+                        </div>
+                      </CardContent>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </Card>
             );
           })}
         </div>
@@ -563,7 +572,7 @@ const UpdatesModule = () => {
   const [editingUpdate, setEditingUpdate] = useState<SiteUpdate | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
-    title_sv: '', title_en: '', description_sv: '', description_en: '',
+    title_sv: '', description_sv: '',
     update_type: 'general', image_url: '', is_published: true,
   });
 
@@ -583,7 +592,7 @@ const UpdatesModule = () => {
   };
 
   const resetForm = () => {
-    setFormData({ title_sv: '', title_en: '', description_sv: '', description_en: '', update_type: 'general', image_url: '', is_published: true });
+    setFormData({ title_sv: '', description_sv: '', update_type: 'general', image_url: '', is_published: true });
     setEditingUpdate(null);
   };
 
@@ -591,9 +600,7 @@ const UpdatesModule = () => {
     setEditingUpdate(update);
     setFormData({
       title_sv: update.title_sv,
-      title_en: update.title_en || '',
       description_sv: update.description_sv || '',
-      description_en: update.description_en || '',
       update_type: update.update_type,
       image_url: update.image_url || '',
       is_published: update.is_published,
@@ -607,9 +614,9 @@ const UpdatesModule = () => {
     try {
       const payload = {
         title_sv: formData.title_sv,
-        title_en: formData.title_en || formData.title_sv,
+        title_en: formData.title_sv, // Fallback
         description_sv: formData.description_sv || null,
-        description_en: formData.description_en || formData.description_sv || null,
+        description_en: formData.description_sv || null,
         update_type: formData.update_type,
         image_url: formData.image_url || null,
         is_published: formData.is_published,
@@ -692,25 +699,13 @@ const UpdatesModule = () => {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Titel (SV) *</Label>
-                <Input value={formData.title_sv} onChange={e => setFormData(p => ({ ...p, title_sv: e.target.value }))} placeholder="Nyhet..." />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Title (EN)</Label>
-                <Input value={formData.title_en} onChange={e => setFormData(p => ({ ...p, title_en: e.target.value }))} placeholder="News..." />
-              </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Titel *</Label>
+              <Input value={formData.title_sv} onChange={e => setFormData(p => ({ ...p, title_sv: e.target.value }))} placeholder="Nyhet..." />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Beskrivning (SV)</Label>
-                <Textarea value={formData.description_sv} onChange={e => setFormData(p => ({ ...p, description_sv: e.target.value }))} placeholder="Beskrivning..." rows={3} />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Description (EN)</Label>
-                <Textarea value={formData.description_en} onChange={e => setFormData(p => ({ ...p, description_en: e.target.value }))} placeholder="Description..." rows={3} />
-              </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Beskrivning</Label>
+              <Textarea value={formData.description_sv} onChange={e => setFormData(p => ({ ...p, description_sv: e.target.value }))} placeholder="Beskrivning..." rows={3} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
@@ -753,12 +748,7 @@ const EmailModule = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [form, setForm] = useState({
-    subject_sv: '', subject_en: '',
-    greeting_sv: '', greeting_en: '',
-    intro_sv: '', intro_en: '',
-    benefits_sv: '', benefits_en: '',
-    cta_sv: '', cta_en: '',
-    footer_sv: '', footer_en: '',
+    subject: '', greeting: '', intro: '', benefits: '', cta: '', footer: '',
   });
 
   useEffect(() => {
@@ -767,12 +757,12 @@ const EmailModule = () => {
       if (data) {
         setTemplate(data);
         setForm({
-          subject_sv: data.subject_sv || '', subject_en: data.subject_en || '',
-          greeting_sv: data.greeting_sv || '', greeting_en: data.greeting_en || '',
-          intro_sv: data.intro_sv || '', intro_en: data.intro_en || '',
-          benefits_sv: (data.benefits_sv || []).join('\n'), benefits_en: (data.benefits_en || []).join('\n'),
-          cta_sv: data.cta_text_sv || '', cta_en: data.cta_text_en || '',
-          footer_sv: data.footer_sv || '', footer_en: data.footer_en || '',
+          subject: data.subject_sv || '',
+          greeting: data.greeting_sv || '',
+          intro: data.intro_sv || '',
+          benefits: (data.benefits_sv || []).join('\n'),
+          cta: data.cta_text_sv || '',
+          footer: data.footer_sv || '',
         });
       }
       setIsLoading(false);
@@ -784,16 +774,15 @@ const EmailModule = () => {
     if (!template) return;
     setIsSaving(true);
     try {
-      const benefitsSv = form.benefits_sv.split('\n').filter(b => b.trim());
-      const benefitsEn = form.benefits_en.split('\n').filter(b => b.trim());
+      const benefitsList = form.benefits.split('\n').filter(b => b.trim());
 
       await supabase.from('email_templates').update({
-        subject_sv: form.subject_sv, subject_en: form.subject_en || form.subject_sv,
-        greeting_sv: form.greeting_sv, greeting_en: form.greeting_en || form.greeting_sv,
-        intro_sv: form.intro_sv, intro_en: form.intro_en || form.intro_sv,
-        benefits_sv: benefitsSv, benefits_en: benefitsEn.length > 0 ? benefitsEn : benefitsSv,
-        cta_text_sv: form.cta_sv, cta_text_en: form.cta_en || form.cta_sv,
-        footer_sv: form.footer_sv, footer_en: form.footer_en || form.footer_sv,
+        subject_sv: form.subject, subject_en: form.subject,
+        greeting_sv: form.greeting, greeting_en: form.greeting,
+        intro_sv: form.intro, intro_en: form.intro,
+        benefits_sv: benefitsList, benefits_en: benefitsList,
+        cta_text_sv: form.cta, cta_text_en: form.cta,
+        footer_sv: form.footer, footer_en: form.footer,
       }).eq('template_type', 'welcome');
 
       toast.success('Mall sparad!');
@@ -804,12 +793,12 @@ const EmailModule = () => {
   if (isLoading) return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
 
   const fields = [
-    { key: 'subject', label: 'Ämnesrad / Subject', type: 'input' as const },
-    { key: 'greeting', label: 'Hälsning / Greeting', type: 'input' as const },
-    { key: 'intro', label: 'Introduktion / Introduction', type: 'textarea' as const },
-    { key: 'benefits', label: 'Fördelar / Benefits (en per rad)', type: 'textarea' as const },
-    { key: 'cta', label: 'Knapptext / Button text', type: 'input' as const },
-    { key: 'footer', label: 'Avslutning / Footer', type: 'input' as const },
+    { key: 'subject', label: 'Ämnesrad', type: 'input' as const },
+    { key: 'greeting', label: 'Hälsning', type: 'input' as const },
+    { key: 'intro', label: 'Introduktion', type: 'textarea' as const },
+    { key: 'benefits', label: 'Fördelar (en per rad)', type: 'textarea' as const },
+    { key: 'cta', label: 'Knapptext', type: 'input' as const },
+    { key: 'footer', label: 'Avslutning', type: 'input' as const },
   ];
 
   return (
@@ -817,7 +806,7 @@ const EmailModule = () => {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold">Välkomstmail</h2>
-          <p className="text-sm text-muted-foreground">Anpassa välkomstmailet — fyll i SV och EN</p>
+          <p className="text-sm text-muted-foreground">Anpassa välkomstmailet som skickas till nya medlemmar</p>
         </div>
         <Button size="sm" onClick={handleSave} disabled={isSaving} className="gap-1.5">
           {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
@@ -825,62 +814,45 @@ const EmailModule = () => {
         </Button>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3 max-w-xl">
         {fields.map(field => (
-          <div key={field.key} className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">{field.label.split(' / ')[0]} (SV)</Label>
-              {field.type === 'input' ? (
-                <Input
-                  value={(form as any)[`${field.key}_sv`]}
-                  onChange={e => setForm(p => ({ ...p, [`${field.key}_sv`]: e.target.value }))}
-                />
-              ) : (
-                <Textarea
-                  value={(form as any)[`${field.key}_sv`]}
-                  onChange={e => setForm(p => ({ ...p, [`${field.key}_sv`]: e.target.value }))}
-                  rows={field.key === 'benefits' ? 4 : 3}
-                />
-              )}
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">{field.label.split(' / ')[1] || 'EN'} (EN)</Label>
-              {field.type === 'input' ? (
-                <Input
-                  value={(form as any)[`${field.key}_en`]}
-                  onChange={e => setForm(p => ({ ...p, [`${field.key}_en`]: e.target.value }))}
-                />
-              ) : (
-                <Textarea
-                  value={(form as any)[`${field.key}_en`]}
-                  onChange={e => setForm(p => ({ ...p, [`${field.key}_en`]: e.target.value }))}
-                  rows={field.key === 'benefits' ? 4 : 3}
-                />
-              )}
-            </div>
+          <div key={field.key} className="space-y-1">
+            <Label className="text-xs text-muted-foreground">{field.label}</Label>
+            {field.type === 'input' ? (
+              <Input
+                value={(form as any)[field.key]}
+                onChange={e => setForm(p => ({ ...p, [field.key]: e.target.value }))}
+              />
+            ) : (
+              <Textarea
+                value={(form as any)[field.key]}
+                onChange={e => setForm(p => ({ ...p, [field.key]: e.target.value }))}
+                rows={field.key === 'benefits' ? 4 : 3}
+              />
+            )}
           </div>
         ))}
       </div>
 
-      {/* Simple preview */}
-      <Card className="bg-muted/20">
+      {/* Preview */}
+      <Card className="bg-muted/20 max-w-xl">
         <CardContent className="pt-4 space-y-3">
-          <p className="text-xs font-medium text-muted-foreground">Förhandsgranskning (SV)</p>
+          <p className="text-xs font-medium text-muted-foreground">Förhandsgranskning</p>
           <div className="bg-card rounded-lg p-4 space-y-3 border border-border">
-            <p className="text-xs text-muted-foreground">Ämne: <span className="font-medium text-foreground">{form.subject_sv}</span></p>
-            <div className="bg-primary text-primary-foreground rounded-lg p-3 text-center text-sm font-medium">{form.greeting_sv}</div>
-            <p className="text-sm text-muted-foreground">{form.intro_sv}</p>
-            {form.benefits_sv && (
+            <p className="text-xs text-muted-foreground">Ämne: <span className="font-medium text-foreground">{form.subject}</span></p>
+            <div className="bg-primary text-primary-foreground rounded-lg p-3 text-center text-sm font-medium">{form.greeting}</div>
+            <p className="text-sm text-muted-foreground">{form.intro}</p>
+            {form.benefits && (
               <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-2.5">
-                {form.benefits_sv.split('\n').filter(b => b.trim()).map((b, i) => (
+                {form.benefits.split('\n').filter(b => b.trim()).map((b, i) => (
                   <p key={i} className="text-xs text-green-700 dark:text-green-300">{b}</p>
                 ))}
               </div>
             )}
             <div className="text-center">
-              <span className="inline-block bg-primary text-primary-foreground px-5 py-1.5 rounded-lg text-xs font-medium">{form.cta_sv} →</span>
+              <span className="inline-block bg-primary text-primary-foreground px-5 py-1.5 rounded-lg text-xs font-medium">{form.cta} →</span>
             </div>
-            <p className="text-xs text-center text-muted-foreground border-t pt-2">{form.footer_sv}</p>
+            <p className="text-xs text-center text-muted-foreground border-t pt-2">{form.footer}</p>
           </div>
         </CardContent>
       </Card>
