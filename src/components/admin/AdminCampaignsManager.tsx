@@ -2,8 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, Trash2, Save, RefreshCw, Percent, Package, Tag,
-  Pencil, X, Sparkles, Loader2, ShoppingBag,
+  Pencil, X, Sparkles, Loader2, ShoppingBag, Calendar,
 } from 'lucide-react';
+import { format } from 'date-fns';
+import { sv } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
