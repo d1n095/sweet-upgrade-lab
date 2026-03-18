@@ -77,13 +77,14 @@ serve(async (req) => {
     const shippingCost = subtotal >= freeShippingThreshold ? 0 : 39;
     const totalAmount = subtotal + shippingCost;
 
-    // 3. Create order with status "pending"
+    // 3. Create order with status "pending", payment_status "unpaid"
     const orderData = {
       order_email: email,
       user_id: '00000000-0000-0000-0000-000000000000',
       total_amount: totalAmount,
       currency: 'SEK',
       status: 'pending',
+      payment_status: 'unpaid',
       items: items.map((i: any) => ({
         id: i.id,
         title: i.title,
@@ -99,7 +100,7 @@ serve(async (req) => {
         country: shipping?.country || 'SE',
         phone: shipping?.phone || '',
       },
-      status_history: [{ status: 'pending', timestamp: new Date().toISOString(), note: 'Order created, stock reserved, awaiting payment' }],
+      status_history: [{ status: 'pending', timestamp: new Date().toISOString(), note: 'Order created — payment_status: unpaid, stock reserved' }],
       notes: '',
     };
 

@@ -97,14 +97,15 @@ serve(async (req) => {
       return ok({ received: true, duplicate: true, method: 'status_check' });
     }
 
-    // Update status to confirmed + store payment_intent_id
+    // Update status to confirmed + payment_status to paid + store payment_intent_id
     const history = Array.isArray(order.status_history) ? [...order.status_history] : [];
-    history.push({ status: 'confirmed', timestamp: new Date().toISOString(), note: 'Payment confirmed via Stripe' });
+    history.push({ status: 'confirmed', timestamp: new Date().toISOString(), note: 'Payment confirmed via Stripe — payment_status: paid' });
 
     const { error: updateError } = await supabase
       .from('orders')
       .update({
         status: 'confirmed',
+        payment_status: 'paid',
         status_history: history,
         total_amount: (session.amount_total || 0) / 100,
         stripe_session_id: session.id,
@@ -187,7 +188,7 @@ serve(async (req) => {
 
         await supabase
           .from('orders')
-          .update({ status: 'failed', status_history: history })
+          .update({ status: 'failed', payment_status: 'failed', status_history: history })
           .eq('id', orderId);
 
         await logEvent(supabase, 'warning', 'payment', 'Payment expired — reserved stock released', { stripe_session: session.id }, orderId);
