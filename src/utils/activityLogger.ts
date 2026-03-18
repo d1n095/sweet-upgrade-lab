@@ -1,7 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 
 type LogType = 'info' | 'success' | 'error' | 'warning';
-type LogCategory = 'order' | 'admin' | 'system' | 'payment' | 'product' | 'auth' | 'security';
+type LogCategory = 'order' | 'admin' | 'system' | 'payment' | 'product' | 'auth' | 'security' | 'shipping' | 'campaign' | 'ingredient' | 'recipe';
 
 interface LogEntry {
   log_type: LogType;
@@ -32,20 +32,20 @@ export const logActivity = async (entry: LogEntry) => {
 };
 
 // Login/logout tracking
-export const logAuthEvent = async (action: 'login' | 'logout' | 'login_failed', email?: string, details?: Record<string, any>) => {
+export const logAuthEvent = async (action: 'login' | 'logout' | 'login_failed' | 'signup' | 'password_reset', email?: string, details?: Record<string, any>) => {
+  const messages: Record<string, string> = {
+    login: `Inloggning: ${email}`,
+    logout: `Utloggning: ${email}`,
+    login_failed: `Misslyckad inloggning: ${email}`,
+    signup: `Ny registrering: ${email}`,
+    password_reset: `Lösenordsåterställning: ${email}`,
+  };
   try {
     await supabase.from('activity_logs').insert({
       log_type: action === 'login_failed' ? 'warning' : 'info',
       category: 'auth',
-      message: action === 'login' ? `Inloggning: ${email}` 
-        : action === 'logout' ? `Utloggning: ${email}`
-        : `Misslyckad inloggning: ${email}`,
-      details: {
-        action,
-        email,
-        ...(details || {}),
-        timestamp: new Date().toISOString(),
-      },
+      message: messages[action] || action,
+      details: { action, email, ...(details || {}), timestamp: new Date().toISOString() },
     });
   } catch (e) {
     console.error('Failed to log auth event:', e);
@@ -65,6 +65,7 @@ export const logSecurityEvent = async (message: string, details?: Record<string,
         user_id: user?.id || null,
         user_email: user?.email || null,
         timestamp: new Date().toISOString(),
+        user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
       },
     });
   } catch (e) {
@@ -80,4 +81,42 @@ export const logSettingsChange = async (setting: string, oldValue: any, newValue
     message: `Inställning ändrad: ${setting}`,
     details: { setting, old_value: oldValue, new_value: newValue },
   });
+};
+
+// Product changes
+export const logProductChange = async (action: 'created' | 'updated' | 'deleted' | 'visibility_changed', productName: string, details?: Record<string, any>) => {
+  const messages: Record<string, string> = {
+    created: `Produkt skapad: ${productName}`,
+    updated: `Produkt uppdaterad: ${productName}`,
+    deleted: `Produkt borttagen: ${productName}`,
+    visibility_changed: `Produktsynlighet ändrad: ${productName}`,
+  };
+  await logActivity({ log_type: action === 'deleted' ? 'warning' : 'info', category: 'product', message: messages[action], details });
+};
+
+// Ingredient changes
+export const logIngredientChange = async (action: 'created' | 'updated' | 'deleted', name: string, details?: Record<string, any>) => {
+  await logActivity({ log_type: 'info', category: 'ingredient', message: `Ingrediens ${action === 'created' ? 'tillagd' : action === 'updated' ? 'uppdaterad' : 'borttagen'}: ${name}`, details });
+};
+
+// Recipe template changes
+export const logRecipeChange = async (action: 'created' | 'updated' | 'deleted' | 'slot_added' | 'slot_removed', name: string, details?: Record<string, any>) => {
+  const msg: Record<string, string> = {
+    created: `Receptmall skapad: ${name}`,
+    updated: `Receptmall uppdaterad: ${name}`,
+    deleted: `Receptmall borttagen: ${name}`,
+    slot_added: `Steg tillagt i receptmall: ${name}`,
+    slot_removed: `Steg borttaget från receptmall: ${name}`,
+  };
+  await logActivity({ log_type: 'info', category: 'recipe', message: msg[action], details });
+};
+
+// Shipping changes
+export const logShippingChange = async (action: string, details?: Record<string, any>) => {
+  await logActivity({ log_type: 'info', category: 'shipping', message: action, details });
+};
+
+// Campaign/discount changes
+export const logCampaignChange = async (action: string, details?: Record<string, any>) => {
+  await logActivity({ log_type: 'info', category: 'campaign', message: action, details });
 };
