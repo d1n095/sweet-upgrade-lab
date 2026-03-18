@@ -131,7 +131,7 @@ const Hero = ({ getSection, isSectionVisible }: HeroProps) => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.6 }}
-            className="mt-16"
+            className="mt-10 md:mt-16"
           >
             <button
               onClick={() => document.getElementById('philosophy')?.scrollIntoView({ behavior: 'smooth' })}

@@ -321,7 +321,7 @@ const Header = () => {
             </nav>
 
             {/* Actions */}
-            <div className="flex items-center gap-0 sm:gap-0.5 md:gap-1 shrink-0">
+            <div className="flex items-center gap-1 sm:gap-0.5 md:gap-1 shrink-0">
               {/* Desktop search */}
               <div className="hidden sm:block">
                 <SearchSuggestions />

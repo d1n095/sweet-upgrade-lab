@@ -1,12 +1,27 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, X, Mail, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/context/LanguageContext';
+import { useLocation } from 'react-router-dom';
 
 const FloatingContactButton = () => {
   const { language } = useLanguage();
+  const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
+  const [visible, setVisible] = useState(false);
+
+  // Hide on checkout, delay show on other pages
+  const isCheckout = location.pathname === '/checkout';
+
+  useEffect(() => {
+    if (isCheckout) {
+      setVisible(false);
+      return;
+    }
+    const timer = setTimeout(() => setVisible(true), 2000);
+    return () => clearTimeout(timer);
+  }, [isCheckout]);
 
   const contactOptions = [
     {
@@ -23,8 +38,10 @@ const FloatingContactButton = () => {
     },
   ];
 
+  if (!visible) return null;
+
   return (
-    <div className="fixed bottom-6 left-6 z-50">
+    <div className="fixed bottom-20 md:bottom-6 left-4 md:left-6 z-40">
       <AnimatePresence>
         {isOpen && (
           <motion.div
