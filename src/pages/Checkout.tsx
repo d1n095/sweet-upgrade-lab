@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import { useStoreSettings } from '@/stores/storeSettingsStore';
 import { logActivity } from '@/utils/activityLogger';
 import { trackCheckoutStart, trackCheckoutStep, trackCheckoutAbandon } from '@/utils/analyticsTracker';
+import { useAuth } from '@/hooks/useAuth';
 
 // Swedish postal code → city lookup (common codes)
 const ZIP_CITY_MAP: Record<string, string> = {
@@ -42,9 +43,11 @@ const Checkout = () => {
   const cl = getContentLang(language);
   const { items, clearCart } = useCartStore();
   const { checkoutEnabled } = useStoreSettings();
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [profileLoaded, setProfileLoaded] = useState(false);
   const [form, setForm] = useState({
     email: '',
     name: '',
@@ -54,6 +57,38 @@ const Checkout = () => {
     country: 'SE',
     phone: '',
   });
+
+  // Auto-fill from logged-in user's profile
+  useEffect(() => {
+    if (profileLoaded || !user) return;
+    
+    const loadProfileData = async () => {
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('full_name, phone, address, zip, city, country')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        setForm(prev => ({
+          ...prev,
+          email: user.email || prev.email,
+          name: data?.full_name || prev.name,
+          phone: data?.phone || prev.phone,
+          address: data?.address || prev.address,
+          zip: data?.zip || prev.zip,
+          city: data?.city || prev.city,
+          country: data?.country || prev.country,
+        }));
+      } catch (err) {
+        // Just use email as fallback
+        setForm(prev => ({ ...prev, email: user.email || prev.email }));
+      }
+      setProfileLoaded(true);
+    };
+
+    loadProfileData();
+  }, [user, profileLoaded]);
 
   const subtotal = useMemo(() =>
     items.reduce((sum, item) => sum + (parseFloat(item.price.amount) * item.quantity), 0),
@@ -201,6 +236,19 @@ const Checkout = () => {
       if (data?.url) {
         completedRef.current = true;
         trackCheckoutStep('payment_redirect', { total });
+        
+        // Save shipping info to profile for future auto-fill
+        if (user) {
+          supabase.from('profiles').update({
+            full_name: form.name,
+            phone: form.phone || null,
+            address: form.address,
+            zip: form.zip,
+            city: form.city,
+            country: form.country,
+          }).eq('user_id', user.id).then(() => {});
+        }
+        
         clearCart();
         window.location.href = data.url;
       }

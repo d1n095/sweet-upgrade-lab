@@ -1285,46 +1285,64 @@ export type Database = {
       }
       profiles: {
         Row: {
+          address: string | null
           avatar_url: string | null
+          city: string | null
+          country: string | null
           created_at: string
+          full_name: string | null
           id: string
           is_member: boolean
           level: number
           member_since: string | null
+          phone: string | null
           referral_code: string | null
           trust_score: number
           updated_at: string
           user_id: string
           username: string | null
           xp: number
+          zip: string | null
         }
         Insert: {
+          address?: string | null
           avatar_url?: string | null
+          city?: string | null
+          country?: string | null
           created_at?: string
+          full_name?: string | null
           id?: string
           is_member?: boolean
           level?: number
           member_since?: string | null
+          phone?: string | null
           referral_code?: string | null
           trust_score?: number
           updated_at?: string
           user_id: string
           username?: string | null
           xp?: number
+          zip?: string | null
         }
         Update: {
+          address?: string | null
           avatar_url?: string | null
+          city?: string | null
+          country?: string | null
           created_at?: string
+          full_name?: string | null
           id?: string
           is_member?: boolean
           level?: number
           member_since?: string | null
+          phone?: string | null
           referral_code?: string | null
           trust_score?: number
           updated_at?: string
           user_id?: string
           username?: string | null
           xp?: number
+          zip?: string | null
         }
         Relationships: []
       }
