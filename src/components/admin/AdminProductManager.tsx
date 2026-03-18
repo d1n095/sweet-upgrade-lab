@@ -496,20 +496,14 @@ const AdminProductManager = () => {
       const tags = Array.isArray(rawTags) ? rawTags.join(', ') : (typeof rawTags === 'string' ? rawTags : '');
 
       setFormData({
-        title: (node.title as string) || '',
-        description: (node.description as string) || '',
+        title: (node.title as string) || '', description: (node.description as string) || '',
         price: ((node.priceRange as any)?.minVariantPrice?.amount as string) || '0',
-        currency: 'SEK',
-        productType: (node.productType as string) || '',
-        tags,
+        currency: 'SEK', productType: (node.productType as string) || '', tags,
         vendor: (node.vendor as string) || '4ThePeople',
         isVisible: (node.availableForSale as boolean) !== false,
-        inventory: 0,
-        allowOverselling: false,
-        imageUrls: [],
-        ingredients: '',
-        certifications: '',
-        recipe: '',
+        inventory: 0, allowOverselling: false, imageUrls: [],
+        ingredients: '', certifications: '', recipe: '',
+        feeling: '', effects: '', usage: '', extendedDescription: '',
       });
 
       setIsEditDialogOpen(true);

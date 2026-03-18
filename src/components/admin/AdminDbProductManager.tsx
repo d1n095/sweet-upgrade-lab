@@ -204,6 +204,10 @@ const AdminDbProductManager = () => {
       ingredients: source.ingredients_sv || '',
       certifications: (source.certifications || []).join(', '),
       recipe: source.recipe_sv || '',
+      feeling: (source as any).feeling_sv || '',
+      effects: (source as any).effects_sv || '',
+      usage: (source as any).usage_sv || '',
+      extendedDescription: (source as any).extended_description_sv || '',
     });
     setIsAddOpen(true);
   };
