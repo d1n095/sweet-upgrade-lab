@@ -38,6 +38,7 @@ const AdminStats = () => {
   const [topSearches, setTopSearches] = useState<SearchLog[]>([]);
   const [productViews, setProductViews] = useState<{ title: string; count: number }[]>([]);
   const [checkoutStats, setCheckoutStats] = useState({ starts: 0, completes: 0, abandons: 0, dropOffRate: 0 });
+  const [ingredientStats, setIngredientStats] = useState<{ name: string; searches: number; clicks: number }[]>([]);
 
   useEffect(() => {
     fetchAllData();
