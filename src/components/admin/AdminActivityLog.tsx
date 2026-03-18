@@ -291,10 +291,14 @@ const AdminActivityLog = () => {
                   <SelectItem value="order">Order</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
                   <SelectItem value="payment">Betalning</SelectItem>
-                  <SelectItem value="product">Produkt</SelectItem>
-                  <SelectItem value="system">System</SelectItem>
-                  <SelectItem value="auth">Inloggning</SelectItem>
-                  <SelectItem value="security">Säkerhet</SelectItem>
+                   <SelectItem value="product">Produkt</SelectItem>
+                   <SelectItem value="system">System</SelectItem>
+                   <SelectItem value="auth">Inloggning</SelectItem>
+                   <SelectItem value="security">Säkerhet</SelectItem>
+                   <SelectItem value="shipping">Frakt</SelectItem>
+                   <SelectItem value="campaign">Kampanj</SelectItem>
+                   <SelectItem value="ingredient">Ingrediens</SelectItem>
+                   <SelectItem value="recipe">Recept</SelectItem>
                 </SelectContent>
               </Select>
             </div>
