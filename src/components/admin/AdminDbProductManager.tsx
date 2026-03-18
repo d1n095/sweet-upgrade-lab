@@ -209,6 +209,8 @@ const AdminDbProductManager = () => {
         display_order: 0,
         ingredients_sv: formData.ingredients || null,
         certifications: formData.certifications ? formData.certifications.split(',').map(s => s.trim()).filter(Boolean) : null,
+        currency: formData.currency || 'SEK',
+        recipe_sv: formData.recipe || null,
       });
       toast.success(t.productAdded);
       queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });
