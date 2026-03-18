@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/context/LanguageContext';
 import type { DbProduct } from '@/lib/products';
@@ -17,12 +17,9 @@ interface TranslatedFields {
 // Simple in-memory cache: productId+lang -> translated fields
 const translationCache = new Map<string, TranslatedFields>();
 
-export function useTranslatedProduct(product: DbProduct | null) {
-  const { contentLang } = useLanguage();
-  const lang = contentLang;
-
-  // Swedish defaults (always available)
-  const svFields: TranslatedFields = product ? {
+function getSvFields(product: DbProduct | null): TranslatedFields {
+  if (!product) return { title: '', description: '', ingredients: '', feeling: '', effects: '', usage: '', extendedDescription: '', recipe: '' };
+  return {
     title: product.title_sv,
     description: product.description_sv || '',
     ingredients: product.ingredients_sv || '',
@@ -31,14 +28,24 @@ export function useTranslatedProduct(product: DbProduct | null) {
     usage: product.usage_sv || '',
     extendedDescription: product.extended_description_sv || '',
     recipe: product.recipe_sv || '',
-  } : { title: '', description: '', ingredients: '', feeling: '', effects: '', usage: '', extendedDescription: '', recipe: '' };
+  };
+}
 
+export function useTranslatedProduct(product: DbProduct | null) {
+  // Use the ACTUAL language (de, fr, etc.), not contentLang which only returns sv/en
+  const { language } = useLanguage();
+
+  // Treat Scandinavian languages as Swedish (mutually intelligible)
+  const lang = (language === 'no' || language === 'da') ? 'sv' : language;
+
+  const svFields = getSvFields(product);
   const [translated, setTranslated] = useState<TranslatedFields>(svFields);
   const [isTranslating, setIsTranslating] = useState(false);
+  const activeRequestRef = useRef<string | null>(null);
 
-  const translate = useCallback(async () => {
+  useEffect(() => {
     if (!product || lang === 'sv') {
-      setTranslated(svFields);
+      setTranslated(getSvFields(product));
       return;
     }
 
@@ -50,58 +57,61 @@ export function useTranslatedProduct(product: DbProduct | null) {
     }
 
     // Build texts to translate (only non-empty)
+    const fields = getSvFields(product);
     const textsToTranslate: Record<string, string> = {};
-    if (svFields.title) textsToTranslate.title = svFields.title;
-    if (svFields.description) textsToTranslate.description = svFields.description;
-    if (svFields.ingredients) textsToTranslate.ingredients = svFields.ingredients;
-    if (svFields.feeling) textsToTranslate.feeling = svFields.feeling;
-    if (svFields.effects) textsToTranslate.effects = svFields.effects;
-    if (svFields.usage) textsToTranslate.usage = svFields.usage;
-    if (svFields.extendedDescription) textsToTranslate.extendedDescription = svFields.extendedDescription;
-    if (svFields.recipe) textsToTranslate.recipe = svFields.recipe;
+    for (const [key, value] of Object.entries(fields)) {
+      if (value) textsToTranslate[key] = value;
+    }
 
     if (Object.keys(textsToTranslate).length === 0) {
-      setTranslated(svFields);
+      setTranslated(fields);
       return;
     }
 
+    activeRequestRef.current = cacheKey;
     setIsTranslating(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('translate-product', {
-        body: { texts: textsToTranslate, targetLang: lang },
-      });
 
-      if (error || !data?.translations) {
-        console.error('Translation failed:', error);
-        setTranslated(svFields);
-      } else {
-        const result: TranslatedFields = {
-          title: data.translations.title || svFields.title,
-          description: data.translations.description || svFields.description,
-          ingredients: data.translations.ingredients || svFields.ingredients,
-          feeling: data.translations.feeling || svFields.feeling,
-          effects: data.translations.effects || svFields.effects,
-          usage: data.translations.usage || svFields.usage,
-          extendedDescription: data.translations.extendedDescription || svFields.extendedDescription,
-          recipe: data.translations.recipe || svFields.recipe,
-        };
-        translationCache.set(cacheKey, result);
-        setTranslated(result);
+    (async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('translate-product', {
+          body: { texts: textsToTranslate, targetLang: lang },
+        });
+
+        // Only update if this is still the active request
+        if (activeRequestRef.current !== cacheKey) return;
+
+        if (error || !data?.translations) {
+          console.error('Translation failed:', error);
+          setTranslated(fields);
+        } else {
+          const result: TranslatedFields = {
+            title: data.translations.title || fields.title,
+            description: data.translations.description || fields.description,
+            ingredients: data.translations.ingredients || fields.ingredients,
+            feeling: data.translations.feeling || fields.feeling,
+            effects: data.translations.effects || fields.effects,
+            usage: data.translations.usage || fields.usage,
+            extendedDescription: data.translations.extendedDescription || fields.extendedDescription,
+            recipe: data.translations.recipe || fields.recipe,
+          };
+          translationCache.set(cacheKey, result);
+          setTranslated(result);
+        }
+      } catch (err) {
+        if (activeRequestRef.current === cacheKey) {
+          console.error('Translation error:', err);
+          setTranslated(fields);
+        }
+      } finally {
+        if (activeRequestRef.current === cacheKey) {
+          setIsTranslating(false);
+        }
       }
-    } catch (err) {
-      console.error('Translation error:', err);
-      setTranslated(svFields);
-    } finally {
-      setIsTranslating(false);
-    }
-  }, [product?.id, lang]);
+    })();
 
-  useEffect(() => {
-    if (lang === 'sv') {
-      setTranslated(svFields);
-    } else {
-      translate();
-    }
+    return () => {
+      activeRequestRef.current = null;
+    };
   }, [product?.id, lang]);
 
   return { ...translated, isTranslating };

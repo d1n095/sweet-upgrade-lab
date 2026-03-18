@@ -11,7 +11,7 @@ const Footer = () => {
   const { isVisible } = usePageVisibility();
   
   const quickLinks = [
-    { href: '/shop', label: t('nav.products') },
+    { href: '/produkter', label: t('nav.products') },
     { href: '/about', label: t('nav.about') },
     { href: '/contact', label: t('nav.contact') },
     { href: '/track-order', label: t('nav.trackorder') },
