@@ -60,7 +60,7 @@ const HomepageBestsellers = () => {
   if (products.length === 0) return null;
 
   return (
-    <section className="py-24 md:py-32 border-t border-border/30">
+    <section className="py-28 md:py-36 border-t border-border/30">
       <div className="container mx-auto px-5">
         <motion.h2
           initial={{ opacity: 0, y: 12 }}
