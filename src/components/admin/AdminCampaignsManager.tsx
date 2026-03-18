@@ -53,6 +53,8 @@ interface Bundle {
   min_level: number | null;
   requires_account: boolean;
   max_uses_per_user: number | null;
+  created_at: string;
+  updated_at: string;
 }
 
 interface BundleItem {
