@@ -21,8 +21,8 @@ const AboutCompact = () => {
   const t = content[lang];
 
   return (
-    <section id="about" className="py-20 md:py-28 border-t border-border/40">
-      <div className="container mx-auto px-4">
+    <section id="about" className="py-24 md:py-32 border-t border-border/30">
+      <div className="container mx-auto px-5">
         <div className="max-w-2xl mx-auto text-center">
           <motion.h2
             initial={{ opacity: 0, y: 12 }}
