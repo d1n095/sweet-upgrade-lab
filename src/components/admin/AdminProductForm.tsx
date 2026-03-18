@@ -208,7 +208,7 @@ export function AdminProductForm({
               placeholder="159"
               className="pl-9"
               required
-              disabled={isEdit}
+              
             />
           </div>
         </div>
