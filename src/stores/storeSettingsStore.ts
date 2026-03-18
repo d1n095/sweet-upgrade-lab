@@ -40,6 +40,7 @@ export const useStoreSettings = create<StoreSettingsState>((set, get) => ({
       set({
         siteActive: map['site_active'] ?? true,
         checkoutEnabled: map['checkout_enabled'] ?? true,
+        registrationEnabled: map['registration_enabled'] ?? true,
         homepageBestsellers: map['homepage_bestsellers'] ?? false,
         homepageReviews: map['homepage_reviews'] ?? false,
         homepagePhilosophy: map['homepage_philosophy'] ?? true,
