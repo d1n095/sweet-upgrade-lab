@@ -1239,6 +1239,45 @@ export type Database = {
         }
         Relationships: []
       }
+      recipe_ingredients: {
+        Row: {
+          category: string
+          created_at: string
+          description_en: string | null
+          description_sv: string | null
+          display_order: number
+          id: string
+          is_active: boolean
+          name_en: string | null
+          name_sv: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          description_en?: string | null
+          description_sv?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name_en?: string | null
+          name_sv: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description_en?: string | null
+          description_sv?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name_en?: string | null
+          name_sv?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       referrals: {
         Row: {
           converted_at: string | null
