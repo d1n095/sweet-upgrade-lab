@@ -23,6 +23,7 @@ const HOMEPAGE_KEYS = ['homepage_bestsellers', 'homepage_reviews', 'homepage_phi
 export const useStoreSettings = create<StoreSettingsState>((set, get) => ({
   siteActive: true,
   checkoutEnabled: true,
+  registrationEnabled: true,
   homepageBestsellers: false,
   homepageReviews: false,
   homepagePhilosophy: true,
