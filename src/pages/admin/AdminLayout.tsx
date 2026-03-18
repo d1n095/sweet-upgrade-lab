@@ -7,8 +7,9 @@ import { useAdminSession } from '@/hooks/useAdminSession';
 import {
   Loader2, Package, ClipboardList, BarChart3, Settings, Grid, Users,
   Handshake, Heart, Eye, LogOut, Home, Shield,
-  Activity, User, Menu, X, Star, FileText, Percent, Truck,
+  Activity, User, Menu, X, Star, FileText, Percent, Truck, Wallet,
 } from 'lucide-react';
+import { useEmployeeRole } from '@/hooks/useEmployeeRole';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
