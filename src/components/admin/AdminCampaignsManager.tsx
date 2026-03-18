@@ -32,6 +32,12 @@ interface VolumeDiscount {
   stackable: boolean;
   label: string | null;
   created_at: string;
+  requires_account: boolean;
+  requirement_type: string;
+  first_purchase_discount: number | null;
+  repeat_discount: number | null;
+  min_level: number | null;
+  max_uses_per_user: number | null;
 }
 
 const fmtDate = (d: string) => {
