@@ -121,9 +121,9 @@ const DbProductCard = ({ product, index, compact = false }: DbProductCardProps) 
       className="group relative"
     >
       <Link to={`/product/${handle}`}>
-        <div className="bg-card border border-border/60 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-[var(--shadow-elevated)] hover:-translate-y-1 h-full flex flex-col">
+        <div className="bg-card border border-border/40 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-[var(--shadow-elevated)] hover:-translate-y-1 h-full flex flex-col">
           {/* Image */}
-          <div className="relative aspect-[4/5] overflow-hidden bg-secondary/30">
+          <div className="relative aspect-square overflow-hidden bg-secondary/20">
             {showImage ? (
               <img
                 src={imageUrl}
