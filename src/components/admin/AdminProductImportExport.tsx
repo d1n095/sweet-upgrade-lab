@@ -437,6 +437,10 @@ const AdminProductImportExport = () => {
             <DropdownMenuItem onClick={handleExportAll}>
               📁 {sv ? 'Exportera allt' : 'Export all'}
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleDownloadTemplate}>
+              📋 {sv ? 'Ladda ner importmall' : 'Download import template'}
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
