@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Heart, Trash2, ShoppingCart, Lightbulb } from 'lucide-react';
+import { X, Heart, Trash2, ShoppingCart, Lightbulb, LogIn } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useWishlistStore } from '@/stores/wishlistStore';
 import { useCartStore } from '@/stores/cartStore';
 import { useLanguage } from '@/context/LanguageContext';
+import { useAuth } from '@/hooks/useAuth';
 import { ShopifyProduct } from '@/lib/shopify';
+import AuthModal from '@/components/auth/AuthModal';
 
 interface WishlistDrawerProps {
   isOpen: boolean;
