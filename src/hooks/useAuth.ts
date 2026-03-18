@@ -120,12 +120,36 @@ export const useAuth = () => {
     return { error };
   };
 
+  const maskEmail = (email: string) => {
+    const [local, domain] = email.split('@');
+    if (!domain) return email;
+    const masked = local[0] + '***';
+    return `${masked}@${domain}`;
+  };
+
+  // Calculate XP needed for next level
+  const currentXp = profile?.xp ?? 0;
+  const currentLevel = profile?.level ?? 1;
+  const xpForCurrentLevel = ((currentLevel - 1) * currentLevel / 2) * 100;
+  const xpForNextLevel = (currentLevel * (currentLevel + 1) / 2) * 100;
+  const xpProgress = xpForNextLevel > xpForCurrentLevel 
+    ? ((currentXp - xpForCurrentLevel) / (xpForNextLevel - xpForCurrentLevel)) * 100 
+    : 0;
+
   return {
     user,
     session,
     profile,
     loading,
     isMember: profile?.is_member ?? false,
+    username: profile?.username ?? null,
+    avatarUrl: profile?.avatar_url ?? null,
+    xp: currentXp,
+    level: currentLevel,
+    trustScore: profile?.trust_score ?? 0,
+    xpProgress: Math.min(100, Math.max(0, xpProgress)),
+    xpForNextLevel,
+    maskEmail,
     signUp,
     signIn,
     signOut,
