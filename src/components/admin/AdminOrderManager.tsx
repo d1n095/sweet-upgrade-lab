@@ -558,7 +558,17 @@ const AdminOrderManager = () => {
                           : order.payment_status === 'failed' ? (language === 'sv' ? 'Misslyckad' : 'Failed')
                           : (language === 'sv' ? 'Obetald' : 'Unpaid')}
                       </Badge>
-                      {order.status === 'failed' && (
+                      {order.refund_status && (
+                        <Badge variant="outline" className="text-[10px] h-5 border-purple-300 text-purple-700 dark:border-purple-700 dark:text-purple-400">
+                          {order.refund_status === 'refunded' ? content.refunded : content.partialRefund}
+                        </Badge>
+                      )}
+                      {order.payment_method && (
+                        <Badge variant="secondary" className="text-[10px] h-5">
+                          {getPaymentMethodLabel(order.payment_method)}
+                        </Badge>
+                      )}
+                      {(order.status === 'failed' || order.status === 'abandoned') && (
                         <AlertTriangle className="w-3.5 h-3.5 text-destructive" />
                       )}
                     </div>
