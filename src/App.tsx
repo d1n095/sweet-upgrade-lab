@@ -28,6 +28,7 @@ import ResetPassword from "./pages/ResetPassword";
 import WhatsNew from "./pages/WhatsNew";
 import Donations from "./pages/Donations";
 import NotFound from "./pages/NotFound";
+import BalancePage from "./pages/BalancePage";
 import AffiliatePanel from "./pages/AffiliatePanel";
 import DonationsPanel from "./pages/DonationsPanel";
 import ReferralLanding from "./pages/ReferralLanding";
