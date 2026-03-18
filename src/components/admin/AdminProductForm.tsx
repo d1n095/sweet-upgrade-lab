@@ -450,19 +450,12 @@ export function AdminProductForm({
         </div>
       </div>
 
-      {/* Ingredients */}
-      <div className="space-y-2">
-        <Label htmlFor="ingredients">
-          {language === 'sv' ? 'Ingredienser (kommaseparerade)' : 'Ingredients (comma-separated)'}
-        </Label>
-        <Textarea
-          id="ingredients"
-          value={formData.ingredients}
-          onChange={(e) => setFormData((prev) => ({ ...prev, ingredients: e.target.value }))}
-          placeholder="Kokosolja, Sheasmör, Bivax..."
-          rows={2}
-        />
-      </div>
+      {/* Ingredients with library picker */}
+      <IngredientPickerSection
+        language={language}
+        formData={formData}
+        setFormData={setFormData}
+      />
 
       {/* Certifications */}
       <div className="space-y-2">
