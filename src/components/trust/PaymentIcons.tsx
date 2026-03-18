@@ -45,7 +45,7 @@ const PayPalIcon = () => (
 );
 
 const ApplePayIcon = () => (
-  <svg viewBox="0 0 50 35" className="w-10 h-7">
+  <svg viewBox="0 0 50 35" className="w-11 h-8">
     <rect width="50" height="35" rx="4" fill="#000000"/>
     <text x="25" y="22" textAnchor="middle" fill="white" fontSize="9" fontWeight="500" fontFamily="system-ui">Pay</text>
   </svg>
