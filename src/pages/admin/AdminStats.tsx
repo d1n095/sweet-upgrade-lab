@@ -101,7 +101,7 @@ const AdminStats = () => {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       const { data } = await supabase
-        .from('analytics_events' as any)
+        .from('analytics_events')
         .select('event_type, event_data, created_at')
         .gte('created_at', thirtyDaysAgo.toISOString())
         .order('created_at', { ascending: false })
