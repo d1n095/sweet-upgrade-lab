@@ -126,33 +126,52 @@ const Produkter = () => {
             </p>
           </motion.div>
 
-          {/* Filters row */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
-            {/* Category Filters - hide empty */}
-            <div className="flex flex-wrap gap-2">
-              {categoriesWithProducts.map((category) => {
-                const Icon = category.icon;
-                const isActive = activeCategory === category.id;
-                return (
-                  <button
-                    key={category.id}
-                    onClick={() => setActiveCategory(category.id)}
-                    className={cn(
-                      'flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium transition-all duration-200',
-                      isActive
-                        ? 'bg-foreground text-background'
-                        : 'bg-secondary hover:bg-secondary/80 text-muted-foreground hover:text-foreground border border-transparent'
-                    )}
-                  >
-                    <Icon className="w-3.5 h-3.5" />
-                    <span>{category.name[lang] || category.name.en}</span>
-                  </button>
-                );
-              })}
-            </div>
+          {/* Filters row - hide if only 1 category with products */}
+          {categoriesWithProducts.length > 2 && (
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+              {/* Category Filters - hide empty */}
+              <div className="flex flex-wrap gap-2">
+                {categoriesWithProducts.map((category) => {
+                  const Icon = category.icon;
+                  const isActive = activeCategory === category.id;
+                  return (
+                    <button
+                      key={category.id}
+                      onClick={() => setActiveCategory(category.id)}
+                      className={cn(
+                        'flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium transition-all duration-200',
+                        isActive
+                          ? 'bg-foreground text-background'
+                          : 'bg-secondary hover:bg-secondary/80 text-muted-foreground hover:text-foreground border border-transparent'
+                      )}
+                    >
+                      <Icon className="w-3.5 h-3.5" />
+                      <span>{category.name[lang] || category.name.en}</span>
+                    </button>
+                  );
+                })}
+              </div>
 
-            {/* Sort */}
-            {!isLoading && products.length > 0 && (
+              {/* Sort */}
+              {!isLoading && products.length > 0 && (
+                <Select value={sortOption} onValueChange={(v) => setSortOption(v as SortOption)}>
+                  <SelectTrigger className="w-[180px] bg-card border-border rounded-xl h-9 text-xs">
+                    <ArrowUpDown className="w-3.5 h-3.5 mr-1.5 text-muted-foreground" />
+                    <SelectValue placeholder={t('sort.label')} />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border rounded-xl">
+                    {sortOptions.map(o => (
+                      <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          )}
+
+          {/* Sort only (when filters hidden) */}
+          {categoriesWithProducts.length <= 2 && !isLoading && products.length > 0 && (
+            <div className="flex justify-end mb-8">
               <Select value={sortOption} onValueChange={(v) => setSortOption(v as SortOption)}>
                 <SelectTrigger className="w-[180px] bg-card border-border rounded-xl h-9 text-xs">
                   <ArrowUpDown className="w-3.5 h-3.5 mr-1.5 text-muted-foreground" />
@@ -164,8 +183,8 @@ const Produkter = () => {
                   ))}
                 </SelectContent>
               </Select>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Loading */}
           {isLoading && (
