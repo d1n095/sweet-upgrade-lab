@@ -500,14 +500,20 @@ const BundlesTab = () => {
                   {b.discount_percent}%
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <p className="font-medium text-sm truncate">{b.name}</p>
                     {!b.is_active && <Badge variant="outline" className="text-[9px]">Inaktiv</Badge>}
                     <Badge variant="secondary" className="text-[9px]">{items.length} produkter</Badge>
+                    {b.requirement_type === 'first_purchase' && <Badge className="text-[9px] bg-blue-500/10 text-blue-600 border-blue-200">Första köpet</Badge>}
+                    {b.requirement_type === 'level_required' && <Badge className="text-[9px] bg-amber-500/10 text-amber-600 border-amber-200">Level {b.min_level}+</Badge>}
+                    {b.requires_account && <Badge className="text-[9px] bg-purple-500/10 text-purple-600 border-purple-200">Kräver konto</Badge>}
+                    {b.max_uses_per_user && <Badge className="text-[9px] bg-muted text-muted-foreground">Max {b.max_uses_per_user}x</Badge>}
                   </div>
                   {items.length > 0 && (
                     <p className="text-xs text-muted-foreground">
                       <span className="line-through">{Math.round(prices.original)} kr</span> → <span className="font-semibold text-primary">{Math.round(prices.discounted)} kr</span>
+                      {b.first_purchase_discount && <span className="ml-2">| 1:a köp: {b.first_purchase_discount}%</span>}
+                      {b.repeat_discount && <span className="ml-1">| Sedan: {b.repeat_discount}%</span>}
                     </p>
                   )}
                 </div>
