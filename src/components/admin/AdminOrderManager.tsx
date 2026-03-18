@@ -334,16 +334,21 @@ const AdminOrderManager = () => {
     );
   }
 
+  const escHtml = (s: string | null | undefined): string =>
+    String(s ?? '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
   const handlePrintOrder = (order: Order) => {
     const addr = parseShippingAddress(order.shipping_address);
     const items = Array.isArray(order.items) ? order.items : [];
-    const html = `<html><head><title>${order.order_number || order.id.slice(0,8)}</title><style>body{font-family:system-ui;padding:40px;font-size:14px}h1{font-size:20px}table{width:100%;border-collapse:collapse;margin:16px 0}td,th{border:1px solid #ddd;padding:8px;text-align:left}th{background:#f5f5f5}.header{display:flex;justify-content:space-between;margin-bottom:24px}</style></head><body>
-      <div class="header"><div><h1>Order ${order.order_number || ''}</h1><p>${formatDate(order.created_at)}</p></div><div><strong>Status:</strong> ${statusLabels[order.status] || order.status}<br><strong>Betalning:</strong> ${order.payment_status}</div></div>
-      <h3>Kund</h3><p>${order.order_email}${addr ? `<br>${addr.name || ''}<br>${addr.address || ''}<br>${addr.zip || ''} ${addr.city || ''}<br>${addr.country || ''}${addr.phone ? '<br>Tel: '+addr.phone : ''}` : ''}</p>
-      <h3>Produkter</h3><table><tr><th>Produkt</th><th>Antal</th><th>Pris</th></tr>${items.map((i:any) => `<tr><td>${i.title || i.name || '-'}</td><td>${i.quantity || 1}</td><td>${i.price || '-'}</td></tr>`).join('')}</table>
+    const html = `<html><head><title>${escHtml(order.order_number || order.id.slice(0,8))}</title><style>body{font-family:system-ui;padding:40px;font-size:14px}h1{font-size:20px}table{width:100%;border-collapse:collapse;margin:16px 0}td,th{border:1px solid #ddd;padding:8px;text-align:left}th{background:#f5f5f5}.header{display:flex;justify-content:space-between;margin-bottom:24px}</style></head><body>
+      <div class="header"><div><h1>Order ${escHtml(order.order_number)}</h1><p>${formatDate(order.created_at)}</p></div><div><strong>Status:</strong> ${escHtml(statusLabels[order.status] || order.status)}<br><strong>Betalning:</strong> ${escHtml(order.payment_status)}</div></div>
+      <h3>Kund</h3><p>${escHtml(order.order_email)}${addr ? `<br>${escHtml(addr.name)}<br>${escHtml(addr.address)}<br>${escHtml(addr.zip)} ${escHtml(addr.city)}<br>${escHtml(addr.country)}${addr.phone ? '<br>Tel: '+escHtml(addr.phone) : ''}` : ''}</p>
+      <h3>Produkter</h3><table><tr><th>Produkt</th><th>Antal</th><th>Pris</th></tr>${items.map((i:any) => `<tr><td>${escHtml(i.title || i.name || '-')}</td><td>${escHtml(String(i.quantity || 1))}</td><td>${escHtml(String(i.price || '-'))}</td></tr>`).join('')}</table>
       <p><strong>Totalt: ${formatCurrency(order.total_amount, order.currency)}</strong></p>
-      ${order.tracking_number ? `<p><strong>Spårning:</strong> ${order.tracking_number}</p>` : ''}
-      ${order.notes ? `<p><strong>Anteckningar:</strong> ${order.notes}</p>` : ''}
+      ${order.tracking_number ? `<p><strong>Spårning:</strong> ${escHtml(order.tracking_number)}</p>` : ''}
+      ${order.notes ? `<p><strong>Anteckningar:</strong> ${escHtml(order.notes)}</p>` : ''}
       <script>window.print()</script></body></html>`;
     const w = window.open('', '_blank');
     if (w) { w.document.write(html); w.document.close(); }
@@ -355,12 +360,12 @@ const AdminOrderManager = () => {
     const html = `<html><head><title>Fraktsedel</title><style>body{font-family:system-ui;padding:40px}div{border:2px solid #000;padding:32px;max-width:400px;margin:0 auto}.from{margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid #ccc;font-size:12px}h2{margin:0 0 8px}p{margin:4px 0;font-size:16px}.order{font-size:12px;color:#666;margin-top:16px}</style></head><body>
       <div><div class="from"><strong>Avsändare:</strong><br>4ThePeople<br>Sverige</div>
       <h2>Mottagare</h2>
-      <p><strong>${addr.name || ''}</strong></p>
-      <p>${addr.address || ''}</p>
-      <p>${addr.zip || ''} ${addr.city || ''}</p>
-      <p>${addr.country || 'Sverige'}</p>
-      ${addr.phone ? `<p>Tel: ${addr.phone}</p>` : ''}
-      <p class="order">${order.order_number || ''}</p></div>
+      <p><strong>${escHtml(addr.name)}</strong></p>
+      <p>${escHtml(addr.address)}</p>
+      <p>${escHtml(addr.zip)} ${escHtml(addr.city)}</p>
+      <p>${escHtml(addr.country || 'Sverige')}</p>
+      ${addr.phone ? `<p>Tel: ${escHtml(addr.phone)}</p>` : ''}
+      <p class="order">${escHtml(order.order_number)}</p></div>
       <script>window.print()</script></body></html>`;
     const w = window.open('', '_blank');
     if (w) { w.document.write(html); w.document.close(); }
