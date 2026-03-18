@@ -480,7 +480,7 @@ const MemberProfile = () => {
                   <Star className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
                   <p className="text-lg font-medium mb-2">{t.reviews.empty}</p>
                   <p className="text-muted-foreground mb-6">{t.reviews.writeFirst}</p>
-                  <Link to="/shop">
+                  <Link to="/produkter">
                     <Button>{t.reviews.shopNow}</Button>
                   </Link>
                 </div>
