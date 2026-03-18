@@ -8,6 +8,9 @@ interface VolumeDiscount {
   discount_percent: number;
   shopify_product_id: string | null;
   is_global: boolean;
+  excluded_product_ids: string[];
+  stackable: boolean;
+  label: string | null;
 }
 
 interface BundlePricing {
