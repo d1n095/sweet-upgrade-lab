@@ -479,6 +479,7 @@ const AdminProductManager = () => {
       isVisible: true, inventory: 0, allowOverselling: false,
       imageUrls: [], ingredients: '', certifications: '', recipe: '',
       feeling: '', effects: '', usage: '', extendedDescription: '',
+      metaTitle: '', metaDescription: '', metaKeywords: '',
     });
     setSelectedProduct(null);
   };
