@@ -592,6 +592,20 @@ const AdminOrderManager = () => {
                         {language === 'sv' ? 'Markera betald' : 'Mark paid'}
                       </Button>
                     )}
+                    {order.payment_status === 'paid' && !order.refund_status && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5 text-xs border-purple-300 text-purple-700 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-400 dark:hover:bg-purple-950/30"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMarkAsRefunded(order);
+                        }}
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        {content.refund}
+                      </Button>
+                    )
                     <span className="font-semibold text-sm">
                       {formatCurrency(order.total_amount, order.currency)}
                     </span>
