@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ShoppingCart, Check, Flame, Package } from 'lucide-react';
+import { ShoppingCart, Check, Flame, Package, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DbProduct } from '@/lib/products';
@@ -9,6 +9,7 @@ import { Link } from 'react-router-dom';
 import QuantitySelector from './QuantitySelector';
 import WishlistButton from '@/components/wishlist/WishlistButton';
 import { useLanguage, getContentLang } from '@/context/LanguageContext';
+import { useProductReviewStats } from '@/hooks/useProductReviewStats';
 
 interface DbProductCardProps {
   product: DbProduct;
