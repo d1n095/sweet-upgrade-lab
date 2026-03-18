@@ -46,6 +46,7 @@ const navItems: NavItem[] = [
   { to: '/admin/logs', label: 'Logg', icon: Activity, role: 'admin' },
   { to: '/admin/settings', label: 'Inställningar', icon: Settings, role: 'admin' },
   { to: '/admin/stats', label: 'Statistik', icon: BarChart3, role: 'admin' },
+  { to: '/admin/staff', label: 'Personal', icon: Crown, role: 'founder' },
 ];
 
 const AdminLayout = () => {
