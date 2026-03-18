@@ -248,7 +248,7 @@ const ShippingCarriersSection = () => {
                               {carrier.name}
                             </p>
                             {carrier.is_international && (
-                              <Globe className="w-3 h-3 text-blue-500 shrink-0" />
+                              <Globe className="w-3 h-3 text-primary shrink-0" />
                             )}
                           </div>
                           <div className="flex items-center gap-1 mt-0.5">
