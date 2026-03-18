@@ -365,11 +365,8 @@ const AdminStats = () => {
             </CardContent>
           </Card>
         </div>
-      </main>
-
-      <Footer />
-    </div>
-  );
+      </div>
+    );
 };
 
 export default AdminStats;
