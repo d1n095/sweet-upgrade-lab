@@ -8,6 +8,7 @@ import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
 import { logAuthEvent } from '@/utils/activityLogger';
 import { useLoginRateLimit } from '@/hooks/useLoginRateLimit';
+import { useStoreSettings } from '@/stores/storeSettingsStore';
 import {
   Sheet,
   SheetContent,
