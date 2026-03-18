@@ -1811,26 +1811,35 @@ export type Database = {
         Row: {
           created_at: string
           discount_percent: number
+          excluded_product_ids: string[] | null
           id: string
           is_global: boolean
+          label: string | null
           min_quantity: number
           shopify_product_id: string | null
+          stackable: boolean | null
         }
         Insert: {
           created_at?: string
           discount_percent: number
+          excluded_product_ids?: string[] | null
           id?: string
           is_global?: boolean
+          label?: string | null
           min_quantity: number
           shopify_product_id?: string | null
+          stackable?: boolean | null
         }
         Update: {
           created_at?: string
           discount_percent?: number
+          excluded_product_ids?: string[] | null
           id?: string
           is_global?: boolean
+          label?: string | null
           min_quantity?: number
           shopify_product_id?: string | null
+          stackable?: boolean | null
         }
         Relationships: []
       }

@@ -26,6 +26,9 @@ interface VolumeDiscount {
   discount_percent: number;
   shopify_product_id: string | null;
   is_global: boolean;
+  excluded_product_ids: string[];
+  stackable: boolean;
+  label: string | null;
 }
 
 interface Bundle {
@@ -86,30 +89,50 @@ const autoTranslateFields = async (
 // ─── Volume Discounts Tab ───
 const VolumeDiscountsTab = () => {
   const [discounts, setDiscounts] = useState<VolumeDiscount[]>([]);
+  const [allProducts, setAllProducts] = useState<DbProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ min_quantity: '', discount_percent: '', is_global: true });
+  const [form, setForm] = useState({
+    min_quantity: '', discount_percent: '', is_global: true,
+    label: '', stackable: true, excluded_product_ids: [] as string[],
+  });
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase.from('volume_discounts').select('*').order('min_quantity');
-    if (data) setDiscounts(data as VolumeDiscount[]);
+    const [{ data: dData }, { data: pData }] = await Promise.all([
+      supabase.from('volume_discounts').select('*').order('min_quantity'),
+      supabase.from('products').select('id, title_sv, price, original_price, is_visible, badge, tags').eq('is_visible', true).order('title_sv'),
+    ]);
+    if (dData) setDiscounts(dData.map((d: any) => ({ ...d, excluded_product_ids: d.excluded_product_ids || [], stackable: d.stackable ?? true })));
+    if (pData) setAllProducts(pData as DbProduct[]);
     setLoading(false);
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const resetForm = () => {
-    setForm({ min_quantity: '', discount_percent: '', is_global: true });
+    setForm({ min_quantity: '', discount_percent: '', is_global: true, label: '', stackable: true, excluded_product_ids: [] });
     setEditingId(null);
     setShowForm(false);
   };
 
   const openEdit = (d: VolumeDiscount) => {
-    setForm({ min_quantity: String(d.min_quantity), discount_percent: String(d.discount_percent), is_global: d.is_global });
+    setForm({
+      min_quantity: String(d.min_quantity), discount_percent: String(d.discount_percent), is_global: d.is_global,
+      label: d.label || '', stackable: d.stackable, excluded_product_ids: d.excluded_product_ids || [],
+    });
     setEditingId(d.id);
     setShowForm(true);
+  };
+
+  const toggleExcludedProduct = (pid: string) => {
+    setForm(prev => ({
+      ...prev,
+      excluded_product_ids: prev.excluded_product_ids.includes(pid)
+        ? prev.excluded_product_ids.filter(id => id !== pid)
+        : [...prev.excluded_product_ids, pid],
+    }));
   };
 
   const handleSave = async () => {
@@ -117,16 +140,21 @@ const VolumeDiscountsTab = () => {
     const pct = parseFloat(form.discount_percent);
     if (!minQty || minQty < 1 || !pct || pct <= 0 || pct > 100) { toast.error('Ange giltiga värden'); return; }
 
+    const payload = {
+      min_quantity: minQty,
+      discount_percent: pct,
+      is_global: form.is_global,
+      label: form.label || null,
+      stackable: form.stackable,
+      excluded_product_ids: form.excluded_product_ids,
+    };
+
     if (editingId) {
-      const { error } = await supabase.from('volume_discounts').update({
-        min_quantity: minQty, discount_percent: pct, is_global: form.is_global,
-      }).eq('id', editingId);
+      const { error } = await supabase.from('volume_discounts').update(payload).eq('id', editingId);
       if (error) { toast.error('Kunde inte uppdatera'); return; }
       toast.success('Mängdrabatt uppdaterad');
     } else {
-      const { error } = await supabase.from('volume_discounts').insert({
-        min_quantity: minQty, discount_percent: pct, is_global: form.is_global, shopify_product_id: null,
-      });
+      const { error } = await supabase.from('volume_discounts').insert({ ...payload, shopify_product_id: null });
       if (error) { toast.error('Kunde inte skapa'); return; }
       toast.success('Mängdrabatt skapad');
     }
@@ -149,7 +177,7 @@ const VolumeDiscountsTab = () => {
       <div className="flex items-center justify-between">
         <div>
           <h3 className="font-semibold text-sm">Mängdrabatter</h3>
-          <p className="text-xs text-muted-foreground">Automatisk rabatt baserat på antal produkter i varukorgen</p>
+          <p className="text-xs text-muted-foreground">Automatisk rabatt baserat på antal — uteslut produkter eller blockera kombination</p>
         </div>
         <Button size="sm" variant="outline" onClick={() => { if (showForm && !editingId) resetForm(); else { resetForm(); setShowForm(true); } }} className="gap-1 h-7 text-xs">
           <Plus className="w-3 h-3" /> Lägg till
@@ -162,22 +190,68 @@ const VolumeDiscountsTab = () => {
             <Card className="border-primary/20">
               <CardContent className="pt-4 space-y-3">
                 <p className="text-xs font-medium text-primary">{editingId ? '✏️ Redigerar' : '➕ Ny mängdrabatt'}</p>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                   <div>
-                    <Label className="text-xs">Min. antal produkter *</Label>
+                    <Label className="text-xs">Min. antal *</Label>
                     <Input type="number" value={form.min_quantity} onChange={e => setForm({ ...form, min_quantity: e.target.value })} placeholder="3" className="h-8" />
                   </div>
                   <div>
                     <Label className="text-xs">Rabatt % *</Label>
                     <Input type="number" step="0.5" value={form.discount_percent} onChange={e => setForm({ ...form, discount_percent: e.target.value })} placeholder="10" className="h-8" />
                   </div>
-                  <div className="flex items-end gap-2">
+                  <div>
+                    <Label className="text-xs">Etikett (valfri)</Label>
+                    <Input value={form.label} onChange={e => setForm({ ...form, label: e.target.value })} placeholder="Sommarkampanj" className="h-8" />
+                  </div>
+                  <div className="flex flex-col gap-2 justify-end">
                     <div className="flex items-center gap-2 h-8">
                       <Switch checked={form.is_global} onCheckedChange={v => setForm({ ...form, is_global: v })} />
                       <span className="text-xs text-muted-foreground">Global</span>
                     </div>
                   </div>
                 </div>
+
+                {/* Stacking control */}
+                <div className="flex items-center gap-3 p-2.5 rounded-lg border border-border bg-secondary/20">
+                  <Switch checked={form.stackable} onCheckedChange={v => setForm({ ...form, stackable: v })} />
+                  <div>
+                    <p className="text-xs font-medium">Kombinerbar med andra rabatter</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {form.stackable ? 'Kan kombineras med paket, rea & andra kampanjer' : 'Gäller ensam — kombineras EJ med andra prisevent'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Excluded products */}
+                <div>
+                  <Label className="text-xs font-medium">Uteslutna produkter</Label>
+                  <p className="text-[10px] text-muted-foreground mb-1.5">Dessa produkter räknas inte med / får inte rabatten</p>
+                  <div className="max-h-36 overflow-y-auto border border-border rounded-lg divide-y divide-border">
+                    {allProducts.map(p => {
+                      const excluded = form.excluded_product_ids.includes(p.id);
+                      return (
+                        <div
+                          key={p.id}
+                          className={`flex items-center gap-3 px-3 py-1.5 cursor-pointer transition-colors ${excluded ? 'bg-destructive/5' : 'hover:bg-secondary/50'}`}
+                          onClick={() => toggleExcludedProduct(p.id)}
+                        >
+                          <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 ${excluded ? 'border-destructive bg-destructive' : 'border-muted-foreground/30'}`}>
+                            {excluded && <span className="text-destructive-foreground text-[10px] font-bold">✕</span>}
+                          </div>
+                          <span className="text-xs flex-1 truncate">{p.title_sv}</span>
+                          <span className="text-[10px] text-muted-foreground">{p.price} kr</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {form.excluded_product_ids.length > 0 && (
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <Badge variant="destructive" className="text-[9px]">{form.excluded_product_ids.length} uteslutna</Badge>
+                      <Button variant="ghost" size="sm" className="h-5 text-[10px] px-1" onClick={() => setForm({ ...form, excluded_product_ids: [] })}>Rensa</Button>
+                    </div>
+                  )}
+                </div>
+
                 <div className="flex gap-2">
                   <Button size="sm" onClick={handleSave} className="gap-1 h-7 text-xs"><Save className="w-3 h-3" /> {editingId ? 'Uppdatera' : 'Spara'}</Button>
                   <Button size="sm" variant="outline" onClick={resetForm} className="h-7 text-xs">Avbryt</Button>
@@ -193,8 +267,14 @@ const VolumeDiscountsTab = () => {
           <div key={d.id} className={`flex items-center gap-3 p-3 rounded-xl border transition-colors ${editingId === d.id ? 'border-primary/40 bg-primary/5' : 'border-border bg-card'}`}>
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary text-sm shrink-0">{d.discount_percent}%</div>
             <div className="flex-1 min-w-0">
-              <p className="font-medium text-sm">{d.min_quantity}+ produkter → {d.discount_percent}% rabatt</p>
-              <p className="text-xs text-muted-foreground">{d.is_global ? 'Gäller hela varukorgen' : `Produktspecifik`}</p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="font-medium text-sm">{d.label || `${d.min_quantity}+ produkter`} → {d.discount_percent}% rabatt</p>
+                {!d.stackable && <Badge variant="outline" className="text-[9px]">Ej kombinerbar</Badge>}
+                {(d.excluded_product_ids?.length || 0) > 0 && (
+                  <Badge variant="secondary" className="text-[9px]">{d.excluded_product_ids.length} uteslutna</Badge>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">{d.is_global ? 'Gäller hela varukorgen' : 'Produktspecifik'}</p>
             </div>
             <div className="flex items-center gap-1">
               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(d)}><Pencil className="w-3.5 h-3.5" /></Button>
