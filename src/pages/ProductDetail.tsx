@@ -146,12 +146,16 @@ const ProductDetail = () => {
       <main className="pt-24 pb-28 md:pb-20">
         <div className="container mx-auto px-4">
           {/* Breadcrumb */}
-          <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
-            <Link to="/" className="hover:text-foreground transition-colors">{t('nav.home') || 'Hem'}</Link>
-            <span>/</span>
-            <Link to="/shop" className="hover:text-foreground transition-colors">{t('nav.shop')}</Link>
-            <span>/</span>
-            <span className="text-foreground truncate max-w-[200px]">{title}</span>
+          <nav className="flex items-center gap-2 text-xs mb-6">
+            <Link to="/" className="text-muted-foreground/70 hover:text-foreground hover:underline transition-colors">
+              {lang === 'sv' ? 'Hem' : 'Home'}
+            </Link>
+            <span className="text-muted-foreground/40">/</span>
+            <Link to="/produkter" className="text-muted-foreground/70 hover:text-foreground hover:underline transition-colors">
+              {lang === 'sv' ? 'Produkter' : 'Products'}
+            </Link>
+            <span className="text-muted-foreground/40">/</span>
+            <span className="text-foreground font-semibold truncate max-w-[200px] capitalize">{title}</span>
           </nav>
 
           <div className="grid lg:grid-cols-2 gap-10 lg:gap-16">
