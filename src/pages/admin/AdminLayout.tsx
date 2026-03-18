@@ -6,7 +6,7 @@ import { useStoreSettings } from '@/stores/storeSettingsStore';
 import { useAdminSession } from '@/hooks/useAdminSession';
 import {
   Loader2, Package, ClipboardList, BarChart3, Settings, Grid, Users,
-  Handshake, MessageCircle, Heart, Sparkles, Eye, LogOut, Home, Shield,
+  Handshake, Heart, Eye, LogOut, Home, Shield,
   Activity, User, Menu, X, Star, FileText, Percent, Truck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
