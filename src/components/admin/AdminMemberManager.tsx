@@ -460,7 +460,7 @@ const AdminMemberManager = () => {
         });
       } else {
         // Validate role is correct type
-        const validRole = role as 'admin' | 'moderator' | 'user';
+        const validRole = role as AppRole;
         // Check if user already has a role
         const existingRole = userRoles[userId];
         if (existingRole) {
