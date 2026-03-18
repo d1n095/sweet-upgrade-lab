@@ -835,7 +835,42 @@ const AdminMemberManager = ({ roleFilter = 'all' }: AdminMemberManagerProps) => 
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-base">{selectedMember.username || 'Inget användarnamn'}</p>
+                    {editingUsername ? (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={newUsername}
+                          onChange={(e) => setNewUsername(e.target.value)}
+                          className="h-8 text-sm w-40"
+                          maxLength={30}
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSaveUsername();
+                            if (e.key === 'Escape') setEditingUsername(false);
+                          }}
+                        />
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={handleSaveUsername}>
+                          <Check className="w-4 h-4 text-green-600" />
+                        </Button>
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditingUsername(false)}>
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="font-semibold text-base flex items-center gap-2">
+                        {selectedMember.username || 'Inget användarnamn'}
+                        {isFounder && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6"
+                            onClick={() => { setNewUsername(selectedMember.username || ''); setEditingUsername(true); }}
+                            title="Ändra användarnamn"
+                          >
+                            <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+                          </Button>
+                        )}
+                      </p>
+                    )}
                     <div className="flex items-center gap-2 flex-wrap mt-1">
                       {selectedMember.is_member && (
                         <Badge variant="outline" className="text-xs">
