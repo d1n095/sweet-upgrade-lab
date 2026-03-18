@@ -73,7 +73,7 @@ const HomepageTimeline = ({ getSection }: Props) => {
               >
                 <div className="absolute left-4 md:left-1/2 w-3 h-3 rounded-full bg-foreground border-2 border-background -translate-x-1/2 mt-1.5 z-10" />
                 <div className={`ml-10 md:ml-0 md:w-[calc(50%-2rem)] ${i % 2 === 0 ? 'md:text-right md:pr-8' : 'md:text-left md:pl-8'}`}>
-                  <span className="text-xs font-bold text-primary">{entry.year}</span>
+                  <span className="text-xs font-bold text-primary">{formatTimelineDate(entry.year)}</span>
                   <h3 className="text-sm font-semibold text-foreground mt-1">
                     {getLang(entry.title_sv, entry.title_en)}
                   </h3>
