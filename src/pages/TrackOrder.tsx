@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Package, Truck, CheckCircle2, Clock, MapPin, AlertCircle, FileCheck, Building2 } from 'lucide-react';
+import { Search, Package, Truck, CheckCircle2, Clock, MapPin, AlertCircle, FileCheck, Building2, XCircle, RefreshCw, Loader2 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { storeConfig } from '@/config/storeConfig';
+import { toast } from 'sonner';
 
 interface OrderData {
   id: string;
@@ -20,6 +21,7 @@ interface OrderData {
   items: unknown;
   total_amount: number;
   currency: string;
+  shipping_address: unknown;
 }
 
 const TrackOrder = () => {
@@ -27,6 +29,7 @@ const TrackOrder = () => {
   const [orderNumber, setOrderNumber] = useState('');
   const [email, setEmail] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
   const [orderData, setOrderData] = useState<OrderData | null>(null);
   const [notFound, setNotFound] = useState(false);
 
@@ -382,8 +385,68 @@ const TrackOrder = () => {
             </motion.div>
           )}
 
-          {/* Order Status Display */}
-          {orderData && (
+          {/* Failed Order Display */}
+          {orderData && (orderData.status === 'failed' || orderData.status === 'cancelled') && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="max-w-2xl mx-auto"
+            >
+              <div className="bg-card border border-destructive/30 rounded-2xl p-6 md:p-8 text-center">
+                <XCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
+                <h3 className="font-display text-xl font-semibold mb-2">
+                  {language === 'sv' ? 'Betalningen misslyckades' : 'Payment failed'}
+                </h3>
+                <p className="text-muted-foreground mb-2">
+                  {language === 'sv' 
+                    ? 'Din betalning kunde inte genomföras. Du kan försöka igen nedan.' 
+                    : 'Your payment could not be processed. You can try again below.'}
+                </p>
+                <p className="text-sm text-muted-foreground mb-6">
+                  {language === 'sv' ? 'Order' : 'Order'} #{orderData.shopify_order_number || orderData.id.slice(0, 8)} · {formatDate(orderData.created_at)}
+                </p>
+                <Button
+                  onClick={async () => {
+                    setIsRetrying(true);
+                    try {
+                      const items = Array.isArray(orderData.items) ? orderData.items : [];
+                      const { data, error } = await supabase.functions.invoke('create-checkout', {
+                        body: {
+                          items: items.map((item: any) => ({
+                            id: item.id,
+                            title: item.title || item.name,
+                            price: item.price,
+                            quantity: item.quantity || 1,
+                            image: item.image || '',
+                          })),
+                          email: email,
+                          shipping: orderData.shipping_address || {},
+                          language,
+                        },
+                      });
+                      if (error) throw error;
+                      if (data?.url) {
+                        window.location.href = data.url;
+                      }
+                    } catch (err: any) {
+                      console.error('Retry failed:', err);
+                      toast.error(language === 'sv' ? 'Kunde inte skapa ny betalning' : 'Could not create new payment');
+                    } finally {
+                      setIsRetrying(false);
+                    }
+                  }}
+                  disabled={isRetrying}
+                  className="gap-2"
+                >
+                  {isRetrying ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                  {language === 'sv' ? 'Försök betala igen' : 'Try payment again'}
+                </Button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Order Status Display (non-failed) */}
+          {orderData && !['failed', 'cancelled'].includes(orderData.status) && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}

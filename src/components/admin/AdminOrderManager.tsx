@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   ClipboardList, Package, Truck, Check, Clock, Loader2,
-  Eye, ChevronDown, ChevronUp, Save, X, CreditCard, MapPin, User, History
+  Eye, ChevronDown, ChevronUp, Save, X, CreditCard, MapPin, User, History, CheckCircle, AlertTriangle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -245,6 +245,48 @@ const AdminOrderManager = () => {
     }
   };
 
+  const handleMarkAsPaid = async (order: Order) => {
+    try {
+      const existingHistory = Array.isArray(order.status_history) ? order.status_history : [];
+      const newHistory = [...existingHistory, {
+        status: 'confirmed',
+        timestamp: new Date().toISOString(),
+        note: 'Manuellt markerad som betald av admin',
+      }];
+
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          status: 'confirmed',
+          status_history: newHistory,
+        })
+        .eq('id', order.id);
+
+      if (error) throw error;
+
+      setOrders(prev =>
+        prev.map(o =>
+          o.id === order.id
+            ? { ...o, status: 'confirmed', status_history: newHistory, updated_at: new Date().toISOString() }
+            : o
+        )
+      );
+
+      logActivity({
+        log_type: 'success',
+        category: 'admin',
+        message: 'Order manually marked as paid by admin',
+        details: { old_status: order.status },
+        order_id: order.id,
+      });
+
+      toast.success(language === 'sv' ? 'Order markerad som betald' : 'Order marked as paid');
+    } catch (error) {
+      console.error('Failed to mark as paid:', error);
+      toast.error(content.error);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     return statusOptions.find(s => s.value === status)?.color || 'bg-secondary text-secondary-foreground';
   };
@@ -361,19 +403,39 @@ const AdminOrderManager = () => {
                       <Badge className={getStatusColor(order.status)}>
                         {statusLabels[order.status] || order.status}
                       </Badge>
+                      {order.status === 'failed' && (
+                        <AlertTriangle className="w-3.5 h-3.5 text-destructive" />
+                      )}
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
                       {order.order_email} · {formatDate(order.created_at)}
                     </p>
                   </div>
-                  <span className="font-semibold text-sm">
-                    {formatCurrency(order.total_amount, order.currency)}
-                  </span>
-                  {isExpanded ? (
-                    <ChevronUp className="w-4 h-4 text-muted-foreground" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                  )}
+                   <div className="flex items-center gap-2">
+                    {/* Quick actions for pending/failed orders */}
+                    {(order.status === 'pending' || order.status === 'failed') && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5 text-xs border-green-300 text-green-700 hover:bg-green-50 dark:border-green-700 dark:text-green-400 dark:hover:bg-green-950/30"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMarkAsPaid(order);
+                        }}
+                      >
+                        <CheckCircle className="w-3.5 h-3.5" />
+                        {language === 'sv' ? 'Markera betald' : 'Mark paid'}
+                      </Button>
+                    )}
+                    <span className="font-semibold text-sm">
+                      {formatCurrency(order.total_amount, order.currency)}
+                    </span>
+                    {isExpanded ? (
+                      <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                    )}
+                  </div>
                 </div>
 
                 {/* Expanded Detail View */}
