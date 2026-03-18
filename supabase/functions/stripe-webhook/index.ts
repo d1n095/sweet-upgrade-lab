@@ -52,6 +52,25 @@ serve(async (req) => {
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
     const orderId = session.metadata?.order_id;
+    const paymentIntentId = session.payment_intent as string | null;
+
+    // ── PRIMARY idempotency: check payment_intent_id ──
+    if (paymentIntentId) {
+      const { data: existingByPI } = await supabase
+        .from('orders')
+        .select('id, status')
+        .eq('payment_intent_id', paymentIntentId)
+        .maybeSingle();
+
+      if (existingByPI && ['confirmed', 'processing', 'shipped', 'delivered'].includes(existingByPI.status)) {
+        console.log('Duplicate payment_intent_id, skipping:', paymentIntentId);
+        await logEvent(supabase, 'warning', 'payment', 'Duplicate webhook blocked by payment_intent_id', {
+          payment_intent_id: paymentIntentId,
+          order_id: existingByPI.id,
+        }, existingByPI.id);
+        return ok({ received: true, duplicate: true, method: 'payment_intent_id' });
+      }
+    }
 
     const resolvedOrderId = orderId || await findOrderBySession(supabase, session.id);
     if (!resolvedOrderId) {
@@ -68,13 +87,17 @@ serve(async (req) => {
 
     if (!order) return ok({ received: true, error: 'order_not_found' });
 
-    // Duplicate guard
+    // ── SECONDARY idempotency: check order status ──
     if (['confirmed', 'processing', 'shipped', 'delivered'].includes(order.status)) {
-      console.log('Duplicate webhook, skipping:', resolvedOrderId);
-      return ok({ received: true, duplicate: true });
+      console.log('Duplicate webhook (status check), skipping:', resolvedOrderId);
+      await logEvent(supabase, 'warning', 'payment', 'Duplicate webhook blocked by status check', {
+        payment_intent_id: paymentIntentId,
+        stripe_session: session.id,
+      }, resolvedOrderId);
+      return ok({ received: true, duplicate: true, method: 'status_check' });
     }
 
-    // Update status to confirmed
+    // Update status to confirmed + store payment_intent_id
     const history = Array.isArray(order.status_history) ? [...order.status_history] : [];
     history.push({ status: 'confirmed', timestamp: new Date().toISOString(), note: 'Payment confirmed via Stripe' });
 
@@ -85,6 +108,7 @@ serve(async (req) => {
         status_history: history,
         total_amount: (session.amount_total || 0) / 100,
         stripe_session_id: session.id,
+        payment_intent_id: paymentIntentId,
       })
       .eq('id', resolvedOrderId);
 
@@ -120,6 +144,7 @@ serve(async (req) => {
     await logEvent(supabase, 'success', 'order', 'Payment confirmed — reserved stock converted to sold', {
       email: session.customer_email,
       total: (session.amount_total || 0) / 100,
+      payment_intent_id: paymentIntentId,
     }, resolvedOrderId);
 
     return ok({ received: true, order_id: resolvedOrderId });
