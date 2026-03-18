@@ -135,6 +135,42 @@ const AdminStats = () => {
     }
   };
 
+  const fetchIngredientStats = async () => {
+    try {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const { data } = await supabase
+        .from('analytics_events')
+        .select('event_type, event_data')
+        .in('event_type', ['ingredient_search', 'ingredient_click'])
+        .gte('created_at', thirtyDaysAgo.toISOString())
+        .limit(1000);
+
+      if (data) {
+        const stats: Record<string, { searches: number; clicks: number }> = {};
+        (data as unknown as AnalyticsEvent[]).forEach(e => {
+          if (e.event_type === 'ingredient_search' && e.event_data?.matched_ingredients) {
+            (e.event_data.matched_ingredients as string[]).forEach(ing => {
+              if (!stats[ing]) stats[ing] = { searches: 0, clicks: 0 };
+              stats[ing].searches++;
+            });
+          }
+          if (e.event_type === 'ingredient_click' && e.event_data?.ingredient) {
+            const ing = e.event_data.ingredient as string;
+            if (!stats[ing]) stats[ing] = { searches: 0, clicks: 0 };
+            stats[ing].clicks++;
+          }
+        });
+        const sorted = Object.entries(stats)
+          .map(([name, s]) => ({ name, ...s }))
+          .sort((a, b) => (b.searches + b.clicks) - (a.searches + a.clicks))
+          .slice(0, 20);
+        setIngredientStats(sorted);
+      }
+    } catch (e) {
+      console.error('Failed to fetch ingredient stats:', e);
+    }
+  };
   const getStatusBadge = (count: number) => {
     if (count > 25) return <Badge className="bg-accent/20 text-accent border-0">Många har upptäckt</Badge>;
     if (count > 15) return <Badge className="bg-primary/20 text-primary border-0">🔥 Trendar</Badge>;
