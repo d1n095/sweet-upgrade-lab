@@ -39,14 +39,29 @@ const NavDropdown = ({
     setOpen(true);
   };
   const handleLeave = () => {
-    timeoutRef.current = setTimeout(() => setOpen(false), 120);
+    timeoutRef.current = setTimeout(() => setOpen(false), 150);
   };
 
-  // Single item → no dropdown
-  if (items.length <= 1) {
+  // Cleanup timeout on unmount
+  useEffect(() => () => clearTimeout(timeoutRef.current), []);
+
+  // No items → plain link
+  if (items.length === 0) {
     return (
       <Link
-        to={items[0]?.href || href}
+        to={href}
+        className={`text-sm text-muted-foreground hover:text-foreground transition-colors font-medium py-2 ${isActive ? 'text-foreground' : ''}`}
+      >
+        {label}
+      </Link>
+    );
+  }
+
+  // Single item → direct link
+  if (items.length === 1) {
+    return (
+      <Link
+        to={items[0].href}
         className={`text-sm text-muted-foreground hover:text-foreground transition-colors font-medium py-2 ${isActive ? 'text-foreground' : ''}`}
       >
         {label}
@@ -58,6 +73,13 @@ const NavDropdown = ({
     <div className="relative" onMouseEnter={handleEnter} onMouseLeave={handleLeave}>
       <Link
         to={href}
+        onClick={(e) => {
+          // Click toggles dropdown on touch devices, navigates on desktop
+          if ('ontouchstart' in window) {
+            e.preventDefault();
+            setOpen(prev => !prev);
+          }
+        }}
         className={`text-sm text-muted-foreground hover:text-foreground transition-colors font-medium flex items-center gap-1 py-2 ${isActive ? 'text-foreground' : ''}`}
       >
         {label}
