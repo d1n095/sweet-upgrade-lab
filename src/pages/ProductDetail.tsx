@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { trackProductView } from '@/utils/analyticsTracker';
-import { motion } from 'framer-motion';
-import { ArrowLeft, ShoppingCart, Check, Loader2, Minus, Plus, Shield, RotateCcw, Truck, Share2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowLeft, ShoppingCart, Check, Loader2, Minus, Plus, Shield, RotateCcw, Truck, Share2, X, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -17,6 +17,78 @@ import ProductIngredients from '@/components/product/ProductIngredients';
 import ProductCertifications from '@/components/product/ProductCertifications';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
+
+// ─── Image Zoom Component ───
+const ZoomableImage = ({ src, alt, children }: { src: string; alt: string; children?: React.ReactNode }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
+  const [isZooming, setIsZooming] = useState(false);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    setZoomPos({ x, y });
+  }, []);
+
+  return (
+    <>
+      <div
+        ref={containerRef}
+        className="relative aspect-square rounded-2xl overflow-hidden bg-secondary/30 border border-border cursor-zoom-in group"
+        onMouseEnter={() => setIsZooming(true)}
+        onMouseLeave={() => setIsZooming(false)}
+        onMouseMove={handleMouseMove}
+        onClick={() => setIsLightboxOpen(true)}
+      >
+        <img
+          src={src}
+          alt={alt}
+          loading="eager"
+          className="w-full h-full object-cover transition-transform duration-200"
+          style={isZooming ? {
+            transform: 'scale(2)',
+            transformOrigin: `${zoomPos.x}% ${zoomPos.y}%`,
+          } : undefined}
+        />
+        {children}
+      </div>
+
+      {/* Lightbox */}
+      <AnimatePresence>
+        {isLightboxOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4"
+            onClick={() => setIsLightboxOpen(false)}
+          >
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-4 right-4 text-white hover:bg-white/20 z-10"
+              onClick={(e) => { e.stopPropagation(); setIsLightboxOpen(false); }}
+            >
+              <X className="w-6 h-6" />
+            </Button>
+            <motion.img
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              src={src}
+              alt={alt}
+              className="max-w-full max-h-[90vh] object-contain rounded-lg"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  );
+};
 
 const ProductDetail = () => {
   const { handle } = useParams<{ handle: string }>();
@@ -101,12 +173,27 @@ const ProductDetail = () => {
     setTimeout(() => setIsAdded(false), 1500);
   };
 
-  const handleShare = () => {
-    if (navigator.share) {
-      navigator.share({ title: document.title, url: window.location.href });
-    } else {
-      navigator.clipboard.writeText(window.location.href);
-      toast.success(lang === 'sv' ? 'Länk kopierad!' : 'Link copied!');
+  const handleShare = async () => {
+    const url = window.location.href;
+    const title = document.title;
+    
+    try {
+      if (typeof navigator.share === 'function') {
+        await navigator.share({ title, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        toast.success(lang === 'sv' ? 'Länk kopierad!' : 'Link copied!');
+      }
+    } catch (err: any) {
+      // User cancelled share or clipboard failed — fallback
+      if (err?.name !== 'AbortError') {
+        try {
+          await navigator.clipboard.writeText(url);
+          toast.success(lang === 'sv' ? 'Länk kopierad!' : 'Link copied!');
+        } catch {
+          toast.error(lang === 'sv' ? 'Kunde inte dela' : 'Could not share');
+        }
+      }
     }
   };
 
@@ -169,38 +256,35 @@ const ProductDetail = () => {
           <div className="grid lg:grid-cols-2 gap-10 lg:gap-16">
             {/* Image gallery */}
             <div className="flex flex-col gap-3">
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="relative aspect-square rounded-2xl overflow-hidden bg-secondary/30 border border-border"
-              >
-                {imageUrl ? (
-                  <img src={imageUrl} alt={title} loading="eager" className="w-full h-full object-cover" />
-                ) : (
+              {imageUrl ? (
+                <ZoomableImage src={imageUrl} alt={title}>
+                  {product.badge && (
+                    <div className="absolute top-3 left-3 z-10 pointer-events-none">
+                      <Badge
+                        variant={product.badge === 'sale' ? 'destructive' : 'default'}
+                        className="text-xs font-bold px-2.5 py-1 rounded-full uppercase tracking-wide"
+                      >
+                        {product.badge === 'new' ? (lang === 'sv' ? 'Nyhet' : 'New') :
+                         product.badge === 'bestseller' ? (lang === 'sv' ? 'Bästsäljare' : 'Bestseller') :
+                         (lang === 'sv' ? 'Rea' : 'Sale')}
+                      </Badge>
+                    </div>
+                  )}
+                  {hasDiscount && (
+                    <div className="absolute top-3 right-3 z-10 pointer-events-none">
+                      <span className="bg-destructive text-destructive-foreground text-xs font-bold px-2.5 py-1 rounded-full">
+                        -{discountPercent}%
+                      </span>
+                    </div>
+                  )}
+                </ZoomableImage>
+              ) : (
+                <div className="relative aspect-square rounded-2xl overflow-hidden bg-secondary/30 border border-border">
                   <div className="w-full h-full flex items-center justify-center text-muted-foreground text-sm">
                     {t('product.noimage')}
                   </div>
-                )}
-                {product.badge && (
-                  <div className="absolute top-3 left-3">
-                    <Badge
-                      variant={product.badge === 'sale' ? 'destructive' : 'default'}
-                      className="text-xs font-bold px-2.5 py-1 rounded-full uppercase tracking-wide"
-                    >
-                      {product.badge === 'new' ? (lang === 'sv' ? 'Nyhet' : 'New') :
-                       product.badge === 'bestseller' ? (lang === 'sv' ? 'Bästsäljare' : 'Bestseller') :
-                       (lang === 'sv' ? 'Rea' : 'Sale')}
-                    </Badge>
-                  </div>
-                )}
-                {hasDiscount && (
-                  <div className="absolute top-3 right-3">
-                    <span className="bg-destructive text-destructive-foreground text-xs font-bold px-2.5 py-1 rounded-full">
-                      -{discountPercent}%
-                    </span>
-                  </div>
-                )}
-              </motion.div>
+                </div>
+              )}
               {images.length > 1 && (
                 <div className="flex gap-2 overflow-x-auto pb-1">
                   {images.map((url, i) => (

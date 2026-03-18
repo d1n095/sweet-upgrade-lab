@@ -4,6 +4,85 @@ import { Shield } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { usePaymentMethodsStore } from '@/stores/paymentMethodsStore';
 
+// Compact SVG icons for product page
+const VisaIcon = () => (
+  <svg viewBox="0 0 780 500" className="h-6 w-auto">
+    <rect width="780" height="500" rx="40" fill="#1A1F71"/>
+    <path d="M293.2 348.7l33.4-195.8h53.4l-33.4 195.8H293.2zM541.8 156.3c-10.6-4-27.2-8.3-47.9-8.3-52.8 0-90 26.6-90.2 64.6-.3 28.1 26.5 43.8 46.8 53.2 20.8 9.6 27.8 15.8 27.7 24.4-.1 13.2-16.6 19.2-32 19.2-21.4 0-32.7-3-50.3-10.2l-6.9-3.1-7.5 43.8c12.5 5.5 35.6 10.2 59.6 10.5 56.2 0 92.6-26.3 93-66.8.2-22.3-14-39.2-44.8-53.2-18.6-9.1-30.1-15.1-30-24.3 0-8.1 9.7-16.8 30.6-16.8 17.5-.3 30.1 3.5 40 7.5l4.8 2.3 7.1-42.8zM640.2 152.9h-41.3c-12.8 0-22.4 3.5-28 16.3l-79.4 179.5h56.2s9.2-24.1 11.3-29.4h68.6c1.6 6.9 6.5 29.4 6.5 29.4h49.7l-43.6-195.8zm-65.8 126.5c4.4-11.3 21.5-54.7 21.5-54.7-.3.5 4.4-11.4 7.1-18.8l3.6 17s10.3 47.2 12.5 56.5h-44.7zM238.4 152.9L186.2 285l-5.6-27c-9.7-31.2-40-65-73.8-81.9l47.9 172.4h56.6l84.1-195.6h-57z" fill="white"/>
+    <path d="M131.9 152.9H46.5l-.7 3.8c67.1 16.2 111.5 55.4 130 102.5L157.4 169c-3.2-12.4-12.6-16-25.5-16.1z" fill="#F7B600"/>
+  </svg>
+);
+
+const MastercardIcon = () => (
+  <svg viewBox="0 0 780 500" className="h-6 w-auto">
+    <rect width="780" height="500" rx="40" fill="#16366F"/>
+    <circle cx="310" cy="250" r="140" fill="#EB001B"/>
+    <circle cx="470" cy="250" r="140" fill="#F79E1B"/>
+    <path d="M390 141.7c38.6 31.4 63.3 79.3 63.3 133.3s-24.7 101.9-63.3 133.3c-38.6-31.4-63.3-79.3-63.3-133.3s24.7-101.9 63.3-133.3z" fill="#FF5F00"/>
+  </svg>
+);
+
+const KlarnaIcon = () => (
+  <svg viewBox="0 0 780 500" className="h-6 w-auto">
+    <rect width="780" height="500" rx="40" fill="#FFB3C7"/>
+    <path d="M355 148h-62c0 54.3-24.7 102.6-63.4 135l-26.5 22.2 97.9 127.2h76.3L283 311.6C326.3 272.3 355 213.3 355 148zM193 148h-60v284.4h60V148zM484.8 375.7c-20.9 0-37.8-17.2-37.8-38.4s16.9-38.4 37.8-38.4 37.8 17.2 37.8 38.4-16.9 38.4-37.8 38.4zM609 148h-57.4v284.4H609V148z" fill="#0A0B09"/>
+  </svg>
+);
+
+const SwishIcon = () => (
+  <svg viewBox="0 0 780 500" className="h-6 w-auto">
+    <rect width="780" height="500" rx="40" fill="#FFFFFF" stroke="#E0E0E0" strokeWidth="4"/>
+    <path d="M497.5 142.5c-68.8-28.8-137.6 14.4-191.5 57.7-43.1 34.6-100.6 57.7-148.5 28.8" stroke="#EE4023" strokeWidth="48" fill="none" strokeLinecap="round"/>
+    <path d="M282.5 357.5c68.8 28.8 137.6-14.4 191.5-57.7 43.1-34.6 100.6-57.7 148.5-28.8" stroke="#4FA757" strokeWidth="48" fill="none" strokeLinecap="round"/>
+  </svg>
+);
+
+const ApplePayIcon = () => (
+  <svg viewBox="0 0 780 500" className="h-6 w-auto">
+    <rect width="780" height="500" rx="40" fill="#000"/>
+    <path d="M234.8 173.1c-9.1 10.8-23.8 19.2-38.4 18-1.8-14.9 5.4-30.7 13.9-40.5 9.1-11.1 25-18.6 37.8-18.9 1.5 15.3-4.5 30.4-13.3 41.4zm13.1 21c-21.2-1.2-39.2 12.1-49.3 12.1s-25.5-11.4-42.2-11.1c-21.8.3-41.7 12.7-53 32.1-22.7 39.3-5.8 97.5 16.1 129.4 10.8 15.7 23.7 33.3 40.7 32.7 16.2-.6 22.4-10.5 42-10.5s25.2 10.5 42.5 10.2c17.6-.3 28.7-15.7 39.5-31.5 12.3-18 17.4-35.5 17.7-36.4-.4-.1-33.9-13.1-34.2-52-.3-32.5 26.6-48.1 27.8-48.9-15.2-22.4-38.8-24.9-47.2-25.5l1.6.3zM503.5 145.4v247h38.3v-84.5h53c48.4 0 82.4-33.2 82.4-81.5s-33.3-81-81.2-81h-92.5zm38.3 32.8h44.1c33.3 0 52.3 17.8 52.3 49s-19 49.2-52.6 49.2H541.8V178.2zM721.8 343c0-28.7-23.7-46.3-60.7-46.3-34.9 0-60.1 17.9-61.1 42.4h35.5c3.5-11.7 15.2-19.4 28.2-19.4 18.2 0 28.5 8.5 28.5 24.1v10.6l-37.3 2.2c-34.7 2-53.5 16.3-53.5 41 0 25 19.4 41.6 48.7 41.6 19.5 0 37.6-9.8 45.8-25.4h.6v23.7H731V343h-9.2zm-9.3 37.6c0 19.4-16.4 32.2-39.2 32.2-17.4 0-28.7-8.1-28.7-20.6 0-12.9 10.9-20.4 31.6-21.6l36.3-2.1v12.1z" fill="white"/>
+  </svg>
+);
+
+const GooglePayIcon = () => (
+  <svg viewBox="0 0 780 500" className="h-6 w-auto">
+    <rect width="780" height="500" rx="40" fill="#FFFFFF" stroke="#E0E0E0" strokeWidth="4"/>
+    <path d="M370.7 249.5v63.8h-20.3V181.1h53.8c12.9 0 24 4.6 33 13.5 9.2 8.9 13.8 19.7 13.8 32.3 0 12.9-4.6 23.7-13.8 32.5-8.8 8.8-19.9 13.2-33 13.2h-33.5v-23.1zm0-47.6v28.8h34c7.6 0 14-2.5 19-7.6 5.2-5 7.8-11 7.8-18 0-6.9-2.6-12.8-7.8-17.8-5-5-11.3-7.6-19-7.6h-34v22.2z" fill="#3C4043"/>
+    <path d="M490.6 223.5c14.9 0 26.7 4 35.2 12.1 8.5 8 12.8 19 12.8 33v67.2h-19.4v-15.1h-.9c-8.3 12.2-19.3 18.3-33.1 18.3-11.8 0-21.7-3.5-29.6-10.5-7.9-7-11.9-15.8-11.9-26.3 0-11.1 4.2-20 12.6-26.5 8.4-6.5 19.6-9.8 33.7-9.8 12 0 21.9 2.2 29.7 6.6v-4.6c0-8-3.1-14.7-9.4-20.2-6.2-5.5-13.5-8.2-21.7-8.2-12.5 0-22.4 5.3-29.7 15.9l-17.9-11.3c10.8-15.7 26.8-23.6 48-23.6h1.6zm-26.1 84.3c0 6 2.6 11 7.8 15 5.2 4 11.1 6 17.8 6 9.6 0 18.2-3.6 25.5-10.9 7.4-7.3 11-15.7 11-25.2-6.3-5-15.1-7.5-26.5-7.5-8.3 0-15.3 2.1-21 6.3-5.8 4.3-8.6 9.6-8.6 16.3h-6z" fill="#3C4043"/>
+    <path d="M623.3 226.7l-67.3 154.8h-20.8l25-54-44.3-100.8h21.9l32.1 77.2h.4l31.3-77.2h21.7z" fill="#3C4043"/>
+    <path d="M289.9 250c0-4.5-.4-8.9-1.1-13.1H195v24.8h53.3c-2.3 12.4-9.3 22.9-19.8 30v24.9h32c18.8-17.3 29.6-42.8 29.6-66.6h-.2z" fill="#4285F4"/>
+    <path d="M195 340c26.8 0 49.2-8.9 65.6-24l-32-24.9c-8.9 5.9-20.2 9.4-33.6 9.4-25.8 0-47.7-17.4-55.5-40.9h-33v25.7C123 317.3 156.3 340 195 340z" fill="#34A853"/>
+    <path d="M139.5 259.5c-2-5.9-3.1-12.3-3.1-18.8s1.1-12.9 3.1-18.8v-25.7h-33c-6.7 13.4-10.5 28.5-10.5 44.5s3.8 31.1 10.5 44.5l33-25.7z" fill="#FBBC04"/>
+    <path d="M195 181c14.5 0 27.6 5 37.8 14.8l28.4-28.4C244.2 151.7 222 141 195 141c-38.7 0-72 22.7-88.5 55.2l33 25.7c7.8-23.5 29.7-40.9 55.5-40.9z" fill="#EA4335"/>
+  </svg>
+);
+
+const PayPalIcon = () => (
+  <svg viewBox="0 0 780 500" className="h-6 w-auto">
+    <rect width="780" height="500" rx="40" fill="#FFFFFF" stroke="#E0E0E0" strokeWidth="4"/>
+    <path d="M377.3 169.8h-75.4c-5.2 0-9.6 3.8-10.4 8.9l-30.5 193.4c-.6 3.8 2.3 7.2 6.1 7.2h36c5.2 0 9.6-3.8 10.4-8.9l8.2-52.2c.8-5.1 5.2-8.9 10.4-8.9h24c49.9 0 78.7-24.2 86.3-72.1 3.4-21 .1-37.5-9.7-49-10.8-12.7-29.9-19.1-55.4-19.1v.7zm8.8 71c-4.1 27.2-25 27.2-45.1 27.2h-11.5l8-51c.5-3.1 3.1-5.3 6.2-5.3h5.3c13.7 0 26.7 0 33.4 7.8 4 4.7 5.2 11.6 3.7 21.3z" fill="#253B80"/>
+    <path d="M543.3 238.9h-36.2c-3.1 0-5.7 2.3-6.2 5.3l-1.6 10.1-2.5-3.6c-7.8-11.3-25.1-15.1-42.4-15.1-39.7 0-73.6 30-80.2 72.1-3.4 21 1.5 41.1 13.4 55.1 10.9 12.9 26.5 18.2 45.1 18.2 31.9 0 49.6-20.5 49.6-20.5l-1.6 9.9c-.6 3.8 2.3 7.2 6.1 7.2h32.6c5.2 0 9.6-3.8 10.4-8.9l19.5-123.5c.6-3.9-2.3-7.3-6.1-7.3v.6zm-50 69.8c-3.4 20.5-19.7 34.3-40.5 34.3-10.4 0-18.8-3.4-24.1-9.7-5.3-6.3-7.3-15.3-5.5-25.3 3.2-20.3 19.8-34.5 40.2-34.5 10.2 0 18.5 3.4 24 9.8 5.5 6.5 7.7 15.5 5.9 25.4z" fill="#253B80"/>
+    <path d="M413.7 169.8h-75.4c-5.2 0-9.6 3.8-10.4 8.9l-30.5 193.4c-.6 3.8 2.3 7.2 6.1 7.2h38.4c3.6 0 6.7-2.6 7.3-6.2l8.6-54.8c.8-5.1 5.2-8.9 10.4-8.9h24c49.9 0 78.7-24.2 86.3-72.1 3.4-21 .1-37.5-9.7-49-10.8-12.7-29.9-19.1-55.4-19.1l.3.6zm8.8 71c-4.1 27.2-25 27.2-45.1 27.2h-11.5l8-51c.5-3.1 3.1-5.3 6.2-5.3h5.3c13.7 0 26.7 0 33.4 7.8 4 4.7 5.2 11.6 3.7 21.3z" fill="#179BD7"/>
+    <path d="M579.3 238.9h-36.2c-3.1 0-5.7 2.3-6.2 5.3l-1.6 10.1-2.5-3.6c-7.8-11.3-25.1-15.1-42.4-15.1-39.7 0-73.6 30-80.2 72.1-3.4 21 1.5 41.1 13.4 55.1 10.9 12.9 26.5 18.2 45.1 18.2 31.9 0 49.6-20.5 49.6-20.5l-1.6 9.9c-.6 3.8 2.3 7.2 6.1 7.2h32.6c5.2 0 9.6-3.8 10.4-8.9l19.5-123.5c.6-3.9-2.3-7.3-6.1-7.3v.6zm-50 69.8c-3.4 20.5-19.7 34.3-40.5 34.3-10.4 0-18.8-3.4-24.1-9.7-5.3-6.3-7.3-15.3-5.5-25.3 3.2-20.3 19.8-34.5 40.2-34.5 10.2 0 18.5 3.4 24 9.8 5.5 6.5 7.7 15.5 5.9 25.4z" fill="#179BD7"/>
+  </svg>
+);
+
+const GenericIcon = ({ name }: { name: string }) => (
+  <div className="h-6 px-2.5 rounded bg-muted border border-border flex items-center justify-center">
+    <span className="text-[8px] font-semibold text-muted-foreground">{name}</span>
+  </div>
+);
+
+const ICON_MAP: Record<string, React.FC> = {
+  visa: VisaIcon,
+  mastercard: MastercardIcon,
+  klarna: KlarnaIcon,
+  swish: SwishIcon,
+  applepay: ApplePayIcon,
+  googlepay: GooglePayIcon,
+  paypal: PayPalIcon,
+};
+
 const PaymentMethods = () => {
   const { language } = useLanguage();
   const { methods, isLoaded, load } = usePaymentMethodsStore();
@@ -14,39 +93,27 @@ const PaymentMethods = () => {
 
   const visibleMethods = methods.filter(m => m.enabled);
 
-  const colorMap: Record<string, string> = {
-    visa: '#1A1F71',
-    mastercard: '#EB001B',
-    klarna: '#FFB3C7',
-    swish: '#00A0DE',
-    applepay: '#000000',
-    googlepay: '#4285F4',
-    paypal: '#003087',
-  };
-
   if (visibleMethods.length === 0) return null;
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex flex-col items-center gap-3"
+      className="flex flex-col items-center gap-3 mt-2"
     >
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Shield className="w-4 h-4 text-primary" />
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <Shield className="w-3.5 h-3.5 text-primary" />
         <span>{language === 'sv' ? 'Säkra betalningar med' : 'Secure payments with'}</span>
       </div>
-      <div className="flex items-center gap-2 flex-wrap justify-center">
-        {visibleMethods.map((payment) => (
-          <div
-            key={payment.id}
-            className="w-12 h-8 rounded bg-card border border-border flex items-center justify-center text-[9px] font-bold"
-            style={{ color: colorMap[payment.id] || '#374151' }}
-            title={payment.name}
-          >
-            {payment.name}
-          </div>
-        ))}
+      <div className="flex items-center gap-1.5 flex-wrap justify-center">
+        {visibleMethods.map((payment) => {
+          const Icon = ICON_MAP[payment.id];
+          return (
+            <div key={payment.id} title={payment.name} className="cursor-default">
+              {Icon ? <Icon /> : <GenericIcon name={payment.name} />}
+            </div>
+          );
+        })}
       </div>
     </motion.div>
   );
