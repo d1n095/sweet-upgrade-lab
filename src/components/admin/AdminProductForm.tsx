@@ -35,6 +35,9 @@ export interface ProductFormData {
   effects: string;
   usage: string;
   extendedDescription: string;
+  metaTitle: string;
+  metaDescription: string;
+  metaKeywords: string;
 }
 
 const CURRENCY_OPTIONS = [
