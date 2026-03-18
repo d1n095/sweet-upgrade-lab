@@ -589,10 +589,19 @@ const AdminMemberManager = () => {
                   <SelectTrigger className="w-28 h-8 text-xs">
                     <SelectValue placeholder={t.assignRole} />
                   </SelectTrigger>
-                  <SelectContent>
+                   <SelectContent>
                     <SelectItem value="none">{t.noRole}</SelectItem>
-                    <SelectItem value="admin">{t.admin}</SelectItem>
-                    <SelectItem value="moderator">{t.employee}</SelectItem>
+                    <SelectItem value="founder">👑 Grundare</SelectItem>
+                    <SelectItem value="admin">🛡️ {t.admin}</SelectItem>
+                    <SelectItem value="it">💻 IT</SelectItem>
+                    <SelectItem value="manager">📋 Manager</SelectItem>
+                    <SelectItem value="marketing">📢 Marketing</SelectItem>
+                    <SelectItem value="finance">💰 Finans</SelectItem>
+                    <SelectItem value="moderator">👔 {t.employee}</SelectItem>
+                    <SelectItem value="support">🎧 Support</SelectItem>
+                    <SelectItem value="warehouse">📦 Lager</SelectItem>
+                    <SelectItem value="affiliate">🤝 Affiliate</SelectItem>
+                    <SelectItem value="donor">💚 Donator</SelectItem>
                   </SelectContent>
                 </Select>
                 <Button
