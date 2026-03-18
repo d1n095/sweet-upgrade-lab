@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Package, FlaskConical, ChefHat, AlertTriangle, Eye, FileText, Archive, Image } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger, ScrollableTabs } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import AdminDbProductManager from '@/components/admin/AdminDbProductManager';
 import AdminProductImportExport from '@/components/admin/AdminProductImportExport';
