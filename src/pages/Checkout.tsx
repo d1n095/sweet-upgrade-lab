@@ -476,6 +476,8 @@ const Checkout = () => {
                       <Input
                         id="phone"
                         type="tel"
+                        inputMode="tel"
+                        autoComplete="tel"
                         value={form.phone}
                         onChange={(e) => updateField('phone', e.target.value)}
                       />
