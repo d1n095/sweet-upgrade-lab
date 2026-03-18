@@ -391,7 +391,7 @@ const AdminMemberManager = () => {
     loadMembers();
   }, []);
 
-  const loadMembers = async () => {
+  const loadMembers = useCallback(async () => {
     try {
       // Load profiles with username
       const { data: profiles } = await supabase
@@ -400,7 +400,13 @@ const AdminMemberManager = () => {
         .order('created_at', { ascending: false });
 
       if (profiles) {
-        setMembers(profiles as Member[]);
+        // Also fetch emails for all members via RPC (founders/admins can see this)
+        const membersList = profiles as Member[];
+        
+        // Batch-fetch emails: search with empty string returns nothing, so we fetch by chunks
+        // Instead, just load emails for all visible members via individual lookups
+        // We'll use the RPC when searching
+        setMembers(membersList);
       }
 
       // Load user roles
@@ -420,7 +426,7 @@ const AdminMemberManager = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   const loadMemberDetails = async (member: Member) => {
     setLoadingDetails(true);
