@@ -74,7 +74,7 @@ const Hero = ({ getSection, isSectionVisible }: HeroProps) => {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.12, ease: [0.25, 0.1, 0.25, 1] }}
-            className="text-sm sm:text-base text-muted-foreground/80 max-w-md mx-auto mb-6 md:mb-8 leading-relaxed"
+            className="hidden sm:block text-sm sm:text-base text-muted-foreground/80 max-w-md mx-auto mb-6 md:mb-8 leading-relaxed"
           >
             {heroSection ? getLang(heroSection.content_sv, heroSection.content_en) : t('hero.subtitle')}
           </motion.p>
@@ -103,8 +103,8 @@ const Hero = ({ getSection, isSectionVisible }: HeroProps) => {
             transition={{ duration: 0.6, delay: 0.24, ease: [0.25, 0.1, 0.25, 1] }}
           >
             <Button
-              size="lg"
-              className="h-[52px] px-14 text-sm font-semibold rounded-full shadow-md hover:shadow-lg active:scale-[0.97] transition-all"
+              size="default"
+              className="h-11 px-8 text-sm font-semibold rounded-full shadow-sm hover:shadow-md active:scale-[0.97] transition-all"
               onClick={() => navigate('/produkter')}
             >
               {t('hero.cta.primary')}
