@@ -403,6 +403,9 @@ const AdminOrderManager = () => {
                       <Badge className={getStatusColor(order.status)}>
                         {statusLabels[order.status] || order.status}
                       </Badge>
+                      {order.status === 'failed' && (
+                        <AlertTriangle className="w-3.5 h-3.5 text-destructive" />
+                      )}
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
                       {order.order_email} · {formatDate(order.created_at)}
