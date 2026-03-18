@@ -65,6 +65,7 @@ const Checkout = () => {
   const { items, clearCart } = useCartStore();
   const { checkoutEnabled, autoSaveProfile } = useStoreSettings();
   const { user } = useAuth();
+  const shippingConfig = useShippingConfig();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -119,7 +120,7 @@ const Checkout = () => {
     items.reduce((sum, item) => sum + (parseFloat(item.price.amount) * item.quantity), 0),
     [items]
   );
-  const shippingCost = subtotal >= storeConfig.shipping.freeShippingThreshold ? 0 : storeConfig.shipping.cost;
+  const shippingCost = subtotal >= shippingConfig.freeThreshold ? 0 : shippingConfig.cost;
   const total = subtotal + shippingCost;
 
   const isSv = cl === 'sv';
