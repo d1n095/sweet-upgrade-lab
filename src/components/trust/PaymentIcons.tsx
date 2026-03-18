@@ -27,7 +27,7 @@ const KlarnaIcon = () => (
 );
 
 const SwishIcon = () => (
-  <svg viewBox="0 0 50 35" className="w-10 h-7">
+  <svg viewBox="0 0 50 35" className="w-11 h-8">
     <rect width="50" height="35" rx="4" fill="#FFFFFF"/>
     <rect x="1" y="1" width="48" height="33" rx="3" stroke="#E5E5E5" strokeWidth="1" fill="none"/>
     <path d="M15 12c8-4 12 10 20 6" stroke="#00A0DE" strokeWidth="3" fill="none" strokeLinecap="round"/>
