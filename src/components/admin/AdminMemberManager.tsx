@@ -774,50 +774,109 @@ const AdminMemberManager = ({ roleFilter = 'all' }: AdminMemberManagerProps) => 
           ) : selectedMember && (
             <div className="space-y-4">
               {/* Member Info */}
-              <div className="p-4 bg-secondary/50 rounded-lg space-y-2">
+              <div className="p-4 bg-secondary/50 rounded-lg space-y-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                  <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                     {selectedMember.avatar_url ? (
-                      <img src={selectedMember.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover" />
+                      <img src={selectedMember.avatar_url} alt="" className="w-14 h-14 rounded-full object-cover" />
                     ) : (
-                      <Users className="w-6 h-6 text-primary" />
+                      <Users className="w-7 h-7 text-primary" />
                     )}
                   </div>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="font-semibold text-base">{selectedMember.username || 'Inget användarnamn'}</p>
-                    {selectedMember.email && (
-                      <p className="text-sm text-muted-foreground flex items-center gap-1">
-                        <Mail className="w-3.5 h-3.5" /> {selectedMember.email}
-                      </p>
-                    )}
-                    {selectedMember.phone && (
-                      <p className="text-sm text-muted-foreground flex items-center gap-1">
-                        <Phone className="w-3.5 h-3.5" /> {selectedMember.phone}
-                      </p>
-                    )}
+                    <div className="flex items-center gap-2 flex-wrap mt-1">
+                      {selectedMember.is_member && (
+                        <Badge variant="outline" className="text-xs">
+                          <UserCheck className="w-3 h-3 mr-1" /> Medlem
+                        </Badge>
+                      )}
+                      {userRoles[selectedMember.user_id] && (
+                        <Badge className={getRoleBadgeColor(userRoles[selectedMember.user_id])}>
+                          <Shield className="w-3 h-3 mr-1" />
+                          {userRoles[selectedMember.user_id]}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <p className="text-xs font-mono text-muted-foreground break-all">{selectedMember.user_id}</p>
-                <p className="text-xs text-muted-foreground">Registrerad: {formatDate(selectedMember.created_at)}</p>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {selectedMember.is_member && (
-                    <Badge variant="outline">
-                      {t.memberSince} {selectedMember.member_since ? formatDate(selectedMember.member_since) : '-'}
-                    </Badge>
+
+                {/* Contact Info */}
+                <div className="grid gap-1.5 pt-2 border-t border-border">
+                  <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Kontaktuppgifter</h5>
+                  {selectedMember.email && (
+                    <p className="text-sm flex items-center gap-2">
+                      <Mail className="w-3.5 h-3.5 text-muted-foreground shrink-0" /> {selectedMember.email}
+                    </p>
                   )}
-                  {userRoles[selectedMember.user_id] && (
-                    <Badge className={getRoleBadgeColor(userRoles[selectedMember.user_id])}>
-                      {userRoles[selectedMember.user_id]}
-                    </Badge>
+                  {selectedMember.phone && (
+                    <p className="text-sm flex items-center gap-2">
+                      <Phone className="w-3.5 h-3.5 text-muted-foreground shrink-0" /> {selectedMember.phone}
+                    </p>
+                  )}
+                  {!selectedMember.email && !selectedMember.phone && (
+                    <p className="text-xs text-muted-foreground italic">Ingen kontaktinfo tillgänglig</p>
                   )}
                 </div>
+
+                {/* Account Details */}
+                <div className="grid gap-1.5 pt-2 border-t border-border">
+                  <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Kontoinformation</h5>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Calendar className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                      <span className="text-muted-foreground">Registrerad:</span>
+                      <span className="font-medium">{formatDate(selectedMember.created_at)}</span>
+                    </div>
+                    {selectedMember.member_since && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <UserCheck className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                        <span className="text-muted-foreground">Medlem sedan:</span>
+                        <span className="font-medium">{formatDate(selectedMember.member_since)}</span>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs font-mono text-muted-foreground break-all mt-1">
+                    <Hash className="w-3 h-3 inline mr-1" />ID: {selectedMember.user_id}
+                  </p>
+                </div>
+
+                {/* Stats */}
+                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border">
+                  <div className="text-center p-2 bg-background rounded-lg">
+                    <p className="text-lg font-bold">{selectedMember.level ?? 1}</p>
+                    <p className="text-[10px] text-muted-foreground flex items-center justify-center gap-1">
+                      <Award className="w-3 h-3" /> Nivå
+                    </p>
+                  </div>
+                  <div className="text-center p-2 bg-background rounded-lg">
+                    <p className="text-lg font-bold">{selectedMember.xp ?? 0}</p>
+                    <p className="text-[10px] text-muted-foreground flex items-center justify-center gap-1">
+                      <TrendingUp className="w-3 h-3" /> XP
+                    </p>
+                  </div>
+                  <div className="text-center p-2 bg-background rounded-lg">
+                    <p className="text-lg font-bold">{selectedMember.trust_score ?? 0}</p>
+                    <p className="text-[10px] text-muted-foreground flex items-center justify-center gap-1">
+                      <Shield className="w-3 h-3" /> Trust
+                    </p>
+                  </div>
+                </div>
+
+                {selectedMember.referral_code && (
+                  <div className="flex items-center gap-2 text-sm pt-1">
+                    <Link2 className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span className="text-muted-foreground">Referral-kod:</span>
+                    <code className="text-xs bg-background px-2 py-0.5 rounded font-mono">{selectedMember.referral_code}</code>
+                  </div>
+                )}
               </div>
 
               {/* Orders */}
               <div>
                 <h4 className="font-medium text-sm mb-2 flex items-center gap-2">
                   <Package className="w-4 h-4" />
-                  {t.orderHistory}
+                  {t.orderHistory} ({memberOrders.length})
                 </h4>
                 {memberOrders.length === 0 ? (
                   <p className="text-sm text-muted-foreground">{t.noOrders}</p>
