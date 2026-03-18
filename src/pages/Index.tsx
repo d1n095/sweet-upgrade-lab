@@ -4,18 +4,33 @@ import Footer from '@/components/layout/Footer';
 import Hero from '@/components/sections/Hero';
 import IngredientPhilosophy from '@/components/sections/IngredientPhilosophy';
 import AboutCompact from '@/components/sections/AboutCompact';
+import HomepageBestsellers from '@/components/sections/HomepageBestsellers';
+import HomepageReviews from '@/components/sections/HomepageReviews';
 import FloatingContactButton from '@/components/trust/FloatingContactButton';
 import SEOHead from '@/components/seo/SEOHead';
 import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import { trackPageView } from '@/utils/analytics';
+import { useStoreSettings } from '@/stores/storeSettingsStore';
 
 const Index = () => {
   const { language } = useLanguage();
   const lang = getContentLang(language);
+  const {
+    homepageBestsellers,
+    homepageReviews,
+    homepagePhilosophy,
+    homepageAbout,
+    isLoaded,
+    fetchSettings,
+  } = useStoreSettings();
 
   useEffect(() => {
     trackPageView('home', language);
   }, [language]);
+
+  useEffect(() => {
+    if (!isLoaded) fetchSettings();
+  }, [isLoaded, fetchSettings]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -31,8 +46,10 @@ const Index = () => {
       <Header />
       <main>
         <Hero />
-        <IngredientPhilosophy />
-        <AboutCompact />
+        {homepagePhilosophy && <IngredientPhilosophy />}
+        {homepageBestsellers && <HomepageBestsellers />}
+        {homepageReviews && <HomepageReviews />}
+        {homepageAbout && <AboutCompact />}
       </main>
       <Footer />
       <FloatingContactButton />
