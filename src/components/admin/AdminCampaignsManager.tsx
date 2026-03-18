@@ -430,9 +430,56 @@ const BundlesTab = () => {
                   )}
                 </div>
 
+                {/* Conditions / Requirements */}
+                <div className="border border-border rounded-lg p-3 space-y-3 bg-secondary/20">
+                  <p className="text-xs font-semibold flex items-center gap-1.5">⚙️ Villkor & Krav</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <Label className="text-xs">Typ av krav</Label>
+                      <Select value={form.requirement_type} onValueChange={v => setForm({ ...form, requirement_type: v })}>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none" className="text-xs">Inga krav</SelectItem>
+                          <SelectItem value="first_purchase" className="text-xs">Första köpet</SelectItem>
+                          <SelectItem value="level_required" className="text-xs">Kräver level</SelectItem>
+                          <SelectItem value="account_required" className="text-xs">Kräver konto</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {form.requirement_type === 'first_purchase' && (
+                      <>
+                        <div>
+                          <Label className="text-xs">Rabatt första köpet %</Label>
+                          <Input type="number" step="0.5" value={form.first_purchase_discount} onChange={e => setForm({ ...form, first_purchase_discount: e.target.value })} placeholder="40" className="h-8" />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Rabatt efterföljande köp %</Label>
+                          <Input type="number" step="0.5" value={form.repeat_discount} onChange={e => setForm({ ...form, repeat_discount: e.target.value })} placeholder="20" className="h-8" />
+                        </div>
+                      </>
+                    )}
+                    {form.requirement_type === 'level_required' && (
+                      <div>
+                        <Label className="text-xs">Minsta level</Label>
+                        <Input type="number" value={form.min_level} onChange={e => setForm({ ...form, min_level: e.target.value })} placeholder="5" className="h-8" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="flex items-center gap-2 h-8">
+                      <Switch checked={form.requires_account} onCheckedChange={v => setForm({ ...form, requires_account: v })} />
+                      <span className="text-xs text-muted-foreground">Kräver konto</span>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Max användningar per kund</Label>
+                      <Input type="number" value={form.max_uses_per_user} onChange={e => setForm({ ...form, max_uses_per_user: e.target.value })} placeholder="∞ (lämna tomt)" className="h-8" />
+                    </div>
+                  </div>
+                </div>
+
                 <div className="flex gap-2">
                   <Button size="sm" onClick={handleAdd} className="gap-1 h-7 text-xs"><Save className="w-3 h-3" /> Spara paket</Button>
-                  <Button size="sm" variant="outline" onClick={() => { setShowForm(false); setSelectedProducts([]); }} className="h-7 text-xs">Avbryt</Button>
+                  <Button size="sm" variant="outline" onClick={() => { setShowForm(false); setSelectedProducts([]); resetForm(); }} className="h-7 text-xs">Avbryt</Button>
                 </div>
               </CardContent>
             </Card>
