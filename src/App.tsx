@@ -31,6 +31,7 @@ import NotFound from "./pages/NotFound";
 import CookieBanner from "./components/cookie/CookieBanner";
 import MaintenanceGuard from "./components/guards/MaintenanceGuard";
 import { usePageVisibility, ToggleablePage } from "./stores/pageVisibilityStore";
+import { useAdminRole } from "./hooks/useAdminRole";
 
 // Admin
 import AdminLayout from "./pages/admin/AdminLayout";
@@ -51,10 +52,11 @@ import AdminLogs from "./pages/admin/AdminLogs";
 
 const queryClient = new QueryClient();
 
-// Guard component for toggleable pages
+// Guard component for toggleable pages — admins can always preview
 const PageGuard = ({ pageId, children }: { pageId: ToggleablePage; children: React.ReactNode }) => {
   const { isVisible } = usePageVisibility();
-  if (!isVisible(pageId)) return <NotFound />;
+  const { isAdmin } = useAdminRole();
+  if (!isVisible(pageId) && !isAdmin) return <NotFound />;
   return <>{children}</>;
 };
 

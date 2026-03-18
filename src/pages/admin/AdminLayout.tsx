@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import AdminGlobalSearch from '@/components/admin/AdminGlobalSearch';
 
 const navItems = [
   { to: '/admin', label: 'Dashboard', icon: BarChart3, end: true },
@@ -115,7 +116,10 @@ const AdminLayout = () => {
       <div className="flex-1 md:ml-60 flex flex-col min-h-screen">
         {/* Desktop Topbar */}
         <header className="hidden md:flex h-14 items-center justify-between px-8 border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-20">
-          <h2 className="text-sm font-semibold">{currentPage?.label || 'Admin'}</h2>
+          <div className="flex items-center gap-4">
+            <AdminGlobalSearch />
+            <h2 className="text-sm font-semibold">{currentPage?.label || 'Admin'}</h2>
+          </div>
           <div className="flex items-center gap-3">
             {!siteActive && (
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-destructive/10 border border-destructive/20">
@@ -124,9 +128,9 @@ const AdminLayout = () => {
               </div>
             )}
             {!checkoutEnabled && (
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                <span className="text-xs font-medium text-amber-600 dark:text-amber-400">Kassa av</span>
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-warning/10 border border-warning/20">
+                <span className="w-1.5 h-1.5 rounded-full bg-warning" />
+                <span className="text-xs font-medium text-warning">Kassa av</span>
               </div>
             )}
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/50">
