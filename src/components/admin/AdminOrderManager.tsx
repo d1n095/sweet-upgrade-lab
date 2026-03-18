@@ -405,6 +405,17 @@ const AdminOrderManager = () => {
                       <Badge className={getStatusColor(order.status)}>
                         {statusLabels[order.status] || order.status}
                       </Badge>
+                      <Badge variant="outline" className={`text-[10px] h-5 ${
+                        order.payment_status === 'paid' 
+                          ? 'border-green-300 text-green-700 dark:border-green-700 dark:text-green-400' 
+                          : order.payment_status === 'failed'
+                          ? 'border-destructive/50 text-destructive'
+                          : 'border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-400'
+                      }`}>
+                        {order.payment_status === 'paid' ? (language === 'sv' ? 'Betald' : 'Paid') 
+                          : order.payment_status === 'failed' ? (language === 'sv' ? 'Misslyckad' : 'Failed')
+                          : (language === 'sv' ? 'Obetald' : 'Unpaid')}
+                      </Badge>
                       {order.status === 'failed' && (
                         <AlertTriangle className="w-3.5 h-3.5 text-destructive" />
                       )}
