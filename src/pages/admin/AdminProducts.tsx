@@ -76,11 +76,15 @@ const AdminProducts = () => {
           <TabsTrigger value="recipes" className="gap-1.5 text-xs">
             <ChefHat className="w-3.5 h-3.5" /> Receptmallar
           </TabsTrigger>
+          <TabsTrigger value="gallery" className="gap-1.5 text-xs">
+            <Image className="w-3.5 h-3.5" /> Bildgalleri
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="products"><AdminDbProductManager /></TabsContent>
         <TabsContent value="ingredients"><AdminRecipeIngredientLibrary /></TabsContent>
         <TabsContent value="recipes"><AdminRecipeTemplateBuilder /></TabsContent>
+        <TabsContent value="gallery"><AdminImageGallery /></TabsContent>
       </Tabs>
     </div>
   );

@@ -1,12 +1,12 @@
-import AdminPageContentManager from '@/components/admin/AdminPageContentManager';
+import AdminUnifiedContent from '@/components/admin/AdminUnifiedContent';
 
 const AdminContent = () => (
   <div className="space-y-6">
     <div>
-      <h1 className="text-2xl font-semibold">Sidinnehåll & Layout</h1>
-      <p className="text-muted-foreground text-sm mt-1">Redigera, sortera och styr synlighet för sektioner på varje sida</p>
+      <h1 className="text-2xl font-semibold">Innehåll & Kommunikation</h1>
+      <p className="text-muted-foreground text-sm mt-1">Sektioner, nyheter, tidslinje och e-postmallar – allt på ett ställe</p>
     </div>
-    <AdminPageContentManager />
+    <AdminUnifiedContent />
   </div>
 );
 
