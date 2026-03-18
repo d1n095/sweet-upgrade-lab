@@ -771,6 +771,11 @@ const AdminMemberManager = () => {
                         <Mail className="w-3.5 h-3.5" /> {selectedMember.email}
                       </p>
                     )}
+                    {selectedMember.phone && (
+                      <p className="text-sm text-muted-foreground flex items-center gap-1">
+                        <Phone className="w-3.5 h-3.5" /> {selectedMember.phone}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <p className="text-xs font-mono text-muted-foreground break-all">{selectedMember.user_id}</p>
