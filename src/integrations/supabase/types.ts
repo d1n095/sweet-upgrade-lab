@@ -1378,6 +1378,45 @@ export type Database = {
         }
         Relationships: []
       }
+      timeline_entries: {
+        Row: {
+          created_at: string
+          description_en: string | null
+          description_sv: string | null
+          display_order: number
+          id: string
+          is_visible: boolean
+          title_en: string | null
+          title_sv: string
+          updated_at: string
+          year: string
+        }
+        Insert: {
+          created_at?: string
+          description_en?: string | null
+          description_sv?: string | null
+          display_order?: number
+          id?: string
+          is_visible?: boolean
+          title_en?: string | null
+          title_sv: string
+          updated_at?: string
+          year: string
+        }
+        Update: {
+          created_at?: string
+          description_en?: string | null
+          description_sv?: string | null
+          display_order?: number
+          id?: string
+          is_visible?: boolean
+          title_en?: string | null
+          title_sv?: string
+          updated_at?: string
+          year?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
