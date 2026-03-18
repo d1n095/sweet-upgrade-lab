@@ -70,7 +70,7 @@ const ProductDetail = () => {
             node: {
               id: product.id + '-variant',
               title: 'Default',
-              availableForSale: product.stock > 0 || product.allow_overselling,
+              availableForSale: (product.stock - (product.reserved_stock || 0)) > 0 || product.allow_overselling,
               price: { amount: product.price.toString(), currencyCode: 'SEK' },
               selectedOptions: [],
             }
