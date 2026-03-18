@@ -91,21 +91,28 @@ function IngredientPickerSection({
   const [loaded, setLoaded] = React.useState(false);
   const [showPicker, setShowPicker] = React.useState(false);
   const [filterCat, setFilterCat] = React.useState<string>('all');
+  const [search, setSearch] = React.useState('');
+  const [addingNew, setAddingNew] = React.useState(false);
+  const [newName, setNewName] = React.useState('');
+  const [newCategory, setNewCategory] = React.useState('Övrigt');
+  const [savingNew, setSavingNew] = React.useState(false);
+
+  const fetchIngredients = React.useCallback(() => {
+    supabase
+      .from('recipe_ingredients')
+      .select('id, name_sv, name_en, category')
+      .eq('is_active', true)
+      .order('category')
+      .order('display_order')
+      .then(({ data }) => {
+        if (data) setLibraryItems(data as LibraryIngredient[]);
+        setLoaded(true);
+      });
+  }, []);
 
   React.useEffect(() => {
-    if (!loaded) {
-      supabase
-        .from('recipe_ingredients')
-        .select('id, name_sv, name_en, category')
-        .eq('is_active', true)
-        .order('category')
-        .order('display_order')
-        .then(({ data }) => {
-          if (data) setLibraryItems(data as LibraryIngredient[]);
-          setLoaded(true);
-        });
-    }
-  }, [loaded]);
+    if (!loaded) fetchIngredients();
+  }, [loaded, fetchIngredients]);
 
   const currentIngredients = React.useMemo(
     () => formData.ingredients.split(',').map(s => s.trim()).filter(Boolean),
@@ -129,11 +136,34 @@ function IngredientPickerSection({
     [libraryItems]
   );
 
-  const filteredItems = filterCat === 'all'
-    ? libraryItems
-    : libraryItems.filter(i => i.category === filterCat);
+  const filteredItems = React.useMemo(() => {
+    let items = filterCat === 'all' ? libraryItems : libraryItems.filter(i => i.category === filterCat);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      items = items.filter(i => i.name_sv.toLowerCase().includes(q) || (i.name_en && i.name_en.toLowerCase().includes(q)));
+    }
+    return items;
+  }, [libraryItems, filterCat, search]);
+
+  const handleAddNew = async () => {
+    if (!newName.trim()) return;
+    setSavingNew(true);
+    const { error } = await supabase.from('recipe_ingredients').insert({
+      name_sv: newName.trim(),
+      category: newCategory,
+      display_order: libraryItems.length,
+    });
+    if (!error) {
+      addIngredient(newName.trim());
+      setNewName('');
+      setAddingNew(false);
+      fetchIngredients();
+    }
+    setSavingNew(false);
+  };
 
   const sv = language === 'sv';
+  const searchHasNoResults = search.trim() && filteredItems.length === 0;
 
   return (
     <div className="space-y-2">
@@ -170,6 +200,15 @@ function IngredientPickerSection({
       {/* Library picker */}
       {showPicker && (
         <div className="border border-border rounded-lg p-3 bg-secondary/20 space-y-3">
+          {/* Search */}
+          <Input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder={sv ? 'Sök ingrediens...' : 'Search ingredient...'}
+            className="h-8 text-xs"
+          />
+
+          {/* Category filters */}
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs font-medium text-muted-foreground">{sv ? 'Kategori:' : 'Category:'}</span>
             <button
@@ -213,10 +252,70 @@ function IngredientPickerSection({
                 </button>
               );
             })}
-            {filteredItems.length === 0 && (
+            {filteredItems.length === 0 && !searchHasNoResults && (
               <p className="text-xs text-muted-foreground py-2">{sv ? 'Inga ingredienser i denna kategori' : 'No ingredients in this category'}</p>
             )}
           </div>
+
+          {/* No results → offer to add new */}
+          {searchHasNoResults && (
+            <div className="bg-background rounded-md p-2.5 border border-dashed border-primary/30 space-y-2">
+              <p className="text-xs text-muted-foreground">
+                {sv ? `Ingen match för "${search}". Lägg till som ny?` : `No match for "${search}". Add as new?`}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="text-xs h-7 gap-1"
+                  onClick={() => { setNewName(search); setAddingNew(true); }}
+                >
+                  <Plus className="w-3 h-3" />
+                  {sv ? 'Lägg till' : 'Add'}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Inline add new */}
+          {!searchHasNoResults && (
+            <button
+              type="button"
+              onClick={() => setAddingNew(!addingNew)}
+              className="text-xs text-primary hover:underline flex items-center gap-1"
+            >
+              <Plus className="w-3 h-3" />
+              {sv ? 'Lägg till ny ingrediens' : 'Add new ingredient'}
+            </button>
+          )}
+
+          {addingNew && (
+            <div className="bg-background rounded-md p-2.5 border border-primary/20 space-y-2">
+              <Input
+                value={newName}
+                onChange={e => setNewName(e.target.value)}
+                placeholder={sv ? 'Ingrediensnamn' : 'Ingredient name'}
+                className="h-7 text-xs"
+                autoFocus
+              />
+              <div className="flex items-center gap-2">
+                <Select value={newCategory} onValueChange={setNewCategory}>
+                  <SelectTrigger className="h-7 text-xs flex-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {['Eteriska oljor', 'Basoljor & Smör', 'Lösningsmedel', 'Naturliga baser', 'Tillsatser & Konserveringsmedel', 'Övrigt'].map(c => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button type="button" size="sm" className="h-7 text-xs gap-1" onClick={handleAddNew} disabled={savingNew || !newName.trim()}>
+                  <Save className="w-3 h-3" /> {sv ? 'Spara' : 'Save'}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

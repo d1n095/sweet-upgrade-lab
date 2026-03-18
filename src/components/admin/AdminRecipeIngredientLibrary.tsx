@@ -47,6 +47,7 @@ const AdminRecipeIngredientLibrary = () => {
   const [editing, setEditing] = useState<RecipeIngredient | null>(null);
   const [saving, setSaving] = useState(false);
   const [filterCategory, setFilterCategory] = useState<string>('all');
+  const [search, setSearch] = useState('');
   const [form, setForm] = useState({
     name_sv: '',
     name_en: '',
@@ -144,6 +145,10 @@ const AdminRecipeIngredientLibrary = () => {
 
   const grouped = ingredients.reduce<Record<string, RecipeIngredient[]>>((acc, item) => {
     if (filterCategory !== 'all' && item.category !== filterCategory) return acc;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      if (!item.name_sv.toLowerCase().includes(q) && !(item.name_en && item.name_en.toLowerCase().includes(q))) return acc;
+    }
     (acc[item.category] = acc[item.category] || []).push(item);
     return acc;
   }, {});
@@ -178,6 +183,17 @@ const AdminRecipeIngredientLibrary = () => {
             <Plus className="w-4 h-4" /> Lägg till
           </Button>
         </div>
+      </div>
+
+      {/* Search */}
+      <div className="relative">
+        <Input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Sök ingrediens..."
+          className="h-8 text-xs pl-8"
+        />
+        <Beaker className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
       </div>
 
       {loading ? (
