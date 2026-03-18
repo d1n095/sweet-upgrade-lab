@@ -406,9 +406,28 @@ const AdminDbProductManager = () => {
 
       <div className="flex items-center gap-1 flex-shrink-0">
         {activeTab === 'active' && (
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(product)}>
-            <Edit className="w-4 h-4" />
-          </Button>
+          <>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              title={product.is_visible ? (sv ? 'Dölj produkt' : 'Hide product') : (sv ? 'Visa produkt' : 'Show product')}
+              onClick={async () => {
+                try {
+                  await updateDbProduct(product.id, { is_visible: !product.is_visible });
+                  toast.success(product.is_visible ? (sv ? 'Produkt dold' : 'Product hidden') : (sv ? 'Produkt synlig' : 'Product visible'));
+                  queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });
+                } catch (err: any) {
+                  toast.error(t.error + ': ' + (err?.message || ''));
+                }
+              }}
+            >
+              {product.is_visible ? <Eye className="w-4 h-4 text-green-600" /> : <EyeOff className="w-4 h-4 text-muted-foreground" />}
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(product)}>
+              <Edit className="w-4 h-4" />
+            </Button>
+          </>
         )}
 
         <DropdownMenu>
