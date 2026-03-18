@@ -59,7 +59,8 @@ const AdminLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-
+  const [recentErrorCount, setRecentErrorCount] = useState(0);
+  const [errorBannerDismissed, setErrorBannerDismissed] = useState(false);
   const hasAccess = isAdmin || isEmployee;
   const combinedLoading = isLoading || employeeLoading || founderLoading;
 
