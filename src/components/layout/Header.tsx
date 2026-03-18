@@ -393,6 +393,24 @@ const Header = () => {
                   </Link>
                 ))}
 
+                {/* Mobile-only: dark mode & language */}
+                <div className="flex items-center gap-2 px-4 py-3 sm:hidden">
+                  {mounted && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-2 rounded-xl h-10 flex-1"
+                      onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+                    >
+                      {resolvedTheme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                      {resolvedTheme === 'dark' ? (language === 'sv' ? 'Ljust läge' : 'Light mode') : (language === 'sv' ? 'Mörkt läge' : 'Dark mode')}
+                    </Button>
+                  )}
+                  <div className="flex-1 flex justify-center">
+                    <LanguageSwitcher />
+                  </div>
+                </div>
+
                 <div className="mt-3 pt-3 border-t border-border/50">
                   {user ? (
                     <>
