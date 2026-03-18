@@ -124,28 +124,16 @@ const AdminStats = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-              <h1 className="text-2xl md:text-3xl font-semibold text-foreground">
-                Försäljningsstatistik
-              </h1>
-              <p className="text-muted-foreground mt-1">
-                Realtidsöverblick över produktförsäljning
-              </p>
-            </div>
-            <Button
-              onClick={fetchSalesData}
-              variant="outline"
-              size="sm"
-              className="gap-2"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Uppdatera
-            </Button>
-          </div>
-
-          {/* Stats Cards */}
+          <h1 className="text-2xl font-semibold">Försäljningsstatistik</h1>
+          <p className="text-muted-foreground text-sm mt-1">Realtidsöverblick över produktförsäljning</p>
+        </div>
+        <Button onClick={fetchSalesData} variant="outline" size="sm" className="gap-2">
+          <RefreshCw className="w-4 h-4" />
+          Uppdatera
+        </Button>
+      </div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
             <Card className="border-border bg-card">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
