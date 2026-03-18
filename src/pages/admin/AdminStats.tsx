@@ -281,7 +281,7 @@ const AdminStats = () => {
                     className="flex items-center justify-between p-3 rounded-xl bg-destructive/5 border border-destructive/10"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-7 h-7 rounded-lg bg-amber-500/10 flex items-center justify-center text-xs font-bold text-amber-600">{idx + 1}</div>
+                      <div className="w-7 h-7 rounded-lg bg-destructive/10 flex items-center justify-center text-xs font-bold text-destructive">{idx + 1}</div>
                       <div>
                         <span className="font-medium text-sm">"{s.search_term}"</span>
                         <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
