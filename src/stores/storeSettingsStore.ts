@@ -70,6 +70,15 @@ export const useStoreSettings = create<StoreSettingsState>((set, get) => ({
     logSettingsChange('checkout_enabled', old, enabled);
   },
 
+  setRegistrationEnabled: async (enabled) => {
+    const old = get().registrationEnabled;
+    set({ registrationEnabled: enabled });
+    await supabase
+      .from('store_settings')
+      .upsert({ key: 'registration_enabled', value: enabled, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+    logSettingsChange('registration_enabled', old, enabled);
+  },
+
   setHomepageSetting: async (key, enabled) => {
     const stateKey = key.replace('homepage_', 'homepage') as string;
     const camelKey = key === 'homepage_bestsellers' ? 'homepageBestsellers'
