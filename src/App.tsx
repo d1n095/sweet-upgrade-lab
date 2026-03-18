@@ -108,8 +108,8 @@ const App = () => (
                 <Route path="categories" element={<AdminCategories />} />
                 <Route path="members" element={<AdminMembers />} />
                 <Route path="partners" element={<AdminPartners />} />
-                <Route path="communication" element={<AdminCommunication />} />
-                <Route path="updates" element={<AdminUpdates />} />
+                <Route path="communication" element={<Navigate to="/admin/content" replace />} />
+                <Route path="updates" element={<Navigate to="/admin/content" replace />} />
                 <Route path="visibility" element={<AdminVisibility />} />
                 <Route path="content" element={<AdminContent />} />
                 <Route path="campaigns" element={<AdminCampaigns />} />
