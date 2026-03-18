@@ -31,6 +31,8 @@ interface Member {
   member_since: string | null;
   created_at: string;
   email?: string;
+  username?: string | null;
+  avatar_url?: string | null;
 }
 
 type AppRole = 'admin' | 'founder' | 'it' | 'moderator' | 'support' | 'affiliate' | 'donor' | 'manager' | 'marketing' | 'finance' | 'warehouse';
