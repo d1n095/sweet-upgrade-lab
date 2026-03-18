@@ -30,6 +30,7 @@ import Donations from "./pages/Donations";
 import NotFound from "./pages/NotFound";
 import AffiliatePanel from "./pages/AffiliatePanel";
 import DonationsPanel from "./pages/DonationsPanel";
+import ReferralLanding from "./pages/ReferralLanding";
 import CookieBanner from "./components/cookie/CookieBanner";
 import MaintenanceGuard from "./components/guards/MaintenanceGuard";
 import { usePageVisibility, ToggleablePage } from "./stores/pageVisibilityStore";
@@ -97,6 +98,7 @@ const App = () => (
               <Route path="/donations" element={<PageGuard pageId="donations"><Donations /></PageGuard>} />
               <Route path="/affiliate-panel" element={<AffiliatePanel />} />
               <Route path="/donations-panel" element={<DonationsPanel />} />
+              <Route path="/r/:code" element={<ReferralLanding />} />
 
               <Route path="/admin" element={<AdminLayout />}>
                 <Route index element={<AdminOverview />} />

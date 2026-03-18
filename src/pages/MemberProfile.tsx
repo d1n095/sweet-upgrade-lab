@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { 
   User, Package, Star, Gift, Settings, LogOut, 
   ChevronRight, Loader2, Clock, Check, BadgeCheck,
-  Shield, TrendingUp, Zap, Award
+  Shield, TrendingUp, Zap, Award, Users
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import ReviewStars from '@/components/reviews/ReviewStars';
+import ReferralDashboard from '@/components/referral/ReferralDashboard';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useAdminRole } from '@/hooks/useAdminRole';
@@ -318,61 +319,57 @@ const MemberProfile = () => {
 
           {/* Tabs */}
           <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
-            <div className="mb-6 -mx-4 px-4 overflow-x-auto scrollbar-hide">
-              <TabsList className="inline-flex w-max min-w-full sm:w-auto">
-                <TabsTrigger value="orders" className="gap-1.5 text-xs sm:text-sm">
-                  <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  <span className="hidden sm:inline">{language === 'sv' ? 'Mina ordrar' : 'My Orders'}</span>
-                  <span className="sm:hidden">{language === 'sv' ? 'Ordrar' : 'Orders'}</span>
-                </TabsTrigger>
-                <TabsTrigger value="overview" className="gap-1.5 text-xs sm:text-sm">
-                  <User className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  {t.tabs.overview}
-                </TabsTrigger>
-                <TabsTrigger value="reviews" className="gap-1.5 text-xs sm:text-sm">
-                  <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  <span className="hidden sm:inline">{t.tabs.reviews}</span>
-                  <span className="sm:hidden">{language === 'sv' ? 'Recensioner' : 'Reviews'}</span>
-                  {reviews.length > 0 && (
-                    <Badge variant="secondary" className="ml-1 text-[10px] px-1.5">{reviews.length}</Badge>
+            <div className="sticky top-16 z-30 bg-background/95 backdrop-blur-sm pb-4 pt-2 -mx-4 px-4 border-b border-border/50 mb-6">
+              <div className="overflow-x-auto scrollbar-hide">
+                <TabsList className="inline-flex w-max min-w-full sm:w-auto">
+                  <TabsTrigger value="orders" className="gap-1.5 text-xs sm:text-sm">
+                    <Package className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">{language === 'sv' ? 'Mina ordrar' : 'My Orders'}</span>
+                    <span className="sm:hidden">{language === 'sv' ? 'Ordrar' : 'Orders'}</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="reviews" className="gap-1.5 text-xs sm:text-sm">
+                    <Star className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">{t.tabs.reviews}</span>
+                    <span className="sm:hidden">{language === 'sv' ? 'Recensioner' : 'Reviews'}</span>
+                    {reviews.length > 0 && (
+                      <Badge variant="secondary" className="ml-1 text-[10px] px-1.5">{reviews.length}</Badge>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="rewards" className="gap-1.5 text-xs sm:text-sm">
+                    <Gift className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">{t.tabs.rewards}</span>
+                    <span className="sm:hidden">{language === 'sv' ? 'Koder' : 'Codes'}</span>
+                    {unusedRewards.length > 0 && (
+                      <Badge variant="secondary" className="ml-1 text-[10px] px-1.5">{unusedRewards.length}</Badge>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="referral" className="gap-1.5 text-xs sm:text-sm">
+                    <Users className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">{language === 'sv' ? 'Bjud in' : 'Refer'}</span>
+                    <span className="sm:hidden">{language === 'sv' ? 'Bjud' : 'Refer'}</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="donations" className="gap-1.5 text-xs sm:text-sm">
+                    <TrendingUp className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">{language === 'sv' ? 'Donationer' : 'Donations'}</span>
+                    <span className="sm:hidden">💚</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="settings" className="gap-1.5 text-xs sm:text-sm">
+                    <Settings className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">{language === 'sv' ? 'Inställningar' : 'Settings'}</span>
+                    <span className="sm:hidden"><Settings className="w-0 h-0" /></span>
+                  </TabsTrigger>
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => navigate('/admin')}
+                      className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1 text-xs sm:text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 text-primary hover:bg-primary/10"
+                    >
+                      <Shield className="w-3.5 h-3.5" />
+                      Admin
+                    </button>
                   )}
-                </TabsTrigger>
-                <TabsTrigger value="rewards" className="gap-1.5 text-xs sm:text-sm">
-                  <Gift className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  <span className="hidden sm:inline">{t.tabs.rewards}</span>
-                  <span className="sm:hidden">{language === 'sv' ? 'Koder' : 'Codes'}</span>
-                  {unusedRewards.length > 0 && (
-                    <Badge variant="secondary" className="ml-1 text-[10px] px-1.5">{unusedRewards.length}</Badge>
-                  )}
-                </TabsTrigger>
-                <TabsTrigger value="donations" className="gap-1.5 text-xs sm:text-sm">
-                  <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  {language === 'sv' ? 'Donationer' : 'Donations'}
-                </TabsTrigger>
-                <button
-                  type="button"
-                  onClick={() => navigate('/affiliate-panel')}
-                  className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1 text-xs sm:text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 text-muted-foreground hover:bg-secondary/80 hover:text-foreground"
-                >
-                  <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  Affiliate
-                </button>
-                <TabsTrigger value="settings" className="gap-1.5 text-xs sm:text-sm">
-                  <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  <span className="hidden sm:inline">{language === 'sv' ? 'Inställningar' : 'Settings'}</span>
-                  <span className="sm:hidden"><Settings className="w-0 h-0" /></span>
-                </TabsTrigger>
-                {isAdmin && (
-                  <button
-                    type="button"
-                    onClick={() => navigate('/admin')}
-                    className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1 text-xs sm:text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 text-primary hover:bg-primary/10"
-                  >
-                    <Shield className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                    Admin
-                  </button>
-                )}
-              </TabsList>
+                </TabsList>
+              </div>
             </div>
 
             {/* Orders Tab */}
@@ -392,6 +389,11 @@ const MemberProfile = () => {
               <div className="mt-6">
                 <AffiliateDashboard />
               </div>
+            </TabsContent>
+
+            {/* Referral Tab */}
+            <TabsContent value="referral">
+              <ReferralDashboard />
             </TabsContent>
 
             {/* Donations Tab */}

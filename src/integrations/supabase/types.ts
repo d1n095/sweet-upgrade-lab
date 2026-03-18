@@ -584,6 +584,50 @@ export type Database = {
         }
         Relationships: []
       }
+      feedback_surveys: {
+        Row: {
+          comments: string | null
+          created_at: string
+          delivery_rating: number | null
+          id: string
+          order_id: string | null
+          overall_satisfaction: number
+          packaging_rating: number | null
+          user_id: string
+          would_recommend: boolean | null
+        }
+        Insert: {
+          comments?: string | null
+          created_at?: string
+          delivery_rating?: number | null
+          id?: string
+          order_id?: string | null
+          overall_satisfaction: number
+          packaging_rating?: number | null
+          user_id: string
+          would_recommend?: boolean | null
+        }
+        Update: {
+          comments?: string | null
+          created_at?: string
+          delivery_rating?: number | null
+          id?: string
+          order_id?: string | null
+          overall_satisfaction?: number
+          packaging_rating?: number | null
+          user_id?: string
+          would_recommend?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_surveys_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       influencer_products: {
         Row: {
           id: string
@@ -818,6 +862,7 @@ export type Database = {
         Row: {
           created_at: string
           currency: string
+          delivered_at: string | null
           estimated_delivery: string | null
           id: string
           items: Json
@@ -826,6 +871,7 @@ export type Database = {
           order_number: string | null
           payment_intent_id: string | null
           payment_status: string
+          review_reminder_sent: boolean
           shipping_address: Json | null
           shopify_order_id: string | null
           shopify_order_number: string | null
@@ -840,6 +886,7 @@ export type Database = {
         Insert: {
           created_at?: string
           currency?: string
+          delivered_at?: string | null
           estimated_delivery?: string | null
           id?: string
           items?: Json
@@ -848,6 +895,7 @@ export type Database = {
           order_number?: string | null
           payment_intent_id?: string | null
           payment_status?: string
+          review_reminder_sent?: boolean
           shipping_address?: Json | null
           shopify_order_id?: string | null
           shopify_order_number?: string | null
@@ -862,6 +910,7 @@ export type Database = {
         Update: {
           created_at?: string
           currency?: string
+          delivered_at?: string | null
           estimated_delivery?: string | null
           id?: string
           items?: Json
@@ -870,6 +919,7 @@ export type Database = {
           order_number?: string | null
           payment_intent_id?: string | null
           payment_status?: string
+          review_reminder_sent?: boolean
           shipping_address?: Json | null
           shopify_order_id?: string | null
           shopify_order_number?: string | null
@@ -1029,6 +1079,7 @@ export type Database = {
           is_member: boolean
           level: number
           member_since: string | null
+          referral_code: string | null
           trust_score: number
           updated_at: string
           user_id: string
@@ -1042,6 +1093,7 @@ export type Database = {
           is_member?: boolean
           level?: number
           member_since?: string | null
+          referral_code?: string | null
           trust_score?: number
           updated_at?: string
           user_id: string
@@ -1055,6 +1107,7 @@ export type Database = {
           is_member?: boolean
           level?: number
           member_since?: string | null
+          referral_code?: string | null
           trust_score?: number
           updated_at?: string
           user_id?: string
@@ -1062,6 +1115,53 @@ export type Database = {
           xp?: number
         }
         Relationships: []
+      }
+      referrals: {
+        Row: {
+          converted_at: string | null
+          created_at: string
+          id: string
+          order_id: string | null
+          referral_code: string
+          referred_email: string | null
+          referred_user_id: string | null
+          referrer_id: string
+          reward_granted: boolean
+          status: string
+        }
+        Insert: {
+          converted_at?: string | null
+          created_at?: string
+          id?: string
+          order_id?: string | null
+          referral_code: string
+          referred_email?: string | null
+          referred_user_id?: string | null
+          referrer_id: string
+          reward_granted?: boolean
+          status?: string
+        }
+        Update: {
+          converted_at?: string | null
+          created_at?: string
+          id?: string
+          order_id?: string | null
+          referral_code?: string
+          referred_email?: string | null
+          referred_user_id?: string | null
+          referrer_id?: string
+          reward_granted?: boolean
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referrals_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       review_rewards: {
         Row: {
@@ -1115,6 +1215,7 @@ export type Database = {
           created_at: string
           id: string
           is_approved: boolean
+          is_auto_review: boolean
           is_verified_purchase: boolean
           product_title: string
           rating: number
@@ -1130,6 +1231,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_approved?: boolean
+          is_auto_review?: boolean
           is_verified_purchase?: boolean
           product_title: string
           rating: number
@@ -1145,6 +1247,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_approved?: boolean
+          is_auto_review?: boolean
           is_verified_purchase?: boolean
           product_title?: string
           rating?: number

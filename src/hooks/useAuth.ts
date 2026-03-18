@@ -13,6 +13,7 @@ interface Profile {
   xp: number;
   level: number;
   trust_score: number;
+  referral_code: string | null;
 }
 
 export const useAuth = () => {
