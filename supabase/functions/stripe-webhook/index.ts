@@ -104,12 +104,25 @@ serve(async (req) => {
 
   if (orderError) {
     console.error('Failed to create order:', orderError);
+    await supabase.from('activity_logs').insert({
+      log_type: 'error',
+      category: 'order',
+      message: 'Failed to create order from webhook',
+      details: { error: orderError.message, stripe_session: session.id },
+    });
     return new Response(JSON.stringify({ error: 'Order creation failed' }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 
   console.log('Order created:', order.id);
+  await supabase.from('activity_logs').insert({
+    log_type: 'success',
+    category: 'order',
+    message: 'Order created via Stripe webhook',
+    details: { email: session.customer_email, total: (session.amount_total || 0) / 100, items_count: items.length },
+    order_id: order.id,
+  });
 
   // Update stock
   for (const item of items) {
