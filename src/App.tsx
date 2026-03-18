@@ -98,6 +98,7 @@ const App = () => (
               <Route path="/donations" element={<PageGuard pageId="donations"><Donations /></PageGuard>} />
               <Route path="/affiliate-panel" element={<AffiliatePanel />} />
               <Route path="/donations-panel" element={<DonationsPanel />} />
+              <Route path="/r/:code" element={<ReferralLanding />} />
 
               <Route path="/admin" element={<AdminLayout />}>
                 <Route index element={<AdminOverview />} />
