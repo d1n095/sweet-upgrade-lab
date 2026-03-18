@@ -263,29 +263,10 @@ const AdminReviews = () => {
   // Access denied
   if (!user || !isAdmin) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <main className="pt-24 pb-20">
-          <div className="container mx-auto px-4">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="max-w-md mx-auto text-center"
-            >
-              <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-destructive/10 flex items-center justify-center">
-                <AlertTriangle className="w-10 h-10 text-destructive" />
-              </div>
-              <h1 className="text-2xl font-bold mb-4">{t.accessDenied}</h1>
-              <p className="text-muted-foreground mb-8">
-                {!user ? t.loginRequired : t.accessDeniedDesc}
-              </p>
-              <Link to="/">
-                <Button>{t.backToHome}</Button>
-              </Link>
-            </motion.div>
-          </div>
-        </main>
-        <Footer />
+      <div className="text-center py-12">
+        <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+        <h1 className="text-xl font-semibold mb-2">{t.accessDenied}</h1>
+        <p className="text-muted-foreground">{!user ? t.loginRequired : t.accessDeniedDesc}</p>
       </div>
     );
   }
