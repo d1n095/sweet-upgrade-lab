@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Plus } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -60,6 +61,53 @@ function generateKeywords(p: DbProduct): string {
   // Deduplicate and limit to 6-8
   const unique = [...new Set(kw.map(k => k.toLowerCase().trim()))].filter(Boolean);
   return unique.slice(0, 8).join(', ');
+}
+
+// Generate a broad pool of keyword suggestions for a product
+function generateSuggestions(p: DbProduct): string[] {
+  const cat = p.category || '';
+  const name = p.title_sv;
+  const pool: string[] = [];
+
+  // Name & category
+  pool.push(name, cat);
+
+  // Modifier combos
+  MODIFIERS.forEach(m => {
+    if (cat) pool.push(`${m} ${cat}`);
+    pool.push(`${m} ${name}`);
+  });
+
+  // Intent combos
+  INTENTS.forEach(i => {
+    if (cat) pool.push(`${i} ${cat}`);
+    pool.push(`${i} ${name}`);
+  });
+
+  // Tags
+  if (p.tags?.length) pool.push(...p.tags);
+
+  // Certifications
+  if (p.certifications?.length) pool.push(...p.certifications);
+
+  // Vendor
+  if (p.vendor) pool.push(p.vendor);
+
+  // Ingredient-based
+  if (p.ingredients_sv) {
+    const ings = p.ingredients_sv.split(',').map(s => s.trim()).filter(Boolean);
+    ings.slice(0, 5).forEach(ing => {
+      pool.push(ing);
+      if (cat) pool.push(`${ing} ${cat}`);
+    });
+  }
+
+  // Location / generic
+  if (cat) {
+    pool.push(`${cat} online sverige`, `${cat} snabb leverans`, `${cat} pris`);
+  }
+
+  return [...new Set(pool.map(k => k.toLowerCase().trim()))].filter(Boolean);
 }
 
 function generateDescription(p: DbProduct): string {
@@ -392,6 +440,38 @@ const AdminSEO = () => {
                       <p className="text-xs text-muted-foreground">
                         {editData.metaKeywords ? editData.metaKeywords.split(',').filter(k => k.trim()).length : 0} nyckelord
                       </p>
+
+                      {/* Suggestion chips */}
+                      {(() => {
+                        const currentKws = editData.metaKeywords.split(',').map(k => k.trim().toLowerCase()).filter(Boolean);
+                        const suggestions = generateSuggestions(p).filter(s => !currentKws.includes(s));
+                        if (suggestions.length === 0) return null;
+                        return (
+                          <div className="pt-1">
+                            <p className="text-xs text-muted-foreground mb-1.5">Förslag — klicka för att lägga till:</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {suggestions.slice(0, 20).map(s => (
+                                <button
+                                  key={s}
+                                  type="button"
+                                  onClick={() => {
+                                    setEditData(prev => ({
+                                      ...prev,
+                                      metaKeywords: prev.metaKeywords
+                                        ? `${prev.metaKeywords}, ${s}`
+                                        : s,
+                                    }));
+                                  }}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-secondary hover:bg-primary/10 hover:text-primary text-muted-foreground transition-colors cursor-pointer border border-border"
+                                >
+                                  <Plus className="w-3 h-3" />
+                                  {s}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     <div className="flex gap-2 pt-1">
