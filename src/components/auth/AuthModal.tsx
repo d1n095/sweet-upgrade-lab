@@ -281,20 +281,34 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
             {/* Toggle mode */}
             {mode !== 'forgot' && (
               <div className="mt-6 text-center text-sm">
-                <span className="text-muted-foreground">
-                  {mode === 'login'
-                    ? (lang === 'sv' ? 'Har du inget konto?' : "Don't have an account?")
-                    : (lang === 'sv' ? 'Har du redan ett konto?' : 'Already have an account?')}
-                </span>{' '}
-                <button
-                  type="button"
-                  onClick={() => handleModeChange(mode === 'login' ? 'register' : 'login')}
-                  className="text-primary font-medium hover:underline"
-                >
-                  {mode === 'login'
-                    ? (lang === 'sv' ? 'Bli medlem' : 'Become a member')
-                    : (lang === 'sv' ? 'Logga in' : 'Sign in')}
-                </button>
+                {mode === 'login' && registrationEnabled && (
+                  <>
+                    <span className="text-muted-foreground">
+                      {lang === 'sv' ? 'Har du inget konto?' : "Don't have an account?"}
+                    </span>{' '}
+                    <button
+                      type="button"
+                      onClick={() => handleModeChange('register')}
+                      className="text-primary font-medium hover:underline"
+                    >
+                      {lang === 'sv' ? 'Bli medlem' : 'Become a member'}
+                    </button>
+                  </>
+                )}
+                {mode === 'register' && (
+                  <>
+                    <span className="text-muted-foreground">
+                      {lang === 'sv' ? 'Har du redan ett konto?' : 'Already have an account?'}
+                    </span>{' '}
+                    <button
+                      type="button"
+                      onClick={() => handleModeChange('login')}
+                      className="text-primary font-medium hover:underline"
+                    >
+                      {lang === 'sv' ? 'Logga in' : 'Sign in'}
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </>
