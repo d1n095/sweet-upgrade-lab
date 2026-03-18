@@ -132,12 +132,8 @@ const Checkout = () => {
       if (data?.error) throw new Error(data.error);
 
       if (data?.url) {
-        logActivity({
-          log_type: 'success',
-          category: 'order',
-          message: 'Checkout session created',
-          details: { email: form.email, total, itemCount: items.length },
-        });
+        // Order is already created server-side with status "pending"
+        // Cart cleared on redirect — webhook will confirm payment
         clearCart();
         window.location.href = data.url;
       }
