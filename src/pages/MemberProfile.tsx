@@ -321,10 +321,6 @@ const MemberProfile = () => {
                   <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   {language === 'sv' ? 'Donationer' : 'Donations'}
                 </TabsTrigger>
-                <TabsTrigger value="balance" className="gap-1.5 text-xs sm:text-sm">
-                  <Wallet className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  {language === 'sv' ? 'Saldo' : 'Balance'}
-                </TabsTrigger>
                 <TabsTrigger value="settings" className="gap-1.5 text-xs sm:text-sm">
                   <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   <span className="hidden sm:inline">{language === 'sv' ? 'Inställningar' : 'Settings'}</span>
@@ -347,19 +343,16 @@ const MemberProfile = () => {
             <TabsContent value="orders">
               <OrderTracker />
               
-              {/* Employee Dashboard - visible to employees (moderators) */}
               {isEmployee && !isAdmin && (
                 <div className="mt-6">
                   <EmployeeDashboard />
                 </div>
               )}
               
-              {/* Influencer Dashboard - visible to influencers */}
               <div className="mt-6">
                 <InfluencerDashboard />
               </div>
               
-              {/* Affiliate Dashboard - visible to affiliates */}
               <div className="mt-6">
                 <AffiliateDashboard />
               </div>
@@ -368,11 +361,6 @@ const MemberProfile = () => {
             {/* Donations Tab */}
             <TabsContent value="donations">
               <DonationImpact />
-            </TabsContent>
-
-            {/* Balance Tab */}
-            <TabsContent value="balance">
-              <BalancePage />
             </TabsContent>
 
             {/* Settings Tab */}
