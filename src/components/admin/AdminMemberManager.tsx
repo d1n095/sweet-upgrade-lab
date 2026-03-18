@@ -457,9 +457,8 @@ const AdminMemberManager = () => {
       if (emailRes.data) {
         const match = (emailRes.data as any[]).find((u: any) => u.user_id === member.user_id);
         if (match) {
-          const updated = { ...member, email: match.email, username: match.username || member.username };
+          const updated = { ...member, email: match.email, username: match.username || member.username, phone: match.phone || null };
           setSelectedMember(updated);
-          // Also update in the main list
           setMembers(prev => prev.map(m => m.user_id === member.user_id ? updated : m));
         }
       }
