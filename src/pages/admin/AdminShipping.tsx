@@ -155,20 +155,22 @@ const AdminShipping = () => {
 
       {/* Tabs */}
       <Tabs defaultValue="carriers" className="space-y-4">
-        <TabsList className="h-9">
-          <TabsTrigger value="carriers" className="gap-1.5 text-xs">
-            <Truck className="w-3.5 h-3.5" /> Fraktbolag
-          </TabsTrigger>
-          <TabsTrigger value="settings" className="gap-1.5 text-xs">
-            <Package className="w-3.5 h-3.5" /> Inställningar
-          </TabsTrigger>
-          <TabsTrigger value="extras" className="gap-1.5 text-xs">
-            <Gift className="w-3.5 h-3.5" /> Vi skickar med
-          </TabsTrigger>
-          <TabsTrigger value="payments" className="gap-1.5 text-xs">
-            <CreditCard className="w-3.5 h-3.5" /> Betalningar
-          </TabsTrigger>
-        </TabsList>
+        <ScrollableTabs>
+          <TabsList className="h-9 w-max">
+            <TabsTrigger value="carriers" className="gap-1.5 text-xs">
+              <Truck className="w-3.5 h-3.5" /> Fraktbolag
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="gap-1.5 text-xs">
+              <Package className="w-3.5 h-3.5" /> Inställningar
+            </TabsTrigger>
+            <TabsTrigger value="extras" className="gap-1.5 text-xs">
+              <Gift className="w-3.5 h-3.5" /> Vi skickar med
+            </TabsTrigger>
+            <TabsTrigger value="payments" className="gap-1.5 text-xs">
+              <CreditCard className="w-3.5 h-3.5" /> Betalningar
+            </TabsTrigger>
+          </TabsList>
+        </ScrollableTabs>
 
         <TabsContent value="carriers">
           <ShippingCarriersSection />

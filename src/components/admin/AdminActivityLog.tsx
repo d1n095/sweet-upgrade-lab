@@ -247,12 +247,14 @@ const AdminActivityLog = () => {
 
       {/* Tabs for different log views */}
       <Tabs defaultValue="all" className="space-y-4">
-        <TabsList className="bg-secondary/50">
-          <TabsTrigger value="all">Alla loggar</TabsTrigger>
-          <TabsTrigger value="auth">Inloggningar</TabsTrigger>
-          <TabsTrigger value="orders">Orderlogg</TabsTrigger>
-          <TabsTrigger value="security">Säkerhet</TabsTrigger>
-        </TabsList>
+        <ScrollableTabs>
+          <TabsList className="bg-secondary/50 w-max">
+            <TabsTrigger value="all">Alla loggar</TabsTrigger>
+            <TabsTrigger value="auth">Inloggningar</TabsTrigger>
+            <TabsTrigger value="orders">Orderlogg</TabsTrigger>
+            <TabsTrigger value="security">Säkerhet</TabsTrigger>
+          </TabsList>
+        </ScrollableTabs>
 
         <TabsContent value="all" className="space-y-4">
           {/* Search + Filters */}

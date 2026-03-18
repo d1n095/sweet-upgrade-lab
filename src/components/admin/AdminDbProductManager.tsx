@@ -604,23 +604,25 @@ const AdminDbProductManager = () => {
 
       {/* Status tabs */}
       <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v as ProductStatus); setSelectedIds(new Set()); setBulkMode(false); }}>
-        <TabsList className="h-9">
-          <TabsTrigger value="active" className="gap-1.5 text-xs">
-            <Package className="w-3.5 h-3.5" />
-            {sv ? 'Aktiva' : 'Active'}
-            {activeProducts.length > 0 && <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">{activeProducts.length}</Badge>}
-          </TabsTrigger>
-          <TabsTrigger value="draft" className="gap-1.5 text-xs">
-            <FileText className="w-3.5 h-3.5" />
-            {sv ? 'Utkast' : 'Drafts'}
-            {draftProducts.length > 0 && <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">{draftProducts.length}</Badge>}
-          </TabsTrigger>
-          <TabsTrigger value="archived" className="gap-1.5 text-xs">
-            <Archive className="w-3.5 h-3.5" />
-            {sv ? 'Arkiverade' : 'Archived'}
-            {archivedProducts.length > 0 && <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">{archivedProducts.length}</Badge>}
-          </TabsTrigger>
-        </TabsList>
+        <ScrollableTabs>
+          <TabsList className="h-9 w-max">
+            <TabsTrigger value="active" className="gap-1.5 text-xs">
+              <Package className="w-3.5 h-3.5" />
+              {sv ? 'Aktiva' : 'Active'}
+              {activeProducts.length > 0 && <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">{activeProducts.length}</Badge>}
+            </TabsTrigger>
+            <TabsTrigger value="draft" className="gap-1.5 text-xs">
+              <FileText className="w-3.5 h-3.5" />
+              {sv ? 'Utkast' : 'Drafts'}
+              {draftProducts.length > 0 && <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">{draftProducts.length}</Badge>}
+            </TabsTrigger>
+            <TabsTrigger value="archived" className="gap-1.5 text-xs">
+              <Archive className="w-3.5 h-3.5" />
+              {sv ? 'Arkiverade' : 'Archived'}
+              {archivedProducts.length > 0 && <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">{archivedProducts.length}</Badge>}
+            </TabsTrigger>
+          </TabsList>
+        </ScrollableTabs>
 
         {/* Bulk action bar */}
         {bulkMode && selectedIds.size > 0 && (
