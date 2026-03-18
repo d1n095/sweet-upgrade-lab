@@ -118,17 +118,39 @@ const AdminStats = () => {
         .from('analytics_events')
         .select('event_type, event_data')
         .gte('created_at', thirtyDaysAgo.toISOString())
-        .in('event_type', ['product_view', 'checkout_start', 'checkout_complete', 'checkout_abandon'])
+        .in('event_type', [
+          'product_view', 'checkout_start', 'checkout_complete', 'checkout_abandon',
+          'add_to_cart', 'remove_from_cart', 'checkout_abandon_detail'
+        ])
         .limit(1000);
 
       if (data) {
         const viewCounts: Record<string, number> = {};
+        const addCounts: Record<string, number> = {};
+        const removeCounts: Record<string, number> = {};
+        const abandonItemCounts: Record<string, { count: number; totalValue: number }> = {};
         let starts = 0, completes = 0, abandons = 0;
 
         data.forEach((e: any) => {
           if (e.event_type === 'product_view') {
             const title = e.event_data?.product_title || 'Okänd';
             viewCounts[title] = (viewCounts[title] || 0) + 1;
+          }
+          if (e.event_type === 'add_to_cart') {
+            const title = e.event_data?.product_title || 'Okänd';
+            addCounts[title] = (addCounts[title] || 0) + (e.event_data?.quantity || 1);
+          }
+          if (e.event_type === 'remove_from_cart') {
+            const title = e.event_data?.product_title || 'Okänd';
+            removeCounts[title] = (removeCounts[title] || 0) + (e.event_data?.quantity || 1);
+          }
+          if (e.event_type === 'checkout_abandon_detail' && Array.isArray(e.event_data?.items)) {
+            e.event_data.items.forEach((item: any) => {
+              const title = item.title || 'Okänd';
+              if (!abandonItemCounts[title]) abandonItemCounts[title] = { count: 0, totalValue: 0 };
+              abandonItemCounts[title].count += item.quantity || 1;
+              abandonItemCounts[title].totalValue += (item.price || 0) * (item.quantity || 1);
+            });
           }
           if (e.event_type === 'checkout_start') starts++;
           if (e.event_type === 'checkout_complete') completes++;
@@ -140,6 +162,24 @@ const AdminStats = () => {
             .map(([title, count]) => ({ title, count }))
             .sort((a, b) => b.count - a.count)
             .slice(0, 10)
+        );
+        setCartAdds(
+          Object.entries(addCounts)
+            .map(([title, count]) => ({ title, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 15)
+        );
+        setCartRemoves(
+          Object.entries(removeCounts)
+            .map(([title, count]) => ({ title, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 15)
+        );
+        setAbandonedItems(
+          Object.entries(abandonItemCounts)
+            .map(([title, data]) => ({ title, count: data.count, totalValue: data.totalValue }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 15)
         );
         setCheckoutStats({ starts, completes, abandons });
       }
