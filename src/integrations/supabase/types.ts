@@ -952,6 +952,7 @@ export type Database = {
           is_visible: boolean
           original_price: number | null
           price: number
+          reserved_stock: number
           stock: number
           tags: string[] | null
           title_en: string | null
@@ -976,6 +977,7 @@ export type Database = {
           is_visible?: boolean
           original_price?: number | null
           price?: number
+          reserved_stock?: number
           stock?: number
           tags?: string[] | null
           title_en?: string | null
@@ -1000,6 +1002,7 @@ export type Database = {
           is_visible?: boolean
           original_price?: number | null
           price?: number
+          reserved_stock?: number
           stock?: number
           tags?: string[] | null
           title_en?: string | null
