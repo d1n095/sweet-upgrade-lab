@@ -736,6 +736,24 @@ const AdminOrderManager = () => {
                         {content.edit}
                       </Button>
                     )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => { e.stopPropagation(); handlePrintOrder(order); }}
+                      className="gap-2"
+                    >
+                      <Printer className="w-4 h-4" />
+                      {language === 'sv' ? 'Skriv ut' : 'Print'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => { e.stopPropagation(); handlePrintShippingLabel(order); }}
+                      className="gap-2"
+                    >
+                      <FileText className="w-4 h-4" />
+                      {language === 'sv' ? 'Fraktsedel' : 'Shipping Label'}
+                    </Button>
                   </div>
                 )}
               </motion.div>
