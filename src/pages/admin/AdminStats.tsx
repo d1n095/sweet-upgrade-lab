@@ -378,82 +378,108 @@ const AdminStats = () => {
         </Card>
       </div>
 
-      {/* Real-time Activity Log */}
-      <Card className="border-border">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <div className="relative">
-                <Activity className="w-4 h-4 text-primary" />
-                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-              </div>
-              Aktivitet i realtid
-            </CardTitle>
-            <Badge variant="outline" className="text-[10px]">{recentLogs.length} senaste</Badge>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-1.5 max-h-[320px] overflow-y-auto">
-            {recentLogs.length === 0 ? (
-              <p className="text-center text-muted-foreground py-6 text-sm">Inga loggposter ännu</p>
-            ) : (
-              recentLogs.slice(0, 20).map((log) => {
-                const cfg = typeConfig[log.log_type] || typeConfig.info;
-                const Icon = cfg.icon;
-                const isExpanded = expandedLog === log.id;
-                const hasDetails = log.details && Object.keys(log.details).filter(k => k !== 'timestamp' && k !== 'user_email').length > 0;
+      {/* Real-time Activity Summary */}
+      {(() => {
+        const errorLogs = recentLogs.filter(l => l.log_type === 'error');
+        const warningLogs = recentLogs.filter(l => l.log_type === 'warning');
+        const securityLogs = recentLogs.filter(l => l.category === 'security');
+        const adminLogs = recentLogs.filter(l => l.category === 'admin');
+        const orderLogs = recentLogs.filter(l => l.category === 'order');
 
-                return (
-                  <motion.div
-                    key={log.id}
-                    initial={{ opacity: 0, y: -4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="rounded-lg bg-secondary/20 px-3 py-2 hover:bg-secondary/40 transition-colors"
-                  >
-                    <div
-                      className={`flex items-start gap-2.5 ${hasDetails ? 'cursor-pointer' : ''}`}
-                      onClick={() => hasDetails && setExpandedLog(isExpanded ? null : log.id)}
-                    >
-                      <div className={`mt-0.5 p-1 rounded ${cfg.color}`}>
-                        <Icon className="w-3 h-3" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{log.message}</p>
-                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                          <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                            <Clock className="w-2.5 h-2.5" />
-                            {formatLogTime(log.created_at)}
-                          </span>
-                          <Badge variant="outline" className="text-[10px] h-4">{log.category}</Badge>
-                          {log.details?.user_email && (
-                            <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                              <User className="w-2.5 h-2.5" />
-                              {log.details.user_email}
-                            </span>
-                          )}
-                          {hasDetails && (isExpanded ? <ChevronUp className="w-3 h-3 text-muted-foreground" /> : <ChevronDown className="w-3 h-3 text-muted-foreground" />)}
-                        </div>
-                      </div>
+        return (
+          <div className="space-y-4">
+            {/* Summary cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              <div className="rounded-lg border border-border bg-secondary/30 p-3 text-center">
+                <div className="relative mx-auto w-fit">
+                  <Activity className="w-4 h-4 text-primary mx-auto mb-1" />
+                  <span className="absolute -top-0.5 -right-1.5 w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                </div>
+                <p className="text-2xl font-bold">{recentLogs.length}</p>
+                <p className="text-xs text-muted-foreground">Totalt</p>
+              </div>
+              <div className={`rounded-lg border p-3 text-center ${errorLogs.length > 0 ? 'border-destructive/30 bg-destructive/5' : 'border-border bg-secondary/30'}`}>
+                <AlertTriangle className={`w-4 h-4 mx-auto mb-1 ${errorLogs.length > 0 ? 'text-destructive' : 'text-muted-foreground'}`} />
+                <p className={`text-2xl font-bold ${errorLogs.length > 0 ? 'text-destructive' : ''}`}>{errorLogs.length}</p>
+                <p className="text-xs text-muted-foreground">Fel</p>
+              </div>
+              <div className={`rounded-lg border p-3 text-center ${warningLogs.length > 0 ? 'border-yellow-400/30 bg-yellow-50 dark:bg-yellow-900/10' : 'border-border bg-secondary/30'}`}>
+                <AlertTriangle className={`w-4 h-4 mx-auto mb-1 ${warningLogs.length > 0 ? 'text-yellow-600' : 'text-muted-foreground'}`} />
+                <p className={`text-2xl font-bold ${warningLogs.length > 0 ? 'text-yellow-600' : ''}`}>{warningLogs.length}</p>
+                <p className="text-xs text-muted-foreground">Varningar</p>
+              </div>
+              <div className="rounded-lg border border-border bg-secondary/30 p-3 text-center">
+                <Shield className="w-4 h-4 text-muted-foreground mx-auto mb-1" />
+                <p className="text-2xl font-bold">{securityLogs.length}</p>
+                <p className="text-xs text-muted-foreground">Säkerhet</p>
+              </div>
+              <div className="rounded-lg border border-border bg-secondary/30 p-3 text-center">
+                <User className="w-4 h-4 text-muted-foreground mx-auto mb-1" />
+                <p className="text-2xl font-bold">{adminLogs.length}</p>
+                <p className="text-xs text-muted-foreground">Admin</p>
+              </div>
+            </div>
+
+            {/* Recent 5 entries preview */}
+            <Card className="border-border">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                    <div className="relative">
+                      <Activity className="w-4 h-4 text-primary" />
+                      <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                     </div>
-                    {isExpanded && hasDetails && (
-                      <motion.pre
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        className="text-[11px] text-muted-foreground mt-2 ml-8 bg-secondary/50 rounded px-2 py-1 overflow-x-auto"
-                      >
-                        {JSON.stringify(
-                          Object.fromEntries(Object.entries(log.details).filter(([k]) => k !== 'timestamp' && k !== 'user_email')),
-                          null, 2
-                        )}
-                      </motion.pre>
-                    )}
-                  </motion.div>
-                );
-              })
-            )}
+                    Senaste händelser
+                  </CardTitle>
+                  <Link to="/admin/logs" className="text-xs text-primary hover:underline flex items-center gap-1">
+                    Visa alla loggar <ArrowRight className="w-3 h-3" />
+                  </Link>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-1.5">
+                  {recentLogs.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-6 text-sm">Inga loggposter ännu</p>
+                  ) : (
+                    recentLogs.slice(0, 5).map((log) => {
+                      const cfg = typeConfig[log.log_type] || typeConfig.info;
+                      const Icon = cfg.icon;
+                      return (
+                        <motion.div
+                          key={log.id}
+                          initial={{ opacity: 0, y: -4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="flex items-center gap-2.5 rounded-lg bg-secondary/20 px-3 py-2"
+                        >
+                          <div className={`p-1 rounded ${cfg.color}`}>
+                            <Icon className="w-3 h-3" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{log.message}</p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                <Clock className="w-2.5 h-2.5" />
+                                {formatLogTime(log.created_at)}
+                              </span>
+                              <Badge variant="outline" className="text-[10px] h-4">{log.category}</Badge>
+                              {log.details?.user_email && (
+                                <span className="text-[11px] text-muted-foreground flex items-center gap-1 truncate max-w-[150px]">
+                                  <User className="w-2.5 h-2.5 shrink-0" />
+                                  {log.details.user_email}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </motion.div>
+                      );
+                    })
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        </CardContent>
-      </Card>
+        );
+      })()}
 
       <Tabs defaultValue="searches" className="space-y-4">
         <TabsList className="bg-secondary/50 flex-wrap">
