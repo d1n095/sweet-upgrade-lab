@@ -95,8 +95,9 @@ const App = () => (
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/whats-new" element={<PageGuard pageId="whats-new"><WhatsNew /></PageGuard>} />
               <Route path="/donations" element={<PageGuard pageId="donations"><Donations /></PageGuard>} />
+              <Route path="/affiliate-panel" element={<AffiliatePanel />} />
+              <Route path="/donations-panel" element={<DonationsPanel />} />
 
-              {/* Admin routes */}
               <Route path="/admin" element={<AdminLayout />}>
                 <Route index element={<AdminOverview />} />
                 <Route path="orders" element={<AdminOrders />} />
