@@ -211,7 +211,7 @@ const ProductDetail = () => {
                         selectedImage === i ? 'border-foreground ring-1 ring-foreground/20' : 'border-border opacity-60 hover:opacity-100'
                       }`}
                     >
-                      <img src={url} alt="" className="w-full h-full object-cover" />
+                      <img src={url} alt="" loading="lazy" className="w-full h-full object-cover" />
                     </button>
                   ))}
                 </div>

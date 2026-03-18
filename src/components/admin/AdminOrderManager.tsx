@@ -528,7 +528,7 @@ const AdminOrderManager = () => {
                           {(order.items as any[]).map((item: any, idx: number) => (
                             <div key={idx} className="flex items-center gap-3 px-3 py-2 text-sm even:bg-secondary/20">
                               {item.image && (
-                                <img src={item.image} alt="" className="w-10 h-10 rounded object-cover flex-shrink-0" />
+                                <img src={item.image} alt="" loading="lazy" className="w-10 h-10 rounded object-cover flex-shrink-0" />
                               )}
                               <div className="flex-1 min-w-0">
                                 <p className="font-medium truncate">{item.title || item.name || 'Produkt'}</p>
