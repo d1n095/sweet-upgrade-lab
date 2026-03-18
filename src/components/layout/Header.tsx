@@ -235,7 +235,7 @@ const Header = () => {
   }, [activeCategories, productCategories, language, contentLang]);
 
   const allMobileLinks = [
-    { href: '/shop', label: 'Shop' },
+    { href: '/produkter', label: 'Shop' },
     ...(isVisible('whats-new') ? [{ href: '/whats-new', label: t('nav.whatsnew') }] : []),
     ...aboutSubMenu,
     ...contactSubMenu,
