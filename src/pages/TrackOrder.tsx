@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Package, Truck, CheckCircle2, Clock, MapPin, AlertCircle, FileCheck, Building2 } from 'lucide-react';
+import { Search, Package, Truck, CheckCircle2, Clock, MapPin, AlertCircle, FileCheck, Building2, XCircle, RefreshCw, Loader2 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
