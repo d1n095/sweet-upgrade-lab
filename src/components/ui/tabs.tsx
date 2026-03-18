@@ -57,13 +57,80 @@ TabsContent.displayName = TabsPrimitive.Content.displayName;
 const ScrollableTabs = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
-  <div
-    ref={ref}
-    className={cn("overflow-x-auto scrollbar-hide -mx-1 px-1", className)}
-    {...props}
-  />
-));
+>(({ className, onPointerDown, onPointerMove, onPointerUp, onPointerCancel, ...props }, ref) => {
+  const localRef = React.useRef<HTMLDivElement | null>(null);
+  const dragState = React.useRef({
+    isDragging: false,
+    startX: 0,
+    startScrollLeft: 0,
+    pointerId: -1,
+  });
+
+  const setRefs = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      localRef.current = node;
+      if (typeof ref === "function") {
+        ref(node);
+      } else if (ref) {
+        (ref as React.MutableRefObject<HTMLDivElement | null>).current = node;
+      }
+    },
+    [ref],
+  );
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    onPointerDown?.(e);
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+
+    const el = localRef.current;
+    if (!el) return;
+
+    dragState.current.isDragging = true;
+    dragState.current.startX = e.clientX;
+    dragState.current.startScrollLeft = el.scrollLeft;
+    dragState.current.pointerId = e.pointerId;
+
+    el.setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    onPointerMove?.(e);
+    const el = localRef.current;
+    if (!el || !dragState.current.isDragging) return;
+
+    const deltaX = e.clientX - dragState.current.startX;
+    if (Math.abs(deltaX) > 2) e.preventDefault();
+    el.scrollLeft = dragState.current.startScrollLeft - deltaX;
+  };
+
+  const stopDragging = (e: React.PointerEvent<HTMLDivElement>) => {
+    onPointerUp?.(e);
+    const el = localRef.current;
+    if (!el) return;
+
+    if (dragState.current.pointerId >= 0 && el.hasPointerCapture(dragState.current.pointerId)) {
+      el.releasePointerCapture(dragState.current.pointerId);
+    }
+
+    dragState.current.isDragging = false;
+    dragState.current.pointerId = -1;
+  };
+
+  return (
+    <div
+      ref={setRefs}
+      className={cn("overflow-x-auto scrollbar-hide -mx-1 px-1 touch-pan-x select-none", className)}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={stopDragging}
+      onPointerCancel={(e) => {
+        onPointerCancel?.(e);
+        stopDragging(e);
+      }}
+      {...props}
+    />
+  );
+});
 ScrollableTabs.displayName = "ScrollableTabs";
 
 export { Tabs, TabsList, TabsTrigger, TabsContent, ScrollableTabs };
