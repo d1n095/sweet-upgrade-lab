@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { 
   User, Package, Star, Gift, Settings, LogOut, 
   ChevronRight, Loader2, Clock, Check, BadgeCheck,
-  Shield, TrendingUp
+  Shield, TrendingUp, Zap, Award
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
