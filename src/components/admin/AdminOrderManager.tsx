@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   ClipboardList, Package, Truck, Check, Clock, Loader2,
-  Eye, ChevronDown, ChevronUp, Save, X
+  Eye, ChevronDown, ChevronUp, Save, X, CreditCard, MapPin, User, History
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 import {
   Select,
   SelectContent,
@@ -34,6 +35,7 @@ interface Order {
   items: any;
   shipping_address: any;
   estimated_delivery: string | null;
+  status_history: any;
 }
 
 const statusOptions = [
@@ -70,7 +72,7 @@ const AdminOrderManager = () => {
       status: 'Status',
       total: 'Totalt',
       tracking: 'Spårningsnummer',
-      notes: 'Anteckningar',
+      notes: 'Adminanteckningar',
       save: 'Spara',
       cancel: 'Avbryt',
       edit: 'Redigera',
@@ -84,11 +86,22 @@ const AdminOrderManager = () => {
       delivered: 'Levererad',
       cancelled: 'Avbruten',
       failed: 'Misslyckad',
-      items: 'Artiklar',
+      items: 'Produkter',
       address: 'Leveransadress',
       estimatedDelivery: 'Beräknad leverans',
       notesPlaceholder: 'Lägg till anteckningar om ordern...',
       trackingPlaceholder: 'Ange spårningsnummer...',
+      paymentId: 'Betalnings-ID',
+      customerInfo: 'Kundinformation',
+      orderTimestamps: 'Tidsstämplar',
+      created: 'Skapad',
+      lastUpdated: 'Senast uppdaterad',
+      statusHistory: 'Statushistorik',
+      noHistory: 'Ingen historik',
+      qty: 'st',
+      email: 'E-post',
+      phone: 'Telefon',
+      name: 'Namn',
     },
     en: {
       title: 'Order Management',
@@ -99,7 +112,7 @@ const AdminOrderManager = () => {
       status: 'Status',
       total: 'Total',
       tracking: 'Tracking number',
-      notes: 'Notes',
+      notes: 'Admin notes',
       save: 'Save',
       cancel: 'Cancel',
       edit: 'Edit',
@@ -113,11 +126,22 @@ const AdminOrderManager = () => {
       delivered: 'Delivered',
       cancelled: 'Cancelled',
       failed: 'Failed',
-      items: 'Items',
+      items: 'Products',
       address: 'Shipping address',
       estimatedDelivery: 'Estimated delivery',
       notesPlaceholder: 'Add notes about the order...',
       trackingPlaceholder: 'Enter tracking number...',
+      paymentId: 'Payment ID',
+      customerInfo: 'Customer info',
+      orderTimestamps: 'Timestamps',
+      created: 'Created',
+      lastUpdated: 'Last updated',
+      statusHistory: 'Status history',
+      noHistory: 'No history',
+      qty: 'qty',
+      email: 'Email',
+      phone: 'Phone',
+      name: 'Name',
     },
   };
 
@@ -162,24 +186,44 @@ const AdminOrderManager = () => {
     });
   };
 
-  const handleSave = async (orderId: string) => {
+  const handleSave = async (order: Order) => {
     setIsSaving(true);
     try {
+      // Build updated status history
+      const existingHistory = Array.isArray(order.status_history) ? order.status_history : [];
+      const newHistory = [...existingHistory];
+
+      if (editData.status !== order.status) {
+        newHistory.push({
+          status: editData.status,
+          timestamp: new Date().toISOString(),
+          note: `Status changed from ${order.status} to ${editData.status}`,
+        });
+      }
+
       const { error } = await supabase
         .from('orders')
         .update({
           status: editData.status,
           tracking_number: editData.tracking_number || null,
           notes: editData.notes || null,
+          status_history: newHistory,
         })
-        .eq('id', orderId);
+        .eq('id', order.id);
 
       if (error) throw error;
 
       setOrders(prev =>
         prev.map(o =>
-          o.id === orderId
-            ? { ...o, status: editData.status, tracking_number: editData.tracking_number || null, notes: editData.notes || null }
+          o.id === order.id
+            ? {
+                ...o,
+                status: editData.status,
+                tracking_number: editData.tracking_number || null,
+                notes: editData.notes || null,
+                status_history: newHistory,
+                updated_at: new Date().toISOString(),
+              }
             : o
         )
       );
@@ -215,6 +259,17 @@ const AdminOrderManager = () => {
       currency,
       minimumFractionDigits: 0,
     }).format(amount);
+  };
+
+  const extractPaymentId = (notes: string | null) => {
+    if (!notes) return null;
+    const match = notes.match(/Stripe session:\s*(cs_\S+)/);
+    return match ? match[1] : null;
+  };
+
+  const parseShippingAddress = (addr: any) => {
+    if (!addr || typeof addr !== 'object') return null;
+    return addr as { name?: string; address?: string; zip?: string; city?: string; country?: string; phone?: string };
   };
 
   if (isLoading) {
@@ -266,7 +321,7 @@ const AdminOrderManager = () => {
         })}
       </div>
 
-  {/* Orders List */}
+      {/* Orders List */}
       <div className="space-y-2">
         {filteredOrders.length === 0 ? (
           <p className="text-center text-muted-foreground py-4">{content.noOrders}</p>
@@ -274,6 +329,9 @@ const AdminOrderManager = () => {
           filteredOrders.map((order) => {
             const isExpanded = expandedOrder === order.id;
             const isEditing = editingOrder === order.id;
+            const paymentId = extractPaymentId(order.notes);
+            const shippingAddr = parseShippingAddress(order.shipping_address);
+            const statusHistory = Array.isArray(order.status_history) ? order.status_history : [];
 
             return (
               <motion.div
@@ -310,53 +368,150 @@ const AdminOrderManager = () => {
                   )}
                 </div>
 
-                {/* Expanded Content */}
+                {/* Expanded Detail View */}
                 {isExpanded && (
-                  <div className="border-t border-border p-4 space-y-4">
-                    {/* Items */}
+                  <div className="border-t border-border p-4 space-y-5">
+
+                    {/* Products */}
                     {order.items && Array.isArray(order.items) && order.items.length > 0 && (
                       <div>
-                        <Label className="text-xs text-muted-foreground">{content.items}</Label>
-                        <div className="mt-1 space-y-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Package className="w-4 h-4 text-muted-foreground" />
+                          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{content.items}</Label>
+                        </div>
+                        <div className="rounded-md border border-border overflow-hidden">
                           {(order.items as any[]).map((item: any, idx: number) => (
-                            <div key={idx} className="text-sm flex justify-between">
-                              <span>{item.title || item.name || 'Produkt'} × {item.quantity || 1}</span>
-                              <span className="text-muted-foreground">{item.price ? `${item.price} ${order.currency}` : ''}</span>
+                            <div key={idx} className="flex items-center gap-3 px-3 py-2 text-sm even:bg-secondary/20">
+                              {item.image && (
+                                <img src={item.image} alt="" className="w-10 h-10 rounded object-cover flex-shrink-0" />
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium truncate">{item.title || item.name || 'Produkt'}</p>
+                                <p className="text-xs text-muted-foreground">{item.quantity || 1} {content.qty}</p>
+                              </div>
+                              <span className="text-muted-foreground whitespace-nowrap">
+                                {item.price ? formatCurrency(item.price * (item.quantity || 1), order.currency) : ''}
+                              </span>
                             </div>
                           ))}
                         </div>
                       </div>
                     )}
 
-                    {/* Shipping Address */}
-                    {order.shipping_address && (
+                    <div className="grid sm:grid-cols-2 gap-5">
+                      {/* Customer Info */}
                       <div>
-                        <Label className="text-xs text-muted-foreground">{content.address}</Label>
-                        <p className="text-sm mt-1">
-                          {typeof order.shipping_address === 'object'
-                            ? Object.values(order.shipping_address as Record<string, string>).filter(Boolean).join(', ')
-                            : String(order.shipping_address)}
-                        </p>
+                        <div className="flex items-center gap-2 mb-2">
+                          <User className="w-4 h-4 text-muted-foreground" />
+                          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{content.customerInfo}</Label>
+                        </div>
+                        <div className="space-y-1 text-sm">
+                          {shippingAddr?.name && (
+                            <p><span className="text-muted-foreground">{content.name}:</span> {shippingAddr.name}</p>
+                          )}
+                          <p><span className="text-muted-foreground">{content.email}:</span> {order.order_email}</p>
+                          {shippingAddr?.phone && (
+                            <p><span className="text-muted-foreground">{content.phone}:</span> {shippingAddr.phone}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Shipping Address */}
+                      {shippingAddr && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <MapPin className="w-4 h-4 text-muted-foreground" />
+                            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{content.address}</Label>
+                          </div>
+                          <div className="text-sm space-y-0.5">
+                            {shippingAddr.address && <p>{shippingAddr.address}</p>}
+                            <p>{[shippingAddr.zip, shippingAddr.city].filter(Boolean).join(' ')}</p>
+                            {shippingAddr.country && <p>{shippingAddr.country}</p>}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Payment ID & Timestamps */}
+                    <div className="grid sm:grid-cols-2 gap-5">
+                      {paymentId && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <CreditCard className="w-4 h-4 text-muted-foreground" />
+                            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{content.paymentId}</Label>
+                          </div>
+                          <p className="text-sm font-mono break-all bg-secondary/50 rounded px-2 py-1">{paymentId}</p>
+                        </div>
+                      )}
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Clock className="w-4 h-4 text-muted-foreground" />
+                          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{content.orderTimestamps}</Label>
+                        </div>
+                        <div className="text-sm space-y-1">
+                          <p><span className="text-muted-foreground">{content.created}:</span> {formatDate(order.created_at)}</p>
+                          <p><span className="text-muted-foreground">{content.lastUpdated}:</span> {formatDate(order.updated_at)}</p>
+                          {order.estimated_delivery && (
+                            <p><span className="text-muted-foreground">{content.estimatedDelivery}:</span> {order.estimated_delivery}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Status History */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <History className="w-4 h-4 text-muted-foreground" />
+                        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{content.statusHistory}</Label>
+                      </div>
+                      {statusHistory.length > 0 ? (
+                        <div className="relative pl-4 border-l-2 border-border space-y-3">
+                          {(statusHistory as any[]).map((entry: any, idx: number) => (
+                            <div key={idx} className="relative">
+                              <div className="absolute -left-[calc(0.5rem+1px)] top-1 w-2 h-2 rounded-full bg-primary" />
+                              <div className="text-sm">
+                                <Badge className={`${getStatusColor(entry.status)} text-xs`}>
+                                  {statusLabels[entry.status] || entry.status}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground ml-2">
+                                  {entry.timestamp ? formatDate(entry.timestamp) : ''}
+                                </span>
+                                {entry.note && (
+                                  <p className="text-xs text-muted-foreground mt-0.5">{entry.note}</p>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">{content.noHistory}</p>
+                      )}
+                    </div>
+
+                    {/* Tracking (read-only) */}
+                    {order.tracking_number && !isEditing && (
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Truck className="w-4 h-4 text-muted-foreground" />
+                          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{content.tracking}</Label>
+                        </div>
+                        <p className="text-sm font-mono">{order.tracking_number}</p>
                       </div>
                     )}
 
-                    {/* Tracking & Notes */}
-                    {order.tracking_number && !isEditing && (
-                      <div>
-                        <Label className="text-xs text-muted-foreground">{content.tracking}</Label>
-                        <p className="text-sm font-mono mt-1">{order.tracking_number}</p>
-                      </div>
-                    )}
+                    {/* Admin Notes (read-only) */}
                     {order.notes && !isEditing && (
                       <div>
-                        <Label className="text-xs text-muted-foreground">{content.notes}</Label>
-                        <p className="text-sm mt-1">{order.notes}</p>
+                        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{content.notes}</Label>
+                        <p className="text-sm mt-1 whitespace-pre-wrap">{order.notes}</p>
                       </div>
                     )}
+
+                    <Separator />
 
                     {/* Edit Form */}
                     {isEditing ? (
-                      <div className="space-y-3 pt-2 border-t border-border" onClick={(e) => e.stopPropagation()}>
+                      <div className="space-y-3" onClick={(e) => e.stopPropagation()}>
                         <div className="space-y-2">
                           <Label className="text-sm">{content.status}</Label>
                           <Select
@@ -392,7 +547,7 @@ const AdminOrderManager = () => {
                             value={editData.notes}
                             onChange={(e) => setEditData(prev => ({ ...prev, notes: e.target.value }))}
                             placeholder={content.notesPlaceholder}
-                            rows={2}
+                            rows={3}
                             onClick={(e) => e.stopPropagation()}
                           />
                         </div>
@@ -402,7 +557,7 @@ const AdminOrderManager = () => {
                             size="sm"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleSave(order.id);
+                              handleSave(order);
                             }}
                             disabled={isSaving}
                           >
