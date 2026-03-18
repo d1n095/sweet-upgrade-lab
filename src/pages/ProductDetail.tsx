@@ -228,8 +228,8 @@ const ProductDetail = () => {
     );
   }
 
-  const title = (lang === 'sv' ? product.title_sv : product.title_en) || product.title_sv;
-  const description = (lang === 'sv' ? product.description_sv : product.description_en) || product.description_sv;
+  const title = translated.title || product.title_sv;
+  const description = translated.description || product.description_sv;
   const images = product.image_urls || [];
   const imageUrl = images[selectedImage] || null;
   const availableStock = product.stock - (product.reserved_stock || 0);
