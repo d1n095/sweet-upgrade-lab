@@ -55,6 +55,7 @@ const DbProductCard = ({ product, index, compact = false }: DbProductCardProps) 
   const availableStock = product.stock - (product.reserved_stock || 0);
   const isAvailable = availableStock > 0 || product.allow_overselling;
   const handle = product.handle || product.id;
+  const reviewStats = useProductReviewStats(handle);
 
   const cartItem = items.find(item => (item.product as any).dbId === product.id);
   const quantityInCart = cartItem?.quantity || 0;
