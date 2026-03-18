@@ -1,8 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { Users, UserCheck, Briefcase, Shield, Crown, Eye as EyeIcon, Headphones, Package as PackageIcon } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { supabase } from '@/integrations/supabase/client';
 import AdminMemberManager from '@/components/admin/AdminMemberManager';
 import AdminBusinessManager from '@/components/admin/AdminBusinessManager';
 import { cn } from '@/lib/utils';
@@ -22,41 +21,13 @@ export type RoleFilter = 'all' | 'members' | 'founder' | 'admin_level' | 'modera
 
 const AdminMembers = () => {
   const [stats, setStats] = useState<RoleStats>({ total: 0, members: 0, businesses: 0, founders: 0, admins: 0, moderators: 0, support: 0, warehouse: 0 });
-  const [loading, setLoading] = useState(true);
+  const [statsLoaded, setStatsLoaded] = useState(false);
   const [activeFilter, setActiveFilter] = useState<RoleFilter>('all');
 
-  useEffect(() => {
-    const load = async () => {
-      const [
-        { count: total },
-        { count: members },
-        { count: businesses },
-        { data: allRoles },
-      ] = await Promise.all([
-        supabase.from('profiles').select('*', { count: 'exact', head: true }),
-        supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('is_member', true),
-        supabase.from('business_accounts').select('*', { count: 'exact', head: true }),
-        supabase.from('user_roles').select('role'),
-      ]);
-
-      const roleCounts: Record<string, number> = {};
-      (allRoles || []).forEach((r: any) => {
-        roleCounts[r.role] = (roleCounts[r.role] || 0) + 1;
-      });
-
-      setStats({
-        total: total || 0,
-        members: members || 0,
-        businesses: businesses || 0,
-        founders: roleCounts['founder'] || 0,
-        admins: (roleCounts['admin'] || 0) + (roleCounts['it'] || 0) + (roleCounts['founder'] || 0),
-        moderators: roleCounts['moderator'] || 0,
-        support: roleCounts['support'] || 0,
-        warehouse: roleCounts['warehouse'] || 0,
-      });
-      setLoading(false);
-    };
-    load();
+  // Stats are computed by AdminMemberManager from the SAME data it displays
+  const handleStatsUpdate = useCallback((newStats: RoleStats) => {
+    setStats(newStats);
+    setStatsLoaded(true);
   }, []);
 
   const statCards: { label: string; value: number; icon: any; color: string; filter: RoleFilter }[] = [
@@ -94,7 +65,7 @@ const AdminMembers = () => {
                   <s.icon className={`w-4 h-4 ${s.color}`} />
                   <span className="text-xs text-muted-foreground">{s.label}</span>
                 </div>
-                <p className="text-xl font-bold">{loading ? '–' : s.value}</p>
+                <p className="text-xl font-bold">{!statsLoaded ? '–' : s.value}</p>
               </CardContent>
             </Card>
           );
@@ -117,7 +88,7 @@ const AdminMembers = () => {
           <TabsTrigger value="business">Företagskonton</TabsTrigger>
         </TabsList>
         <TabsContent value="members">
-          <AdminMemberManager roleFilter={activeFilter} />
+          <AdminMemberManager roleFilter={activeFilter} onStatsUpdate={handleStatsUpdate} />
         </TabsContent>
         <TabsContent value="business">
           <AdminBusinessManager />

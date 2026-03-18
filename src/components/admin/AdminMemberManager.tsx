@@ -36,6 +36,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/context/LanguageContext';
 import { useFounderRole } from '@/hooks/useFounderRole';
 import { useAuth } from '@/hooks/useAuth';
+import { logActivity } from '@/utils/activityLogger';
 import { toast } from 'sonner';
 
 interface Member {
@@ -55,8 +56,20 @@ interface Member {
 
 import type { RoleFilter } from '@/pages/admin/AdminMembers';
 
+interface RoleStats {
+  total: number;
+  members: number;
+  businesses: number;
+  founders: number;
+  admins: number;
+  moderators: number;
+  support: number;
+  warehouse: number;
+}
+
 interface AdminMemberManagerProps {
   roleFilter?: RoleFilter;
+  onStatsUpdate?: (stats: RoleStats) => void;
 }
 
 type AppRole = 'admin' | 'founder' | 'it' | 'moderator' | 'support' | 'affiliate' | 'donor' | 'manager' | 'marketing' | 'finance' | 'warehouse';
@@ -85,7 +98,7 @@ interface Review {
 
 const ITEMS_PER_PAGE = 50;
 
-const AdminMemberManager = ({ roleFilter = 'all' }: AdminMemberManagerProps) => {
+const AdminMemberManager = ({ roleFilter = 'all', onStatsUpdate }: AdminMemberManagerProps) => {
   const { language } = useLanguage();
   const { isFounder } = useFounderRole();
   const { user } = useAuth();
@@ -101,6 +114,7 @@ const AdminMemberManager = ({ roleFilter = 'all' }: AdminMemberManagerProps) => 
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [page, setPage] = useState(0);
   const [assigningRole, setAssigningRole] = useState(false);
+  const [lastRoleChangeTime, setLastRoleChangeTime] = useState(0);
   const [editingUsername, setEditingUsername] = useState(false);
   const [newUsername, setNewUsername] = useState('');
 
@@ -427,40 +441,61 @@ const AdminMemberManager = ({ roleFilter = 'all' }: AdminMemberManagerProps) => 
 
   const loadMembers = useCallback(async () => {
     try {
-      // Load profiles with username
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('user_id, is_member, member_since, created_at, username, avatar_url, xp, level, trust_score, referral_code')
-        .order('created_at', { ascending: false });
+      // Load profiles and emails+roles in parallel
+      const [profilesRes, rolesRes, emailsRes, businessRes] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('user_id, is_member, member_since, created_at, username, avatar_url, xp, level, trust_score, referral_code')
+          .order('created_at', { ascending: false }),
+        supabase.from('user_roles').select('user_id, role'),
+        // Fetch all users with emails via RPC (empty query = all)
+        supabase.rpc('admin_search_users', { p_query: '' }),
+        supabase.from('business_accounts').select('*', { count: 'exact', head: true }),
+      ]);
 
-      if (profiles) {
-        // Also fetch emails for all members via RPC (founders/admins can see this)
-        const membersList = profiles as Member[];
-        
-        // Batch-fetch emails: search with empty string returns nothing, so we fetch by chunks
-        // Instead, just load emails for all visible members via individual lookups
-        // We'll use the RPC when searching
-        setMembers(membersList);
+      const profiles = profilesRes.data || [];
+      const roles = rolesRes.data || [];
+      const emails = (emailsRes.data || []) as any[];
+
+      // Build email/phone map
+      const emailMap: Record<string, { email: string; phone: string | null; user_created_at: string | null }> = {};
+      for (const e of emails) {
+        emailMap[e.user_id] = { email: e.email, phone: e.phone, user_created_at: e.user_created_at };
       }
 
-      // Load user roles
-      const { data: roles } = await supabase
-        .from('user_roles')
-        .select('user_id, role');
+      // Merge emails into profiles
+      const membersList: Member[] = profiles.map(p => ({
+        ...p,
+        email: emailMap[p.user_id]?.email || null,
+        phone: emailMap[p.user_id]?.phone || null,
+      }));
+      setMembers(membersList);
 
-      if (roles) {
-        const rolesMap: Record<string, string> = {};
-        roles.forEach((r) => {
-          rolesMap[r.user_id] = r.role;
-        });
-        setUserRoles(rolesMap);
-      }
+      // Build roles map
+      const rolesMap: Record<string, string> = {};
+      roles.forEach((r) => { rolesMap[r.user_id] = r.role; });
+      setUserRoles(rolesMap);
+
+      // Compute stats from the SAME data
+      const roleCounts: Record<string, number> = {};
+      roles.forEach(r => { roleCounts[r.role] = (roleCounts[r.role] || 0) + 1; });
+
+      onStatsUpdate?.({
+        total: membersList.length,
+        members: membersList.filter(m => m.is_member).length,
+        businesses: businessRes.count || 0,
+        founders: roleCounts['founder'] || 0,
+        admins: (roleCounts['admin'] || 0) + (roleCounts['it'] || 0) + (roleCounts['founder'] || 0),
+        moderators: roleCounts['moderator'] || 0,
+        support: roleCounts['support'] || 0,
+        warehouse: roleCounts['warehouse'] || 0,
+      });
     } catch (error) {
       console.error('Failed to load members:', error);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [onStatsUpdate]);
 
   const loadMemberDetails = async (member: Member) => {
     setLoadingDetails(true);
@@ -509,6 +544,12 @@ const AdminMemberManager = ({ roleFilter = 'all' }: AdminMemberManagerProps) => 
   const [pendingRoleChange, setPendingRoleChange] = useState<{ userId: string; role: string; username: string | null } | null>(null);
 
   const requestRoleChange = (userId: string, role: string) => {
+    // Spam protection: 5 second cooldown
+    const now = Date.now();
+    if (now - lastRoleChangeTime < 5000) {
+      toast.error('Vänta några sekunder innan nästa rolländring');
+      return;
+    }
     // Security: prevent self-role changes
     if (userId === currentUserId) {
       toast.error('Du kan inte ändra din egen roll');
@@ -531,9 +572,11 @@ const AdminMemberManager = ({ roleFilter = 'all' }: AdminMemberManagerProps) => 
 
   const confirmRoleChange = async () => {
     if (!pendingRoleChange) return;
-    const { userId, role } = pendingRoleChange;
+    const { userId, role, username: targetName } = pendingRoleChange;
+    const previousRole = userRoles[userId] || 'none';
     setPendingRoleChange(null);
     setAssigningRole(true);
+    setLastRoleChangeTime(Date.now());
     try {
       if (role === 'none') {
         await supabase.from('user_roles').delete().eq('user_id', userId);
@@ -557,6 +600,22 @@ const AdminMemberManager = ({ roleFilter = 'all' }: AdminMemberManagerProps) => 
         toast.success(t.roleAssigned);
         setUserRoles((prev) => ({ ...prev, [userId]: role }));
       }
+
+      // Log role change to activity log
+      logActivity({
+        log_type: 'warning',
+        category: 'security',
+        message: `Rolländring: ${targetName} → ${role === 'none' ? 'borttagen' : role} (från: ${previousRole})`,
+        details: {
+          target_user_id: userId,
+          target_username: targetName,
+          previous_role: previousRole,
+          new_role: role,
+        },
+      });
+
+      // Reload data to sync counts
+      loadMembers();
     } catch (error) {
       console.error('Failed to assign role:', error);
       toast.error(t.error);
