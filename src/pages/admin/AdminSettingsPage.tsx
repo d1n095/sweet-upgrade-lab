@@ -6,7 +6,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger, ScrollableTabs } from '@/components/ui/tabs';
 import { useStoreSettings } from '@/stores/storeSettingsStore';
 import { usePageVisibility, ToggleablePage } from '@/stores/pageVisibilityStore';
 import { usePaymentMethodsStore } from '@/stores/paymentMethodsStore';
