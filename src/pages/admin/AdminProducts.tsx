@@ -44,7 +44,7 @@ const AdminProducts = () => {
         <AdminProductImportExport />
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
         {[
           { label: 'Aktiva', value: stats.total, icon: Package, color: 'text-primary' },
           { label: 'Synliga', value: stats.visible, icon: Eye, color: 'text-green-600' },
