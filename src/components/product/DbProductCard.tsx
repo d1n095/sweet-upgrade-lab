@@ -49,8 +49,9 @@ const DbProductCard = ({ product, index, compact = false }: DbProductCardProps) 
   const [quantity, setQuantity] = useState(1);
   const [imgError, setImgError] = useState(false);
 
-  const title = lang === 'sv' ? product.title_sv : (product.title_en || product.title_sv);
-  const description = lang === 'sv' ? product.description_sv : (product.description_en || product.description_sv);
+  // Always use Swedish on cards — full translation happens on product detail page
+  const title = product.title_sv;
+  const description = product.description_sv;
   const imageUrl = product.image_urls?.[0];
   const availableStock = product.stock - (product.reserved_stock || 0);
   const isAvailable = availableStock > 0 || product.allow_overselling;

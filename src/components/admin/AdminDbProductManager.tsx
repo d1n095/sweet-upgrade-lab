@@ -236,6 +236,10 @@ const AdminDbProductManager = () => {
         certifications: formData.certifications ? formData.certifications.split(',').map(s => s.trim()).filter(Boolean) : null,
         currency: formData.currency || 'SEK',
         recipe_sv: formData.recipe || null,
+        feeling_sv: formData.feeling || null,
+        effects_sv: formData.effects || null,
+        usage_sv: formData.usage || null,
+        extended_description_sv: formData.extendedDescription || null,
         status: 'active',
       });
       toast.success(t.productAdded);
@@ -269,6 +273,10 @@ const AdminDbProductManager = () => {
         certifications: formData.certifications ? formData.certifications.split(',').map(s => s.trim()).filter(Boolean) : null,
         currency: formData.currency || 'SEK',
         recipe_sv: formData.recipe || null,
+        feeling_sv: formData.feeling || null,
+        effects_sv: formData.effects || null,
+        usage_sv: formData.usage || null,
+        extended_description_sv: formData.extendedDescription || null,
       });
       toast.success(t.productUpdated);
       queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });

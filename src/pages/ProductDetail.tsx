@@ -2,13 +2,14 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { trackProductView } from '@/utils/analyticsTracker';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ShoppingCart, Check, Loader2, Minus, Plus, Shield, RotateCcw, Truck, Share2, X, Copy } from 'lucide-react';
+import { ArrowLeft, ShoppingCart, Check, Loader2, Minus, Plus, Shield, RotateCcw, Truck, Share2, X, Copy, Languages } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { fetchDbProductByHandle, DbProduct } from '@/lib/products';
 import { useLanguage } from '@/context/LanguageContext';
 import { useCartStore } from '@/stores/cartStore';
+import { useTranslatedProduct } from '@/hooks/useTranslatedProduct';
 import PaymentMethods from '@/components/trust/PaymentMethods';
 import ReviewList from '@/components/reviews/ReviewList';
 import ReviewForm from '@/components/reviews/ReviewForm';
@@ -101,6 +102,9 @@ const ProductDetail = () => {
   const [quantity, setQuantity] = useState(1);
   const [isAdded, setIsAdded] = useState(false);
 
+  // AI translation hook - translates from Swedish when lang != 'sv'
+  const translated = useTranslatedProduct(product);
+
   useEffect(() => {
     const load = async () => {
       if (!handle) return;
@@ -129,8 +133,8 @@ const ProductDetail = () => {
 
   const handleAddToCart = () => {
     if (!product) return;
-    const title = (lang === 'sv' ? product.title_sv : product.title_en) || product.title_sv;
-    const description = (lang === 'sv' ? product.description_sv : product.description_en) || product.description_sv;
+    const cartTitle = translated.title || product.title_sv;
+    const cartDescription = translated.description || product.description_sv;
     const imageUrl = product.image_urls?.[0];
     const pHandle = product.handle || product.id;
 
@@ -138,13 +142,13 @@ const ProductDetail = () => {
       dbId: product.id,
       node: {
         id: product.id,
-        title,
+        title: cartTitle,
         handle: pHandle,
-        description: description || '',
+        description: cartDescription || '',
         productType: product.category || '',
         tags: product.tags || [],
         priceRange: { minVariantPrice: { amount: product.price.toString(), currencyCode: 'SEK' } },
-        images: { edges: imageUrl ? [{ node: { url: imageUrl, altText: title } }] : [] },
+        images: { edges: imageUrl ? [{ node: { url: imageUrl, altText: cartTitle } }] : [] },
         variants: {
           edges: [{
             node: {
@@ -224,8 +228,8 @@ const ProductDetail = () => {
     );
   }
 
-  const title = (lang === 'sv' ? product.title_sv : product.title_en) || product.title_sv;
-  const description = (lang === 'sv' ? product.description_sv : product.description_en) || product.description_sv;
+  const title = translated.title || product.title_sv;
+  const description = translated.description || product.description_sv;
   const images = product.image_urls || [];
   const imageUrl = images[selectedImage] || null;
   const availableStock = product.stock - (product.reserved_stock || 0);
@@ -312,6 +316,12 @@ const ProductDetail = () => {
               {product.vendor && (
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-2">{product.vendor}</p>
               )}
+              {translated.isTranslating && (
+                <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground animate-pulse mb-2">
+                  <Languages className="w-3.5 h-3.5" />
+                  {lang === 'sv' ? 'Laddar...' : 'Translating...'}
+                </span>
+              )}
               <h1 className="font-display text-2xl md:text-3xl font-bold mb-4 leading-tight">{title}</h1>
 
               {/* Price */}
@@ -388,9 +398,12 @@ const ProductDetail = () => {
           </div>
 
           {/* Ingredients & Certifications */}
-          {(product.ingredients_sv || product.ingredients_en || (product.certifications && product.certifications.length > 0)) && (
+          {(product.ingredients_sv || (product.certifications && product.certifications.length > 0)) && (
             <div className="mt-16 grid md:grid-cols-2 gap-6">
-              <ProductIngredients ingredientsSv={product.ingredients_sv} ingredientsEn={product.ingredients_en} />
+              <ProductIngredients
+                ingredientsSv={product.ingredients_sv}
+                translatedIngredients={translated.ingredients || undefined}
+              />
               <ProductCertifications certifications={product.certifications} />
             </div>
           )}

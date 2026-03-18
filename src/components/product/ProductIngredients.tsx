@@ -3,12 +3,15 @@ import { useLanguage } from '@/context/LanguageContext';
 
 interface ProductIngredientsProps {
   ingredientsSv: string | null;
-  ingredientsEn: string | null;
+  ingredientsEn?: string | null;
+  translatedIngredients?: string;
 }
 
-const ProductIngredients = ({ ingredientsSv, ingredientsEn }: ProductIngredientsProps) => {
+const ProductIngredients = ({ ingredientsSv, ingredientsEn, translatedIngredients }: ProductIngredientsProps) => {
   const { contentLang } = useLanguage();
-  const text = (contentLang === 'sv' ? ingredientsSv : ingredientsEn) || ingredientsSv;
+  
+  // Use translated text if provided, otherwise fall back to sv
+  const text = translatedIngredients || ingredientsSv;
 
   if (!text) return null;
 
