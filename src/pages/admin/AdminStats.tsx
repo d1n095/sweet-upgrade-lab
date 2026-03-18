@@ -38,6 +38,8 @@ const AdminStats = () => {
   const [cartAdds, setCartAdds] = useState<{ title: string; count: number }[]>([]);
   const [cartRemoves, setCartRemoves] = useState<{ title: string; count: number }[]>([]);
   const [abandonedItems, setAbandonedItems] = useState<{ title: string; count: number; totalValue: number }[]>([]);
+  const [orderStats, setOrderStats] = useState({ avgOrder: 0, medianOrder: 0, totalRevenue: 0, paidCount: 0, ranges: [] as { label: string; count: number }[] });
+  const [checkoutAmounts, setCheckoutAmounts] = useState<number[]>([]);
 
   useEffect(() => {
     fetchAllData();
