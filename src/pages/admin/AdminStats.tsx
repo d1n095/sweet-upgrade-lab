@@ -228,6 +228,8 @@ const AdminStats = () => {
   const conversionRate = checkoutStats.starts > 0
     ? Math.round((checkoutStats.completes / checkoutStats.starts) * 100) : 0;
 
+  const fmt = (n: number) => new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK', minimumFractionDigits: 0 }).format(n);
+
   if (loading) {
     return <div className="flex items-center justify-center h-64"><RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" /></div>;
   }
