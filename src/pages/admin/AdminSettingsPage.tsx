@@ -36,6 +36,7 @@ const AdminSettingsPage = () => {
     homepageBestsellers, homepageReviews, homepagePhilosophy, homepageAbout,
   } = useStoreSettings();
   const { isVisible, setVisibility } = usePageVisibility();
+  const { methods, isLoaded: paymentLoaded, load: loadPayments, toggle: togglePayment } = usePaymentMethodsStore();
   const [dbStats, setDbStats] = useState<{ tables: number; totalRows: number } | null>(null);
   const [loadingStats, setLoadingStats] = useState(false);
 
