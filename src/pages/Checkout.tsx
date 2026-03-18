@@ -485,25 +485,8 @@ const Checkout = () => {
                   </div>
                 </div>
 
-                {/* Pay button — visible on mobile */}
-                <div className="lg:hidden space-y-4">
-                  <Button
-                    type="submit"
-                    size="lg"
-                    className="w-full h-14 text-base font-semibold"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? (
-                      <><Loader2 className="w-5 h-5 animate-spin mr-2" />{t.processing}</>
-                    ) : (
-                      <><Lock className="w-4 h-4 mr-2" />{t.paySecurely} — {formatPrice(total)}</>
-                    )}
-                  </Button>
-                  <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
-                    <Lock className="w-3 h-3" />
-                    {t.encrypted}
-                  </div>
-                </div>
+              </form>
+            </motion.div>
 
                 {/* Desktop: encryption + returns under form */}
                 <div className="hidden lg:block space-y-3">
