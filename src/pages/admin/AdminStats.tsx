@@ -394,6 +394,36 @@ const AdminStats = () => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Ingredients tab */}
+        <TabsContent value="ingredients">
+          <Card className="border-border">
+            <CardHeader><CardTitle className="text-lg font-semibold flex items-center gap-2"><FlaskConical className="w-5 h-5 text-primary" /> Ingrediens-sökningar (30 dagar)</CardTitle></CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-4">Visar vilka ingredienser kunder söker efter och klickar på i sökfältet.</p>
+              <div className="space-y-2">
+                {ingredientStats.map((ing, idx) => (
+                  <div key={ing.name} className="flex items-center justify-between p-3 rounded-xl bg-secondary/50">
+                    <div className="flex items-center gap-3">
+                      <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">{idx + 1}</div>
+                      <span className="font-medium text-sm">{ing.name}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Badge variant="outline" className="gap-1"><Search className="w-3 h-3" />{ing.searches} sökningar</Badge>
+                      <Badge variant="outline" className="gap-1"><MousePointerClick className="w-3 h-3" />{ing.clicks} klick</Badge>
+                    </div>
+                  </div>
+                ))}
+                {ingredientStats.length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <FlaskConical className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                    <p>Ingen ingrediens-data ännu — spåras automatiskt när kunder söker</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       {/* All sales table */}
