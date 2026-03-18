@@ -144,6 +144,22 @@ const AdminLayout = () => {
       {/* Main content */}
       <main className="flex-1 overflow-y-auto">
         <div className="md:p-8 p-4 pt-18 pb-24 md:pt-8 md:pb-8 max-w-6xl mx-auto">
+          {(!siteActive || !checkoutEnabled) && (
+            <div className="mb-6 space-y-2">
+              {!siteActive && (
+                <div className="flex items-center gap-3 p-3 rounded-lg border border-destructive/30 bg-destructive/5">
+                  <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
+                  <p className="text-sm font-medium text-destructive">Sajten är inaktiv — besökare ser underhållssidan</p>
+                </div>
+              )}
+              {!checkoutEnabled && (
+                <div className="flex items-center gap-3 p-3 rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/30">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <p className="text-sm font-medium text-amber-700 dark:text-amber-400">Kassan är avstängd — kunder kan inte beställa</p>
+                </div>
+              )}
+            </div>
+          )}
           <Outlet />
         </div>
       </main>
