@@ -597,6 +597,27 @@ const Checkout = () => {
           </div>
         </div>
       </main>
+
+      {/* Sticky mobile pay button */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-background/95 backdrop-blur-md border-t border-border px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+        <Button
+          type="button"
+          size="lg"
+          className="w-full h-14 text-base font-semibold"
+          disabled={isSubmitting}
+          onClick={handleSubmit}
+        >
+          {isSubmitting ? (
+            <><Loader2 className="w-5 h-5 animate-spin mr-2" />{t.processing}</>
+          ) : (
+            <><Lock className="w-4 h-4 mr-2" />{t.paySecurely} — {formatPrice(total)}</>
+          )}
+        </Button>
+        <div className="flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground mt-1.5">
+          <Lock className="w-3 h-3" />
+          {t.encrypted}
+        </div>
+      </div>
     </div>
   );
 };
