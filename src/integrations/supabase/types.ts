@@ -1930,18 +1930,21 @@ export type Database = {
         Row: {
           id: string
           key: string
+          text_value: string | null
           updated_at: string
           value: boolean
         }
         Insert: {
           id?: string
           key: string
+          text_value?: string | null
           updated_at?: string
           value?: boolean
         }
         Update: {
           id?: string
           key?: string
+          text_value?: string | null
           updated_at?: string
           value?: boolean
         }
