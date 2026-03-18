@@ -93,8 +93,12 @@ const VolumeDiscountsTab = () => {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [mode, setMode] = useState<'global' | 'product'>('global');
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const [tiers, setTiers] = useState<Array<{ min_quantity: string; discount_percent: string }>>([
+    { min_quantity: '', discount_percent: '' },
+  ]);
   const [form, setForm] = useState({
-    min_quantity: '', discount_percent: '', is_global: true,
     label: '', stackable: true, excluded_product_ids: [] as string[],
   });
 
@@ -112,16 +116,32 @@ const VolumeDiscountsTab = () => {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const resetForm = () => {
-    setForm({ min_quantity: '', discount_percent: '', is_global: true, label: '', stackable: true, excluded_product_ids: [] });
+    setForm({ label: '', stackable: true, excluded_product_ids: [] });
+    setTiers([{ min_quantity: '', discount_percent: '' }]);
+    setMode('global');
+    setSelectedProductId(null);
     setEditingId(null);
     setShowForm(false);
   };
 
   const openEdit = (d: VolumeDiscount) => {
+    const isProduct = !d.is_global && !!d.shopify_product_id;
+    setMode(isProduct ? 'product' : 'global');
+    setSelectedProductId(d.shopify_product_id);
     setForm({
-      min_quantity: String(d.min_quantity), discount_percent: String(d.discount_percent), is_global: d.is_global,
       label: d.label || '', stackable: d.stackable, excluded_product_ids: d.excluded_product_ids || [],
     });
+
+    if (isProduct && d.shopify_product_id) {
+      // Load all tiers for this product
+      const productTiers = discounts
+        .filter(dd => dd.shopify_product_id === d.shopify_product_id)
+        .sort((a, b) => a.min_quantity - b.min_quantity)
+        .map(dd => ({ min_quantity: String(dd.min_quantity), discount_percent: String(dd.discount_percent) }));
+      setTiers(productTiers.length > 0 ? productTiers : [{ min_quantity: String(d.min_quantity), discount_percent: String(d.discount_percent) }]);
+    } else {
+      setTiers([{ min_quantity: String(d.min_quantity), discount_percent: String(d.discount_percent) }]);
+    }
     setEditingId(d.id);
     setShowForm(true);
   };
@@ -135,29 +155,67 @@ const VolumeDiscountsTab = () => {
     }));
   };
 
-  const handleSave = async () => {
-    const minQty = parseInt(form.min_quantity);
-    const pct = parseFloat(form.discount_percent);
-    if (!minQty || minQty < 1 || !pct || pct <= 0 || pct > 100) { toast.error('Ange giltiga värden'); return; }
+  const addTier = () => setTiers(prev => [...prev, { min_quantity: '', discount_percent: '' }]);
+  const removeTier = (idx: number) => setTiers(prev => prev.filter((_, i) => i !== idx));
+  const updateTier = (idx: number, field: 'min_quantity' | 'discount_percent', value: string) => {
+    setTiers(prev => prev.map((t, i) => i === idx ? { ...t, [field]: value } : t));
+  };
 
-    const payload = {
-      min_quantity: minQty,
-      discount_percent: pct,
-      is_global: form.is_global,
+  const handleSave = async () => {
+    const validTiers = tiers.filter(t => t.min_quantity && t.discount_percent);
+    if (validTiers.length === 0) { toast.error('Lägg till minst en nivå'); return; }
+    for (const t of validTiers) {
+      const qty = parseInt(t.min_quantity);
+      const pct = parseFloat(t.discount_percent);
+      if (!qty || qty < 1 || !pct || pct <= 0 || pct > 100) { toast.error('Ogiltiga värden i en nivå'); return; }
+    }
+
+    if (mode === 'product' && !selectedProductId) { toast.error('Välj en produkt'); return; }
+
+    const isGlobal = mode === 'global';
+    const productId = isGlobal ? null : selectedProductId;
+
+    // For product-specific: delete all existing tiers for this product, then insert new ones
+    if (mode === 'product' && productId) {
+      await supabase.from('volume_discounts').delete().eq('shopify_product_id', productId);
+    } else if (editingId) {
+      // For global edits: update or delete+recreate
+      // If single tier, just update
+      if (validTiers.length === 1) {
+        const { error } = await supabase.from('volume_discounts').update({
+          min_quantity: parseInt(validTiers[0].min_quantity),
+          discount_percent: parseFloat(validTiers[0].discount_percent),
+          is_global: true,
+          shopify_product_id: null,
+          label: form.label || null,
+          stackable: form.stackable,
+          excluded_product_ids: form.excluded_product_ids,
+        }).eq('id', editingId);
+        if (error) { toast.error('Kunde inte uppdatera'); return; }
+        toast.success('Mängdrabatt uppdaterad');
+        resetForm();
+        fetchData();
+        return;
+      }
+    }
+
+    // Insert all tiers
+    const rows = validTiers.map(t => ({
+      min_quantity: parseInt(t.min_quantity),
+      discount_percent: parseFloat(t.discount_percent),
+      is_global: isGlobal,
+      shopify_product_id: productId,
       label: form.label || null,
       stackable: form.stackable,
-      excluded_product_ids: form.excluded_product_ids,
-    };
+      excluded_product_ids: isGlobal ? form.excluded_product_ids : [],
+    }));
 
-    if (editingId) {
-      const { error } = await supabase.from('volume_discounts').update(payload).eq('id', editingId);
-      if (error) { toast.error('Kunde inte uppdatera'); return; }
-      toast.success('Mängdrabatt uppdaterad');
-    } else {
-      const { error } = await supabase.from('volume_discounts').insert({ ...payload, shopify_product_id: null });
-      if (error) { toast.error('Kunde inte skapa'); return; }
-      toast.success('Mängdrabatt skapad');
-    }
+    const { error } = await supabase.from('volume_discounts').insert(rows);
+    if (error) { toast.error('Kunde inte spara: ' + error.message); return; }
+
+    toast.success(mode === 'product'
+      ? `${validTiers.length} nivåer sparade för produkten`
+      : 'Mängdrabatt skapad');
     resetForm();
     fetchData();
   };
@@ -170,14 +228,33 @@ const VolumeDiscountsTab = () => {
     fetchData();
   };
 
+  const deleteAllProductTiers = async (productId: string) => {
+    if (!confirm('Ta bort alla nivåer för denna produkt?')) return;
+    await supabase.from('volume_discounts').delete().eq('shopify_product_id', productId);
+    toast.success('Alla nivåer borttagna');
+    resetForm();
+    fetchData();
+  };
+
   if (loading) return <div className="flex justify-center py-8"><RefreshCw className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
+
+  // Group product-specific discounts
+  const globalDiscounts = discounts.filter(d => d.is_global || !d.shopify_product_id);
+  const productDiscountsMap = new Map<string, VolumeDiscount[]>();
+  discounts.filter(d => !d.is_global && d.shopify_product_id).forEach(d => {
+    const list = productDiscountsMap.get(d.shopify_product_id!) || [];
+    list.push(d);
+    productDiscountsMap.set(d.shopify_product_id!, list);
+  });
+
+  const getProductName = (pid: string) => allProducts.find(p => p.id === pid)?.title_sv || pid;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h3 className="font-semibold text-sm">Mängdrabatter</h3>
-          <p className="text-xs text-muted-foreground">Automatisk rabatt baserat på antal — uteslut produkter eller blockera kombination</p>
+          <p className="text-xs text-muted-foreground">Global eller per produkt — stöd för trappsteg (2=10%, 3=15%…)</p>
         </div>
         <Button size="sm" variant="outline" onClick={() => { if (showForm && !editingId) resetForm(); else { resetForm(); setShowForm(true); } }} className="gap-1 h-7 text-xs">
           <Plus className="w-3 h-3" /> Lägg till
@@ -190,25 +267,85 @@ const VolumeDiscountsTab = () => {
             <Card className="border-primary/20">
               <CardContent className="pt-4 space-y-3">
                 <p className="text-xs font-medium text-primary">{editingId ? '✏️ Redigerar' : '➕ Ny mängdrabatt'}</p>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+
+                {/* Mode selector */}
+                <div className="flex gap-2">
+                  <Button size="sm" variant={mode === 'global' ? 'default' : 'outline'} className="h-7 text-xs" onClick={() => setMode('global')}>
+                    🌐 Global (hela korgen)
+                  </Button>
+                  <Button size="sm" variant={mode === 'product' ? 'default' : 'outline'} className="h-7 text-xs" onClick={() => setMode('product')}>
+                    📦 Enskild produkt
+                  </Button>
+                </div>
+
+                {/* Product selector for product mode */}
+                {mode === 'product' && (
                   <div>
-                    <Label className="text-xs">Min. antal *</Label>
-                    <Input type="number" value={form.min_quantity} onChange={e => setForm({ ...form, min_quantity: e.target.value })} placeholder="3" className="h-8" />
+                    <Label className="text-xs">Välj produkt *</Label>
+                    <Select value={selectedProductId || ''} onValueChange={v => setSelectedProductId(v)}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Välj produkt..." /></SelectTrigger>
+                      <SelectContent>
+                        {allProducts.map(p => (
+                          <SelectItem key={p.id} value={p.id} className="text-xs">{p.title_sv} — {p.price} kr</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div>
-                    <Label className="text-xs">Rabatt % *</Label>
-                    <Input type="number" step="0.5" value={form.discount_percent} onChange={e => setForm({ ...form, discount_percent: e.target.value })} placeholder="10" className="h-8" />
+                )}
+
+                {/* Label */}
+                <div>
+                  <Label className="text-xs">Etikett (valfri)</Label>
+                  <Input value={form.label} onChange={e => setForm({ ...form, label: e.target.value })} placeholder="Sommarkampanj" className="h-8" />
+                </div>
+
+                {/* Tiers */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <Label className="text-xs font-medium">Rabattnivåer *</Label>
+                    <Button variant="ghost" size="sm" className="h-6 text-[10px] gap-1" onClick={addTier}><Plus className="w-3 h-3" /> Lägg till nivå</Button>
                   </div>
-                  <div>
-                    <Label className="text-xs">Etikett (valfri)</Label>
-                    <Input value={form.label} onChange={e => setForm({ ...form, label: e.target.value })} placeholder="Sommarkampanj" className="h-8" />
+                  <div className="space-y-1.5">
+                    {tiers.map((tier, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 flex-1">
+                          <Input
+                            type="number" value={tier.min_quantity}
+                            onChange={e => updateTier(idx, 'min_quantity', e.target.value)}
+                            placeholder="Antal" className="h-8 w-20 text-xs"
+                          />
+                          <span className="text-xs text-muted-foreground">st →</span>
+                          <Input
+                            type="number" step="0.5" value={tier.discount_percent}
+                            onChange={e => updateTier(idx, 'discount_percent', e.target.value)}
+                            placeholder="%" className="h-8 w-20 text-xs"
+                          />
+                          <span className="text-xs text-muted-foreground">% rabatt</span>
+                        </div>
+                        {tiers.length > 1 && (
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive shrink-0" onClick={() => removeTier(idx)}>
+                            <X className="w-3 h-3" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                  <div className="flex flex-col gap-2 justify-end">
-                    <div className="flex items-center gap-2 h-8">
-                      <Switch checked={form.is_global} onCheckedChange={v => setForm({ ...form, is_global: v })} />
-                      <span className="text-xs text-muted-foreground">Global</span>
+                  {mode === 'product' && selectedProductId && tiers.filter(t => t.min_quantity && t.discount_percent).length > 0 && (
+                    <div className="mt-2 p-2 rounded-lg bg-secondary/30 space-y-0.5">
+                      <p className="text-[10px] font-medium text-muted-foreground">Förhandsvisning:</p>
+                      {tiers.filter(t => t.min_quantity && t.discount_percent).sort((a, b) => parseInt(a.min_quantity) - parseInt(b.min_quantity)).map((t, i) => {
+                        const product = allProducts.find(p => p.id === selectedProductId);
+                        const unitPrice = product?.price || 0;
+                        const discounted = Math.round(unitPrice * (1 - parseFloat(t.discount_percent) / 100));
+                        return (
+                          <p key={i} className="text-xs">
+                            <span className="font-medium">{t.min_quantity}+ st</span>: {t.discount_percent}% rabatt
+                            {unitPrice > 0 && <span className="text-muted-foreground"> ({discounted} kr/st ist.f. {unitPrice} kr)</span>}
+                          </p>
+                        );
+                      })}
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 {/* Stacking control */}
@@ -222,35 +359,37 @@ const VolumeDiscountsTab = () => {
                   </div>
                 </div>
 
-                {/* Excluded products */}
-                <div>
-                  <Label className="text-xs font-medium">Uteslutna produkter</Label>
-                  <p className="text-[10px] text-muted-foreground mb-1.5">Dessa produkter räknas inte med / får inte rabatten</p>
-                  <div className="max-h-36 overflow-y-auto border border-border rounded-lg divide-y divide-border">
-                    {allProducts.map(p => {
-                      const excluded = form.excluded_product_ids.includes(p.id);
-                      return (
-                        <div
-                          key={p.id}
-                          className={`flex items-center gap-3 px-3 py-1.5 cursor-pointer transition-colors ${excluded ? 'bg-destructive/5' : 'hover:bg-secondary/50'}`}
-                          onClick={() => toggleExcludedProduct(p.id)}
-                        >
-                          <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 ${excluded ? 'border-destructive bg-destructive' : 'border-muted-foreground/30'}`}>
-                            {excluded && <span className="text-destructive-foreground text-[10px] font-bold">✕</span>}
+                {/* Excluded products (only for global) */}
+                {mode === 'global' && (
+                  <div>
+                    <Label className="text-xs font-medium">Uteslutna produkter</Label>
+                    <p className="text-[10px] text-muted-foreground mb-1.5">Dessa produkter räknas inte med / får inte rabatten</p>
+                    <div className="max-h-36 overflow-y-auto border border-border rounded-lg divide-y divide-border">
+                      {allProducts.map(p => {
+                        const excluded = form.excluded_product_ids.includes(p.id);
+                        return (
+                          <div
+                            key={p.id}
+                            className={`flex items-center gap-3 px-3 py-1.5 cursor-pointer transition-colors ${excluded ? 'bg-destructive/5' : 'hover:bg-secondary/50'}`}
+                            onClick={() => toggleExcludedProduct(p.id)}
+                          >
+                            <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 ${excluded ? 'border-destructive bg-destructive' : 'border-muted-foreground/30'}`}>
+                              {excluded && <span className="text-destructive-foreground text-[10px] font-bold">✕</span>}
+                            </div>
+                            <span className="text-xs flex-1 truncate">{p.title_sv}</span>
+                            <span className="text-[10px] text-muted-foreground">{p.price} kr</span>
                           </div>
-                          <span className="text-xs flex-1 truncate">{p.title_sv}</span>
-                          <span className="text-[10px] text-muted-foreground">{p.price} kr</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {form.excluded_product_ids.length > 0 && (
-                    <div className="flex items-center gap-2 mt-1.5">
-                      <Badge variant="destructive" className="text-[9px]">{form.excluded_product_ids.length} uteslutna</Badge>
-                      <Button variant="ghost" size="sm" className="h-5 text-[10px] px-1" onClick={() => setForm({ ...form, excluded_product_ids: [] })}>Rensa</Button>
+                        );
+                      })}
                     </div>
-                  )}
-                </div>
+                    {form.excluded_product_ids.length > 0 && (
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <Badge variant="destructive" className="text-[9px]">{form.excluded_product_ids.length} uteslutna</Badge>
+                        <Button variant="ghost" size="sm" className="h-5 text-[10px] px-1" onClick={() => setForm({ ...form, excluded_product_ids: [] })}>Rensa</Button>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="flex gap-2">
                   <Button size="sm" onClick={handleSave} className="gap-1 h-7 text-xs"><Save className="w-3 h-3" /> {editingId ? 'Uppdatera' : 'Spara'}</Button>
@@ -262,28 +401,74 @@ const VolumeDiscountsTab = () => {
         )}
       </AnimatePresence>
 
-      <div className="space-y-1.5">
-        {discounts.map(d => (
-          <div key={d.id} className={`flex items-center gap-3 p-3 rounded-xl border transition-colors ${editingId === d.id ? 'border-primary/40 bg-primary/5' : 'border-border bg-card'}`}>
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary text-sm shrink-0">{d.discount_percent}%</div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <p className="font-medium text-sm">{d.label || `${d.min_quantity}+ produkter`} → {d.discount_percent}% rabatt</p>
-                {!d.stackable && <Badge variant="outline" className="text-[9px]">Ej kombinerbar</Badge>}
-                {(d.excluded_product_ids?.length || 0) > 0 && (
-                  <Badge variant="secondary" className="text-[9px]">{d.excluded_product_ids.length} uteslutna</Badge>
-                )}
+      {/* Global discounts */}
+      {globalDiscounts.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium text-muted-foreground">🌐 Globala mängdrabatter</p>
+          {globalDiscounts.map(d => (
+            <div key={d.id} className={`flex items-center gap-3 p-3 rounded-xl border transition-colors ${editingId === d.id ? 'border-primary/40 bg-primary/5' : 'border-border bg-card'}`}>
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary text-sm shrink-0">{d.discount_percent}%</div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="font-medium text-sm">{d.label || `${d.min_quantity}+ produkter`} → {d.discount_percent}%</p>
+                  {!d.stackable && <Badge variant="outline" className="text-[9px]">Ej kombinerbar</Badge>}
+                  {(d.excluded_product_ids?.length || 0) > 0 && (
+                    <Badge variant="secondary" className="text-[9px]">{d.excluded_product_ids.length} uteslutna</Badge>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">Gäller hela varukorgen</p>
               </div>
-              <p className="text-xs text-muted-foreground">{d.is_global ? 'Gäller hela varukorgen' : 'Produktspecifik'}</p>
+              <div className="flex items-center gap-1">
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(d)}><Pencil className="w-3.5 h-3.5" /></Button>
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDelete(d.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
+              </div>
             </div>
-            <div className="flex items-center gap-1">
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(d)}><Pencil className="w-3.5 h-3.5" /></Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDelete(d.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
-            </div>
-          </div>
-        ))}
-        {discounts.length === 0 && <p className="text-center text-muted-foreground text-xs py-8">Inga mängdrabatter konfigurerade</p>}
-      </div>
+          ))}
+        </div>
+      )}
+
+      {/* Product-specific discounts grouped */}
+      {productDiscountsMap.size > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium text-muted-foreground">📦 Produktspecifika mängdrabatter</p>
+          {Array.from(productDiscountsMap.entries()).map(([productId, tierList]) => {
+            const sorted = tierList.sort((a, b) => a.min_quantity - b.min_quantity);
+            const first = sorted[0];
+            return (
+              <div key={productId} className="rounded-xl border border-border bg-card p-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center shrink-0">
+                    <ShoppingBag className="w-4 h-4 text-accent" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-medium text-sm truncate">{getProductName(productId)}</p>
+                      {!first.stackable && <Badge variant="outline" className="text-[9px]">Ej kombinerbar</Badge>}
+                      {first.label && <Badge variant="secondary" className="text-[9px]">{first.label}</Badge>}
+                    </div>
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                      {sorted.map((t, i) => (
+                        <span key={t.id} className="text-xs">
+                          <span className="font-medium">{t.min_quantity}+</span>={t.discount_percent}%
+                          {i < sorted.length - 1 && <span className="text-muted-foreground ml-1">·</span>}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(first)}><Pencil className="w-3.5 h-3.5" /></Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => deleteAllProductTiers(productId)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {globalDiscounts.length === 0 && productDiscountsMap.size === 0 && (
+        <p className="text-center text-muted-foreground text-xs py-8">Inga mängdrabatter konfigurerade</p>
+      )}
     </div>
   );
 };
