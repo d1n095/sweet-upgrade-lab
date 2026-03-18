@@ -370,27 +370,27 @@ const MemberProfile = () => {
             <TabsContent value="overview">
               {/* Stats cards */}
               <div className="grid grid-cols-3 gap-3 mb-6">
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-card border border-border rounded-xl p-4 text-center">
+                <motion.button onClick={() => handleTabChange('reviews')} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-card border border-border rounded-xl p-4 text-center cursor-pointer hover:bg-secondary/50 hover:border-primary/20 transition-colors">
                   <div className="w-10 h-10 mx-auto mb-2 rounded-lg bg-primary/10 flex items-center justify-center">
                     <Star className="w-5 h-5 text-primary" />
                   </div>
                   <p className="text-2xl font-bold">{reviews.length}</p>
                   <p className="text-xs text-muted-foreground">{t.overview.reviewsDesc}</p>
-                </motion.div>
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="bg-card border border-border rounded-xl p-4 text-center">
+                </motion.button>
+                <motion.button onClick={() => handleTabChange('rewards')} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="bg-card border border-border rounded-xl p-4 text-center cursor-pointer hover:bg-secondary/50 hover:border-primary/20 transition-colors">
                   <div className="w-10 h-10 mx-auto mb-2 rounded-lg bg-accent/10 flex items-center justify-center">
                     <Gift className="w-5 h-5 text-accent" />
                   </div>
                   <p className="text-2xl font-bold">{unusedRewards.length}</p>
                   <p className="text-xs text-muted-foreground">{t.overview.rewardsDesc}</p>
-                </motion.div>
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-card border border-border rounded-xl p-4 text-center">
+                </motion.button>
+                <motion.button onClick={() => handleTabChange('settings')} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-card border border-border rounded-xl p-4 text-center cursor-pointer hover:bg-secondary/50 hover:border-primary/20 transition-colors">
                   <div className="w-10 h-10 mx-auto mb-2 rounded-lg bg-secondary flex items-center justify-center">
                     <BadgeCheck className="w-5 h-5 text-foreground" />
                   </div>
                   <p className="text-2xl font-bold">{isMember ? '✓' : '—'}</p>
                   <p className="text-xs text-muted-foreground">{t.overview.memberDesc}</p>
-                </motion.div>
+                </motion.button>
               </div>
 
               {/* Quick navigation */}
