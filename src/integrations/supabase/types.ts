@@ -823,6 +823,7 @@ export type Database = {
           items: Json
           notes: string | null
           order_email: string
+          order_number: string | null
           payment_intent_id: string | null
           payment_status: string
           shipping_address: Json | null
@@ -844,6 +845,7 @@ export type Database = {
           items?: Json
           notes?: string | null
           order_email: string
+          order_number?: string | null
           payment_intent_id?: string | null
           payment_status?: string
           shipping_address?: Json | null
@@ -865,6 +867,7 @@ export type Database = {
           items?: Json
           notes?: string | null
           order_email?: string
+          order_number?: string | null
           payment_intent_id?: string | null
           payment_status?: string
           shipping_address?: Json | null
