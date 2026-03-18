@@ -69,7 +69,11 @@ export const useCartStore = create<CartStore>()(
           get().removeItem(variantId);
           return;
         }
-        
+        const existing = get().items.find(i => i.variantId === variantId);
+        if (existing) {
+          const productId = (existing.product as any)?.dbId || variantId;
+          trackCartUpdate(productId, existing.product.node.title, existing.quantity, quantity);
+        }
         set({
           items: get().items.map(item =>
             item.variantId === variantId ? { ...item, quantity } : item
@@ -78,6 +82,11 @@ export const useCartStore = create<CartStore>()(
       },
 
       removeItem: (variantId) => {
+        const existing = get().items.find(i => i.variantId === variantId);
+        if (existing) {
+          const productId = (existing.product as any)?.dbId || variantId;
+          trackRemoveFromCart(productId, existing.product.node.title, parseFloat(existing.price.amount), existing.quantity);
+        }
         set({
           items: get().items.filter(item => item.variantId !== variantId)
         });
