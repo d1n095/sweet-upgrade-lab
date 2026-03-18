@@ -957,9 +957,14 @@ export type Database = {
           order_email: string
           order_number: string | null
           payment_intent_id: string | null
+          payment_method: string | null
           payment_status: string
+          refund_amount: number | null
+          refund_status: string | null
+          refunded_at: string | null
           review_reminder_sent: boolean
           shipping_address: Json | null
+          shipping_method: string | null
           shopify_order_id: string | null
           shopify_order_number: string | null
           status: string
@@ -981,9 +986,14 @@ export type Database = {
           order_email: string
           order_number?: string | null
           payment_intent_id?: string | null
+          payment_method?: string | null
           payment_status?: string
+          refund_amount?: number | null
+          refund_status?: string | null
+          refunded_at?: string | null
           review_reminder_sent?: boolean
           shipping_address?: Json | null
+          shipping_method?: string | null
           shopify_order_id?: string | null
           shopify_order_number?: string | null
           status?: string
@@ -1005,9 +1015,14 @@ export type Database = {
           order_email?: string
           order_number?: string | null
           payment_intent_id?: string | null
+          payment_method?: string | null
           payment_status?: string
+          refund_amount?: number | null
+          refund_status?: string | null
+          refunded_at?: string | null
           review_reminder_sent?: boolean
           shipping_address?: Json | null
+          shipping_method?: string | null
           shopify_order_id?: string | null
           shopify_order_number?: string | null
           status?: string

@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import {
   ClipboardList, Package, Truck, Check, Clock, Loader2,
   Eye, ChevronDown, ChevronUp, Save, X, CreditCard, MapPin, User, History, CheckCircle, AlertTriangle,
-  Printer, FileText, Download
+  Printer, FileText, Download, RotateCcw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,6 +28,7 @@ interface Order {
   order_email: string;
   status: string;
   payment_status: string;
+  payment_method: string | null;
   total_amount: number;
   currency: string;
   tracking_number: string | null;
@@ -40,6 +41,9 @@ interface Order {
   shipping_address: any;
   estimated_delivery: string | null;
   status_history: any;
+  refund_status: string | null;
+  refund_amount: number | null;
+  refunded_at: string | null;
 }
 
 const statusOptions = [
@@ -49,6 +53,7 @@ const statusOptions = [
   { value: 'shipped', color: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400' },
   { value: 'delivered', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
   { value: 'failed', color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' },
+  { value: 'abandoned', color: 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400' },
   { value: 'cancelled', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
 ];
 
@@ -90,6 +95,12 @@ const AdminOrderManager = () => {
       delivered: 'Levererad',
       cancelled: 'Avbruten',
       failed: 'Misslyckad',
+      abandoned: 'Övergiven',
+      refund: 'Återbetalning',
+      refundConfirm: 'Markera som återbetald?',
+      refunded: 'Återbetald',
+      partialRefund: 'Delvis återbetald',
+      paymentMethod: 'Betalmetod',
       items: 'Produkter',
       address: 'Leveransadress',
       estimatedDelivery: 'Beräknad leverans',
@@ -130,6 +141,12 @@ const AdminOrderManager = () => {
       delivered: 'Delivered',
       cancelled: 'Cancelled',
       failed: 'Failed',
+      abandoned: 'Abandoned',
+      refund: 'Refund',
+      refundConfirm: 'Mark as refunded?',
+      refunded: 'Refunded',
+      partialRefund: 'Partially refunded',
+      paymentMethod: 'Payment method',
       items: 'Products',
       address: 'Shipping address',
       estimatedDelivery: 'Estimated delivery',
@@ -159,6 +176,7 @@ const AdminOrderManager = () => {
     delivered: content.delivered,
     cancelled: content.cancelled,
     failed: content.failed,
+    abandoned: content.abandoned,
   };
 
   useEffect(() => {
@@ -289,6 +307,63 @@ const AdminOrderManager = () => {
       console.error('Failed to mark as paid:', error);
       toast.error(content.error);
     }
+  };
+
+  const handleMarkAsRefunded = async (order: Order) => {
+    if (!confirm(content.refundConfirm)) return;
+    try {
+      const existingHistory = Array.isArray(order.status_history) ? order.status_history : [];
+      const newHistory = [...existingHistory, {
+        status: 'refunded',
+        timestamp: new Date().toISOString(),
+        note: 'Manuellt markerad som återbetald av admin',
+      }];
+
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          refund_status: 'refunded',
+          refund_amount: order.total_amount,
+          refunded_at: new Date().toISOString(),
+          status_history: newHistory,
+        })
+        .eq('id', order.id);
+
+      if (error) throw error;
+
+      setOrders(prev =>
+        prev.map(o =>
+          o.id === order.id
+            ? { ...o, refund_status: 'refunded', refund_amount: order.total_amount, refunded_at: new Date().toISOString(), status_history: newHistory, updated_at: new Date().toISOString() }
+            : o
+        )
+      );
+
+      logActivity({
+        log_type: 'warning',
+        category: 'admin',
+        message: 'Order manually marked as refunded',
+        details: { amount: order.total_amount },
+        order_id: order.id,
+      });
+
+      toast.success(language === 'sv' ? 'Order markerad som återbetald' : 'Order marked as refunded');
+    } catch (error) {
+      console.error('Failed to mark as refunded:', error);
+      toast.error(content.error);
+    }
+  };
+
+  const getPaymentMethodLabel = (method: string | null): string => {
+    if (!method) return '-';
+    const map: Record<string, string> = {
+      card: 'Kort',
+      klarna: 'Klarna',
+      swish: 'Swish',
+      apple_pay: 'Apple Pay',
+      google_pay: 'Google Pay',
+    };
+    return map[method] || method;
   };
 
   const getStatusColor = (status: string) => {
@@ -483,7 +558,17 @@ const AdminOrderManager = () => {
                           : order.payment_status === 'failed' ? (language === 'sv' ? 'Misslyckad' : 'Failed')
                           : (language === 'sv' ? 'Obetald' : 'Unpaid')}
                       </Badge>
-                      {order.status === 'failed' && (
+                      {order.refund_status && (
+                        <Badge variant="outline" className="text-[10px] h-5 border-purple-300 text-purple-700 dark:border-purple-700 dark:text-purple-400">
+                          {order.refund_status === 'refunded' ? content.refunded : content.partialRefund}
+                        </Badge>
+                      )}
+                      {order.payment_method && (
+                        <Badge variant="secondary" className="text-[10px] h-5">
+                          {getPaymentMethodLabel(order.payment_method)}
+                        </Badge>
+                      )}
+                      {(order.status === 'failed' || order.status === 'abandoned') && (
                         <AlertTriangle className="w-3.5 h-3.5 text-destructive" />
                       )}
                     </div>
@@ -505,6 +590,20 @@ const AdminOrderManager = () => {
                       >
                         <CheckCircle className="w-3.5 h-3.5" />
                         {language === 'sv' ? 'Markera betald' : 'Mark paid'}
+                      </Button>
+                    )}
+                    {order.payment_status === 'paid' && !order.refund_status && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5 text-xs border-purple-300 text-purple-700 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-400 dark:hover:bg-purple-950/30"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMarkAsRefunded(order);
+                        }}
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        {content.refund}
                       </Button>
                     )}
                     <span className="font-semibold text-sm">
