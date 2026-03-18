@@ -2,8 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, Trash2, Save, RefreshCw, Percent, Package, Tag,
-  Pencil, X, Sparkles, Loader2, ShoppingBag,
+  Pencil, X, Sparkles, Loader2, ShoppingBag, Calendar,
 } from 'lucide-react';
+import { format } from 'date-fns';
+import { sv } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,7 +31,12 @@ interface VolumeDiscount {
   excluded_product_ids: string[];
   stackable: boolean;
   label: string | null;
+  created_at: string;
 }
+
+const fmtDate = (d: string) => {
+  try { return format(new Date(d), 'd MMM yyyy', { locale: sv }); } catch { return ''; }
+};
 
 interface Bundle {
   id: string;
@@ -46,6 +53,8 @@ interface Bundle {
   min_level: number | null;
   requires_account: boolean;
   max_uses_per_user: number | null;
+  created_at: string;
+  updated_at: string;
 }
 
 interface BundleItem {
@@ -416,7 +425,10 @@ const VolumeDiscountsTab = () => {
                     <Badge variant="secondary" className="text-[9px]">{d.excluded_product_ids.length} uteslutna</Badge>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground">Gäller hela varukorgen</p>
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  Gäller hela varukorgen
+                  <span className="inline-flex items-center gap-0.5 ml-1 text-[10px]"><Calendar className="w-3 h-3" />{fmtDate(d.created_at)}</span>
+                </p>
               </div>
               <div className="flex items-center gap-1">
                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(d)}><Pencil className="w-3.5 h-3.5" /></Button>
@@ -453,6 +465,7 @@ const VolumeDiscountsTab = () => {
                           {i < sorted.length - 1 && <span className="text-muted-foreground ml-1">·</span>}
                         </span>
                       ))}
+                      <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground ml-1"><Calendar className="w-3 h-3" />{fmtDate(first.created_at)}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
@@ -848,6 +861,12 @@ const BundlesTab = () => {
                       <span className="line-through">{Math.round(prices.original)} kr</span> → <span className="font-semibold text-primary">{Math.round(prices.discounted)} kr</span>
                       {b.first_purchase_discount != null && <span className="ml-2">| 1:a: {b.first_purchase_discount}%</span>}
                       {b.repeat_discount != null && <span className="ml-1">| Sedan: {b.repeat_discount}%</span>}
+                      <span className="inline-flex items-center gap-0.5 ml-2 text-[10px]"><Calendar className="w-3 h-3" />{fmtDate(b.created_at)}</span>
+                    </p>
+                  )}
+                  {items.length === 0 && (
+                    <p className="text-xs text-muted-foreground inline-flex items-center gap-0.5">
+                      <Calendar className="w-3 h-3" />{fmtDate(b.created_at)}
                     </p>
                   )}
                 </div>
