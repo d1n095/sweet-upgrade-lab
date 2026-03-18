@@ -47,6 +47,7 @@ const emptyForm = (): ProductFormData => ({
   productType: '', tags: '', vendor: '4ThePeople',
   isVisible: true, inventory: 0, allowOverselling: false,
   imageUrls: [], ingredients: '', certifications: '', recipe: '',
+  feeling: '', effects: '', usage: '', extendedDescription: '',
 });
 
 const AdminDbProductManager = () => {
