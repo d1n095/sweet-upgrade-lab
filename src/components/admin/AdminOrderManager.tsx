@@ -401,8 +401,8 @@ const AdminOrderManager = () => {
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-sm">
-                        #{order.shopify_order_number || order.id.slice(0, 8)}
+                      <span className="font-medium text-sm font-mono">
+                        {order.order_number || order.shopify_order_number || `#${order.id.slice(0, 8)}`}
                       </span>
                       <Badge className={getStatusColor(order.status)}>
                         {statusLabels[order.status] || order.status}
