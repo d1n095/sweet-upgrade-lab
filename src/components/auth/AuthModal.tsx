@@ -100,6 +100,7 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
   };
 
   const handleModeChange = (newMode: 'login' | 'register' | 'forgot') => {
+    if (newMode === 'register' && !registrationEnabled) return;
     setMode(newMode);
     setResetSent(false);
   };
