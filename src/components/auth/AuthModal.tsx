@@ -8,6 +8,7 @@ import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
 import { logAuthEvent } from '@/utils/activityLogger';
 import { useLoginRateLimit } from '@/hooks/useLoginRateLimit';
+import { useStoreSettings } from '@/stores/storeSettingsStore';
 import {
   Sheet,
   SheetContent,
@@ -26,6 +27,7 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
   const lang = getContentLang(language);
   const { signIn, signUp, resetPassword } = useAuth();
   const { checkRateLimit, resetAttempts } = useLoginRateLimit();
+  const { registrationEnabled } = useStoreSettings();
   const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -98,6 +100,7 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
   };
 
   const handleModeChange = (newMode: 'login' | 'register' | 'forgot') => {
+    if (newMode === 'register' && !registrationEnabled) return;
     setMode(newMode);
     setResetSent(false);
   };
@@ -279,20 +282,34 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
             {/* Toggle mode */}
             {mode !== 'forgot' && (
               <div className="mt-6 text-center text-sm">
-                <span className="text-muted-foreground">
-                  {mode === 'login'
-                    ? (lang === 'sv' ? 'Har du inget konto?' : "Don't have an account?")
-                    : (lang === 'sv' ? 'Har du redan ett konto?' : 'Already have an account?')}
-                </span>{' '}
-                <button
-                  type="button"
-                  onClick={() => handleModeChange(mode === 'login' ? 'register' : 'login')}
-                  className="text-primary font-medium hover:underline"
-                >
-                  {mode === 'login'
-                    ? (lang === 'sv' ? 'Bli medlem' : 'Become a member')
-                    : (lang === 'sv' ? 'Logga in' : 'Sign in')}
-                </button>
+                {mode === 'login' && registrationEnabled && (
+                  <>
+                    <span className="text-muted-foreground">
+                      {lang === 'sv' ? 'Har du inget konto?' : "Don't have an account?"}
+                    </span>{' '}
+                    <button
+                      type="button"
+                      onClick={() => handleModeChange('register')}
+                      className="text-primary font-medium hover:underline"
+                    >
+                      {lang === 'sv' ? 'Bli medlem' : 'Become a member'}
+                    </button>
+                  </>
+                )}
+                {mode === 'register' && (
+                  <>
+                    <span className="text-muted-foreground">
+                      {lang === 'sv' ? 'Har du redan ett konto?' : 'Already have an account?'}
+                    </span>{' '}
+                    <button
+                      type="button"
+                      onClick={() => handleModeChange('login')}
+                      className="text-primary font-medium hover:underline"
+                    >
+                      {lang === 'sv' ? 'Logga in' : 'Sign in'}
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </>

@@ -5,6 +5,7 @@ import { logSettingsChange } from '@/utils/activityLogger';
 interface StoreSettingsState {
   siteActive: boolean;
   checkoutEnabled: boolean;
+  registrationEnabled: boolean;
   homepageBestsellers: boolean;
   homepageReviews: boolean;
   homepagePhilosophy: boolean;
@@ -13,6 +14,7 @@ interface StoreSettingsState {
   fetchSettings: () => Promise<void>;
   setSiteActive: (enabled: boolean) => Promise<void>;
   setCheckoutEnabled: (enabled: boolean) => Promise<void>;
+  setRegistrationEnabled: (enabled: boolean) => Promise<void>;
   setHomepageSetting: (key: string, enabled: boolean) => Promise<void>;
 }
 
@@ -21,6 +23,7 @@ const HOMEPAGE_KEYS = ['homepage_bestsellers', 'homepage_reviews', 'homepage_phi
 export const useStoreSettings = create<StoreSettingsState>((set, get) => ({
   siteActive: true,
   checkoutEnabled: true,
+  registrationEnabled: true,
   homepageBestsellers: false,
   homepageReviews: false,
   homepagePhilosophy: true,
@@ -37,6 +40,7 @@ export const useStoreSettings = create<StoreSettingsState>((set, get) => ({
       set({
         siteActive: map['site_active'] ?? true,
         checkoutEnabled: map['checkout_enabled'] ?? true,
+        registrationEnabled: map['registration_enabled'] ?? true,
         homepageBestsellers: map['homepage_bestsellers'] ?? false,
         homepageReviews: map['homepage_reviews'] ?? false,
         homepagePhilosophy: map['homepage_philosophy'] ?? true,
@@ -66,6 +70,15 @@ export const useStoreSettings = create<StoreSettingsState>((set, get) => ({
     logSettingsChange('checkout_enabled', old, enabled);
   },
 
+  setRegistrationEnabled: async (enabled) => {
+    const old = get().registrationEnabled;
+    set({ registrationEnabled: enabled });
+    await supabase
+      .from('store_settings')
+      .upsert({ key: 'registration_enabled', value: enabled, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+    logSettingsChange('registration_enabled', old, enabled);
+  },
+
   setHomepageSetting: async (key, enabled) => {
     const stateKey = key.replace('homepage_', 'homepage') as string;
     const camelKey = key === 'homepage_bestsellers' ? 'homepageBestsellers'
@@ -89,6 +102,7 @@ supabase
     const { key, value } = payload.new as { key: string; value: boolean };
     if (key === 'site_active') useStoreSettings.setState({ siteActive: value });
     if (key === 'checkout_enabled') useStoreSettings.setState({ checkoutEnabled: value });
+    if (key === 'registration_enabled') useStoreSettings.setState({ registrationEnabled: value });
     if (key === 'homepage_bestsellers') useStoreSettings.setState({ homepageBestsellers: value });
     if (key === 'homepage_reviews') useStoreSettings.setState({ homepageReviews: value });
     if (key === 'homepage_philosophy') useStoreSettings.setState({ homepagePhilosophy: value });

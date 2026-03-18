@@ -25,6 +25,8 @@ import AffiliateDashboard from '@/components/dashboard/AffiliateDashboard';
 import EmployeeDashboard from '@/components/dashboard/EmployeeDashboard';
 import DonationImpact from '@/components/donations/DonationImpact';
 import AccountSettings from '@/components/profile/AccountSettings';
+import BusinessAccountForm from '@/components/profile/BusinessAccountForm';
+import TrustBadges from '@/components/trust/TrustBadges';
 
 interface Review {
   id: string;
@@ -403,7 +405,11 @@ const MemberProfile = () => {
 
             {/* Settings Tab */}
             <TabsContent value="settings">
-              <AccountSettings />
+              <div className="space-y-6">
+                <AccountSettings />
+                <BusinessAccountForm />
+                <TrustBadges level={level} trustScore={trustScore} xp={xp} />
+              </div>
             </TabsContent>
 
             {/* Overview Tab */}

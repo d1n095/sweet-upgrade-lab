@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Settings, ShoppingCart, Wrench, Home, AlertTriangle, Eye, EyeOff, Globe, Shield, Database, RefreshCw } from 'lucide-react';
+import { Settings, ShoppingCart, Wrench, Home, AlertTriangle, Eye, EyeOff, Globe, Shield, Database, RefreshCw, UserPlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -29,8 +29,8 @@ const pageToggles: { id: ToggleablePage; label: string; desc: string }[] = [
 
 const AdminSettingsPage = () => {
   const {
-    siteActive, checkoutEnabled, isLoaded, fetchSettings,
-    setSiteActive, setCheckoutEnabled, setHomepageSetting,
+    siteActive, checkoutEnabled, registrationEnabled, isLoaded, fetchSettings,
+    setSiteActive, setCheckoutEnabled, setRegistrationEnabled, setHomepageSetting,
     homepageBestsellers, homepageReviews, homepagePhilosophy, homepageAbout,
   } = useStoreSettings();
   const { isVisible, setVisibility } = usePageVisibility();
@@ -120,6 +120,25 @@ const AdminSettingsPage = () => {
                     <p className="text-xs text-muted-foreground mt-1">Stäng av för att tillfälligt stoppa nya beställningar</p>
                   </div>
                   <Switch checked={checkoutEnabled} onCheckedChange={setCheckoutEnabled} />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <UserPlus className="w-4 h-4" />
+                  Registrering
+                  {!registrationEnabled && <Badge variant="secondary" className="text-xs">Avstängd</Badge>}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-sm">Tillåt registrering</Label>
+                    <p className="text-xs text-muted-foreground mt-1">Stäng av för att blockera nya registreringar. "Bli medlem" döljs.</p>
+                  </div>
+                  <Switch checked={registrationEnabled} onCheckedChange={setRegistrationEnabled} />
                 </div>
               </CardContent>
             </Card>
