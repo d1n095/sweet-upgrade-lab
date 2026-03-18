@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingCart, Menu, X, Leaf, ChevronDown, User, Crown, LogOut, Heart, Moon, Sun } from 'lucide-react';
+import { ShoppingCart, Menu, X, Leaf, ChevronDown, User, Crown, LogOut, Heart, Moon, Sun, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCartStore } from '@/stores/cartStore';
 import { useWishlistStore } from '@/stores/wishlistStore';
@@ -105,6 +105,7 @@ const Header = () => {
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const { isVisible } = usePageVisibility();
@@ -139,7 +140,7 @@ const Header = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  useEffect(() => { setIsMobileMenuOpen(false); }, [location.pathname]);
+  useEffect(() => { setIsMobileMenuOpen(false); setMobileSearchOpen(false); }, [location.pathname]);
 
   const aboutSubMenu = [
     { href: '/about', label: t('nav.aboutus') },
@@ -177,7 +178,7 @@ const Header = () => {
         }`}
       >
         <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-14 md:h-15">
+          <div className="flex items-center justify-between h-14 md:h-15 gap-2">
             {/* Logo */}
             <button
               onClick={() => {
@@ -187,7 +188,7 @@ const Header = () => {
                   navigate('/');
                 }
               }}
-              className="flex items-center gap-2.5 group cursor-pointer min-h-[44px]"
+              className="flex items-center gap-2.5 group cursor-pointer min-h-[44px] shrink-0"
             >
               <div className="w-9 h-9 rounded-lg bg-gradient-accent flex items-center justify-center shadow-sm">
                 <Leaf className="w-5 h-5 text-accent-foreground" />
@@ -198,7 +199,7 @@ const Header = () => {
             </button>
 
             {/* Desktop Nav */}
-            <nav className="hidden md:flex items-center gap-6">
+            <nav className="hidden md:flex items-center gap-6 min-w-0 overflow-hidden">
               <NavDropdown
                 label={t('nav.products')}
                 href="/shop"
@@ -216,7 +217,7 @@ const Header = () => {
               {isVisible('whats-new') && (
                 <Link
                   to="/whats-new"
-                  className={`text-sm text-muted-foreground hover:text-foreground transition-colors font-medium py-2 ${
+                  className={`text-sm text-muted-foreground hover:text-foreground transition-colors font-medium py-2 whitespace-nowrap ${
                     location.pathname === '/whats-new' ? 'text-foreground' : ''
                   }`}
                 >
@@ -234,9 +235,20 @@ const Header = () => {
 
             {/* Actions */}
             <div className="flex items-center gap-0 sm:gap-0.5 md:gap-1 shrink-0">
+              {/* Desktop search */}
               <div className="hidden sm:block">
                 <SearchSuggestions />
               </div>
+
+              {/* Mobile search icon */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="sm:hidden h-9 w-9 rounded-full hover:bg-secondary"
+                onClick={() => setMobileSearchOpen(!mobileSearchOpen)}
+              >
+                <Search className="w-[18px] h-[18px]" />
+              </Button>
 
               {mounted && (
                 <Button
@@ -321,7 +333,7 @@ const Header = () => {
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       exit={{ scale: 0 }}
-                      className="absolute -top-0.5 -right-0.5 w-4 h-4 md:w-4.5 md:h-4.5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center"
+                      className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-primary text-primary-foreground text-[11px] font-bold flex items-center justify-center"
                     >
                       {totalItems}
                     </motion.span>
@@ -340,6 +352,23 @@ const Header = () => {
             </div>
           </div>
         </div>
+
+        {/* Mobile Search Bar */}
+        <AnimatePresence>
+          {mobileSearchOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="sm:hidden bg-background/95 backdrop-blur-xl border-t border-border/50 overflow-hidden"
+            >
+              <div className="container mx-auto px-4 py-3">
+                <SearchSuggestions />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Mobile Menu */}
         <AnimatePresence>

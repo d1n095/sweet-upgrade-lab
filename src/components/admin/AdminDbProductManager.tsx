@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Plus, Package, Edit, Trash2, Loader2, AlertTriangle,
+  Copy, EyeOff, Eye, CheckSquare, Square, Trash, MoreHorizontal,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +13,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useLanguage } from '@/context/LanguageContext';
 import { toast } from 'sonner';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -57,14 +61,19 @@ const AdminDbProductManager = () => {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
   const [selected, setSelected] = useState<DbProduct | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<ProductFormData>(emptyForm());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkMode, setBulkMode] = useState(false);
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ['admin-db-products'],
     queryFn: () => fetchDbProducts(true),
   });
+
+  const sv = language === 'sv';
 
   const content: Record<string, AdminProductFormStrings & {
     title: string; subtitle: string; addProduct: string; editProduct: string;
@@ -129,6 +138,44 @@ const AdminDbProductManager = () => {
       certifications: (product.certifications || []).join(', '),
     });
     setIsEditOpen(true);
+  };
+
+  const handleDuplicate = async (product: DbProduct) => {
+    try {
+      await createDbProduct({
+        title_sv: product.title_sv + (sv ? ' (kopia)' : ' (copy)'),
+        title_en: product.title_en ? product.title_en + ' (copy)' : null,
+        description_sv: product.description_sv || null,
+        description_en: product.description_en || null,
+        price: product.price,
+        original_price: product.original_price || null,
+        category: product.category || null,
+        tags: product.tags || null,
+        is_visible: false, // Start hidden
+        stock: 0,
+        allow_overselling: product.allow_overselling,
+        image_urls: product.image_urls || null,
+        badge: null,
+        vendor: product.vendor || '4ThePeople',
+        display_order: product.display_order,
+        ingredients_sv: product.ingredients_sv || null,
+        certifications: product.certifications || null,
+      });
+      toast.success(sv ? 'Produkt duplicerad!' : 'Product duplicated!');
+      queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });
+    } catch (err: any) {
+      toast.error(t.error + ': ' + (err?.message || ''));
+    }
+  };
+
+  const handleSoftDelete = async (product: DbProduct) => {
+    try {
+      await updateDbProduct(product.id, { is_visible: false });
+      toast.success(sv ? 'Produkt dold från butiken' : 'Product hidden from store');
+      queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });
+    } catch (err: any) {
+      toast.error(t.error + ': ' + (err?.message || ''));
+    }
   };
 
   const handleAdd = async (e: React.FormEvent) => {
@@ -209,10 +256,55 @@ const AdminDbProductManager = () => {
     }
   };
 
+  // Bulk operations
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === products.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(products.map(p => p.id)));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    let deleted = 0;
+    for (const id of selectedIds) {
+      try {
+        await deleteDbProduct(id);
+        deleted++;
+      } catch { /* skip */ }
+    }
+    toast.success(sv ? `${deleted} produkter borttagna` : `${deleted} products deleted`);
+    setSelectedIds(new Set());
+    setBulkMode(false);
+    setIsBulkDeleteOpen(false);
+    queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });
+  };
+
+  const handleBulkVisibility = async (visible: boolean) => {
+    let updated = 0;
+    for (const id of selectedIds) {
+      try {
+        await updateDbProduct(id, { is_visible: visible });
+        updated++;
+      } catch { /* skip */ }
+    }
+    toast.success(sv ? `${updated} produkter uppdaterade` : `${updated} products updated`);
+    setSelectedIds(new Set());
+    queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });
+  };
+
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
             <Package className="w-5 h-5 text-primary" />
@@ -222,32 +314,82 @@ const AdminDbProductManager = () => {
             <p className="text-sm text-muted-foreground">{t.subtitle}</p>
           </div>
         </div>
-        <Dialog open={isAddOpen} onOpenChange={(open) => { setIsAddOpen(open); if (!open) resetForm(); }}>
-          <DialogTrigger asChild>
-            <Button size="sm" className="gap-2">
-              <Plus className="w-4 h-4" />
-              {t.addProduct}
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-lg">
-            <DialogHeader><DialogTitle>{t.addProduct}</DialogTitle></DialogHeader>
-            <AdminProductForm
-              t={t} language={language}
-              productCategories={productCategories} suggestedTags={suggestedTags}
-              formData={formData} setFormData={setFormData}
-              isEdit={false} isSubmitting={isSubmitting}
-              onCancel={() => { setIsAddOpen(false); resetForm(); }}
-              onSubmit={handleAdd}
-            />
-          </DialogContent>
-        </Dialog>
+        <div className="flex items-center gap-2">
+          <Button
+            variant={bulkMode ? 'secondary' : 'outline'}
+            size="sm"
+            onClick={() => { setBulkMode(!bulkMode); setSelectedIds(new Set()); }}
+          >
+            <CheckSquare className="w-4 h-4 mr-1" />
+            {sv ? 'Markera' : 'Select'}
+          </Button>
+          <Dialog open={isAddOpen} onOpenChange={(open) => { setIsAddOpen(open); if (!open) resetForm(); }}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="gap-2">
+                <Plus className="w-4 h-4" />
+                {t.addProduct}
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg">
+              <DialogHeader><DialogTitle>{t.addProduct}</DialogTitle></DialogHeader>
+              <AdminProductForm
+                t={t} language={language}
+                productCategories={productCategories} suggestedTags={suggestedTags}
+                formData={formData} setFormData={setFormData}
+                isEdit={false} isSubmitting={isSubmitting}
+                onCancel={() => { setIsAddOpen(false); resetForm(); }}
+                onSubmit={handleAdd}
+              />
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
+
+      {/* Bulk action bar */}
+      {bulkMode && selectedIds.size > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center gap-2 p-3 rounded-lg bg-primary/5 border border-primary/20"
+        >
+          <span className="text-sm font-medium">
+            {selectedIds.size} {sv ? 'valda' : 'selected'}
+          </span>
+          <div className="flex-1" />
+          <Button variant="outline" size="sm" onClick={() => handleBulkVisibility(true)} className="gap-1">
+            <Eye className="w-3.5 h-3.5" />
+            {sv ? 'Visa' : 'Show'}
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => handleBulkVisibility(false)} className="gap-1">
+            <EyeOff className="w-3.5 h-3.5" />
+            {sv ? 'Dölj' : 'Hide'}
+          </Button>
+          <Button variant="destructive" size="sm" onClick={() => setIsBulkDeleteOpen(true)} className="gap-1">
+            <Trash className="w-3.5 h-3.5" />
+            {sv ? 'Ta bort' : 'Delete'}
+          </Button>
+        </motion.div>
+      )}
 
       {/* Loading */}
       {isLoading && (
         <div className="flex justify-center py-8">
           <Loader2 className="w-6 h-6 animate-spin text-primary" />
         </div>
+      )}
+
+      {/* Select all row */}
+      {bulkMode && !isLoading && products.length > 0 && (
+        <button
+          onClick={toggleSelectAll}
+          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors px-1"
+        >
+          {selectedIds.size === products.length
+            ? <CheckSquare className="w-4 h-4 text-primary" />
+            : <Square className="w-4 h-4" />
+          }
+          {sv ? 'Välj alla' : 'Select all'} ({products.length})
+        </button>
       )}
 
       {/* Product list */}
@@ -258,7 +400,7 @@ const AdminDbProductManager = () => {
               <Package className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
               <p className="text-muted-foreground text-sm">{t.noProducts}</p>
               <p className="text-muted-foreground/70 text-xs mt-1">
-                {language === 'sv' ? 'Klicka "Lägg till produkt" för att börja' : 'Click "Add Product" to get started'}
+                {sv ? 'Klicka "Lägg till produkt" för att börja' : 'Click "Add Product" to get started'}
               </p>
             </div>
           ) : (
@@ -269,6 +411,16 @@ const AdminDbProductManager = () => {
                 animate={{ opacity: 1, x: 0 }}
                 className="flex items-center gap-3 p-3 rounded-lg border border-border bg-secondary/30 hover:bg-secondary/60 transition-colors"
               >
+                {/* Checkbox */}
+                {bulkMode && (
+                  <button onClick={() => toggleSelect(product.id)} className="shrink-0">
+                    {selectedIds.has(product.id)
+                      ? <CheckSquare className="w-5 h-5 text-primary" />
+                      : <Square className="w-5 h-5 text-muted-foreground" />
+                    }
+                  </button>
+                )}
+
                 {/* Image thumbnail */}
                 <div className="w-12 h-12 rounded-md bg-muted flex-shrink-0 overflow-hidden">
                   {product.image_urls?.[0] ? (
@@ -303,13 +455,13 @@ const AdminDbProductManager = () => {
                     {product.stock > 0 && product.stock < 5 && !product.allow_overselling && (
                       <Badge variant="outline" className="text-xs text-orange-600 border-orange-400 gap-1">
                         <AlertTriangle className="w-3 h-3" />
-                        {language === 'sv' ? 'Lågt lager' : 'Low stock'}
+                        {sv ? 'Lågt lager' : 'Low stock'}
                       </Badge>
                     )}
                     {product.stock === 0 && !product.allow_overselling && (
                       <Badge variant="destructive" className="text-xs gap-1">
                         <AlertTriangle className="w-3 h-3" />
-                        {language === 'sv' ? 'Slutsåld' : 'Sold out'}
+                        {sv ? 'Slutsåld' : 'Sold out'}
                       </Badge>
                     )}
                   </div>
@@ -320,12 +472,31 @@ const AdminDbProductManager = () => {
                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(product)}>
                     <Edit className="w-4 h-4" />
                   </Button>
-                  <Button
-                    variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"
-                    onClick={() => { setSelected(product); setIsDeleteOpen(true); }}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <MoreHorizontal className="w-4 h-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => handleDuplicate(product)}>
+                        <Copy className="w-4 h-4 mr-2" />
+                        {sv ? 'Duplicera' : 'Duplicate'}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleSoftDelete(product)}>
+                        <EyeOff className="w-4 h-4 mr-2" />
+                        {sv ? 'Dölj (soft delete)' : 'Hide (soft delete)'}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive"
+                        onClick={() => { setSelected(product); setIsDeleteOpen(true); }}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        {sv ? 'Ta bort permanent' : 'Delete permanently'}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </motion.div>
             ))
@@ -361,6 +532,26 @@ const AdminDbProductManager = () => {
             </AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
               {t.delete}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Delete Dialog */}
+      <AlertDialog open={isBulkDeleteOpen} onOpenChange={setIsBulkDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t.deleteConfirm}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {sv
+                ? `${selectedIds.size} produkter tas bort permanent.`
+                : `${selectedIds.size} products will be permanently deleted.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t.cancel}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive hover:bg-destructive/90">
+              {t.delete} ({selectedIds.size})
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
