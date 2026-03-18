@@ -42,7 +42,8 @@ const AdminSettingsPage = () => {
 
   useEffect(() => {
     if (!isLoaded) fetchSettings();
-  }, [isLoaded, fetchSettings]);
+    if (!paymentLoaded) loadPayments();
+  }, [isLoaded, fetchSettings, paymentLoaded, loadPayments]);
 
   const getHomepageValue = (key: string) => {
     switch (key) {
