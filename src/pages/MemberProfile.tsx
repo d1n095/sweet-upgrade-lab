@@ -24,8 +24,6 @@ import AffiliateDashboard from '@/components/dashboard/AffiliateDashboard';
 import EmployeeDashboard from '@/components/dashboard/EmployeeDashboard';
 import DonationImpact from '@/components/donations/DonationImpact';
 import AccountSettings from '@/components/profile/AccountSettings';
-import BalanceOverview from '@/components/profile/BalanceOverview';
-import BalancePage from '@/pages/BalancePage';
 
 interface Review {
   id: string;
