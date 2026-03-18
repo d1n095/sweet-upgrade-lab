@@ -283,10 +283,10 @@ const ShippingCarriersSection = () => {
                             <div key={f.key} className="flex items-center gap-1.5">
                               <f.icon className="w-3 h-3 text-muted-foreground" />
                               <span className="text-muted-foreground">{f.label}:</span>
-                              {carrier[f.key as keyof ShippingCarrier] ? (
-                                <Check className="w-3 h-3 text-green-500" />
+                          {carrier[f.key as keyof ShippingCarrier] ? (
+                                <Check className="w-3 h-3 text-primary" />
                               ) : (
-                                <X className="w-3 h-3 text-red-400" />
+                                <X className="w-3 h-3 text-destructive" />
                               )}
                             </div>
                           ))}
