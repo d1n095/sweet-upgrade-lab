@@ -169,7 +169,45 @@ const AdminSettingsPage = () => {
           )}
         </TabsContent>
 
-        {/* Payments */}
+        {/* Profile & Customer */}
+        <TabsContent value="profile" className="space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold flex items-center gap-2 mb-1">
+              <User className="w-4 h-4" />
+              Profil & Kundinställningar
+            </h2>
+            <p className="text-muted-foreground text-sm mb-4">Styr vilken information som krävs av kunder</p>
+          </div>
+          <div className="grid gap-3 max-w-xl">
+            {profileSettings.map((setting) => {
+              const getValue = () => {
+                switch (setting.key) {
+                  case 'require_phone': return requirePhone;
+                  case 'require_address': return requireAddress;
+                  case 'guest_checkout': return guestCheckout;
+                  case 'auto_save_profile': return autoSaveProfile;
+                  default: return false;
+                }
+              };
+              return (
+                <div key={setting.key} className="flex items-center justify-between p-4 rounded-xl border border-border bg-card">
+                  <div>
+                    <Label className="text-sm font-medium">{setting.label}</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">{setting.desc}</p>
+                  </div>
+                  <Switch
+                    checked={getValue()}
+                    onCheckedChange={(checked) => setProfileSetting(setting.key, checked)}
+                  />
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground max-w-xl">
+            Ändringar sparas direkt. "Kräv"-inställningar visar en banner för kunder med ofullständig profil.
+          </p>
+        </TabsContent>
+
         <TabsContent value="payments" className="space-y-4">
           <div>
             <h2 className="text-lg font-semibold flex items-center gap-2 mb-1">
