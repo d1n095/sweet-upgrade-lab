@@ -44,6 +44,7 @@ const emptyForm = (): ProductFormData => ({
   title: '',
   description: '',
   price: '',
+  currency: 'SEK',
   productType: '',
   tags: '',
   vendor: '4ThePeople',
@@ -53,6 +54,7 @@ const emptyForm = (): ProductFormData => ({
   imageUrls: [],
   ingredients: '',
   certifications: '',
+  recipe: '',
 });
 
 const AdminDbProductManager = () => {
