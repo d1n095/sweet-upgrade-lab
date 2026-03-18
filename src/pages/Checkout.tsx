@@ -458,14 +458,15 @@ const Checkout = () => {
                       </div>
                       <div>
                         <Label htmlFor="city">{t.city} *</Label>
-                        <Input
-                          id="city"
-                          required
-                          value={form.city}
-                          onChange={(e) => updateField('city', e.target.value)}
-                          onBlur={() => handleBlur('city')}
-                          className={touched.city && errors.city ? 'border-destructive' : ''}
-                        />
+                      <Input
+                        id="city"
+                        autoComplete="address-level2"
+                        required
+                        value={form.city}
+                        onChange={(e) => updateField('city', e.target.value)}
+                        onBlur={() => handleBlur('city')}
+                        className={touched.city && errors.city ? 'border-destructive' : ''}
+                      />
                         {renderFieldError('city')}
                       </div>
                     </div>
