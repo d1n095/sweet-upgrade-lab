@@ -55,8 +55,20 @@ interface Member {
 
 import type { RoleFilter } from '@/pages/admin/AdminMembers';
 
+interface RoleStats {
+  total: number;
+  members: number;
+  businesses: number;
+  founders: number;
+  admins: number;
+  moderators: number;
+  support: number;
+  warehouse: number;
+}
+
 interface AdminMemberManagerProps {
   roleFilter?: RoleFilter;
+  onStatsUpdate?: (stats: RoleStats) => void;
 }
 
 type AppRole = 'admin' | 'founder' | 'it' | 'moderator' | 'support' | 'affiliate' | 'donor' | 'manager' | 'marketing' | 'finance' | 'warehouse';
