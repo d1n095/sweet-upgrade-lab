@@ -107,6 +107,7 @@ const App = () => (
                 <Route path="settings" element={<AdminSettingsPage />} />
                 <Route path="stats" element={<AdminStats />} />
                 <Route path="reviews" element={<AdminReviews />} />
+                <Route path="logs" element={<AdminLogs />} />
               </Route>
 
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
