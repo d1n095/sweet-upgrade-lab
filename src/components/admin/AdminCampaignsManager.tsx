@@ -58,41 +58,69 @@ const VolumeDiscountsTab = () => {
   const [discounts, setDiscounts] = useState<VolumeDiscount[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ min_quantity: '', discount_percent: '', is_global: true });
 
-  const fetch = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     const { data } = await supabase.from('volume_discounts').select('*').order('min_quantity');
     if (data) setDiscounts(data as VolumeDiscount[]);
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetch(); }, [fetch]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
-  const handleAdd = async () => {
+  const resetForm = () => {
+    setForm({ min_quantity: '', discount_percent: '', is_global: true });
+    setEditingId(null);
+    setShowForm(false);
+  };
+
+  const openEdit = (d: VolumeDiscount) => {
+    setForm({
+      min_quantity: String(d.min_quantity),
+      discount_percent: String(d.discount_percent),
+      is_global: d.is_global,
+    });
+    setEditingId(d.id);
+    setShowForm(true);
+  };
+
+  const handleSave = async () => {
     const minQty = parseInt(form.min_quantity);
     const pct = parseFloat(form.discount_percent);
     if (!minQty || minQty < 1 || !pct || pct <= 0 || pct > 100) {
       toast.error('Ange giltiga värden'); return;
     }
-    const { error } = await supabase.from('volume_discounts').insert({
-      min_quantity: minQty,
-      discount_percent: pct,
-      is_global: form.is_global,
-      shopify_product_id: null,
-    });
-    if (error) { toast.error('Kunde inte skapa'); return; }
-    toast.success('Mängdrabatt skapad');
-    setForm({ min_quantity: '', discount_percent: '', is_global: true });
-    setShowForm(false);
-    fetch();
+
+    if (editingId) {
+      const { error } = await supabase.from('volume_discounts').update({
+        min_quantity: minQty,
+        discount_percent: pct,
+        is_global: form.is_global,
+      }).eq('id', editingId);
+      if (error) { toast.error('Kunde inte uppdatera'); return; }
+      toast.success('Mängdrabatt uppdaterad');
+    } else {
+      const { error } = await supabase.from('volume_discounts').insert({
+        min_quantity: minQty,
+        discount_percent: pct,
+        is_global: form.is_global,
+        shopify_product_id: null,
+      });
+      if (error) { toast.error('Kunde inte skapa'); return; }
+      toast.success('Mängdrabatt skapad');
+    }
+    resetForm();
+    fetchData();
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm('Ta bort denna mängdrabatt?')) return;
     await supabase.from('volume_discounts').delete().eq('id', id);
     toast.success('Borttagen');
-    fetch();
+    if (editingId === id) resetForm();
+    fetchData();
   };
 
   if (loading) return <div className="flex justify-center py-8"><RefreshCw className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
@@ -104,7 +132,7 @@ const VolumeDiscountsTab = () => {
           <h3 className="font-semibold text-sm">Mängdrabatter</h3>
           <p className="text-xs text-muted-foreground">Automatisk rabatt baserat på antal produkter i varukorgen</p>
         </div>
-        <Button size="sm" variant="outline" onClick={() => setShowForm(!showForm)} className="gap-1 h-7 text-xs">
+        <Button size="sm" variant="outline" onClick={() => { if (showForm && !editingId) { resetForm(); } else { resetForm(); setShowForm(true); } }} className="gap-1 h-7 text-xs">
           <Plus className="w-3 h-3" /> Lägg till
         </Button>
       </div>
@@ -114,6 +142,9 @@ const VolumeDiscountsTab = () => {
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
             <Card className="border-primary/20">
               <CardContent className="pt-4 space-y-3">
+                <p className="text-xs font-medium text-primary">
+                  {editingId ? '✏️ Redigerar mängdrabatt' : '➕ Ny mängdrabatt'}
+                </p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div>
                     <Label className="text-xs">Min. antal produkter *</Label>
@@ -131,8 +162,10 @@ const VolumeDiscountsTab = () => {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={handleAdd} className="gap-1 h-7 text-xs"><Save className="w-3 h-3" /> Spara</Button>
-                  <Button size="sm" variant="outline" onClick={() => setShowForm(false)} className="h-7 text-xs">Avbryt</Button>
+                  <Button size="sm" onClick={handleSave} className="gap-1 h-7 text-xs">
+                    <Save className="w-3 h-3" /> {editingId ? 'Uppdatera' : 'Spara'}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={resetForm} className="h-7 text-xs">Avbryt</Button>
                 </div>
               </CardContent>
             </Card>
@@ -142,7 +175,7 @@ const VolumeDiscountsTab = () => {
 
       <div className="space-y-1.5">
         {discounts.map(d => (
-          <div key={d.id} className="flex items-center gap-3 p-3 rounded-xl border border-border bg-card">
+          <div key={d.id} className={`flex items-center gap-3 p-3 rounded-xl border transition-colors ${editingId === d.id ? 'border-primary/40 bg-primary/5' : 'border-border bg-card'}`}>
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary text-sm shrink-0">
               {d.discount_percent}%
             </div>
@@ -154,9 +187,14 @@ const VolumeDiscountsTab = () => {
                 {d.is_global ? 'Gäller hela varukorgen' : `Produktspecifik: ${d.shopify_product_id}`}
               </p>
             </div>
-            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDelete(d.id)}>
-              <Trash2 className="w-3.5 h-3.5" />
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(d)}>
+                <Pencil className="w-3.5 h-3.5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDelete(d.id)}>
+                <Trash2 className="w-3.5 h-3.5" />
+              </Button>
+            </div>
           </div>
         ))}
         {discounts.length === 0 && (
