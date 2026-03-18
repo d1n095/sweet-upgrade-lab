@@ -8,6 +8,11 @@ interface Profile {
   user_id: string;
   is_member: boolean;
   member_since: string | null;
+  username: string | null;
+  avatar_url: string | null;
+  xp: number;
+  level: number;
+  trust_score: number;
 }
 
 export const useAuth = () => {
