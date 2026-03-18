@@ -56,7 +56,7 @@ const MemberProfile = () => {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [adminStats, setAdminStats] = useState<AdminStats | null>(null);
+  
 
   // Get tab from URL query params, default to 'orders'
   const currentTab = searchParams.get('tab') || 'orders';
