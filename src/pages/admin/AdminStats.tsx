@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   TrendingUp, Package, RefreshCw, Search, Eye, ShoppingCart,
-  AlertTriangle, BarChart3, MousePointerClick, Lightbulb, CheckCircle, XCircle
+  AlertTriangle, BarChart3, MousePointerClick, Lightbulb, CheckCircle, XCircle,
+  Plus, Minus, LogOut
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,6 +35,9 @@ const AdminStats = () => {
   const [searchesWithProducts, setSearchesWithProducts] = useState<SearchWithProduct[]>([]);
   const [demandSearches, setDemandSearches] = useState<SearchWithProduct[]>([]);
   const [checkoutStats, setCheckoutStats] = useState({ starts: 0, completes: 0, abandons: 0 });
+  const [cartAdds, setCartAdds] = useState<{ title: string; count: number }[]>([]);
+  const [cartRemoves, setCartRemoves] = useState<{ title: string; count: number }[]>([]);
+  const [abandonedItems, setAbandonedItems] = useState<{ title: string; count: number; totalValue: number }[]>([]);
 
   useEffect(() => {
     fetchAllData();
@@ -114,17 +118,39 @@ const AdminStats = () => {
         .from('analytics_events')
         .select('event_type, event_data')
         .gte('created_at', thirtyDaysAgo.toISOString())
-        .in('event_type', ['product_view', 'checkout_start', 'checkout_complete', 'checkout_abandon'])
+        .in('event_type', [
+          'product_view', 'checkout_start', 'checkout_complete', 'checkout_abandon',
+          'add_to_cart', 'remove_from_cart', 'checkout_abandon_detail'
+        ])
         .limit(1000);
 
       if (data) {
         const viewCounts: Record<string, number> = {};
+        const addCounts: Record<string, number> = {};
+        const removeCounts: Record<string, number> = {};
+        const abandonItemCounts: Record<string, { count: number; totalValue: number }> = {};
         let starts = 0, completes = 0, abandons = 0;
 
         data.forEach((e: any) => {
           if (e.event_type === 'product_view') {
             const title = e.event_data?.product_title || 'Okänd';
             viewCounts[title] = (viewCounts[title] || 0) + 1;
+          }
+          if (e.event_type === 'add_to_cart') {
+            const title = e.event_data?.product_title || 'Okänd';
+            addCounts[title] = (addCounts[title] || 0) + (e.event_data?.quantity || 1);
+          }
+          if (e.event_type === 'remove_from_cart') {
+            const title = e.event_data?.product_title || 'Okänd';
+            removeCounts[title] = (removeCounts[title] || 0) + (e.event_data?.quantity || 1);
+          }
+          if (e.event_type === 'checkout_abandon_detail' && Array.isArray(e.event_data?.items)) {
+            e.event_data.items.forEach((item: any) => {
+              const title = item.title || 'Okänd';
+              if (!abandonItemCounts[title]) abandonItemCounts[title] = { count: 0, totalValue: 0 };
+              abandonItemCounts[title].count += item.quantity || 1;
+              abandonItemCounts[title].totalValue += (item.price || 0) * (item.quantity || 1);
+            });
           }
           if (e.event_type === 'checkout_start') starts++;
           if (e.event_type === 'checkout_complete') completes++;
@@ -136,6 +162,24 @@ const AdminStats = () => {
             .map(([title, count]) => ({ title, count }))
             .sort((a, b) => b.count - a.count)
             .slice(0, 10)
+        );
+        setCartAdds(
+          Object.entries(addCounts)
+            .map(([title, count]) => ({ title, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 15)
+        );
+        setCartRemoves(
+          Object.entries(removeCounts)
+            .map(([title, count]) => ({ title, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 15)
+        );
+        setAbandonedItems(
+          Object.entries(abandonItemCounts)
+            .map(([title, data]) => ({ title, count: data.count, totalValue: data.totalValue }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 15)
         );
         setCheckoutStats({ starts, completes, abandons });
       }
@@ -204,7 +248,7 @@ const AdminStats = () => {
       </div>
 
       <Tabs defaultValue="searches" className="space-y-4">
-        <TabsList className="bg-secondary/50">
+        <TabsList className="bg-secondary/50 flex-wrap">
           <TabsTrigger value="searches">Sökningar</TabsTrigger>
           <TabsTrigger value="demand">
             Efterfrågan
@@ -214,7 +258,14 @@ const AdminStats = () => {
           </TabsTrigger>
           <TabsTrigger value="sales">Försäljning</TabsTrigger>
           <TabsTrigger value="views">Visningar</TabsTrigger>
+          <TabsTrigger value="cart">Kundvagn</TabsTrigger>
           <TabsTrigger value="checkout">Checkout</TabsTrigger>
+          <TabsTrigger value="abandoned">
+            Övergivna
+            {abandonedItems.length > 0 && (
+              <Badge variant="destructive" className="ml-2 text-[10px] px-1.5 py-0">{abandonedItems.length}</Badge>
+            )}
+          </TabsTrigger>
         </TabsList>
 
         {/* Searches with product matches */}
@@ -413,6 +464,107 @@ const AdminStats = () => {
                   <p className="text-2xl font-bold">{checkoutStats.starts}</p>
                   <p className="text-xs text-muted-foreground mt-1">Checkout-besök</p>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Cart activity */}
+        <TabsContent value="cart">
+          <div className="grid lg:grid-cols-2 gap-4">
+            <Card className="border-border">
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                  <Plus className="w-5 h-5 text-accent" /> Lagt i kundvagn
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">Produkter som lagts till i kundvagnen</p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {cartAdds.map((item, idx) => (
+                    <div key={item.title} className="flex items-center justify-between p-3 rounded-xl bg-secondary/50">
+                      <div className="flex items-center gap-3">
+                        <div className="w-7 h-7 rounded-lg bg-accent/10 flex items-center justify-center text-xs font-bold text-accent">{idx + 1}</div>
+                        <span className="font-medium text-sm">{item.title}</span>
+                      </div>
+                      <Badge variant="outline">{item.count} st</Badge>
+                    </div>
+                  ))}
+                  {cartAdds.length === 0 && (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <ShoppingCart className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                      <p>Ingen data ännu</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border">
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                  <Minus className="w-5 h-5 text-destructive" /> Borttagna ur kundvagn
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">Produkter som tagits bort innan köp</p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {cartRemoves.map((item, idx) => (
+                    <div key={item.title} className="flex items-center justify-between p-3 rounded-xl bg-destructive/5 border border-destructive/10">
+                      <div className="flex items-center gap-3">
+                        <div className="w-7 h-7 rounded-lg bg-destructive/10 flex items-center justify-center text-xs font-bold text-destructive">{idx + 1}</div>
+                        <span className="font-medium text-sm">{item.title}</span>
+                      </div>
+                      <Badge className="bg-destructive/10 text-destructive border-0">{item.count} st</Badge>
+                    </div>
+                  ))}
+                  {cartRemoves.length === 0 && (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <CheckCircle className="w-8 h-8 mx-auto mb-2 opacity-30 text-accent" />
+                      <p>Inga borttagningar — bra!</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* Abandoned checkout items */}
+        <TabsContent value="abandoned">
+          <Card className="border-border">
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <LogOut className="w-5 h-5 text-destructive" /> Övergivna produkter i kassan
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Exakt vilka produkter kunder hade i kassan när de lämnade utan att köpa
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {abandonedItems.map((item, idx) => (
+                  <div key={item.title} className="flex items-center justify-between p-3 rounded-xl bg-destructive/5 border border-destructive/10">
+                    <div className="flex items-center gap-3">
+                      <div className="w-7 h-7 rounded-lg bg-destructive/10 flex items-center justify-center text-xs font-bold text-destructive">{idx + 1}</div>
+                      <div>
+                        <span className="font-medium text-sm">{item.title}</span>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Totalt förlorat värde: {new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK', minimumFractionDigits: 0 }).format(item.totalValue)}
+                        </p>
+                      </div>
+                    </div>
+                    <Badge className="bg-destructive/10 text-destructive border-0 font-bold">
+                      {item.count} st
+                    </Badge>
+                  </div>
+                ))}
+                {abandonedItems.length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <CheckCircle className="w-8 h-8 mx-auto mb-2 opacity-30 text-accent" />
+                    <p>Inga övergivna kassor ännu</p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

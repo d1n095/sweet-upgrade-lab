@@ -68,3 +68,11 @@ export const trackPageView = (pageName: string) => {
 export const trackAddToCart = (productId: string, productTitle: string, price: number, quantity: number) => {
   trackEvent('add_to_cart', { product_id: productId, product_title: productTitle, price, quantity });
 };
+
+export const trackRemoveFromCart = (productId: string, productTitle: string, price: number, quantity: number) => {
+  trackEvent('remove_from_cart', { product_id: productId, product_title: productTitle, price, quantity });
+};
+
+export const trackCartUpdate = (productId: string, productTitle: string, oldQty: number, newQty: number) => {
+  trackEvent('cart_update', { product_id: productId, product_title: productTitle, old_quantity: oldQty, new_quantity: newQty });
+};

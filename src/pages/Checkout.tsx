@@ -14,7 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useStoreSettings } from '@/stores/storeSettingsStore';
 import { logActivity } from '@/utils/activityLogger';
-import { trackCheckoutStart, trackCheckoutStep, trackCheckoutAbandon } from '@/utils/analyticsTracker';
+import { trackCheckoutStart, trackCheckoutStep, trackCheckoutAbandon, trackEvent } from '@/utils/analyticsTracker';
 import { useAuth } from '@/hooks/useAuth';
 
 // Swedish postal code → city lookup (common codes)
@@ -277,15 +277,27 @@ const Checkout = () => {
     return null;
   };
 
-  // Track checkout page view (must be before early returns)
+  // Track checkout page view with item details (must be before early returns)
   const completedRef = useRef(false);
   useEffect(() => {
     if (items.length > 0) {
+      const itemDetails = items.map(item => ({
+        title: item.product.node.title,
+        price: parseFloat(item.price.amount),
+        quantity: item.quantity,
+      }));
       trackCheckoutStart(items.length, total);
+      trackEvent('checkout_start_detail', { items: itemDetails, total });
     }
     return () => {
       if (items.length > 0 && !completedRef.current) {
+        const abandonItems = items.map(item => ({
+          title: item.product.node.title,
+          price: parseFloat(item.price.amount),
+          quantity: item.quantity,
+        }));
         trackCheckoutAbandon('checkout_page', items.length, total);
+        trackEvent('checkout_abandon_detail', { items: abandonItems, total });
       }
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -334,7 +346,13 @@ const Checkout = () => {
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border">
         <div className="container mx-auto px-4 h-14 flex items-center justify-between max-w-5xl">
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => {
+              if (window.history.length > 1) {
+                navigate(-1);
+              } else {
+                navigate('/produkter');
+              }
+            }}
             className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
