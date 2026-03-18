@@ -828,6 +828,7 @@ export type Database = {
           shopify_order_number: string | null
           status: string
           status_history: Json
+          stripe_session_id: string | null
           total_amount: number
           tracking_number: string | null
           updated_at: string
@@ -846,6 +847,7 @@ export type Database = {
           shopify_order_number?: string | null
           status?: string
           status_history?: Json
+          stripe_session_id?: string | null
           total_amount?: number
           tracking_number?: string | null
           updated_at?: string
@@ -864,6 +866,7 @@ export type Database = {
           shopify_order_number?: string | null
           status?: string
           status_history?: Json
+          stripe_session_id?: string | null
           total_amount?: number
           tracking_number?: string | null
           updated_at?: string
