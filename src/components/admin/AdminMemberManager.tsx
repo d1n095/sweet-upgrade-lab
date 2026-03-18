@@ -403,6 +403,11 @@ const AdminMemberManager = ({ roleFilter = 'all' }: AdminMemberManagerProps) => 
     loadMembers();
   }, []);
 
+  // Reset page when filter changes
+  useEffect(() => {
+    setPage(0);
+  }, [roleFilter]);
+
   const loadMembers = useCallback(async () => {
     try {
       // Load profiles with username
