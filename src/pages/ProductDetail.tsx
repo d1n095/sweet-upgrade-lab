@@ -169,8 +169,15 @@ const ProductDetail = () => {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead
-        title={`${product.title_sv} | 4thepeople`}
-        description={product.description_sv?.substring(0, 155) || `Köp ${product.title_sv} hos 4ThePeople — noggrant utvalt, giftfritt och hållbart.`}
+        title={product.meta_title || `${product.title_sv} — Köp online | 4thepeople`}
+        description={
+          product.meta_description ||
+          generateAutoSeoDescription(product)
+        }
+        keywords={
+          product.meta_keywords ||
+          generateAutoSeoKeywords(product)
+        }
         canonical={`/product/${handle}`}
         ogType="product"
         ogImage={images[0]}
