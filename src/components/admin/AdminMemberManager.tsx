@@ -509,6 +509,22 @@ const AdminMemberManager = ({ roleFilter = 'all' }: AdminMemberManagerProps) => 
   const [pendingRoleChange, setPendingRoleChange] = useState<{ userId: string; role: string; username: string | null } | null>(null);
 
   const requestRoleChange = (userId: string, role: string) => {
+    // Security: prevent self-role changes
+    if (userId === currentUserId) {
+      toast.error('Du kan inte ändra din egen roll');
+      return;
+    }
+    // Security: prevent changing a founder's role (unless you're a founder)
+    const currentRole = userRoles[userId];
+    if (currentRole === 'founder' && !isFounder) {
+      toast.error('Bara grundare kan ändra en grundar-roll');
+      return;
+    }
+    // Security: prevent assigning founder role (unless you're a founder)
+    if (role === 'founder' && !isFounder) {
+      toast.error('Bara grundare kan tilldela grundar-rollen');
+      return;
+    }
     const member = members.find(m => m.user_id === userId);
     setPendingRoleChange({ userId, role, username: member?.username || member?.email || userId.slice(0, 8) });
   };
