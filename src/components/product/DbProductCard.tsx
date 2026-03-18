@@ -228,19 +228,19 @@ const DbProductCard = ({ product, index, compact = false }: DbProductCardProps) 
             </div>
 
             {/* Add to cart */}
-            <div className="flex items-center gap-1.5" onClick={(e) => e.preventDefault()}>
+            <div className="flex items-center gap-3" onClick={(e) => e.preventDefault()}>
               <QuantitySelector quantity={quantity} onChange={setQuantity} size="xs" />
               <Button
-                size="sm"
+                size="icon"
                 onClick={handleAddToCart}
                 disabled={!isAvailable}
-                className={`flex-1 h-9 text-xs rounded-xl transition-all min-h-[44px] ${isAdded ? 'bg-accent hover:bg-accent text-accent-foreground' : ''}`}
+                className={`w-11 h-11 shrink-0 rounded-xl transition-all ${isAdded ? 'bg-accent hover:bg-accent text-accent-foreground' : ''}`}
               >
                 {!isAvailable
-                  ? t('product.soldout')
+                  ? <Package className="w-4 h-4" />
                   : isAdded
-                    ? <Check className="w-3.5 h-3.5" />
-                    : <><ShoppingCart className="w-3.5 h-3.5 mr-1" />{t('product.buy')}</>
+                    ? <Check className="w-4 h-4" />
+                    : <ShoppingCart className="w-4 h-4" />
                 }
               </Button>
             </div>
