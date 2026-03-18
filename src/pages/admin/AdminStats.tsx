@@ -68,7 +68,7 @@ const AdminStats = () => {
   const [abandonedItems, setAbandonedItems] = useState<{ title: string; count: number; totalValue: number }[]>([]);
   const [orderStats, setOrderStats] = useState({ avgOrder: 0, medianOrder: 0, totalRevenue: 0, paidCount: 0, ranges: [] as { label: string; count: number }[] });
   const [recentLogs, setRecentLogs] = useState<LogEntry[]>([]);
-  const [expandedLog, setExpandedLog] = useState<string | null>(null);
+  
 
   useEffect(() => {
     fetchAllData();
