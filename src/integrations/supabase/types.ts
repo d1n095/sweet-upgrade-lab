@@ -462,6 +462,48 @@ export type Database = {
         }
         Relationships: []
       }
+      business_accounts: {
+        Row: {
+          admin_notes: string | null
+          company_address: string | null
+          company_name: string
+          contact_person: string | null
+          created_at: string
+          id: string
+          org_number: string
+          status: string
+          updated_at: string
+          user_id: string
+          vat_number: string | null
+        }
+        Insert: {
+          admin_notes?: string | null
+          company_address?: string | null
+          company_name: string
+          contact_person?: string | null
+          created_at?: string
+          id?: string
+          org_number: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          vat_number?: string | null
+        }
+        Update: {
+          admin_notes?: string | null
+          company_address?: string | null
+          company_name?: string
+          contact_person?: string | null
+          created_at?: string
+          id?: string
+          org_number?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          vat_number?: string | null
+        }
+        Relationships: []
+      }
       donation_projects: {
         Row: {
           created_at: string
