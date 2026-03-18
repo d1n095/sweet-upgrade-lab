@@ -142,13 +142,13 @@ const ProductDetail = () => {
       dbId: product.id,
       node: {
         id: product.id,
-        title,
+        title: cartTitle,
         handle: pHandle,
-        description: description || '',
+        description: cartDescription || '',
         productType: product.category || '',
         tags: product.tags || [],
         priceRange: { minVariantPrice: { amount: product.price.toString(), currencyCode: 'SEK' } },
-        images: { edges: imageUrl ? [{ node: { url: imageUrl, altText: title } }] : [] },
+        images: { edges: imageUrl ? [{ node: { url: imageUrl, altText: cartTitle } }] : [] },
         variants: {
           edges: [{
             node: {
