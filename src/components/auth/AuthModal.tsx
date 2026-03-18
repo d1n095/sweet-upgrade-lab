@@ -37,6 +37,20 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Rate limit check for login
+    if (mode === 'login') {
+      const { allowed, remainingSeconds } = checkRateLimit();
+      if (!allowed) {
+        toast.error(
+          lang === 'sv'
+            ? `För många försök. Vänta ${remainingSeconds} sekunder.`
+            : `Too many attempts. Wait ${remainingSeconds} seconds.`
+        );
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
@@ -51,7 +65,12 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
         );
       } else if (mode === 'login') {
         const { error } = await signIn(email, password);
-        if (error) throw error;
+        if (error) {
+          logAuthEvent('login_failed', email, { error: error.message });
+          throw error;
+        }
+        resetAttempts();
+        logAuthEvent('login', email);
         toast.success(lang === 'sv' ? 'Välkommen tillbaka!' : 'Welcome back!');
         onClose();
       } else {
@@ -63,6 +82,7 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
           body: { email, language }
         }).catch(err => console.error('Welcome email failed:', err));
         
+        logAuthEvent('login', email, { type: 'signup' });
         toast.success(
           lang === 'sv' 
             ? 'Konto skapat! Du är nu medlem.' 

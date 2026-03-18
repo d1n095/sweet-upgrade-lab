@@ -3,6 +3,7 @@ import { Outlet, useNavigate, NavLink, useLocation } from 'react-router-dom';
 import { useAdminRole } from '@/hooks/useAdminRole';
 import { useAuth } from '@/hooks/useAuth';
 import { useStoreSettings } from '@/stores/storeSettingsStore';
+import { useAdminSession } from '@/hooks/useAdminSession';
 import {
   Loader2, Package, ClipboardList, BarChart3, Settings, Grid, Users,
   Handshake, MessageCircle, Heart, Sparkles, Eye, LogOut, Home, Shield,
@@ -12,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { logAuthEvent } from '@/utils/activityLogger';
 import AdminGlobalSearch from '@/components/admin/AdminGlobalSearch';
 import { AnimatePresence, motion } from 'framer-motion';
 
