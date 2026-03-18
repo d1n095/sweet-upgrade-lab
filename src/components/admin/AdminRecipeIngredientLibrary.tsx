@@ -145,6 +145,10 @@ const AdminRecipeIngredientLibrary = () => {
 
   const grouped = ingredients.reduce<Record<string, RecipeIngredient[]>>((acc, item) => {
     if (filterCategory !== 'all' && item.category !== filterCategory) return acc;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      if (!item.name_sv.toLowerCase().includes(q) && !(item.name_en && item.name_en.toLowerCase().includes(q))) return acc;
+    }
     (acc[item.category] = acc[item.category] || []).push(item);
     return acc;
   }, {});
