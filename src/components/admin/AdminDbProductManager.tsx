@@ -300,7 +300,18 @@ const AdminDbProductManager = () => {
                     <p className="text-xs text-muted-foreground">
                       {product.stock > 0 ? `${product.stock} i lager${(product as any).reserved_stock > 0 ? ` (${(product as any).reserved_stock} reserverade)` : ''}` : t.outOfStock}
                     </p>
-                    {product.category && <p className="text-xs text-muted-foreground">{product.category}</p>}
+                    {product.stock > 0 && product.stock < 5 && !product.allow_overselling && (
+                      <Badge variant="outline" className="text-xs text-orange-600 border-orange-400 gap-1">
+                        <AlertTriangle className="w-3 h-3" />
+                        {language === 'sv' ? 'Lågt lager' : 'Low stock'}
+                      </Badge>
+                    )}
+                    {product.stock === 0 && !product.allow_overselling && (
+                      <Badge variant="destructive" className="text-xs gap-1">
+                        <AlertTriangle className="w-3 h-3" />
+                        {language === 'sv' ? 'Slutsåld' : 'Sold out'}
+                      </Badge>
+                    )}
                   </div>
                 </div>
 
