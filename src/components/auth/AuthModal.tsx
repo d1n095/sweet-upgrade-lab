@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Mail, Lock, Loader2, Crown, ArrowLeft, CheckCircle, Eye, EyeOff, UserCircle, AlertCircle } from 'lucide-react';
+import { Mail, Lock, Loader2, Crown, ArrowLeft, CheckCircle, Eye, EyeOff, UserCircle, AlertCircle, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/useAuth';
@@ -22,6 +22,36 @@ interface AuthModalProps {
   onClose: () => void;
 }
 
+// Banned words for usernames
+const BANNED_WORDS = [
+  'admin', 'root', 'moderator', 'support', 'staff', 'system', 'official',
+  'fuck', 'shit', 'ass', 'dick', 'porn', 'sex', 'nazi', 'hitler',
+  'fitta', 'kuk', 'hora', 'jävla', 'fan', 'skit',
+  '4thepeople', 'grundare', 'founder',
+];
+
+const validateUsername = (username: string, lang: string): string | null => {
+  if (!username) return null; // optional
+  if (username.length < 3) {
+    return lang === 'sv' ? 'Minst 3 tecken' : 'At least 3 characters';
+  }
+  if (username.length > 24) {
+    return lang === 'sv' ? 'Max 24 tecken' : 'Max 24 characters';
+  }
+  if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
+    return lang === 'sv' ? 'Bara bokstäver, siffror, _ och -' : 'Only letters, numbers, _ and -';
+  }
+  const lower = username.toLowerCase();
+  const hasBanned = BANNED_WORDS.some(w => lower.includes(w));
+  if (hasBanned) {
+    return lang === 'sv' ? 'Användarnamnet innehåller otillåtna ord' : 'Username contains prohibited words';
+  }
+  if (/^[_-]|[_-]$/.test(username)) {
+    return lang === 'sv' ? 'Kan inte börja eller sluta med _ eller -' : "Can't start or end with _ or -";
+  }
+  return null;
+};
+
 const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
   const { language } = useLanguage();
   const lang = getContentLang(language);
@@ -36,9 +66,20 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
   const [loading, setLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [signupComplete, setSignupComplete] = useState(false);
+  const [signupEmail, setSignupEmail] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate username before submitting registration
+    if (mode === 'register' && username) {
+      const error = validateUsername(username, lang);
+      if (error) {
+        setUsernameError(error);
+        return;
+      }
+    }
 
     // Rate limit check for login
     if (mode === 'login') {
@@ -85,12 +126,10 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
         }).catch(err => console.error('Welcome email failed:', err));
         
         logAuthEvent('login', email, { type: 'signup' });
-        toast.success(
-          lang === 'sv' 
-            ? 'Konto skapat! Du är nu medlem.' 
-            : 'Account created! You are now a member.'
-        );
-        onClose();
+        
+        // Show verification message instead of closing
+        setSignupEmail(email);
+        setSignupComplete(true);
       }
     } catch (error: any) {
       toast.error(error.message || 'Ett fel uppstod');
@@ -103,14 +142,27 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
     if (newMode === 'register' && !registrationEnabled) return;
     setMode(newMode);
     setResetSent(false);
+    setSignupComplete(false);
   };
 
+  // Reset state when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setSignupComplete(false);
+      setResetSent(false);
+    }
+  }, [isOpen]);
+
   return (
-    <Sheet open={isOpen} onOpenChange={onClose}>
+    <Sheet open={isOpen} onOpenChange={(open) => {
+      // Prevent closing during loading
+      if (loading) return;
+      if (!open) onClose();
+    }}>
       <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
         <SheetHeader className="text-left mb-6">
           <div className="flex items-center gap-3 mb-2">
-            {mode === 'forgot' && (
+            {mode === 'forgot' && !resetSent && (
               <button
                 type="button"
                 onClick={() => handleModeChange('login')}
@@ -119,34 +171,83 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                 <ArrowLeft className="w-5 h-5" />
               </button>
             )}
-            {mode !== 'forgot' && (
+            {mode !== 'forgot' && !signupComplete && (
               <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
                 <Crown className="w-5 h-5 text-primary" />
               </div>
             )}
-            <div>
-              <SheetTitle className="font-display text-xl">
-                {mode === 'forgot'
-                  ? (lang === 'sv' ? 'Glömt lösenord' : 'Forgot Password')
-                  : mode === 'login' 
-                    ? (lang === 'sv' ? 'Logga in' : 'Sign In')
-                    : (lang === 'sv' ? 'Bli medlem' : 'Become a Member')}
-              </SheetTitle>
-              <SheetDescription>
-                {mode === 'forgot'
-                  ? (lang === 'sv' 
-                      ? 'Vi skickar en återställningslänk till din e-post' 
-                      : "We'll send a reset link to your email")
-                  : (lang === 'sv' 
-                      ? 'Få tillgång till exklusiva medlemspriser'
-                      : 'Get access to exclusive member prices')}
-              </SheetDescription>
-            </div>
+            {!signupComplete && (
+              <div>
+                <SheetTitle className="font-display text-xl">
+                  {mode === 'forgot'
+                    ? (lang === 'sv' ? 'Glömt lösenord' : 'Forgot Password')
+                    : mode === 'login' 
+                      ? (lang === 'sv' ? 'Logga in' : 'Sign In')
+                      : (lang === 'sv' ? 'Bli medlem' : 'Become a Member')}
+                </SheetTitle>
+                <SheetDescription>
+                  {mode === 'forgot'
+                    ? (lang === 'sv' 
+                        ? 'Vi skickar en återställningslänk till din e-post' 
+                        : "We'll send a reset link to your email")
+                    : (lang === 'sv' 
+                        ? 'Få tillgång till exklusiva medlemspriser'
+                        : 'Get access to exclusive member prices')}
+                </SheetDescription>
+              </div>
+            )}
           </div>
         </SheetHeader>
 
-        {/* Reset sent confirmation */}
-        {mode === 'forgot' && resetSent ? (
+        {/* Signup complete - verification message */}
+        {signupComplete ? (
+          <div className="text-center py-8">
+            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+              <Mail className="w-8 h-8 text-primary" />
+            </div>
+            <h3 className="font-semibold text-lg mb-2">
+              {lang === 'sv' ? 'Verifiera din e-post' : 'Verify Your Email'}
+            </h3>
+            <p className="text-muted-foreground text-sm mb-2">
+              {lang === 'sv' 
+                ? 'Vi har skickat en verifieringslänk till:' 
+                : 'We sent a verification link to:'}
+            </p>
+            <p className="font-medium text-sm mb-4">{signupEmail}</p>
+            <p className="text-muted-foreground text-xs mb-6">
+              {lang === 'sv' 
+                ? 'Klicka på länken i mailet för att aktivera ditt konto. Kolla även skräpposten.' 
+                : 'Click the link in the email to activate your account. Also check your spam folder.'}
+            </p>
+            {username && (
+              <div className="mb-6 p-3 rounded-xl bg-accent/10 border border-accent/20">
+                <p className="text-sm">
+                  {lang === 'sv' ? 'Ditt användarnamn:' : 'Your username:'}{' '}
+                  <span className="font-semibold">{username}</span>
+                </p>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSignupComplete(false);
+                  handleModeChange('login');
+                }}
+                className="rounded-xl w-full"
+              >
+                {lang === 'sv' ? 'Gå till inloggning' : 'Go to login'}
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={onClose}
+                className="rounded-xl w-full text-muted-foreground"
+              >
+                {lang === 'sv' ? 'Stäng' : 'Close'}
+              </Button>
+            </div>
+          </div>
+        ) : mode === 'forgot' && resetSent ? (
           <div className="text-center py-8">
             <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
               <CheckCircle className="w-8 h-8 text-green-600" />
@@ -197,7 +298,12 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                       onChange={(e) => {
                         const val = e.target.value.replace(/[^a-zA-Z0-9_-]/g, '');
                         setUsername(val);
-                        setUsernameError('');
+                        if (val) {
+                          const err = validateUsername(val, lang);
+                          setUsernameError(err || '');
+                        } else {
+                          setUsernameError('');
+                        }
                       }}
                       className="pl-11 h-12 rounded-xl"
                       maxLength={24}
@@ -264,7 +370,7 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
 
               <Button
                 type="submit"
-                disabled={loading}
+                disabled={loading || (mode === 'register' && !!usernameError)}
                 className="w-full h-12 rounded-xl font-semibold"
               >
                 {loading ? (

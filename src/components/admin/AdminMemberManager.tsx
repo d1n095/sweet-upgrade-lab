@@ -585,7 +585,8 @@ const AdminMemberManager = () => {
                   <Users className="w-5 h-5 text-primary" />
                 </div>
                 <div className="min-w-0">
-                  <p className="font-medium text-sm truncate">{member.user_id.slice(0, 20)}...</p>
+                  <p className="font-medium text-sm truncate">{member.username || member.user_id.slice(0, 12) + '...'}</p>
+                  <p className="text-xs text-muted-foreground truncate">{member.user_id.slice(0, 8)}...</p>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     {member.is_member && (
                       <Badge variant="outline" className="text-xs">
