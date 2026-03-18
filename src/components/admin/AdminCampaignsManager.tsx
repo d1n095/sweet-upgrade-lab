@@ -2,8 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, Trash2, Save, RefreshCw, Percent, Package, Tag,
-  Eye, EyeOff, ArrowUp, ArrowDown, ChevronDown, Pencil, X, Sparkles,
-  Truck, Gift, GripVertical,
+  Eye, EyeOff, Pencil, X, Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
