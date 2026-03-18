@@ -45,13 +45,6 @@ interface Reward {
   created_at: string;
 }
 
-interface AdminStats {
-  totalReviews: number;
-  pendingReviews: number;
-  approvedReviews: number;
-  averageRating: number;
-  totalMembers: number;
-}
 
 const MemberProfile = () => {
   const { language } = useLanguage();
