@@ -102,7 +102,7 @@ const Footer = () => {
         <div className="decorative-line mt-12 mb-8" />
         
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-[10px] text-muted-foreground/60">
-          <p>© {new Date().getFullYear()} {storeConfig.company.name}. {t('footer.rights')}</p>
+          <p>© {new Date().getFullYear()} {storeConfig.company.name}. All rights reserved.</p>
           <div className="flex items-center gap-5">
             <Link to="/policies/privacy" className="hover:text-foreground transition-colors">{t('footer.privacypolicy')}</Link>
             <Link to="/policies/terms" className="hover:text-foreground transition-colors">{t('footer.terms')}</Link>
