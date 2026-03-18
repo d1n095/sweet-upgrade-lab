@@ -1,8 +1,9 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Package, FlaskConical } from 'lucide-react';
+import { Package, FlaskConical, ChefHat } from 'lucide-react';
 import AdminDbProductManager from '@/components/admin/AdminDbProductManager';
 import AdminProductImportExport from '@/components/admin/AdminProductImportExport';
 import AdminRecipeIngredientLibrary from '@/components/admin/AdminRecipeIngredientLibrary';
+import AdminRecipeTemplateBuilder from '@/components/admin/AdminRecipeTemplateBuilder';
 
 const AdminProducts = () => {
   return (
@@ -23,6 +24,9 @@ const AdminProducts = () => {
           <TabsTrigger value="ingredients" className="gap-1.5 text-xs">
             <FlaskConical className="w-3.5 h-3.5" /> Ingrediensbibliotek
           </TabsTrigger>
+          <TabsTrigger value="recipes" className="gap-1.5 text-xs">
+            <ChefHat className="w-3.5 h-3.5" /> Receptmallar
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="products">
@@ -30,6 +34,9 @@ const AdminProducts = () => {
         </TabsContent>
         <TabsContent value="ingredients">
           <AdminRecipeIngredientLibrary />
+        </TabsContent>
+        <TabsContent value="recipes">
+          <AdminRecipeTemplateBuilder />
         </TabsContent>
       </Tabs>
     </div>

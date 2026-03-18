@@ -1278,6 +1278,99 @@ export type Database = {
         }
         Relationships: []
       }
+      recipe_template_slots: {
+        Row: {
+          allow_multiple: boolean
+          created_at: string
+          display_order: number
+          fixed_ingredient_id: string | null
+          id: string
+          ingredient_category: string | null
+          is_required: boolean
+          label_en: string | null
+          label_sv: string
+          slot_type: string
+          template_id: string
+        }
+        Insert: {
+          allow_multiple?: boolean
+          created_at?: string
+          display_order?: number
+          fixed_ingredient_id?: string | null
+          id?: string
+          ingredient_category?: string | null
+          is_required?: boolean
+          label_en?: string | null
+          label_sv: string
+          slot_type?: string
+          template_id: string
+        }
+        Update: {
+          allow_multiple?: boolean
+          created_at?: string
+          display_order?: number
+          fixed_ingredient_id?: string | null
+          id?: string
+          ingredient_category?: string | null
+          is_required?: boolean
+          label_en?: string | null
+          label_sv?: string
+          slot_type?: string
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recipe_template_slots_fixed_ingredient_id_fkey"
+            columns: ["fixed_ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "recipe_ingredients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recipe_template_slots_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "recipe_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recipe_templates: {
+        Row: {
+          created_at: string
+          description_en: string | null
+          description_sv: string | null
+          display_order: number
+          id: string
+          is_active: boolean
+          name_en: string | null
+          name_sv: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description_en?: string | null
+          description_sv?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name_en?: string | null
+          name_sv: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description_en?: string | null
+          description_sv?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name_en?: string | null
+          name_sv?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       referrals: {
         Row: {
           converted_at: string | null
