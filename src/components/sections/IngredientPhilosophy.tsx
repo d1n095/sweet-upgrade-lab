@@ -28,8 +28,8 @@ const IngredientPhilosophy = () => {
   const t = content[lang];
 
   return (
-    <section id="philosophy" className="py-20 md:py-28">
-      <div className="container mx-auto px-4">
+    <section id="philosophy" className="py-24 md:py-32">
+      <div className="container mx-auto px-5">
         <motion.h2
           initial={{ opacity: 0, y: 12 }}
           whileInView={{ opacity: 1, y: 0 }}
