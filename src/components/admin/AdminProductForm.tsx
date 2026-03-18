@@ -319,8 +319,8 @@ export function AdminProductForm({
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  const current = inventoryDraft.trim() === '' ? 0 : Number(inventoryDraft);
-                  setInventory((Number.isFinite(current) ? current : 0) - 1);
+                   const current = inventoryDraft.trim() === '' ? 0 : Number(inventoryDraft);
+                   setInventory(Math.max(0, (Number.isFinite(current) ? current : 0) - 1));
                 }}
               >
                 <Minus className="w-4 h-4" />
