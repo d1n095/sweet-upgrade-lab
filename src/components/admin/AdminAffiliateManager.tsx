@@ -171,6 +171,7 @@ const AdminAffiliateManager = () => {
       payoutMethod: 'bank_transfer',
       notes: '',
     });
+    setSelectedUser(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
