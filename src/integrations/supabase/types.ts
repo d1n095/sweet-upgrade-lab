@@ -1770,6 +1770,36 @@ export type Database = {
         }
         Relationships: []
       }
+      staff_permissions: {
+        Row: {
+          allowed_modules: string[]
+          created_at: string
+          granted_by: string | null
+          id: string
+          notes: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          allowed_modules?: string[]
+          created_at?: string
+          granted_by?: string | null
+          id?: string
+          notes?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          allowed_modules?: string[]
+          created_at?: string
+          granted_by?: string | null
+          id?: string
+          notes?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       store_settings: {
         Row: {
           id: string
@@ -1966,6 +1996,7 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_founder: { Args: { _user_id: string }; Returns: boolean }
       validate_affiliate_code: {
         Args: { p_code: string }
         Returns: {
