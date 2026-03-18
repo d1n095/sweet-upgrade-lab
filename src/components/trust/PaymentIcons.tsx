@@ -1,6 +1,8 @@
+import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Shield } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
+import { usePaymentMethodsStore } from '@/stores/paymentMethodsStore';
 
 // SVG Payment Icons
 const VisaIcon = () => (
@@ -38,7 +40,6 @@ const SwishIcon = () => (
 const ApplePayIcon = () => (
   <svg viewBox="0 0 50 35" className="w-11 h-8">
     <rect width="50" height="35" rx="4" fill="#000000"/>
-    <text x="14" y="22" fill="white" fontSize="11" fontWeight="500" fontFamily="system-ui"></text>
     <text x="25" y="22" textAnchor="middle" fill="white" fontSize="9" fontWeight="500" fontFamily="system-ui"> Pay</text>
   </svg>
 );
@@ -51,19 +52,42 @@ const GooglePayIcon = () => (
   </svg>
 );
 
-// Active payment methods — these are the ones enabled in Stripe checkout
-const activePaymentMethods = [
-  { id: 'visa', Icon: VisaIcon, name: 'Visa', active: true },
-  { id: 'mastercard', Icon: MastercardIcon, name: 'Mastercard', active: true },
-  { id: 'klarna', Icon: KlarnaIcon, name: 'Klarna', active: true },
-  { id: 'swish', Icon: SwishIcon, name: 'Swish', active: true },
-  { id: 'applepay', Icon: ApplePayIcon, name: 'Apple Pay', active: true },
-  { id: 'googlepay', Icon: GooglePayIcon, name: 'Google Pay', active: true },
-];
+const PayPalIcon = () => (
+  <svg viewBox="0 0 50 35" className="w-11 h-8">
+    <rect width="50" height="35" rx="4" fill="#003087"/>
+    <text x="25" y="22" textAnchor="middle" fill="white" fontSize="8" fontWeight="bold" fontFamily="Arial">PayPal</text>
+  </svg>
+);
+
+const GenericIcon = ({ name }: { name: string }) => (
+  <svg viewBox="0 0 50 35" className="w-11 h-8">
+    <rect width="50" height="35" rx="4" fill="#F3F4F6"/>
+    <rect x="1" y="1" width="48" height="33" rx="3" stroke="#E5E5E5" strokeWidth="1" fill="none"/>
+    <text x="25" y="22" textAnchor="middle" fill="#374151" fontSize="7" fontWeight="500" fontFamily="system-ui">{name}</text>
+  </svg>
+);
+
+const ICON_MAP: Record<string, React.FC> = {
+  visa: VisaIcon,
+  mastercard: MastercardIcon,
+  klarna: KlarnaIcon,
+  swish: SwishIcon,
+  applepay: ApplePayIcon,
+  googlepay: GooglePayIcon,
+  paypal: PayPalIcon,
+};
 
 const PaymentIcons = () => {
   const { language } = useLanguage();
-  const visibleMethods = activePaymentMethods.filter(m => m.active);
+  const { methods, isLoaded, load } = usePaymentMethodsStore();
+
+  useEffect(() => {
+    if (!isLoaded) load();
+  }, [isLoaded, load]);
+
+  const visibleMethods = methods.filter(m => m.enabled);
+
+  if (visibleMethods.length === 0) return null;
 
   return (
     <motion.div
@@ -76,16 +100,19 @@ const PaymentIcons = () => {
         <span>{language === 'sv' ? 'Säkra betalningar via' : 'Secure payments via'}</span>
       </div>
       <div className="flex flex-wrap items-center justify-center gap-2">
-        {visibleMethods.map((payment) => (
-          <motion.div
-            key={payment.id}
-            whileHover={{ scale: 1.05 }}
-            className="cursor-default"
-            title={payment.name}
-          >
-            <payment.Icon />
-          </motion.div>
-        ))}
+        {visibleMethods.map((payment) => {
+          const Icon = ICON_MAP[payment.id];
+          return (
+            <motion.div
+              key={payment.id}
+              whileHover={{ scale: 1.05 }}
+              className="cursor-default"
+              title={payment.name}
+            >
+              {Icon ? <Icon /> : <GenericIcon name={payment.name} />}
+            </motion.div>
+          );
+        })}
       </div>
     </motion.div>
   );
