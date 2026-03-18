@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '@/integrations/supabase/client';
+import { logSettingsChange } from '@/utils/activityLogger';
 
 interface StoreSettingsState {
   siteActive: boolean;
@@ -48,17 +49,21 @@ export const useStoreSettings = create<StoreSettingsState>((set, get) => ({
   },
 
   setSiteActive: async (enabled) => {
+    const old = get().siteActive;
     set({ siteActive: enabled });
     await supabase
       .from('store_settings')
       .upsert({ key: 'site_active', value: enabled, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+    logSettingsChange('site_active', old, enabled);
   },
 
   setCheckoutEnabled: async (enabled) => {
+    const old = get().checkoutEnabled;
     set({ checkoutEnabled: enabled });
     await supabase
       .from('store_settings')
       .upsert({ key: 'checkout_enabled', value: enabled, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+    logSettingsChange('checkout_enabled', old, enabled);
   },
 
   setHomepageSetting: async (key, enabled) => {
