@@ -111,6 +111,7 @@ const App = () => (
                 <Route path="communication" element={<AdminCommunication />} />
                 <Route path="updates" element={<AdminUpdates />} />
                 <Route path="visibility" element={<AdminVisibility />} />
+                <Route path="content" element={<AdminContent />} />
                 <Route path="legal" element={<AdminLegal />} />
                 <Route path="settings" element={<AdminSettingsPage />} />
                 <Route path="stats" element={<AdminStats />} />
