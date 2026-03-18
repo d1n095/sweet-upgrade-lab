@@ -21,6 +21,7 @@ interface OrderData {
   items: unknown;
   total_amount: number;
   currency: string;
+  shipping_address: unknown;
 }
 
 const TrackOrder = () => {
