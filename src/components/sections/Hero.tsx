@@ -9,7 +9,7 @@ const Hero = () => {
   const navigate = useNavigate();
 
   return (
-    <section className="relative min-h-[70vh] flex items-center justify-center">
+    <section className="relative min-h-[75vh] flex items-center justify-center">
       <div className="absolute inset-0 bg-gradient-hero" />
 
       <div className="container mx-auto px-4 py-24 md:py-32 relative z-10">
@@ -18,7 +18,7 @@ const Hero = () => {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
-            className="text-3xl sm:text-4xl md:text-5xl font-bold leading-[1.08] tracking-tight mb-5 text-foreground"
+            className="text-3xl sm:text-4xl md:text-5xl font-semibold leading-[1.08] tracking-tight mb-5 text-foreground"
           >
             {t('hero.title')}
           </motion.h1>

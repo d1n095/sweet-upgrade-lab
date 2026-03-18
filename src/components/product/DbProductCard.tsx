@@ -121,7 +121,7 @@ const DbProductCard = ({ product, index, compact = false }: DbProductCardProps) 
       className="group relative"
     >
       <Link to={`/product/${handle}`}>
-        <div className="bg-card border border-border rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-[var(--shadow-elevated)] hover:-translate-y-1">
+        <div className="bg-card border border-border/60 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-[var(--shadow-elevated)] hover:-translate-y-1 h-full flex flex-col">
           {/* Image */}
           <div className="relative aspect-[4/5] overflow-hidden bg-secondary/30">
             {showImage ? (
@@ -191,19 +191,19 @@ const DbProductCard = ({ product, index, compact = false }: DbProductCardProps) 
           </div>
 
           {/* Content */}
-          <div className="p-4">
-            <h3 className="font-semibold text-sm mb-1.5 line-clamp-2 group-hover:text-accent transition-colors duration-200">
+          <div className="p-3.5 flex flex-col flex-1">
+            <h3 className="font-semibold text-[13px] mb-1 line-clamp-2 group-hover:text-accent transition-colors duration-200 leading-snug">
               {title}
             </h3>
 
             {/* Stock status */}
-            <div className="mb-2">
+            <div className="mb-1.5">
               <StockIndicator stock={availableStock} allowOverselling={product.allow_overselling} lang={lang} />
             </div>
 
             {/* Price */}
-            <div className="flex items-baseline gap-2 mb-3">
-              <span className="text-lg font-bold text-foreground">{formatPrice(product.price)}</span>
+            <div className="flex items-baseline gap-2 mb-2.5 mt-auto">
+              <span className="text-base font-bold text-foreground">{formatPrice(product.price)}</span>
               {product.original_price && product.original_price > product.price && (
                 <span className="text-xs text-muted-foreground line-through">{formatPrice(product.original_price)}</span>
               )}
