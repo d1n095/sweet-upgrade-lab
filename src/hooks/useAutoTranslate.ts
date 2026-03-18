@@ -1,40 +1,31 @@
 import { useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 
 export interface TranslationResult {
   translations: Record<string, string>;
 }
 
-const ALL_LANGUAGES = ['sv', 'en', 'no', 'da', 'de', 'fi', 'nl', 'fr', 'es', 'pl'] as const;
-
+/**
+ * Simple translation hook — returns the source text as-is for all target languages.
+ * The admin can manually fill in translations for each language.
+ * No AI API calls are made.
+ */
 export function useAutoTranslate() {
-  const [isTranslating, setIsTranslating] = useState(false);
+  const [isTranslating] = useState(false);
 
   const translate = async (
     text: string,
     sourceLanguage: string = 'sv',
-    context: string = 'e-commerce product/category'
+    _context: string = 'e-commerce product/category'
   ): Promise<Record<string, string> | null> => {
     if (!text.trim()) return null;
 
-    const targetLanguages = ALL_LANGUAGES.filter((l) => l !== sourceLanguage);
-
-    setIsTranslating(true);
-    try {
-      const { data, error } = await supabase.functions.invoke<TranslationResult>('auto-translate', {
-        body: { text, sourceLanguage, targetLanguages, context },
-      });
-
-      if (error) throw error;
-      if (!data?.translations) throw new Error('No translations returned');
-
-      return data.translations;
-    } catch (err) {
-      console.error('Translation failed:', err);
-      return null;
-    } finally {
-      setIsTranslating(false);
+    // Return the source text for all languages — admin can edit manually
+    const allLanguages = ['sv', 'en', 'no', 'da', 'de', 'fi', 'nl', 'fr', 'es', 'pl'];
+    const translations: Record<string, string> = {};
+    for (const lang of allLanguages) {
+      translations[lang] = text;
     }
+    return translations;
   };
 
   return { translate, isTranslating };
