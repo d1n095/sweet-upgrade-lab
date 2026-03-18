@@ -208,23 +208,53 @@ const VolumeDiscountsTab = () => {
 // ─── Bundles Tab ───
 const BundlesTab = () => {
   const [bundles, setBundles] = useState<Bundle[]>([]);
+  const [bundleItems, setBundleItems] = useState<Record<string, BundleItem[]>>({});
+  const [allProducts, setAllProducts] = useState<DbProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: '', name_en: '', description: '', description_en: '', discount_percent: '' });
+  const [selectedProducts, setSelectedProducts] = useState<Array<{ productId: string; quantity: number }>>([]);
 
-  const fetch = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase.from('bundles').select('*').order('display_order');
-    if (data) setBundles(data as Bundle[]);
+    const [{ data: bundlesData }, { data: productsData }, { data: itemsData }] = await Promise.all([
+      supabase.from('bundles').select('*').order('display_order'),
+      supabase.from('products').select('id, title_sv, price, original_price, is_visible').eq('is_visible', true).order('title_sv'),
+      supabase.from('bundle_items').select('*'),
+    ]);
+    if (bundlesData) setBundles(bundlesData as Bundle[]);
+    if (productsData) setAllProducts(productsData as DbProduct[]);
+    if (itemsData) {
+      const grouped: Record<string, BundleItem[]> = {};
+      (itemsData as BundleItem[]).forEach(item => {
+        if (!grouped[item.bundle_id]) grouped[item.bundle_id] = [];
+        grouped[item.bundle_id].push(item);
+      });
+      setBundleItems(grouped);
+    }
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetch(); }, [fetch]);
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const toggleProduct = (productId: string) => {
+    setSelectedProducts(prev => {
+      const exists = prev.find(p => p.productId === productId);
+      if (exists) return prev.filter(p => p.productId !== productId);
+      return [...prev, { productId, quantity: 1 }];
+    });
+  };
+
+  const updateQuantity = (productId: string, qty: number) => {
+    setSelectedProducts(prev => prev.map(p => p.productId === productId ? { ...p, quantity: Math.max(1, qty) } : p));
+  };
 
   const handleAdd = async () => {
     if (!form.name || !form.discount_percent) { toast.error('Namn och rabatt krävs'); return; }
+    if (selectedProducts.length === 0) { toast.error('Välj minst en produkt'); return; }
     const maxOrder = bundles.reduce((m, b) => Math.max(m, b.display_order), 0);
-    const { error } = await supabase.from('bundles').insert({
+    const { data: newBundle, error } = await supabase.from('bundles').insert({
       name: form.name,
       name_en: form.name_en || null,
       description: form.description || null,
@@ -232,12 +262,39 @@ const BundlesTab = () => {
       discount_percent: parseFloat(form.discount_percent),
       is_active: false,
       display_order: maxOrder + 1,
-    });
-    if (error) { toast.error('Kunde inte skapa'); return; }
-    toast.success('Paket skapat');
+    }).select().single();
+    if (error || !newBundle) { toast.error('Kunde inte skapa'); return; }
+
+    // Insert bundle items
+    const items = selectedProducts.map(sp => ({
+      bundle_id: newBundle.id,
+      shopify_product_id: sp.productId,
+      quantity: sp.quantity,
+    }));
+    await supabase.from('bundle_items').insert(items);
+
+    toast.success('Paket skapat med produkter');
     setForm({ name: '', name_en: '', description: '', description_en: '', discount_percent: '' });
+    setSelectedProducts([]);
     setShowForm(false);
-    fetch();
+    fetchData();
+  };
+
+  const addProductToBundle = async (bundleId: string, productId: string) => {
+    const existing = bundleItems[bundleId] || [];
+    if (existing.find(i => i.shopify_product_id === productId)) {
+      toast.error('Produkten finns redan i paketet');
+      return;
+    }
+    await supabase.from('bundle_items').insert({ bundle_id: bundleId, shopify_product_id: productId, quantity: 1 });
+    toast.success('Produkt tillagd');
+    fetchData();
+  };
+
+  const removeItemFromBundle = async (itemId: string) => {
+    await supabase.from('bundle_items').delete().eq('id', itemId);
+    toast.success('Produkt borttagen');
+    fetchData();
   };
 
   const toggleActive = async (id: string, current: boolean) => {
@@ -251,7 +308,21 @@ const BundlesTab = () => {
     await supabase.from('bundle_items').delete().eq('bundle_id', id);
     await supabase.from('bundles').delete().eq('id', id);
     toast.success('Borttaget');
-    fetch();
+    fetchData();
+  };
+
+  const getProductName = (productId: string) => {
+    return allProducts.find(p => p.id === productId)?.title_sv || productId;
+  };
+
+  const getProductPrice = (productId: string) => {
+    return allProducts.find(p => p.id === productId)?.price || 0;
+  };
+
+  const calcBundleTotal = (bundleId: string, discountPct: number) => {
+    const items = bundleItems[bundleId] || [];
+    const total = items.reduce((s, i) => s + getProductPrice(i.shopify_product_id) * i.quantity, 0);
+    return { original: total, discounted: total * (1 - discountPct / 100) };
   };
 
   if (loading) return <div className="flex justify-center py-8"><RefreshCw className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
@@ -263,7 +334,7 @@ const BundlesTab = () => {
           <h3 className="font-semibold text-sm">Produktpaket</h3>
           <p className="text-xs text-muted-foreground">Kombinera produkter till paket med automatisk rabatt</p>
         </div>
-        <Button size="sm" variant="outline" onClick={() => setShowForm(!showForm)} className="gap-1 h-7 text-xs">
+        <Button size="sm" variant="outline" onClick={() => { setShowForm(!showForm); setSelectedProducts([]); }} className="gap-1 h-7 text-xs">
           <Plus className="w-3 h-3" /> Nytt paket
         </Button>
       </div>
@@ -276,11 +347,11 @@ const BundlesTab = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
                     <Label className="text-xs">Namn (SV) *</Label>
-                    <Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Kroppsvårdskit" className="h-8" />
+                    <Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Välkomstpaket" className="h-8" />
                   </div>
                   <div>
                     <Label className="text-xs">Namn (EN)</Label>
-                    <Input value={form.name_en} onChange={e => setForm({ ...form, name_en: e.target.value })} placeholder="Body Care Kit" className="h-8" />
+                    <Input value={form.name_en} onChange={e => setForm({ ...form, name_en: e.target.value })} placeholder="Welcome Kit" className="h-8" />
                   </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -294,12 +365,53 @@ const BundlesTab = () => {
                   </div>
                   <div>
                     <Label className="text-xs">Rabatt % *</Label>
-                    <Input type="number" step="0.5" value={form.discount_percent} onChange={e => setForm({ ...form, discount_percent: e.target.value })} placeholder="15" className="h-8" />
+                    <Input type="number" step="0.5" value={form.discount_percent} onChange={e => setForm({ ...form, discount_percent: e.target.value })} placeholder="40" className="h-8" />
                   </div>
                 </div>
+
+                {/* Product selection */}
+                <div>
+                  <Label className="text-xs font-medium">Välj produkter till paketet *</Label>
+                  <div className="mt-2 max-h-48 overflow-y-auto border border-border rounded-lg divide-y divide-border">
+                    {allProducts.map(p => {
+                      const selected = selectedProducts.find(sp => sp.productId === p.id);
+                      return (
+                        <div key={p.id} className={`flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors ${selected ? 'bg-primary/5' : 'hover:bg-secondary/50'}`} onClick={() => toggleProduct(p.id)}>
+                          <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 ${selected ? 'border-primary bg-primary' : 'border-muted-foreground/30'}`}>
+                            {selected && <span className="text-primary-foreground text-[10px] font-bold">✓</span>}
+                          </div>
+                          <span className="text-sm flex-1 truncate">{p.title_sv}</span>
+                          <span className="text-xs text-muted-foreground">{p.price} kr</span>
+                          {selected && (
+                            <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                              <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => updateQuantity(p.id, selected.quantity - 1)}>-</Button>
+                              <span className="text-xs w-6 text-center font-medium">{selected.quantity}</span>
+                              <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => updateQuantity(p.id, selected.quantity + 1)}>+</Button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {selectedProducts.length > 0 && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <Badge variant="secondary" className="text-xs">{selectedProducts.length} produkt(er) valda</Badge>
+                      {form.discount_percent && (
+                        <span className="text-xs text-muted-foreground">
+                          Totalt: <span className="line-through">{selectedProducts.reduce((s, sp) => s + getProductPrice(sp.productId) * sp.quantity, 0)} kr</span>
+                          {' → '}
+                          <span className="font-bold text-primary">
+                            {Math.round(selectedProducts.reduce((s, sp) => s + getProductPrice(sp.productId) * sp.quantity, 0) * (1 - parseFloat(form.discount_percent || '0') / 100))} kr
+                          </span>
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={handleAdd} className="gap-1 h-7 text-xs"><Save className="w-3 h-3" /> Spara</Button>
-                  <Button size="sm" variant="outline" onClick={() => setShowForm(false)} className="h-7 text-xs">Avbryt</Button>
+                  <Button size="sm" onClick={handleAdd} className="gap-1 h-7 text-xs"><Save className="w-3 h-3" /> Spara paket</Button>
+                  <Button size="sm" variant="outline" onClick={() => { setShowForm(false); setSelectedProducts([]); }} className="h-7 text-xs">Avbryt</Button>
                 </div>
               </CardContent>
             </Card>
@@ -307,27 +419,74 @@ const BundlesTab = () => {
         )}
       </AnimatePresence>
 
-      <div className="space-y-1.5">
-        {bundles.map(b => (
-          <div key={b.id} className={`flex items-center gap-3 p-3 rounded-xl border border-border bg-card transition-opacity ${!b.is_active ? 'opacity-50' : ''}`}>
-            <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center font-bold text-accent text-sm shrink-0">
-              {b.discount_percent}%
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <p className="font-medium text-sm truncate">{b.name}</p>
-                {!b.is_active && <Badge variant="outline" className="text-[9px]">Inaktiv</Badge>}
+      <div className="space-y-2">
+        {bundles.map(b => {
+          const items = bundleItems[b.id] || [];
+          const prices = calcBundleTotal(b.id, b.discount_percent);
+          const isExpanded = expandedId === b.id;
+
+          return (
+            <div key={b.id} className={`rounded-xl border transition-all ${!b.is_active ? 'opacity-60 border-border' : 'border-border'}`}>
+              <div className="flex items-center gap-3 p-3 cursor-pointer" onClick={() => setExpandedId(isExpanded ? null : b.id)}>
+                <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center font-bold text-accent text-sm shrink-0">
+                  {b.discount_percent}%
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium text-sm truncate">{b.name}</p>
+                    {!b.is_active && <Badge variant="outline" className="text-[9px]">Inaktiv</Badge>}
+                    <Badge variant="secondary" className="text-[9px]">{items.length} produkter</Badge>
+                  </div>
+                  {items.length > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      <span className="line-through">{Math.round(prices.original)} kr</span> → <span className="font-semibold text-primary">{Math.round(prices.discounted)} kr</span>
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
+                  <Switch checked={b.is_active} onCheckedChange={() => toggleActive(b.id, b.is_active)} />
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => deleteBundle(b.id)}>
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
               </div>
-              {b.description && <p className="text-xs text-muted-foreground truncate">{b.description}</p>}
+
+              <AnimatePresence>
+                {isExpanded && (
+                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                    <div className="px-3 pb-3 space-y-2 border-t border-border pt-2">
+                      <p className="text-xs font-medium">Produkter i paketet:</p>
+                      {items.map(item => (
+                        <div key={item.id} className="flex items-center gap-2 p-2 rounded-lg bg-secondary/30">
+                          <span className="text-sm flex-1 truncate">{getProductName(item.shopify_product_id)}</span>
+                          <span className="text-xs text-muted-foreground">{item.quantity}x {getProductPrice(item.shopify_product_id)} kr</span>
+                          <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeItemFromBundle(item.id)}>
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      ))}
+                      {items.length === 0 && <p className="text-xs text-muted-foreground">Inga produkter tillagda ännu</p>}
+
+                      {/* Add product to existing bundle */}
+                      <div className="pt-1">
+                        <Select onValueChange={val => addProductToBundle(b.id, val)}>
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue placeholder="+ Lägg till produkt..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {allProducts.filter(p => !(items.find(i => i.shopify_product_id === p.id))).map(p => (
+                              <SelectItem key={p.id} value={p.id} className="text-xs">{p.title_sv} — {p.price} kr</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
-            <div className="flex items-center gap-1 shrink-0">
-              <Switch checked={b.is_active} onCheckedChange={() => toggleActive(b.id, b.is_active)} />
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => deleteBundle(b.id)}>
-                <Trash2 className="w-3.5 h-3.5" />
-              </Button>
-            </div>
-          </div>
-        ))}
+          );
+        })}
         {bundles.length === 0 && (
           <p className="text-center text-muted-foreground text-xs py-8">Inga paket konfigurerade</p>
         )}

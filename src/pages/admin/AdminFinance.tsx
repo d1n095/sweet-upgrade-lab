@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   DollarSign, TrendingUp, Heart, Wallet, RefreshCw,
   ArrowUpRight, ArrowDownRight, CreditCard, Users, Clock,
+  ChevronRight, RotateCcw, ExternalLink,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface FinanceData {
   totalRevenue: number;
@@ -42,6 +45,7 @@ interface FinanceData {
 const AdminFinance = () => {
   const [data, setData] = useState<FinanceData | null>(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   const fetchData = async () => {
     setLoading(true);
@@ -52,15 +56,9 @@ const AdminFinance = () => {
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
       const [
-        ordersRes,
-        todayOrdersRes,
-        monthOrdersRes,
-        donationsRes,
-        monthDonationsRes,
-        affiliatesRes,
-        payoutRequestsRes,
-        recentPayoutsRes,
-        recentPaidRes,
+        ordersRes, todayOrdersRes, monthOrdersRes,
+        donationsRes, monthDonationsRes, affiliatesRes,
+        payoutRequestsRes, recentPayoutsRes, recentPaidRes,
       ] = await Promise.all([
         supabase.from('orders').select('id, total_amount, payment_status, status'),
         supabase.from('orders').select('total_amount, payment_status').gte('created_at', todayStart.toISOString()),
@@ -80,7 +78,6 @@ const AdminFinance = () => {
       const monthDonations = monthDonationsRes.data || [];
       const affiliates = affiliatesRes.data || [];
       const payoutReqs = payoutRequestsRes.data || [];
-
       const paidFilter = (o: any) => o.payment_status === 'paid';
 
       setData({
@@ -124,6 +121,17 @@ const AdminFinance = () => {
     return d.toLocaleDateString('sv-SE', { month: 'short', day: 'numeric' });
   };
 
+  const handleResetDonations = async () => {
+    if (!confirm('Är du säker på att du vill nollställa alla donationer? Detta kan inte ångras.')) return;
+    const { error } = await supabase.from('donations').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    if (error) {
+      toast.error('Kunde inte nollställa donationer');
+      return;
+    }
+    toast.success('Donationer nollställda');
+    fetchData();
+  };
+
   if (loading || !data) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -132,6 +140,36 @@ const AdminFinance = () => {
     );
   }
 
+  const topCards = [
+    {
+      label: 'Total intäkt', value: fmt(data.totalRevenue), sub: `${data.paidOrders} betalda ordrar`,
+      icon: DollarSign, color: 'text-green-600', bg: 'bg-green-500/10',
+      onClick: () => navigate('/admin/orders'),
+    },
+    {
+      label: 'Idag', value: fmt(data.revenueToday), sub: `Denna månad: ${fmt(data.revenueThisMonth)}`,
+      icon: TrendingUp, color: 'text-blue-600', bg: 'bg-blue-500/10',
+      onClick: () => navigate('/admin/stats'),
+    },
+    {
+      label: 'Donationer', value: fmt(data.donationsTotal), sub: `Denna månad: ${fmt(data.donationsThisMonth)}`,
+      icon: Heart, color: 'text-pink-600', bg: 'bg-pink-500/10',
+      onClick: () => navigate('/admin/legal'),
+    },
+    {
+      label: 'Affiliate', value: fmt(data.affiliateCommissionsTotal), sub: `Väntande: ${fmt(data.affiliatePending)}`,
+      icon: Users, color: 'text-amber-600', bg: 'bg-amber-500/10',
+      onClick: () => navigate('/admin/partners'),
+    },
+  ];
+
+  const secondaryCards = [
+    { icon: CreditCard, title: `${data.paidOrders} betalda`, sub: `${data.unpaidOrders} obetalda`, onClick: () => navigate('/admin/orders') },
+    { icon: Wallet, title: `${fmt(data.affiliatePaid)} utbetalt`, sub: 'till affiliates', onClick: () => navigate('/admin/partners') },
+    { icon: Clock, title: `${data.pendingPayoutRequests} väntande`, sub: `${fmt(data.pendingPayoutAmount)} att betala`, onClick: () => navigate('/admin/partners'), accent: true },
+    { icon: Heart, title: fmt(data.donationsThisMonth), sub: 'donationer denna månad', onClick: () => navigate('/admin/legal') },
+  ];
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -139,129 +177,102 @@ const AdminFinance = () => {
           <h1 className="text-2xl font-semibold">Betalning & Ekonomi</h1>
           <p className="text-muted-foreground text-sm mt-1">Intäkter, donationer och affiliate-utbetalningar</p>
         </div>
-        <Button onClick={fetchData} variant="outline" size="sm" className="gap-2">
-          <RefreshCw className="w-4 h-4" /> Uppdatera
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button onClick={handleResetDonations} variant="outline" size="sm" className="gap-2 text-destructive hover:text-destructive">
+            <RotateCcw className="w-4 h-4" /> Nollställ donationer
+          </Button>
+          <Button onClick={fetchData} variant="outline" size="sm" className="gap-2">
+            <RefreshCw className="w-4 h-4" /> Uppdatera
+          </Button>
+        </div>
       </div>
 
-      {/* Top Stats */}
+      {/* Top Stats - clickable */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <Card className="border-border">
-            <CardContent className="pt-5 pb-4">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total intäkt</span>
-                <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center">
-                  <DollarSign className="w-4 h-4 text-green-600" />
+        {topCards.map((card, i) => (
+          <motion.div key={card.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+            <Card
+              className="border-border cursor-pointer hover:shadow-md hover:border-primary/20 transition-all group"
+              onClick={card.onClick}
+            >
+              <CardContent className="pt-5 pb-4">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{card.label}</span>
+                  <div className={`w-8 h-8 rounded-lg ${card.bg} flex items-center justify-center`}>
+                    <card.icon className={`w-4 h-4 ${card.color}`} />
+                  </div>
                 </div>
-              </div>
-              <p className="text-2xl font-bold">{fmt(data.totalRevenue)}</p>
-              <p className="text-xs text-muted-foreground mt-1">{data.paidOrders} betalda ordrar</p>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-          <Card className="border-border">
-            <CardContent className="pt-5 pb-4">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Idag</span>
-                <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                  <TrendingUp className="w-4 h-4 text-blue-600" />
+                <p className="text-2xl font-bold">{card.value}</p>
+                <div className="flex items-center justify-between mt-1">
+                  <p className="text-xs text-muted-foreground">{card.sub}</p>
+                  <ChevronRight className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
-              </div>
-              <p className="text-2xl font-bold">{fmt(data.revenueToday)}</p>
-              <p className="text-xs text-muted-foreground mt-1">Denna månad: {fmt(data.revenueThisMonth)}</p>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <Card className="border-border">
-            <CardContent className="pt-5 pb-4">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Donationer</span>
-                <div className="w-8 h-8 rounded-lg bg-pink-500/10 flex items-center justify-center">
-                  <Heart className="w-4 h-4 text-pink-600" />
-                </div>
-              </div>
-              <p className="text-2xl font-bold">{fmt(data.donationsTotal)}</p>
-              <p className="text-xs text-muted-foreground mt-1">Denna månad: {fmt(data.donationsThisMonth)}</p>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-          <Card className="border-border">
-            <CardContent className="pt-5 pb-4">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Affiliate</span>
-                <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                  <Users className="w-4 h-4 text-amber-600" />
-                </div>
-              </div>
-              <p className="text-2xl font-bold">{fmt(data.affiliateCommissionsTotal)}</p>
-              <p className="text-xs text-muted-foreground mt-1">Väntande: {fmt(data.affiliatePending)}</p>
-            </CardContent>
-          </Card>
-        </motion.div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
       </div>
 
-      {/* Secondary stats */}
+      {/* Secondary stats - clickable */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-border bg-secondary/20">
-          <CardContent className="pt-4 pb-3 flex items-center gap-3">
-            <CreditCard className="w-5 h-5 text-muted-foreground" />
-            <div>
-              <p className="text-sm font-medium">{data.paidOrders} betalda</p>
-              <p className="text-xs text-muted-foreground">{data.unpaidOrders} obetalda</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-border bg-secondary/20">
-          <CardContent className="pt-4 pb-3 flex items-center gap-3">
-            <Wallet className="w-5 h-5 text-muted-foreground" />
-            <div>
-              <p className="text-sm font-medium">{fmt(data.affiliatePaid)} utbetalt</p>
-              <p className="text-xs text-muted-foreground">till affiliates</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-border bg-secondary/20">
-          <CardContent className="pt-4 pb-3 flex items-center gap-3">
-            <Clock className="w-5 h-5 text-amber-500" />
-            <div>
-              <p className="text-sm font-medium">{data.pendingPayoutRequests} väntande</p>
-              <p className="text-xs text-muted-foreground">{fmt(data.pendingPayoutAmount)} att betala</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-border bg-secondary/20">
-          <CardContent className="pt-4 pb-3 flex items-center gap-3">
-            <Heart className="w-5 h-5 text-pink-500" />
-            <div>
-              <p className="text-sm font-medium">{fmt(data.donationsThisMonth)}</p>
-              <p className="text-xs text-muted-foreground">donationer denna månad</p>
-            </div>
-          </CardContent>
-        </Card>
+        {secondaryCards.map((card, i) => (
+          <Card
+            key={i}
+            className="border-border bg-secondary/20 cursor-pointer hover:bg-secondary/40 transition-colors group"
+            onClick={card.onClick}
+          >
+            <CardContent className="pt-4 pb-3 flex items-center gap-3">
+              <card.icon className={`w-5 h-5 ${card.accent ? 'text-amber-500' : 'text-muted-foreground'}`} />
+              <div className="flex-1">
+                <p className="text-sm font-medium">{card.title}</p>
+                <p className="text-xs text-muted-foreground">{card.sub}</p>
+              </div>
+              <ChevronRight className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Quick links */}
+      <div className="flex flex-wrap gap-2">
+        {[
+          { label: 'Ordrar', to: '/admin/orders' },
+          { label: 'Partners & Affiliates', to: '/admin/partners' },
+          { label: 'Donationer', to: '/admin/legal' },
+          { label: 'Inställningar', to: '/admin/settings' },
+          { label: 'Statistik', to: '/admin/stats' },
+          { label: 'Kampanjer', to: '/admin/campaigns' },
+        ].map(link => (
+          <Button key={link.to} variant="outline" size="sm" className="gap-1.5 text-xs h-7" onClick={() => navigate(link.to)}>
+            <ExternalLink className="w-3 h-3" /> {link.label}
+          </Button>
+        ))}
       </div>
 
       {/* Recent paid orders & payout requests */}
       <div className="grid lg:grid-cols-2 gap-6">
         <Card className="border-border">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <ArrowUpRight className="w-4 h-4 text-green-500" />
-              Senaste betalningar
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <ArrowUpRight className="w-4 h-4 text-green-500" />
+                Senaste betalningar
+              </CardTitle>
+              <Button variant="ghost" size="sm" className="h-6 text-xs gap-1" onClick={() => navigate('/admin/orders')}>
+                Visa alla <ChevronRight className="w-3 h-3" />
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-2">
             {data.recentPaidOrders.length === 0 ? (
               <p className="text-sm text-muted-foreground py-4 text-center">Inga betalda ordrar ännu</p>
             ) : (
               data.recentPaidOrders.map((order) => (
-                <div key={order.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30">
+                <div
+                  key={order.id}
+                  className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 cursor-pointer hover:bg-secondary/50 transition-colors"
+                  onClick={() => navigate('/admin/orders')}
+                >
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{order.order_number || order.order_email}</p>
                     <p className="text-xs text-muted-foreground">{formatTime(order.created_at)}</p>
@@ -275,17 +286,26 @@ const AdminFinance = () => {
 
         <Card className="border-border">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <ArrowDownRight className="w-4 h-4 text-amber-500" />
-              Senaste utbetalningsförfrågningar
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <ArrowDownRight className="w-4 h-4 text-amber-500" />
+                Senaste utbetalningsförfrågningar
+              </CardTitle>
+              <Button variant="ghost" size="sm" className="h-6 text-xs gap-1" onClick={() => navigate('/admin/partners')}>
+                Visa alla <ChevronRight className="w-3 h-3" />
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-2">
             {data.recentPayouts.length === 0 ? (
               <p className="text-sm text-muted-foreground py-4 text-center">Inga utbetalningsförfrågningar</p>
             ) : (
               data.recentPayouts.map((p) => (
-                <div key={p.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30">
+                <div
+                  key={p.id}
+                  className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 cursor-pointer hover:bg-secondary/50 transition-colors"
+                  onClick={() => navigate('/admin/partners')}
+                >
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium">{p.payout_type === 'cash' ? 'Kontant' : 'Butikskredit'}</p>
                     <p className="text-xs text-muted-foreground">{formatTime(p.created_at)}</p>
