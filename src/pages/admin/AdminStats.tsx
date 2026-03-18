@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   TrendingUp, Package, DollarSign, ArrowUpRight, RefreshCw,
-  Search, Eye, ShoppingCart, AlertTriangle, BarChart3, MousePointerClick
+  Search, Eye, ShoppingCart, AlertTriangle, BarChart3, MousePointerClick, FlaskConical
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
