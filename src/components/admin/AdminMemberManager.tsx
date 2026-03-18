@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Users, Search, Shield, UserCheck, Briefcase, 
   Loader2, ChevronDown, ChevronUp, Package, Star,
-  Eye, X
+  Eye, X, Mail, ExternalLink, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -59,6 +59,8 @@ interface Review {
   created_at: string;
 }
 
+const ITEMS_PER_PAGE = 50;
+
 const AdminMemberManager = () => {
   const { language } = useLanguage();
   const [members, setMembers] = useState<Member[]>([]);
@@ -70,6 +72,7 @@ const AdminMemberManager = () => {
   const [memberReviews, setMemberReviews] = useState<Review[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const [page, setPage] = useState(0);
   const [assigningRole, setAssigningRole] = useState(false);
 
   const content: Record<string, {
@@ -388,7 +391,7 @@ const AdminMemberManager = () => {
     loadMembers();
   }, []);
 
-  const loadMembers = async () => {
+  const loadMembers = useCallback(async () => {
     try {
       // Load profiles with username
       const { data: profiles } = await supabase
@@ -397,7 +400,13 @@ const AdminMemberManager = () => {
         .order('created_at', { ascending: false });
 
       if (profiles) {
-        setMembers(profiles as Member[]);
+        // Also fetch emails for all members via RPC (founders/admins can see this)
+        const membersList = profiles as Member[];
+        
+        // Batch-fetch emails: search with empty string returns nothing, so we fetch by chunks
+        // Instead, just load emails for all visible members via individual lookups
+        // We'll use the RPC when searching
+        setMembers(membersList);
       }
 
       // Load user roles
@@ -417,7 +426,7 @@ const AdminMemberManager = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   const loadMemberDetails = async (member: Member) => {
     setLoadingDetails(true);
@@ -425,7 +434,7 @@ const AdminMemberManager = () => {
     setIsDialogOpen(true);
 
     try {
-      const [ordersRes, reviewsRes] = await Promise.all([
+      const [ordersRes, reviewsRes, emailRes] = await Promise.all([
         supabase
           .from('orders')
           .select('id, created_at, total_amount, status, shopify_order_number')
@@ -437,7 +446,22 @@ const AdminMemberManager = () => {
           .select('id, product_title, rating, comment, is_approved, created_at')
           .eq('user_id', member.user_id)
           .order('created_at', { ascending: false }),
+        // Fetch email if not already loaded
+        !member.email
+          ? supabase.rpc('admin_search_users', { p_query: member.username || member.user_id.slice(0, 8) })
+          : Promise.resolve({ data: null }),
       ]);
+
+      // Update member with email if found
+      if (emailRes.data) {
+        const match = (emailRes.data as any[]).find((u: any) => u.user_id === member.user_id);
+        if (match) {
+          const updated = { ...member, email: match.email, username: match.username || member.username };
+          setSelectedMember(updated);
+          // Also update in the main list
+          setMembers(prev => prev.map(m => m.user_id === member.user_id ? updated : m));
+        }
+      }
 
       setMemberOrders(ordersRes.data || []);
       setMemberReviews(reviewsRes.data || []);
@@ -601,24 +625,37 @@ const AdminMemberManager = () => {
       </div>
 
       {/* Members List */}
-      <div className="max-h-80 overflow-y-auto space-y-2">
+      <p className="text-xs text-muted-foreground">{filteredMembers.length} användare totalt • Sida {page + 1} av {Math.max(1, Math.ceil(filteredMembers.length / ITEMS_PER_PAGE))}</p>
+      <div className="max-h-[500px] overflow-y-auto space-y-2">
         {filteredMembers.length === 0 ? (
           <p className="text-center text-muted-foreground py-4">{t.noMembers}</p>
         ) : (
-          filteredMembers.slice(0, 20).map((member) => (
+          filteredMembers.slice(page * ITEMS_PER_PAGE, (page + 1) * ITEMS_PER_PAGE).map((member) => (
             <motion.div
               key={member.user_id}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg hover:bg-secondary transition-colors"
+              className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg hover:bg-secondary transition-colors cursor-pointer"
+              onClick={() => loadMemberDetails(member)}
             >
               <div className="flex items-center gap-3 flex-1 min-w-0">
                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <Users className="w-5 h-5 text-primary" />
+                  {member.avatar_url ? (
+                    <img src={member.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover" />
+                  ) : (
+                    <Users className="w-5 h-5 text-primary" />
+                  )}
                 </div>
                 <div className="min-w-0">
                   <p className="font-medium text-sm truncate">{member.username || member.user_id.slice(0, 12) + '...'}</p>
-                  <p className="text-xs text-muted-foreground truncate">{member.user_id.slice(0, 8)}...</p>
+                  {member.email && (
+                    <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                      <Mail className="w-3 h-3 shrink-0" /> {member.email}
+                    </p>
+                  )}
+                  {!member.email && (
+                    <p className="text-xs text-muted-foreground truncate">{member.user_id.slice(0, 8)}...</p>
+                  )}
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     {member.is_member && (
                       <Badge variant="outline" className="text-xs">
@@ -630,7 +667,7 @@ const AdminMemberManager = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                 {userRoles[member.user_id] && (
                   <Badge className={getRoleBadgeColor(userRoles[member.user_id])}>
                     <Shield className="w-3 h-3 mr-1" />
@@ -664,7 +701,7 @@ const AdminMemberManager = () => {
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8"
-                  onClick={() => loadMemberDetails(member)}
+                  onClick={(e) => { e.stopPropagation(); loadMemberDetails(member); }}
                 >
                   <Eye className="w-4 h-4" />
                 </Button>
@@ -673,6 +710,33 @@ const AdminMemberManager = () => {
           ))
         )}
       </div>
+
+      {/* Pagination */}
+      {filteredMembers.length > ITEMS_PER_PAGE && (
+        <div className="flex items-center justify-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page === 0}
+            onClick={() => setPage(p => p - 1)}
+            className="h-8 gap-1"
+          >
+            <ChevronLeft className="w-3.5 h-3.5" /> Föregående
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            {page + 1} / {Math.ceil(filteredMembers.length / ITEMS_PER_PAGE)}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={(page + 1) * ITEMS_PER_PAGE >= filteredMembers.length}
+            onClick={() => setPage(p => p + 1)}
+            className="h-8 gap-1"
+          >
+            Nästa <ChevronRight className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+      )}
 
       {/* Member Details Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -691,9 +755,27 @@ const AdminMemberManager = () => {
           ) : selectedMember && (
             <div className="space-y-4">
               {/* Member Info */}
-              <div className="p-4 bg-secondary/50 rounded-lg">
-                <p className="text-sm font-mono break-all">{selectedMember.user_id}</p>
-                <div className="flex items-center gap-2 mt-2">
+              <div className="p-4 bg-secondary/50 rounded-lg space-y-2">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    {selectedMember.avatar_url ? (
+                      <img src={selectedMember.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover" />
+                    ) : (
+                      <Users className="w-6 h-6 text-primary" />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-base">{selectedMember.username || 'Inget användarnamn'}</p>
+                    {selectedMember.email && (
+                      <p className="text-sm text-muted-foreground flex items-center gap-1">
+                        <Mail className="w-3.5 h-3.5" /> {selectedMember.email}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <p className="text-xs font-mono text-muted-foreground break-all">{selectedMember.user_id}</p>
+                <p className="text-xs text-muted-foreground">Registrerad: {formatDate(selectedMember.created_at)}</p>
+                <div className="flex items-center gap-2 flex-wrap">
                   {selectedMember.is_member && (
                     <Badge variant="outline">
                       {t.memberSince} {selectedMember.member_since ? formatDate(selectedMember.member_since) : '-'}
