@@ -9,7 +9,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger, ScrollableTabs } from '@/components/ui/tabs';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -652,26 +652,28 @@ const AdminStats = () => {
 
       {/* ─── Tabs ─── */}
       <Tabs defaultValue="checkout" className="space-y-4">
-        <TabsList className="bg-secondary/50 flex-wrap">
-          <TabsTrigger value="checkout">💳 Checkout</TabsTrigger>
-          <TabsTrigger value="cart">🛒 Kundvagn</TabsTrigger>
-          <TabsTrigger value="abandoned">
-            🚪 Övergivna
-            {abandonedItems.length > 0 && (
-              <Badge variant="destructive" className="ml-1.5 text-[10px] px-1.5 py-0">{abandonedItems.length}</Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="searches">📈 Sökningar</TabsTrigger>
-          <TabsTrigger value="demand">
-            💡 Efterfrågan
-            {demandSearches.length > 0 && (
-              <Badge variant="destructive" className="ml-1.5 text-[10px] px-1.5 py-0">{demandSearches.length}</Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="views">👁 Visningar</TabsTrigger>
-          <TabsTrigger value="orders">🧾 Ordrar</TabsTrigger>
-          {isFounder && <TabsTrigger value="settings">⚙️ Hantera</TabsTrigger>}
-        </TabsList>
+        <ScrollableTabs>
+          <TabsList className="bg-secondary/50 w-max">
+            <TabsTrigger value="checkout">💳 Checkout</TabsTrigger>
+            <TabsTrigger value="cart">🛒 Kundvagn</TabsTrigger>
+            <TabsTrigger value="abandoned">
+              🚪 Övergivna
+              {abandonedItems.length > 0 && (
+                <Badge variant="destructive" className="ml-1.5 text-[10px] px-1.5 py-0">{abandonedItems.length}</Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="searches">📈 Sökningar</TabsTrigger>
+            <TabsTrigger value="demand">
+              💡 Efterfrågan
+              {demandSearches.length > 0 && (
+                <Badge variant="destructive" className="ml-1.5 text-[10px] px-1.5 py-0">{demandSearches.length}</Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="views">👁 Visningar</TabsTrigger>
+            <TabsTrigger value="orders">🧾 Ordrar</TabsTrigger>
+            {isFounder && <TabsTrigger value="settings">⚙️ Hantera</TabsTrigger>}
+          </TabsList>
+        </ScrollableTabs>
 
         {/* ─── Checkout Tab ─── */}
         <TabsContent value="checkout">

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Handshake, Users, DollarSign, FileText } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger, ScrollableTabs } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import AdminInfluencerManager from '@/components/admin/AdminInfluencerManager';
 import AdminAffiliateManager from '@/components/admin/AdminAffiliateManager';
@@ -60,12 +60,14 @@ const AdminPartners = () => {
       </div>
 
       <Tabs defaultValue="affiliates">
-        <TabsList>
-          <TabsTrigger value="affiliates">Affiliates</TabsTrigger>
-          <TabsTrigger value="influencers">Influencers</TabsTrigger>
-          <TabsTrigger value="applications">Ansökningar</TabsTrigger>
-          <TabsTrigger value="payouts">Utbetalningar</TabsTrigger>
-        </TabsList>
+        <ScrollableTabs>
+          <TabsList className="w-max">
+            <TabsTrigger value="affiliates">Affiliates</TabsTrigger>
+            <TabsTrigger value="influencers">Influencers</TabsTrigger>
+            <TabsTrigger value="applications">Ansökningar</TabsTrigger>
+            <TabsTrigger value="payouts">Utbetalningar</TabsTrigger>
+          </TabsList>
+        </ScrollableTabs>
         <TabsContent value="affiliates"><AdminAffiliateManager /></TabsContent>
         <TabsContent value="influencers"><AdminInfluencerManager /></TabsContent>
         <TabsContent value="applications"><AdminApplicationsManager /></TabsContent>
