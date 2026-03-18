@@ -291,7 +291,7 @@ const AdminStats = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge className="bg-amber-500/10 text-amber-700 border-0 font-bold">
+                      <Badge className="bg-destructive/10 text-destructive border-0 font-bold">
                         {s.count} {s.count === 1 ? 'sökning' : 'sökningar'}
                       </Badge>
                     </div>
