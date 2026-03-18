@@ -130,8 +130,10 @@ const AdminRecipeIngredientLibrary = () => {
   };
 
   const handleDelete = async (id: string) => {
+    const item = ingredients.find(i => i.id === id);
     await supabase.from('recipe_ingredients').delete().eq('id', id);
     toast.success('Ingrediens borttagen');
+    if (item) logIngredientChange('deleted', item.name_sv);
     fetchIngredients();
   };
 
