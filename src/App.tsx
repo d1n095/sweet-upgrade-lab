@@ -53,6 +53,7 @@ import AdminStats from "./pages/admin/AdminStats";
 import AdminReviews from "./pages/admin/AdminReviews";
 import AdminLogs from "./pages/admin/AdminLogs";
 import AdminContent from "./pages/admin/AdminContent";
+import AdminCampaigns from "./pages/admin/AdminCampaigns";
 
 const queryClient = new QueryClient();
 
