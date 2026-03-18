@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, Trash2, Save, RefreshCw, Percent, Package, Tag,
-  Eye, EyeOff, Pencil, X, Sparkles,
+  Pencil, X, Sparkles, Loader2, ShoppingBag,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,12 +11,13 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Slider } from '@/components/ui/slider';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
+import { useAutoTranslate } from '@/hooks/useAutoTranslate';
 import { toast } from 'sonner';
-
 
 // ─── Types ───
 interface VolumeDiscount {
@@ -57,7 +58,30 @@ interface DbProduct {
   price: number;
   original_price: number | null;
   is_visible: boolean;
+  badge: string | null;
+  tags: string[] | null;
 }
+
+// ─── Auto-translate helper ───
+const autoTranslateFields = async (
+  translate: (text: string, src?: string, ctx?: string) => Promise<Record<string, string> | null>,
+  name: string,
+  description: string | null,
+) => {
+  let name_en: string | null = null;
+  let description_en: string | null = null;
+
+  if (name) {
+    const nameTranslations = await translate(name, 'sv', 'e-commerce bundle/campaign name');
+    if (nameTranslations?.en) name_en = nameTranslations.en;
+  }
+  if (description) {
+    const descTranslations = await translate(description, 'sv', 'e-commerce bundle/campaign description');
+    if (descTranslations?.en) description_en = descTranslations.en;
+  }
+
+  return { name_en, description_en };
+};
 
 // ─── Volume Discounts Tab ───
 const VolumeDiscountsTab = () => {
@@ -83,11 +107,7 @@ const VolumeDiscountsTab = () => {
   };
 
   const openEdit = (d: VolumeDiscount) => {
-    setForm({
-      min_quantity: String(d.min_quantity),
-      discount_percent: String(d.discount_percent),
-      is_global: d.is_global,
-    });
+    setForm({ min_quantity: String(d.min_quantity), discount_percent: String(d.discount_percent), is_global: d.is_global });
     setEditingId(d.id);
     setShowForm(true);
   };
@@ -95,24 +115,17 @@ const VolumeDiscountsTab = () => {
   const handleSave = async () => {
     const minQty = parseInt(form.min_quantity);
     const pct = parseFloat(form.discount_percent);
-    if (!minQty || minQty < 1 || !pct || pct <= 0 || pct > 100) {
-      toast.error('Ange giltiga värden'); return;
-    }
+    if (!minQty || minQty < 1 || !pct || pct <= 0 || pct > 100) { toast.error('Ange giltiga värden'); return; }
 
     if (editingId) {
       const { error } = await supabase.from('volume_discounts').update({
-        min_quantity: minQty,
-        discount_percent: pct,
-        is_global: form.is_global,
+        min_quantity: minQty, discount_percent: pct, is_global: form.is_global,
       }).eq('id', editingId);
       if (error) { toast.error('Kunde inte uppdatera'); return; }
       toast.success('Mängdrabatt uppdaterad');
     } else {
       const { error } = await supabase.from('volume_discounts').insert({
-        min_quantity: minQty,
-        discount_percent: pct,
-        is_global: form.is_global,
-        shopify_product_id: null,
+        min_quantity: minQty, discount_percent: pct, is_global: form.is_global, shopify_product_id: null,
       });
       if (error) { toast.error('Kunde inte skapa'); return; }
       toast.success('Mängdrabatt skapad');
@@ -138,7 +151,7 @@ const VolumeDiscountsTab = () => {
           <h3 className="font-semibold text-sm">Mängdrabatter</h3>
           <p className="text-xs text-muted-foreground">Automatisk rabatt baserat på antal produkter i varukorgen</p>
         </div>
-        <Button size="sm" variant="outline" onClick={() => { if (showForm && !editingId) { resetForm(); } else { resetForm(); setShowForm(true); } }} className="gap-1 h-7 text-xs">
+        <Button size="sm" variant="outline" onClick={() => { if (showForm && !editingId) resetForm(); else { resetForm(); setShowForm(true); } }} className="gap-1 h-7 text-xs">
           <Plus className="w-3 h-3" /> Lägg till
         </Button>
       </div>
@@ -148,9 +161,7 @@ const VolumeDiscountsTab = () => {
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
             <Card className="border-primary/20">
               <CardContent className="pt-4 space-y-3">
-                <p className="text-xs font-medium text-primary">
-                  {editingId ? '✏️ Redigerar mängdrabatt' : '➕ Ny mängdrabatt'}
-                </p>
+                <p className="text-xs font-medium text-primary">{editingId ? '✏️ Redigerar' : '➕ Ny mängdrabatt'}</p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div>
                     <Label className="text-xs">Min. antal produkter *</Label>
@@ -168,9 +179,7 @@ const VolumeDiscountsTab = () => {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={handleSave} className="gap-1 h-7 text-xs">
-                    <Save className="w-3 h-3" /> {editingId ? 'Uppdatera' : 'Spara'}
-                  </Button>
+                  <Button size="sm" onClick={handleSave} className="gap-1 h-7 text-xs"><Save className="w-3 h-3" /> {editingId ? 'Uppdatera' : 'Spara'}</Button>
                   <Button size="sm" variant="outline" onClick={resetForm} className="h-7 text-xs">Avbryt</Button>
                 </div>
               </CardContent>
@@ -182,30 +191,18 @@ const VolumeDiscountsTab = () => {
       <div className="space-y-1.5">
         {discounts.map(d => (
           <div key={d.id} className={`flex items-center gap-3 p-3 rounded-xl border transition-colors ${editingId === d.id ? 'border-primary/40 bg-primary/5' : 'border-border bg-card'}`}>
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary text-sm shrink-0">
-              {d.discount_percent}%
-            </div>
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary text-sm shrink-0">{d.discount_percent}%</div>
             <div className="flex-1 min-w-0">
-              <p className="font-medium text-sm">
-                {d.min_quantity}+ produkter → {d.discount_percent}% rabatt
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {d.is_global ? 'Gäller hela varukorgen' : `Produktspecifik: ${d.shopify_product_id}`}
-              </p>
+              <p className="font-medium text-sm">{d.min_quantity}+ produkter → {d.discount_percent}% rabatt</p>
+              <p className="text-xs text-muted-foreground">{d.is_global ? 'Gäller hela varukorgen' : `Produktspecifik`}</p>
             </div>
             <div className="flex items-center gap-1">
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(d)}>
-                <Pencil className="w-3.5 h-3.5" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDelete(d.id)}>
-                <Trash2 className="w-3.5 h-3.5" />
-              </Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(d)}><Pencil className="w-3.5 h-3.5" /></Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDelete(d.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
             </div>
           </div>
         ))}
-        {discounts.length === 0 && (
-          <p className="text-center text-muted-foreground text-xs py-8">Inga mängdrabatter konfigurerade</p>
-        )}
+        {discounts.length === 0 && <p className="text-center text-muted-foreground text-xs py-8">Inga mängdrabatter konfigurerade</p>}
       </div>
     </div>
   );
@@ -218,19 +215,24 @@ const BundlesTab = () => {
   const [allProducts, setAllProducts] = useState<DbProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editingBundle, setEditingBundle] = useState<Bundle | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [form, setForm] = useState({
-    name: '', name_en: '', description: '', description_en: '', discount_percent: '',
+  const [saving, setSaving] = useState(false);
+  const { translate, isTranslating } = useAutoTranslate();
+
+  const emptyForm = {
+    name: '', description: '', discount_percent: '',
     requirement_type: 'none', first_purchase_discount: '', repeat_discount: '',
     min_level: '', requires_account: false, max_uses_per_user: '',
-  });
+  };
+  const [form, setForm] = useState(emptyForm);
   const [selectedProducts, setSelectedProducts] = useState<Array<{ productId: string; quantity: number }>>([]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     const [{ data: bundlesData }, { data: productsData }, { data: itemsData }] = await Promise.all([
       supabase.from('bundles').select('*').order('display_order'),
-      supabase.from('products').select('id, title_sv, price, original_price, is_visible').eq('is_visible', true).order('title_sv'),
+      supabase.from('products').select('id, title_sv, price, original_price, is_visible, badge, tags').eq('is_visible', true).order('title_sv'),
       supabase.from('bundle_items').select('*'),
     ]);
     if (bundlesData) setBundles(bundlesData as Bundle[]);
@@ -260,61 +262,105 @@ const BundlesTab = () => {
     setSelectedProducts(prev => prev.map(p => p.productId === productId ? { ...p, quantity: Math.max(1, qty) } : p));
   };
 
-  const resetForm = () => setForm({
-    name: '', name_en: '', description: '', description_en: '', discount_percent: '',
-    requirement_type: 'none', first_purchase_discount: '', repeat_discount: '',
-    min_level: '', requires_account: false, max_uses_per_user: '',
-  });
+  const openNewForm = () => {
+    setEditingBundle(null);
+    setForm(emptyForm);
+    setSelectedProducts([]);
+    setShowForm(true);
+  };
 
-  const handleAdd = async () => {
+  const openEditForm = (b: Bundle) => {
+    setEditingBundle(b);
+    setForm({
+      name: b.name,
+      description: b.description || '',
+      discount_percent: String(b.discount_percent),
+      requirement_type: b.requirement_type || 'none',
+      first_purchase_discount: b.first_purchase_discount ? String(b.first_purchase_discount) : '',
+      repeat_discount: b.repeat_discount ? String(b.repeat_discount) : '',
+      min_level: b.min_level ? String(b.min_level) : '',
+      requires_account: b.requires_account,
+      max_uses_per_user: b.max_uses_per_user ? String(b.max_uses_per_user) : '',
+    });
+    const items = bundleItems[b.id] || [];
+    setSelectedProducts(items.map(i => ({ productId: i.shopify_product_id, quantity: i.quantity })));
+    setShowForm(true);
+  };
+
+  const closeForm = () => {
+    setShowForm(false);
+    setEditingBundle(null);
+    setForm(emptyForm);
+    setSelectedProducts([]);
+  };
+
+  const handleSave = async () => {
     if (!form.name || !form.discount_percent) { toast.error('Namn och rabatt krävs'); return; }
-    if (selectedProducts.length === 0) { toast.error('Välj minst en produkt'); return; }
-    const maxOrder = bundles.reduce((m, b) => Math.max(m, b.display_order), 0);
-    const { data: newBundle, error } = await supabase.from('bundles').insert({
+    if (!editingBundle && selectedProducts.length === 0) { toast.error('Välj minst en produkt'); return; }
+
+    setSaving(true);
+    // Auto-translate name and description
+    const { name_en, description_en } = await autoTranslateFields(translate, form.name, form.description || null);
+
+    const bundleData = {
       name: form.name,
-      name_en: form.name_en || null,
+      name_en,
       description: form.description || null,
-      description_en: form.description_en || null,
+      description_en,
       discount_percent: parseFloat(form.discount_percent),
-      is_active: false,
-      display_order: maxOrder + 1,
       requirement_type: form.requirement_type,
       first_purchase_discount: form.first_purchase_discount ? parseFloat(form.first_purchase_discount) : null,
       repeat_discount: form.repeat_discount ? parseFloat(form.repeat_discount) : null,
       min_level: form.min_level ? parseInt(form.min_level) : null,
       requires_account: form.requires_account,
       max_uses_per_user: form.max_uses_per_user ? parseInt(form.max_uses_per_user) : null,
-    }).select().single();
-    if (error || !newBundle) { toast.error('Kunde inte skapa: ' + (error?.message || '')); return; }
+    };
 
-    const items = selectedProducts.map(sp => ({
-      bundle_id: newBundle.id,
-      shopify_product_id: sp.productId,
-      quantity: sp.quantity,
-    }));
-    await supabase.from('bundle_items').insert(items);
+    if (editingBundle) {
+      // Update existing bundle
+      const { error } = await supabase.from('bundles').update(bundleData).eq('id', editingBundle.id);
+      if (error) { toast.error('Kunde inte uppdatera: ' + error.message); setSaving(false); return; }
 
-    toast.success('Paket skapat med produkter');
-    resetForm();
-    setSelectedProducts([]);
-    setShowForm(false);
+      // Update items: delete old, insert new
+      await supabase.from('bundle_items').delete().eq('bundle_id', editingBundle.id);
+      if (selectedProducts.length > 0) {
+        await supabase.from('bundle_items').insert(
+          selectedProducts.map(sp => ({ bundle_id: editingBundle.id, shopify_product_id: sp.productId, quantity: sp.quantity }))
+        );
+      }
+      toast.success('Paket uppdaterat');
+    } else {
+      // Create new bundle
+      const maxOrder = bundles.reduce((m, b) => Math.max(m, b.display_order), 0);
+      const { data: newBundle, error } = await supabase.from('bundles').insert({
+        ...bundleData,
+        is_active: false,
+        display_order: maxOrder + 1,
+      }).select().single();
+      if (error || !newBundle) { toast.error('Kunde inte skapa: ' + (error?.message || '')); setSaving(false); return; }
+
+      await supabase.from('bundle_items').insert(
+        selectedProducts.map(sp => ({ bundle_id: newBundle.id, shopify_product_id: sp.productId, quantity: sp.quantity }))
+      );
+      toast.success('Paket skapat');
+    }
+
+    setSaving(false);
+    closeForm();
     fetchData();
   };
 
   const addProductToBundle = async (bundleId: string, productId: string) => {
     const existing = bundleItems[bundleId] || [];
-    if (existing.find(i => i.shopify_product_id === productId)) {
-      toast.error('Produkten finns redan i paketet');
-      return;
-    }
+    if (existing.find(i => i.shopify_product_id === productId)) { toast.error('Finns redan'); return; }
     await supabase.from('bundle_items').insert({ bundle_id: bundleId, shopify_product_id: productId, quantity: 1 });
-    toast.success('Produkt tillagd');
+    toast.success('Tillagd');
     fetchData();
   };
 
   const removeItemFromBundle = async (itemId: string) => {
     await supabase.from('bundle_items').delete().eq('id', itemId);
-    toast.success('Produkt borttagen');
+    toast.success('Borttagen');
     fetchData();
   };
 
@@ -332,13 +378,8 @@ const BundlesTab = () => {
     fetchData();
   };
 
-  const getProductName = (productId: string) => {
-    return allProducts.find(p => p.id === productId)?.title_sv || productId;
-  };
-
-  const getProductPrice = (productId: string) => {
-    return allProducts.find(p => p.id === productId)?.price || 0;
-  };
+  const getProductName = (productId: string) => allProducts.find(p => p.id === productId)?.title_sv || productId;
+  const getProductPrice = (productId: string) => allProducts.find(p => p.id === productId)?.price || 0;
 
   const calcBundleTotal = (bundleId: string, discountPct: number) => {
     const items = bundleItems[bundleId] || [];
@@ -353,9 +394,9 @@ const BundlesTab = () => {
       <div className="flex items-center justify-between">
         <div>
           <h3 className="font-semibold text-sm">Produktpaket</h3>
-          <p className="text-xs text-muted-foreground">Kombinera produkter till paket med automatisk rabatt</p>
+          <p className="text-xs text-muted-foreground">Kombinera produkter — namn översätts automatiskt</p>
         </div>
-        <Button size="sm" variant="outline" onClick={() => { setShowForm(!showForm); setSelectedProducts([]); }} className="gap-1 h-7 text-xs">
+        <Button size="sm" variant="outline" onClick={openNewForm} className="gap-1 h-7 text-xs">
           <Plus className="w-3 h-3" /> Nytt paket
         </Button>
       </div>
@@ -365,34 +406,27 @@ const BundlesTab = () => {
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
             <Card className="border-primary/20">
               <CardContent className="pt-4 space-y-3">
+                <p className="text-xs font-medium text-primary">{editingBundle ? '✏️ Redigera paket' : '➕ Nytt paket'}</p>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
-                    <Label className="text-xs">Namn (SV) *</Label>
+                    <Label className="text-xs">Namn *</Label>
                     <Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Välkomstpaket" className="h-8" />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Namn (EN)</Label>
-                    <Input value={form.name_en} onChange={e => setForm({ ...form, name_en: e.target.value })} placeholder="Welcome Kit" className="h-8" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div>
-                    <Label className="text-xs">Beskrivning (SV)</Label>
-                    <Input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="h-8" />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Beskrivning (EN)</Label>
-                    <Input value={form.description_en} onChange={e => setForm({ ...form, description_en: e.target.value })} className="h-8" />
                   </div>
                   <div>
                     <Label className="text-xs">Rabatt % *</Label>
                     <Input type="number" step="0.5" value={form.discount_percent} onChange={e => setForm({ ...form, discount_percent: e.target.value })} placeholder="40" className="h-8" />
                   </div>
                 </div>
+                <div>
+                  <Label className="text-xs">Beskrivning</Label>
+                  <Input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Perfekt startpaket för nya kunder" className="h-8" />
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Skriv på svenska — översätts automatiskt</p>
+                </div>
 
                 {/* Product selection */}
                 <div>
-                  <Label className="text-xs font-medium">Välj produkter till paketet *</Label>
+                  <Label className="text-xs font-medium">Välj produkter *</Label>
                   <div className="mt-2 max-h-48 overflow-y-auto border border-border rounded-lg divide-y divide-border">
                     {allProducts.map(p => {
                       const selected = selectedProducts.find(sp => sp.productId === p.id);
@@ -414,25 +448,23 @@ const BundlesTab = () => {
                       );
                     })}
                   </div>
-                  {selectedProducts.length > 0 && (
+                  {selectedProducts.length > 0 && form.discount_percent && (
                     <div className="mt-2 flex items-center gap-2">
-                      <Badge variant="secondary" className="text-xs">{selectedProducts.length} produkt(er) valda</Badge>
-                      {form.discount_percent && (
-                        <span className="text-xs text-muted-foreground">
-                          Totalt: <span className="line-through">{selectedProducts.reduce((s, sp) => s + getProductPrice(sp.productId) * sp.quantity, 0)} kr</span>
-                          {' → '}
-                          <span className="font-bold text-primary">
-                            {Math.round(selectedProducts.reduce((s, sp) => s + getProductPrice(sp.productId) * sp.quantity, 0) * (1 - parseFloat(form.discount_percent || '0') / 100))} kr
-                          </span>
+                      <Badge variant="secondary" className="text-xs">{selectedProducts.length} valda</Badge>
+                      <span className="text-xs text-muted-foreground">
+                        <span className="line-through">{selectedProducts.reduce((s, sp) => s + getProductPrice(sp.productId) * sp.quantity, 0)} kr</span>
+                        {' → '}
+                        <span className="font-bold text-primary">
+                          {Math.round(selectedProducts.reduce((s, sp) => s + getProductPrice(sp.productId) * sp.quantity, 0) * (1 - parseFloat(form.discount_percent || '0') / 100))} kr
                         </span>
-                      )}
+                      </span>
                     </div>
                   )}
                 </div>
 
-                {/* Conditions / Requirements */}
+                {/* Conditions */}
                 <div className="border border-border rounded-lg p-3 space-y-3 bg-secondary/20">
-                  <p className="text-xs font-semibold flex items-center gap-1.5">⚙️ Villkor & Krav</p>
+                  <p className="text-xs font-semibold">⚙️ Villkor & Krav</p>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div>
                       <Label className="text-xs">Typ av krav</Label>
@@ -449,11 +481,11 @@ const BundlesTab = () => {
                     {form.requirement_type === 'first_purchase' && (
                       <>
                         <div>
-                          <Label className="text-xs">Rabatt första köpet %</Label>
+                          <Label className="text-xs">Första köpet %</Label>
                           <Input type="number" step="0.5" value={form.first_purchase_discount} onChange={e => setForm({ ...form, first_purchase_discount: e.target.value })} placeholder="40" className="h-8" />
                         </div>
                         <div>
-                          <Label className="text-xs">Rabatt efterföljande köp %</Label>
+                          <Label className="text-xs">Efterföljande %</Label>
                           <Input type="number" step="0.5" value={form.repeat_discount} onChange={e => setForm({ ...form, repeat_discount: e.target.value })} placeholder="20" className="h-8" />
                         </div>
                       </>
@@ -471,15 +503,18 @@ const BundlesTab = () => {
                       <span className="text-xs text-muted-foreground">Kräver konto</span>
                     </div>
                     <div>
-                      <Label className="text-xs">Max användningar per kund</Label>
-                      <Input type="number" value={form.max_uses_per_user} onChange={e => setForm({ ...form, max_uses_per_user: e.target.value })} placeholder="∞ (lämna tomt)" className="h-8" />
+                      <Label className="text-xs">Max per kund</Label>
+                      <Input type="number" value={form.max_uses_per_user} onChange={e => setForm({ ...form, max_uses_per_user: e.target.value })} placeholder="∞" className="h-8" />
                     </div>
                   </div>
                 </div>
 
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={handleAdd} className="gap-1 h-7 text-xs"><Save className="w-3 h-3" /> Spara paket</Button>
-                  <Button size="sm" variant="outline" onClick={() => { setShowForm(false); setSelectedProducts([]); resetForm(); }} className="h-7 text-xs">Avbryt</Button>
+                  <Button size="sm" onClick={handleSave} disabled={saving || isTranslating} className="gap-1 h-7 text-xs">
+                    {(saving || isTranslating) ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                    {editingBundle ? 'Uppdatera' : 'Spara paket'}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={closeForm} className="h-7 text-xs">Avbryt</Button>
                 </div>
               </CardContent>
             </Card>
@@ -504,20 +539,23 @@ const BundlesTab = () => {
                     <p className="font-medium text-sm truncate">{b.name}</p>
                     {!b.is_active && <Badge variant="outline" className="text-[9px]">Inaktiv</Badge>}
                     <Badge variant="secondary" className="text-[9px]">{items.length} produkter</Badge>
-                    {b.requirement_type === 'first_purchase' && <Badge className="text-[9px] bg-blue-500/10 text-blue-600 border-blue-200">Första köpet</Badge>}
-                    {b.requirement_type === 'level_required' && <Badge className="text-[9px] bg-amber-500/10 text-amber-600 border-amber-200">Level {b.min_level}+</Badge>}
-                    {b.requires_account && <Badge className="text-[9px] bg-purple-500/10 text-purple-600 border-purple-200">Kräver konto</Badge>}
-                    {b.max_uses_per_user && <Badge className="text-[9px] bg-muted text-muted-foreground">Max {b.max_uses_per_user}x</Badge>}
+                    {b.requirement_type === 'first_purchase' && <Badge variant="outline" className="text-[9px]">Första köpet</Badge>}
+                    {b.requirement_type === 'level_required' && <Badge variant="outline" className="text-[9px]">Level {b.min_level}+</Badge>}
+                    {b.requires_account && <Badge variant="outline" className="text-[9px]">Kräver konto</Badge>}
+                    {b.max_uses_per_user && <Badge variant="outline" className="text-[9px]">Max {b.max_uses_per_user}x</Badge>}
                   </div>
                   {items.length > 0 && (
                     <p className="text-xs text-muted-foreground">
                       <span className="line-through">{Math.round(prices.original)} kr</span> → <span className="font-semibold text-primary">{Math.round(prices.discounted)} kr</span>
-                      {b.first_purchase_discount && <span className="ml-2">| 1:a köp: {b.first_purchase_discount}%</span>}
-                      {b.repeat_discount && <span className="ml-1">| Sedan: {b.repeat_discount}%</span>}
+                      {b.first_purchase_discount != null && <span className="ml-2">| 1:a: {b.first_purchase_discount}%</span>}
+                      {b.repeat_discount != null && <span className="ml-1">| Sedan: {b.repeat_discount}%</span>}
                     </p>
                   )}
                 </div>
                 <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditForm(b)}>
+                    <Pencil className="w-3.5 h-3.5" />
+                  </Button>
                   <Switch checked={b.is_active} onCheckedChange={() => toggleActive(b.id, b.is_active)} />
                   <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => deleteBundle(b.id)}>
                     <Trash2 className="w-3.5 h-3.5" />
@@ -539,21 +577,15 @@ const BundlesTab = () => {
                           </Button>
                         </div>
                       ))}
-                      {items.length === 0 && <p className="text-xs text-muted-foreground">Inga produkter tillagda ännu</p>}
-
-                      {/* Add product to existing bundle */}
-                      <div className="pt-1">
-                        <Select onValueChange={val => addProductToBundle(b.id, val)}>
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder="+ Lägg till produkt..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {allProducts.filter(p => !(items.find(i => i.shopify_product_id === p.id))).map(p => (
-                              <SelectItem key={p.id} value={p.id} className="text-xs">{p.title_sv} — {p.price} kr</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                      {items.length === 0 && <p className="text-xs text-muted-foreground">Inga produkter</p>}
+                      <Select onValueChange={val => addProductToBundle(b.id, val)}>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="+ Lägg till produkt..." /></SelectTrigger>
+                        <SelectContent>
+                          {allProducts.filter(p => !items.find(i => i.shopify_product_id === p.id)).map(p => (
+                            <SelectItem key={p.id} value={p.id} className="text-xs">{p.title_sv} — {p.price} kr</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </motion.div>
                 )}
@@ -561,58 +593,111 @@ const BundlesTab = () => {
             </div>
           );
         })}
-        {bundles.length === 0 && (
-          <p className="text-center text-muted-foreground text-xs py-8">Inga paket konfigurerade</p>
-        )}
+        {bundles.length === 0 && <p className="text-center text-muted-foreground text-xs py-8">Inga paket</p>}
       </div>
     </div>
   );
 };
 
-// ─── Sale Prices Tab ───
+// ─── Sale / Rea Tab ───
 const SalePricesTab = () => {
   const [products, setProducts] = useState<DbProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [salePercent, setSalePercent] = useState(20);
   const [editPrice, setEditPrice] = useState('');
   const [editOriginal, setEditOriginal] = useState('');
+  const [editExcludeFromCampaigns, setEditExcludeFromCampaigns] = useState(false);
 
-  const fetch = useCallback(async () => {
+  const fetchProducts = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase.from('products').select('id, title_sv, price, original_price, is_visible').order('title_sv');
+    const { data } = await supabase.from('products').select('id, title_sv, price, original_price, is_visible, badge, tags').order('title_sv');
     if (data) setProducts(data as DbProduct[]);
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetch(); }, [fetch]);
+  useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
-  const startEdit = (p: DbProduct) => {
+  const startQuickSale = (p: DbProduct) => {
     setEditingId(p.id);
-    setEditPrice(p.price.toString());
-    setEditOriginal(p.original_price?.toString() || '');
+    const origPrice = p.original_price || p.price;
+    setEditOriginal(origPrice.toString());
+    const newPrice = Math.round(origPrice * (1 - salePercent / 100));
+    setEditPrice(newPrice.toString());
+    setEditExcludeFromCampaigns(p.tags?.includes('exclude_campaigns') || false);
   };
 
-  const saveEdit = async (id: string) => {
+  const updateSaleSlider = (pct: number, origPrice: number) => {
+    setSalePercent(pct);
+    setEditPrice(Math.round(origPrice * (1 - pct / 100)).toString());
+  };
+
+  const saveSale = async (id: string) => {
     const price = parseFloat(editPrice);
-    const original = editOriginal ? parseFloat(editOriginal) : null;
+    const original = parseFloat(editOriginal);
     if (!price || price <= 0) { toast.error('Ogiltigt pris'); return; }
-    if (original !== null && original <= price) { toast.error('Ordinarie pris måste vara högre än kampanjpris'); return; }
+    if (original <= price) { toast.error('Ordinarie pris måste vara högre'); return; }
+
+    const currentProduct = products.find(p => p.id === id);
+    const currentTags = currentProduct?.tags || [];
+    let newTags = currentTags.filter(t => t !== 'exclude_campaigns');
+    if (editExcludeFromCampaigns) newTags.push('exclude_campaigns');
 
     const { error } = await supabase.from('products').update({
       price,
       original_price: original,
+      badge: 'REA',
+      tags: newTags,
     }).eq('id', id);
 
     if (error) { toast.error('Kunde inte spara'); return; }
-    toast.success('Pris uppdaterat');
+    toast.success(`Rea satt: ${Math.round((1 - price / original) * 100)}% rabatt`);
     setEditingId(null);
-    fetch();
+    fetchProducts();
   };
 
   const clearSale = async (id: string) => {
-    await supabase.from('products').update({ original_price: null }).eq('id', id);
-    toast.success('Kampanjpris borttaget');
-    fetch();
+    const product = products.find(p => p.id === id);
+    const origPrice = product?.original_price || product?.price || 0;
+    const currentTags = (product?.tags || []).filter(t => t !== 'exclude_campaigns');
+    
+    await supabase.from('products').update({
+      price: origPrice,
+      original_price: null,
+      badge: null,
+      tags: currentTags,
+    }).eq('id', id);
+    toast.success('Rea borttagen');
+    fetchProducts();
+  };
+
+  const bulkSale = async (pct: number) => {
+    if (!confirm(`Sätt ${pct}% rea på ALLA synliga produkter?`)) return;
+    const visibleProducts = products.filter(p => p.is_visible && (!p.original_price || p.original_price <= p.price));
+    for (const p of visibleProducts) {
+      const newPrice = Math.round(p.price * (1 - pct / 100));
+      await supabase.from('products').update({
+        original_price: p.price,
+        price: newPrice,
+        badge: 'REA',
+      }).eq('id', p.id);
+    }
+    toast.success(`${visibleProducts.length} produkter satta på ${pct}% rea`);
+    fetchProducts();
+  };
+
+  const clearAllSales = async () => {
+    if (!confirm('Ta bort rea från ALLA produkter?')) return;
+    const onSaleProducts = products.filter(p => p.original_price && p.original_price > p.price);
+    for (const p of onSaleProducts) {
+      await supabase.from('products').update({
+        price: p.original_price,
+        original_price: null,
+        badge: null,
+      }).eq('id', p.id);
+    }
+    toast.success(`Rea borttagen från ${onSaleProducts.length} produkter`);
+    fetchProducts();
   };
 
   if (loading) return <div className="flex justify-center py-8"><RefreshCw className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
@@ -622,69 +707,119 @@ const SalePricesTab = () => {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h3 className="font-semibold text-sm">Kampanjpriser</h3>
-        <p className="text-xs text-muted-foreground">Sätt ordinarie pris och kampanjpris — kunden ser överstruket pris i butiken</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="font-semibold text-sm">Rea & Kampanjpriser</h3>
+          <p className="text-xs text-muted-foreground">Sätt rea med % — välj om produkten ingår i paket/kampanjer</p>
+        </div>
+        <div className="flex gap-1">
+          <Button size="sm" variant="outline" onClick={() => bulkSale(20)} className="h-7 text-xs">Alla 20% rea</Button>
+          {onSale.length > 0 && (
+            <Button size="sm" variant="outline" onClick={clearAllSales} className="h-7 text-xs text-destructive hover:text-destructive">
+              Rensa alla
+            </Button>
+          )}
+        </div>
       </div>
 
+      {/* Active sales */}
       {onSale.length > 0 && (
         <div className="space-y-1">
-          <p className="text-xs font-medium text-primary flex items-center gap-1"><Sparkles className="w-3 h-3" /> Aktiva kampanjer ({onSale.length})</p>
-          {onSale.map(p => (
-            <div key={p.id} className="flex items-center gap-3 p-2.5 rounded-xl border border-primary/20 bg-primary/5">
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm truncate">{p.title_sv}</p>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-xs line-through text-muted-foreground">{p.original_price} kr</span>
-                  <span className="text-xs font-bold text-primary">{p.price} kr</span>
-                  <Badge variant="destructive" className="text-[9px]">
-                    -{Math.round((1 - p.price / (p.original_price || p.price)) * 100)}%
-                  </Badge>
+          <p className="text-xs font-medium text-primary flex items-center gap-1"><Sparkles className="w-3 h-3" /> Aktiva rea ({onSale.length})</p>
+          {onSale.map(p => {
+            const pct = Math.round((1 - p.price / (p.original_price || p.price)) * 100);
+            const excludedFromCampaigns = p.tags?.includes('exclude_campaigns');
+            return (
+              <div key={p.id} className="flex items-center gap-3 p-2.5 rounded-xl border border-primary/20 bg-primary/5">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium text-sm truncate">{p.title_sv}</p>
+                    {excludedFromCampaigns && <Badge variant="outline" className="text-[9px]">Ej i kampanjer</Badge>}
+                  </div>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-xs line-through text-muted-foreground">{p.original_price} kr</span>
+                    <span className="text-xs font-bold text-primary">{p.price} kr</span>
+                    <Badge variant="destructive" className="text-[9px]">-{pct}%</Badge>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => startQuickSale(p)}>
+                    <Pencil className="w-3 h-3 mr-1" /> Ändra
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive hover:text-destructive" onClick={() => clearSale(p.id)}>
+                    <X className="w-3 h-3 mr-1" /> Ta bort
+                  </Button>
                 </div>
               </div>
-              <div className="flex items-center gap-1 shrink-0">
-                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => startEdit(p)}>
-                  <Pencil className="w-3 h-3 mr-1" /> Ändra
-                </Button>
-                <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive hover:text-destructive" onClick={() => clearSale(p.id)}>
-                  <X className="w-3 h-3 mr-1" /> Ta bort rea
-                </Button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
+      {/* All products */}
       <div className="space-y-1">
         <p className="text-xs font-medium text-muted-foreground">Alla produkter ({notOnSale.length})</p>
         {notOnSale.map(p => (
-          <div key={p.id} className="flex items-center gap-3 p-2.5 rounded-xl border border-border bg-card">
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-sm truncate">{p.title_sv}</p>
-              <p className="text-xs text-muted-foreground">{p.price} kr</p>
-            </div>
-            {editingId === p.id ? (
-              <div className="flex items-center gap-2 shrink-0">
-                <div className="flex items-center gap-1">
-                  <Label className="text-[10px] text-muted-foreground whitespace-nowrap">Ord:</Label>
-                  <Input type="number" value={editOriginal} onChange={e => setEditOriginal(e.target.value)} className="h-7 w-20 text-xs" placeholder="Ord. pris" />
-                </div>
-                <div className="flex items-center gap-1">
-                  <Label className="text-[10px] text-muted-foreground whitespace-nowrap">Rea:</Label>
-                  <Input type="number" value={editPrice} onChange={e => setEditPrice(e.target.value)} className="h-7 w-20 text-xs" placeholder="Kampanjpris" />
-                </div>
-                <Button size="sm" className="h-7 text-xs gap-1" onClick={() => saveEdit(p.id)}>
-                  <Save className="w-3 h-3" /> Spara
-                </Button>
-                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditingId(null)}>
-                  <X className="w-3 h-3" />
-                </Button>
+          <div key={p.id} className="rounded-xl border border-border bg-card">
+            <div className="flex items-center gap-3 p-2.5">
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm truncate">{p.title_sv}</p>
+                <p className="text-xs text-muted-foreground">{p.price} kr</p>
               </div>
-            ) : (
-              <Button variant="ghost" size="sm" className="h-7 text-xs shrink-0" onClick={() => startEdit(p)}>
-                <Tag className="w-3 h-3 mr-1" /> Sätt kampanjpris
-              </Button>
-            )}
+              {editingId === p.id ? null : (
+                <Button variant="ghost" size="sm" className="h-7 text-xs shrink-0" onClick={() => startQuickSale(p)}>
+                  <Tag className="w-3 h-3 mr-1" /> Sätt rea
+                </Button>
+              )}
+            </div>
+
+            {/* Inline sale editor */}
+            <AnimatePresence>
+              {editingId === p.id && (
+                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                  <div className="px-3 pb-3 space-y-3 border-t border-border pt-2">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs">Rabatt: {salePercent}%</Label>
+                        <span className="text-xs font-bold text-primary">{editPrice} kr</span>
+                      </div>
+                      <Slider
+                        value={[salePercent]}
+                        onValueChange={([v]) => updateSaleSlider(v, parseFloat(editOriginal))}
+                        min={5}
+                        max={80}
+                        step={5}
+                        className="w-full"
+                      />
+                      <div className="flex justify-between text-[10px] text-muted-foreground">
+                        <span>5%</span><span>25%</span><span>50%</span><span>80%</span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-[10px]">Ordinarie</Label>
+                        <Input type="number" value={editOriginal} onChange={e => { setEditOriginal(e.target.value); if (e.target.value) setEditPrice(Math.round(parseFloat(e.target.value) * (1 - salePercent / 100)).toString()); }} className="h-7 text-xs" />
+                      </div>
+                      <div>
+                        <Label className="text-[10px]">Reapris</Label>
+                        <Input type="number" value={editPrice} onChange={e => setEditPrice(e.target.value)} className="h-7 text-xs" />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Switch checked={!editExcludeFromCampaigns} onCheckedChange={v => setEditExcludeFromCampaigns(!v)} />
+                      <span className="text-xs text-muted-foreground">Ingår i paket & kampanjer</span>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button size="sm" className="h-7 text-xs gap-1" onClick={() => saveSale(p.id)}><Save className="w-3 h-3" /> Spara</Button>
+                      <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditingId(null)}><X className="w-3 h-3" /></Button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         ))}
       </div>
@@ -704,7 +839,7 @@ const AdminCampaignsManager = () => {
           <Package className="w-3.5 h-3.5" /> Paket
         </TabsTrigger>
         <TabsTrigger value="sales" className="gap-1.5 text-xs">
-          <Tag className="w-3.5 h-3.5" /> Kampanjpriser
+          <Sparkles className="w-3.5 h-3.5" /> Rea
         </TabsTrigger>
       </TabsList>
 
