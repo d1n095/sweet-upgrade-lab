@@ -861,6 +861,12 @@ const BundlesTab = () => {
                       <span className="line-through">{Math.round(prices.original)} kr</span> → <span className="font-semibold text-primary">{Math.round(prices.discounted)} kr</span>
                       {b.first_purchase_discount != null && <span className="ml-2">| 1:a: {b.first_purchase_discount}%</span>}
                       {b.repeat_discount != null && <span className="ml-1">| Sedan: {b.repeat_discount}%</span>}
+                      <span className="inline-flex items-center gap-0.5 ml-2 text-[10px]"><Calendar className="w-3 h-3" />{fmtDate(b.created_at)}</span>
+                    </p>
+                  )}
+                  {items.length === 0 && (
+                    <p className="text-xs text-muted-foreground inline-flex items-center gap-0.5">
+                      <Calendar className="w-3 h-3" />{fmtDate(b.created_at)}
                     </p>
                   )}
                 </div>
