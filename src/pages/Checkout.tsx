@@ -31,10 +31,7 @@ const ZIP_CITY_MAP: Record<string, string> = {
 
 // Hook to get shipping settings from DB
 const useShippingConfig = () => {
-  const [config, setConfig] = useState({
-    cost: storeConfig.shipping.cost,
-    freeThreshold: storeConfig.shipping.freeShippingThreshold,
-  });
+  const [config, setConfig] = useState({ cost: 39 as number, freeThreshold: 500 as number });
   useEffect(() => {
     supabase
       .from('store_settings')
@@ -44,8 +41,8 @@ const useShippingConfig = () => {
         if (data) {
           const map = Object.fromEntries(data.map(r => [r.key, r.text_value]));
           setConfig({
-            cost: map['shipping_cost'] ? parseFloat(map['shipping_cost']) : storeConfig.shipping.cost,
-            freeThreshold: map['free_shipping_threshold'] ? parseFloat(map['free_shipping_threshold']) : storeConfig.shipping.freeShippingThreshold,
+            cost: map['shipping_cost'] ? parseFloat(map['shipping_cost']) : 39,
+            freeThreshold: map['free_shipping_threshold'] ? parseFloat(map['free_shipping_threshold']) : 500,
           });
         }
       });
