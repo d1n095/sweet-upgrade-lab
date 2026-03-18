@@ -27,6 +27,14 @@ export interface DbProduct {
   currency: string;
   recipe_sv: string | null;
   recipe_en: string | null;
+  feeling_sv: string | null;
+  feeling_en: string | null;
+  effects_sv: string | null;
+  effects_en: string | null;
+  usage_sv: string | null;
+  usage_en: string | null;
+  extended_description_sv: string | null;
+  extended_description_en: string | null;
   status: ProductStatus;
   created_at: string;
   updated_at: string;
