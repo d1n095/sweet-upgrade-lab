@@ -107,21 +107,6 @@ const MemberProfile = () => {
       },
       loginRequired: 'Du måste vara inloggad för att se din profil',
       backToHome: 'Tillbaka till startsidan',
-      admin: {
-        panel: 'Admin-panel',
-        panelDesc: 'Snabböversikt och hantering',
-        productsInventory: 'Produkter & Lager',
-        membersRoles: 'Medlemmar & Roller',
-        partners: 'Partners',
-        reviewsCommunication: 'Recensioner & Kommunikation',
-        legalDonations: 'Juridik & Donationer',
-        reviews: 'Recensioner',
-        pending: 'Väntande',
-        approved: 'Godkända',
-        avgRating: 'Snittbetyg',
-        members: 'Medlemmar',
-        manageReviews: 'Hantera recensioner'
-      }
     },
     en: {
       title: 'My Profile',
