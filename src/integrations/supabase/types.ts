@@ -1307,6 +1307,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_review_eligibility: {
+        Args: { p_product_id: string; p_user_id: string }
+        Returns: {
+          already_reviewed: boolean
+          can_review: boolean
+          is_verified_purchase: boolean
+          message: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
