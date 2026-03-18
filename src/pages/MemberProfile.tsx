@@ -319,6 +319,14 @@ const MemberProfile = () => {
                   <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   {language === 'sv' ? 'Donationer' : 'Donations'}
                 </TabsTrigger>
+                <button
+                  type="button"
+                  onClick={() => navigate('/affiliate-panel')}
+                  className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1 text-xs sm:text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 text-muted-foreground hover:bg-secondary/80 hover:text-foreground"
+                >
+                  <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  Affiliate
+                </button>
                 <TabsTrigger value="settings" className="gap-1.5 text-xs sm:text-sm">
                   <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   <span className="hidden sm:inline">{language === 'sv' ? 'Inställningar' : 'Settings'}</span>
