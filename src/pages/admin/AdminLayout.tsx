@@ -96,9 +96,9 @@ const AdminLayout = () => {
     navigate('/');
   };
 
-  const currentPage = navItems.find(item =>
+  const currentPage = visibleNavItems.find(item =>
     item.end ? location.pathname === item.to : location.pathname.startsWith(item.to + '/')
-  ) || (location.pathname === '/admin' ? navItems[0] : undefined);
+  ) || (location.pathname === '/admin' ? visibleNavItems[0] : undefined);
 
   return (
     <div className="min-h-screen flex bg-background">
