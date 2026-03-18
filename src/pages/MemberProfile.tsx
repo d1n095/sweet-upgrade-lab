@@ -323,57 +323,51 @@ const MemberProfile = () => {
 
           {/* Tabs */}
           <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
-            <div className="sticky top-16 z-30 bg-background/95 backdrop-blur-sm pb-4 pt-2 -mx-4 px-4 border-b border-border/50 mb-6">
-              <div className="overflow-x-auto scrollbar-hide -mx-1 px-1">
-                <TabsList className="inline-flex w-max gap-1">
-                  <TabsTrigger value="orders" className="gap-1.5 text-xs sm:text-sm">
-                    <Package className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">{language === 'sv' ? 'Mina ordrar' : 'My Orders'}</span>
-                    <span className="sm:hidden">{language === 'sv' ? 'Ordrar' : 'Orders'}</span>
+            <div className="sticky top-16 z-30 bg-background/95 backdrop-blur-sm pb-3 pt-2 -mx-4 px-4 border-b border-border/50 mb-6">
+              <ScrollableTabs>
+                <TabsList className="w-max gap-0.5">
+                  <TabsTrigger value="orders" className="gap-1.5 text-xs px-3 py-2">
+                    <Package className="w-4 h-4" />
+                    {language === 'sv' ? 'Ordrar' : 'Orders'}
                   </TabsTrigger>
-                  <TabsTrigger value="reviews" className="gap-1.5 text-xs sm:text-sm">
-                    <Star className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">{t.tabs.reviews}</span>
-                    <span className="sm:hidden">{language === 'sv' ? 'Recensioner' : 'Reviews'}</span>
+                  <TabsTrigger value="reviews" className="gap-1.5 text-xs px-3 py-2">
+                    <Star className="w-4 h-4" />
+                    {language === 'sv' ? 'Recensioner' : 'Reviews'}
                     {reviews.length > 0 && (
                       <Badge variant="secondary" className="ml-1 text-[10px] px-1.5">{reviews.length}</Badge>
                     )}
                   </TabsTrigger>
-                  <TabsTrigger value="rewards" className="gap-1.5 text-xs sm:text-sm">
-                    <Gift className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">{t.tabs.rewards}</span>
-                    <span className="sm:hidden">{language === 'sv' ? 'Koder' : 'Codes'}</span>
+                  <TabsTrigger value="rewards" className="gap-1.5 text-xs px-3 py-2">
+                    <Gift className="w-4 h-4" />
+                    {language === 'sv' ? 'Koder' : 'Codes'}
                     {unusedRewards.length > 0 && (
                       <Badge variant="secondary" className="ml-1 text-[10px] px-1.5">{unusedRewards.length}</Badge>
                     )}
                   </TabsTrigger>
-                  <TabsTrigger value="referral" className="gap-1.5 text-xs sm:text-sm">
-                    <Users className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">{language === 'sv' ? 'Bjud in' : 'Refer'}</span>
-                    <span className="sm:hidden">{language === 'sv' ? 'Bjud' : 'Refer'}</span>
+                  <TabsTrigger value="referral" className="gap-1.5 text-xs px-3 py-2">
+                    <Users className="w-4 h-4" />
+                    {language === 'sv' ? 'Bjud in' : 'Refer'}
                   </TabsTrigger>
-                  <TabsTrigger value="donations" className="gap-1.5 text-xs sm:text-sm">
-                    <TrendingUp className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">{language === 'sv' ? 'Donationer' : 'Donations'}</span>
-                    <span className="sm:hidden">💚</span>
+                  <TabsTrigger value="donations" className="gap-1.5 text-xs px-3 py-2">
+                    <TrendingUp className="w-4 h-4" />
+                    {language === 'sv' ? 'Donationer' : 'Donations'}
                   </TabsTrigger>
-                  <TabsTrigger value="settings" className="gap-1.5 text-xs sm:text-sm">
-                    <Settings className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">{language === 'sv' ? 'Inställningar' : 'Settings'}</span>
-                    <span className="sm:hidden"><Settings className="w-0 h-0" /></span>
+                  <TabsTrigger value="settings" className="gap-1.5 text-xs px-3 py-2">
+                    <Settings className="w-4 h-4" />
+                    {language === 'sv' ? 'Inställningar' : 'Settings'}
                   </TabsTrigger>
                   {isAdmin && (
                     <button
                       type="button"
                       onClick={() => navigate('/admin')}
-                      className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1 text-xs sm:text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 text-primary hover:bg-primary/10"
+                      className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 rounded-md px-3 py-2 text-xs font-medium transition-all text-primary hover:bg-primary/10"
                     >
-                      <Shield className="w-3.5 h-3.5" />
+                      <Shield className="w-4 h-4" />
                       Admin
                     </button>
                   )}
                 </TabsList>
-              </div>
+              </ScrollableTabs>
             </div>
 
             {/* Orders Tab */}
