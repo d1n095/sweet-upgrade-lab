@@ -390,14 +390,14 @@ const AdminMemberManager = () => {
 
   const loadMembers = async () => {
     try {
-      // Load profiles
+      // Load profiles with username
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('*')
+        .select('user_id, is_member, member_since, created_at, username, avatar_url')
         .order('created_at', { ascending: false });
 
       if (profiles) {
-        setMembers(profiles);
+        setMembers(profiles as Member[]);
       }
 
       // Load user roles
