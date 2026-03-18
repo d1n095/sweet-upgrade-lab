@@ -7,8 +7,15 @@ import { Link } from 'react-router-dom';
 import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import { fetchDbProducts, DbProduct } from '@/lib/products';
 import DbProductCard from '@/components/product/DbProductCard';
+import { PageSection } from '@/hooks/usePageSections';
 
-const HomepageBestsellers = () => {
+interface Props {
+  sections?: PageSection[];
+  getSection?: (key: string) => PageSection | undefined;
+  isSectionVisible?: (key: string) => boolean;
+}
+
+const HomepageBestsellers = ({ getSection }: Props) => {
   const { language } = useLanguage();
   const lang = getContentLang(language);
   const [products, setProducts] = useState<DbProduct[]>([]);

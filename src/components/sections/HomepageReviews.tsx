@@ -19,7 +19,7 @@ interface Review {
   created_at: string;
 }
 
-const HomepageReviews = () => {
+const HomepageReviews = ({ getSection }: Props) => {
   const { language } = useLanguage();
   const lang = getContentLang(language);
   const [reviews, setReviews] = useState<Review[]>([]);
