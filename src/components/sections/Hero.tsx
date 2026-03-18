@@ -1,12 +1,40 @@
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowDown } from 'lucide-react';
+import { ArrowDown, Star, ShieldCheck, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/context/LanguageContext';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 
 const Hero = () => {
-  const { t } = useLanguage();
+  const { t, contentLang } = useLanguage();
   const navigate = useNavigate();
+  const [reviewCount, setReviewCount] = useState(0);
+  const [avgRating, setAvgRating] = useState(0);
+
+  useEffect(() => {
+    const load = async () => {
+      const { data } = await supabase
+        .from('reviews')
+        .select('rating')
+        .eq('is_approved', true);
+      if (data && data.length > 0) {
+        setReviewCount(data.length);
+        setAvgRating(Math.round((data.reduce((s, r) => s + r.rating, 0) / data.length) * 10) / 10);
+      }
+    };
+    load();
+  }, []);
+
+  const trustItems = contentLang === 'sv'
+    ? [
+        { icon: ShieldCheck, text: 'Certifierade ingredienser' },
+        { icon: Truck, text: 'Fri frakt över 499 kr' },
+      ]
+    : [
+        { icon: ShieldCheck, text: 'Certified ingredients' },
+        { icon: Truck, text: 'Free shipping over 499 kr' },
+      ];
 
   return (
     <section className="relative min-h-[75vh] flex items-center justify-center">
@@ -27,10 +55,29 @@ const Hero = () => {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.12, ease: [0.25, 0.1, 0.25, 1] }}
-            className="text-base text-muted-foreground/80 max-w-md mx-auto mb-12 leading-relaxed"
+            className="text-base text-muted-foreground/80 max-w-md mx-auto mb-8 leading-relaxed"
           >
             {t('hero.subtitle')}
           </motion.p>
+
+          {/* Social proof */}
+          {reviewCount > 0 && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.18 }}
+              className="flex items-center justify-center gap-1.5 mb-8"
+            >
+              <div className="flex gap-px">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Star key={i} className={`w-4 h-4 ${i < Math.round(avgRating) ? 'fill-yellow-400 text-yellow-400' : 'fill-muted text-muted-foreground/30'}`} />
+                ))}
+              </div>
+              <span className="text-sm text-muted-foreground font-medium ml-1">
+                {avgRating} · {reviewCount} {contentLang === 'sv' ? 'recensioner' : 'reviews'}
+              </span>
+            </motion.div>
+          )}
 
           <motion.div
             initial={{ opacity: 0, y: 12 }}
@@ -46,11 +93,26 @@ const Hero = () => {
             </Button>
           </motion.div>
 
+          {/* Trust signals */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+            className="flex items-center justify-center gap-6 mt-10"
+          >
+            {trustItems.map(({ icon: Icon, text }) => (
+              <div key={text} className="flex items-center gap-1.5 text-muted-foreground/60">
+                <Icon className="w-3.5 h-3.5" />
+                <span className="text-xs font-medium">{text}</span>
+              </div>
+            ))}
+          </motion.div>
+
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.6 }}
-            className="mt-20"
+            className="mt-16"
           >
             <button
               onClick={() => document.getElementById('philosophy')?.scrollIntoView({ behavior: 'smooth' })}
