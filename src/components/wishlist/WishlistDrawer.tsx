@@ -118,17 +118,17 @@ const WishlistDrawer = ({ isOpen, onClose }: WishlistDrawerProps) => {
                     <Button onClick={handleExploreProducts} variant="outline">
                       {language === 'sv' ? 'Utforska produkter' : 'Explore products'}
                     </Button>
-                    <Button 
-                      onClick={() => {
-                        onClose();
-                        navigate('/#product-suggestions');
-                      }} 
-                      variant="ghost"
-                      size="sm"
-                      className="text-primary"
-                    >
-                      {language === 'sv' ? 'Önska en produkt' : 'Suggest a product'}
-                    </Button>
+                    {!user && (
+                      <Button
+                        onClick={() => { onClose(); setIsAuthOpen(true); }}
+                        variant="ghost"
+                        size="sm"
+                        className="text-primary"
+                      >
+                        <LogIn className="w-4 h-4 mr-1.5" />
+                        {language === 'sv' ? 'Logga in för att spara din lista' : 'Log in to save your list'}
+                      </Button>
+                    )}
                   </div>
                 </div>
               ) : (
