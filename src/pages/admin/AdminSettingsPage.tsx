@@ -41,6 +41,7 @@ const AdminSettingsPage = () => {
     siteActive, checkoutEnabled, registrationEnabled, isLoaded, fetchSettings,
     setSiteActive, setCheckoutEnabled, setRegistrationEnabled, setHomepageSetting,
     homepageBestsellers, homepageReviews, homepagePhilosophy, homepageAbout,
+    requirePhone, requireAddress, guestCheckout, autoSaveProfile, setProfileSetting,
   } = useStoreSettings();
   const { isVisible, setVisibility } = usePageVisibility();
   const { methods, isLoaded: paymentLoaded, load: loadPayments, toggle: togglePayment } = usePaymentMethodsStore();
