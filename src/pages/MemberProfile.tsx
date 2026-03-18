@@ -324,50 +324,49 @@ const MemberProfile = () => {
           {/* Tabs */}
           <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
             <div className="sticky top-16 z-30 bg-background/95 backdrop-blur-sm pb-3 pt-2 -mx-4 px-4 border-b border-border/50 mb-6">
-              <ScrollableTabs>
-                <TabsList className="w-max gap-0.5">
-                  <TabsTrigger value="orders" className="gap-1.5 text-xs px-3 py-2">
-                    <Package className="w-4 h-4" />
-                    {language === 'sv' ? 'Ordrar' : 'Orders'}
-                  </TabsTrigger>
-                  <TabsTrigger value="reviews" className="gap-1.5 text-xs px-3 py-2">
-                    <Star className="w-4 h-4" />
-                    {language === 'sv' ? 'Recensioner' : 'Reviews'}
-                    {reviews.length > 0 && (
-                      <Badge variant="secondary" className="ml-1 text-[10px] px-1.5">{reviews.length}</Badge>
+              <div className="relative">
+                <div className="overflow-x-auto scrollbar-hide pb-1">
+                  <div className="inline-flex items-center gap-1.5 min-w-max">
+                    {[
+                      { value: 'orders', icon: Package, label: language === 'sv' ? 'Ordrar' : 'Orders' },
+                      { value: 'reviews', icon: Star, label: language === 'sv' ? 'Recensioner' : 'Reviews', badge: reviews.length || undefined },
+                      { value: 'rewards', icon: Gift, label: language === 'sv' ? 'Koder' : 'Codes', badge: unusedRewards.length || undefined },
+                      { value: 'referral', icon: Users, label: language === 'sv' ? 'Bjud in' : 'Refer' },
+                      { value: 'donations', icon: TrendingUp, label: language === 'sv' ? 'Donationer' : 'Donations' },
+                      { value: 'settings', icon: Settings, label: language === 'sv' ? 'Inställningar' : 'Settings' },
+                    ].map(({ value, icon: Icon, label, badge }) => (
+                      <button
+                        key={value}
+                        onClick={() => handleTabChange(value)}
+                        className={`inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 rounded-full px-3.5 py-2 text-xs font-medium transition-all ${
+                          currentTab === value
+                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            : 'bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground'
+                        }`}
+                      >
+                        <Icon className="w-3.5 h-3.5" />
+                        {label}
+                        {badge && badge > 0 && (
+                          <span className={`ml-0.5 text-[10px] px-1.5 py-0.5 rounded-full ${
+                            currentTab === value ? 'bg-primary-foreground/20' : 'bg-muted'
+                          }`}>{badge}</span>
+                        )}
+                      </button>
+                    ))}
+                    {isAdmin && (
+                      <button
+                        onClick={() => navigate('/admin')}
+                        className="inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 rounded-full px-3.5 py-2 text-xs font-medium text-primary bg-primary/10 hover:bg-primary/20 transition-all"
+                      >
+                        <Shield className="w-3.5 h-3.5" />
+                        Admin
+                      </button>
                     )}
-                  </TabsTrigger>
-                  <TabsTrigger value="rewards" className="gap-1.5 text-xs px-3 py-2">
-                    <Gift className="w-4 h-4" />
-                    {language === 'sv' ? 'Koder' : 'Codes'}
-                    {unusedRewards.length > 0 && (
-                      <Badge variant="secondary" className="ml-1 text-[10px] px-1.5">{unusedRewards.length}</Badge>
-                    )}
-                  </TabsTrigger>
-                  <TabsTrigger value="referral" className="gap-1.5 text-xs px-3 py-2">
-                    <Users className="w-4 h-4" />
-                    {language === 'sv' ? 'Bjud in' : 'Refer'}
-                  </TabsTrigger>
-                  <TabsTrigger value="donations" className="gap-1.5 text-xs px-3 py-2">
-                    <TrendingUp className="w-4 h-4" />
-                    {language === 'sv' ? 'Donationer' : 'Donations'}
-                  </TabsTrigger>
-                  <TabsTrigger value="settings" className="gap-1.5 text-xs px-3 py-2">
-                    <Settings className="w-4 h-4" />
-                    {language === 'sv' ? 'Inställningar' : 'Settings'}
-                  </TabsTrigger>
-                  {isAdmin && (
-                    <button
-                      type="button"
-                      onClick={() => navigate('/admin')}
-                      className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 rounded-md px-3 py-2 text-xs font-medium transition-all text-primary hover:bg-primary/10"
-                    >
-                      <Shield className="w-4 h-4" />
-                      Admin
-                    </button>
-                  )}
-                </TabsList>
-              </ScrollableTabs>
+                  </div>
+                </div>
+                {/* Fade hint on right edge */}
+                <div className="absolute right-0 top-0 bottom-1 w-8 bg-gradient-to-l from-background/95 to-transparent pointer-events-none md:hidden" />
+              </div>
             </div>
 
             {/* Orders Tab */}
