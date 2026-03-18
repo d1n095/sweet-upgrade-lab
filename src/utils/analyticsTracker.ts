@@ -9,6 +9,10 @@ const getSessionId = () => {
   return sessionId;
 };
 
+const getReferralCode = (): string | null => {
+  return sessionStorage.getItem('referral_code') || null;
+};
+
 const getUserId = async (): Promise<string | null> => {
   try {
     const { data } = await supabase.auth.getUser();
@@ -21,9 +25,17 @@ const getUserId = async (): Promise<string | null> => {
 export const trackEvent = async (eventType: string, eventData: Record<string, any> = {}) => {
   try {
     const userId = await getUserId();
+    const referralCode = getReferralCode();
+    
+    // Attach referral_code to every event if present
+    const enrichedData = {
+      ...eventData,
+      ...(referralCode ? { referral_code: referralCode } : {}),
+    };
+
     await supabase.from('analytics_events').insert({
       event_type: eventType,
-      event_data: eventData,
+      event_data: enrichedData,
       session_id: getSessionId(),
       user_id: userId,
     });
@@ -37,7 +49,7 @@ export const trackProductView = (productId: string, productTitle: string, price?
   trackEvent('product_view', { product_id: productId, product_title: productTitle, price });
 };
 
-// Search tracking (already in search_logs, but also in analytics for unified view)
+// Search tracking
 export const trackSearch = (query: string, resultsCount: number) => {
   trackEvent('search', { query, results_count: resultsCount });
 };
