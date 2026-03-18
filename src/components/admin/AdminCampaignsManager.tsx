@@ -882,6 +882,9 @@ const ShippingTab = () => {
 
       {/* Vi skickar med section */}
       <ShippingExtrasSection />
+
+      {/* Fraktbolag */}
+      <ShippingCarriersSection />
     </div>
   );
 };
