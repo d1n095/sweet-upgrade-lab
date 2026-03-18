@@ -1,6 +1,6 @@
 import AdminUnifiedContent from '@/components/admin/AdminUnifiedContent';
 import AdminPageVisibility from '@/components/admin/AdminPageVisibility';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger, ScrollableTabs } from '@/components/ui/tabs';
 import { FileText, Eye } from 'lucide-react';
 
 const AdminContent = () => (
