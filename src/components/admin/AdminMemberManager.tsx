@@ -33,9 +33,11 @@ interface Member {
   email?: string;
 }
 
+type AppRole = 'admin' | 'founder' | 'it' | 'moderator' | 'support' | 'affiliate' | 'donor' | 'manager' | 'marketing' | 'finance' | 'warehouse';
+
 interface UserRole {
   user_id: string;
-  role: 'admin' | 'moderator' | 'user';
+  role: AppRole;
 }
 
 interface Order {
