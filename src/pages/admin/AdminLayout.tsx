@@ -18,21 +18,32 @@ import { logAuthEvent } from '@/utils/activityLogger';
 import AdminGlobalSearch from '@/components/admin/AdminGlobalSearch';
 import { AnimatePresence, motion } from 'framer-motion';
 
-const navItems = [
-  { to: '/admin', label: 'Dashboard', icon: BarChart3, end: true },
-  { to: '/admin/orders', label: 'Ordrar', icon: ClipboardList },
-  { to: '/admin/products', label: 'Produkter', icon: Package },
-  { to: '/admin/categories', label: 'Kategorier', icon: Grid },
-  { to: '/admin/members', label: 'Användare', icon: Users },
-  { to: '/admin/reviews', label: 'Recensioner', icon: Star },
-  { to: '/admin/partners', label: 'Partners', icon: Handshake },
-  { to: '/admin/content', label: 'Innehåll', icon: FileText },
-  { to: '/admin/campaigns', label: 'Kampanjer', icon: Percent },
-  { to: '/admin/shipping', label: 'Frakt', icon: Truck },
-  { to: '/admin/visibility', label: 'Sidsynlighet', icon: Eye },
-  { to: '/admin/legal', label: 'Juridik & Donationer', icon: Heart },
-  { to: '/admin/logs', label: 'Logg', icon: Activity },
-  { to: '/admin/settings', label: 'Inställningar', icon: Settings },
+// role: 'all' = everyone with admin/employee access, 'admin' = admin only
+interface NavItem {
+  to: string;
+  label: string;
+  icon: any;
+  end?: boolean;
+  role: 'all' | 'admin';
+}
+
+const navItems: NavItem[] = [
+  { to: '/admin', label: 'Dashboard', icon: BarChart3, end: true, role: 'all' },
+  { to: '/admin/orders', label: 'Ordrar', icon: ClipboardList, role: 'all' },
+  { to: '/admin/products', label: 'Produkter', icon: Package, role: 'all' },
+  { to: '/admin/categories', label: 'Kategorier', icon: Grid, role: 'admin' },
+  { to: '/admin/members', label: 'Användare', icon: Users, role: 'admin' },
+  { to: '/admin/reviews', label: 'Recensioner', icon: Star, role: 'all' },
+  { to: '/admin/partners', label: 'Partners', icon: Handshake, role: 'admin' },
+  { to: '/admin/finance', label: 'Betalning', icon: Wallet, role: 'admin' },
+  { to: '/admin/content', label: 'Innehåll', icon: FileText, role: 'admin' },
+  { to: '/admin/campaigns', label: 'Kampanjer', icon: Percent, role: 'admin' },
+  { to: '/admin/shipping', label: 'Frakt', icon: Truck, role: 'admin' },
+  { to: '/admin/visibility', label: 'Sidsynlighet', icon: Eye, role: 'admin' },
+  { to: '/admin/legal', label: 'Juridik & Donationer', icon: Heart, role: 'admin' },
+  { to: '/admin/logs', label: 'Logg', icon: Activity, role: 'admin' },
+  { to: '/admin/settings', label: 'Inställningar', icon: Settings, role: 'admin' },
+  { to: '/admin/stats', label: 'Statistik', icon: BarChart3, role: 'admin' },
 ];
 
 const AdminLayout = () => {
