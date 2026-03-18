@@ -19,9 +19,8 @@ serve(async (req) => {
     console.error('STRIPE_SECRET_KEY not configured');
     return new Response('Server misconfigured', { status: 500, headers: corsHeaders });
   }
-
   if (!webhookSecret) {
-    console.error('STRIPE_WEBHOOK_SECRET not configured — rejecting request');
+    console.error('STRIPE_WEBHOOK_SECRET not configured');
     return new Response('Webhook secret not configured', { status: 500, headers: corsHeaders });
   }
 
@@ -46,65 +45,87 @@ serve(async (req) => {
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  const supabase = createClient(supabaseUrl, supabaseKey);
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-  // Handle checkout.session.completed → mark as paid
+  // ── checkout.session.completed → convert reserved to sold ──
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
     const orderId = session.metadata?.order_id;
 
-    if (!orderId) {
-      console.error('No order_id in session metadata:', session.id);
-      // Fallback: try to find by stripe_session_id
-      const { data: fallbackOrder } = await supabase
-        .from('orders')
-        .select('id, status')
-        .eq('stripe_session_id', session.id)
-        .maybeSingle();
-
-      if (!fallbackOrder) {
-        console.error('No order found for session:', session.id);
-        await supabase.from('activity_logs').insert({
-          log_type: 'error',
-          category: 'order',
-          message: 'Webhook received but no matching order found',
-          details: { stripe_session: session.id },
-        });
-        return new Response(JSON.stringify({ received: true, error: 'no_order' }), {
-          status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
-      // Use fallback order
-      return await updateOrderToPaid(supabase, fallbackOrder.id, fallbackOrder.status, session);
+    const resolvedOrderId = orderId || await findOrderBySession(supabase, session.id);
+    if (!resolvedOrderId) {
+      console.error('No order found for session:', session.id);
+      await logEvent(supabase, 'error', 'order', 'Webhook: no matching order', { stripe_session: session.id });
+      return ok({ received: true, error: 'no_order' });
     }
 
-    // Check order exists and isn't already paid (prevent duplicate processing)
-    const { data: existingOrder } = await supabase
+    const { data: order } = await supabase
       .from('orders')
-      .select('id, status')
-      .eq('id', orderId)
+      .select('id, status, status_history, items')
+      .eq('id', resolvedOrderId)
       .maybeSingle();
 
-    if (!existingOrder) {
-      console.error('Order not found:', orderId);
-      return new Response(JSON.stringify({ received: true, error: 'order_not_found' }), {
-        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    if (!order) return ok({ received: true, error: 'order_not_found' });
+
+    // Duplicate guard
+    if (['confirmed', 'processing', 'shipped', 'delivered'].includes(order.status)) {
+      console.log('Duplicate webhook, skipping:', resolvedOrderId);
+      return ok({ received: true, duplicate: true });
     }
 
-    if (existingOrder.status === 'confirmed' || existingOrder.status === 'processing' || existingOrder.status === 'shipped' || existingOrder.status === 'delivered') {
-      console.log('Order already processed, skipping duplicate:', orderId);
-      return new Response(JSON.stringify({ received: true, duplicate: true }), {
-        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    // Update status to confirmed
+    const history = Array.isArray(order.status_history) ? [...order.status_history] : [];
+    history.push({ status: 'confirmed', timestamp: new Date().toISOString(), note: 'Payment confirmed via Stripe' });
+
+    const { error: updateError } = await supabase
+      .from('orders')
+      .update({
+        status: 'confirmed',
+        status_history: history,
+        total_amount: (session.amount_total || 0) / 100,
+        stripe_session_id: session.id,
+      })
+      .eq('id', resolvedOrderId);
+
+    if (updateError) {
+      console.error('Failed to confirm order:', updateError);
+      await logEvent(supabase, 'error', 'order', 'Failed to confirm order', { error: updateError.message }, resolvedOrderId);
+      return new Response(JSON.stringify({ error: 'Update failed' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    return await updateOrderToPaid(supabase, orderId, existingOrder.status, session);
+    // Convert reserved → sold: reduce stock, release reservation
+    const items = Array.isArray(order.items) ? order.items : [];
+    for (const item of items) {
+      if (!item.id) continue;
+      const { data: product } = await supabase
+        .from('products')
+        .select('stock, reserved_stock')
+        .eq('id', item.id)
+        .single();
+
+      if (product) {
+        const qty = item.quantity || 1;
+        await supabase
+          .from('products')
+          .update({
+            stock: Math.max(0, product.stock - qty),
+            reserved_stock: Math.max(0, product.reserved_stock - qty),
+          })
+          .eq('id', item.id);
+      }
+    }
+
+    console.log('Order confirmed, stock converted:', resolvedOrderId);
+    await logEvent(supabase, 'success', 'order', 'Payment confirmed — reserved stock converted to sold', {
+      email: session.customer_email,
+      total: (session.amount_total || 0) / 100,
+    }, resolvedOrderId);
+
+    return ok({ received: true, order_id: resolvedOrderId });
   }
 
-  // Handle checkout.session.expired → mark as failed
+  // ── checkout.session.expired → release reserved stock ──
   if (event.type === 'checkout.session.expired') {
     const session = event.data.object as Stripe.Checkout.Session;
     const orderId = session.metadata?.order_id;
@@ -112,110 +133,72 @@ serve(async (req) => {
     if (orderId) {
       const { data: order } = await supabase
         .from('orders')
-        .select('id, status, status_history')
+        .select('id, status, status_history, items')
         .eq('id', orderId)
         .maybeSingle();
 
       if (order && order.status === 'pending') {
-        const history = Array.isArray(order.status_history) ? order.status_history : [];
-        history.push({ status: 'failed', timestamp: new Date().toISOString(), note: 'Payment session expired' });
+        // Release reserved stock
+        const items = Array.isArray(order.items) ? order.items : [];
+        for (const item of items) {
+          if (!item.id) continue;
+          const { data: product } = await supabase
+            .from('products')
+            .select('reserved_stock')
+            .eq('id', item.id)
+            .single();
+
+          if (product) {
+            await supabase
+              .from('products')
+              .update({ reserved_stock: Math.max(0, product.reserved_stock - (item.quantity || 1)) })
+              .eq('id', item.id);
+          }
+        }
+
+        // Update order to failed
+        const history = Array.isArray(order.status_history) ? [...order.status_history] : [];
+        history.push({ status: 'failed', timestamp: new Date().toISOString(), note: 'Payment session expired — reserved stock released' });
 
         await supabase
           .from('orders')
           .update({ status: 'failed', status_history: history })
           .eq('id', orderId);
 
-        await supabase.from('activity_logs').insert({
-          log_type: 'warning',
-          category: 'payment',
-          message: 'Payment session expired — order marked as failed',
-          details: { stripe_session: session.id },
-          order_id: orderId,
-        });
+        await logEvent(supabase, 'warning', 'payment', 'Payment expired — reserved stock released', { stripe_session: session.id }, orderId);
       }
     }
 
-    return new Response(JSON.stringify({ received: true }), {
-      status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return ok({ received: true });
   }
 
-  // Ignore other events
-  return new Response(JSON.stringify({ received: true, ignored: true }), {
-    status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  });
+  return ok({ received: true, ignored: true });
 });
 
-async function updateOrderToPaid(supabase: any, orderId: string, currentStatus: string, session: any) {
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Content-Type': 'application/json',
-  };
+// ── Helpers ──
 
-  // Fetch current order for history
-  const { data: order } = await supabase
-    .from('orders')
-    .select('status_history, items')
-    .eq('id', orderId)
-    .single();
-
-  const history = Array.isArray(order?.status_history) ? order.status_history : [];
-  history.push({ status: 'confirmed', timestamp: new Date().toISOString(), note: 'Payment confirmed via Stripe' });
-
-  const { error: updateError } = await supabase
-    .from('orders')
-    .update({
-      status: 'confirmed',
-      status_history: history,
-      total_amount: (session.amount_total || 0) / 100,
-      stripe_session_id: session.id,
-    })
-    .eq('id', orderId);
-
-  if (updateError) {
-    console.error('Failed to update order to paid:', updateError);
-    await supabase.from('activity_logs').insert({
-      log_type: 'error',
-      category: 'order',
-      message: 'Failed to update order status to confirmed',
-      details: { error: updateError.message, stripe_session: session.id },
-      order_id: orderId,
-    });
-    return new Response(JSON.stringify({ error: 'Update failed' }), {
-      status: 500, headers: corsHeaders,
-    });
-  }
-
-  console.log('Order confirmed:', orderId);
-
-  // Update stock
-  const items = Array.isArray(order?.items) ? order.items : [];
-  for (const item of items) {
-    if (item.id) {
-      const { data: product } = await supabase
-        .from('products')
-        .select('stock')
-        .eq('id', item.id)
-        .single();
-
-      if (product) {
-        await supabase
-          .from('products')
-          .update({ stock: Math.max(0, product.stock - (item.quantity || 1)) })
-          .eq('id', item.id);
-      }
-    }
-  }
-
-  await supabase.from('activity_logs').insert({
-    log_type: 'success',
-    category: 'order',
-    message: 'Payment confirmed — order updated to confirmed',
-    details: { email: session.customer_email, total: (session.amount_total || 0) / 100 },
-    order_id: orderId,
+function ok(body: any) {
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' },
   });
+}
 
-  return new Response(JSON.stringify({ received: true, order_id: orderId }), {
-    status: 200, headers: corsHeaders,
+async function findOrderBySession(supabase: any, sessionId: string): Promise<string | null> {
+  const { data } = await supabase
+    .from('orders')
+    .select('id')
+    .eq('stripe_session_id', sessionId)
+    .maybeSingle();
+  return data?.id || null;
+}
+
+async function logEvent(supabase: any, logType: string, category: string, message: string, details: any = {}, orderId?: string) {
+  await supabase.from('activity_logs').insert({
+    log_type: logType,
+    category,
+    message,
+    details,
+    order_id: orderId || null,
   });
 }

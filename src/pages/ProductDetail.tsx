@@ -70,7 +70,7 @@ const ProductDetail = () => {
             node: {
               id: product.id + '-variant',
               title: 'Default',
-              availableForSale: product.stock > 0 || product.allow_overselling,
+              availableForSale: (product.stock - (product.reserved_stock || 0)) > 0 || product.allow_overselling,
               price: { amount: product.price.toString(), currencyCode: 'SEK' },
               selectedOptions: [],
             }
@@ -133,7 +133,8 @@ const ProductDetail = () => {
   const description = (lang === 'sv' ? product.description_sv : product.description_en) || product.description_sv;
   const images = product.image_urls || [];
   const imageUrl = images[selectedImage] || null;
-  const isOutOfStock = !product.allow_overselling && product.stock <= 0;
+  const availableStock = product.stock - (product.reserved_stock || 0);
+  const isOutOfStock = !product.allow_overselling && availableStock <= 0;
   const hasDiscount = product.original_price && product.original_price > product.price;
   const discountPercent = hasDiscount
     ? Math.round((1 - product.price / product.original_price!) * 100)
@@ -229,9 +230,9 @@ const ProductDetail = () => {
               <div className="mb-5">
                 {isOutOfStock ? (
                   <span className="inline-flex items-center gap-1.5 text-sm text-destructive font-medium bg-destructive/10 px-3 py-1 rounded-full">{t('product.outofstockwarning')}</span>
-                ) : product.stock <= 5 ? (
+                ) : availableStock <= 5 ? (
                   <span className="inline-flex items-center gap-1.5 text-sm text-warning font-medium bg-warning/10 px-3 py-1 rounded-full">
-                    {t('product.lowstock').replace('{count}', String(product.stock))}
+                    {t('product.lowstock').replace('{count}', String(availableStock))}
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1.5 text-sm text-accent font-medium bg-accent/10 px-3 py-1 rounded-full">{t('product.instock')}</span>

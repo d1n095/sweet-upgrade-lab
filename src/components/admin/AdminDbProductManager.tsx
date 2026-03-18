@@ -298,7 +298,7 @@ const AdminDbProductManager = () => {
                       {new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK', minimumFractionDigits: 0 }).format(product.price)}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {product.stock > 0 ? `${product.stock} i lager` : t.outOfStock}
+                      {product.stock > 0 ? `${product.stock} i lager${(product as any).reserved_stock > 0 ? ` (${(product as any).reserved_stock} reserverade)` : ''}` : t.outOfStock}
                     </p>
                     {product.category && <p className="text-xs text-muted-foreground">{product.category}</p>}
                   </div>
