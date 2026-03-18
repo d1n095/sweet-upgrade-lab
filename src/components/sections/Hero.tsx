@@ -39,7 +39,7 @@ const Hero = () => {
           >
             <Button
               size="lg"
-              className="h-12 px-10 text-sm font-semibold rounded-full shadow-sm hover:shadow-md transition-all"
+              className="h-13 px-12 text-sm font-semibold rounded-full shadow-sm hover:shadow-md transition-all"
               onClick={() => navigate('/produkter')}
             >
               {t('hero.cta.primary')}
