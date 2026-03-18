@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Package, FlaskConical, ChefHat, AlertTriangle, Eye } from 'lucide-react';
+import { Package, FlaskConical, ChefHat, AlertTriangle, Eye, FileText, Archive } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
