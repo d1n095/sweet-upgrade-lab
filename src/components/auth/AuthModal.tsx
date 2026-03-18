@@ -6,6 +6,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
+import { logAuthEvent } from '@/utils/activityLogger';
+import { useLoginRateLimit } from '@/hooks/useLoginRateLimit';
 import {
   Sheet,
   SheetContent,
