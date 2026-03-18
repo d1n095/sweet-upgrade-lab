@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { 
   User, Package, Star, Gift, Settings, LogOut, 
   ChevronRight, Loader2, Clock, Check, BadgeCheck,
-  Shield, TrendingUp, Wallet
+  Shield, TrendingUp
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -24,8 +24,6 @@ import AffiliateDashboard from '@/components/dashboard/AffiliateDashboard';
 import EmployeeDashboard from '@/components/dashboard/EmployeeDashboard';
 import DonationImpact from '@/components/donations/DonationImpact';
 import AccountSettings from '@/components/profile/AccountSettings';
-import BalanceOverview from '@/components/profile/BalanceOverview';
-import BalancePage from '@/pages/BalancePage';
 
 interface Review {
   id: string;
@@ -321,10 +319,6 @@ const MemberProfile = () => {
                   <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   {language === 'sv' ? 'Donationer' : 'Donations'}
                 </TabsTrigger>
-                <TabsTrigger value="balance" className="gap-1.5 text-xs sm:text-sm">
-                  <Wallet className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  {language === 'sv' ? 'Saldo' : 'Balance'}
-                </TabsTrigger>
                 <TabsTrigger value="settings" className="gap-1.5 text-xs sm:text-sm">
                   <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   <span className="hidden sm:inline">{language === 'sv' ? 'Inställningar' : 'Settings'}</span>
@@ -347,19 +341,16 @@ const MemberProfile = () => {
             <TabsContent value="orders">
               <OrderTracker />
               
-              {/* Employee Dashboard - visible to employees (moderators) */}
               {isEmployee && !isAdmin && (
                 <div className="mt-6">
                   <EmployeeDashboard />
                 </div>
               )}
               
-              {/* Influencer Dashboard - visible to influencers */}
               <div className="mt-6">
                 <InfluencerDashboard />
               </div>
               
-              {/* Affiliate Dashboard - visible to affiliates */}
               <div className="mt-6">
                 <AffiliateDashboard />
               </div>
@@ -370,11 +361,6 @@ const MemberProfile = () => {
               <DonationImpact />
             </TabsContent>
 
-            {/* Balance Tab */}
-            <TabsContent value="balance">
-              <BalancePage />
-            </TabsContent>
-
             {/* Settings Tab */}
             <TabsContent value="settings">
               <AccountSettings />
@@ -382,11 +368,8 @@ const MemberProfile = () => {
 
             {/* Overview Tab */}
             <TabsContent value="overview">
-              {/* Balance Overview for admin/affiliate */}
-              <BalanceOverview />
-
               {/* Stats cards */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+              <div className="grid grid-cols-3 gap-3 mb-6">
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-card border border-border rounded-xl p-4 text-center">
                   <div className="w-10 h-10 mx-auto mb-2 rounded-lg bg-primary/10 flex items-center justify-center">
                     <Star className="w-5 h-5 text-primary" />
@@ -408,13 +391,6 @@ const MemberProfile = () => {
                   <p className="text-2xl font-bold">{isMember ? '✓' : '—'}</p>
                   <p className="text-xs text-muted-foreground">{t.overview.memberDesc}</p>
                 </motion.div>
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="bg-card border border-border rounded-xl p-4 text-center">
-                  <div className="w-10 h-10 mx-auto mb-2 rounded-lg bg-secondary flex items-center justify-center">
-                    <Package className="w-5 h-5 text-foreground" />
-                  </div>
-                  <p className="text-2xl font-bold">—</p>
-                  <p className="text-xs text-muted-foreground">{language === 'sv' ? 'Ordrar' : 'Orders'}</p>
-                </motion.div>
               </div>
 
               {/* Quick navigation */}
@@ -427,7 +403,6 @@ const MemberProfile = () => {
                   { tab: 'reviews', icon: Star, label: t.tabs.reviews, desc: language === 'sv' ? 'Läs och skriv produktrecensioner' : 'Read and write product reviews' },
                   { tab: 'rewards', icon: Gift, label: t.tabs.rewards, desc: language === 'sv' ? 'Se dina rabattkoder' : 'View your discount codes' },
                   { tab: 'donations', icon: TrendingUp, label: language === 'sv' ? 'Donationer' : 'Donations', desc: language === 'sv' ? 'Din påverkan och bidrag' : 'Your impact and contributions' },
-                  { tab: 'balance', icon: Wallet, label: language === 'sv' ? 'Saldo' : 'Balance', desc: language === 'sv' ? 'Se ditt kontosaldo' : 'View your account balance' },
                   { tab: 'settings', icon: Settings, label: language === 'sv' ? 'Inställningar' : 'Settings', desc: language === 'sv' ? 'Hantera ditt konto' : 'Manage your account' },
                 ].map((item) => (
                   <button

@@ -28,6 +28,8 @@ import ResetPassword from "./pages/ResetPassword";
 import WhatsNew from "./pages/WhatsNew";
 import Donations from "./pages/Donations";
 import NotFound from "./pages/NotFound";
+import AffiliatePanel from "./pages/AffiliatePanel";
+import DonationsPanel from "./pages/DonationsPanel";
 import CookieBanner from "./components/cookie/CookieBanner";
 import MaintenanceGuard from "./components/guards/MaintenanceGuard";
 import { usePageVisibility, ToggleablePage } from "./stores/pageVisibilityStore";
@@ -93,8 +95,9 @@ const App = () => (
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/whats-new" element={<PageGuard pageId="whats-new"><WhatsNew /></PageGuard>} />
               <Route path="/donations" element={<PageGuard pageId="donations"><Donations /></PageGuard>} />
+              <Route path="/affiliate-panel" element={<AffiliatePanel />} />
+              <Route path="/donations-panel" element={<DonationsPanel />} />
 
-              {/* Admin routes */}
               <Route path="/admin" element={<AdminLayout />}>
                 <Route index element={<AdminOverview />} />
                 <Route path="orders" element={<AdminOrders />} />
