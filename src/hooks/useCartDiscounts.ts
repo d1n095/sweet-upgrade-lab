@@ -63,7 +63,11 @@ export function useCartDiscounts() {
           .eq('is_active', true);
 
         if (volumeData) {
-          setVolumeDiscounts(volumeData);
+          setVolumeDiscounts(volumeData.map((v: any) => ({
+            ...v,
+            excluded_product_ids: v.excluded_product_ids || [],
+            stackable: v.stackable ?? true,
+          })));
         }
 
         if (bundleData) {
