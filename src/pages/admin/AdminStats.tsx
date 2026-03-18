@@ -78,6 +78,18 @@ const typeConfig: Record<string, { icon: any; color: string }> = {
   error: { icon: AlertTriangle, color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
   warning: { icon: AlertTriangle, color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' },
   info: { icon: Info, color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
+  purchase: { icon: DollarSign, color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
+  order: { icon: ShoppingCart, color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
+};
+
+// Helper: show "–" for zero values with no data context
+const noData = (value: number, formatted?: string) => {
+  if (value === 0) return '–';
+  return formatted ?? String(value);
+};
+
+const hasAnyData = (stats: DashboardStats) => {
+  return stats.orders.total_orders > 0 || stats.analytics.product_views > 0 || stats.searches.total_searches > 0;
 };
 
 const dateRangeOptions: { value: DateRange; label: string }[] = [
