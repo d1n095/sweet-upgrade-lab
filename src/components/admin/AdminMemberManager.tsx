@@ -543,6 +543,12 @@ const AdminMemberManager = ({ roleFilter = 'all', onStatsUpdate }: AdminMemberMa
   const [pendingRoleChange, setPendingRoleChange] = useState<{ userId: string; role: string; username: string | null } | null>(null);
 
   const requestRoleChange = (userId: string, role: string) => {
+    // Spam protection: 5 second cooldown
+    const now = Date.now();
+    if (now - lastRoleChangeTime < 5000) {
+      toast.error('Vänta några sekunder innan nästa rolländring');
+      return;
+    }
     // Security: prevent self-role changes
     if (userId === currentUserId) {
       toast.error('Du kan inte ändra din egen roll');
