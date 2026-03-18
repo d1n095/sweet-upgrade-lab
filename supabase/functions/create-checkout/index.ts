@@ -145,14 +145,14 @@ serve(async (req) => {
     console.log('Pre-payment order created with stock reserved:', order.id);
 
     // 4. Create Stripe session with all payment methods
-    const lineItems = items.map((item: any) => ({
+    const lineItems = trustedItems.map((item) => ({
       price_data: {
         currency: 'sek',
         product_data: {
           name: item.title,
           ...(item.image ? { images: [item.image] } : {}),
         },
-        unit_amount: Math.round(item.price * 100),
+        unit_amount: Math.round(item.price * 100), // TRUSTED price from DB
       },
       quantity: item.quantity,
     }));
