@@ -63,6 +63,53 @@ function generateKeywords(p: DbProduct): string {
   return unique.slice(0, 8).join(', ');
 }
 
+// Generate a broad pool of keyword suggestions for a product
+function generateSuggestions(p: DbProduct): string[] {
+  const cat = p.category || '';
+  const name = p.title_sv;
+  const pool: string[] = [];
+
+  // Name & category
+  pool.push(name, cat);
+
+  // Modifier combos
+  MODIFIERS.forEach(m => {
+    if (cat) pool.push(`${m} ${cat}`);
+    pool.push(`${m} ${name}`);
+  });
+
+  // Intent combos
+  INTENTS.forEach(i => {
+    if (cat) pool.push(`${i} ${cat}`);
+    pool.push(`${i} ${name}`);
+  });
+
+  // Tags
+  if (p.tags?.length) pool.push(...p.tags);
+
+  // Certifications
+  if (p.certifications?.length) pool.push(...p.certifications);
+
+  // Vendor
+  if (p.vendor) pool.push(p.vendor);
+
+  // Ingredient-based
+  if (p.ingredients_sv) {
+    const ings = p.ingredients_sv.split(',').map(s => s.trim()).filter(Boolean);
+    ings.slice(0, 5).forEach(ing => {
+      pool.push(ing);
+      if (cat) pool.push(`${ing} ${cat}`);
+    });
+  }
+
+  // Location / generic
+  if (cat) {
+    pool.push(`${cat} online sverige`, `${cat} snabb leverans`, `${cat} pris`);
+  }
+
+  return [...new Set(pool.map(k => k.toLowerCase().trim()))].filter(Boolean);
+}
+
 function generateDescription(p: DbProduct): string {
   const parts: string[] = [];
   const mods = pickModifiers(p);
