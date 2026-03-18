@@ -736,7 +736,12 @@ const AdminMemberManager = ({ roleFilter = 'all' }: AdminMemberManagerProps) => 
                   )}
                 </div>
                 <div className="min-w-0">
-                  <p className="font-medium text-sm truncate">{member.username || member.user_id.slice(0, 12) + '...'}</p>
+                  <p className="font-medium text-sm truncate flex items-center gap-1.5">
+                    {member.username || member.user_id.slice(0, 12) + '...'}
+                    {member.user_id === currentUserId && (
+                      <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">du</span>
+                    )}
+                  </p>
                   {member.email && (
                     <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
                       <Mail className="w-3 h-3 shrink-0" /> {member.email}
