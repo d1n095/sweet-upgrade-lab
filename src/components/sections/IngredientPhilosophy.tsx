@@ -39,7 +39,7 @@ const IngredientPhilosophy = () => {
           {t.title}
         </motion.h2>
 
-        <div className="grid md:grid-cols-3 gap-6 max-w-2xl mx-auto">
+        <div className="grid md:grid-cols-3 gap-8 max-w-2xl mx-auto">
           {t.steps.map((step, i) => (
             <motion.div
               key={i}
