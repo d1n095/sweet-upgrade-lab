@@ -31,11 +31,11 @@ const KlarnaIcon = ({ size = 'sm' }: IconProps) => (
 );
 
 const SwishIcon = ({ size = 'sm' }: IconProps) => (
-  <div className={`${size === 'sm' ? 'h-7 min-w-[52px] px-2' : 'h-8 min-w-[58px] px-2.5'} rounded-md bg-white border border-border flex items-center justify-center`}>
+  <div className={`${sizeClasses[size]} rounded-md bg-white border border-border flex items-center justify-center`}>
     <img
       src={swishLogo}
       alt="Swish"
-      className={size === 'sm' ? 'h-6 w-auto max-w-[50px] object-contain' : 'h-7 w-auto max-w-[56px] object-contain'}
+      className={size === 'sm' ? 'h-5.5 w-auto object-contain' : 'h-6 w-auto object-contain'}
       loading="lazy"
       decoding="async"
     />
