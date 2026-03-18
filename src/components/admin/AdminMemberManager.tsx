@@ -407,7 +407,7 @@ const AdminMemberManager = ({ roleFilter = 'all' }: AdminMemberManagerProps) => 
       // Load profiles with username
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('user_id, is_member, member_since, created_at, username, avatar_url')
+        .select('user_id, is_member, member_since, created_at, username, avatar_url, xp, level, trust_score, referral_code')
         .order('created_at', { ascending: false });
 
       if (profiles) {
