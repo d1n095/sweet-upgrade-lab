@@ -175,7 +175,7 @@ const ProductDetail = () => {
                 className="relative aspect-square rounded-2xl overflow-hidden bg-secondary/30 border border-border"
               >
                 {imageUrl ? (
-                  <img src={imageUrl} alt={title} className="w-full h-full object-cover" />
+                  <img src={imageUrl} alt={title} loading="eager" className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-muted-foreground text-sm">
                     {t('product.noimage')}
