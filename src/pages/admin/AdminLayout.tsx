@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import AdminGlobalSearch from '@/components/admin/AdminGlobalSearch';
 
 const navItems = [
   { to: '/admin', label: 'Dashboard', icon: BarChart3, end: true },

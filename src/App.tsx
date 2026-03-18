@@ -31,6 +31,7 @@ import NotFound from "./pages/NotFound";
 import CookieBanner from "./components/cookie/CookieBanner";
 import MaintenanceGuard from "./components/guards/MaintenanceGuard";
 import { usePageVisibility, ToggleablePage } from "./stores/pageVisibilityStore";
+import { useAdminRole } from "./hooks/useAdminRole";
 
 // Admin
 import AdminLayout from "./pages/admin/AdminLayout";
