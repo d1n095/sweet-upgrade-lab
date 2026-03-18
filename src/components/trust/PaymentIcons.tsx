@@ -36,7 +36,7 @@ const SwishIcon = () => (
 );
 
 const PayPalIcon = () => (
-  <svg viewBox="0 0 50 35" className="w-10 h-7">
+  <svg viewBox="0 0 50 35" className="w-11 h-8">
     <rect width="50" height="35" rx="4" fill="#FFFFFF"/>
     <rect x="1" y="1" width="48" height="33" rx="3" stroke="#E5E5E5" strokeWidth="1" fill="none"/>
     <text x="25" y="20" textAnchor="middle" fill="#003087" fontSize="9" fontWeight="bold" fontFamily="Arial">Pay</text>
