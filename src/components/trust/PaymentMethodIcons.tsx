@@ -30,13 +30,15 @@ const KlarnaIcon = ({ size = 'sm' }: IconProps) => (
 );
 
 const SwishIcon = ({ size = 'sm' }: IconProps) => (
-  <div className={`${sizeClasses[size]} rounded-md bg-white border border-border flex items-center justify-center`}>
-    <span className="font-bold tracking-tight" style={{ fontSize: size === 'sm' ? 11 : 13 }}>
-      <span className="text-[#4FA757]">S</span>
-      <span className="text-[#EE4023]">w</span>
-      <span className="text-[#4FA757]">i</span>
-      <span className="text-[#EE4023]">s</span>
-      <span className="text-[#4FA757]">h</span>
+  <div className={`${sizeClasses[size]} rounded-md bg-white border border-border flex items-center justify-center gap-1`}>
+    <div
+      className="w-3 h-3 rounded-full"
+      style={{
+        background: 'linear-gradient(135deg, #00AEEF 0%, #4FA757 48%, #EE4023 100%)',
+      }}
+    />
+    <span className="font-semibold text-[#111827]" style={{ fontSize: size === 'sm' ? 10 : 12 }}>
+      Swish
     </span>
   </div>
 );
@@ -49,9 +51,14 @@ const ApplePayIcon = ({ size = 'sm' }: IconProps) => (
 );
 
 const GooglePayIcon = ({ size = 'sm' }: IconProps) => (
-  <div className={`${sizeClasses[size]} rounded-md bg-white border border-border flex items-center justify-center gap-0.5`}>
-    <span style={{ fontSize: size === 'sm' ? 11 : 13 }}>
-      <span className="font-bold text-[#4285F4]">G</span>
+  <div className={`${sizeClasses[size]} rounded-md bg-white border border-border flex items-center justify-center gap-1`}>
+    <span className="font-semibold tracking-tight" style={{ fontSize: size === 'sm' ? 10 : 12 }}>
+      <span className="text-[#4285F4]">G</span>
+      <span className="text-[#EA4335]">o</span>
+      <span className="text-[#FBBC05]">o</span>
+      <span className="text-[#4285F4]">g</span>
+      <span className="text-[#34A853]">l</span>
+      <span className="text-[#EA4335]">e</span>
     </span>
     <span className="font-medium text-[#5F6368]" style={{ fontSize: size === 'sm' ? 10 : 12 }}>Pay</span>
   </div>
