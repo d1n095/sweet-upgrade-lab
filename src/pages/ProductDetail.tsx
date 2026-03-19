@@ -52,7 +52,7 @@ const ProductDetail = () => {
   const { handle } = useParams<{ handle: string }>();
   const { t, language } = useLanguage();
   const lang = (language === 'no' || language === 'da') ? 'sv' : language;
-  const { addItem } = useCartStore();
+  const { addItem, items: cartItems } = useCartStore();
   const [product, setProduct] = useState<DbProduct | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(0);
