@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingCart, Menu, X, Leaf, ChevronDown, User, Crown, LogOut, Heart, Moon, Sun, Search } from 'lucide-react';
+import { ShoppingCart, Menu, X, Leaf, ChevronDown, User, Crown, LogOut, Heart, Moon, Sun, Search, Store } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCartStore } from '@/stores/cartStore';
 import { useWishlistStore } from '@/stores/wishlistStore';
@@ -42,10 +42,8 @@ const NavDropdown = ({
     timeoutRef.current = setTimeout(() => setOpen(false), 150);
   };
 
-  // Cleanup timeout on unmount
   useEffect(() => () => clearTimeout(timeoutRef.current), []);
 
-  // No items → plain link
   if (items.length === 0) {
     return (
       <Link
@@ -57,7 +55,6 @@ const NavDropdown = ({
     );
   }
 
-  // Single item → direct link
   if (items.length === 1) {
     return (
       <Link
@@ -74,7 +71,6 @@ const NavDropdown = ({
       <Link
         to={href}
         onClick={(e) => {
-          // Click toggles dropdown on touch devices, navigates on desktop
           if ('ontouchstart' in window) {
             e.preventDefault();
             setOpen(prev => !prev);
@@ -140,7 +136,6 @@ const Header = () => {
 
   useEffect(() => { setMounted(true); }, []);
 
-  // Fetch product categories once to know which categories have products
   useEffect(() => {
     supabase
       .from('products')
@@ -200,7 +195,6 @@ const Header = () => {
     ...(isVisible('suggest-product') ? [{ href: '/suggest-product', label: t('nav.suggestproduct') }] : []),
   ];
 
-  // Only show categories that actually have products — simple ID-based matching
   const productDropdownItems = useMemo(() => {
     if (productCategories.length === 0) return [];
     
@@ -210,17 +204,12 @@ const Header = () => {
         const catDef = allCategoryDefs.find(cd => cd.id === c.id);
         if (!catDef) return false;
         
-        // Bestseller filter — check if any product has bestseller badge
         if (catDef.isBestsellerFilter) {
           return productCategories.includes('bestsaljare');
         }
         
-        // Match category ID directly against product.category values from DB
-        // The product.category field stores values like "Kroppsvård", "Elektronik" etc.
-        // Category query has format: product_type:Kroppsvård or product_type:"Hampa-kläder" OR product_type:Kläder
         if (!catDef.query) return false;
         
-        // Extract all product_type values from the query
         const typeMatches = catDef.query.matchAll(/product_type:"?([^"&\s]+)"?/g);
         for (const match of typeMatches) {
           if (productCategories.includes(match[1].toLowerCase())) return true;
@@ -337,11 +326,12 @@ const Header = () => {
                 <Search className="w-[18px] h-[18px]" />
               </Button>
 
+              {/* Desktop-only: theme toggle */}
               {mounted && (
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="hidden sm:flex h-9 w-9 md:h-10 md:w-10 rounded-full hover:bg-secondary"
+                  className="hidden md:flex h-9 w-9 md:h-10 md:w-10 rounded-full hover:bg-secondary"
                   onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
                   aria-label="Toggle dark mode"
                 >
@@ -359,10 +349,34 @@ const Header = () => {
                 </Button>
               )}
 
-              <div className="hidden sm:block">
+              {/* Desktop-only: language */}
+              <div className="hidden md:block">
                 <LanguageSwitcher />
               </div>
 
+              {/* Desktop-only: wishlist */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="relative hidden md:flex h-9 w-9 md:h-10 md:w-10 rounded-full hover:bg-secondary"
+                onClick={() => setIsWishlistOpen(true)}
+              >
+                <Heart className="w-[17px] h-[17px] md:w-[18px] md:h-[18px]" />
+                <AnimatePresence>
+                  {wishlistItems.length > 0 && (
+                    <motion.span
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      exit={{ scale: 0 }}
+                      className="absolute -top-0.5 -right-0.5 w-4 h-4 md:w-4.5 md:h-4.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center"
+                    >
+                      {wishlistItems.length}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </Button>
+
+              {/* User icon — always visible */}
               {user ? (
                 <Button
                   variant="ghost"
@@ -386,27 +400,18 @@ const Header = () => {
                 </Button>
               )}
 
+              {/* Mobile-only: Shop icon */}
               <Button
                 variant="ghost"
                 size="icon"
-                className="relative h-9 w-9 md:h-10 md:w-10 rounded-full hover:bg-secondary"
-                onClick={() => setIsWishlistOpen(true)}
+                className="md:hidden h-9 w-9 rounded-full hover:bg-secondary"
+                onClick={() => navigate('/produkter')}
+                aria-label="Shop"
               >
-                <Heart className="w-[17px] h-[17px] md:w-[18px] md:h-[18px]" />
-                <AnimatePresence>
-                  {wishlistItems.length > 0 && (
-                    <motion.span
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      exit={{ scale: 0 }}
-                      className="absolute -top-0.5 -right-0.5 w-4 h-4 md:w-4.5 md:h-4.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center"
-                    >
-                      {wishlistItems.length}
-                    </motion.span>
-                  )}
-                </AnimatePresence>
+                <Store className="w-[18px] h-[18px]" />
               </Button>
 
+              {/* Cart — always visible */}
               <Button
                 variant="ghost"
                 size="icon"
@@ -428,6 +433,7 @@ const Header = () => {
                 </AnimatePresence>
               </Button>
 
+              {/* Hamburger — mobile only */}
               <Button
                 variant="ghost"
                 size="icon"
@@ -480,8 +486,20 @@ const Header = () => {
                   </Link>
                 ))}
 
+                {/* Wishlist link in mobile menu */}
+                <button
+                  onClick={() => { setIsWishlistOpen(true); setIsMobileMenuOpen(false); }}
+                  className="flex items-center gap-3 text-sm font-medium py-3 px-4 rounded-xl hover:bg-secondary/50 transition-colors text-left w-full min-h-[44px] text-muted-foreground"
+                >
+                  <Heart className="w-4 h-4" />
+                  {language === 'sv' ? 'Önskelista' : 'Wishlist'}
+                  {wishlistItems.length > 0 && (
+                    <span className="ml-auto text-xs bg-muted px-2 py-0.5 rounded-full">{wishlistItems.length}</span>
+                  )}
+                </button>
+
                 {/* Mobile-only: dark mode & language */}
-                <div className="flex items-center gap-2 px-4 py-3 sm:hidden">
+                <div className="flex items-center gap-2 px-4 py-3">
                   {mounted && (
                     <Button
                       variant="outline"

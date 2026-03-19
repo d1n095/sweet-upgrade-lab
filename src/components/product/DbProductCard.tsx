@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
-import { ShoppingCart, Check, Flame, Package, Star } from 'lucide-react';
+import { ShoppingCart, Check, Flame, Package, Star, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DbProduct } from '@/lib/products';
@@ -50,7 +50,6 @@ const DbProductCard = ({ product, index, compact = false }: DbProductCardProps) 
   const [quantity, setQuantity] = useState(1);
   const [imgError, setImgError] = useState(false);
 
-  // Always use Swedish on cards — full translation happens on product detail page
   const title = product.title_sv;
   const description = product.description_sv;
   const imageUrl = product.image_urls?.[0];
@@ -237,22 +236,24 @@ const DbProductCard = ({ product, index, compact = false }: DbProductCardProps) 
               )}
             </div>
 
-            {/* Add to cart */}
-            <div className="flex items-center gap-3" onClick={(e) => e.preventDefault()}>
+            {/* Add to cart — responsive: quantity + icon-only button on mobile, full on desktop */}
+            <div className="flex items-center gap-2" onClick={(e) => e.preventDefault()}>
               <QuantitySelector quantity={quantity} onChange={setQuantity} size="xs" />
-              <Button
-                size="icon"
-                onClick={handleAddToCart}
-                disabled={!isAvailable || (!product.allow_overselling && maxAddable <= 0)}
-                className={`w-11 h-11 shrink-0 rounded-xl transition-all ${isAdded ? 'bg-accent hover:bg-accent text-accent-foreground' : ''}`}
-              >
-                {!isAvailable
-                  ? <Package className="w-4 h-4" />
-                  : isAdded
-                    ? <Check className="w-4 h-4" />
-                    : <ShoppingCart className="w-4 h-4" />
-                }
-              </Button>
+              <motion.div whileTap={{ scale: 0.93 }}>
+                <Button
+                  size="icon"
+                  onClick={handleAddToCart}
+                  disabled={!isAvailable || (!product.allow_overselling && maxAddable <= 0)}
+                  className={`w-10 h-10 sm:w-11 sm:h-11 shrink-0 rounded-xl transition-all ${isAdded ? 'bg-accent hover:bg-accent text-accent-foreground' : ''}`}
+                >
+                  {!isAvailable
+                    ? <Package className="w-4 h-4" />
+                    : isAdded
+                      ? <Check className="w-4 h-4" />
+                      : <Plus className="w-4 h-4" />
+                  }
+                </Button>
+              </motion.div>
             </div>
           </div>
         </div>

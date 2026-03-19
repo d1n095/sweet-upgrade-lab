@@ -58,7 +58,7 @@ interface FieldErrors {
   city?: string;
 }
 
-const CHECKOUT_TIMEOUT_MS = 3000;
+const CHECKOUT_TIMEOUT_MS = 8000;
 
 const Checkout = () => {
   const navigate = useNavigate();
@@ -465,7 +465,7 @@ const Checkout = () => {
           <div className="flex items-center justify-center gap-3">
             <Button variant="outline" onClick={() => window.location.reload()}>{t.retry}</Button>
             <Button asChild>
-              <Link to="/products">{t.goToShop}</Link>
+              <Link to="/produkter">{t.goToShop}</Link>
             </Button>
           </div>
         </div>
@@ -486,8 +486,8 @@ const Checkout = () => {
           <p className="text-muted-foreground mb-6">
             {isSv ? 'Vi kan just nu inte ta emot beställningar. Försök igen senare.' : 'We cannot accept orders at this time. Please try again later.'}
           </p>
-          <Button onClick={() => navigate('/products')}>
-            {isSv ? 'Tillbaka till produkter' : 'Back to products'}
+          <Button asChild>
+            <Link to="/produkter">{isSv ? 'Tillbaka till produkter' : 'Back to products'}</Link>
           </Button>
         </div>
       </div>
@@ -500,7 +500,7 @@ const Checkout = () => {
         <div className="max-w-lg text-center px-4">
           <ShoppingBag className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
           <h1 className="text-2xl font-bold mb-4">{t.emptyCart}</h1>
-          <Button onClick={() => navigate('/products')}>{t.goToShop}</Button>
+          <Button asChild><Link to="/produkter">{t.goToShop}</Link></Button>
         </div>
       </div>
     );
@@ -517,7 +517,7 @@ const Checkout = () => {
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border">
         <div className="container mx-auto px-4 h-14 flex items-center justify-between max-w-5xl">
           <Link
-            to="/products"
+            to="/produkter"
             className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
