@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { ShoppingCart, Check, Flame, Package, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -68,9 +69,18 @@ const DbProductCard = ({ product, index, compact = false }: DbProductCardProps) 
     ? Math.round((1 - product.price / product.original_price) * 100)
     : null;
 
+  const maxAddable = !product.allow_overselling
+    ? Math.max(0, availableStock - quantityInCart)
+    : Infinity;
+
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+
+    if (!product.allow_overselling && quantity + quantityInCart > availableStock) {
+      toast.error(lang === 'sv' ? `Max ${availableStock} st i lager` : `Max ${availableStock} in stock`);
+      return;
+    }
 
     const cartProduct = {
       dbId: product.id,
@@ -233,7 +243,7 @@ const DbProductCard = ({ product, index, compact = false }: DbProductCardProps) 
               <Button
                 size="icon"
                 onClick={handleAddToCart}
-                disabled={!isAvailable}
+                disabled={!isAvailable || (!product.allow_overselling && maxAddable <= 0)}
                 className={`w-11 h-11 shrink-0 rounded-xl transition-all ${isAdded ? 'bg-accent hover:bg-accent text-accent-foreground' : ''}`}
               >
                 {!isAvailable

@@ -52,7 +52,7 @@ const ProductDetail = () => {
   const { handle } = useParams<{ handle: string }>();
   const { t, language } = useLanguage();
   const lang = (language === 'no' || language === 'da') ? 'sv' : language;
-  const { addItem } = useCartStore();
+  const { addItem, items: cartItems } = useCartStore();
   const [product, setProduct] = useState<DbProduct | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(0);
@@ -89,6 +89,14 @@ const ProductDetail = () => {
 
   const handleAddToCart = () => {
     if (!product) return;
+    const cartItem = cartItems.find(i => (i.product as any)?.dbId === product.id);
+    const quantityInCart = cartItem?.quantity || 0;
+    const availableStock = product.stock - (product.reserved_stock || 0);
+
+    if (!product.allow_overselling && quantity + quantityInCart > availableStock) {
+      toast.error(lang === 'sv' ? `Max ${availableStock} st i lager` : `Max ${availableStock} in stock`);
+      return;
+    }
     const cartTitle = translated.title || product.title_sv;
     const cartDescription = translated.description || product.description_sv;
     const imageUrl = product.image_urls?.[0];
