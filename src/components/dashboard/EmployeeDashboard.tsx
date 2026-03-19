@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Briefcase, Package, MessageCircle, Clock, Check, X,
-  ChevronDown, ChevronUp, Search, Eye, Loader2
+  ChevronDown, ChevronUp, Search, Eye, Loader2, History
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
