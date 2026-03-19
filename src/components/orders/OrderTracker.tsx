@@ -317,7 +317,7 @@ const OrderTracker = () => {
               </div>
             </motion.div>
             </Link>
-        })}
+          );
       </div>
     </div>
   );
