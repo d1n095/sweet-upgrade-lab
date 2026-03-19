@@ -335,6 +335,15 @@ const Checkout = () => {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Wait for zustand hydration before showing empty state
+  if (!_hasHydrated) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   if (!checkoutEnabled) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
