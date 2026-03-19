@@ -54,6 +54,8 @@ const AdminActivityLog = () => {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedLog, setExpandedLog] = useState<string | null>(null);
+  const [activeCard, setActiveCard] = useState<string>('all');
+  const logsListRef = { current: null as HTMLDivElement | null };
 
   const fetchLogs = async () => {
     setIsLoading(true);
@@ -82,6 +84,17 @@ const AdminActivityLog = () => {
   };
 
   useEffect(() => { fetchLogs(); }, [typeFilter, categoryFilter]);
+
+  // Sync activeCard when dropdowns change directly
+  useEffect(() => {
+    if (categoryFilter === 'security') {
+      setActiveCard('security');
+    } else if (typeFilter !== 'all') {
+      setActiveCard(typeFilter);
+    } else if (categoryFilter === 'all' && typeFilter === 'all') {
+      setActiveCard('all');
+    }
+  }, [typeFilter, categoryFilter]);
 
   const formatDate = (d: string) =>
     new Date(d).toLocaleDateString('sv-SE', {
@@ -221,29 +234,52 @@ const AdminActivityLog = () => {
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        <div className="rounded-lg border border-border bg-secondary/30 p-3 text-center">
-          <p className="text-2xl font-bold">{logs.length}</p>
-          <p className="text-xs text-muted-foreground">Totalt</p>
-        </div>
-        <div className="rounded-lg border border-border bg-green-50 dark:bg-green-900/10 p-3 text-center">
-          <p className="text-2xl font-bold text-green-600">{successCount}</p>
-          <p className="text-xs text-muted-foreground">Lyckade</p>
-        </div>
-        <div className="rounded-lg border border-border bg-red-50 dark:bg-red-900/10 p-3 text-center">
-          <p className="text-2xl font-bold text-red-600">{errorCount}</p>
-          <p className="text-xs text-muted-foreground">Fel</p>
-        </div>
-        <div className="rounded-lg border border-border bg-yellow-50 dark:bg-yellow-900/10 p-3 text-center">
-          <p className="text-2xl font-bold text-yellow-600">{warningCount}</p>
-          <p className="text-xs text-muted-foreground">Varningar</p>
-        </div>
-        <div className="rounded-lg border border-border bg-purple-50 dark:bg-purple-900/10 p-3 text-center">
-          <p className="text-2xl font-bold text-purple-600">{securityLogs.length}</p>
-          <p className="text-xs text-muted-foreground">Säkerhet</p>
-        </div>
-      </div>
+      {/* Stats – clickable filter cards */}
+      {(() => {
+        const cards = [
+          { key: 'all', count: logs.length, label: 'Totalt', bg: 'bg-secondary/30', activeBorder: 'border-primary', textColor: '' },
+          { key: 'success', count: successCount, label: 'Lyckade', bg: 'bg-green-50 dark:bg-green-900/10', activeBorder: 'border-green-500', textColor: 'text-green-600' },
+          { key: 'error', count: errorCount, label: 'Fel', bg: 'bg-red-50 dark:bg-red-900/10', activeBorder: 'border-red-500', textColor: 'text-red-600' },
+          { key: 'warning', count: warningCount, label: 'Varningar', bg: 'bg-yellow-50 dark:bg-yellow-900/10', activeBorder: 'border-yellow-500', textColor: 'text-yellow-600' },
+          { key: 'security', count: securityLogs.length, label: 'Säkerhet', bg: 'bg-purple-50 dark:bg-purple-900/10', activeBorder: 'border-purple-500', textColor: 'text-purple-600' },
+        ];
+
+        const handleCardClick = (key: string) => {
+          setActiveCard(key);
+          if (key === 'all') {
+            setTypeFilter('all');
+            setCategoryFilter('all');
+          } else if (key === 'security') {
+            setTypeFilter('all');
+            setCategoryFilter('security');
+          } else {
+            setCategoryFilter('all');
+            setTypeFilter(key);
+          }
+          logsListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        };
+
+        return (
+          <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
+            {cards.map(c => (
+              <button
+                key={c.key}
+                onClick={() => handleCardClick(c.key)}
+                className={`flex-1 min-w-[120px] rounded-lg border-2 p-3 text-center transition-all duration-200 cursor-pointer
+                  hover:scale-[1.03] hover:shadow-md active:scale-[0.98]
+                  ${c.bg}
+                  ${activeCard === c.key
+                    ? `${c.activeBorder} shadow-sm ring-1 ring-primary/20`
+                    : 'border-border'
+                  }`}
+              >
+                <p className={`text-2xl font-bold ${c.textColor}`}>{c.count}</p>
+                <p className="text-xs text-muted-foreground">{c.label}</p>
+              </button>
+            ))}
+          </div>
+        );
+      })()}
 
       {/* Tabs for different log views */}
       <Tabs defaultValue="all" className="space-y-4">
@@ -256,7 +292,7 @@ const AdminActivityLog = () => {
           </TabsList>
         </ScrollableTabs>
 
-        <TabsContent value="all" className="space-y-4">
+        <TabsContent value="all" className="space-y-4" ref={(el: HTMLDivElement | null) => { logsListRef.current = el; }}>
           {/* Search + Filters */}
           <div className="flex flex-wrap gap-3">
             <div className="relative flex-1 min-w-[200px]">
