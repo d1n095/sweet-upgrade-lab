@@ -240,14 +240,26 @@ const Checkout = () => {
     }
   };
 
+  // DEBUG state
+  const [debugInfo, setDebugInfo] = useState<Record<string, any>>({});
+
   const startCheckout = useCallback(async () => {
     if (isSubmitting) return;
 
     setCheckoutError(null);
+    setDebugInfo({});
+
+    console.log('=== CHECKOUT DEBUG START ===');
+    console.log('Cart items count:', items.length);
+    console.log('Selected payment method:', selectedPayment);
+    console.log('Cart items:', JSON.stringify(items.map(i => ({ id: i.variantId, title: i.product?.node?.title, qty: i.quantity, price: i.price?.amount }))));
+    setDebugInfo(prev => ({ ...prev, step: 'validating', itemCount: items.length, paymentMethod: selectedPayment }));
 
     const cartError = validateCartState();
     if (cartError) {
+      console.log('Cart validation failed:', cartError);
       setCheckoutError(cartError);
+      setDebugInfo(prev => ({ ...prev, step: 'cart_error', error: cartError }));
       toast.error(cartError);
       return;
     }
@@ -268,11 +280,15 @@ const Checkout = () => {
     setTouched({ email: true, name: true, address: true, zip: true, city: true });
 
     if (hasError) {
+      console.log('Form validation failed:', newErrors);
+      setDebugInfo(prev => ({ ...prev, step: 'form_error', errors: newErrors }));
       toast.error(t.fillAllFields);
       return;
     }
 
     setIsSubmitting(true);
+    console.log('Checkout started - calling backend...');
+    setDebugInfo(prev => ({ ...prev, step: 'calling_backend' }));
 
     logActivity({
       log_type: 'info',
@@ -293,6 +309,8 @@ const Checkout = () => {
         quantity: item.quantity,
         image: item.product.node.images?.edges?.[0]?.node?.url || '',
       }));
+
+      console.log('Checkout items payload:', JSON.stringify(checkoutItems));
 
       const checkoutRequest = supabase.functions.invoke('create-checkout', {
         body: {
@@ -318,9 +336,17 @@ const Checkout = () => {
       const result = await Promise.race([checkoutRequest, timeout]) as { data: any; error: any };
       const { data, error } = result;
 
+      console.log('Backend response - data:', JSON.stringify(data));
+      console.log('Backend response - error:', error);
+      setDebugInfo(prev => ({ ...prev, step: 'backend_responded', data, error: error?.message || null }));
+
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      if (!data?.url || typeof data.url !== 'string') throw new Error('INVALID_SESSION_URL');
+      if (!data?.url || typeof data.url !== 'string') {
+        console.log('INVALID SESSION URL - data.url:', data?.url);
+        setDebugInfo(prev => ({ ...prev, step: 'invalid_url', rawUrl: data?.url }));
+        throw new Error('INVALID_SESSION_URL');
+      }
 
       completedRef.current = true;
       trackCheckoutStep('payment_redirect', { total });
@@ -357,6 +383,10 @@ const Checkout = () => {
           .then(() => {});
       }
 
+      console.log('=== REDIRECTING TO STRIPE ===');
+      console.log('Redirect URL:', data.url);
+      setDebugInfo(prev => ({ ...prev, step: 'redirecting', url: data.url }));
+
       logActivity({
         log_type: 'info',
         category: 'payment',
@@ -369,7 +399,9 @@ const Checkout = () => {
 
       window.location.assign(data.url);
     } catch (err: any) {
-      console.error('Checkout error:', err);
+      console.error('=== CHECKOUT FAILED ===');
+      console.error('Error:', err);
+      console.error('Error message:', err?.message);
 
       const mappedError = err?.message === 'CHECKOUT_TIMEOUT'
         ? t.checkoutTimeout
@@ -378,6 +410,7 @@ const Checkout = () => {
           : t.checkoutFailed;
 
       setCheckoutError(mappedError);
+      setDebugInfo(prev => ({ ...prev, step: 'failed', error: err?.message, mappedError }));
 
       logActivity({
         log_type: 'error',
