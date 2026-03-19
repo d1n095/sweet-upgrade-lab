@@ -266,7 +266,20 @@ const AdminOrderManager = () => {
         details: { old_status: order.status, new_status: editData.status, tracking: editData.tracking_number || null },
         order_id: order.id,
       });
-      toast.success(content.updated);
+
+      // Trigger status update email for meaningful status changes
+      if (editData.status !== order.status && ['processing', 'shipped', 'delivered', 'returned', 'lost'].includes(editData.status)) {
+        try {
+          await supabase.functions.invoke('send-order-email', {
+            body: { order_id: order.id, email_type: 'status_update' },
+          });
+          toast.success(`${content.updated} — mail skickat till ${order.order_email}`);
+        } catch {
+          toast.success(content.updated);
+        }
+      } else {
+        toast.success(content.updated);
+      }
     } catch (error) {
       console.error('Failed to update order:', error);
       toast.error(content.error);
