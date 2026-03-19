@@ -88,7 +88,12 @@ const AdminShipping = () => {
       const [{ data: c }, { data: e }, { data: s }] = await Promise.all([
         supabase.from('shipping_carriers').select('id, name, is_selected, is_international, supports_pickup_points, supports_home_delivery, supports_express, supports_parcel_lockers'),
         supabase.from('shipping_extras').select('*').order('display_order'),
-        supabase.from('store_settings').select('key, text_value').in('key', ['shipping_cost', 'free_shipping_threshold']),
+        supabase.from('store_settings').select('key, text_value').in('key', [
+          'shipping_cost', 'free_shipping_threshold',
+          'shipping_weight_enabled', 'shipping_tier_1_max_grams', 'shipping_tier_1_price',
+          'shipping_tier_2_max_grams', 'shipping_tier_2_price', 'shipping_tier_3_price',
+          'shipping_price_per_kg', 'shipping_max_weight_grams', 'shipping_fallback_price',
+        ]),
       ]);
       setCarriers((c || []) as ShippingCarrier[]);
       setExtras((e || []) as ShippingExtra[]);
