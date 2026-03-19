@@ -486,8 +486,8 @@ const Checkout = () => {
           <p className="text-muted-foreground mb-6">
             {isSv ? 'Vi kan just nu inte ta emot beställningar. Försök igen senare.' : 'We cannot accept orders at this time. Please try again later.'}
           </p>
-          <Button onClick={() => navigate('/products')}>
-            {isSv ? 'Tillbaka till produkter' : 'Back to products'}
+          <Button asChild>
+            <Link to="/produkter">{isSv ? 'Tillbaka till produkter' : 'Back to products'}</Link>
           </Button>
         </div>
       </div>
