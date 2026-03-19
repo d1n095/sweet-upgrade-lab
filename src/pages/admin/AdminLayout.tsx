@@ -207,23 +207,28 @@ const AdminLayout = () => {
         </header>
 
         {/* Mobile header */}
-        <div className="md:hidden fixed top-0 left-0 right-0 z-50 h-14 bg-card border-b border-border flex items-center px-4 gap-3">
-          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg" onClick={() => setMobileNavOpen(true)}>
-            <Menu className="w-5 h-5" />
-          </Button>
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Shield className="w-3.5 h-3.5 text-primary" />
-            </div>
-            <span className="font-display font-semibold text-sm">{currentPage?.label || 'Admin'}</span>
-          </div>
-          <div className="ml-auto flex items-center gap-1">
-            {!siteActive && (
-              <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" title="Underhållsläge" />
-            )}
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate('/')}>
-              <Home className="w-4 h-4" />
+        <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-card border-b border-border px-4">
+          <div className="h-14 flex items-center gap-3">
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg shrink-0" onClick={() => setMobileNavOpen(true)}>
+              <Menu className="w-5 h-5" />
             </Button>
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <Shield className="w-3.5 h-3.5 text-primary" />
+              </div>
+              <span className="font-display font-semibold text-sm truncate">{currentPage?.label || 'Admin'}</span>
+            </div>
+            <div className="ml-auto flex items-center gap-1 shrink-0">
+              {!siteActive && (
+                <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" title="Underhållsläge" />
+              )}
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate('/')}>
+                <Home className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+          <div className="pb-2">
+            <AdminGlobalSearch />
           </div>
         </div>
 
