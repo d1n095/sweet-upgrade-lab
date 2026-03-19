@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { ShoppingCart, Check, Flame, Package, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
