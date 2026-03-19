@@ -14,6 +14,49 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // ── HEALTH CHECK (GET) ──
+  // Allows admin panel to verify webhook is reachable + secrets are configured
+  if (req.method === 'GET') {
+    const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
+    const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+
+    // Fetch last webhook events from activity_logs
+    let lastEvents: any[] = [];
+    let lastEventTime: string | null = null;
+    try {
+      const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const supabase = createClient(supabaseUrl!, serviceKey);
+      const { data } = await supabase
+        .from('activity_logs')
+        .select('created_at, message, log_type, details')
+        .eq('category', 'payment')
+        .order('created_at', { ascending: false })
+        .limit(5);
+      lastEvents = (data || []).map((e: any) => ({
+        time: e.created_at,
+        message: e.message,
+        type: e.log_type,
+        event_type: e.details?.event_type || null,
+      }));
+      lastEventTime = lastEvents[0]?.time || null;
+    } catch {}
+
+    return new Response(JSON.stringify({
+      status: 'ok',
+      stripe_key_configured: !!stripeKey,
+      webhook_secret_configured: !!webhookSecret,
+      webhook_secret_prefix: webhookSecret ? webhookSecret.substring(0, 10) + '...' : null,
+      supabase_url_configured: !!supabaseUrl,
+      last_event_time: lastEventTime,
+      recent_events: lastEvents,
+      timestamp: new Date().toISOString(),
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
   const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
   const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
 
@@ -75,7 +118,6 @@ serve(async (req) => {
 
     let resolvedOrderId = session.metadata?.order_id || await findOrderBySession(supabase, session.id);
 
-    // If order is missing (e.g. checkout created outside our regular flow), create it from Stripe data.
     if (!resolvedOrderId) {
       resolvedOrderId = await createOrderFromCompletedSession(stripe, supabase, session);
       if (resolvedOrderId) {
@@ -130,7 +172,7 @@ serve(async (req) => {
 
     const { data: order } = await supabase
       .from('orders')
-      .select('id, status, payment_status, status_history, items, order_number')
+      .select('id, status, payment_status, status_history, items, order_number, user_id')
       .eq('id', resolvedOrderId)
       .maybeSingle();
 
@@ -162,6 +204,27 @@ serve(async (req) => {
       return ok({ received: true, duplicate: true, method: 'status_check', order_id: resolvedOrderId });
     }
 
+    // ── Try to resolve real user_id if order has placeholder ──
+    let finalUserId = order.user_id;
+    if (finalUserId === '00000000-0000-0000-0000-000000000000') {
+      // Check metadata first
+      const metadataUserId = session.metadata?.user_id;
+      if (metadataUserId && metadataUserId !== '00000000-0000-0000-0000-000000000000') {
+        finalUserId = metadataUserId;
+      } else {
+        // Try to find user by email
+        const customerEmail = session.customer_email || session.customer_details?.email;
+        if (customerEmail) {
+          try {
+            const { data: foundUsers } = await supabase.rpc('admin_search_users', { p_query: customerEmail });
+            if (foundUsers && foundUsers.length > 0) {
+              finalUserId = foundUsers[0].user_id;
+            }
+          } catch {}
+        }
+      }
+    }
+
     // Resolve payment method from Stripe
     let paymentMethodType: string | null = null;
     if (paymentIntentId) {
@@ -183,17 +246,24 @@ serve(async (req) => {
       note: `Payment confirmed via Stripe (${paymentMethodType || 'unknown'}) — payment_status: paid`,
     });
 
+    const updatePayload: Record<string, any> = {
+      status: 'confirmed',
+      payment_status: 'paid',
+      payment_method: paymentMethodType,
+      status_history: history,
+      total_amount: (session.amount_total || 0) / 100,
+      stripe_session_id: session.id,
+      payment_intent_id: paymentIntentId,
+    };
+
+    // Update user_id if we resolved a real one
+    if (finalUserId !== order.user_id) {
+      updatePayload.user_id = finalUserId;
+    }
+
     const { error: updateError } = await supabase
       .from('orders')
-      .update({
-        status: 'confirmed',
-        payment_status: 'paid',
-        payment_method: paymentMethodType,
-        status_history: history,
-        total_amount: (session.amount_total || 0) / 100,
-        stripe_session_id: session.id,
-        payment_intent_id: paymentIntentId,
-      })
+      .update(updatePayload)
       .eq('id', resolvedOrderId);
 
     if (updateError) {
@@ -236,7 +306,7 @@ serve(async (req) => {
 
     const { data: confirmedOrder } = await supabase
       .from('orders')
-      .select('id, order_number, order_email, total_amount, status')
+      .select('id, order_number, order_email, total_amount, status, user_id')
       .eq('id', resolvedOrderId)
       .maybeSingle();
 
@@ -246,6 +316,7 @@ serve(async (req) => {
       email: confirmedOrder?.order_email,
       amount: confirmedOrder?.total_amount,
       status: confirmedOrder?.status,
+      user_id: confirmedOrder?.user_id,
       stripe_session_id: session.id,
       payment_intent_id: paymentIntentId,
       payment_method: paymentMethodType,
@@ -262,6 +333,7 @@ serve(async (req) => {
         payment_intent_id: paymentIntentId,
         payment_method: paymentMethodType,
         amount: confirmedOrder?.total_amount,
+        user_id: confirmedOrder?.user_id,
       },
       resolvedOrderId,
     );
@@ -450,6 +522,18 @@ async function createOrderFromCompletedSession(
   const currency = (session.currency || 'sek').toUpperCase();
   const paymentIntentId = typeof session.payment_intent === 'string' ? session.payment_intent : null;
 
+  // Try to resolve user_id from metadata or email lookup
+  let userId = session.metadata?.user_id || null;
+  if (!userId || userId === '00000000-0000-0000-0000-000000000000') {
+    try {
+      const { data: foundUsers } = await supabase.rpc('admin_search_users', { p_query: email });
+      if (foundUsers && foundUsers.length > 0) {
+        userId = foundUsers[0].user_id;
+      }
+    } catch {}
+  }
+  const orderUserId = userId || '00000000-0000-0000-0000-000000000000';
+
   let items: Array<{ id: string | null; title: string; price: number; quantity: number; image: string }> = [];
   try {
     const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 100 });
@@ -475,7 +559,7 @@ async function createOrderFromCompletedSession(
 
   const orderData = {
     order_email: email,
-    user_id: '00000000-0000-0000-0000-000000000000',
+    user_id: orderUserId,
     total_amount: (session.amount_total || 0) / 100,
     currency,
     status: 'confirmed',
@@ -488,7 +572,7 @@ async function createOrderFromCompletedSession(
     status_history: [{
       status: 'confirmed',
       timestamp: new Date().toISOString(),
-      note: 'Order auto-created from checkout.session.completed webhook',
+      note: `Order auto-created from checkout.session.completed webhook (user: ${orderUserId === '00000000-0000-0000-0000-000000000000' ? 'guest' : 'authenticated'})`,
     }],
     notes: `Auto-created by stripe-webhook from session ${session.id}`,
   };
@@ -527,6 +611,7 @@ async function createOrderFromCompletedSession(
       email,
       amount: (session.amount_total || 0) / 100,
       status: 'confirmed',
+      user_id: orderUserId,
     },
     insertedOrder.id,
   );
