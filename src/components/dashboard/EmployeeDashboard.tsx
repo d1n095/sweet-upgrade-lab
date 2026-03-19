@@ -271,6 +271,10 @@ const EmployeeDashboard = () => {
                     <Badge variant="secondary" className="ml-1">{pendingReviews.length}</Badge>
                   )}
                 </TabsTrigger>
+                <TabsTrigger value="audit" className="gap-2">
+                  <History className="w-4 h-4" />
+                  {language === 'sv' ? 'Ändringslogg' : 'Audit Log'}
+                </TabsTrigger>
               </TabsList>
 
               {/* Orders Tab */}
