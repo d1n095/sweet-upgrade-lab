@@ -54,18 +54,85 @@ serve(async (req) => {
   }
 
   const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
-  const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
-
   if (!stripeKey) {
     console.error('STRIPE_SECRET_KEY not configured');
     return new Response('Server misconfigured', { status: 500, headers: corsHeaders });
   }
+
+  const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16', httpClient: Stripe.createFetchHttpClient() });
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+  const hasStripeSignature = !!req.headers.get('stripe-signature');
+
+  // Manual fallback used by /order-confirmation and /track-order
+  // to ensure order exists from session_id even when webhook delivery is delayed/misconfigured.
+  if (req.method === 'POST' && !hasStripeSignature) {
+    const payload = await req.json().catch(() => null);
+    const action = payload?.action;
+    const sessionId = typeof payload?.session_id === 'string' ? payload.session_id.trim() : '';
+
+    if (action !== 'ensure_order') {
+      return ok({ received: false, error: 'invalid_action' });
+    }
+
+    if (!isStripeSessionId(sessionId)) {
+      return ok({ received: false, error: 'invalid_session_id' });
+    }
+
+    let session: Stripe.Checkout.Session;
+    try {
+      session = await stripe.checkout.sessions.retrieve(sessionId);
+    } catch (err: any) {
+      console.error('[stripe-webhook] Could not retrieve session for ensure_order:', err?.message || err);
+      return ok({ received: false, error: 'session_not_found' });
+    }
+
+    if (session.status !== 'complete' || session.payment_status !== 'paid') {
+      return ok({
+        received: false,
+        error: 'payment_not_completed',
+        session_status: session.status,
+        payment_status: session.payment_status,
+      });
+    }
+
+    const ensured = await upsertPaidOrderFromSession(stripe, supabase, session);
+    if (!ensured.orderId) {
+      return ok({ received: false, error: ensured.error || 'order_creation_failed' });
+    }
+
+    await logEvent(
+      supabase,
+      ensured.duplicate ? 'info' : 'success',
+      'order',
+      ensured.duplicate
+        ? 'Order found via ensure_order fallback'
+        : 'Order created via ensure_order fallback',
+      {
+        stripe_session_id: session.id,
+        order_number: ensured.order?.order_number || null,
+        source: 'manual_fallback',
+      },
+      ensured.orderId,
+    );
+
+    return ok({
+      received: true,
+      ensured: true,
+      duplicate: ensured.duplicate,
+      order_id: ensured.orderId,
+      order: ensured.order,
+    });
+  }
+
+  const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
   if (!webhookSecret) {
     console.error('STRIPE_WEBHOOK_SECRET not configured');
     return new Response('Webhook secret not configured', { status: 500, headers: corsHeaders });
   }
-
-  const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16', httpClient: Stripe.createFetchHttpClient() });
 
   const signature = req.headers.get('stripe-signature');
   if (!signature) {
@@ -84,10 +151,6 @@ serve(async (req) => {
     });
   }
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
   console.log('[stripe-webhook] Event received', { event_id: event.id, event_type: event.type });
 
   await logEvent(supabase, 'info', 'payment', 'Stripe webhook event received', {
@@ -99,103 +162,39 @@ serve(async (req) => {
   // ══════════════════════════════════════════════════════════
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
-    const paymentIntentId = session.payment_intent as string | null;
+    const paymentIntentId = typeof session.payment_intent === 'string' ? session.payment_intent : null;
 
-    // ── Idempotency: check if order already exists for this session ──
-    const existingOrder = await findOrderBySession(supabase, session.id);
-    if (existingOrder) {
-      const { data: eo } = await supabase
-        .from('orders')
-        .select('id, status, payment_status')
-        .eq('id', existingOrder)
-        .maybeSingle();
+    const ensured = await upsertPaidOrderFromSession(stripe, supabase, session);
 
-      if (eo && eo.payment_status === 'paid') {
-        console.log('[stripe-webhook] Order already exists and is paid, skipping', existingOrder);
-        return ok({ received: true, duplicate: true, order_id: existingOrder });
-      }
-    }
-
-    // ── Idempotency: check payment_intent_id ──
-    if (paymentIntentId) {
-      const { data: existingByPI } = await supabase
-        .from('orders')
-        .select('id, status, payment_status')
-        .eq('payment_intent_id', paymentIntentId)
-        .maybeSingle();
-
-      if (existingByPI && existingByPI.payment_status === 'paid') {
-        console.log('[stripe-webhook] Duplicate payment_intent_id, skipping');
-        return ok({ received: true, duplicate: true, order_id: existingByPI.id });
-      }
-    }
-
-    // ── Create order from session metadata + Stripe data ──
-    const orderId = await createOrderFromSession(stripe, supabase, session);
-
-    if (!orderId) {
+    if (!ensured.orderId) {
       console.error('[stripe-webhook] Failed to create order for session:', session.id);
       await logEvent(supabase, 'error', 'order', 'Failed to create order from webhook', {
         stripe_session: session.id, event_id: event.id,
       });
-      return ok({ received: true, error: 'order_creation_failed' });
+      return ok({ received: true, error: ensured.error || 'order_creation_failed' });
     }
 
-    // ── Convert reserved stock → sold ──
-    const reservedMeta = session.metadata?.reserved_items || "";
-    if (reservedMeta) {
-      const pairs = reservedMeta.split(",").filter(Boolean);
-      for (const pair of pairs) {
-        const [productId, qtyStr] = pair.split(":");
-        const qty = parseInt(qtyStr) || 1;
-        if (!productId) continue;
-
-        const { data: product } = await supabase
-          .from('products')
-          .select('stock, reserved_stock')
-          .eq('id', productId)
-          .maybeSingle();
-
-        if (product) {
-          await supabase
-            .from('products')
-            .update({
-              stock: Math.max(0, product.stock - qty),
-              reserved_stock: Math.max(0, product.reserved_stock - qty),
-            })
-            .eq('id', productId);
-        }
-      }
+    if (!ensured.duplicate) {
+      await logEvent(
+        supabase,
+        'success',
+        'order',
+        'Payment confirmed — order created from Stripe webhook',
+        {
+          order_number: ensured.order?.order_number || null,
+          stripe_session_id: session.id,
+          payment_intent_id: paymentIntentId,
+          amount: ensured.order?.total_amount || null,
+        },
+        ensured.orderId,
+      );
     }
-
-    const { data: confirmedOrder } = await supabase
-      .from('orders')
-      .select('id, order_number, order_email, total_amount, status')
-      .eq('id', orderId)
-      .maybeSingle();
-
-    console.log('[stripe-webhook] Order created and confirmed', {
-      order_id: orderId,
-      order_number: confirmedOrder?.order_number,
-      email: confirmedOrder?.order_email,
-      amount: confirmedOrder?.total_amount,
-    });
-
-    await logEvent(supabase, 'success', 'order',
-      'Payment confirmed — order created from Stripe webhook',
-      {
-        order_number: confirmedOrder?.order_number,
-        stripe_session_id: session.id,
-        payment_intent_id: paymentIntentId,
-        amount: confirmedOrder?.total_amount,
-      },
-      orderId,
-    );
 
     return ok({
       received: true,
-      order_id: orderId,
-      order_number: confirmedOrder?.order_number || null,
+      duplicate: ensured.duplicate,
+      order_id: ensured.orderId,
+      order_number: ensured.order?.order_number || null,
       stripe_session_id: session.id,
     });
   }
@@ -309,6 +308,10 @@ function ok(body: unknown) {
   });
 }
 
+function isStripeSessionId(value: string): boolean {
+  return /^cs_(test|live)_[A-Za-z0-9]+$/.test(value);
+}
+
 async function findOrderBySession(supabase: any, sessionId: string): Promise<string | null> {
   const { data } = await supabase
     .from('orders')
@@ -316,6 +319,82 @@ async function findOrderBySession(supabase: any, sessionId: string): Promise<str
     .eq('stripe_session_id', sessionId)
     .maybeSingle();
   return data?.id || null;
+}
+
+async function fetchTrackableOrderById(supabase: any, orderId: string) {
+  const { data } = await supabase
+    .from('orders')
+    .select('id, order_number, shopify_order_number, stripe_session_id, order_email, status, tracking_number, estimated_delivery, created_at, items, total_amount, currency, shipping_address, payment_status')
+    .eq('id', orderId)
+    .maybeSingle();
+
+  return data || null;
+}
+
+async function settleReservedStockFromMetadata(supabase: any, reservedMeta: string) {
+  if (!reservedMeta) return;
+
+  const pairs = reservedMeta.split(',').filter(Boolean);
+  for (const pair of pairs) {
+    const [productId, qtyStr] = pair.split(':');
+    const qty = parseInt(qtyStr, 10) || 1;
+    if (!productId) continue;
+
+    const { data: product } = await supabase
+      .from('products')
+      .select('stock, reserved_stock')
+      .eq('id', productId)
+      .maybeSingle();
+
+    if (product) {
+      await supabase
+        .from('products')
+        .update({
+          stock: Math.max(0, product.stock - qty),
+          reserved_stock: Math.max(0, product.reserved_stock - qty),
+        })
+        .eq('id', productId);
+    }
+  }
+}
+
+async function upsertPaidOrderFromSession(
+  stripe: Stripe,
+  supabase: any,
+  session: Stripe.Checkout.Session,
+): Promise<{ orderId: string | null; order: any | null; duplicate: boolean; error?: string }> {
+  const paymentIntentId = typeof session.payment_intent === 'string' ? session.payment_intent : null;
+
+  const existingOrderId = await findOrderBySession(supabase, session.id);
+  if (existingOrderId) {
+    const existingOrder = await fetchTrackableOrderById(supabase, existingOrderId);
+    if (existingOrder?.payment_status === 'paid') {
+      return { orderId: existingOrderId, order: existingOrder, duplicate: true };
+    }
+  }
+
+  if (paymentIntentId) {
+    const { data: existingByPI } = await supabase
+      .from('orders')
+      .select('id, payment_status')
+      .eq('payment_intent_id', paymentIntentId)
+      .maybeSingle();
+
+    if (existingByPI?.id && existingByPI.payment_status === 'paid') {
+      const order = await fetchTrackableOrderById(supabase, existingByPI.id);
+      return { orderId: existingByPI.id, order, duplicate: true };
+    }
+  }
+
+  const orderId = await createOrderFromSession(stripe, supabase, session);
+  if (!orderId) {
+    return { orderId: null, order: null, duplicate: false, error: 'order_creation_failed' };
+  }
+
+  await settleReservedStockFromMetadata(supabase, session.metadata?.reserved_items || '');
+  const order = await fetchTrackableOrderById(supabase, orderId);
+
+  return { orderId, order, duplicate: false };
 }
 
 /**
