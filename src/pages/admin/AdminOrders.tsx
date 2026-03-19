@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { ClipboardList, Clock, CheckCircle, Truck, DollarSign } from 'lucide-react';
+import { ClipboardList, Clock, Truck, DollarSign } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import AdminOrderManager from '@/components/admin/AdminOrderManager';
 import AdminOrderAuditLog from '@/components/admin/AdminOrderAuditLog';
+import AdminDeletedOrders from '@/components/admin/AdminDeletedOrders';
 
 const AdminOrders = () => {
   const [stats, setStats] = useState({ total: 0, pending: 0, shipped: 0, revenue: 0 });
@@ -12,7 +13,10 @@ const AdminOrders = () => {
 
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase.from('orders').select('status, total_amount, payment_status');
+      const { data } = await supabase
+        .from('orders')
+        .select('status, total_amount, payment_status, deleted_at')
+        .is('deleted_at', null);
       const ords = data || [];
       setStats({
         total: ords.length,
@@ -56,10 +60,14 @@ const AdminOrders = () => {
       <Tabs defaultValue="orders">
         <TabsList>
           <TabsTrigger value="orders">Ordrar</TabsTrigger>
+          <TabsTrigger value="deleted">Raderade</TabsTrigger>
           <TabsTrigger value="audit">Ändringslogg</TabsTrigger>
         </TabsList>
         <TabsContent value="orders">
           <AdminOrderManager />
+        </TabsContent>
+        <TabsContent value="deleted">
+          <AdminDeletedOrders />
         </TabsContent>
         <TabsContent value="audit">
           <AdminOrderAuditLog />
