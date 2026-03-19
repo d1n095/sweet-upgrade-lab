@@ -58,7 +58,7 @@ interface FieldErrors {
   city?: string;
 }
 
-const CHECKOUT_TIMEOUT_MS = 8000;
+const CHECKOUT_TIMEOUT_MS = 30000;
 
 const Checkout = () => {
   const navigate = useNavigate();
