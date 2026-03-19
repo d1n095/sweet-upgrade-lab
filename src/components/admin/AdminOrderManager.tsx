@@ -630,6 +630,17 @@ const AdminOrderManager = () => {
                         {content.refund}
                       </Button>
                     )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1.5 text-xs border-destructive/50 text-destructive hover:bg-destructive/10"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteOrder(order);
+                      }}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
                     <span className="font-semibold text-sm">
                       {formatCurrency(order.total_amount, order.currency)}
                     </span>
