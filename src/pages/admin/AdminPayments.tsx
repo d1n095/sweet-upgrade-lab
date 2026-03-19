@@ -50,13 +50,14 @@ interface FinanceData {
   }>;
 }
 
-// Stripe-supported methods (card covers Apple Pay & Google Pay automatically)
+// Stripe-supported checkout methods with activation status
 const STRIPE_METHODS = [
-  { id: 'card', name: 'Kort (Visa / Mastercard)', supported: true },
-  { id: 'klarna', name: 'Klarna', supported: true },
-  { id: 'applepay', name: 'Apple Pay', supported: true, note: 'Via Stripe (kort)' },
-  { id: 'googlepay', name: 'Google Pay', supported: true, note: 'Via Stripe (kort)' },
-  { id: 'swish', name: 'Swish', supported: false, note: 'Kräver separat integration (ej Stripe)' },
+  { id: 'card', name: 'Kort (Visa / Mastercard)', status: 'active' as const, note: 'Inkl. Apple Pay & Google Pay' },
+  { id: 'klarna', name: 'Klarna', status: 'active' as const },
+  { id: 'applepay', name: 'Apple Pay', status: 'active' as const, note: 'Automatiskt via kort' },
+  { id: 'googlepay', name: 'Google Pay', status: 'active' as const, note: 'Automatiskt via kort' },
+  { id: 'revolut_pay', name: 'Revolut Pay', status: 'active' as const },
+  { id: 'paypal', name: 'PayPal', status: 'requires_action' as const, note: 'Kräver aktivering i Stripe' },
 ];
 
 const AdminPayments = () => {
