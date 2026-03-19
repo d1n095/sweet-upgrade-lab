@@ -486,7 +486,7 @@ const Checkout = () => {
           <p className="text-muted-foreground mb-6">
             {isSv ? 'Vi kan just nu inte ta emot beställningar. Försök igen senare.' : 'We cannot accept orders at this time. Please try again later.'}
           </p>
-          <Button onClick={() => navigate('/produkter')}>
+          <Button onClick={() => navigate('/products')}>
             {isSv ? 'Tillbaka till produkter' : 'Back to products'}
           </Button>
         </div>
@@ -500,7 +500,7 @@ const Checkout = () => {
         <div className="max-w-lg text-center px-4">
           <ShoppingBag className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
           <h1 className="text-2xl font-bold mb-4">{t.emptyCart}</h1>
-          <Button onClick={() => navigate('/produkter')}>{t.goToShop}</Button>
+          <Button onClick={() => navigate('/products')}>{t.goToShop}</Button>
         </div>
       </div>
     );
@@ -517,7 +517,7 @@ const Checkout = () => {
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border">
         <div className="container mx-auto px-4 h-14 flex items-center justify-between max-w-5xl">
           <Link
-            to="/produkter"
+            to="/products"
             className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
