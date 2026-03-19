@@ -24,17 +24,45 @@ const OrderConfirmation = () => {
   }, [clearCart]);
 
   useEffect(() => {
-    if (sessionId && !orderNumber) {
-      supabase
+    let isActive = true;
+
+    const resolveOrderFromSession = async () => {
+      if (!sessionId || orderNumber) return;
+
+      try {
+        const { data, error } = await supabase.functions.invoke('stripe-webhook', {
+          body: {
+            action: 'ensure_order',
+            session_id: sessionId,
+          },
+        });
+
+        if (!error && data?.order) {
+          if (!isActive) return;
+          if (data.order.order_number) setOrderNumber(data.order.order_number);
+          if (data.order.order_email) setOrderEmail(data.order.order_email);
+          return;
+        }
+      } catch (err) {
+        console.error('[order-confirmation] Failed to ensure order from session:', err);
+      }
+
+      const { data } = await supabase
         .from('orders')
         .select('order_number, order_email')
         .eq('stripe_session_id', sessionId)
-        .maybeSingle()
-        .then(({ data }) => {
-          if (data?.order_number) setOrderNumber(data.order_number);
-          if (data?.order_email) setOrderEmail(data.order_email);
-        });
-    }
+        .maybeSingle();
+
+      if (!isActive) return;
+      if (data?.order_number) setOrderNumber(data.order_number);
+      if (data?.order_email) setOrderEmail(data.order_email);
+    };
+
+    resolveOrderFromSession();
+
+    return () => {
+      isActive = false;
+    };
   }, [sessionId, orderNumber]);
 
   const content = {
@@ -304,7 +332,7 @@ const OrderConfirmation = () => {
             className="flex flex-col sm:flex-row gap-4 justify-center"
           >
             <Button asChild>
-              <Link to={`/track-order${orderNumber ? `?q=${encodeURIComponent(orderNumber)}` : ''}`} className="flex items-center gap-2">
+              <Link to={`/track-order${sessionId ? `?q=${encodeURIComponent(sessionId)}` : orderNumber ? `?q=${encodeURIComponent(orderNumber)}` : ''}`} className="flex items-center gap-2">
                 {t.trackOrder}
                 <ArrowRight className="w-4 h-4" />
               </Link>
