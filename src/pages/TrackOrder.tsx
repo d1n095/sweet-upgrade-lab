@@ -353,7 +353,6 @@ const TrackOrder = () => {
                     id="orderNumber"
                     value={orderNumber}
                     onChange={(e) => setOrderNumber(e.target.value)}
-                    required
                     placeholder={t.orderNumberPlaceholder}
                   />
                 </div>
