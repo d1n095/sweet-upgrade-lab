@@ -72,7 +72,7 @@ const AdminProductManager = () => {
     isVisible: true, inventory: 0, allowOverselling: false,
     imageUrls: [], ingredients: '', certifications: '', recipe: '',
     feeling: '', effects: '', usage: '', extendedDescription: '',
-    metaTitle: '', metaDescription: '', metaKeywords: '',
+    metaTitle: '', metaDescription: '', metaKeywords: '', weightGrams: '',
   });
 
   const { data: products = [], isLoading: productsLoading } = useQuery({
