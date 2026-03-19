@@ -565,16 +565,41 @@ const Checkout = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* TEMP DEBUG PANEL */}
-      {Object.keys(debugInfo).length > 0 && (
-        <div className="fixed top-16 right-4 z-[9999] max-w-xs bg-card border border-border rounded-lg shadow-lg p-3 text-xs font-mono space-y-1 max-h-60 overflow-auto">
-          <p className="font-bold text-foreground">🔍 Debug Info</p>
-          {Object.entries(debugInfo).map(([k, v]) => (
-            <p key={k} className="text-muted-foreground">
-              <span className="text-foreground font-semibold">{k}:</span>{' '}
-              {typeof v === 'object' ? JSON.stringify(v) : String(v)}
-            </p>
-          ))}
+      {/* Debug panel – only visible when debug data exists or an error occurred */}
+      {(Object.keys(debugInfo).length > 0 || checkoutError) && (
+        <div className="fixed top-16 right-4 z-[9999] max-w-sm bg-card border border-border rounded-lg shadow-xl p-3 text-xs font-mono space-y-1.5 max-h-72 overflow-auto">
+          <div className="flex items-center justify-between mb-1">
+            <p className="font-bold text-foreground flex items-center gap-1">🔍 Checkout Debug</p>
+            <button onClick={() => { setDebugInfo({}); setCheckoutError(null); }} className="text-muted-foreground hover:text-foreground">✕</button>
+          </div>
+          {debugInfo.step && (
+            <div className={`px-2 py-1 rounded text-[11px] ${
+              debugInfo.step === 'redirecting' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
+              debugInfo.step === 'failed' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' :
+              'bg-secondary text-muted-foreground'
+            }`}>
+              Steg: <strong>{debugInfo.step}</strong>
+            </div>
+          )}
+          {debugInfo.data?.orderId && (
+            <p className="text-muted-foreground">orderId: <span className="text-foreground">{debugInfo.data.orderId}</span></p>
+          )}
+          {debugInfo.data?.sessionId && (
+            <p className="text-muted-foreground">sessionId: <span className="text-foreground">{String(debugInfo.data.sessionId).slice(0, 30)}…</span></p>
+          )}
+          {debugInfo.data?.url && (
+            <p className="text-muted-foreground">url: <span className="text-green-600 dark:text-green-400 break-all">{String(debugInfo.data.url).slice(0, 60)}…</span></p>
+          )}
+          {debugInfo.error && (
+            <p className="text-red-600 dark:text-red-400">error: {debugInfo.error}</p>
+          )}
+          {debugInfo.data?.warnings && (
+            <p className="text-yellow-600 dark:text-yellow-400">warnings: {JSON.stringify(debugInfo.data.warnings)}</p>
+          )}
+          {debugInfo.status && (
+            <p className="text-muted-foreground">HTTP: <span className="text-foreground">{debugInfo.status}</span></p>
+          )}
+          <p className="text-muted-foreground">items: {debugInfo.itemCount || items.length} | total: {total} SEK</p>
         </div>
       )}
       {/* Minimal checkout header — distraction-free */}

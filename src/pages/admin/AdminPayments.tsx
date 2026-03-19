@@ -20,6 +20,7 @@ import { useStoreSettings } from '@/stores/storeSettingsStore';
 import { usePaymentMethodsStore } from '@/stores/paymentMethodsStore';
 import { PAYMENT_ICON_MAP, GenericIcon } from '@/components/trust/PaymentMethodIcons';
 const AdminWebhookStatus = lazy(() => import('@/components/admin/AdminWebhookStatus'));
+const AdminPaymentLogs = lazy(() => import('@/components/admin/AdminPaymentLogs'));
 
 // ─── Types ───
 interface FinanceData {
@@ -216,6 +217,7 @@ const AdminPayments = () => {
         <ScrollableTabs>
           <TabsList className="w-max bg-secondary/50">
             <TabsTrigger value="methods" className="gap-1.5 text-xs"><CreditCard className="w-3.5 h-3.5" /> Betalningsmetoder</TabsTrigger>
+            <TabsTrigger value="payment-logs" className="gap-1.5 text-xs"><AlertTriangle className="w-3.5 h-3.5" /> Betalningslogg</TabsTrigger>
             <TabsTrigger value="webhook" className="gap-1.5 text-xs"><Zap className="w-3.5 h-3.5" /> Webhook</TabsTrigger>
             <TabsTrigger value="overview" className="gap-1.5 text-xs"><Wallet className="w-3.5 h-3.5" /> Ekonomi</TabsTrigger>
             {isFounder && (
@@ -296,6 +298,13 @@ const AdminPayments = () => {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Payment Logs Tab */}
+        <TabsContent value="payment-logs" className="space-y-6">
+          <Suspense fallback={<div className="flex items-center justify-center h-32"><RefreshCw className="w-6 h-6 animate-spin text-muted-foreground" /></div>}>
+            <AdminPaymentLogs />
+          </Suspense>
         </TabsContent>
 
         {/* Webhook Status Tab */}
