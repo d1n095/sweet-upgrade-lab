@@ -97,20 +97,26 @@ const AdminActivityLog = () => {
       month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit',
     });
 
-  const filteredLogs = searchQuery
-    ? logs.filter(l => 
-        l.message.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (l.details?.user_email && String(l.details.user_email).toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (l.order_id && l.order_id.includes(searchQuery))
-      )
-    : logs;
-
+  // Stats always from ALL logs
   const errorCount = logs.filter(l => l.log_type === 'error').length;
   const warningCount = logs.filter(l => l.log_type === 'warning').length;
   const successCount = logs.filter(l => l.log_type === 'success').length;
-  const authLogs = logs.filter(l => l.category === 'auth');
   const securityLogs = logs.filter(l => l.category === 'security');
+  const authLogs = logs.filter(l => l.category === 'auth');
   const orderLogs = logs.filter(l => l.category === 'order' || l.order_id);
+
+  // Filtered logs for the list only
+  const filteredLogs = logs.filter(l => {
+    if (typeFilter !== 'all' && l.log_type !== typeFilter) return false;
+    if (categoryFilter !== 'all' && l.category !== categoryFilter) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      return l.message.toLowerCase().includes(q) ||
+        (l.details?.user_email && String(l.details.user_email).toLowerCase().includes(q)) ||
+        (l.order_id && l.order_id.includes(searchQuery));
+    }
+    return true;
+  });
 
   const handleExportCSV = () => {
     const headers = ['Tidpunkt', 'Typ', 'Kategori', 'Meddelande', 'Användare', 'Order-ID'];
