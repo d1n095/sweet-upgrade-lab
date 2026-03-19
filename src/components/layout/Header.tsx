@@ -278,25 +278,6 @@ const Header = () => {
 
             {/* Desktop Nav */}
             <nav className="hidden md:flex items-center gap-5 min-w-0 overflow-visible">
-              {productDropdownItems.length > 0 ? (
-                <NavDropdown
-                  label="Shop"
-                  href="/produkter"
-                  items={productDropdownItems}
-                  isActive={location.pathname === '/produkter'}
-                />
-              ) : (
-                <Link
-                  to="/produkter"
-                  className={`text-sm font-semibold px-4 py-1.5 rounded-full transition-all ${
-                    location.pathname === '/produkter'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-secondary/60 text-foreground hover:bg-secondary'
-                  }`}
-                >
-                  Shop
-                </Link>
-              )}
 
               <NavDropdown
                 label={t('nav.about')}
