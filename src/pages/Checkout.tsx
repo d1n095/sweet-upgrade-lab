@@ -523,6 +523,18 @@ const Checkout = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* TEMP DEBUG PANEL */}
+      {Object.keys(debugInfo).length > 0 && (
+        <div className="fixed top-16 right-4 z-[9999] max-w-xs bg-card border border-border rounded-lg shadow-lg p-3 text-xs font-mono space-y-1 max-h-60 overflow-auto">
+          <p className="font-bold text-foreground">🔍 Debug Info</p>
+          {Object.entries(debugInfo).map(([k, v]) => (
+            <p key={k} className="text-muted-foreground">
+              <span className="text-foreground font-semibold">{k}:</span>{' '}
+              {typeof v === 'object' ? JSON.stringify(v) : String(v)}
+            </p>
+          ))}
+        </div>
+      )}
       {/* Minimal checkout header — distraction-free */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border">
         <div className="container mx-auto px-4 h-14 flex items-center justify-between max-w-5xl">
