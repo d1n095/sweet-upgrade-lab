@@ -116,11 +116,18 @@ const ShippingCarriersSection = () => {
   };
 
   const resetForm = () => {
-    setForm({ name: '', website_url: '', pricing_url: '', tracking_url_template: '', is_international: false, supports_pickup_points: false, supports_home_delivery: true, supports_express: false, supports_parcel_lockers: false, notes: '' });
+    setForm({ ...EMPTY_FORM });
     setEditing(null);
+    setShowPresets(false);
   };
 
-  const openAdd = () => { resetForm(); setIsFormOpen(true); };
+  const openAdd = () => { resetForm(); setShowPresets(true); setIsFormOpen(true); };
+
+  const selectPreset = (key: string) => {
+    const preset = CARRIER_PRESETS[key];
+    if (preset) setForm({ ...preset, notes: '' });
+    setShowPresets(false);
+  };
 
   const openEdit = (c: ShippingCarrier) => {
     setEditing(c);
