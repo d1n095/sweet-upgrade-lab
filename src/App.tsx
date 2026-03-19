@@ -8,6 +8,7 @@ import { LanguageProvider } from "./context/LanguageContext";
 import ScrollToTop from "./components/ScrollToTop";
 import Index from "./pages/Index";
 import ProductDetail from "./pages/ProductDetail";
+import OrderDetail from "./pages/OrderDetail";
 import Shop from "./pages/Shop";
 import Produkter from "./pages/Produkter";
 import AboutUs from "./pages/AboutUs";
@@ -90,6 +91,7 @@ const App = () => (
               <Route path="/track-order" element={<TrackOrder />} />
               <Route path="/checkout" element={<Checkout />} />
               <Route path="/order-confirmation" element={<OrderConfirmation />} />
+              <Route path="/order/:id" element={<OrderDetail />} />
               
               <Route path="/cbd" element={<CBD />} />
               <Route path="/policies/returns" element={<ReturnsPolicy />} />
