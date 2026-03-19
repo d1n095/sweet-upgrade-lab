@@ -67,6 +67,7 @@ const Checkout = () => {
   const { checkoutEnabled } = useStoreSettings();
   const { user } = useAuth();
   const shippingConfig = useShippingConfig();
+  const { isAdmin } = useAdminRole();
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
