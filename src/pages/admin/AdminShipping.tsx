@@ -208,6 +208,9 @@ const AdminShipping = () => {
             <TabsTrigger value="settings" className="gap-1.5 text-xs">
               <Package className="w-3.5 h-3.5" /> Inställningar
             </TabsTrigger>
+            <TabsTrigger value="weight" className="gap-1.5 text-xs">
+              <Scale className="w-3.5 h-3.5" /> Vikttabeller
+            </TabsTrigger>
             <TabsTrigger value="extras" className="gap-1.5 text-xs">
               <Gift className="w-3.5 h-3.5" /> Vi skickar med
             </TabsTrigger>
