@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle, Package, Clock, Mail, ArrowRight, Truck, Loader2, Copy } from 'lucide-react';
+import { CheckCircle, Package, Clock, Mail, ArrowRight, Truck, Loader2 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -9,7 +9,6 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { storeConfig } from '@/config/storeConfig';
 import { supabase } from '@/integrations/supabase/client';
 import { useCartStore } from '@/stores/cartStore';
-import { toast } from 'sonner';
 
 const OrderConfirmation = () => {
   const { language } = useLanguage();
@@ -100,11 +99,6 @@ const OrderConfirmation = () => {
     };
   }, [sessionId, retryCount]);
 
-  const copySessionId = () => {
-    navigator.clipboard.writeText(sessionId);
-    toast.success(language === 'sv' ? 'Kopierat!' : 'Copied!');
-  };
-
   const content = {
     sv: {
       badge: 'Tack för din beställning!',
@@ -152,20 +146,12 @@ const OrderConfirmation = () => {
 
   const t = content[language as keyof typeof content] || content.en;
 
-  const trackParams = new URLSearchParams();
-  if (sessionId) {
-    trackParams.set('q', sessionId);
-    trackParams.set('session_id', sessionId);
-  } else if (orderNumber) {
-    trackParams.set('q', orderNumber);
-  } else if (orderId) {
-    trackParams.set('q', orderId);
-  }
-
-  if (orderNumber) trackParams.set('order_number', orderNumber);
-  if (orderId) trackParams.set('order_id', orderId);
-
-  const trackHref = `/track-order${trackParams.toString() ? `?${trackParams.toString()}` : ''}`;
+  // Track link uses ONLY DB-sourced order data
+  const trackHref = orderNumber
+    ? `/track-order?q=${encodeURIComponent(orderNumber)}`
+    : orderId
+      ? `/order/${orderId}`
+      : '/track-order';
 
   return (
     <div className="min-h-screen bg-background">
@@ -196,21 +182,6 @@ const OrderConfirmation = () => {
                 <Loader2 className="w-5 h-5 animate-spin text-primary" />
                 <p className="text-sm font-medium">{t.waitingTitle}</p>
                 <p className="text-xs text-muted-foreground">{t.waitingDesc}</p>
-              </div>
-            ) : sessionId ? (
-              <div className="inline-block bg-card border border-border/50 rounded-xl px-6 py-3">
-                <p className="text-sm text-muted-foreground">{t.referenceLabel}</p>
-                <div className="flex items-center gap-2">
-                  <p className="font-mono text-sm truncate max-w-[280px]">{sessionId}</p>
-                  <button onClick={copySessionId} className="text-muted-foreground hover:text-foreground">
-                    <Copy className="w-4 h-4" />
-                  </button>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {language === 'sv'
-                    ? 'Spara denna referens – ditt ordernummer kan visas med kort fördröjning.'
-                    : 'Save this reference – your order number may appear with a short delay.'}
-                </p>
               </div>
             ) : null}
           </motion.div>

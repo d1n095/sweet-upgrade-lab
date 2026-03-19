@@ -35,6 +35,7 @@ const TrackOrder = () => {
   const [email, setEmail] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
+  
   const [orderData, setOrderData] = useState<OrderData | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [searchedQuery, setSearchedQuery] = useState('');
@@ -145,31 +146,6 @@ const TrackOrder = () => {
 
   const isStripeSessionId = (value: string) => /^cs_(test|live)_[A-Za-z0-9]+$/.test(value);
 
-  const ensureOrderFromSession = async (sessionId: string): Promise<OrderData | null> => {
-    try {
-      const { data, error } = await supabase.functions.invoke('stripe-webhook', {
-        body: {
-          action: 'ensure_order',
-          session_id: sessionId,
-        },
-      });
-
-      if (error) {
-        console.error('ensure_order invoke error:', error);
-        return null;
-      }
-
-      if (data?.order) {
-        return data.order as OrderData;
-      }
-
-      return null;
-    } catch (err) {
-      console.error('ensure_order failed:', err);
-      return null;
-    }
-  };
-
   const doSearch = async (searchQuery: string, searchEmail: string) => {
     setIsSearching(true);
     setNotFound(false);
@@ -187,12 +163,9 @@ const TrackOrder = () => {
 
       setSearchedQuery(cleanInput || cleanEmail);
 
+      // For Stripe session IDs, search by stripe_session_id in DB
       if (cleanInput && isStripeSessionId(cleanInput)) {
-        const ensuredOrder = await ensureOrderFromSession(cleanInput);
-        if (ensuredOrder) {
-          setOrderData(ensuredOrder);
-          return;
-        }
+        // Just add it to the OR filters below — no external call
       }
 
       const orFilters: string[] = [];
@@ -242,15 +215,8 @@ const TrackOrder = () => {
     await doSearch(orderNumber, email);
   };
 
-  // Auto-search from confirmation links (prefer session_id for guaranteed lookup)
+  // Auto-search from URL params — DB only, no external calls
   useEffect(() => {
-    const sessionFromUrl = (searchParams.get('session_id') || '').trim();
-    if (sessionFromUrl && isStripeSessionId(sessionFromUrl)) {
-      setOrderNumber(sessionFromUrl);
-      doSearch(sessionFromUrl, '');
-      return;
-    }
-
     const q = (searchParams.get('q') || '').trim();
     if (q) {
       setOrderNumber(q);
@@ -288,7 +254,7 @@ const TrackOrder = () => {
       pageBadge: 'Orderspårning',
       pageDescription: 'Ange ordernummer eller e-postadress för att se status på din leverans.',
       orderNumber: 'Ordernummer',
-      orderNumberPlaceholder: 'T.ex. ORD-00017 eller Stripe-session',
+      orderNumberPlaceholder: 'T.ex. ORD-00017',
       email: 'E-postadress',
       emailPlaceholder: 'din@email.se (valfritt)',
       searchButton: 'Sök order',
@@ -309,7 +275,7 @@ const TrackOrder = () => {
       pageBadge: 'Order Tracking',
       pageDescription: 'Enter order number or email to check your delivery status.',
       orderNumber: 'Order number',
-      orderNumberPlaceholder: 'E.g. ORD-00017 or Stripe session',
+      orderNumberPlaceholder: 'E.g. ORD-00017',
       email: 'Email address',
       emailPlaceholder: 'your@email.com (optional)',
       searchButton: 'Search order',
