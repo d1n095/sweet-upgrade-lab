@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle, Package, Clock, Mail, ArrowRight, Truck, Loader2, Copy } from 'lucide-react';
+import { CheckCircle, Package, Clock, Mail, ArrowRight, Truck, Loader2 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
