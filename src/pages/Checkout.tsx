@@ -465,7 +465,7 @@ const Checkout = () => {
           <div className="flex items-center justify-center gap-3">
             <Button variant="outline" onClick={() => window.location.reload()}>{t.retry}</Button>
             <Button asChild>
-              <Link to="/products">{t.goToShop}</Link>
+              <Link to="/produkter">{t.goToShop}</Link>
             </Button>
           </div>
         </div>
