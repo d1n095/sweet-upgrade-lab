@@ -297,6 +297,13 @@ const AdminPayments = () => {
           </Card>
         </TabsContent>
 
+        {/* Webhook Status Tab */}
+        <TabsContent value="webhook" className="space-y-6">
+          <Suspense fallback={<div className="flex items-center justify-center h-32"><RefreshCw className="w-6 h-6 animate-spin text-muted-foreground" /></div>}>
+            <AdminWebhookStatus />
+          </Suspense>
+        </TabsContent>
+
         {/* Economy Overview Tab */}
         <TabsContent value="overview" className="space-y-6">
           {/* Secondary stats */}
