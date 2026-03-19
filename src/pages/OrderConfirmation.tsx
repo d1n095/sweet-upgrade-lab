@@ -15,7 +15,8 @@ const OrderConfirmation = () => {
   const { language } = useLanguage();
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get('session_id') || '';
-  const [orderNumber, setOrderNumber] = useState(searchParams.get('order') || '');
+  const [orderNumber, setOrderNumber] = useState('');
+  const [orderId, setOrderId] = useState('');
   const [orderEmail, setOrderEmail] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [retryCount, setRetryCount] = useState(0);
@@ -54,6 +55,7 @@ const OrderConfirmation = () => {
         if (!isActive) return;
 
         if (!error && data?.order) {
+          if (data.order.id) setOrderId(data.order.id);
           if (data.order.order_number) setOrderNumber(data.order.order_number);
           if (data.order.order_email) setOrderEmail(data.order.order_email);
           setIsLoading(false);
@@ -77,11 +79,12 @@ const OrderConfirmation = () => {
       try {
         const { data } = await supabase
           .from('orders')
-          .select('order_number, order_email')
+          .select('id, order_number, order_email')
           .eq('stripe_session_id', sessionId)
           .maybeSingle();
 
         if (!isActive) return;
+        if (data?.id) setOrderId(data.id);
         if (data?.order_number) setOrderNumber(data.order_number);
         if (data?.order_email) setOrderEmail(data.order_email);
       } catch {}
@@ -118,7 +121,7 @@ const OrderConfirmation = () => {
         { icon: Mail, title: 'Du får spårningsinformation', description: 'När paketet har skickats får du ett mail med spårningslänk.' },
       ],
       deliveryTime: `Beräknad leveranstid: ${storeConfig.shipping.deliveryDays} arbetsdagar`,
-      emailInfo: 'En orderbekräftelse har skickats till din e-postadress.',
+      emailInfo: 'Orderbekräftelse skickas till din e-post när betalningen är bekräftad.',
       trackOrder: 'Spåra din order',
       continueShopping: 'Fortsätt handla',
       questions: 'Har du frågor?',
@@ -139,7 +142,7 @@ const OrderConfirmation = () => {
         { icon: Mail, title: 'You receive tracking info', description: "When the package has been shipped, you'll receive an email with tracking." },
       ],
       deliveryTime: `Estimated delivery: ${storeConfig.shipping.deliveryDays} business days`,
-      emailInfo: 'An order confirmation has been sent to your email address.',
+      emailInfo: 'Order confirmation is sent to your email after payment is confirmed.',
       trackOrder: 'Track your order',
       continueShopping: 'Continue shopping',
       questions: 'Have questions?',
@@ -148,6 +151,21 @@ const OrderConfirmation = () => {
   };
 
   const t = content[language as keyof typeof content] || content.en;
+
+  const trackParams = new URLSearchParams();
+  if (sessionId) {
+    trackParams.set('q', sessionId);
+    trackParams.set('session_id', sessionId);
+  } else if (orderNumber) {
+    trackParams.set('q', orderNumber);
+  } else if (orderId) {
+    trackParams.set('q', orderId);
+  }
+
+  if (orderNumber) trackParams.set('order_number', orderNumber);
+  if (orderId) trackParams.set('order_id', orderId);
+
+  const trackHref = `/track-order${trackParams.toString() ? `?${trackParams.toString()}` : ''}`;
 
   return (
     <div className="min-h-screen bg-background">
@@ -222,13 +240,18 @@ const OrderConfirmation = () => {
             <Clock className="w-8 h-8 text-primary mx-auto mb-3" />
             <p className="font-medium text-lg">{t.deliveryTime}</p>
             <p className="text-sm text-muted-foreground mt-2">{t.emailInfo}</p>
+            {orderEmail ? (
+              <p className="text-xs text-muted-foreground mt-1">
+                {language === 'sv' ? 'E-post:' : 'Email:'} {orderEmail}
+              </p>
+            ) : null}
           </motion.div>
 
           {/* Actions */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }} className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button asChild>
               <Link
-                to={`/track-order${orderNumber ? `?q=${encodeURIComponent(orderNumber)}` : sessionId ? `?q=${encodeURIComponent(sessionId)}` : ''}`}
+                to={trackHref}
                 className="flex items-center gap-2"
               >
                 {t.trackOrder}
