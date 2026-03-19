@@ -293,6 +293,7 @@ const AdminDbProductManager = () => {
         meta_title: formData.metaTitle || null,
         meta_description: formData.metaDescription || null,
         meta_keywords: formData.metaKeywords || null,
+        weight_grams: formData.weightGrams ? parseInt(formData.weightGrams) : null,
       } as any);
       toast.success(t.productUpdated);
       queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });

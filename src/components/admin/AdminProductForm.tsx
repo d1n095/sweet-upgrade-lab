@@ -770,62 +770,43 @@ export function AdminProductForm({
         />
       </div>
 
-      {/* ── SEO Fields ── */}
+      {/* ── Weight Field ── */}
       <div className="border-t border-border pt-4 mt-2">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-          {language === 'sv' ? '🔍 SEO (Sökmotoroptimering)' : '🔍 SEO (Search Engine Optimization)'}
-        </p>
-        <p className="text-xs text-muted-foreground mb-3">
-          {language === 'sv'
-            ? 'Lämna tomt för att auto-generera från produktdata. Fyll i manuellt för att överskrida.'
-            : 'Leave empty to auto-generate from product data. Fill in manually to override.'}
-        </p>
-
-        <div className="space-y-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="metaTitle" className="text-xs">
-              {language === 'sv' ? 'SEO-titel (max 60 tecken)' : 'SEO Title (max 60 chars)'}
-            </Label>
-            <Input
-              id="metaTitle"
-              value={formData.metaTitle}
-              onChange={(e) => setFormData((prev) => ({ ...prev, metaTitle: e.target.value }))}
-              placeholder={formData.title ? `${formData.title} | 4thepeople` : 'Auto-genereras'}
-              className="text-xs"
-              maxLength={70}
-            />
-            <p className="text-xs text-muted-foreground">{formData.metaTitle.length}/60</p>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="metaDescription" className="text-xs">
-              {language === 'sv' ? 'SEO-beskrivning (max 160 tecken)' : 'SEO Description (max 160 chars)'}
-            </Label>
-            <Textarea
-              id="metaDescription"
-              value={formData.metaDescription}
-              onChange={(e) => setFormData((prev) => ({ ...prev, metaDescription: e.target.value }))}
-              placeholder={language === 'sv' ? 'Auto-genereras från produktbeskrivning, ingredienser m.m.' : 'Auto-generated from product description, ingredients etc.'}
-              rows={2}
-              className="text-xs"
-              maxLength={170}
-            />
-            <p className="text-xs text-muted-foreground">{formData.metaDescription.length}/160</p>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="metaKeywords" className="text-xs">
-              {language === 'sv' ? 'SEO-nyckelord (kommaseparerade)' : 'SEO Keywords (comma-separated)'}
-            </Label>
-            <Input
-              id="metaKeywords"
-              value={formData.metaKeywords}
-              onChange={(e) => setFormData((prev) => ({ ...prev, metaKeywords: e.target.value }))}
-              placeholder={language === 'sv' ? 'Auto-genereras från taggar, kategori, ingredienser' : 'Auto-generated from tags, category, ingredients'}
-              className="text-xs"
-            />
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="weightGrams" className="flex items-center gap-1.5">
+            <Weight className="w-4 h-4" />
+            {language === 'sv' ? 'Vikt (gram)' : 'Weight (grams)'}
+          </Label>
+          <Input
+            id="weightGrams"
+            type="number"
+            value={formData.weightGrams}
+            onChange={(e) => setFormData((prev) => ({ ...prev, weightGrams: e.target.value }))}
+            placeholder={language === 'sv' ? 'Ex: 250' : 'e.g. 250'}
+            className="w-40"
+            min="0"
+          />
+          <p className="text-xs text-muted-foreground">
+            {language === 'sv'
+              ? 'Krävs för fraktberäkning. Ange vikten i gram.'
+              : 'Required for shipping calculation. Enter weight in grams.'}
+          </p>
+          {!formData.weightGrams && formData.title && (
+            <p className="text-xs text-amber-600 flex items-center gap-1">
+              ⚠️ {language === 'sv' ? 'Vikt saknas — fraktberäkning kommer använda standardpris' : 'Weight missing — shipping will use default price'}
+            </p>
+          )}
         </div>
+      </div>
+
+      {/* ── AI Content Generation ── */}
+      <div className="border-t border-border pt-4 mt-2">
+        <AiContentGenerator
+          language={language}
+          formData={formData}
+          setFormData={setFormData}
+        />
+      </div>
       </div>
 
       {/* ── Storytelling Fields ── */}
