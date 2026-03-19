@@ -9,7 +9,6 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { storeConfig } from '@/config/storeConfig';
 import { supabase } from '@/integrations/supabase/client';
 import { useCartStore } from '@/stores/cartStore';
-import { toast } from 'sonner';
 
 const OrderConfirmation = () => {
   const { language } = useLanguage();
