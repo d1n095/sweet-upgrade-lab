@@ -440,13 +440,16 @@ const Checkout = () => {
       console.error('Error:', err);
       console.error('Error message:', err?.message);
 
-      const mappedError = err?.message === 'CHECKOUT_TIMEOUT'
+      const rawMsg = typeof err?.message === 'string' ? err.message : '';
+      const mappedError = rawMsg === 'CHECKOUT_TIMEOUT'
         ? t.checkoutTimeout
-        : err?.message === 'INVALID_SESSION_URL'
+        : rawMsg === 'INVALID_SESSION_URL'
           ? t.invalidSession
-          : (typeof err?.message === 'string' && err.message.includes('Minsta totalbelopp'))
-            ? err.message
-            : t.checkoutFailed;
+          : rawMsg.startsWith('HTTP_')
+            ? t.checkoutFailed
+            : rawMsg.length > 0
+              ? rawMsg
+              : t.checkoutFailed;
 
       setCheckoutError(mappedError);
       setDebugInfo(prev => ({ ...prev, step: 'failed', error: err?.message, mappedError }));
