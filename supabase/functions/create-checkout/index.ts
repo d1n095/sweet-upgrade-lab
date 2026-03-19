@@ -187,16 +187,8 @@ serve(async (req) => {
 
     const origin = req.headers.get('origin') || 'https://4thepeople.se';
 
-    // Determine payment method types — only Stripe-supported methods
-    // NEVER include 'swish' — it is not supported by Stripe
-    // Only payment methods that support SEK
-    const ALLOWED_METHODS: Record<string, string[]> = {
-      'card': ['card'],
-      'klarna': ['klarna'],
-    };
-    const selectedMethods = (paymentMethod && ALLOWED_METHODS[paymentMethod])
-      ? ALLOWED_METHODS[paymentMethod]
-      : ['card', 'klarna'];
+    // Payment method is validated before any processing
+    // selectedMethods is derived from the validated payment method
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: selectedMethods,
