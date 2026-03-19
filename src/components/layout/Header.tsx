@@ -400,7 +400,7 @@ const Header = () => {
               <Button
                 variant="ghost"
                 size="icon"
-                className="md:hidden h-9 w-9 rounded-full hover:bg-secondary"
+                className="sm:hidden h-9 w-9 rounded-full hover:bg-secondary"
                 onClick={() => navigate('/produkter')}
                 aria-label="Shop"
               >
