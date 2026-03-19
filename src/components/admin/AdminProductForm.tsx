@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { DollarSign, Tag, Save, Eye, EyeOff, Boxes, Minus, Plus, Upload, X, Image, FlaskConical, ChefHat } from 'lucide-react';
+import { DollarSign, Tag, Save, Eye, EyeOff, Boxes, Minus, Plus, Upload, X, Image, FlaskConical, ChefHat, Weight, Wand2, Loader2 } from 'lucide-react';
 import { RecipeTemplatePicker } from './RecipeTemplatePicker';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import { toast } from 'sonner';
 import {
   Select,
   SelectContent,
@@ -38,6 +39,7 @@ export interface ProductFormData {
   metaTitle: string;
   metaDescription: string;
   metaKeywords: string;
+  weightGrams: string;
 }
 
 const CURRENCY_OPTIONS = [
