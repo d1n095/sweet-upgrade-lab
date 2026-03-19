@@ -371,6 +371,39 @@ const EmployeeDashboard = () => {
                   </div>
                 )}
               </TabsContent>
+
+              {/* Audit Log Tab */}
+              <TabsContent value="audit">
+                {auditLogs.length === 0 ? (
+                  <p className="text-center py-8 text-muted-foreground">
+                    {language === 'sv' ? 'Inga orderhändelser' : 'No order events'}
+                  </p>
+                ) : (
+                  <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                    {auditLogs.map((log) => (
+                      <div key={log.id} className="flex items-start gap-3 p-3 bg-secondary/30 rounded-lg text-sm">
+                        <Badge variant="secondary" className="text-[10px] shrink-0 mt-0.5">
+                          {log.log_type}
+                        </Badge>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium">{log.message}</p>
+                          {log.details && typeof log.details === 'object' && (
+                            <div className="mt-1 text-xs text-muted-foreground">
+                              {log.details.old_status && (
+                                <span>{log.details.old_status} → {log.details.new_status} </span>
+                              )}
+                              {log.details.tracking && <span>Spårning: {log.details.tracking}</span>}
+                            </div>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-muted-foreground shrink-0">
+                          {new Date(log.created_at).toLocaleString('sv-SE', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
             </Tabs>
           )}
         </div>
