@@ -162,12 +162,9 @@ const TrackOrder = () => {
 
       setSearchedQuery(cleanInput || cleanEmail);
 
+      // For Stripe session IDs, search by stripe_session_id in DB
       if (cleanInput && isStripeSessionId(cleanInput)) {
-        const ensuredOrder = await ensureOrderFromSession(cleanInput);
-        if (ensuredOrder) {
-          setOrderData(ensuredOrder);
-          return;
-        }
+        // Just add it to the OR filters below — no external call
       }
 
       const orFilters: string[] = [];
