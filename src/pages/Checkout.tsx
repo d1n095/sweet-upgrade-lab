@@ -58,15 +58,19 @@ interface FieldErrors {
   city?: string;
 }
 
+const CHECKOUT_TIMEOUT_MS = 3000;
+
 const Checkout = () => {
   const navigate = useNavigate();
   const { language } = useLanguage();
   const cl = getContentLang(language);
-  const { items, clearCart, _hasHydrated } = useCartStore();
+  const { items, isHydrated } = useCartStore();
   const { checkoutEnabled, autoSaveProfile } = useStoreSettings();
   const { user } = useAuth();
   const shippingConfig = useShippingConfig();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [hydrationTimedOut, setHydrationTimedOut] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [selectedPayment, setSelectedPayment] = useState<'card' | 'klarna'>('card');
@@ -81,10 +85,12 @@ const Checkout = () => {
     phone: '',
   });
 
+  const completedRef = useRef(false);
+
   // Auto-fill from logged-in user's profile
   useEffect(() => {
     if (profileLoaded || !user) return;
-    
+
     const loadProfileData = async () => {
       try {
         const { data } = await supabase
@@ -94,8 +100,8 @@ const Checkout = () => {
           .maybeSingle();
 
         const d = data as any;
-        const profileName = d?.first_name && d?.last_name 
-          ? `${d.first_name} ${d.last_name}` 
+        const profileName = d?.first_name && d?.last_name
+          ? `${d.first_name} ${d.last_name}`
           : d?.full_name || '';
 
         setForm(prev => ({
@@ -108,7 +114,7 @@ const Checkout = () => {
           city: d?.city || prev.city,
           country: d?.country || prev.country,
         }));
-      } catch (err) {
+      } catch {
         setForm(prev => ({ ...prev, email: user.email || prev.email }));
       }
       setProfileLoaded(true);
@@ -116,6 +122,19 @@ const Checkout = () => {
 
     loadProfileData();
   }, [user, profileLoaded]);
+
+  useEffect(() => {
+    if (isHydrated) {
+      setHydrationTimedOut(false);
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setHydrationTimedOut(true);
+    }, 2500);
+
+    return () => window.clearTimeout(timer);
+  }, [isHydrated]);
 
   const subtotal = useMemo(() =>
     items.reduce((sum, item) => sum + (parseFloat(item.price.amount) * item.quantity), 0),
@@ -153,12 +172,17 @@ const Checkout = () => {
     returnPolicy: isSv ? 'Returpolicy' : 'Return policy',
     lowStock: isSv ? 'Endast {n} kvar' : 'Only {n} left',
     fillAllFields: isSv ? 'Fyll i alla obligatoriska fält' : 'Please fill in all required fields',
+    invalidCart: isSv ? 'Kundvagnen är ogiltig. Uppdatera sidan och försök igen.' : 'Cart data is invalid. Refresh and try again.',
+    hydrationTimeout: isSv ? 'Kundvagnen laddades inte klart. Försök igen.' : 'Cart hydration timed out. Please try again.',
     errorEmail: isSv ? 'Ange en giltig e-postadress' : 'Enter a valid email address',
     errorName: isSv ? 'Ange ditt namn' : 'Enter your name',
     errorAddress: isSv ? 'Ange din adress' : 'Enter your address',
     errorZip: isSv ? 'Ange postnummer' : 'Enter postal code',
     errorCity: isSv ? 'Ange stad' : 'Enter city',
     checkoutFailed: isSv ? 'Betalningen kunde inte genomföras. Försök igen.' : 'Payment could not be processed. Please try again.',
+    checkoutTimeout: isSv ? 'Checkout tog för lång tid. Försök igen.' : 'Checkout timed out. Please retry.',
+    invalidSession: isSv ? 'Kunde inte skapa betalningssession. Försök igen.' : 'Could not create payment session. Please retry.',
+    retry: isSv ? 'Försök igen' : 'Retry',
     qty: isSv ? 'Antal' : 'Qty',
   }), [isSv]);
 
@@ -182,6 +206,18 @@ const Checkout = () => {
     }
   }, [t]);
 
+  const validateCartState = useCallback(() => {
+    if (!isHydrated) return t.hydrationTimeout;
+    if (items.length === 0) return t.emptyCart;
+
+    const hasInvalidItems = items.some((item) => {
+      const unitPrice = Number.parseFloat(item.price.amount);
+      return !item.variantId || !Number.isFinite(unitPrice) || item.quantity <= 0;
+    });
+
+    return hasInvalidItems ? t.invalidCart : null;
+  }, [isHydrated, items, t]);
+
   const handleBlur = (field: string) => {
     setTouched(prev => ({ ...prev, [field]: true }));
     const error = validateField(field, form[field as keyof typeof form]);
@@ -191,7 +227,6 @@ const Checkout = () => {
   const updateField = (field: string, value: string) => {
     setForm(prev => ({ ...prev, [field]: value }));
 
-    // Auto-fill city from zip
     if (field === 'zip' && value.length >= 2) {
       const prefix = value.substring(0, 2);
       const city = ZIP_CITY_MAP[prefix];
@@ -200,21 +235,28 @@ const Checkout = () => {
       }
     }
 
-    // Live validation if already touched
     if (touched[field]) {
       const error = validateField(field, value);
       setErrors(prev => ({ ...prev, [field]: error }));
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isSubmitting) return; // Prevent double submit
+  const startCheckout = useCallback(async () => {
+    if (isSubmitting) return;
 
-    // Validate all fields
+    setCheckoutError(null);
+
+    const cartError = validateCartState();
+    if (cartError) {
+      setCheckoutError(cartError);
+      toast.error(cartError);
+      return;
+    }
+
     const requiredFields = ['email', 'name', 'address', 'zip', 'city'] as const;
     const newErrors: FieldErrors = {};
     let hasError = false;
+
     for (const field of requiredFields) {
       const error = validateField(field, form[field]);
       if (error) {
@@ -222,6 +264,7 @@ const Checkout = () => {
         hasError = true;
       }
     }
+
     setErrors(newErrors);
     setTouched({ email: true, name: true, address: true, zip: true, city: true });
 
@@ -232,16 +275,27 @@ const Checkout = () => {
 
     setIsSubmitting(true);
 
+    logActivity({
+      log_type: 'info',
+      category: 'payment',
+      message: 'Checkout started',
+      details: {
+        item_count: items.length,
+        total,
+        payment_method: selectedPayment,
+      },
+    });
+
     try {
       const checkoutItems = items.map(item => ({
         id: (item.product as any).dbId || item.variantId,
         title: item.product.node.title,
-        price: parseFloat(item.price.amount),
+        price: Number.parseFloat(item.price.amount),
         quantity: item.quantity,
         image: item.product.node.images?.edges?.[0]?.node?.url || '',
       }));
 
-      const { data, error } = await supabase.functions.invoke('create-checkout', {
+      const checkoutRequest = supabase.functions.invoke('create-checkout', {
         body: {
           items: checkoutItems,
           shipping: {
@@ -258,19 +312,39 @@ const Checkout = () => {
         },
       });
 
+      const timeout = new Promise<never>((_, reject) => {
+        window.setTimeout(() => reject(new Error('CHECKOUT_TIMEOUT')), CHECKOUT_TIMEOUT_MS);
+      });
+
+      const result = await Promise.race([checkoutRequest, timeout]) as Awaited<ReturnType<typeof supabase.functions.invoke>>;
+      const { data, error } = result;
+
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+      if (!data?.url || typeof data.url !== 'string') throw new Error('INVALID_SESSION_URL');
 
-      if (data?.url) {
-        completedRef.current = true;
-        trackCheckoutStep('payment_redirect', { total });
-        
-        // Save shipping info to profile for future auto-fill
-        if (user && autoSaveProfile) {
-          const nameParts = form.name.trim().split(' ');
-          const firstName = nameParts[0] || '';
-          const lastName = nameParts.slice(1).join(' ') || '';
-          supabase.from('profiles').update({
+      completedRef.current = true;
+      trackCheckoutStep('payment_redirect', { total });
+
+      logActivity({
+        log_type: 'info',
+        category: 'payment',
+        message: 'Stripe session created',
+        details: {
+          order_id: data.orderId,
+          session_id: data.sessionId,
+          payment_method: selectedPayment,
+        },
+      });
+
+      if (user && autoSaveProfile) {
+        const nameParts = form.name.trim().split(' ');
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+
+        supabase
+          .from('profiles')
+          .update({
             first_name: firstName || null,
             last_name: lastName || null,
             full_name: form.name,
@@ -279,27 +353,65 @@ const Checkout = () => {
             zip: form.zip,
             city: form.city,
             country: form.country,
-          } as any).eq('user_id', user.id).then(() => {});
-        }
-        
-        // Redirect FIRST, clear cart after (localStorage will be cleared on return via order-confirmation)
-        window.location.href = data.url;
-        // Clear cart after redirect is initiated so user doesn't get stuck with empty cart
-        setTimeout(() => clearCart(), 500);
-        return; // Stop execution - don't hit finally block's setIsSubmitting
+          } as any)
+          .eq('user_id', user.id)
+          .then(() => {});
       }
+
+      logActivity({
+        log_type: 'info',
+        category: 'payment',
+        message: 'Checkout redirect triggered',
+        details: {
+          order_id: data.orderId,
+          session_id: data.sessionId,
+        },
+      });
+
+      window.location.assign(data.url);
     } catch (err: any) {
       console.error('Checkout error:', err);
+
+      const mappedError = err?.message === 'CHECKOUT_TIMEOUT'
+        ? t.checkoutTimeout
+        : err?.message === 'INVALID_SESSION_URL'
+          ? t.invalidSession
+          : t.checkoutFailed;
+
+      setCheckoutError(mappedError);
+
       logActivity({
         log_type: 'error',
         category: 'payment',
         message: 'Checkout failed',
-        details: { error: err.message, email: form.email },
+        details: {
+          error: err?.message || 'unknown_error',
+          email: form.email,
+          payment_method: selectedPayment,
+        },
       });
-      toast.error(t.checkoutFailed);
+
+      toast.error(mappedError);
     } finally {
       setIsSubmitting(false);
     }
+  }, [
+    autoSaveProfile,
+    cl,
+    form,
+    isSubmitting,
+    items,
+    selectedPayment,
+    t,
+    total,
+    user,
+    validateCartState,
+    validateField,
+  ]);
+
+  const handleSubmit = (event?: React.FormEvent | React.MouseEvent) => {
+    event?.preventDefault();
+    void startCheckout();
   };
 
   // Get stock info for low-stock badges
