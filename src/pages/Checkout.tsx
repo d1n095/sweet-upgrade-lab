@@ -323,39 +323,65 @@ const Checkout = () => {
 
       console.log('Checkout items payload:', JSON.stringify(checkoutItems));
 
-      const checkoutRequest = supabase.functions.invoke('create-checkout', {
-        body: {
-          items: checkoutItems,
-          shipping: {
-            name: form.name,
-            address: form.address,
-            zip: form.zip,
-            city: form.city,
-            country: form.country,
-            phone: form.phone,
-          },
-          email: form.email,
-          language: cl,
-          paymentMethod: selectedPayment,
+      const checkoutBody = {
+        items: checkoutItems,
+        shipping: {
+          name: form.name,
+          address: form.address,
+          zip: form.zip,
+          city: form.city,
+          country: form.country,
+          phone: form.phone,
         },
-      });
+        email: form.email,
+        language: cl,
+        paymentMethod: selectedPayment,
+      };
+
+      const checkoutRequest = (async () => {
+        // Vi använder fetch här för att kunna läsa fel-body vid 4xx/5xx (supabase.functions.invoke gömmer ofta detta).
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData.session?.access_token;
+
+        const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+          },
+          body: JSON.stringify(checkoutBody),
+        });
+
+        let payload: any = null;
+        try {
+          payload = await res.json();
+        } catch {
+          payload = null;
+        }
+
+        if (!res.ok) {
+          throw new Error(payload?.error || `HTTP_${res.status}`);
+        }
+
+        return payload;
+      })();
 
       const timeout = new Promise<never>((_, reject) => {
         window.setTimeout(() => reject(new Error('CHECKOUT_TIMEOUT')), CHECKOUT_TIMEOUT_MS);
       });
 
-      const result = await Promise.race([checkoutRequest, timeout]) as { data: any; error: any };
-      const { data, error } = result;
+      const data = await Promise.race([checkoutRequest, timeout]);
 
       console.log('Backend response - data:', JSON.stringify(data));
-      console.log('Backend response - error:', error);
-      setDebugInfo(prev => ({ ...prev, step: 'backend_responded', data, error: error?.message || null }));
+      setDebugInfo(prev => ({ ...prev, step: 'backend_responded', data, status: 200 }));
 
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      if (!data?.url || typeof data.url !== 'string') {
-        console.log('INVALID SESSION URL - data.url:', data?.url);
-        setDebugInfo(prev => ({ ...prev, step: 'invalid_url', rawUrl: data?.url }));
+      // fetch-varianten kastar redan vid non-2xx, men behåll detta som skydd
+      if ((data as any)?.error) throw new Error((data as any).error);
+
+      if (!(data as any)?.url || typeof (data as any).url !== 'string') {
+        console.log('INVALID SESSION URL - data.url:', (data as any)?.url);
+        setDebugInfo(prev => ({ ...prev, step: 'invalid_url', rawUrl: (data as any)?.url }));
         throw new Error('INVALID_SESSION_URL');
       }
 
