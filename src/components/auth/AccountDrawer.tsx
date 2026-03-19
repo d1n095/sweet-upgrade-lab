@@ -109,7 +109,7 @@ const AccountDrawer = ({ isOpen, onClose }: AccountDrawerProps) => {
     {
       icon: Shield,
       label: language === 'sv' ? 'Admin-panel' : 'Admin Panel',
-      href: '/profile?tab=overview',
+      href: '/admin',
       description: language === 'sv' ? 'Hantera butiken' : 'Manage the store',
     },
   ];
