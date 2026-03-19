@@ -85,6 +85,17 @@ const AdminActivityLog = () => {
 
   useEffect(() => { fetchLogs(); }, [typeFilter, categoryFilter]);
 
+  // Sync activeCard when dropdowns change directly
+  useEffect(() => {
+    if (categoryFilter === 'security') {
+      setActiveCard('security');
+    } else if (typeFilter !== 'all') {
+      setActiveCard(typeFilter);
+    } else if (categoryFilter === 'all' && typeFilter === 'all') {
+      setActiveCard('all');
+    }
+  }, [typeFilter, categoryFilter]);
+
   const formatDate = (d: string) =>
     new Date(d).toLocaleDateString('sv-SE', {
       month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit',
