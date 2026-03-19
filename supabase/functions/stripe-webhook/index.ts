@@ -8,6 +8,7 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+ try {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
