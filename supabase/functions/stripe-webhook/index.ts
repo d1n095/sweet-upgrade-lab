@@ -147,9 +147,8 @@ serve(async (req) => {
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
   } catch (err: any) {
     console.error('[stripe-webhook] Signature verification failed:', err.message);
-    return new Response(JSON.stringify({ error: 'Invalid signature' }), {
-      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    // Return 200 anyway so Stripe doesn't keep retrying a bad secret
+    return ok({ received: true, error: 'signature_failed', message: err.message });
   }
 
   console.log('[stripe-webhook] Event received', { event_id: event.id, event_type: event.type });
