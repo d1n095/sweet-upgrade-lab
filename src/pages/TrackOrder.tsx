@@ -422,6 +422,7 @@ const TrackOrder = () => {
                           email: email,
                           shipping: orderData.shipping_address || {},
                           language,
+                          paymentMethod: (orderData as any).payment_method === 'klarna' ? 'klarna' : 'card',
                         },
                       });
                       if (error) throw error;

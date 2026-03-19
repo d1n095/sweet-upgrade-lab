@@ -58,15 +58,19 @@ interface FieldErrors {
   city?: string;
 }
 
+const CHECKOUT_TIMEOUT_MS = 3000;
+
 const Checkout = () => {
   const navigate = useNavigate();
   const { language } = useLanguage();
   const cl = getContentLang(language);
-  const { items, clearCart, _hasHydrated } = useCartStore();
+  const { items, isHydrated } = useCartStore();
   const { checkoutEnabled, autoSaveProfile } = useStoreSettings();
   const { user } = useAuth();
   const shippingConfig = useShippingConfig();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [hydrationTimedOut, setHydrationTimedOut] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [selectedPayment, setSelectedPayment] = useState<'card' | 'klarna'>('card');
@@ -81,10 +85,12 @@ const Checkout = () => {
     phone: '',
   });
 
+  const completedRef = useRef(false);
+
   // Auto-fill from logged-in user's profile
   useEffect(() => {
     if (profileLoaded || !user) return;
-    
+
     const loadProfileData = async () => {
       try {
         const { data } = await supabase
@@ -94,8 +100,8 @@ const Checkout = () => {
           .maybeSingle();
 
         const d = data as any;
-        const profileName = d?.first_name && d?.last_name 
-          ? `${d.first_name} ${d.last_name}` 
+        const profileName = d?.first_name && d?.last_name
+          ? `${d.first_name} ${d.last_name}`
           : d?.full_name || '';
 
         setForm(prev => ({
@@ -108,7 +114,7 @@ const Checkout = () => {
           city: d?.city || prev.city,
           country: d?.country || prev.country,
         }));
-      } catch (err) {
+      } catch {
         setForm(prev => ({ ...prev, email: user.email || prev.email }));
       }
       setProfileLoaded(true);
@@ -116,6 +122,19 @@ const Checkout = () => {
 
     loadProfileData();
   }, [user, profileLoaded]);
+
+  useEffect(() => {
+    if (isHydrated) {
+      setHydrationTimedOut(false);
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setHydrationTimedOut(true);
+    }, 2500);
+
+    return () => window.clearTimeout(timer);
+  }, [isHydrated]);
 
   const subtotal = useMemo(() =>
     items.reduce((sum, item) => sum + (parseFloat(item.price.amount) * item.quantity), 0),
@@ -153,12 +172,17 @@ const Checkout = () => {
     returnPolicy: isSv ? 'Returpolicy' : 'Return policy',
     lowStock: isSv ? 'Endast {n} kvar' : 'Only {n} left',
     fillAllFields: isSv ? 'Fyll i alla obligatoriska fält' : 'Please fill in all required fields',
+    invalidCart: isSv ? 'Kundvagnen är ogiltig. Uppdatera sidan och försök igen.' : 'Cart data is invalid. Refresh and try again.',
+    hydrationTimeout: isSv ? 'Kundvagnen laddades inte klart. Försök igen.' : 'Cart hydration timed out. Please try again.',
     errorEmail: isSv ? 'Ange en giltig e-postadress' : 'Enter a valid email address',
     errorName: isSv ? 'Ange ditt namn' : 'Enter your name',
     errorAddress: isSv ? 'Ange din adress' : 'Enter your address',
     errorZip: isSv ? 'Ange postnummer' : 'Enter postal code',
     errorCity: isSv ? 'Ange stad' : 'Enter city',
     checkoutFailed: isSv ? 'Betalningen kunde inte genomföras. Försök igen.' : 'Payment could not be processed. Please try again.',
+    checkoutTimeout: isSv ? 'Checkout tog för lång tid. Försök igen.' : 'Checkout timed out. Please retry.',
+    invalidSession: isSv ? 'Kunde inte skapa betalningssession. Försök igen.' : 'Could not create payment session. Please retry.',
+    retry: isSv ? 'Försök igen' : 'Retry',
     qty: isSv ? 'Antal' : 'Qty',
   }), [isSv]);
 
@@ -182,6 +206,18 @@ const Checkout = () => {
     }
   }, [t]);
 
+  const validateCartState = useCallback(() => {
+    if (!isHydrated) return t.hydrationTimeout;
+    if (items.length === 0) return t.emptyCart;
+
+    const hasInvalidItems = items.some((item) => {
+      const unitPrice = Number.parseFloat(item.price.amount);
+      return !item.variantId || !Number.isFinite(unitPrice) || item.quantity <= 0;
+    });
+
+    return hasInvalidItems ? t.invalidCart : null;
+  }, [isHydrated, items, t]);
+
   const handleBlur = (field: string) => {
     setTouched(prev => ({ ...prev, [field]: true }));
     const error = validateField(field, form[field as keyof typeof form]);
@@ -191,7 +227,6 @@ const Checkout = () => {
   const updateField = (field: string, value: string) => {
     setForm(prev => ({ ...prev, [field]: value }));
 
-    // Auto-fill city from zip
     if (field === 'zip' && value.length >= 2) {
       const prefix = value.substring(0, 2);
       const city = ZIP_CITY_MAP[prefix];
@@ -200,21 +235,28 @@ const Checkout = () => {
       }
     }
 
-    // Live validation if already touched
     if (touched[field]) {
       const error = validateField(field, value);
       setErrors(prev => ({ ...prev, [field]: error }));
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isSubmitting) return; // Prevent double submit
+  const startCheckout = useCallback(async () => {
+    if (isSubmitting) return;
 
-    // Validate all fields
+    setCheckoutError(null);
+
+    const cartError = validateCartState();
+    if (cartError) {
+      setCheckoutError(cartError);
+      toast.error(cartError);
+      return;
+    }
+
     const requiredFields = ['email', 'name', 'address', 'zip', 'city'] as const;
     const newErrors: FieldErrors = {};
     let hasError = false;
+
     for (const field of requiredFields) {
       const error = validateField(field, form[field]);
       if (error) {
@@ -222,6 +264,7 @@ const Checkout = () => {
         hasError = true;
       }
     }
+
     setErrors(newErrors);
     setTouched({ email: true, name: true, address: true, zip: true, city: true });
 
@@ -232,16 +275,27 @@ const Checkout = () => {
 
     setIsSubmitting(true);
 
+    logActivity({
+      log_type: 'info',
+      category: 'payment',
+      message: 'Checkout started',
+      details: {
+        item_count: items.length,
+        total,
+        payment_method: selectedPayment,
+      },
+    });
+
     try {
       const checkoutItems = items.map(item => ({
         id: (item.product as any).dbId || item.variantId,
         title: item.product.node.title,
-        price: parseFloat(item.price.amount),
+        price: Number.parseFloat(item.price.amount),
         quantity: item.quantity,
         image: item.product.node.images?.edges?.[0]?.node?.url || '',
       }));
 
-      const { data, error } = await supabase.functions.invoke('create-checkout', {
+      const checkoutRequest = supabase.functions.invoke('create-checkout', {
         body: {
           items: checkoutItems,
           shipping: {
@@ -258,19 +312,39 @@ const Checkout = () => {
         },
       });
 
+      const timeout = new Promise<never>((_, reject) => {
+        window.setTimeout(() => reject(new Error('CHECKOUT_TIMEOUT')), CHECKOUT_TIMEOUT_MS);
+      });
+
+      const result = await Promise.race([checkoutRequest, timeout]) as { data: any; error: any };
+      const { data, error } = result;
+
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+      if (!data?.url || typeof data.url !== 'string') throw new Error('INVALID_SESSION_URL');
 
-      if (data?.url) {
-        completedRef.current = true;
-        trackCheckoutStep('payment_redirect', { total });
-        
-        // Save shipping info to profile for future auto-fill
-        if (user && autoSaveProfile) {
-          const nameParts = form.name.trim().split(' ');
-          const firstName = nameParts[0] || '';
-          const lastName = nameParts.slice(1).join(' ') || '';
-          supabase.from('profiles').update({
+      completedRef.current = true;
+      trackCheckoutStep('payment_redirect', { total });
+
+      logActivity({
+        log_type: 'info',
+        category: 'payment',
+        message: 'Stripe session created',
+        details: {
+          order_id: data.orderId,
+          session_id: data.sessionId,
+          payment_method: selectedPayment,
+        },
+      });
+
+      if (user && autoSaveProfile) {
+        const nameParts = form.name.trim().split(' ');
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+
+        supabase
+          .from('profiles')
+          .update({
             first_name: firstName || null,
             last_name: lastName || null,
             full_name: form.name,
@@ -279,27 +353,65 @@ const Checkout = () => {
             zip: form.zip,
             city: form.city,
             country: form.country,
-          } as any).eq('user_id', user.id).then(() => {});
-        }
-        
-        // Redirect FIRST, clear cart after (localStorage will be cleared on return via order-confirmation)
-        window.location.href = data.url;
-        // Clear cart after redirect is initiated so user doesn't get stuck with empty cart
-        setTimeout(() => clearCart(), 500);
-        return; // Stop execution - don't hit finally block's setIsSubmitting
+          } as any)
+          .eq('user_id', user.id)
+          .then(() => {});
       }
+
+      logActivity({
+        log_type: 'info',
+        category: 'payment',
+        message: 'Checkout redirect triggered',
+        details: {
+          order_id: data.orderId,
+          session_id: data.sessionId,
+        },
+      });
+
+      window.location.assign(data.url);
     } catch (err: any) {
       console.error('Checkout error:', err);
+
+      const mappedError = err?.message === 'CHECKOUT_TIMEOUT'
+        ? t.checkoutTimeout
+        : err?.message === 'INVALID_SESSION_URL'
+          ? t.invalidSession
+          : t.checkoutFailed;
+
+      setCheckoutError(mappedError);
+
       logActivity({
         log_type: 'error',
         category: 'payment',
         message: 'Checkout failed',
-        details: { error: err.message, email: form.email },
+        details: {
+          error: err?.message || 'unknown_error',
+          email: form.email,
+          payment_method: selectedPayment,
+        },
       });
-      toast.error(t.checkoutFailed);
+
+      toast.error(mappedError);
     } finally {
       setIsSubmitting(false);
     }
+  }, [
+    autoSaveProfile,
+    cl,
+    form,
+    isSubmitting,
+    items,
+    selectedPayment,
+    t,
+    total,
+    user,
+    validateCartState,
+    validateField,
+  ]);
+
+  const handleSubmit = (event?: React.FormEvent | React.MouseEvent) => {
+    event?.preventDefault();
+    void startCheckout();
   };
 
   // Get stock info for low-stock badges
@@ -314,7 +426,6 @@ const Checkout = () => {
   };
 
   // Track checkout page view with item details (must be before early returns)
-  const completedRef = useRef(false);
   useEffect(() => {
     if (items.length > 0) {
       const itemDetails = items.map(item => ({
@@ -338,11 +449,26 @@ const Checkout = () => {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Wait for zustand hydration before showing empty state
-  if (!_hasHydrated) {
+  if (!isHydrated && !hydrationTimedOut) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!isHydrated && hydrationTimedOut) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+        <div className="max-w-md text-center space-y-4">
+          <p className="text-sm text-destructive">{t.hydrationTimeout}</p>
+          <div className="flex items-center justify-center gap-3">
+            <Button variant="outline" onClick={() => window.location.reload()}>{t.retry}</Button>
+            <Button asChild>
+              <Link to="/products">{t.goToShop}</Link>
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -360,7 +486,7 @@ const Checkout = () => {
           <p className="text-muted-foreground mb-6">
             {isSv ? 'Vi kan just nu inte ta emot beställningar. Försök igen senare.' : 'We cannot accept orders at this time. Please try again later.'}
           </p>
-          <Button onClick={() => navigate('/produkter')}>
+          <Button onClick={() => navigate('/products')}>
             {isSv ? 'Tillbaka till produkter' : 'Back to products'}
           </Button>
         </div>
@@ -374,7 +500,7 @@ const Checkout = () => {
         <div className="max-w-lg text-center px-4">
           <ShoppingBag className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
           <h1 className="text-2xl font-bold mb-4">{t.emptyCart}</h1>
-          <Button onClick={() => navigate('/produkter')}>{t.goToShop}</Button>
+          <Button onClick={() => navigate('/products')}>{t.goToShop}</Button>
         </div>
       </div>
     );
@@ -391,7 +517,7 @@ const Checkout = () => {
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border">
         <div className="container mx-auto px-4 h-14 flex items-center justify-between max-w-5xl">
           <Link
-            to="/produkter"
+            to="/products"
             className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -424,7 +550,7 @@ const Checkout = () => {
               animate={{ opacity: 1, y: 0 }}
               className="lg:col-span-3"
             >
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form id="checkout-form" onSubmit={handleSubmit} className="space-y-6">
                 <div className="bg-card border border-border rounded-2xl p-6">
                   <h2 className="font-display text-lg font-semibold mb-5 flex items-center gap-2">
                     <Truck className="w-5 h-5 text-primary" />
@@ -497,15 +623,15 @@ const Checkout = () => {
                       </div>
                       <div>
                         <Label htmlFor="city">{t.city} *</Label>
-                      <Input
-                        id="city"
-                        autoComplete="address-level2"
-                        required
-                        value={form.city}
-                        onChange={(e) => updateField('city', e.target.value)}
-                        onBlur={() => handleBlur('city')}
-                        className={touched.city && errors.city ? 'border-destructive' : ''}
-                      />
+                        <Input
+                          id="city"
+                          autoComplete="address-level2"
+                          required
+                          value={form.city}
+                          onChange={(e) => updateField('city', e.target.value)}
+                          onBlur={() => handleBlur('city')}
+                          className={touched.city && errors.city ? 'border-destructive' : ''}
+                        />
                         {renderFieldError('city')}
                       </div>
                     </div>
@@ -526,7 +652,6 @@ const Checkout = () => {
                     <div className="pt-2">
                       <Label className="mb-3 block">{isSv ? 'Betalningsmetod' : 'Payment method'} *</Label>
                       <div className="grid grid-cols-2 gap-3">
-                        {/* Card */}
                         <button
                           type="button"
                           onClick={() => setSelectedPayment('card')}
@@ -548,7 +673,6 @@ const Checkout = () => {
                           </span>
                         </button>
 
-                        {/* Klarna */}
                         <button
                           type="button"
                           onClick={() => setSelectedPayment('klarna')}
@@ -564,29 +688,13 @@ const Checkout = () => {
                             </div>
                           )}
                           <div className="w-6 h-6 flex items-center justify-center">
-                            <span className="text-base font-black tracking-tight text-[#FFB3C7]" style={{ fontFamily: 'system-ui' }}>K.</span>
+                            <span className="text-base font-black tracking-tight text-primary" style={{ fontFamily: 'system-ui' }}>K.</span>
                           </div>
                           <span className="text-sm font-medium">Klarna</span>
                           <span className="text-[10px] text-muted-foreground leading-tight text-center">
                             {isSv ? 'Faktura, delbetalning' : 'Pay later, installments'}
                           </span>
                         </button>
-
-
-                        {/* PayPal - disabled/coming soon */}
-                        <div
-                          className="relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-border bg-muted/30 opacity-60 cursor-not-allowed min-h-[100px]"
-                        >
-                          <div className="w-6 h-6 flex items-center justify-center">
-                            <span className="text-xs font-bold italic">
-                              <span className="text-[#253B80]">Pay</span><span className="text-[#179BD7]">Pal</span>
-                            </span>
-                          </div>
-                          <span className="text-sm font-medium text-muted-foreground">PayPal</span>
-                          <span className="text-[10px] text-muted-foreground leading-tight text-center">
-                            {isSv ? 'Kommer snart' : 'Coming soon'}
-                          </span>
-                        </div>
                       </div>
                     </div>
                   </div>
@@ -669,11 +777,25 @@ const Checkout = () => {
                   <span className="text-xs text-muted-foreground">{t.deliveryEstimate}</span>
                 </div>
 
+                {checkoutError && (
+                  <div className="mt-5 rounded-xl border border-destructive/40 bg-destructive/5 p-3 space-y-2">
+                    <p className="text-xs text-destructive">{checkoutError}</p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleSubmit}
+                      disabled={isSubmitting}
+                    >
+                      {t.retry}
+                    </Button>
+                  </div>
+                )}
+
                 {/* Desktop pay button */}
                 <div className="hidden lg:block mt-5 space-y-3">
                   <Button
-                    type="submit"
-                    form="checkout-form"
+                    type="button"
                     size="lg"
                     className="w-full h-14 text-base font-semibold"
                     disabled={isSubmitting}
@@ -706,7 +828,12 @@ const Checkout = () => {
       </main>
 
       {/* Sticky mobile pay button */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-background/95 backdrop-blur-md border-t border-border px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+      <div className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-background/95 backdrop-blur-md border-t border-border px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] space-y-2">
+        {checkoutError && (
+          <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-2">
+            <p className="text-[11px] text-destructive">{checkoutError}</p>
+          </div>
+        )}
         <Button
           type="button"
           size="lg"

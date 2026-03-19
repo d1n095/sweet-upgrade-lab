@@ -36,6 +36,20 @@ serve(async (req) => {
       });
     }
 
+    const ALLOWED_METHODS: Record<string, string[]> = {
+      card: ['card'],
+      klarna: ['klarna'],
+    };
+
+    if (!paymentMethod || !ALLOWED_METHODS[paymentMethod]) {
+      return new Response(JSON.stringify({ error: 'Unsupported payment method. Use card or klarna.' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const selectedMethods = ALLOWED_METHODS[paymentMethod];
+
     // 1. Fetch trusted prices from DB and reserve stock
     const reservedItems: { id: string; quantity: number }[] = [];
     const trustedItems: { id: string; title: string; price: number; quantity: number; image: string }[] = [];
@@ -173,16 +187,8 @@ serve(async (req) => {
 
     const origin = req.headers.get('origin') || 'https://4thepeople.se';
 
-    // Determine payment method types — only Stripe-supported methods
-    // NEVER include 'swish' — it is not supported by Stripe
-    // Only payment methods that support SEK
-    const ALLOWED_METHODS: Record<string, string[]> = {
-      'card': ['card'],
-      'klarna': ['klarna'],
-    };
-    const selectedMethods = (paymentMethod && ALLOWED_METHODS[paymentMethod])
-      ? ALLOWED_METHODS[paymentMethod]
-      : ['card', 'klarna'];
+    // Payment method is validated before any processing
+    // selectedMethods is derived from the validated payment method
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: selectedMethods,
