@@ -215,6 +215,7 @@ const AdminPayments = () => {
         <ScrollableTabs>
           <TabsList className="w-max bg-secondary/50">
             <TabsTrigger value="methods" className="gap-1.5 text-xs"><CreditCard className="w-3.5 h-3.5" /> Betalningsmetoder</TabsTrigger>
+            <TabsTrigger value="webhook" className="gap-1.5 text-xs"><Zap className="w-3.5 h-3.5" /> Webhook</TabsTrigger>
             <TabsTrigger value="overview" className="gap-1.5 text-xs"><Wallet className="w-3.5 h-3.5" /> Ekonomi</TabsTrigger>
             {isFounder && (
               <TabsTrigger value="founder" className="gap-1.5 text-xs"><Lock className="w-3.5 h-3.5" /> Grundare</TabsTrigger>
