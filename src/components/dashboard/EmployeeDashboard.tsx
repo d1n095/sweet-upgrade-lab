@@ -126,12 +126,12 @@ const EmployeeDashboard = () => {
       const { data: ordersData } = await supabase
         .from('orders')
         .select('id, order_email, status, total_amount, currency, created_at, shopify_order_number')
+        .is('deleted_at', null)
         .order('created_at', { ascending: false })
         .limit(20);
 
       setOrders(ordersData || []);
 
-      // Load pending reviews
       const { data: reviewsData } = await supabase
         .from('reviews')
         .select('id, product_title, rating, comment, is_approved, created_at, user_id')
@@ -140,6 +140,15 @@ const EmployeeDashboard = () => {
         .limit(10);
 
       setPendingReviews(reviewsData || []);
+
+      const { data: logsData } = await supabase
+        .from('activity_logs')
+        .select('id, created_at, log_type, message, details, order_id')
+        .eq('category', 'order')
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      setAuditLogs(logsData || []);
     } catch (error) {
       console.error('Failed to load employee data:', error);
     } finally {
