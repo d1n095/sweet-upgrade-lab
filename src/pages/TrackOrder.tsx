@@ -13,7 +13,10 @@ import { toast } from 'sonner';
 
 interface OrderData {
   id: string;
+  order_number: string | null;
   shopify_order_number: string | null;
+  stripe_session_id: string | null;
+  order_email: string;
   status: string;
   tracking_number: string | null;
   estimated_delivery: string | null;
@@ -34,98 +37,7 @@ const TrackOrder = () => {
   const [notFound, setNotFound] = useState(false);
 
   const statusSteps = [
-    { 
-      id: 'pending', 
-      icon: FileCheck, 
-      label: { 
-        sv: 'Order mottagen', 
-        en: 'Order received',
-        no: 'Ordre mottatt',
-        da: 'Ordre modtaget',
-        de: 'Bestellung eingegangen'
-      },
-      description: { 
-        sv: 'Vi har tagit emot din beställning', 
-        en: 'We have received your order',
-        no: 'Vi har mottatt din bestilling',
-        da: 'Vi har modtaget din ordre',
-        de: 'Wir haben Ihre Bestellung erhalten'
-      }
-    },
-    { 
-      id: 'processing', 
-      icon: Package, 
-      label: { 
-        sv: 'Behandlas', 
-        en: 'Processing',
-        no: 'Behandles',
-        da: 'Behandles',
-        de: 'In Bearbeitung'
-      },
-      description: { 
-        sv: 'Din order förbereds för leverans', 
-        en: 'Your order is being prepared',
-        no: 'Din ordre forberedes for levering',
-        da: 'Din ordre forberedes til levering',
-        de: 'Ihre Bestellung wird vorbereitet'
-      }
-    },
-    { 
-      id: 'shipped', 
-      icon: Truck, 
-      label: { 
-        sv: 'På väg till dig', 
-        en: 'On its way',
-        no: 'På vei til deg',
-        da: 'På vej til dig',
-        de: 'Unterwegs zu Ihnen'
-      },
-      description: { 
-        sv: 'Din order är på väg från leverantören', 
-        en: 'Your order is on its way from the supplier',
-        no: 'Din ordre er på vei fra leverandøren',
-        da: 'Din ordre er på vej fra leverandøren',
-        de: 'Ihre Bestellung ist auf dem Weg vom Lieferanten'
-      }
-    },
-    { 
-      id: 'in_transit', 
-      icon: Building2, 
-      label: { 
-        sv: 'Ankommit distributionscenter', 
-        en: 'Arrived at distribution',
-        no: 'Ankommet distribusjonssenter',
-        da: 'Ankommet distributionscenter',
-        de: 'Im Verteilzentrum angekommen'
-      },
-      description: { 
-        sv: 'Paketet är på väg till ditt område', 
-        en: 'Package is heading to your area',
-        no: 'Pakken er på vei til ditt område',
-        da: 'Pakken er på vej til dit område',
-        de: 'Paket ist auf dem Weg in Ihre Region'
-      }
-    },
-    { 
-      id: 'delivered', 
-      icon: CheckCircle2, 
-      label: { 
-        sv: 'Utlevererad', 
-        en: 'Delivered',
-        no: 'Levert',
-        da: 'Leveret',
-        de: 'Zugestellt'
-      },
-      description: { 
-        sv: 'Din order har levererats', 
-        en: 'Your order has been delivered',
-        no: 'Din ordre er levert',
-        da: 'Din ordre er leveret',
-        de: 'Ihre Bestellung wurde zugestellt'
-      }
-    },
-  ];
-
+...
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSearching(true);
@@ -133,30 +45,37 @@ const TrackOrder = () => {
     setOrderData(null);
 
     try {
-      const cleanInput = orderNumber.replace('#', '').trim();
-      const cleanEmail = email.toLowerCase().trim();
-      
-      // Search by order_number, shopify_order_number, tracking_number, or id
-      // Combined with email for security
+      const cleanInput = orderNumber.replace('#', '').trim().replace(/[(),]/g, '');
+      const cleanEmail = email.toLowerCase().trim().replace(/[(),]/g, '');
+
+      if (!cleanInput && !cleanEmail) {
+        toast.error(language === 'sv' ? 'Ange ordernummer eller e-post' : 'Enter order number or email');
+        setNotFound(true);
+        return;
+      }
+
+      const orFilters: string[] = [];
+      if (cleanInput) {
+        orFilters.push(
+          `order_number.eq.${cleanInput}`,
+          `shopify_order_number.eq.${cleanInput}`,
+          `tracking_number.eq.${cleanInput}`,
+          `stripe_session_id.eq.${cleanInput}`,
+          `id.eq.${cleanInput}`,
+        );
+      }
+      if (cleanEmail) {
+        orFilters.push(`order_email.eq.${cleanEmail}`);
+      }
+
       let query = supabase
         .from('orders')
-        .select('*');
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(1);
 
-      // Build flexible OR search across multiple fields
-      if (cleanInput && cleanEmail) {
-        query = query
-          .or(`order_number.eq.${cleanInput},shopify_order_number.eq.${cleanInput},tracking_number.eq.${cleanInput},id.eq.${cleanInput}`)
-          .eq('order_email', cleanEmail);
-      } else if (cleanInput) {
-        // Allow search by just order number / tracking number
-        query = query
-          .or(`order_number.eq.${cleanInput},shopify_order_number.eq.${cleanInput},tracking_number.eq.${cleanInput},id.eq.${cleanInput}`);
-      } else if (cleanEmail) {
-        // Allow search by just email (returns latest order)
-        query = query
-          .eq('order_email', cleanEmail)
-          .order('created_at', { ascending: false })
-          .limit(1);
+      if (orFilters.length > 0) {
+        query = query.or(orFilters.join(','));
       }
 
       const { data, error } = await query.maybeSingle();
@@ -165,7 +84,7 @@ const TrackOrder = () => {
         console.error('Order search error:', error);
         setNotFound(true);
       } else if (data) {
-        setOrderData(data);
+        setOrderData(data as OrderData);
       } else {
         setNotFound(true);
       }
