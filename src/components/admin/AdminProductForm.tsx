@@ -348,6 +348,96 @@ function parseTags(value: string): string[] {
     .filter(Boolean);
 }
 
+// ─── AI Content Generator ───
+function AiContentGenerator({
+  language,
+  formData,
+  setFormData,
+}: {
+  language: string;
+  formData: ProductFormData;
+  setFormData: React.Dispatch<React.SetStateAction<ProductFormData>>;
+}) {
+  const [generating, setGenerating] = React.useState(false);
+  const sv = language === 'sv';
+
+  const handleGenerate = async () => {
+    if (!formData.title.trim()) {
+      toast.error(sv ? 'Ange ett produktnamn först' : 'Enter a product name first');
+      return;
+    }
+    setGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-product-content', {
+        body: {
+          productName: formData.title,
+          category: formData.productType || null,
+          ingredients: formData.ingredients || null,
+          existingData: {
+            description: formData.description,
+            feeling: formData.feeling,
+            effects: formData.effects,
+            usage: formData.usage,
+          },
+          language: sv ? 'sv' : 'en',
+        },
+      });
+
+      if (error) throw error;
+      const content = data?.content;
+      if (!content) throw new Error('No content returned');
+
+      setFormData(prev => ({
+        ...prev,
+        description: prev.description || content.description || '',
+        extendedDescription: prev.extendedDescription || content.extended_description || '',
+        effects: prev.effects || content.effects || '',
+        feeling: prev.feeling || content.feeling || '',
+        usage: prev.usage || content.usage || '',
+      }));
+
+      toast.success(sv ? 'Innehåll genererat! Redigera efter behov.' : 'Content generated! Edit as needed.');
+    } catch (err: any) {
+      console.error('AI generation failed:', err);
+      toast.error(sv ? 'Kunde inte generera innehåll' : 'Failed to generate content');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const hasEmptyFields = !formData.description || !formData.extendedDescription || !formData.effects || !formData.feeling || !formData.usage;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          {sv ? '🤖 AI-assistent' : '🤖 AI Assistant'}
+        </p>
+        {hasEmptyFields && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-1.5 text-xs h-7"
+            onClick={handleGenerate}
+            disabled={generating || !formData.title.trim()}
+          >
+            {generating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
+            {generating
+              ? (sv ? 'Genererar...' : 'Generating...')
+              : (sv ? 'Generera innehåll med AI' : 'Generate content with AI')}
+          </Button>
+        )}
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {sv
+          ? 'Fyll tomma fält automatiskt baserat på produktnamn, kategori och ingredienser.'
+          : 'Auto-fill empty fields based on product name, category and ingredients.'}
+      </p>
+    </div>
+  );
+}
+
 export function AdminProductForm({
   t,
   language,
