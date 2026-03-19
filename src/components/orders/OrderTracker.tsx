@@ -32,6 +32,8 @@ const statusConfig: Record<string, { icon: React.ElementType; color: string; ste
   shipped: { icon: Truck, color: 'text-primary', step: 4 },
   in_transit: { icon: MapPin, color: 'text-primary', step: 5 },
   delivered: { icon: CheckCircle2, color: 'text-success', step: 6 },
+  returned: { icon: Package, color: 'text-orange-600', step: 6 },
+  lost: { icon: MapPin, color: 'text-destructive', step: 5 },
 };
 
 const OrderTracker = () => {
