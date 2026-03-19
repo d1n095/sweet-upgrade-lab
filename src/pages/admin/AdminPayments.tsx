@@ -20,6 +20,7 @@ import { useStoreSettings } from '@/stores/storeSettingsStore';
 import { usePaymentMethodsStore } from '@/stores/paymentMethodsStore';
 import { PAYMENT_ICON_MAP, GenericIcon } from '@/components/trust/PaymentMethodIcons';
 const AdminWebhookStatus = lazy(() => import('@/components/admin/AdminWebhookStatus'));
+const AdminPaymentLogs = lazy(() => import('@/components/admin/AdminPaymentLogs'));
 
 // ─── Types ───
 interface FinanceData {
