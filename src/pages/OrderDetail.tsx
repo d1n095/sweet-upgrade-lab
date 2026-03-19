@@ -132,6 +132,7 @@ const OrderDetail = () => {
   const statusColor = statusConfig[order.status]?.color || 'text-muted-foreground';
   const items = Array.isArray(order.items) ? order.items : [];
   const shipping = order.shipping_address && typeof order.shipping_address === 'object' ? order.shipping_address as any : null;
+  const hasOrderNumber = typeof order.order_number === 'string' && order.order_number.length > 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -147,7 +148,11 @@ const OrderDetail = () => {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-card border border-border rounded-2xl p-6 mb-6">
           <div className="flex items-start justify-between flex-wrap gap-4">
             <div>
-              <h1 className="text-2xl font-bold">{order.order_number || order.id.slice(0, 8)}</h1>
+              <h1 className="text-2xl font-bold">
+                {hasOrderNumber
+                  ? order.order_number
+                  : (language === 'sv' ? 'Ordernummer saknas' : 'Order number unavailable')}
+              </h1>
               <p className="text-sm text-muted-foreground mt-1">{formatDate(order.created_at)}</p>
             </div>
             <div className="text-right">
@@ -254,12 +259,20 @@ const OrderDetail = () => {
 
         {/* Track link */}
         <div className="text-center">
-          <Link to={`/track-order?q=${order.order_number || order.id}`}>
-            <Button variant="outline" className="gap-2">
-              <ExternalLink className="w-4 h-4" />
-              {t.trackOrder}
-            </Button>
-          </Link>
+          {hasOrderNumber ? (
+            <Link to={`/track-order?q=${encodeURIComponent(order.order_number)}`}>
+              <Button variant="outline" className="gap-2">
+                <ExternalLink className="w-4 h-4" />
+                {t.trackOrder}
+              </Button>
+            </Link>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              {language === 'sv'
+                ? 'Spårning blir tillgänglig när ordernumret har skapats.'
+                : 'Tracking will be available once the order number is created.'}
+            </p>
+          )}
         </div>
       </div>
       <Footer />
