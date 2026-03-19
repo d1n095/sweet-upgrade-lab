@@ -363,11 +363,9 @@ const AdminOrderManager = () => {
     }
   };
 
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
   const handleDeleteOrder = async (order: Order) => {
-    const confirmMsg = language === 'sv' 
-      ? `Vill du arkivera/radera order ${order.order_number || order.id.slice(0, 8)}?`
-      : `Archive/delete order ${order.order_number || order.id.slice(0, 8)}?`;
-    if (!confirm(confirmMsg)) return;
     try {
       const { error } = await supabase
         .from('orders')
@@ -376,6 +374,7 @@ const AdminOrderManager = () => {
       if (error) throw error;
       setOrders(prev => prev.filter(o => o.id !== order.id));
       if (expandedOrder === order.id) setExpandedOrder(null);
+      setDeleteConfirmId(null);
       logActivity({
         log_type: 'warning',
         category: 'order',
