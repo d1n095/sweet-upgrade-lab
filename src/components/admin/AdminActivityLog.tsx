@@ -292,7 +292,7 @@ const AdminActivityLog = () => {
           </TabsList>
         </ScrollableTabs>
 
-        <TabsContent value="all" className="space-y-4">
+        <TabsContent value="all" className="space-y-4" ref={(el: HTMLDivElement | null) => { logsListRef.current = el; }}>
           {/* Search + Filters */}
           <div className="flex flex-wrap gap-3">
             <div className="relative flex-1 min-w-[200px]">
