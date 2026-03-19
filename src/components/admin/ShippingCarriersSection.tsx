@@ -45,6 +45,21 @@ const FEATURE_ICONS = [
   { key: 'is_international', icon: Globe, label: 'Internationellt' },
 ] as const;
 
+const CARRIER_PRESETS: Record<string, Omit<typeof EMPTY_FORM, 'notes'>> = {
+  'PostNord': { name: 'PostNord', website_url: 'https://www.postnord.se', pricing_url: 'https://www.postnord.se/skicka-paket/priser', tracking_url_template: 'https://tracking.postnord.com/tracking.html?id={tracking_number}', is_international: true, supports_pickup_points: true, supports_home_delivery: true, supports_express: true, supports_parcel_lockers: true },
+  'DHL': { name: 'DHL', website_url: 'https://www.dhl.se', pricing_url: 'https://www.dhl.se/sv/express/priser.html', tracking_url_template: 'https://www.dhl.com/se-sv/home/tracking.html?tracking-id={tracking_number}', is_international: true, supports_pickup_points: true, supports_home_delivery: true, supports_express: true, supports_parcel_lockers: false },
+  'Bring': { name: 'Bring', website_url: 'https://www.bring.se', pricing_url: 'https://www.bring.se/skicka/priser', tracking_url_template: 'https://tracking.bring.se/tracking/{tracking_number}', is_international: true, supports_pickup_points: true, supports_home_delivery: true, supports_express: true, supports_parcel_lockers: false },
+  'Schenker': { name: 'DB Schenker', website_url: 'https://www.dbschenker.com/se-sv', pricing_url: 'https://www.dbschenker.com/se-sv', tracking_url_template: 'https://eschenker.dbschenker.com/app/tracking?refNumber={tracking_number}', is_international: true, supports_pickup_points: true, supports_home_delivery: true, supports_express: false, supports_parcel_lockers: false },
+  'Budbee': { name: 'Budbee', website_url: 'https://www.budbee.com', pricing_url: 'https://www.budbee.com', tracking_url_template: 'https://tracking.budbee.com/{tracking_number}', is_international: false, supports_pickup_points: false, supports_home_delivery: true, supports_express: true, supports_parcel_lockers: true },
+  'Instabox': { name: 'Instabox', website_url: 'https://www.instabox.se', pricing_url: 'https://www.instabox.se', tracking_url_template: 'https://www.instabox.se/tracking/{tracking_number}', is_international: false, supports_pickup_points: false, supports_home_delivery: true, supports_express: true, supports_parcel_lockers: true },
+  'UPS': { name: 'UPS', website_url: 'https://www.ups.com/se', pricing_url: 'https://www.ups.com/se/sv/shipping/rates.page', tracking_url_template: 'https://www.ups.com/track?tracknum={tracking_number}', is_international: true, supports_pickup_points: true, supports_home_delivery: true, supports_express: true, supports_parcel_lockers: false },
+  'FedEx': { name: 'FedEx', website_url: 'https://www.fedex.com/sv-se', pricing_url: 'https://www.fedex.com/sv-se/shipping/rates.html', tracking_url_template: 'https://www.fedex.com/fedextrack/?trknbr={tracking_number}', is_international: true, supports_pickup_points: false, supports_home_delivery: true, supports_express: true, supports_parcel_lockers: false },
+  'Best Transport': { name: 'Best Transport', website_url: 'https://www.besttransport.se', pricing_url: 'https://www.besttransport.se', tracking_url_template: '', is_international: false, supports_pickup_points: false, supports_home_delivery: true, supports_express: true, supports_parcel_lockers: false },
+  'Early Bird': { name: 'Early Bird', website_url: 'https://www.earlybirddelivery.se', pricing_url: 'https://www.earlybirddelivery.se', tracking_url_template: '', is_international: false, supports_pickup_points: false, supports_home_delivery: true, supports_express: true, supports_parcel_lockers: false },
+};
+
+const EMPTY_FORM = { name: '', website_url: '', pricing_url: '', tracking_url_template: '', is_international: false, supports_pickup_points: false, supports_home_delivery: true, supports_express: false, supports_parcel_lockers: false, notes: '' };
+
 const ShippingCarriersSection = () => {
   const [carriers, setCarriers] = useState<ShippingCarrier[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,13 +69,9 @@ const ShippingCarriersSection = () => {
   const [editing, setEditing] = useState<ShippingCarrier | null>(null);
   const [saving, setSaving] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [showPresets, setShowPresets] = useState(false);
 
-  const [form, setForm] = useState({
-    name: '', website_url: '', pricing_url: '', tracking_url_template: '',
-    is_international: false, supports_pickup_points: false,
-    supports_home_delivery: true, supports_express: false,
-    supports_parcel_lockers: false, notes: '',
-  });
+  const [form, setForm] = useState({ ...EMPTY_FORM });
 
   const fetchCarriers = useCallback(async () => {
     setLoading(true);
@@ -105,11 +116,18 @@ const ShippingCarriersSection = () => {
   };
 
   const resetForm = () => {
-    setForm({ name: '', website_url: '', pricing_url: '', tracking_url_template: '', is_international: false, supports_pickup_points: false, supports_home_delivery: true, supports_express: false, supports_parcel_lockers: false, notes: '' });
+    setForm({ ...EMPTY_FORM });
     setEditing(null);
+    setShowPresets(false);
   };
 
-  const openAdd = () => { resetForm(); setIsFormOpen(true); };
+  const openAdd = () => { resetForm(); setShowPresets(true); setIsFormOpen(true); };
+
+  const selectPreset = (key: string) => {
+    const preset = CARRIER_PRESETS[key];
+    if (preset) setForm({ ...preset, notes: '' });
+    setShowPresets(false);
+  };
 
   const openEdit = (c: ShippingCarrier) => {
     setEditing(c);
@@ -342,6 +360,26 @@ const ShippingCarriersSection = () => {
             <DialogTitle>{editing ? 'Redigera fraktbolag' : 'Lägg till fraktbolag'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+            {/* Preset picker for new carriers */}
+            {showPresets && !editing && (
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Välj mall (eller fyll i manuellt)</Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {Object.keys(CARRIER_PRESETS)
+                    .filter(key => !carriers.some(c => c.name.toLowerCase() === CARRIER_PRESETS[key].name.toLowerCase()))
+                    .map(key => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => selectPreset(key)}
+                      className="text-xs px-2.5 py-1.5 rounded-md border border-border bg-card hover:bg-primary/10 hover:border-primary/30 transition-colors"
+                    >
+                      {CARRIER_PRESETS[key].name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Namn *</Label>
               <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="PostNord" />
