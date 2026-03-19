@@ -125,16 +125,13 @@ const Checkout = () => {
     loadProfileData();
   }, [user, profileLoaded]);
 
+  // Hydration timeout - short, non-blocking
   useEffect(() => {
     if (isHydrated) {
       setHydrationTimedOut(false);
       return;
     }
-
-    const timer = window.setTimeout(() => {
-      setHydrationTimedOut(true);
-    }, 2500);
-
+    const timer = window.setTimeout(() => setHydrationTimedOut(true), 1500);
     return () => window.clearTimeout(timer);
   }, [isHydrated]);
 
