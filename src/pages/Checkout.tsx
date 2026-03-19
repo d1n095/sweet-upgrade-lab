@@ -376,11 +376,12 @@ const Checkout = () => {
       console.log('Backend response - data:', JSON.stringify(data));
       setDebugInfo(prev => ({ ...prev, step: 'backend_responded', data, status: 200 }));
 
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      if (!data?.url || typeof data.url !== 'string') {
-        console.log('INVALID SESSION URL - data.url:', data?.url);
-        setDebugInfo(prev => ({ ...prev, step: 'invalid_url', rawUrl: data?.url }));
+      // fetch-varianten kastar redan vid non-2xx, men behåll detta som skydd
+      if ((data as any)?.error) throw new Error((data as any).error);
+
+      if (!(data as any)?.url || typeof (data as any).url !== 'string') {
+        console.log('INVALID SESSION URL - data.url:', (data as any)?.url);
+        setDebugInfo(prev => ({ ...prev, step: 'invalid_url', rawUrl: (data as any)?.url }));
         throw new Error('INVALID_SESSION_URL');
       }
 
