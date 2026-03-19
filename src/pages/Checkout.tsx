@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ShoppingBag, Truck, Shield, Loader2, CreditCard, AlertTriangle, Lock, RotateCcw, Package, Clock, Check } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, Truck, Shield, CreditCard, AlertTriangle, Lock, RotateCcw, Clock, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -58,21 +58,15 @@ interface FieldErrors {
   city?: string;
 }
 
-const CHECKOUT_TIMEOUT_MS = 30000;
-
 const Checkout = () => {
-  const navigate = useNavigate();
   const { language } = useLanguage();
   const cl = getContentLang(language);
   const cartStore = useCartStore();
   const items = cartStore?.items || [];
-  const isHydrated = cartStore?.isHydrated ?? true; // Don't block on hydration
-  const { checkoutEnabled, autoSaveProfile } = useStoreSettings();
+  const { checkoutEnabled } = useStoreSettings();
   const { user } = useAuth();
   const shippingConfig = useShippingConfig();
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
-  const [hydrationTimedOut, setHydrationTimedOut] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [selectedPayment, setSelectedPayment] = useState<'card' | 'klarna'>('card');
