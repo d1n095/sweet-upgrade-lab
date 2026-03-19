@@ -57,6 +57,7 @@ import AdminShipping from "./pages/admin/AdminShipping";
 import AdminFinance from "./pages/admin/AdminFinance";
 import AdminSEO from "./pages/admin/AdminSEO";
 import AdminStaff from "./pages/admin/AdminStaff";
+import AdminPayments from "./pages/admin/AdminPayments";
 
 const queryClient = new QueryClient();
 
