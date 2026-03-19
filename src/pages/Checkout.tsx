@@ -338,7 +338,7 @@ const Checkout = () => {
         paymentMethod: selectedPayment,
       };
 
-      const checkoutRequest = (async () => {
+      const data = await (async () => {
         // Vi använder fetch här för att kunna läsa fel-body vid 4xx/5xx (supabase.functions.invoke gömmer ofta detta).
         const { data: sessionData } = await supabase.auth.getSession();
         const accessToken = sessionData.session?.access_token;
@@ -367,74 +367,32 @@ const Checkout = () => {
         return payload;
       })();
 
-      const timeout = new Promise<never>((_, reject) => {
-        window.setTimeout(() => reject(new Error('CHECKOUT_TIMEOUT')), CHECKOUT_TIMEOUT_MS);
-      });
+      console.log('FULL RESPONSE:', data);
 
-      const data = await Promise.race([checkoutRequest, timeout]);
+      const redirectUrl =
+        (typeof (data as any)?.sessionUrl === 'string' && (data as any).sessionUrl.length > 0
+          ? (data as any).sessionUrl
+          : null) ||
+        (typeof (data as any)?.url === 'string' && (data as any).url.length > 0
+          ? (data as any).url
+          : null);
 
-      console.log('Backend response - data:', JSON.stringify(data));
-      setDebugInfo(prev => ({ ...prev, step: 'backend_responded', data, status: 200 }));
-
-      // fetch-varianten kastar redan vid non-2xx, men behåll detta som skydd
-      if ((data as any)?.error) throw new Error((data as any).error);
-
-      if (!(data as any)?.url || typeof (data as any).url !== 'string') {
-        console.log('INVALID SESSION URL - data.url:', (data as any)?.url);
-        setDebugInfo(prev => ({ ...prev, step: 'invalid_url', rawUrl: (data as any)?.url }));
-        throw new Error('INVALID_SESSION_URL');
+      if (redirectUrl) {
+        completedRef.current = true;
+        trackCheckoutStep('payment_redirect', { total });
+        console.log('FORCE REDIRECT:', redirectUrl);
+        window.location.href = redirectUrl;
+        return;
       }
 
-      completedRef.current = true;
-      trackCheckoutStep('payment_redirect', { total });
-
-      logActivity({
-        log_type: 'info',
-        category: 'payment',
-        message: 'Stripe session created',
-        details: {
-          order_id: data.orderId,
-          session_id: data.sessionId,
-          payment_method: selectedPayment,
-        },
-      });
-
-      if (user && autoSaveProfile) {
-        const nameParts = form.name.trim().split(' ');
-        const firstName = nameParts[0] || '';
-        const lastName = nameParts.slice(1).join(' ') || '';
-
-        supabase
-          .from('profiles')
-          .update({
-            first_name: firstName || null,
-            last_name: lastName || null,
-            full_name: form.name,
-            phone: form.phone || null,
-            address: form.address,
-            zip: form.zip,
-            city: form.city,
-            country: form.country,
-          } as any)
-          .eq('user_id', user.id)
-          .then(() => {});
-      }
-
-      console.log('=== REDIRECTING TO STRIPE ===');
-      console.log('Redirect URL:', data.url);
-      setDebugInfo(prev => ({ ...prev, step: 'redirecting', url: data.url }));
-
-      logActivity({
-        log_type: 'info',
-        category: 'payment',
-        message: 'Checkout redirect triggered',
-        details: {
-          order_id: data.orderId,
-          session_id: data.sessionId,
-        },
-      });
-
-      window.location.assign(data.url);
+      setDebugInfo(prev => ({
+        ...prev,
+        step: 'no_stripe_url',
+        status: 200,
+        data,
+        url: redirectUrl,
+      }));
+      throw new Error('No Stripe URL returned');
     } catch (err: any) {
       console.error('=== CHECKOUT FAILED ===');
       console.error('Error:', err);
@@ -587,8 +545,8 @@ const Checkout = () => {
           {debugInfo.data?.sessionId && (
             <p className="text-muted-foreground">sessionId: <span className="text-foreground">{String(debugInfo.data.sessionId).slice(0, 30)}…</span></p>
           )}
-          {debugInfo.data?.url && (
-            <p className="text-muted-foreground">url: <span className="text-green-600 dark:text-green-400 break-all">{String(debugInfo.data.url).slice(0, 60)}…</span></p>
+          {(debugInfo.url || debugInfo.data?.sessionUrl || debugInfo.data?.url) && (
+            <p className="text-muted-foreground">url: <span className="text-green-600 dark:text-green-400 break-all">{String(debugInfo.url || debugInfo.data?.sessionUrl || debugInfo.data?.url)}</span></p>
           )}
           {debugInfo.error && (
             <p className="text-red-600 dark:text-red-400">error: {debugInfo.error}</p>
@@ -598,6 +556,12 @@ const Checkout = () => {
           )}
           {debugInfo.status && (
             <p className="text-muted-foreground">HTTP: <span className="text-foreground">{debugInfo.status}</span></p>
+          )}
+          {debugInfo.data && (
+            <details className="text-muted-foreground">
+              <summary className="cursor-pointer">Full response JSON</summary>
+              <pre className="mt-1 whitespace-pre-wrap break-all text-[10px] text-foreground">{JSON.stringify(debugInfo.data, null, 2)}</pre>
+            </details>
           )}
           <p className="text-muted-foreground">items: {debugInfo.itemCount || items.length} | total: {total} SEK</p>
         </div>
