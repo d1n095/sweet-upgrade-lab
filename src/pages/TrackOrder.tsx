@@ -428,7 +428,7 @@ const TrackOrder = () => {
                     : 'Your payment could not be processed. You can try again below.'}
                 </p>
                 <p className="text-sm text-muted-foreground mb-6">
-                  {language === 'sv' ? 'Order' : 'Order'} #{orderData.shopify_order_number || orderData.id.slice(0, 8)} · {formatDate(orderData.created_at)}
+                  {language === 'sv' ? 'Order' : 'Order'} {orderData.order_number || orderData.shopify_order_number || orderData.id.slice(0, 8)} · {formatDate(orderData.created_at)}
                 </p>
                 <Button
                   onClick={async () => {
