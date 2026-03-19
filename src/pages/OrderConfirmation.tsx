@@ -18,9 +18,9 @@ const OrderConfirmation = () => {
   const [orderId, setOrderId] = useState('');
   const [orderEmail, setOrderEmail] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  const [retryCount, setRetryCount] = useState(0);
   const maxRetries = 10;
-  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryDelayMs = 1500;
+  const activeSessionRef = useRef('');
 
   const clearCart = useCartStore((s) => s.clearCart);
   useEffect(() => {
@@ -28,62 +28,59 @@ const OrderConfirmation = () => {
   }, [clearCart]);
 
   useEffect(() => {
+    activeSessionRef.current = sessionId;
     setOrderNumber('');
     setOrderId('');
     setOrderEmail('');
-    setRetryCount(0);
     setIsLoading(Boolean(sessionId));
   }, [sessionId]);
 
   useEffect(() => {
-    let isActive = true;
+    let isCancelled = false;
 
-    const resolveOrder = async () => {
+    const pollOrderBySession = async () => {
       if (!sessionId) {
         setIsLoading(false);
         return;
       }
 
-      try {
-        const { data, error } = await supabase
-          .from('orders')
-          .select('id, order_number, order_email')
-          .eq('stripe_session_id', sessionId)
-          .maybeSingle();
+      for (let attempt = 0; attempt < maxRetries && !isCancelled; attempt += 1) {
+        try {
+          const { data, error } = await supabase
+            .from('orders')
+            .select('id, order_number, order_email, stripe_session_id')
+            .eq('stripe_session_id', sessionId)
+            .maybeSingle();
 
-        if (!isActive) return;
+          if (isCancelled || activeSessionRef.current !== sessionId) return;
 
-        if (!error && data?.order_number) {
-          setOrderId(data.id);
-          setOrderNumber(data.order_number);
-          if (data.order_email) setOrderEmail(data.order_email);
-          setIsLoading(false);
-          return;
+          if (!error && data?.order_number && data.stripe_session_id === sessionId) {
+            setOrderId(data.id);
+            setOrderNumber(data.order_number);
+            if (data.order_email) setOrderEmail(data.order_email);
+            setIsLoading(false);
+            return;
+          }
+        } catch (err) {
+          console.error('[order-confirmation] DB lookup failed:', err);
         }
-      } catch (err) {
-        console.error('[order-confirmation] DB lookup failed:', err);
+
+        if (attempt < maxRetries - 1) {
+          await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+        }
       }
 
-      if (!isActive) return;
-
-      if (retryCount < maxRetries) {
-        console.log(`[order-confirmation] Order not found yet, retry ${retryCount + 1}/${maxRetries}...`);
-        retryTimerRef.current = setTimeout(() => {
-          if (isActive) setRetryCount((c) => c + 1);
-        }, 1500);
-        return;
+      if (!isCancelled && activeSessionRef.current === sessionId) {
+        setIsLoading(false);
       }
-
-      setIsLoading(false);
     };
 
-    resolveOrder();
+    void pollOrderBySession();
 
     return () => {
-      isActive = false;
-      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+      isCancelled = true;
     };
-  }, [sessionId, retryCount]);
+  }, [sessionId, maxRetries, retryDelayMs]);
 
   const content = {
     sv: {
