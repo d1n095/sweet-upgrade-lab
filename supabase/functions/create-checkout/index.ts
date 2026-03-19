@@ -175,10 +175,10 @@ serve(async (req) => {
 
     // Determine payment method types — only Stripe-supported methods
     // NEVER include 'swish' — it is not supported by Stripe
+    // Only payment methods that support SEK
     const ALLOWED_METHODS: Record<string, string[]> = {
       'card': ['card'],
       'klarna': ['klarna'],
-      'revolut_pay': ['revolut_pay'],
     };
     const selectedMethods = (paymentMethod && ALLOWED_METHODS[paymentMethod])
       ? ALLOWED_METHODS[paymentMethod]
