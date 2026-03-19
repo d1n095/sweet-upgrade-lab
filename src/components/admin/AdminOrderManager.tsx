@@ -641,17 +641,45 @@ const AdminOrderManager = () => {
                         {content.refund}
                       </Button>
                     )}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-1.5 text-xs border-destructive/50 text-destructive hover:bg-destructive/10"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteOrder(order);
-                      }}
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
+                    {deleteConfirmId === order.id ? (
+                      <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                        <span className="text-xs text-destructive">{language === 'sv' ? 'Radera?' : 'Delete?'}</span>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className="h-7 px-2 text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteOrder(order);
+                          }}
+                        >
+                          {language === 'sv' ? 'Ja' : 'Yes'}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteConfirmId(null);
+                          }}
+                        >
+                          {language === 'sv' ? 'Nej' : 'No'}
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5 text-xs border-destructive/50 text-destructive hover:bg-destructive/10"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteConfirmId(order.id);
+                        }}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
                     <span className="font-semibold text-sm">
                       {formatCurrency(order.total_amount, order.currency)}
                     </span>
