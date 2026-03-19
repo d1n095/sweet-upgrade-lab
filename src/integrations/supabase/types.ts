@@ -1305,6 +1305,7 @@ export type Database = {
           usage_en: string | null
           usage_sv: string | null
           vendor: string | null
+          weight_grams: number | null
         }
         Insert: {
           allow_overselling?: boolean
@@ -1345,6 +1346,7 @@ export type Database = {
           usage_en?: string | null
           usage_sv?: string | null
           vendor?: string | null
+          weight_grams?: number | null
         }
         Update: {
           allow_overselling?: boolean
@@ -1385,6 +1387,7 @@ export type Database = {
           usage_en?: string | null
           usage_sv?: string | null
           vendor?: string | null
+          weight_grams?: number | null
         }
         Relationships: []
       }
