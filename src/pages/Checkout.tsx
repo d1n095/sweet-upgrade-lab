@@ -572,29 +572,6 @@ const Checkout = () => {
                           </span>
                         </button>
 
-                        {/* Revolut Pay */}
-                        <button
-                          type="button"
-                          onClick={() => setSelectedPayment('revolut_pay')}
-                          className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all min-h-[100px] ${
-                            selectedPayment === 'revolut_pay'
-                              ? 'border-primary bg-primary/5 shadow-sm'
-                              : 'border-border hover:border-primary/40'
-                          }`}
-                        >
-                          {selectedPayment === 'revolut_pay' && (
-                            <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-                              <Check className="w-3 h-3 text-primary-foreground" />
-                            </div>
-                          )}
-                          <div className="w-6 h-6 flex items-center justify-center">
-                            <span className="text-base font-bold text-foreground" style={{ fontFamily: 'system-ui' }}>R</span>
-                          </div>
-                          <span className="text-sm font-medium">Revolut Pay</span>
-                          <span className="text-[10px] text-muted-foreground leading-tight text-center">
-                            {isSv ? 'Snabb betalning' : 'Quick payment'}
-                          </span>
-                        </button>
 
                         {/* PayPal - disabled/coming soon */}
                         <div
