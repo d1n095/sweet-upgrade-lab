@@ -216,9 +216,17 @@ const Checkout = () => {
 
   // DEBUG state
   const [debugInfo, setDebugInfo] = useState<Record<string, any>>({});
+  const [debugSteps, setDebugSteps] = useState<string[]>([]);
+
+  const addDebugStep = (step: string) => {
+    const ts = new Date().toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3 });
+    setDebugSteps(prev => [...prev, `[${ts}] ${step}`]);
+    console.log(`=== ${step} ===`);
+  };
 
   const startCheckout = useCallback(async () => {
-    console.log('=== REAL PAY HANDLER TRIGGERED ===');
+    setDebugSteps([]);
+    addDebugStep('✅ REAL PAY HANDLER TRIGGERED');
     setCheckoutError(null);
 
     try {
