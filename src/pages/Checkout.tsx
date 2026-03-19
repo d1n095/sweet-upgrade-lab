@@ -230,7 +230,7 @@ const Checkout = () => {
     setCheckoutError(null);
 
     try {
-      console.log('=== CALLING CHECKOUT API ===');
+      addDebugStep('📡 CALLING CHECKOUT API');
       const checkoutItems = items.map(item => ({
         id: (item.product as any).dbId || item.variantId,
         title: item.product.node.title,
@@ -257,7 +257,7 @@ const Checkout = () => {
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData.session?.access_token;
 
-      console.log('=== FETCH STARTING ===', { url: `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout`, hasToken: !!accessToken });
+      addDebugStep(`🔑 Auth token: ${accessToken ? 'YES' : 'NO'}`);
 
       const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout`, {
         method: 'POST',
@@ -269,7 +269,7 @@ const Checkout = () => {
         body: JSON.stringify(checkoutBody),
       });
 
-      console.log('=== FETCH COMPLETE, status:', res.status, '===');
+      addDebugStep(`📥 FETCH COMPLETE — HTTP ${res.status}`);
 
       let data: any = null;
       try {
@@ -278,14 +278,14 @@ const Checkout = () => {
         data = null;
       }
 
-      console.log('=== CHECKOUT RESPONSE:', JSON.stringify(data), '===');
+      addDebugStep(`📦 Response keys: ${data ? Object.keys(data).join(', ') : 'NULL'}`);
 
       if (!res.ok) {
         throw new Error(data?.error || `HTTP_${res.status}`);
       }
 
       const url = data?.sessionUrl || data?.url;
-      console.log('=== URL FIELD:', url, '===');
+      addDebugStep(`🔗 URL: ${url ? url.substring(0, 60) + '…' : 'MISSING'}`);
 
       if (!url) {
         setDebugInfo({
@@ -295,13 +295,12 @@ const Checkout = () => {
           url: null,
           error: 'No Stripe URL returned',
         });
-        alert('No Stripe URL returned');
+        addDebugStep('❌ No Stripe URL in response!');
         throw new Error('No Stripe URL returned');
       }
 
       completedRef.current = true;
-      trackCheckoutStep('payment_redirect', { total });
-      console.log('=== REDIRECT LINE REACHED, REDIRECTING TO:', url, '===');
+      addDebugStep('🚀 REDIRECT LINE REACHED — redirecting NOW');
       window.location.href = url;
     } catch (err: any) {
       console.error('Checkout redirect failed:', err);
