@@ -48,7 +48,7 @@ const emptyForm = (): ProductFormData => ({
   isVisible: true, inventory: 0, allowOverselling: false,
   imageUrls: [], ingredients: '', certifications: '', recipe: '',
   feeling: '', effects: '', usage: '', extendedDescription: '',
-  metaTitle: '', metaDescription: '', metaKeywords: '',
+  metaTitle: '', metaDescription: '', metaKeywords: '', weightGrams: '',
 });
 
 const AdminDbProductManager = () => {
@@ -140,6 +140,7 @@ const AdminDbProductManager = () => {
       metaTitle: (product as any).meta_title || '',
       metaDescription: (product as any).meta_description || '',
       metaKeywords: (product as any).meta_keywords || '',
+      weightGrams: (product as any).weight_grams?.toString() || '',
     });
     setIsEditOpen(true);
   };
@@ -215,6 +216,7 @@ const AdminDbProductManager = () => {
       metaTitle: (source as any).meta_title || '',
       metaDescription: (source as any).meta_description || '',
       metaKeywords: (source as any).meta_keywords || '',
+      weightGrams: (source as any).weight_grams?.toString() || '',
     });
     setIsAddOpen(true);
   };
@@ -250,6 +252,7 @@ const AdminDbProductManager = () => {
         meta_title: formData.metaTitle || null,
         meta_description: formData.metaDescription || null,
         meta_keywords: formData.metaKeywords || null,
+        weight_grams: formData.weightGrams ? parseInt(formData.weightGrams) : null,
         status: 'active',
       } as any);
       toast.success(t.productAdded);
@@ -290,6 +293,7 @@ const AdminDbProductManager = () => {
         meta_title: formData.metaTitle || null,
         meta_description: formData.metaDescription || null,
         meta_keywords: formData.metaKeywords || null,
+        weight_grams: formData.weightGrams ? parseInt(formData.weightGrams) : null,
       } as any);
       toast.success(t.productUpdated);
       queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { DollarSign, Tag, Save, Eye, EyeOff, Boxes, Minus, Plus, Upload, X, Image, FlaskConical, ChefHat } from 'lucide-react';
+import { DollarSign, Tag, Save, Eye, EyeOff, Boxes, Minus, Plus, Upload, X, Image, FlaskConical, ChefHat, Weight, Wand2, Loader2 } from 'lucide-react';
 import { RecipeTemplatePicker } from './RecipeTemplatePicker';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import { toast } from 'sonner';
 import {
   Select,
   SelectContent,
@@ -38,6 +39,7 @@ export interface ProductFormData {
   metaTitle: string;
   metaDescription: string;
   metaKeywords: string;
+  weightGrams: string;
 }
 
 const CURRENCY_OPTIONS = [
@@ -344,6 +346,96 @@ function parseTags(value: string): string[] {
     .split(',')
     .map((t) => t.trim())
     .filter(Boolean);
+}
+
+// ─── AI Content Generator ───
+function AiContentGenerator({
+  language,
+  formData,
+  setFormData,
+}: {
+  language: string;
+  formData: ProductFormData;
+  setFormData: React.Dispatch<React.SetStateAction<ProductFormData>>;
+}) {
+  const [generating, setGenerating] = React.useState(false);
+  const sv = language === 'sv';
+
+  const handleGenerate = async () => {
+    if (!formData.title.trim()) {
+      toast.error(sv ? 'Ange ett produktnamn först' : 'Enter a product name first');
+      return;
+    }
+    setGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-product-content', {
+        body: {
+          productName: formData.title,
+          category: formData.productType || null,
+          ingredients: formData.ingredients || null,
+          existingData: {
+            description: formData.description,
+            feeling: formData.feeling,
+            effects: formData.effects,
+            usage: formData.usage,
+          },
+          language: sv ? 'sv' : 'en',
+        },
+      });
+
+      if (error) throw error;
+      const content = data?.content;
+      if (!content) throw new Error('No content returned');
+
+      setFormData(prev => ({
+        ...prev,
+        description: prev.description || content.description || '',
+        extendedDescription: prev.extendedDescription || content.extended_description || '',
+        effects: prev.effects || content.effects || '',
+        feeling: prev.feeling || content.feeling || '',
+        usage: prev.usage || content.usage || '',
+      }));
+
+      toast.success(sv ? 'Innehåll genererat! Redigera efter behov.' : 'Content generated! Edit as needed.');
+    } catch (err: any) {
+      console.error('AI generation failed:', err);
+      toast.error(sv ? 'Kunde inte generera innehåll' : 'Failed to generate content');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const hasEmptyFields = !formData.description || !formData.extendedDescription || !formData.effects || !formData.feeling || !formData.usage;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          {sv ? '🤖 AI-assistent' : '🤖 AI Assistant'}
+        </p>
+        {hasEmptyFields && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-1.5 text-xs h-7"
+            onClick={handleGenerate}
+            disabled={generating || !formData.title.trim()}
+          >
+            {generating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
+            {generating
+              ? (sv ? 'Genererar...' : 'Generating...')
+              : (sv ? 'Generera innehåll med AI' : 'Generate content with AI')}
+          </Button>
+        )}
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {sv
+          ? 'Fyll tomma fält automatiskt baserat på produktnamn, kategori och ingredienser.'
+          : 'Auto-fill empty fields based on product name, category and ingredients.'}
+      </p>
+    </div>
+  );
 }
 
 export function AdminProductForm({
@@ -768,62 +860,42 @@ export function AdminProductForm({
         />
       </div>
 
-      {/* ── SEO Fields ── */}
+      {/* ── Weight Field ── */}
       <div className="border-t border-border pt-4 mt-2">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-          {language === 'sv' ? '🔍 SEO (Sökmotoroptimering)' : '🔍 SEO (Search Engine Optimization)'}
-        </p>
-        <p className="text-xs text-muted-foreground mb-3">
-          {language === 'sv'
-            ? 'Lämna tomt för att auto-generera från produktdata. Fyll i manuellt för att överskrida.'
-            : 'Leave empty to auto-generate from product data. Fill in manually to override.'}
-        </p>
-
-        <div className="space-y-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="metaTitle" className="text-xs">
-              {language === 'sv' ? 'SEO-titel (max 60 tecken)' : 'SEO Title (max 60 chars)'}
-            </Label>
-            <Input
-              id="metaTitle"
-              value={formData.metaTitle}
-              onChange={(e) => setFormData((prev) => ({ ...prev, metaTitle: e.target.value }))}
-              placeholder={formData.title ? `${formData.title} | 4thepeople` : 'Auto-genereras'}
-              className="text-xs"
-              maxLength={70}
-            />
-            <p className="text-xs text-muted-foreground">{formData.metaTitle.length}/60</p>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="metaDescription" className="text-xs">
-              {language === 'sv' ? 'SEO-beskrivning (max 160 tecken)' : 'SEO Description (max 160 chars)'}
-            </Label>
-            <Textarea
-              id="metaDescription"
-              value={formData.metaDescription}
-              onChange={(e) => setFormData((prev) => ({ ...prev, metaDescription: e.target.value }))}
-              placeholder={language === 'sv' ? 'Auto-genereras från produktbeskrivning, ingredienser m.m.' : 'Auto-generated from product description, ingredients etc.'}
-              rows={2}
-              className="text-xs"
-              maxLength={170}
-            />
-            <p className="text-xs text-muted-foreground">{formData.metaDescription.length}/160</p>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="metaKeywords" className="text-xs">
-              {language === 'sv' ? 'SEO-nyckelord (kommaseparerade)' : 'SEO Keywords (comma-separated)'}
-            </Label>
-            <Input
-              id="metaKeywords"
-              value={formData.metaKeywords}
-              onChange={(e) => setFormData((prev) => ({ ...prev, metaKeywords: e.target.value }))}
-              placeholder={language === 'sv' ? 'Auto-genereras från taggar, kategori, ingredienser' : 'Auto-generated from tags, category, ingredients'}
-              className="text-xs"
-            />
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="weightGrams" className="flex items-center gap-1.5">
+            <Weight className="w-4 h-4" />
+            {language === 'sv' ? 'Vikt (gram)' : 'Weight (grams)'}
+          </Label>
+          <Input
+            id="weightGrams"
+            type="number"
+            value={formData.weightGrams}
+            onChange={(e) => setFormData((prev) => ({ ...prev, weightGrams: e.target.value }))}
+            placeholder={language === 'sv' ? 'Ex: 250' : 'e.g. 250'}
+            className="w-40"
+            min="0"
+          />
+          <p className="text-xs text-muted-foreground">
+            {language === 'sv'
+              ? 'Krävs för fraktberäkning. Ange vikten i gram.'
+              : 'Required for shipping calculation. Enter weight in grams.'}
+          </p>
+          {!formData.weightGrams && formData.title && (
+            <p className="text-xs text-amber-600 flex items-center gap-1">
+              ⚠️ {language === 'sv' ? 'Vikt saknas — fraktberäkning kommer använda standardpris' : 'Weight missing — shipping will use default price'}
+            </p>
+          )}
         </div>
+      </div>
+
+      {/* ── AI Content Generation ── */}
+      <div className="border-t border-border pt-4 mt-2">
+        <AiContentGenerator
+          language={language}
+          formData={formData}
+          setFormData={setFormData}
+        />
       </div>
 
       {/* ── Storytelling Fields ── */}
