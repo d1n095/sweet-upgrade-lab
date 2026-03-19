@@ -16,6 +16,7 @@ import { useStoreSettings } from '@/stores/storeSettingsStore';
 import { logActivity } from '@/utils/activityLogger';
 import { trackCheckoutStart, trackCheckoutStep, trackCheckoutAbandon, trackEvent } from '@/utils/analyticsTracker';
 import { useAuth } from '@/hooks/useAuth';
+import { useAdminRole } from '@/hooks/useAdminRole';
 
 // Swedish postal code → city lookup (common codes)
 const ZIP_CITY_MAP: Record<string, string> = {
@@ -66,6 +67,7 @@ const Checkout = () => {
   const { checkoutEnabled } = useStoreSettings();
   const { user } = useAuth();
   const shippingConfig = useShippingConfig();
+  const { isAdmin } = useAdminRole();
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -409,8 +411,8 @@ const Checkout = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Debug steps panel – ALWAYS visible on checkout */}
-      <div className="fixed top-16 right-4 z-[9999] w-80 bg-card border-2 border-primary/50 rounded-lg shadow-xl p-3 text-xs font-mono space-y-2 max-h-80 overflow-auto">
+      {/* Debug steps panel – only for admin/founder/it roles */}
+      {isAdmin && <div className="fixed top-16 right-4 z-[9999] w-80 bg-card border-2 border-primary/50 rounded-lg shadow-xl p-3 text-xs font-mono space-y-2 max-h-80 overflow-auto">
         <div className="flex items-center justify-between">
           <p className="font-bold text-foreground">🔍 Checkout Debug</p>
           <Badge variant="outline" className="text-[10px]">{debugSteps.length} steg</Badge>
@@ -456,7 +458,7 @@ const Checkout = () => {
         >
           Rensa
         </button>
-      </div>
+      </div>}
       {/* Minimal checkout header — distraction-free */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border">
         <div className="container mx-auto px-4 h-14 flex items-center justify-between max-w-5xl">
