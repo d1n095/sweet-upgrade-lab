@@ -550,7 +550,7 @@ const Checkout = () => {
               animate={{ opacity: 1, y: 0 }}
               className="lg:col-span-3"
             >
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form id="checkout-form" onSubmit={handleSubmit} className="space-y-6">
                 <div className="bg-card border border-border rounded-2xl p-6">
                   <h2 className="font-display text-lg font-semibold mb-5 flex items-center gap-2">
                     <Truck className="w-5 h-5 text-primary" />
@@ -623,15 +623,15 @@ const Checkout = () => {
                       </div>
                       <div>
                         <Label htmlFor="city">{t.city} *</Label>
-                      <Input
-                        id="city"
-                        autoComplete="address-level2"
-                        required
-                        value={form.city}
-                        onChange={(e) => updateField('city', e.target.value)}
-                        onBlur={() => handleBlur('city')}
-                        className={touched.city && errors.city ? 'border-destructive' : ''}
-                      />
+                        <Input
+                          id="city"
+                          autoComplete="address-level2"
+                          required
+                          value={form.city}
+                          onChange={(e) => updateField('city', e.target.value)}
+                          onBlur={() => handleBlur('city')}
+                          className={touched.city && errors.city ? 'border-destructive' : ''}
+                        />
                         {renderFieldError('city')}
                       </div>
                     </div>
@@ -652,7 +652,6 @@ const Checkout = () => {
                     <div className="pt-2">
                       <Label className="mb-3 block">{isSv ? 'Betalningsmetod' : 'Payment method'} *</Label>
                       <div className="grid grid-cols-2 gap-3">
-                        {/* Card */}
                         <button
                           type="button"
                           onClick={() => setSelectedPayment('card')}
@@ -674,7 +673,6 @@ const Checkout = () => {
                           </span>
                         </button>
 
-                        {/* Klarna */}
                         <button
                           type="button"
                           onClick={() => setSelectedPayment('klarna')}
@@ -690,29 +688,13 @@ const Checkout = () => {
                             </div>
                           )}
                           <div className="w-6 h-6 flex items-center justify-center">
-                            <span className="text-base font-black tracking-tight text-[#FFB3C7]" style={{ fontFamily: 'system-ui' }}>K.</span>
+                            <span className="text-base font-black tracking-tight text-primary" style={{ fontFamily: 'system-ui' }}>K.</span>
                           </div>
                           <span className="text-sm font-medium">Klarna</span>
                           <span className="text-[10px] text-muted-foreground leading-tight text-center">
                             {isSv ? 'Faktura, delbetalning' : 'Pay later, installments'}
                           </span>
                         </button>
-
-
-                        {/* PayPal - disabled/coming soon */}
-                        <div
-                          className="relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-border bg-muted/30 opacity-60 cursor-not-allowed min-h-[100px]"
-                        >
-                          <div className="w-6 h-6 flex items-center justify-center">
-                            <span className="text-xs font-bold italic">
-                              <span className="text-[#253B80]">Pay</span><span className="text-[#179BD7]">Pal</span>
-                            </span>
-                          </div>
-                          <span className="text-sm font-medium text-muted-foreground">PayPal</span>
-                          <span className="text-[10px] text-muted-foreground leading-tight text-center">
-                            {isSv ? 'Kommer snart' : 'Coming soon'}
-                          </span>
-                        </div>
                       </div>
                     </div>
                   </div>
