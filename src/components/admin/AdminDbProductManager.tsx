@@ -216,6 +216,7 @@ const AdminDbProductManager = () => {
       metaTitle: (source as any).meta_title || '',
       metaDescription: (source as any).meta_description || '',
       metaKeywords: (source as any).meta_keywords || '',
+      weightGrams: (source as any).weight_grams?.toString() || '',
     });
     setIsAddOpen(true);
   };
