@@ -426,7 +426,6 @@ const Checkout = () => {
   };
 
   // Track checkout page view with item details (must be before early returns)
-  const completedRef = useRef(false);
   useEffect(() => {
     if (items.length > 0) {
       const itemDetails = items.map(item => ({
@@ -450,11 +449,26 @@ const Checkout = () => {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Wait for zustand hydration before showing empty state
-  if (!_hasHydrated) {
+  if (!isHydrated && !hydrationTimedOut) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!isHydrated && hydrationTimedOut) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+        <div className="max-w-md text-center space-y-4">
+          <p className="text-sm text-destructive">{t.hydrationTimeout}</p>
+          <div className="flex items-center justify-center gap-3">
+            <Button variant="outline" onClick={() => window.location.reload()}>{t.retry}</Button>
+            <Button asChild>
+              <Link to="/products">{t.goToShop}</Link>
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }
