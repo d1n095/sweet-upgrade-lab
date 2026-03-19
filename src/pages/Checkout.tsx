@@ -777,11 +777,25 @@ const Checkout = () => {
                   <span className="text-xs text-muted-foreground">{t.deliveryEstimate}</span>
                 </div>
 
+                {checkoutError && (
+                  <div className="mt-5 rounded-xl border border-destructive/40 bg-destructive/5 p-3 space-y-2">
+                    <p className="text-xs text-destructive">{checkoutError}</p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleSubmit}
+                      disabled={isSubmitting}
+                    >
+                      {t.retry}
+                    </Button>
+                  </div>
+                )}
+
                 {/* Desktop pay button */}
                 <div className="hidden lg:block mt-5 space-y-3">
                   <Button
-                    type="submit"
-                    form="checkout-form"
+                    type="button"
                     size="lg"
                     className="w-full h-14 text-base font-semibold"
                     disabled={isSubmitting}
