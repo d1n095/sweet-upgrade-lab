@@ -37,6 +37,18 @@ const TrackOrder = () => {
   const [isRetrying, setIsRetrying] = useState(false);
   const [orderData, setOrderData] = useState<OrderData | null>(null);
   const [notFound, setNotFound] = useState(false);
+  const [searchedQuery, setSearchedQuery] = useState('');
+
+  // Auto-fill email for logged-in users
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.email && !email) {
+        setEmail(user.email);
+      }
+    };
+    getUser();
+  }, []);
 
   const statusSteps = [
     {
