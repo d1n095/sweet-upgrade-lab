@@ -38,6 +38,7 @@ export interface DbProduct {
   meta_title: string | null;
   meta_description: string | null;
   meta_keywords: string | null;
+  weight_grams: number | null;
   status: ProductStatus;
   created_at: string;
   updated_at: string;
