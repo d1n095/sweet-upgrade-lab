@@ -265,7 +265,7 @@ const Header = () => {
               {/* Desktop Shop CTA */}
               <Link
                 to="/produkter"
-                className={`hidden md:flex items-center gap-2 text-base font-semibold px-5 py-2 rounded-full transition-all min-h-[44px] ${
+                className={`hidden sm:flex items-center gap-2 text-base font-semibold px-5 py-2 rounded-full transition-all min-h-[44px] ${
                   location.pathname === '/produkter'
                     ? 'bg-primary text-primary-foreground shadow-sm'
                     : 'bg-secondary/60 text-foreground hover:bg-secondary hover:shadow-sm'
@@ -400,7 +400,7 @@ const Header = () => {
               <Button
                 variant="ghost"
                 size="icon"
-                className="md:hidden h-9 w-9 rounded-full hover:bg-secondary"
+                className="sm:hidden h-9 w-9 rounded-full hover:bg-secondary"
                 onClick={() => navigate('/produkter')}
                 aria-label="Shop"
               >

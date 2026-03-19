@@ -304,7 +304,7 @@ const OrderConfirmation = () => {
             className="flex flex-col sm:flex-row gap-4 justify-center"
           >
             <Button asChild>
-              <Link to="/track-order" className="flex items-center gap-2">
+              <Link to={`/track-order${orderNumber ? `?q=${encodeURIComponent(orderNumber)}` : ''}`} className="flex items-center gap-2">
                 {t.trackOrder}
                 <ArrowRight className="w-4 h-4" />
               </Link>
