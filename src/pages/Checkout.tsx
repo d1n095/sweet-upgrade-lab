@@ -69,7 +69,7 @@ const Checkout = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
-  const [selectedPayment, setSelectedPayment] = useState<'card' | 'klarna' | 'revolut_pay'>('card');
+  const [selectedPayment, setSelectedPayment] = useState<'card' | 'klarna'>('card');
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [form, setForm] = useState({
     email: '',
@@ -282,8 +282,11 @@ const Checkout = () => {
           } as any).eq('user_id', user.id).then(() => {});
         }
         
-        clearCart();
+        // Redirect FIRST, clear cart after (localStorage will be cleared on return via order-confirmation)
         window.location.href = data.url;
+        // Clear cart after redirect is initiated so user doesn't get stuck with empty cart
+        setTimeout(() => clearCart(), 500);
+        return; // Stop execution - don't hit finally block's setIsSubmitting
       }
     } catch (err: any) {
       console.error('Checkout error:', err);
@@ -569,29 +572,6 @@ const Checkout = () => {
                           </span>
                         </button>
 
-                        {/* Revolut Pay */}
-                        <button
-                          type="button"
-                          onClick={() => setSelectedPayment('revolut_pay')}
-                          className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all min-h-[100px] ${
-                            selectedPayment === 'revolut_pay'
-                              ? 'border-primary bg-primary/5 shadow-sm'
-                              : 'border-border hover:border-primary/40'
-                          }`}
-                        >
-                          {selectedPayment === 'revolut_pay' && (
-                            <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-                              <Check className="w-3 h-3 text-primary-foreground" />
-                            </div>
-                          )}
-                          <div className="w-6 h-6 flex items-center justify-center">
-                            <span className="text-base font-bold text-foreground" style={{ fontFamily: 'system-ui' }}>R</span>
-                          </div>
-                          <span className="text-sm font-medium">Revolut Pay</span>
-                          <span className="text-[10px] text-muted-foreground leading-tight text-center">
-                            {isSv ? 'Snabb betalning' : 'Quick payment'}
-                          </span>
-                        </button>
 
                         {/* PayPal - disabled/coming soon */}
                         <div
