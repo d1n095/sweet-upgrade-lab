@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Link, useSearchParams } from 'react-router-dom';
 import { storeConfig } from '@/config/storeConfig';
 import { supabase } from '@/integrations/supabase/client';
+import { useCartStore } from '@/stores/cartStore';
 
 const OrderConfirmation = () => {
   const { language } = useLanguage();
@@ -15,6 +16,12 @@ const OrderConfirmation = () => {
   const sessionId = searchParams.get('session_id') || '';
   const [orderNumber, setOrderNumber] = useState(searchParams.get('order') || '');
   const [orderEmail, setOrderEmail] = useState('');
+
+  // Clear cart on mount — purchase is complete
+  const clearCart = useCartStore((s) => s.clearCart);
+  useEffect(() => {
+    clearCart();
+  }, [clearCart]);
 
   useEffect(() => {
     if (sessionId && !orderNumber) {
