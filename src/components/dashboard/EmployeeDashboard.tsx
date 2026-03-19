@@ -38,6 +38,7 @@ const EmployeeDashboard = () => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
   const [pendingReviews, setPendingReviews] = useState<Review[]>([]);
+  const [auditLogs, setAuditLogs] = useState<{ id: string; created_at: string; log_type: string; message: string; details: any; order_id: string | null }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('orders');
