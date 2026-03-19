@@ -1,6 +1,6 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@14.21.0?target=deno";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import Stripe from "https://esm.sh/stripe@18.5.0";
+import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -8,6 +8,7 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+ try {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -59,7 +60,7 @@ serve(async (req) => {
     return new Response('Server misconfigured', { status: 500, headers: corsHeaders });
   }
 
-  const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16', httpClient: Stripe.createFetchHttpClient() });
+  const stripe = new Stripe(stripeKey, { apiVersion: '2025-08-27.basil' });
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -146,9 +147,8 @@ serve(async (req) => {
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
   } catch (err: any) {
     console.error('[stripe-webhook] Signature verification failed:', err.message);
-    return new Response(JSON.stringify({ error: 'Invalid signature' }), {
-      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    // Return 200 anyway so Stripe doesn't keep retrying a bad secret
+    return ok({ received: true, error: 'signature_failed', message: err.message });
   }
 
   console.log('[stripe-webhook] Event received', { event_id: event.id, event_type: event.type });
@@ -297,6 +297,15 @@ serve(async (req) => {
 
   console.log('[stripe-webhook] Ignored event type:', event.type);
   return ok({ received: true, ignored: true, event_type: event.type });
+
+ } catch (fatalErr: any) {
+   console.error('[stripe-webhook] FATAL unhandled error:', fatalErr?.message || fatalErr);
+   // ALWAYS return 200 so Stripe doesn't retry endlessly
+   return new Response(JSON.stringify({ received: true, error: 'internal_error', message: fatalErr?.message }), {
+     status: 200,
+     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+   });
+ }
 });
 
 // ── Helpers ──
