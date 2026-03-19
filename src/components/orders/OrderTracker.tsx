@@ -231,7 +231,7 @@ const OrderTracker = () => {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-semibold">
-                        {t.orderNumber} #{order.shopify_order_number || order.id.slice(0, 8)}
+                        {t.orderNumber} {(order as any).order_number || order.shopify_order_number || order.id.slice(0, 8)}
                       </span>
                       <Badge className={`${statusColor} bg-transparent border`}>
                         <StatusIcon className="w-3 h-3 mr-1" />
