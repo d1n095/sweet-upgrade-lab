@@ -354,6 +354,30 @@ const AdminOrderManager = () => {
     }
   };
 
+  const handleDeleteOrder = async (order: Order) => {
+    const confirmMsg = language === 'sv' 
+      ? `Vill du verkligen ta bort order ${order.order_number || order.id.slice(0, 8)}? Detta kan inte ångras.`
+      : `Are you sure you want to delete order ${order.order_number || order.id.slice(0, 8)}? This cannot be undone.`;
+    if (!confirm(confirmMsg)) return;
+    try {
+      const { error } = await supabase.from('orders').delete().eq('id', order.id);
+      if (error) throw error;
+      setOrders(prev => prev.filter(o => o.id !== order.id));
+      if (expandedOrder === order.id) setExpandedOrder(null);
+      logActivity({
+        log_type: 'warning',
+        category: 'admin',
+        message: `Order deleted: ${order.order_number || order.id.slice(0, 8)}`,
+        details: { order_email: order.order_email, total: order.total_amount },
+        order_id: order.id,
+      });
+      toast.success(language === 'sv' ? 'Order borttagen' : 'Order deleted');
+    } catch (error) {
+      console.error('Failed to delete order:', error);
+      toast.error(content.error);
+    }
+  };
+
   const getPaymentMethodLabel = (method: string | null): string => {
     if (!method) return '-';
     const map: Record<string, string> = {
