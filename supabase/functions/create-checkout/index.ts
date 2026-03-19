@@ -233,7 +233,10 @@ serve(async (req) => {
     });
   } catch (error: any) {
     console.error('Checkout error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    const userMessage = error.message?.includes('payment_method_types')
+      ? 'En betalningsmetod stöds inte just nu. Försök med kort eller Klarna.'
+      : error.message || 'Något gick fel vid checkout';
+    return new Response(JSON.stringify({ error: userMessage }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
