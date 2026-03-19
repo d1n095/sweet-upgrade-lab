@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Briefcase, Package, MessageCircle, Clock, Check, X,
-  ChevronDown, ChevronUp, Search, Eye, Loader2
+  ChevronDown, ChevronUp, Search, Eye, Loader2, History
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,6 +38,7 @@ const EmployeeDashboard = () => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
   const [pendingReviews, setPendingReviews] = useState<Review[]>([]);
+  const [auditLogs, setAuditLogs] = useState<{ id: string; created_at: string; log_type: string; message: string; details: any; order_id: string | null }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('orders');
@@ -125,12 +126,12 @@ const EmployeeDashboard = () => {
       const { data: ordersData } = await supabase
         .from('orders')
         .select('id, order_email, status, total_amount, currency, created_at, shopify_order_number')
+        .is('deleted_at', null)
         .order('created_at', { ascending: false })
         .limit(20);
 
       setOrders(ordersData || []);
 
-      // Load pending reviews
       const { data: reviewsData } = await supabase
         .from('reviews')
         .select('id, product_title, rating, comment, is_approved, created_at, user_id')
@@ -139,6 +140,15 @@ const EmployeeDashboard = () => {
         .limit(10);
 
       setPendingReviews(reviewsData || []);
+
+      const { data: logsData } = await supabase
+        .from('activity_logs')
+        .select('id, created_at, log_type, message, details, order_id')
+        .eq('category', 'order')
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      setAuditLogs(logsData || []);
     } catch (error) {
       console.error('Failed to load employee data:', error);
     } finally {
@@ -261,6 +271,10 @@ const EmployeeDashboard = () => {
                     <Badge variant="secondary" className="ml-1">{pendingReviews.length}</Badge>
                   )}
                 </TabsTrigger>
+                <TabsTrigger value="audit" className="gap-2">
+                  <History className="w-4 h-4" />
+                  {language === 'sv' ? 'Ändringslogg' : 'Audit Log'}
+                </TabsTrigger>
               </TabsList>
 
               {/* Orders Tab */}
@@ -352,6 +366,39 @@ const EmployeeDashboard = () => {
                             {t.reviews.reject}
                           </Button>
                         </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+
+              {/* Audit Log Tab */}
+              <TabsContent value="audit">
+                {auditLogs.length === 0 ? (
+                  <p className="text-center py-8 text-muted-foreground">
+                    {language === 'sv' ? 'Inga orderhändelser' : 'No order events'}
+                  </p>
+                ) : (
+                  <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                    {auditLogs.map((log) => (
+                      <div key={log.id} className="flex items-start gap-3 p-3 bg-secondary/30 rounded-lg text-sm">
+                        <Badge variant="secondary" className="text-[10px] shrink-0 mt-0.5">
+                          {log.log_type}
+                        </Badge>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium">{log.message}</p>
+                          {log.details && typeof log.details === 'object' && (
+                            <div className="mt-1 text-xs text-muted-foreground">
+                              {log.details.old_status && (
+                                <span>{log.details.old_status} → {log.details.new_status} </span>
+                              )}
+                              {log.details.tracking && <span>Spårning: {log.details.tracking}</span>}
+                            </div>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-muted-foreground shrink-0">
+                          {new Date(log.created_at).toLocaleString('sv-SE', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </span>
                       </div>
                     ))}
                   </div>

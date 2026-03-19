@@ -1036,6 +1036,7 @@ export type Database = {
         Row: {
           created_at: string
           currency: string
+          deleted_at: string | null
           delivered_at: string | null
           estimated_delivery: string | null
           id: string
@@ -1065,6 +1066,7 @@ export type Database = {
         Insert: {
           created_at?: string
           currency?: string
+          deleted_at?: string | null
           delivered_at?: string | null
           estimated_delivery?: string | null
           id?: string
@@ -1094,6 +1096,7 @@ export type Database = {
         Update: {
           created_at?: string
           currency?: string
+          deleted_at?: string | null
           delivered_at?: string | null
           estimated_delivery?: string | null
           id?: string
