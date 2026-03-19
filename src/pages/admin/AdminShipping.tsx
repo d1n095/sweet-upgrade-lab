@@ -121,15 +121,23 @@ const AdminShipping = () => {
 
   const handleSaveSettings = async () => {
     setSaving(true);
+    const upsertSetting = (key: string, text_value: string) =>
+      supabase.from('store_settings').upsert(
+        { key, value: true, text_value, updated_at: new Date().toISOString() },
+        { onConflict: 'key' }
+      );
     await Promise.all([
-      supabase.from('store_settings').upsert(
-        { key: 'shipping_cost', value: true, text_value: settings.shipping_cost, updated_at: new Date().toISOString() },
-        { onConflict: 'key' }
-      ),
-      supabase.from('store_settings').upsert(
-        { key: 'free_shipping_threshold', value: true, text_value: settings.free_shipping_threshold, updated_at: new Date().toISOString() },
-        { onConflict: 'key' }
-      ),
+      upsertSetting('shipping_cost', settings.shipping_cost),
+      upsertSetting('free_shipping_threshold', settings.free_shipping_threshold),
+      upsertSetting('shipping_weight_enabled', settings.shipping_weight_enabled ? 'true' : 'false'),
+      upsertSetting('shipping_tier_1_max_grams', settings.shipping_tier_1_max_grams),
+      upsertSetting('shipping_tier_1_price', settings.shipping_tier_1_price),
+      upsertSetting('shipping_tier_2_max_grams', settings.shipping_tier_2_max_grams),
+      upsertSetting('shipping_tier_2_price', settings.shipping_tier_2_price),
+      upsertSetting('shipping_tier_3_price', settings.shipping_tier_3_price),
+      upsertSetting('shipping_price_per_kg', settings.shipping_price_per_kg),
+      upsertSetting('shipping_max_weight_grams', settings.shipping_max_weight_grams),
+      upsertSetting('shipping_fallback_price', settings.shipping_fallback_price),
     ]);
     logShippingChange('Fraktinställningar uppdaterade', settings);
     toast.success('Fraktinställningar sparade!');
