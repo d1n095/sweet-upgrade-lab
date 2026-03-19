@@ -173,9 +173,10 @@ serve(async (req) => {
 
     const origin = req.headers.get('origin') || 'https://4thepeople.se';
 
-    // Payment methods: card (covers Apple Pay & Google Pay via Stripe), Klarna, Swish
+    // Payment methods: card (covers Apple Pay & Google Pay via Stripe), Klarna
+    // Note: Swish is NOT supported by Stripe and must use a separate PSP
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card', 'klarna', 'swish'],
+      payment_method_types: ['card', 'klarna'],
       mode: 'payment',
       customer_email: email,
       line_items: lineItems,
