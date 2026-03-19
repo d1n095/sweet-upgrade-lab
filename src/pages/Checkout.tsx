@@ -443,6 +443,13 @@ const Checkout = () => {
             </details>
           )}
           <p className="text-muted-foreground">items: {debugInfo.itemCount || items.length} | total: {total} SEK</p>
+          {/* Test redirect capability */}
+          <button
+            onClick={() => { console.log('TEST REDIRECT CLICKED'); window.location.href = 'https://checkout.stripe.com'; }}
+            className="w-full mt-1 px-2 py-1 bg-primary text-primary-foreground rounded text-[10px] hover:opacity-90"
+          >
+            🧪 TEST: Stripe Redirect
+          </button>
         </div>
       )}
       {/* Minimal checkout header — distraction-free */}
