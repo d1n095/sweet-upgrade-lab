@@ -45,6 +45,21 @@ const FEATURE_ICONS = [
   { key: 'is_international', icon: Globe, label: 'Internationellt' },
 ] as const;
 
+const CARRIER_PRESETS: Record<string, Omit<typeof EMPTY_FORM, 'notes'>> = {
+  'PostNord': { name: 'PostNord', website_url: 'https://www.postnord.se', pricing_url: 'https://www.postnord.se/skicka-paket/priser', tracking_url_template: 'https://tracking.postnord.com/tracking.html?id={tracking_number}', is_international: true, supports_pickup_points: true, supports_home_delivery: true, supports_express: true, supports_parcel_lockers: true },
+  'DHL': { name: 'DHL', website_url: 'https://www.dhl.se', pricing_url: 'https://www.dhl.se/sv/express/priser.html', tracking_url_template: 'https://www.dhl.com/se-sv/home/tracking.html?tracking-id={tracking_number}', is_international: true, supports_pickup_points: true, supports_home_delivery: true, supports_express: true, supports_parcel_lockers: false },
+  'Bring': { name: 'Bring', website_url: 'https://www.bring.se', pricing_url: 'https://www.bring.se/skicka/priser', tracking_url_template: 'https://tracking.bring.se/tracking/{tracking_number}', is_international: true, supports_pickup_points: true, supports_home_delivery: true, supports_express: true, supports_parcel_lockers: false },
+  'Schenker': { name: 'DB Schenker', website_url: 'https://www.dbschenker.com/se-sv', pricing_url: 'https://www.dbschenker.com/se-sv', tracking_url_template: 'https://eschenker.dbschenker.com/app/tracking?refNumber={tracking_number}', is_international: true, supports_pickup_points: true, supports_home_delivery: true, supports_express: false, supports_parcel_lockers: false },
+  'Budbee': { name: 'Budbee', website_url: 'https://www.budbee.com', pricing_url: 'https://www.budbee.com', tracking_url_template: 'https://tracking.budbee.com/{tracking_number}', is_international: false, supports_pickup_points: false, supports_home_delivery: true, supports_express: true, supports_parcel_lockers: true },
+  'Instabox': { name: 'Instabox', website_url: 'https://www.instabox.se', pricing_url: 'https://www.instabox.se', tracking_url_template: 'https://www.instabox.se/tracking/{tracking_number}', is_international: false, supports_pickup_points: false, supports_home_delivery: true, supports_express: true, supports_parcel_lockers: true },
+  'UPS': { name: 'UPS', website_url: 'https://www.ups.com/se', pricing_url: 'https://www.ups.com/se/sv/shipping/rates.page', tracking_url_template: 'https://www.ups.com/track?tracknum={tracking_number}', is_international: true, supports_pickup_points: true, supports_home_delivery: true, supports_express: true, supports_parcel_lockers: false },
+  'FedEx': { name: 'FedEx', website_url: 'https://www.fedex.com/sv-se', pricing_url: 'https://www.fedex.com/sv-se/shipping/rates.html', tracking_url_template: 'https://www.fedex.com/fedextrack/?trknbr={tracking_number}', is_international: true, supports_pickup_points: false, supports_home_delivery: true, supports_express: true, supports_parcel_lockers: false },
+  'Best Transport': { name: 'Best Transport', website_url: 'https://www.besttransport.se', pricing_url: 'https://www.besttransport.se', tracking_url_template: '', is_international: false, supports_pickup_points: false, supports_home_delivery: true, supports_express: true, supports_parcel_lockers: false },
+  'Early Bird': { name: 'Early Bird', website_url: 'https://www.earlybirddelivery.se', pricing_url: 'https://www.earlybirddelivery.se', tracking_url_template: '', is_international: false, supports_pickup_points: false, supports_home_delivery: true, supports_express: true, supports_parcel_lockers: false },
+};
+
+const EMPTY_FORM = { name: '', website_url: '', pricing_url: '', tracking_url_template: '', is_international: false, supports_pickup_points: false, supports_home_delivery: true, supports_express: false, supports_parcel_lockers: false, notes: '' };
+
 const ShippingCarriersSection = () => {
   const [carriers, setCarriers] = useState<ShippingCarrier[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,6 +69,7 @@ const ShippingCarriersSection = () => {
   const [editing, setEditing] = useState<ShippingCarrier | null>(null);
   const [saving, setSaving] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [showPresets, setShowPresets] = useState(false);
 
   const [form, setForm] = useState({
     name: '', website_url: '', pricing_url: '', tracking_url_template: '',
