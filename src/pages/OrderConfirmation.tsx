@@ -28,15 +28,18 @@ const OrderConfirmation = () => {
   }, [clearCart]);
 
   useEffect(() => {
+    setOrderNumber('');
+    setOrderId('');
+    setOrderEmail('');
+    setRetryCount(0);
+    setIsLoading(Boolean(sessionId));
+  }, [sessionId]);
+
+  useEffect(() => {
     let isActive = true;
 
     const resolveOrder = async () => {
       if (!sessionId) {
-        setIsLoading(false);
-        return;
-      }
-
-      if (orderNumber) {
         setIsLoading(false);
         return;
       }
@@ -80,7 +83,7 @@ const OrderConfirmation = () => {
       isActive = false;
       if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
     };
-  }, [sessionId, retryCount, orderNumber]);
+  }, [sessionId, retryCount]);
 
   const content = {
     sv: {
