@@ -183,6 +183,8 @@ const AdminOrderManager = () => {
     cancelled: content.cancelled,
     failed: content.failed,
     abandoned: content.abandoned,
+    returned: content.returned,
+    lost: content.lost,
   };
 
   useEffect(() => {
