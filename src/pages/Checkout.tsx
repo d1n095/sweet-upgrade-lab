@@ -216,13 +216,21 @@ const Checkout = () => {
 
   // DEBUG state
   const [debugInfo, setDebugInfo] = useState<Record<string, any>>({});
+  const [debugSteps, setDebugSteps] = useState<string[]>([]);
+
+  const addDebugStep = (step: string) => {
+    const ts = new Date().toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    setDebugSteps(prev => [...prev, `[${ts}] ${step}`]);
+    console.log(`=== ${step} ===`);
+  };
 
   const startCheckout = useCallback(async () => {
-    console.log('=== REAL PAY HANDLER TRIGGERED ===');
+    setDebugSteps([]);
+    addDebugStep('✅ REAL PAY HANDLER TRIGGERED');
     setCheckoutError(null);
 
     try {
-      console.log('=== CALLING CHECKOUT API ===');
+      addDebugStep('📡 CALLING CHECKOUT API');
       const checkoutItems = items.map(item => ({
         id: (item.product as any).dbId || item.variantId,
         title: item.product.node.title,
@@ -249,7 +257,7 @@ const Checkout = () => {
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData.session?.access_token;
 
-      console.log('=== FETCH STARTING ===', { url: `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout`, hasToken: !!accessToken });
+      addDebugStep(`🔑 Auth token: ${accessToken ? 'YES' : 'NO'}`);
 
       const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout`, {
         method: 'POST',
@@ -261,7 +269,7 @@ const Checkout = () => {
         body: JSON.stringify(checkoutBody),
       });
 
-      console.log('=== FETCH COMPLETE, status:', res.status, '===');
+      addDebugStep(`📥 FETCH COMPLETE — HTTP ${res.status}`);
 
       let data: any = null;
       try {
@@ -270,14 +278,14 @@ const Checkout = () => {
         data = null;
       }
 
-      console.log('=== CHECKOUT RESPONSE:', JSON.stringify(data), '===');
+      addDebugStep(`📦 Response keys: ${data ? Object.keys(data).join(', ') : 'NULL'}`);
 
       if (!res.ok) {
         throw new Error(data?.error || `HTTP_${res.status}`);
       }
 
       const url = data?.sessionUrl || data?.url;
-      console.log('=== URL FIELD:', url, '===');
+      addDebugStep(`🔗 URL: ${url ? url.substring(0, 60) + '…' : 'MISSING'}`);
 
       if (!url) {
         setDebugInfo({
@@ -287,13 +295,12 @@ const Checkout = () => {
           url: null,
           error: 'No Stripe URL returned',
         });
-        alert('No Stripe URL returned');
+        addDebugStep('❌ No Stripe URL in response!');
         throw new Error('No Stripe URL returned');
       }
 
       completedRef.current = true;
-      trackCheckoutStep('payment_redirect', { total });
-      console.log('=== REDIRECT LINE REACHED, REDIRECTING TO:', url, '===');
+      addDebugStep('🚀 REDIRECT LINE REACHED — redirecting NOW');
       window.location.href = url;
     } catch (err: any) {
       console.error('Checkout redirect failed:', err);
@@ -402,56 +409,54 @@ const Checkout = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Debug panel – only visible when debug data exists or an error occurred */}
-      {(Object.keys(debugInfo).length > 0 || checkoutError) && (
-        <div className="fixed top-16 right-4 z-[9999] max-w-sm bg-card border border-border rounded-lg shadow-xl p-3 text-xs font-mono space-y-1.5 max-h-72 overflow-auto">
-          <div className="flex items-center justify-between mb-1">
-            <p className="font-bold text-foreground flex items-center gap-1">🔍 Checkout Debug</p>
-            <button onClick={() => { setDebugInfo({}); setCheckoutError(null); }} className="text-muted-foreground hover:text-foreground">✕</button>
-          </div>
-          {debugInfo.step && (
-            <div className={`px-2 py-1 rounded text-[11px] ${
-              debugInfo.step === 'redirecting' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
-              debugInfo.step === 'failed' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' :
-              'bg-secondary text-muted-foreground'
-            }`}>
-              Steg: <strong>{debugInfo.step}</strong>
-            </div>
-          )}
-          {debugInfo.data?.orderId && (
-            <p className="text-muted-foreground">orderId: <span className="text-foreground">{debugInfo.data.orderId}</span></p>
-          )}
-          {debugInfo.data?.sessionId && (
-            <p className="text-muted-foreground">sessionId: <span className="text-foreground">{String(debugInfo.data.sessionId).slice(0, 30)}…</span></p>
-          )}
-          {(debugInfo.url || debugInfo.data?.sessionUrl || debugInfo.data?.url) && (
-            <p className="text-muted-foreground">url: <span className="text-green-600 dark:text-green-400 break-all">{String(debugInfo.url || debugInfo.data?.sessionUrl || debugInfo.data?.url)}</span></p>
-          )}
-          {debugInfo.error && (
-            <p className="text-red-600 dark:text-red-400">error: {debugInfo.error}</p>
-          )}
-          {debugInfo.data?.warnings && (
-            <p className="text-yellow-600 dark:text-yellow-400">warnings: {JSON.stringify(debugInfo.data.warnings)}</p>
-          )}
-          {debugInfo.status && (
-            <p className="text-muted-foreground">HTTP: <span className="text-foreground">{debugInfo.status}</span></p>
-          )}
-          {debugInfo.data && (
-            <details className="text-muted-foreground">
-              <summary className="cursor-pointer">Full response JSON</summary>
-              <pre className="mt-1 whitespace-pre-wrap break-all text-[10px] text-foreground">{JSON.stringify(debugInfo.data, null, 2)}</pre>
-            </details>
-          )}
-          <p className="text-muted-foreground">items: {debugInfo.itemCount || items.length} | total: {total} SEK</p>
-          {/* Test redirect capability */}
-          <button
-            onClick={() => { console.log('TEST REDIRECT CLICKED'); window.location.href = 'https://checkout.stripe.com'; }}
-            className="w-full mt-1 px-2 py-1 bg-primary text-primary-foreground rounded text-[10px] hover:opacity-90"
-          >
-            🧪 TEST: Stripe Redirect
-          </button>
+      {/* Debug steps panel – ALWAYS visible on checkout */}
+      <div className="fixed top-16 right-4 z-[9999] w-80 bg-card border-2 border-primary/50 rounded-lg shadow-xl p-3 text-xs font-mono space-y-2 max-h-80 overflow-auto">
+        <div className="flex items-center justify-between">
+          <p className="font-bold text-foreground">🔍 Checkout Debug</p>
+          <Badge variant="outline" className="text-[10px]">{debugSteps.length} steg</Badge>
         </div>
-      )}
+
+        {/* Live steps log */}
+        {debugSteps.length === 0 ? (
+          <p className="text-muted-foreground text-[11px] italic">Klicka "Betala" för att se flödet här…</p>
+        ) : (
+          <div className="space-y-0.5 border border-border rounded p-2 bg-secondary/30">
+            {debugSteps.map((step, i) => (
+              <p key={i} className="text-[11px] text-foreground">{step}</p>
+            ))}
+          </div>
+        )}
+
+        {/* Error display */}
+        {checkoutError && (
+          <div className="border border-destructive/40 bg-destructive/10 rounded p-2">
+            <p className="text-[11px] text-destructive font-semibold">❌ {checkoutError}</p>
+          </div>
+        )}
+
+        {/* Response data */}
+        {debugInfo.data && (
+          <details className="text-muted-foreground">
+            <summary className="cursor-pointer text-[11px]">📄 Full response JSON</summary>
+            <pre className="mt-1 whitespace-pre-wrap break-all text-[10px] text-foreground bg-secondary/50 rounded p-1">{JSON.stringify(debugInfo.data, null, 2)}</pre>
+          </details>
+        )}
+
+        {/* Test redirect */}
+        <button
+          onClick={() => { addDebugStep('🧪 TEST REDIRECT CLICKED'); window.location.href = 'https://checkout.stripe.com'; }}
+          className="w-full px-2 py-1.5 bg-primary text-primary-foreground rounded text-[10px] font-semibold hover:opacity-90"
+        >
+          🧪 TEST: Stripe Redirect fungerar?
+        </button>
+
+        <button
+          onClick={() => { setDebugSteps([]); setDebugInfo({}); setCheckoutError(null); }}
+          className="w-full px-2 py-1 border border-border rounded text-[10px] text-muted-foreground hover:text-foreground"
+        >
+          Rensa
+        </button>
+      </div>
       {/* Minimal checkout header — distraction-free */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border">
         <div className="container mx-auto px-4 h-14 flex items-center justify-between max-w-5xl">
