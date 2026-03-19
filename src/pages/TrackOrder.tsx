@@ -131,15 +131,14 @@ const TrackOrder = () => {
     },
   ];
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const doSearch = async (searchQuery: string, searchEmail: string) => {
     setIsSearching(true);
     setNotFound(false);
     setOrderData(null);
 
     try {
-      const cleanInput = orderNumber.replace('#', '').trim().replace(/[(),]/g, '');
-      const cleanEmail = email.toLowerCase().trim().replace(/[(),]/g, '');
+      const cleanInput = searchQuery.replace('#', '').trim().replace(/[(),]/g, '');
+      const cleanEmail = searchEmail.toLowerCase().trim().replace(/[(),]/g, '');
 
       if (!cleanInput && !cleanEmail) {
         toast.error(language === 'sv' ? 'Ange ordernummer eller e-post' : 'Enter order number or email');
@@ -188,6 +187,20 @@ const TrackOrder = () => {
       setIsSearching(false);
     }
   };
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await doSearch(orderNumber, email);
+  };
+
+  // Auto-search if ?q= param is present (e.g. from order confirmation)
+  useEffect(() => {
+    const q = searchParams.get('q');
+    if (q) {
+      setOrderNumber(q);
+      doSearch(q, '');
+    }
+  }, []);
 
   const getStatusIndex = (status: string): number => {
     const statusOrder = ['pending', 'processing', 'shipped', 'in_transit', 'delivered'];
