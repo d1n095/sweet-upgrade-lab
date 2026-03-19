@@ -316,7 +316,7 @@ const Checkout = () => {
         window.setTimeout(() => reject(new Error('CHECKOUT_TIMEOUT')), CHECKOUT_TIMEOUT_MS);
       });
 
-      const result = await Promise.race([checkoutRequest, timeout]) as Awaited<ReturnType<typeof supabase.functions.invoke>>;
+      const result = await Promise.race([checkoutRequest, timeout]) as { data: any; error: any };
       const { data, error } = result;
 
       if (error) throw error;
