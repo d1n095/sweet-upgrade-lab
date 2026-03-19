@@ -286,6 +286,17 @@ const Checkout = () => {
       return;
     }
 
+    // Stripe har ett minsta totalbelopp i SEK – stoppa innan vi ens anropar backend.
+    if (total < 3) {
+      const msg = isSv
+        ? 'Minsta totalbelopp är 3 kr. Lägg till fler varor eller öka antal.'
+        : 'Minimum total amount is 3 SEK. Add more items or increase quantity.';
+      setCheckoutError(msg);
+      setDebugInfo(prev => ({ ...prev, step: 'min_amount', total }));
+      toast.error(msg);
+      return;
+    }
+
     setIsSubmitting(true);
     console.log('Checkout started - calling backend...');
     setDebugInfo(prev => ({ ...prev, step: 'calling_backend' }));
@@ -407,7 +418,9 @@ const Checkout = () => {
         ? t.checkoutTimeout
         : err?.message === 'INVALID_SESSION_URL'
           ? t.invalidSession
-          : t.checkoutFailed;
+          : (typeof err?.message === 'string' && err.message.includes('Minsta totalbelopp'))
+            ? err.message
+            : t.checkoutFailed;
 
       setCheckoutError(mappedError);
       setDebugInfo(prev => ({ ...prev, step: 'failed', error: err?.message, mappedError }));
