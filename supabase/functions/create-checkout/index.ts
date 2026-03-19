@@ -89,8 +89,7 @@ serve(async (req) => {
     if (!stripeKey) return json({ error: "STRIPE_SECRET_KEY not configured", code: "CONFIG" });
 
     const stripe = new Stripe(stripeKey, {
-      apiVersion: "2023-10-16",
-      httpClient: Stripe.createFetchHttpClient(),
+      apiVersion: "2025-08-27.basil",
     });
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
