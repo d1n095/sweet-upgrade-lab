@@ -52,6 +52,8 @@ const statusOptions = [
   { value: 'processing', color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' },
   { value: 'shipped', color: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400' },
   { value: 'delivered', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
+  { value: 'returned', color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' },
+  { value: 'lost', color: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' },
   { value: 'failed', color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' },
   { value: 'abandoned', color: 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400' },
   { value: 'cancelled', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
@@ -96,6 +98,8 @@ const AdminOrderManager = () => {
       cancelled: 'Avbruten',
       failed: 'Misslyckad',
       abandoned: 'Övergiven',
+      returned: 'Retur',
+      lost: 'Borttappad',
       refund: 'Återbetalning',
       refundConfirm: 'Markera som återbetald?',
       refunded: 'Återbetald',
@@ -142,6 +146,8 @@ const AdminOrderManager = () => {
       cancelled: 'Cancelled',
       failed: 'Failed',
       abandoned: 'Abandoned',
+      returned: 'Returned',
+      lost: 'Lost',
       refund: 'Refund',
       refundConfirm: 'Mark as refunded?',
       refunded: 'Refunded',
@@ -177,6 +183,8 @@ const AdminOrderManager = () => {
     cancelled: content.cancelled,
     failed: content.failed,
     abandoned: content.abandoned,
+    returned: content.returned,
+    lost: content.lost,
   };
 
   useEffect(() => {
@@ -355,11 +363,9 @@ const AdminOrderManager = () => {
     }
   };
 
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
   const handleDeleteOrder = async (order: Order) => {
-    const confirmMsg = language === 'sv' 
-      ? `Vill du arkivera/radera order ${order.order_number || order.id.slice(0, 8)}?`
-      : `Archive/delete order ${order.order_number || order.id.slice(0, 8)}?`;
-    if (!confirm(confirmMsg)) return;
     try {
       const { error } = await supabase
         .from('orders')
@@ -368,6 +374,7 @@ const AdminOrderManager = () => {
       if (error) throw error;
       setOrders(prev => prev.filter(o => o.id !== order.id));
       if (expandedOrder === order.id) setExpandedOrder(null);
+      setDeleteConfirmId(null);
       logActivity({
         log_type: 'warning',
         category: 'order',
@@ -634,17 +641,45 @@ const AdminOrderManager = () => {
                         {content.refund}
                       </Button>
                     )}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-1.5 text-xs border-destructive/50 text-destructive hover:bg-destructive/10"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteOrder(order);
-                      }}
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
+                    {deleteConfirmId === order.id ? (
+                      <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                        <span className="text-xs text-destructive">{language === 'sv' ? 'Radera?' : 'Delete?'}</span>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className="h-7 px-2 text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteOrder(order);
+                          }}
+                        >
+                          {language === 'sv' ? 'Ja' : 'Yes'}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteConfirmId(null);
+                          }}
+                        >
+                          {language === 'sv' ? 'Nej' : 'No'}
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5 text-xs border-destructive/50 text-destructive hover:bg-destructive/10"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteConfirmId(order.id);
+                        }}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
                     <span className="font-semibold text-sm">
                       {formatCurrency(order.total_amount, order.currency)}
                     </span>
