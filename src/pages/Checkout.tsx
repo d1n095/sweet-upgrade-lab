@@ -710,7 +710,6 @@ const Checkout = () => {
                       variant="outline"
                       size="sm"
                       onClick={handleSubmit}
-                      disabled={isSubmitting}
                     >
                       {t.retry}
                     </Button>
@@ -723,14 +722,9 @@ const Checkout = () => {
                     type="button"
                     size="lg"
                     className="w-full h-14 text-base font-semibold"
-                    disabled={isSubmitting}
                     onClick={handleSubmit}
                   >
-                    {isSubmitting ? (
-                      <><Loader2 className="w-5 h-5 animate-spin mr-2" />{t.processing}</>
-                    ) : (
-                      <><Lock className="w-4 h-4 mr-2" />{t.paySecurely} — {formatPrice(total)}</>
-                    )}
+                    <Lock className="w-4 h-4 mr-2" />{t.paySecurely} — {formatPrice(total)}
                   </Button>
                 </div>
 
@@ -763,14 +757,9 @@ const Checkout = () => {
           type="button"
           size="lg"
           className="w-full h-12 text-sm font-semibold"
-          disabled={isSubmitting}
           onClick={handleSubmit}
         >
-          {isSubmitting ? (
-            <><Loader2 className="w-4 h-4 animate-spin mr-1.5" />{t.processing}</>
-          ) : (
-            <><Lock className="w-3.5 h-3.5 mr-1.5 shrink-0" /><span className="truncate">{t.paySecurely}</span><span className="ml-1 shrink-0">{formatPrice(total)}</span></>
-          )}
+          <Lock className="w-3.5 h-3.5 mr-1.5 shrink-0" /><span className="truncate">{t.paySecurely}</span><span className="ml-1 shrink-0">{formatPrice(total)}</span>
         </Button>
       </div>
     </div>
