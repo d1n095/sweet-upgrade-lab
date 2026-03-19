@@ -22,7 +22,7 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { items, shipping, email, language = 'sv' } = await req.json();
+    const { items, shipping, email, language = 'sv', paymentMethod } = await req.json();
 
     if (!items || items.length === 0) {
       return new Response(JSON.stringify({ error: 'No items provided' }), {
@@ -173,10 +173,14 @@ serve(async (req) => {
 
     const origin = req.headers.get('origin') || 'https://4thepeople.se';
 
-    // Payment methods: card (covers Apple Pay & Google Pay via Stripe), Klarna
-    // Note: Swish is NOT supported by Stripe and must use a separate PSP
+    // Determine payment method types based on user selection
+    const ALLOWED_METHODS = ['card', 'klarna'];
+    const selectedMethods = paymentMethod && ALLOWED_METHODS.includes(paymentMethod)
+      ? [paymentMethod]
+      : ALLOWED_METHODS;
+
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card', 'klarna'],
+      payment_method_types: selectedMethods,
       mode: 'payment',
       customer_email: email,
       line_items: lineItems,

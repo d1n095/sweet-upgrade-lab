@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ShoppingBag, Truck, Shield, Loader2, CreditCard, AlertTriangle, Lock, RotateCcw, Package, Clock } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, Truck, Shield, Loader2, CreditCard, AlertTriangle, Lock, RotateCcw, Package, Clock, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -69,6 +69,7 @@ const Checkout = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [selectedPayment, setSelectedPayment] = useState<'card' | 'klarna'>('card');
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [form, setForm] = useState({
     email: '',
@@ -253,6 +254,7 @@ const Checkout = () => {
           },
           email: form.email,
           language: cl,
+          paymentMethod: selectedPayment,
         },
       });
 
@@ -512,6 +514,56 @@ const Checkout = () => {
                         value={form.phone}
                         onChange={(e) => updateField('phone', e.target.value)}
                       />
+                    </div>
+
+                    {/* Payment method selector */}
+                    <div className="pt-2">
+                      <Label className="mb-3 block">{isSv ? 'Betalningsmetod' : 'Payment method'} *</Label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedPayment('card')}
+                          className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                            selectedPayment === 'card'
+                              ? 'border-primary bg-primary/5 shadow-sm'
+                              : 'border-border hover:border-primary/40'
+                          }`}
+                        >
+                          {selectedPayment === 'card' && (
+                            <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                              <Check className="w-3 h-3 text-primary-foreground" />
+                            </div>
+                          )}
+                          <CreditCard className="w-6 h-6 text-foreground" />
+                          <span className="text-sm font-medium">{isSv ? 'Kort' : 'Card'}</span>
+                          <span className="text-[10px] text-muted-foreground leading-tight text-center">
+                            Visa, Mastercard, Apple Pay, Google Pay
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setSelectedPayment('klarna')}
+                          className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                            selectedPayment === 'klarna'
+                              ? 'border-primary bg-primary/5 shadow-sm'
+                              : 'border-border hover:border-primary/40'
+                          }`}
+                        >
+                          {selectedPayment === 'klarna' && (
+                            <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                              <Check className="w-3 h-3 text-primary-foreground" />
+                            </div>
+                          )}
+                          <div className="w-6 h-6 flex items-center justify-center">
+                            <span className="text-base font-black tracking-tight text-[#FFB3C7]" style={{ fontFamily: 'system-ui' }}>K.</span>
+                          </div>
+                          <span className="text-sm font-medium">Klarna</span>
+                          <span className="text-[10px] text-muted-foreground leading-tight text-center">
+                            {isSv ? 'Faktura, delbetalning' : 'Pay later, installments'}
+                          </span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
