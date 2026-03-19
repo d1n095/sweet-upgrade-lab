@@ -219,11 +219,11 @@ const OrderTracker = () => {
           const statusColor = statusConfig[order.status]?.color || 'text-muted-foreground';
 
           return (
+            <Link key={order.id} to={`/order/${order.id}`} className="block">
             <motion.div
-              key={order.id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-card border border-border rounded-xl overflow-hidden"
+              className="bg-card border border-border rounded-xl overflow-hidden hover:border-primary/40 hover:shadow-md transition-all cursor-pointer"
             >
               {/* Order Header */}
               <div className="p-4 border-b border-border/50 bg-secondary/30">
