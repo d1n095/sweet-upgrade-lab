@@ -411,8 +411,8 @@ const Checkout = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Debug steps panel – ALWAYS visible on checkout */}
-      <div className="fixed top-16 right-4 z-[9999] w-80 bg-card border-2 border-primary/50 rounded-lg shadow-xl p-3 text-xs font-mono space-y-2 max-h-80 overflow-auto">
+      {/* Debug steps panel – only for admin/founder/it roles */}
+      {isAdmin && <div className="fixed top-16 right-4 z-[9999] w-80 bg-card border-2 border-primary/50 rounded-lg shadow-xl p-3 text-xs font-mono space-y-2 max-h-80 overflow-auto">
         <div className="flex items-center justify-between">
           <p className="font-bold text-foreground">🔍 Checkout Debug</p>
           <Badge variant="outline" className="text-[10px]">{debugSteps.length} steg</Badge>
