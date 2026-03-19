@@ -82,6 +82,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/shop" element={<Navigate to="/produkter" replace />} />
+              <Route path="/products" element={<Navigate to="/produkter" replace />} />
               <Route path="/produkter" element={<Produkter />} />
               <Route path="/product/:handle" element={<ProductDetail />} />
               <Route path="/about" element={<AboutUs />} />
