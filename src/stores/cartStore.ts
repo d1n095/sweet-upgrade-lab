@@ -23,6 +23,8 @@ interface CartStore {
   cartId: string | null;
   checkoutUrl: string | null;
   isLoading: boolean;
+  _hasHydrated: boolean;
+  setHasHydrated: (v: boolean) => void;
   
   addItem: (item: CartItem) => void;
   updateQuantity: (variantId: string, quantity: number) => void;
