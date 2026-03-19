@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Link, useSearchParams } from 'react-router-dom';
 import { storeConfig } from '@/config/storeConfig';
 import { supabase } from '@/integrations/supabase/client';
+import { useCartStore } from '@/stores/cartStore';
 
 const OrderConfirmation = () => {
   const { language } = useLanguage();
