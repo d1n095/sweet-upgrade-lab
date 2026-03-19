@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  Truck, Package, Globe, MapPin, Home, Zap, Box, Gift,
+  Truck, Package, Globe, MapPin, Home, Zap, Box, Gift, Scale,
   Plus, Save, Pencil, Trash2, RefreshCw, Eye, EyeOff, ArrowUp, ArrowDown, X,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
