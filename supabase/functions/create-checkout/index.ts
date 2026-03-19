@@ -30,7 +30,6 @@ const isPreviewOrigin = (origin: string) =>
 
 /**
  * Resolve user_id from the Authorization header.
- * Returns a real UUID if the user is logged in, otherwise null.
  */
 async function resolveUserId(req: Request): Promise<string | null> {
   const authHeader = req.headers.get("authorization") || req.headers.get("Authorization");
@@ -57,10 +56,8 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Keep these outside try so we can rollback on *any* failure
+  // Track reserved items for rollback on failure
   const reservedItems: { id: string; quantity: number }[] = [];
-  let orderId: string | null = null;
-
   let supabase: ReturnType<typeof createClient> | null = null;
 
   const releaseReservedStock = async () => {
@@ -79,24 +76,16 @@ serve(async (req) => {
     }
   };
 
-  const deleteOrderIfCreated = async () => {
-    if (!supabase || !orderId) return;
-    await supabase.from("orders").delete().eq("id", orderId);
-  };
-
   try {
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) return json({ error: "STRIPE_SECRET_KEY not configured", code: "CONFIG" });
 
-    const stripe = new Stripe(stripeKey, {
-      apiVersion: "2025-08-27.basil",
-    });
+    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Resolve the logged-in user's ID from the JWT token
     const authenticatedUserId = await resolveUserId(req);
 
     const body = await req.json().catch(() => ({}));
@@ -108,7 +97,6 @@ serve(async (req) => {
     if (!Array.isArray(items) || items.length === 0) {
       return json({ error: "No items provided", code: "NO_ITEMS" });
     }
-
     if (!email || typeof email !== "string") {
       return json({ error: "Email is required", code: "EMAIL_REQUIRED" });
     }
@@ -130,11 +118,9 @@ serve(async (req) => {
 
     for (let idx = 0; idx < items.length; idx++) {
       const item = items[idx];
-
       const rawId = typeof item?.id === "string" ? item.id : "";
       const extracted = extractUuid(rawId);
       const productId = extracted ?? rawId;
-
       const quantityRaw = Number(item?.quantity ?? 1);
       const quantity = Number.isFinite(quantityRaw) ? Math.max(1, Math.floor(quantityRaw)) : 1;
 
@@ -170,7 +156,6 @@ serve(async (req) => {
               .from("products")
               .update({ reserved_stock: p.reserved_stock + quantity })
               .eq("id", productId);
-
             reservedItems.push({ id: productId, quantity });
           }
 
@@ -199,10 +184,9 @@ serve(async (req) => {
       if (!Number.isFinite(clientPrice) || clientPrice <= 0) {
         await releaseReservedStock();
         return json({
-          error:
-            language === "sv"
-              ? "Kunde inte starta betalning: pris saknas för en vara."
-              : "Could not start payment: missing price for an item.",
+          error: language === "sv"
+            ? "Kunde inte starta betalning: pris saknas för en vara."
+            : "Could not start payment: missing price for an item.",
           code: "MISSING_PRICE",
         });
       }
@@ -227,125 +211,66 @@ serve(async (req) => {
 
     let shippingCostValue = 39;
     let freeShippingThreshold = 500;
-
     try {
       const { data: shippingSettings } = await supabase
         .from("store_settings")
         .select("key, text_value")
         .in("key", ["shipping_cost", "free_shipping_threshold"]);
-
       if (shippingSettings) {
         for (const s of shippingSettings as any[]) {
           if (s.key === "shipping_cost" && s.text_value) shippingCostValue = parseFloat(s.text_value);
           if (s.key === "free_shipping_threshold" && s.text_value) freeShippingThreshold = parseFloat(s.text_value);
         }
       }
-    } catch {
-      // keep defaults
-    }
+    } catch { /* keep defaults */ }
 
     const shippingCost = subtotal >= freeShippingThreshold ? 0 : shippingCostValue;
     const totalAmount = subtotal + shippingCost;
 
     if (totalAmount < 3) {
       await releaseReservedStock();
-      const msg =
-        language === "sv"
+      return json({
+        error: language === "sv"
           ? "Minsta totalbelopp är 3 kr. Lägg till fler varor eller öka antal."
-          : "Minimum total amount is 3 SEK. Add more items or increase quantity.";
-      return json({ error: msg, code: "MIN_AMOUNT" });
+          : "Minimum total amount is 3 SEK. Add more items or increase quantity.",
+        code: "MIN_AMOUNT",
+      });
     }
 
-    // Determine user_id: use authenticated user if available, otherwise try to find by email
-    let userId = authenticatedUserId;
+    // 3) Build metadata for webhook to create order later
+    // Encode reserved items compactly: "uuid:qty,uuid:qty"
+    const reservedMeta = reservedItems.map(r => `${r.id}:${r.quantity}`).join(",");
+    // Encode items as JSON for the webhook (Stripe metadata value limit: 500 chars)
+    // We'll store items compactly and also pass them as line items
+    const itemsMeta = JSON.stringify(trustedItems.map(i => ({
+      id: i.id, title: i.title, price: i.price, quantity: i.quantity, image: i.image, source: i.source,
+    })));
 
-    if (!userId) {
-      // Try to find a user by email in profiles
-      try {
-        const { data: profileByEmail } = await supabase
-          .from("profiles")
-          .select("user_id")
-          .eq("user_id", (
-            await supabase.rpc("admin_search_users", { p_query: email }).then(r => r.data?.[0]?.user_id)
-          ) || "00000000-0000-0000-0000-000000000000")
-          .maybeSingle();
-        if (profileByEmail) {
-          userId = profileByEmail.user_id;
-        }
-      } catch {
-        // Ignore – fallback to placeholder
-      }
-    }
-
-    // Final fallback: use a placeholder UUID (guest checkout)
-    const orderUserId = userId || "00000000-0000-0000-0000-000000000000";
-
-    // 3) Create order
-    const orderData = {
-      order_email: email,
-      user_id: orderUserId,
-      total_amount: totalAmount,
-      currency: "SEK",
-      status: "pending",
-      payment_status: "unpaid",
-      items: trustedItems.map((i) => ({
-        id: i.id,
-        title: i.title,
-        price: i.price,
-        quantity: i.quantity,
-        image: i.image,
-        source: i.source,
-      })),
-      shipping_address: {
-        name: shipping?.name || "",
-        address: shipping?.address || "",
-        zip: shipping?.zip || "",
-        city: shipping?.city || "",
-        country: shipping?.country || "SE",
-        phone: shipping?.phone || "",
-      },
-      status_history: [
-        {
-          status: "pending",
-          timestamp: new Date().toISOString(),
-          note: `Order created — payment_status: unpaid, user: ${orderUserId === "00000000-0000-0000-0000-000000000000" ? "guest" : "authenticated"}`,
-        },
-      ],
-      notes: warnings.length ? `Warnings: ${warnings.join(",")}` : "",
+    const metadata: Record<string, string> = {
+      email,
+      user_id: authenticatedUserId || "",
+      shipping_name: shipping?.name || "",
+      shipping_address: shipping?.address || "",
+      shipping_zip: shipping?.zip || "",
+      shipping_city: shipping?.city || "",
+      shipping_country: shipping?.country || "SE",
+      shipping_phone: shipping?.phone || "",
+      reserved_items: reservedMeta,
     };
 
-    try {
-      const { data: order, error: orderError } = await supabase
-        .from("orders")
-        .insert(orderData)
-        .select("id")
-        .single();
-
-      if (orderError) throw orderError;
-      orderId = (order as any).id;
-      console.log("Pre-payment order created:", orderId, "user_id:", orderUserId);
-    } catch (orderErr: any) {
-      await releaseReservedStock();
-
-      await supabase.from("activity_logs").insert({
-        log_type: "error",
-        category: "order",
-        message: "Failed to create pre-payment order",
-        details: { error: orderErr?.message || String(orderErr), email, previewMode, user_id: orderUserId },
-      });
-
-      if (!previewMode) {
-        return json({
-          error: language === "sv" ? "Kunde inte skapa order. Försök igen." : "Could not create order. Please try again.",
-          code: "ORDER_CREATE_FAILED",
-        });
-      }
-
-      warnings.push("order_create_failed_skipped");
-      orderId = null;
+    // Items metadata might exceed 500 chars — split or truncate
+    if (itemsMeta.length <= 500) {
+      metadata.order_items = itemsMeta;
+    } else {
+      // Store first 500 chars — webhook will fall back to Stripe line items
+      metadata.order_items_truncated = "true";
     }
 
-    // 4) Create Stripe session
+    if (warnings.length) {
+      metadata.warnings = warnings.join(",").substring(0, 500);
+    }
+
+    // 4) Create Stripe session — NO order created yet
     const lineItems = trustedItems.map((item) => ({
       price_data: {
         currency: "sek",
@@ -360,7 +285,7 @@ serve(async (req) => {
 
     let session: any;
     try {
-      console.log("Creating Stripe session...", { items: trustedItems.length, totalAmount, paymentMethod });
+      console.log("Creating Stripe session (no pre-order)...", { items: trustedItems.length, totalAmount, paymentMethod });
 
       session = await stripe.checkout.sessions.create({
         payment_method_types: selectedMethods,
@@ -370,29 +295,15 @@ serve(async (req) => {
         locale: language === "sv" ? "sv" : "en",
         success_url: `${origin}/order-confirmation?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${origin}/checkout`,
-        metadata: {
-          ...(orderId ? { order_id: orderId } : {}),
-          ...(orderUserId !== "00000000-0000-0000-0000-000000000000" ? { user_id: orderUserId } : {}),
-          shipping_name: shipping?.name || "",
-          shipping_address: shipping?.address || "",
-          shipping_zip: shipping?.zip || "",
-          shipping_city: shipping?.city || "",
-          shipping_country: shipping?.country || "SE",
-          shipping_phone: shipping?.phone || "",
-        },
+        metadata,
         shipping_options: [
           {
             shipping_rate_data: {
               type: "fixed_amount",
               fixed_amount: { amount: Math.round(shippingCost * 100), currency: "sek" },
-              display_name:
-                shippingCost === 0
-                  ? language === "sv"
-                    ? "Fri frakt"
-                    : "Free shipping"
-                  : language === "sv"
-                    ? "Standardfrakt"
-                    : "Standard shipping",
+              display_name: shippingCost === 0
+                ? (language === "sv" ? "Fri frakt" : "Free shipping")
+                : (language === "sv" ? "Standardfrakt" : "Standard shipping"),
               delivery_estimate: {
                 minimum: { unit: "business_day", value: 7 },
                 maximum: { unit: "business_day", value: 10 },
@@ -402,12 +313,10 @@ serve(async (req) => {
         ],
       });
 
-      console.log("Stripe session created:", session?.id);
+      console.log("Stripe session created:", session?.id, "url:", session?.url ? "YES" : "NO");
     } catch (stripeErr: any) {
       console.error("Stripe session create failed:", stripeErr);
-
       try { await releaseReservedStock(); } catch {}
-      try { await deleteOrderIfCreated(); } catch {}
 
       await supabase.from("activity_logs").insert({
         log_type: "error",
@@ -418,67 +327,48 @@ serve(async (req) => {
           totalAmount,
           stripe_error: stripeErr?.message || String(stripeErr),
           stripe_code: stripeErr?.code,
-          stripe_type: stripeErr?.type,
           previewMode,
         },
-        order_id: orderId,
       });
-
-      const userMessage =
-        language === "sv"
-          ? "Betalningen kunde inte startas. Försök igen."
-          : "Payment could not be started. Please try again.";
 
       return json({
-        error: userMessage,
+        error: language === "sv"
+          ? "Betalningen kunde inte startas. Försök igen."
+          : "Payment could not be started. Please try again.",
         code: "STRIPE_ERROR",
-        ...(previewMode
-          ? { debug: { stripe_message: stripeErr?.message || String(stripeErr) } }
-          : {}),
+        ...(previewMode ? { debug: { stripe_message: stripeErr?.message } } : {}),
       });
-    }
-
-    // 5) Save stripe_session_id on the order
-    if (orderId) {
-      await supabase
-        .from("orders")
-        .update({ stripe_session_id: session.id, notes: `Stripe session: ${session.id}` })
-        .eq("id", orderId);
     }
 
     await supabase.from("activity_logs").insert({
       log_type: "info",
       category: "order",
-      message: "Checkout session created",
+      message: "Checkout session created (no pre-order)",
       details: {
-        order_id: orderId,
         stripe_session: session.id,
         total: totalAmount,
         reserved_items: reservedItems,
         warnings,
-        user_id: orderUserId,
+        user_id: authenticatedUserId || "guest",
         authenticated: !!authenticatedUserId,
       },
-      order_id: orderId,
     });
 
     return json({
       url: session.url,
       sessionId: session.id,
-      orderId,
       ...(warnings.length ? { warnings } : {}),
       ...(previewMode ? { debug: { previewMode, itemSources: trustedItems.map((i) => i.source), authenticated: !!authenticatedUserId } } : {}),
     });
   } catch (error: any) {
     console.error("Checkout error:", error);
-
     try { await releaseReservedStock(); } catch {}
-    try { await deleteOrderIfCreated(); } catch {}
 
-    const userMessage = error?.message?.includes("payment_method_types")
-      ? "En betalningsmetod stöds inte just nu. Försök med kort eller Klarna."
-      : error?.message || "Något gick fel vid checkout";
-
-    return json({ error: userMessage, code: "INTERNAL" });
+    return json({
+      error: error?.message?.includes("payment_method_types")
+        ? "En betalningsmetod stöds inte just nu. Försök med kort eller Klarna."
+        : error?.message || "Något gick fel vid checkout",
+      code: "INTERNAL",
+    });
   }
 });
