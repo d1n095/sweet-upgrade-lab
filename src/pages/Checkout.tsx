@@ -69,7 +69,7 @@ const Checkout = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
-  const [selectedPayment, setSelectedPayment] = useState<'card' | 'klarna'>('card');
+  const [selectedPayment, setSelectedPayment] = useState<'card' | 'klarna' | 'revolut_pay'>('card');
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [form, setForm] = useState({
     email: '',
@@ -520,10 +520,11 @@ const Checkout = () => {
                     <div className="pt-2">
                       <Label className="mb-3 block">{isSv ? 'Betalningsmetod' : 'Payment method'} *</Label>
                       <div className="grid grid-cols-2 gap-3">
+                        {/* Card */}
                         <button
                           type="button"
                           onClick={() => setSelectedPayment('card')}
-                          className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                          className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all min-h-[100px] ${
                             selectedPayment === 'card'
                               ? 'border-primary bg-primary/5 shadow-sm'
                               : 'border-border hover:border-primary/40'
@@ -541,10 +542,11 @@ const Checkout = () => {
                           </span>
                         </button>
 
+                        {/* Klarna */}
                         <button
                           type="button"
                           onClick={() => setSelectedPayment('klarna')}
-                          className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                          className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all min-h-[100px] ${
                             selectedPayment === 'klarna'
                               ? 'border-primary bg-primary/5 shadow-sm'
                               : 'border-border hover:border-primary/40'
@@ -563,6 +565,45 @@ const Checkout = () => {
                             {isSv ? 'Faktura, delbetalning' : 'Pay later, installments'}
                           </span>
                         </button>
+
+                        {/* Revolut Pay */}
+                        <button
+                          type="button"
+                          onClick={() => setSelectedPayment('revolut_pay')}
+                          className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all min-h-[100px] ${
+                            selectedPayment === 'revolut_pay'
+                              ? 'border-primary bg-primary/5 shadow-sm'
+                              : 'border-border hover:border-primary/40'
+                          }`}
+                        >
+                          {selectedPayment === 'revolut_pay' && (
+                            <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                              <Check className="w-3 h-3 text-primary-foreground" />
+                            </div>
+                          )}
+                          <div className="w-6 h-6 flex items-center justify-center">
+                            <span className="text-base font-bold text-foreground" style={{ fontFamily: 'system-ui' }}>R</span>
+                          </div>
+                          <span className="text-sm font-medium">Revolut Pay</span>
+                          <span className="text-[10px] text-muted-foreground leading-tight text-center">
+                            {isSv ? 'Snabb betalning' : 'Quick payment'}
+                          </span>
+                        </button>
+
+                        {/* PayPal - disabled/coming soon */}
+                        <div
+                          className="relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-border bg-muted/30 opacity-60 cursor-not-allowed min-h-[100px]"
+                        >
+                          <div className="w-6 h-6 flex items-center justify-center">
+                            <span className="text-xs font-bold italic">
+                              <span className="text-[#253B80]">Pay</span><span className="text-[#179BD7]">Pal</span>
+                            </span>
+                          </div>
+                          <span className="text-sm font-medium text-muted-foreground">PayPal</span>
+                          <span className="text-[10px] text-muted-foreground leading-tight text-center">
+                            {isSv ? 'Kommer snart' : 'Coming soon'}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>

@@ -50,13 +50,14 @@ interface FinanceData {
   }>;
 }
 
-// Stripe-supported methods (card covers Apple Pay & Google Pay automatically)
+// Stripe-supported checkout methods with activation status
 const STRIPE_METHODS = [
-  { id: 'card', name: 'Kort (Visa / Mastercard)', supported: true },
-  { id: 'klarna', name: 'Klarna', supported: true },
-  { id: 'applepay', name: 'Apple Pay', supported: true, note: 'Via Stripe (kort)' },
-  { id: 'googlepay', name: 'Google Pay', supported: true, note: 'Via Stripe (kort)' },
-  { id: 'swish', name: 'Swish', supported: false, note: 'Kräver separat integration (ej Stripe)' },
+  { id: 'card', name: 'Kort (Visa / Mastercard)', status: 'active' as const, note: 'Inkl. Apple Pay & Google Pay' },
+  { id: 'klarna', name: 'Klarna', status: 'active' as const },
+  { id: 'applepay', name: 'Apple Pay', status: 'active' as const, note: 'Automatiskt via kort' },
+  { id: 'googlepay', name: 'Google Pay', status: 'active' as const, note: 'Automatiskt via kort' },
+  { id: 'revolut_pay', name: 'Revolut Pay', status: 'active' as const },
+  { id: 'paypal', name: 'PayPal', status: 'requires_action' as const, note: 'Kräver aktivering i Stripe' },
 ];
 
 const AdminPayments = () => {
@@ -235,15 +236,21 @@ const AdminPayments = () => {
               <p className="text-xs text-muted-foreground">Dessa metoder är tillgängliga vid betalning via Stripe Checkout.</p>
               <div className="space-y-1.5">
                 {STRIPE_METHODS.map((m) => (
-                  <div key={m.id} className={`flex items-center justify-between p-3 rounded-lg border ${m.supported ? 'border-primary/20 bg-primary/5' : 'border-border bg-muted/30'}`}>
+                  <div key={m.id} className={`flex items-center justify-between p-3 rounded-lg border ${
+                    m.status === 'active' ? 'border-primary/20 bg-primary/5' : 
+                    m.status === 'requires_action' ? 'border-amber-500/30 bg-amber-500/5' :
+                    'border-border bg-muted/30'
+                  }`}>
                     <div className="flex items-center gap-3">
-                      <span className={`text-sm font-medium ${m.supported ? 'text-foreground' : 'text-muted-foreground'}`}>{m.name}</span>
+                      <span className={`text-sm font-medium ${m.status === 'active' ? 'text-foreground' : 'text-muted-foreground'}`}>{m.name}</span>
                       {m.note && <span className="text-[10px] text-muted-foreground">{m.note}</span>}
                     </div>
-                    {m.supported ? (
+                    {m.status === 'active' ? (
                       <Badge variant="outline" className="text-xs text-green-600 border-green-200">Aktiv</Badge>
+                    ) : m.status === 'requires_action' ? (
+                      <Badge variant="outline" className="text-xs text-amber-600 border-amber-200">Kräver åtgärd</Badge>
                     ) : (
-                      <Badge variant="secondary" className="text-xs">Kommer snart</Badge>
+                      <Badge variant="secondary" className="text-xs">Inaktiv</Badge>
                     )}
                   </div>
                 ))}
