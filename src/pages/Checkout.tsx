@@ -828,7 +828,12 @@ const Checkout = () => {
       </main>
 
       {/* Sticky mobile pay button */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-background/95 backdrop-blur-md border-t border-border px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+      <div className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-background/95 backdrop-blur-md border-t border-border px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] space-y-2">
+        {checkoutError && (
+          <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-2">
+            <p className="text-[11px] text-destructive">{checkoutError}</p>
+          </div>
+        )}
         <Button
           type="button"
           size="lg"
