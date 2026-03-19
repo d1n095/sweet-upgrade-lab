@@ -133,16 +133,33 @@ const TrackOrder = () => {
     setOrderData(null);
 
     try {
-      // Clean order number (remove # if present)
-      const cleanOrderNumber = orderNumber.replace('#', '').trim();
+      const cleanInput = orderNumber.replace('#', '').trim();
+      const cleanEmail = email.toLowerCase().trim();
       
-      // Search in database
-      const { data, error } = await supabase
+      // Search by order_number, shopify_order_number, tracking_number, or id
+      // Combined with email for security
+      let query = supabase
         .from('orders')
-        .select('*')
-        .or(`shopify_order_number.eq.${cleanOrderNumber},id.eq.${cleanOrderNumber}`)
-        .eq('order_email', email.toLowerCase().trim())
-        .maybeSingle();
+        .select('*');
+
+      // Build flexible OR search across multiple fields
+      if (cleanInput && cleanEmail) {
+        query = query
+          .or(`order_number.eq.${cleanInput},shopify_order_number.eq.${cleanInput},tracking_number.eq.${cleanInput},id.eq.${cleanInput}`)
+          .eq('order_email', cleanEmail);
+      } else if (cleanInput) {
+        // Allow search by just order number / tracking number
+        query = query
+          .or(`order_number.eq.${cleanInput},shopify_order_number.eq.${cleanInput},tracking_number.eq.${cleanInput},id.eq.${cleanInput}`);
+      } else if (cleanEmail) {
+        // Allow search by just email (returns latest order)
+        query = query
+          .eq('order_email', cleanEmail)
+          .order('created_at', { ascending: false })
+          .limit(1);
+      }
+
+      const { data, error } = await query.maybeSingle();
 
       if (error) {
         console.error('Order search error:', error);
@@ -338,7 +355,6 @@ const TrackOrder = () => {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    required
                     placeholder={t.emailPlaceholder}
                   />
                 </div>
