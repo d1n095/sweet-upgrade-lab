@@ -30,6 +30,7 @@ interface OrderData {
 
 const TrackOrder = () => {
   const { language } = useLanguage();
+  const [searchParams] = useSearchParams();
   const [orderNumber, setOrderNumber] = useState('');
   const [email, setEmail] = useState('');
   const [isSearching, setIsSearching] = useState(false);
