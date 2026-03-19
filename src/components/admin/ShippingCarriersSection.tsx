@@ -118,7 +118,7 @@ const ShippingCarriersSection = () => {
       tracking_url_template: c.tracking_url_template || '', is_international: c.is_international,
       supports_pickup_points: c.supports_pickup_points, supports_home_delivery: c.supports_home_delivery,
       supports_express: c.supports_express, supports_parcel_lockers: c.supports_parcel_lockers,
-      notes: c.notes || '',
+      notes: '',
     });
     setIsFormOpen(true);
   };
