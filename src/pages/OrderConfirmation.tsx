@@ -99,11 +99,6 @@ const OrderConfirmation = () => {
     };
   }, [sessionId, retryCount]);
 
-  const copySessionId = () => {
-    navigator.clipboard.writeText(sessionId);
-    toast.success(language === 'sv' ? 'Kopierat!' : 'Copied!');
-  };
-
   const content = {
     sv: {
       badge: 'Tack för din beställning!',
