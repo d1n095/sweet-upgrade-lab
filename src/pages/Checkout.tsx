@@ -62,7 +62,7 @@ const Checkout = () => {
   const navigate = useNavigate();
   const { language } = useLanguage();
   const cl = getContentLang(language);
-  const { items, clearCart } = useCartStore();
+  const { items, clearCart, _hasHydrated } = useCartStore();
   const { checkoutEnabled, autoSaveProfile } = useStoreSettings();
   const { user } = useAuth();
   const shippingConfig = useShippingConfig();
@@ -335,6 +335,15 @@ const Checkout = () => {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Wait for zustand hydration before showing empty state
+  if (!_hasHydrated) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   if (!checkoutEnabled) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -378,19 +387,13 @@ const Checkout = () => {
       {/* Minimal checkout header — distraction-free */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border">
         <div className="container mx-auto px-4 h-14 flex items-center justify-between max-w-5xl">
-          <button
-            onClick={() => {
-              if (window.history.length > 1) {
-                navigate(-1);
-              } else {
-                navigate('/produkter');
-              }
-            }}
+          <Link
+            to="/produkter"
             className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             {t.backToCart}
-          </button>
+          </Link>
           <div className="flex items-center gap-2 text-sm font-medium">
             <Lock className="w-3.5 h-3.5 text-accent" />
             {t.securePayment}
