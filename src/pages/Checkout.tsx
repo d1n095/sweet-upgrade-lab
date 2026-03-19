@@ -64,7 +64,9 @@ const Checkout = () => {
   const navigate = useNavigate();
   const { language } = useLanguage();
   const cl = getContentLang(language);
-  const { items, isHydrated } = useCartStore();
+  const cartStore = useCartStore();
+  const items = cartStore?.items || [];
+  const isHydrated = cartStore?.isHydrated ?? true; // Don't block on hydration
   const { checkoutEnabled, autoSaveProfile } = useStoreSettings();
   const { user } = useAuth();
   const shippingConfig = useShippingConfig();
@@ -123,16 +125,13 @@ const Checkout = () => {
     loadProfileData();
   }, [user, profileLoaded]);
 
+  // Hydration timeout - short, non-blocking
   useEffect(() => {
     if (isHydrated) {
       setHydrationTimedOut(false);
       return;
     }
-
-    const timer = window.setTimeout(() => {
-      setHydrationTimedOut(true);
-    }, 2500);
-
+    const timer = window.setTimeout(() => setHydrationTimedOut(true), 1500);
     return () => window.clearTimeout(timer);
   }, [isHydrated]);
 
@@ -207,16 +206,16 @@ const Checkout = () => {
   }, [t]);
 
   const validateCartState = useCallback(() => {
-    if (!isHydrated) return t.hydrationTimeout;
+    // Don't block on hydration - if items exist, allow checkout
     if (items.length === 0) return t.emptyCart;
 
     const hasInvalidItems = items.some((item) => {
-      const unitPrice = Number.parseFloat(item.price.amount);
+      const unitPrice = Number.parseFloat(item.price?.amount ?? '0');
       return !item.variantId || !Number.isFinite(unitPrice) || item.quantity <= 0;
     });
 
     return hasInvalidItems ? t.invalidCart : null;
-  }, [isHydrated, items, t]);
+  }, [items, t]);
 
   const handleBlur = (field: string) => {
     setTouched(prev => ({ ...prev, [field]: true }));
@@ -449,29 +448,7 @@ const Checkout = () => {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!isHydrated && !hydrationTimedOut) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  if (!isHydrated && hydrationTimedOut) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center px-4">
-        <div className="max-w-md text-center space-y-4">
-          <p className="text-sm text-destructive">{t.hydrationTimeout}</p>
-          <div className="flex items-center justify-center gap-3">
-            <Button variant="outline" onClick={() => window.location.reload()}>{t.retry}</Button>
-            <Button asChild>
-              <Link to="/produkter">{t.goToShop}</Link>
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // No hydration blocking - checkout always renders
 
   if (!checkoutEnabled) {
     return (
