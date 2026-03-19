@@ -298,6 +298,15 @@ serve(async (req) => {
 
   console.log('[stripe-webhook] Ignored event type:', event.type);
   return ok({ received: true, ignored: true, event_type: event.type });
+
+ } catch (fatalErr: any) {
+   console.error('[stripe-webhook] FATAL unhandled error:', fatalErr?.message || fatalErr);
+   // ALWAYS return 200 so Stripe doesn't retry endlessly
+   return new Response(JSON.stringify({ received: true, error: 'internal_error', message: fatalErr?.message }), {
+     status: 200,
+     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+   });
+ }
 });
 
 // ── Helpers ──
