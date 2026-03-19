@@ -103,6 +103,15 @@ const AdminShipping = () => {
           ...prev,
           shipping_cost: map['shipping_cost'] || prev.shipping_cost,
           free_shipping_threshold: map['free_shipping_threshold'] || prev.free_shipping_threshold,
+          shipping_weight_enabled: map['shipping_weight_enabled'] === 'true',
+          shipping_tier_1_max_grams: map['shipping_tier_1_max_grams'] || prev.shipping_tier_1_max_grams,
+          shipping_tier_1_price: map['shipping_tier_1_price'] || prev.shipping_tier_1_price,
+          shipping_tier_2_max_grams: map['shipping_tier_2_max_grams'] || prev.shipping_tier_2_max_grams,
+          shipping_tier_2_price: map['shipping_tier_2_price'] || prev.shipping_tier_2_price,
+          shipping_tier_3_price: map['shipping_tier_3_price'] || prev.shipping_tier_3_price,
+          shipping_price_per_kg: map['shipping_price_per_kg'] || prev.shipping_price_per_kg,
+          shipping_max_weight_grams: map['shipping_max_weight_grams'] || prev.shipping_max_weight_grams,
+          shipping_fallback_price: map['shipping_fallback_price'] || prev.shipping_fallback_price,
         }));
       }
       setLoading(false);
