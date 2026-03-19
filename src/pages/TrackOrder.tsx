@@ -253,7 +253,7 @@ const TrackOrder = () => {
       pageBadge: 'Orderspårning',
       pageDescription: 'Ange ordernummer eller e-postadress för att se status på din leverans.',
       orderNumber: 'Ordernummer',
-      orderNumberPlaceholder: 'T.ex. ORD-00017 eller Stripe-session',
+      orderNumberPlaceholder: 'T.ex. ORD-00017',
       email: 'E-postadress',
       emailPlaceholder: 'din@email.se (valfritt)',
       searchButton: 'Sök order',
