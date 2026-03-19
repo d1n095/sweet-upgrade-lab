@@ -242,6 +242,88 @@ const AdminShipping = () => {
   );
 };
 
+// ─── Weight Tiers Tab ───
+const WeightTiersTab = ({ settings, setSettings, saving, onSave }: { settings: any; setSettings: (fn: (s: any) => any) => void; saving: boolean; onSave: () => void }) => (
+  <Card>
+    <CardContent className="pt-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="font-semibold text-sm">Viktbaserad fraktberäkning</p>
+          <p className="text-xs text-muted-foreground">Beräkna frakt baserat på totalvikt istället för fast pris</p>
+        </div>
+        <Switch checked={settings.shipping_weight_enabled} onCheckedChange={v => setSettings((s: any) => ({ ...s, shipping_weight_enabled: v }))} />
+      </div>
+
+      {settings.shipping_weight_enabled && (
+        <div className="space-y-4">
+          <div className="border-t border-border pt-4">
+            <p className="text-sm font-medium mb-3">Vikttabeller</p>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3 p-3 bg-secondary/30 rounded-lg">
+                <div className="space-y-1">
+                  <Label className="text-xs">Nivå 1: Max vikt (gram)</Label>
+                  <Input type="number" value={settings.shipping_tier_1_max_grams} onChange={e => setSettings((s: any) => ({ ...s, shipping_tier_1_max_grams: e.target.value }))} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Nivå 1: Pris (SEK)</Label>
+                  <Input type="number" value={settings.shipping_tier_1_price} onChange={e => setSettings((s: any) => ({ ...s, shipping_tier_1_price: e.target.value }))} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 p-3 bg-secondary/30 rounded-lg">
+                <div className="space-y-1">
+                  <Label className="text-xs">Nivå 2: Max vikt (gram)</Label>
+                  <Input type="number" value={settings.shipping_tier_2_max_grams} onChange={e => setSettings((s: any) => ({ ...s, shipping_tier_2_max_grams: e.target.value }))} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Nivå 2: Pris (SEK)</Label>
+                  <Input type="number" value={settings.shipping_tier_2_price} onChange={e => setSettings((s: any) => ({ ...s, shipping_tier_2_price: e.target.value }))} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 p-3 bg-secondary/30 rounded-lg">
+                <div className="space-y-1">
+                  <Label className="text-xs">Nivå 3: 5kg+ pris (SEK)</Label>
+                  <Input type="number" value={settings.shipping_tier_3_price} onChange={e => setSettings((s: any) => ({ ...s, shipping_tier_3_price: e.target.value }))} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Pris per kg (tillägg)</Label>
+                  <Input type="number" value={settings.shipping_price_per_kg} onChange={e => setSettings((s: any) => ({ ...s, shipping_price_per_kg: e.target.value }))} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-border pt-4 grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Max vikt (gram)</Label>
+              <Input type="number" value={settings.shipping_max_weight_grams} onChange={e => setSettings((s: any) => ({ ...s, shipping_max_weight_grams: e.target.value }))} />
+              <p className="text-xs text-muted-foreground">Maximal totalvikt per order</p>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Fallback-pris (SEK)</Label>
+              <Input type="number" value={settings.shipping_fallback_price} onChange={e => setSettings((s: any) => ({ ...s, shipping_fallback_price: e.target.value }))} />
+              <p className="text-xs text-muted-foreground">Används om produktvikt saknas</p>
+            </div>
+          </div>
+
+          <div className="border-t border-border pt-4">
+            <div className="bg-secondary/40 rounded-lg p-4 space-y-1 text-sm">
+              <p className="font-medium text-xs mb-2">Förhandsvisning</p>
+              <p className="text-xs text-muted-foreground">0–{settings.shipping_tier_1_max_grams}g → <span className="text-foreground font-medium">{settings.shipping_tier_1_price} kr</span></p>
+              <p className="text-xs text-muted-foreground">{settings.shipping_tier_1_max_grams}g–{settings.shipping_tier_2_max_grams}g → <span className="text-foreground font-medium">{settings.shipping_tier_2_price} kr</span></p>
+              <p className="text-xs text-muted-foreground">{settings.shipping_tier_2_max_grams}g+ → <span className="text-foreground font-medium">{settings.shipping_tier_3_price} kr + {settings.shipping_price_per_kg} kr/kg</span></p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <Button onClick={onSave} disabled={saving} className="gap-2">
+        {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+        Spara viktinställningar
+      </Button>
+    </CardContent>
+  </Card>
+);
+
 // ─── Shipping Settings Tab ───
 const ShippingSettingsTab = ({
   settings,
