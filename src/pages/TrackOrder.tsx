@@ -214,15 +214,8 @@ const TrackOrder = () => {
     await doSearch(orderNumber, email);
   };
 
-  // Auto-search from confirmation links (prefer session_id for guaranteed lookup)
+  // Auto-search from URL params — DB only, no external calls
   useEffect(() => {
-    const sessionFromUrl = (searchParams.get('session_id') || '').trim();
-    if (sessionFromUrl && isStripeSessionId(sessionFromUrl)) {
-      setOrderNumber(sessionFromUrl);
-      doSearch(sessionFromUrl, '');
-      return;
-    }
-
     const q = (searchParams.get('q') || '').trim();
     if (q) {
       setOrderNumber(q);
