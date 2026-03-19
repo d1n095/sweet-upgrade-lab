@@ -57,7 +57,7 @@ serve(async (req) => {
   const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
   if (!stripeKey) {
     console.error('STRIPE_SECRET_KEY not configured');
-    return new Response('Server misconfigured', { status: 500, headers: corsHeaders });
+    return ok({ received: true, error: 'stripe_key_not_configured' });
   }
 
   const stripe = new Stripe(stripeKey, { apiVersion: '2025-08-27.basil' });
@@ -132,19 +132,20 @@ serve(async (req) => {
   const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
   if (!webhookSecret) {
     console.error('STRIPE_WEBHOOK_SECRET not configured');
-    return new Response('Webhook secret not configured', { status: 500, headers: corsHeaders });
+    return ok({ received: true, error: 'webhook_secret_not_configured' });
   }
 
   const signature = req.headers.get('stripe-signature');
   if (!signature) {
-    return new Response('Missing stripe-signature', { status: 400, headers: corsHeaders });
+    console.error('[stripe-webhook] Missing stripe-signature');
+    return ok({ received: true, error: 'missing_signature' });
   }
 
   const body = await req.text();
   let event: Stripe.Event;
 
   try {
-    event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+    event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
   } catch (err: any) {
     console.error('[stripe-webhook] Signature verification failed:', err.message);
     // Return 200 anyway so Stripe doesn't keep retrying a bad secret
