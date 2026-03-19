@@ -98,6 +98,8 @@ const AdminOrderManager = () => {
       cancelled: 'Avbruten',
       failed: 'Misslyckad',
       abandoned: 'Övergiven',
+      returned: 'Retur',
+      lost: 'Borttappad',
       refund: 'Återbetalning',
       refundConfirm: 'Markera som återbetald?',
       refunded: 'Återbetald',
