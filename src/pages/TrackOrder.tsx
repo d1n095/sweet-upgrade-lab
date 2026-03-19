@@ -145,31 +145,6 @@ const TrackOrder = () => {
 
   const isStripeSessionId = (value: string) => /^cs_(test|live)_[A-Za-z0-9]+$/.test(value);
 
-  const ensureOrderFromSession = async (sessionId: string): Promise<OrderData | null> => {
-    try {
-      const { data, error } = await supabase.functions.invoke('stripe-webhook', {
-        body: {
-          action: 'ensure_order',
-          session_id: sessionId,
-        },
-      });
-
-      if (error) {
-        console.error('ensure_order invoke error:', error);
-        return null;
-      }
-
-      if (data?.order) {
-        return data.order as OrderData;
-      }
-
-      return null;
-    } catch (err) {
-      console.error('ensure_order failed:', err);
-      return null;
-    }
-  };
-
   const doSearch = async (searchQuery: string, searchEmail: string) => {
     setIsSearching(true);
     setNotFound(false);
