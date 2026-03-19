@@ -36,6 +36,20 @@ serve(async (req) => {
       });
     }
 
+    const ALLOWED_METHODS: Record<string, string[]> = {
+      card: ['card'],
+      klarna: ['klarna'],
+    };
+
+    if (!paymentMethod || !ALLOWED_METHODS[paymentMethod]) {
+      return new Response(JSON.stringify({ error: 'Unsupported payment method. Use card or klarna.' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const selectedMethods = ALLOWED_METHODS[paymentMethod];
+
     // 1. Fetch trusted prices from DB and reserve stock
     const reservedItems: { id: string; quantity: number }[] = [];
     const trustedItems: { id: string; title: string; price: number; quantity: number; image: string }[] = [];
