@@ -71,12 +71,7 @@ const ShippingCarriersSection = () => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showPresets, setShowPresets] = useState(false);
 
-  const [form, setForm] = useState({
-    name: '', website_url: '', pricing_url: '', tracking_url_template: '',
-    is_international: false, supports_pickup_points: false,
-    supports_home_delivery: true, supports_express: false,
-    supports_parcel_lockers: false, notes: '',
-  });
+  const [form, setForm] = useState({ ...EMPTY_FORM });
 
   const fetchCarriers = useCallback(async () => {
     setLoading(true);
