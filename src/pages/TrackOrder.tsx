@@ -242,12 +242,26 @@ const TrackOrder = () => {
     await doSearch(orderNumber, email);
   };
 
-  // Auto-search if ?q= param is present (e.g. from order confirmation)
+  // Auto-search from confirmation links (prefer session_id for guaranteed lookup)
   useEffect(() => {
-    const q = searchParams.get('q');
+    const sessionFromUrl = (searchParams.get('session_id') || '').trim();
+    if (sessionFromUrl && isStripeSessionId(sessionFromUrl)) {
+      setOrderNumber(sessionFromUrl);
+      doSearch(sessionFromUrl, '');
+      return;
+    }
+
+    const q = (searchParams.get('q') || '').trim();
     if (q) {
       setOrderNumber(q);
       doSearch(q, '');
+      return;
+    }
+
+    const orderId = (searchParams.get('order_id') || '').trim();
+    if (orderId) {
+      setOrderNumber(orderId);
+      doSearch(orderId, '');
     }
   }, []);
 
