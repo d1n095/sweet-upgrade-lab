@@ -19,7 +19,7 @@ const OrderConfirmation = () => {
   const [orderEmail, setOrderEmail] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [retryCount, setRetryCount] = useState(0);
-  const maxRetries = 12;
+  const maxRetries = 10;
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearCart = useCartStore((s) => s.clearCart);
@@ -36,67 +36,42 @@ const OrderConfirmation = () => {
         return;
       }
 
-      // If we already have the order number, we're done
       if (orderNumber) {
         setIsLoading(false);
         return;
       }
 
-      let foundOrder = false;
-
-      // Step 1: Call ensure_order — creates order from Stripe session if needed
       try {
-        const { data, error } = await supabase.functions.invoke('stripe-webhook', {
-          body: {
-            action: 'ensure_order',
-            session_id: sessionId,
-          },
-        });
+        const { data, error } = await supabase
+          .from('orders')
+          .select('id, order_number, order_email')
+          .eq('stripe_session_id', sessionId)
+          .maybeSingle();
 
         if (!isActive) return;
 
-        if (!error && data?.order?.order_number) {
-          if (data.order.id) setOrderId(data.order.id);
-          setOrderNumber(data.order.order_number);
-          if (data.order.order_email) setOrderEmail(data.order.order_email);
+        if (!error && data?.order_number) {
+          setOrderId(data.id);
+          setOrderNumber(data.order_number);
+          if (data.order_email) setOrderEmail(data.order_email);
           setIsLoading(false);
           return;
         }
       } catch (err) {
-        console.error('[order-confirmation] ensure_order failed:', err);
+        console.error('[order-confirmation] DB lookup failed:', err);
       }
 
-      // Step 2: Direct DB lookup by stripe_session_id
-      if (!foundOrder && isActive) {
-        try {
-          const { data } = await supabase
-            .from('orders')
-            .select('id, order_number, order_email')
-            .eq('stripe_session_id', sessionId)
-            .maybeSingle();
-
-          if (!isActive) return;
-          if (data?.order_number) {
-            setOrderId(data.id);
-            setOrderNumber(data.order_number);
-            if (data.order_email) setOrderEmail(data.order_email);
-            setIsLoading(false);
-            return;
-          }
-        } catch {}
-      }
-
-      // Step 3: No order found yet — retry if attempts remain
       if (!isActive) return;
+
       if (retryCount < maxRetries) {
         console.log(`[order-confirmation] Order not found yet, retry ${retryCount + 1}/${maxRetries}...`);
         retryTimerRef.current = setTimeout(() => {
           if (isActive) setRetryCount((c) => c + 1);
-        }, 2500);
-      } else {
-        // Give up after all retries
-        setIsLoading(false);
+        }, 1500);
+        return;
       }
+
+      setIsLoading(false);
     };
 
     resolveOrder();
@@ -105,7 +80,7 @@ const OrderConfirmation = () => {
       isActive = false;
       if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
     };
-  }, [sessionId, retryCount]);
+  }, [sessionId, retryCount, orderNumber]);
 
   const content = {
     sv: {
