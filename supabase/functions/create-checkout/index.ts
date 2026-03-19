@@ -224,7 +224,7 @@ serve(async (req) => {
     await supabase.from('activity_logs').insert({
       log_type: 'info', category: 'order',
       message: 'Checkout session created, stock reserved',
-      details: { order_id: order.id, stripe_session: session.id, total: totalAmount, reserved_items: reservedItems, payment_methods: ['card', 'klarna', 'swish', 'apple_pay', 'google_pay'] },
+      details: { order_id: order.id, stripe_session: session.id, total: totalAmount, reserved_items: reservedItems, payment_methods: ['card', 'klarna', 'apple_pay', 'google_pay'] },
       order_id: order.id,
     });
 
