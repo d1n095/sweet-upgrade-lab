@@ -140,6 +140,7 @@ const AdminDbProductManager = () => {
       metaTitle: (product as any).meta_title || '',
       metaDescription: (product as any).meta_description || '',
       metaKeywords: (product as any).meta_keywords || '',
+      weightGrams: (product as any).weight_grams?.toString() || '',
     });
     setIsEditOpen(true);
   };
