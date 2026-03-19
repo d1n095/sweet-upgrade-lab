@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ShoppingBag, Truck, Shield, Loader2, CreditCard, AlertTriangle, Lock, RotateCcw, Package, Clock } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, Truck, Shield, Loader2, CreditCard, AlertTriangle, Lock, RotateCcw, Package, Clock, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
