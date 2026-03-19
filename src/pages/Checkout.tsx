@@ -254,6 +254,7 @@ const Checkout = () => {
           },
           email: form.email,
           language: cl,
+          paymentMethod: selectedPayment,
         },
       });
 
