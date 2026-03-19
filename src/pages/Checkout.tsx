@@ -218,9 +218,11 @@ const Checkout = () => {
   const [debugInfo, setDebugInfo] = useState<Record<string, any>>({});
 
   const startCheckout = useCallback(async () => {
+    console.log('=== REAL PAY HANDLER TRIGGERED ===');
     setCheckoutError(null);
 
     try {
+      console.log('=== CALLING CHECKOUT API ===');
       const checkoutItems = items.map(item => ({
         id: (item.product as any).dbId || item.variantId,
         title: item.product.node.title,
@@ -247,6 +249,8 @@ const Checkout = () => {
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData.session?.access_token;
 
+      console.log('=== FETCH STARTING ===', { url: `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout`, hasToken: !!accessToken });
+
       const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout`, {
         method: 'POST',
         headers: {
@@ -257,6 +261,8 @@ const Checkout = () => {
         body: JSON.stringify(checkoutBody),
       });
 
+      console.log('=== FETCH COMPLETE, status:', res.status, '===');
+
       let data: any = null;
       try {
         data = await res.json();
@@ -264,13 +270,14 @@ const Checkout = () => {
         data = null;
       }
 
-      console.log('RAW DATA:', data);
+      console.log('=== CHECKOUT RESPONSE:', JSON.stringify(data), '===');
 
       if (!res.ok) {
         throw new Error(data?.error || `HTTP_${res.status}`);
       }
 
       const url = data?.sessionUrl || data?.url;
+      console.log('=== URL FIELD:', url, '===');
 
       if (!url) {
         setDebugInfo({
@@ -286,7 +293,7 @@ const Checkout = () => {
 
       completedRef.current = true;
       trackCheckoutStep('payment_redirect', { total });
-      console.log('REDIRECTING TO:', url);
+      console.log('=== REDIRECT LINE REACHED, REDIRECTING TO:', url, '===');
       window.location.href = url;
     } catch (err: any) {
       console.error('Checkout redirect failed:', err);
@@ -436,6 +443,13 @@ const Checkout = () => {
             </details>
           )}
           <p className="text-muted-foreground">items: {debugInfo.itemCount || items.length} | total: {total} SEK</p>
+          {/* Test redirect capability */}
+          <button
+            onClick={() => { console.log('TEST REDIRECT CLICKED'); window.location.href = 'https://checkout.stripe.com'; }}
+            className="w-full mt-1 px-2 py-1 bg-primary text-primary-foreground rounded text-[10px] hover:opacity-90"
+          >
+            🧪 TEST: Stripe Redirect
+          </button>
         </div>
       )}
       {/* Minimal checkout header — distraction-free */}
