@@ -179,9 +179,6 @@ const AdminShipping = () => {
             <TabsTrigger value="extras" className="gap-1.5 text-xs">
               <Gift className="w-3.5 h-3.5" /> Vi skickar med
             </TabsTrigger>
-            <TabsTrigger value="payments" className="gap-1.5 text-xs">
-              <CreditCard className="w-3.5 h-3.5" /> Betalningar
-            </TabsTrigger>
           </TabsList>
         </ScrollableTabs>
 
@@ -200,10 +197,6 @@ const AdminShipping = () => {
 
         <TabsContent value="extras">
           <ShippingExtrasTab />
-        </TabsContent>
-
-        <TabsContent value="payments">
-          <PaymentMethodsTab />
         </TabsContent>
       </Tabs>
     </div>
