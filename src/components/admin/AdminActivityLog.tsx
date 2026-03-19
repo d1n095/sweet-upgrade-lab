@@ -63,17 +63,13 @@ const AdminActivityLog = () => {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-      let query = supabase
+      const { data, error } = await supabase
         .from('activity_logs')
         .select('*')
         .gte('created_at', thirtyDaysAgo.toISOString())
         .order('created_at', { ascending: false })
         .limit(500);
 
-      if (typeFilter !== 'all') query = query.eq('log_type', typeFilter);
-      if (categoryFilter !== 'all') query = query.eq('category', categoryFilter);
-
-      const { data, error } = await query;
       if (error) throw error;
       setLogs(data || []);
     } catch (e) {
@@ -83,7 +79,7 @@ const AdminActivityLog = () => {
     }
   };
 
-  useEffect(() => { fetchLogs(); }, [typeFilter, categoryFilter]);
+  useEffect(() => { fetchLogs(); }, []);
 
   // Sync activeCard when dropdowns change directly
   useEffect(() => {
