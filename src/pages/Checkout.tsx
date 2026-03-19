@@ -218,73 +218,7 @@ const Checkout = () => {
   const [debugInfo, setDebugInfo] = useState<Record<string, any>>({});
 
   const startCheckout = useCallback(async () => {
-    if (isSubmitting) return;
-
     setCheckoutError(null);
-    setDebugInfo({});
-
-    console.log('=== CHECKOUT DEBUG START ===');
-    console.log('Cart items count:', items.length);
-    console.log('Selected payment method:', selectedPayment);
-    console.log('Cart items:', JSON.stringify(items.map(i => ({ id: i.variantId, title: i.product?.node?.title, qty: i.quantity, price: i.price?.amount }))));
-    setDebugInfo(prev => ({ ...prev, step: 'validating', itemCount: items.length, paymentMethod: selectedPayment }));
-
-    const cartError = validateCartState();
-    if (cartError) {
-      console.log('Cart validation failed:', cartError);
-      setCheckoutError(cartError);
-      setDebugInfo(prev => ({ ...prev, step: 'cart_error', error: cartError }));
-      toast.error(cartError);
-      return;
-    }
-
-    const requiredFields = ['email', 'name', 'address', 'zip', 'city'] as const;
-    const newErrors: FieldErrors = {};
-    let hasError = false;
-
-    for (const field of requiredFields) {
-      const error = validateField(field, form[field]);
-      if (error) {
-        newErrors[field] = error;
-        hasError = true;
-      }
-    }
-
-    setErrors(newErrors);
-    setTouched({ email: true, name: true, address: true, zip: true, city: true });
-
-    if (hasError) {
-      console.log('Form validation failed:', newErrors);
-      setDebugInfo(prev => ({ ...prev, step: 'form_error', errors: newErrors }));
-      toast.error(t.fillAllFields);
-      return;
-    }
-
-    // Stripe har ett minsta totalbelopp i SEK – stoppa innan vi ens anropar backend.
-    if (total < 3) {
-      const msg = isSv
-        ? 'Minsta totalbelopp är 3 kr. Lägg till fler varor eller öka antal.'
-        : 'Minimum total amount is 3 SEK. Add more items or increase quantity.';
-      setCheckoutError(msg);
-      setDebugInfo(prev => ({ ...prev, step: 'min_amount', total }));
-      toast.error(msg);
-      return;
-    }
-
-    setIsSubmitting(true);
-    console.log('Checkout started - calling backend...');
-    setDebugInfo(prev => ({ ...prev, step: 'calling_backend' }));
-
-    logActivity({
-      log_type: 'info',
-      category: 'payment',
-      message: 'Checkout started',
-      details: {
-        item_count: items.length,
-        total,
-        payment_method: selectedPayment,
-      },
-    });
 
     try {
       const checkoutItems = items.map(item => ({
@@ -294,8 +228,6 @@ const Checkout = () => {
         quantity: item.quantity,
         image: item.product.node.images?.edges?.[0]?.node?.url || '',
       }));
-
-      console.log('Checkout items payload:', JSON.stringify(checkoutItems));
 
       const checkoutBody = {
         items: checkoutItems,
@@ -312,108 +244,74 @@ const Checkout = () => {
         paymentMethod: selectedPayment,
       };
 
-      const data = await (async () => {
-        // Vi använder fetch här för att kunna läsa fel-body vid 4xx/5xx (supabase.functions.invoke gömmer ofta detta).
-        const { data: sessionData } = await supabase.auth.getSession();
-        const accessToken = sessionData.session?.access_token;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
 
-        const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-          },
-          body: JSON.stringify(checkoutBody),
-        });
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify(checkoutBody),
+      });
 
-        let payload: any = null;
-        try {
-          payload = await res.json();
-        } catch {
-          payload = null;
-        }
-
-        if (!res.ok) {
-          throw new Error(payload?.error || `HTTP_${res.status}`);
-        }
-
-        return payload;
-      })();
-
-      console.log('FULL RESPONSE:', data);
-
-      const redirectUrl =
-        (typeof (data as any)?.sessionUrl === 'string' && (data as any).sessionUrl.length > 0
-          ? (data as any).sessionUrl
-          : null) ||
-        (typeof (data as any)?.url === 'string' && (data as any).url.length > 0
-          ? (data as any).url
-          : null);
-
-      if (redirectUrl) {
-        completedRef.current = true;
-        trackCheckoutStep('payment_redirect', { total });
-        console.log('FORCE REDIRECT:', redirectUrl);
-        window.location.href = redirectUrl;
-        return;
+      let data: any = null;
+      try {
+        data = await res.json();
+      } catch {
+        data = null;
       }
 
-      setDebugInfo(prev => ({
-        ...prev,
-        step: 'no_stripe_url',
-        status: 200,
-        data,
-        url: redirectUrl,
-      }));
-      throw new Error('No Stripe URL returned');
+      console.log('RAW DATA:', data);
+
+      if (!res.ok) {
+        throw new Error(data?.error || `HTTP_${res.status}`);
+      }
+
+      const url = data?.sessionUrl || data?.url;
+
+      if (!url) {
+        setDebugInfo({
+          step: 'no_stripe_url',
+          status: res.status,
+          data,
+          url: null,
+          error: 'No Stripe URL returned',
+        });
+        alert('No Stripe URL returned');
+        throw new Error('No Stripe URL returned');
+      }
+
+      completedRef.current = true;
+      trackCheckoutStep('payment_redirect', { total });
+      console.log('REDIRECTING TO:', url);
+      window.location.href = url;
     } catch (err: any) {
-      console.error('=== CHECKOUT FAILED ===');
-      console.error('Error:', err);
-      console.error('Error message:', err?.message);
+      console.error('Checkout redirect failed:', err);
 
-      const rawMsg = typeof err?.message === 'string' ? err.message : '';
-      const mappedError = rawMsg === 'CHECKOUT_TIMEOUT'
-        ? t.checkoutTimeout
-        : rawMsg === 'INVALID_SESSION_URL'
-          ? t.invalidSession
-          : rawMsg.startsWith('HTTP_')
-            ? t.checkoutFailed
-            : rawMsg.length > 0
-              ? rawMsg
-              : t.checkoutFailed;
+      const message = typeof err?.message === 'string' && err.message.length > 0
+        ? err.message
+        : t.checkoutFailed;
 
-      setCheckoutError(mappedError);
-      setDebugInfo(prev => ({ ...prev, step: 'failed', error: err?.message, mappedError }));
+      setCheckoutError(message);
+      setDebugInfo(prev => ({ ...prev, step: 'failed', error: message }));
 
       logActivity({
         log_type: 'error',
         category: 'payment',
         message: 'Checkout failed',
         details: {
-          error: err?.message || 'unknown_error',
+          error: message,
           email: form.email,
           payment_method: selectedPayment,
         },
       });
 
-      toast.error(mappedError);
-    } finally {
-      setIsSubmitting(false);
+      toast.error(message);
     }
-  }, [
-    autoSaveProfile,
-    cl,
-    form,
-    isSubmitting,
-    items,
-    selectedPayment,
-    t,
-    total,
-    user,
-    validateCartState,
-    validateField,
-  ]);
+  }, [cl, form, items, selectedPayment, t.checkoutFailed, total]);
 
   const handleSubmit = (event?: React.FormEvent | React.MouseEvent) => {
     event?.preventDefault();
