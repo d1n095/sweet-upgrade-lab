@@ -1,6 +1,7 @@
+import { useState, useEffect } from 'react';
 import { Truck, Gift, PartyPopper } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { storeConfig } from '@/config/storeConfig';
+import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/context/LanguageContext';
 
 interface ShippingProgressBarProps {
@@ -9,28 +10,42 @@ interface ShippingProgressBarProps {
 
 const ShippingProgressBar = ({ cartTotal }: ShippingProgressBarProps) => {
   const { language } = useLanguage();
-  const { shipping } = storeConfig;
-  
-  // Smart shipping logic
-  const isFreeShipping = cartTotal >= shipping.generousFreeMin;
-  const isGenerous = cartTotal >= shipping.generousFreeMin && cartTotal < shipping.freeShippingThreshold;
-  const amountToFree = Math.max(0, shipping.generousFreeMin - cartTotal);
-  const progress = Math.min(100, (cartTotal / shipping.generousFreeMin) * 100);
+  const [shippingCost, setShippingCost] = useState(39);
+  const [freeThreshold, setFreeThreshold] = useState(500);
+
+  // Fetch from DB on mount
+  useEffect(() => {
+    supabase
+      .from('store_settings')
+      .select('key, text_value')
+      .in('key', ['shipping_cost', 'free_shipping_threshold'])
+      .then(({ data }) => {
+        if (data) {
+          for (const row of data) {
+            const val = Number(row.text_value);
+            if (row.key === 'shipping_cost' && Number.isFinite(val)) setShippingCost(val);
+            if (row.key === 'free_shipping_threshold' && Number.isFinite(val)) setFreeThreshold(val);
+          }
+        }
+      });
+  }, []);
+
+  const isFreeShipping = cartTotal >= freeThreshold;
+  const amountToFree = Math.max(0, freeThreshold - cartTotal);
+  const progress = freeThreshold > 0 ? Math.min(100, (cartTotal / freeThreshold) * 100) : 100;
 
   const content = {
     sv: {
       freeShipping: 'Vi bjuder på frakten! 🎉',
-      generous: 'Nära nog! Vi bjuder på frakten!',
       almostThere: `Bara ${amountToFree.toFixed(0)} kr kvar till gratis frakt!`,
       addMore: `Lägg till ${amountToFree.toFixed(0)} kr för gratis frakt`,
-      shippingCost: `Frakt: ${shipping.cost} kr`,
+      shippingCostLabel: `Frakt: ${shippingCost} kr`,
     },
     en: {
       freeShipping: 'Free shipping on us! 🎉',
-      generous: 'Close enough! Free shipping on us!',
       almostThere: `Only ${amountToFree.toFixed(0)} kr left for free shipping!`,
       addMore: `Add ${amountToFree.toFixed(0)} kr for free shipping`,
-      shippingCost: `Shipping: ${shipping.cost} kr`,
+      shippingCostLabel: `Shipping: ${shippingCost} kr`,
     }
   };
 
@@ -48,9 +63,7 @@ const ShippingProgressBar = ({ cartTotal }: ShippingProgressBarProps) => {
             className="flex items-center justify-center gap-2"
           >
             <PartyPopper className="w-5 h-5 text-primary" />
-            <span className="font-semibold text-primary">
-              {isGenerous ? t.generous : t.freeShipping}
-            </span>
+            <span className="font-semibold text-primary">{t.freeShipping}</span>
             <Gift className="w-5 h-5 text-primary" />
           </motion.div>
         ) : (
@@ -68,11 +81,10 @@ const ShippingProgressBar = ({ cartTotal }: ShippingProgressBarProps) => {
                 </span>
               </div>
               <span className="text-xs text-muted-foreground">
-                {t.shippingCost}
+                {t.shippingCostLabel}
               </span>
             </div>
             
-            {/* Progress bar */}
             <div className="h-2 bg-muted rounded-full overflow-hidden">
               <motion.div
                 className="h-full bg-gradient-to-r from-primary/70 to-primary rounded-full"
@@ -82,10 +94,9 @@ const ShippingProgressBar = ({ cartTotal }: ShippingProgressBarProps) => {
               />
             </div>
             
-            {/* Milestones */}
             <div className="flex justify-between mt-1 text-xs text-muted-foreground">
               <span>0 kr</span>
-              <span className="text-primary font-medium">{shipping.generousFreeMin} kr</span>
+              <span className="text-primary font-medium">{freeThreshold} kr</span>
             </div>
           </motion.div>
         )}

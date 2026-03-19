@@ -177,18 +177,38 @@ const AdminAffiliateManager = () => {
     setIsSubmitting(true);
 
     try {
+      // Check for duplicate affiliate (by email)
+      const { data: existing } = await supabase
+        .from('affiliates')
+        .select('id')
+        .eq('email', formData.email.toLowerCase())
+        .maybeSingle();
+
+      if (existing) {
+        toast.error(language === 'sv' ? 'Användaren är redan affiliate' : 'User is already an affiliate');
+        setIsSubmitting(false);
+        return;
+      }
+
       const code = generateCode(formData.name);
       
+      const insertData: any = {
+        name: formData.name,
+        email: formData.email.toLowerCase(),
+        code,
+        commission_percent: parseFloat(formData.commissionPercent),
+        payout_method: formData.payoutMethod,
+        notes: formData.notes || null,
+      };
+
+      // Link user_id if a user was selected
+      if (selectedUser) {
+        insertData.user_id = selectedUser.user_id;
+      }
+
       const { error } = await supabase
         .from('affiliates')
-        .insert({
-          name: formData.name,
-          email: formData.email.toLowerCase(),
-          code,
-          commission_percent: parseFloat(formData.commissionPercent),
-          payout_method: formData.payoutMethod,
-          notes: formData.notes || null,
-        });
+        .insert(insertData);
 
       if (error) throw error;
 
