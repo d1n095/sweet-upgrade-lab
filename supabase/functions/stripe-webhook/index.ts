@@ -60,7 +60,7 @@ serve(async (req) => {
     return new Response('Server misconfigured', { status: 500, headers: corsHeaders });
   }
 
-  const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16', httpClient: Stripe.createFetchHttpClient() });
+  const stripe = new Stripe(stripeKey, { apiVersion: '2025-08-27.basil' });
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
