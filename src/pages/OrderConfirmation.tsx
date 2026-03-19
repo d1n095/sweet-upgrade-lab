@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircle, Package, Clock, Mail, ArrowRight, Truck } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
@@ -7,11 +7,28 @@ import Footer from '@/components/layout/Footer';
 import { Button } from '@/components/ui/button';
 import { Link, useSearchParams } from 'react-router-dom';
 import { storeConfig } from '@/config/storeConfig';
+import { supabase } from '@/integrations/supabase/client';
 
 const OrderConfirmation = () => {
   const { language } = useLanguage();
   const [searchParams] = useSearchParams();
-  const orderNumber = searchParams.get('order') || '';
+  const sessionId = searchParams.get('session_id') || '';
+  const [orderNumber, setOrderNumber] = useState(searchParams.get('order') || '');
+  const [orderEmail, setOrderEmail] = useState('');
+
+  useEffect(() => {
+    if (sessionId && !orderNumber) {
+      supabase
+        .from('orders')
+        .select('order_number, order_email')
+        .eq('stripe_session_id', sessionId)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data?.order_number) setOrderNumber(data.order_number);
+          if (data?.order_email) setOrderEmail(data.order_email);
+        });
+    }
+  }, [sessionId, orderNumber]);
 
   const content = {
     sv: {
@@ -223,7 +240,7 @@ const OrderConfirmation = () => {
             {orderNumber && (
               <div className="inline-block bg-card border border-border/50 rounded-xl px-6 py-3">
                 <p className="text-sm text-muted-foreground">{t.orderNumberLabel}</p>
-                <p className="font-mono text-xl font-semibold">#{orderNumber}</p>
+                <p className="font-mono text-xl font-semibold">{orderNumber}</p>
               </div>
             )}
           </motion.div>
