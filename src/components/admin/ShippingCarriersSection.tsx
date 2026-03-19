@@ -360,6 +360,26 @@ const ShippingCarriersSection = () => {
             <DialogTitle>{editing ? 'Redigera fraktbolag' : 'Lägg till fraktbolag'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+            {/* Preset picker for new carriers */}
+            {showPresets && !editing && (
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Välj mall (eller fyll i manuellt)</Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {Object.keys(CARRIER_PRESETS)
+                    .filter(key => !carriers.some(c => c.name.toLowerCase() === CARRIER_PRESETS[key].name.toLowerCase()))
+                    .map(key => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => selectPreset(key)}
+                      className="text-xs px-2.5 py-1.5 rounded-md border border-border bg-card hover:bg-primary/10 hover:border-primary/30 transition-colors"
+                    >
+                      {CARRIER_PRESETS[key].name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Namn *</Label>
               <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="PostNord" />
