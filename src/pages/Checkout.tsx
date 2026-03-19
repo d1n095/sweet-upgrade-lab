@@ -64,7 +64,9 @@ const Checkout = () => {
   const navigate = useNavigate();
   const { language } = useLanguage();
   const cl = getContentLang(language);
-  const { items, isHydrated } = useCartStore();
+  const cartStore = useCartStore();
+  const items = cartStore?.items || [];
+  const isHydrated = cartStore?.isHydrated ?? true; // Don't block on hydration
   const { checkoutEnabled, autoSaveProfile } = useStoreSettings();
   const { user } = useAuth();
   const shippingConfig = useShippingConfig();
