@@ -242,7 +242,7 @@ const DbProductCard = ({ product, index, compact = false }: DbProductCardProps) 
               <Button
                 size="icon"
                 onClick={handleAddToCart}
-                disabled={!isAvailable}
+                disabled={!isAvailable || (!product.allow_overselling && maxAddable <= 0)}
                 className={`w-11 h-11 shrink-0 rounded-xl transition-all ${isAdded ? 'bg-accent hover:bg-accent text-accent-foreground' : ''}`}
               >
                 {!isAvailable
