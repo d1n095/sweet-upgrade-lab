@@ -17,6 +17,12 @@ const OrderConfirmation = () => {
   const [orderNumber, setOrderNumber] = useState(searchParams.get('order') || '');
   const [orderEmail, setOrderEmail] = useState('');
 
+  // Clear cart on mount — purchase is complete
+  const clearCart = useCartStore((s) => s.clearCart);
+  useEffect(() => {
+    clearCart();
+  }, [clearCart]);
+
   useEffect(() => {
     if (sessionId && !orderNumber) {
       supabase
