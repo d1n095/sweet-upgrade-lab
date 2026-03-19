@@ -69,7 +69,7 @@ const Checkout = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
-  const [selectedPayment, setSelectedPayment] = useState<'card' | 'klarna' | 'revolut_pay'>('card');
+  const [selectedPayment, setSelectedPayment] = useState<'card' | 'klarna'>('card');
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [form, setForm] = useState({
     email: '',
