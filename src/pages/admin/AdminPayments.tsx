@@ -300,6 +300,13 @@ const AdminPayments = () => {
           </Card>
         </TabsContent>
 
+        {/* Payment Logs Tab */}
+        <TabsContent value="payment-logs" className="space-y-6">
+          <Suspense fallback={<div className="flex items-center justify-center h-32"><RefreshCw className="w-6 h-6 animate-spin text-muted-foreground" /></div>}>
+            <AdminPaymentLogs />
+          </Suspense>
+        </TabsContent>
+
         {/* Webhook Status Tab */}
         <TabsContent value="webhook" className="space-y-6">
           <Suspense fallback={<div className="flex items-center justify-center h-32"><RefreshCw className="w-6 h-6 animate-spin text-muted-foreground" /></div>}>
