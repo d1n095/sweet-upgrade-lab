@@ -152,20 +152,12 @@ const OrderConfirmation = () => {
 
   const t = content[language as keyof typeof content] || content.en;
 
-  const trackParams = new URLSearchParams();
-  if (sessionId) {
-    trackParams.set('q', sessionId);
-    trackParams.set('session_id', sessionId);
-  } else if (orderNumber) {
-    trackParams.set('q', orderNumber);
-  } else if (orderId) {
-    trackParams.set('q', orderId);
-  }
-
-  if (orderNumber) trackParams.set('order_number', orderNumber);
-  if (orderId) trackParams.set('order_id', orderId);
-
-  const trackHref = `/track-order${trackParams.toString() ? `?${trackParams.toString()}` : ''}`;
+  // Track link uses ONLY DB-sourced order data
+  const trackHref = orderNumber
+    ? `/track-order?q=${encodeURIComponent(orderNumber)}`
+    : orderId
+      ? `/order/${orderId}`
+      : '/track-order';
 
   return (
     <div className="min-h-screen bg-background">
