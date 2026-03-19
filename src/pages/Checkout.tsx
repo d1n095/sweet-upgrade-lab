@@ -190,17 +190,6 @@ const Checkout = () => {
     }
   }, [t]);
 
-  const validateCartState = useCallback(() => {
-    // Don't block on hydration - if items exist, allow checkout
-    if (items.length === 0) return t.emptyCart;
-
-    const hasInvalidItems = items.some((item) => {
-      const unitPrice = Number.parseFloat(item.price?.amount ?? '0');
-      return !item.variantId || !Number.isFinite(unitPrice) || item.quantity <= 0;
-    });
-
-    return hasInvalidItems ? t.invalidCart : null;
-  }, [items, t]);
 
   const handleBlur = (field: string) => {
     setTouched(prev => ({ ...prev, [field]: true }));
