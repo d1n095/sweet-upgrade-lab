@@ -12,7 +12,6 @@ const DEFAULT_METHODS: PaymentMethod[] = [
   { id: 'klarna', name: 'Klarna', enabled: true },
   { id: 'applepay', name: 'Apple Pay', enabled: true },
   { id: 'googlepay', name: 'Google Pay', enabled: true },
-  { id: 'revolut', name: 'Revolut Pay', enabled: true },
   { id: 'paypal', name: 'PayPal', enabled: false },
 ];
 
