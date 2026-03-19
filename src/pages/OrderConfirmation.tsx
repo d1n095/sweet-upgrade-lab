@@ -19,7 +19,7 @@ const OrderConfirmation = () => {
   const [orderEmail, setOrderEmail] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [retryCount, setRetryCount] = useState(0);
-  const maxRetries = 5;
+  const maxRetries = 12;
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearCart = useCartStore((s) => s.clearCart);
@@ -42,8 +42,10 @@ const OrderConfirmation = () => {
         return;
       }
 
+      let foundOrder = false;
+
+      // Step 1: Call ensure_order — creates order from Stripe session if needed
       try {
-        // Call ensure_order — this creates the order from the Stripe session if it doesn't exist
         const { data, error } = await supabase.functions.invoke('stripe-webhook', {
           body: {
             action: 'ensure_order',
@@ -53,42 +55,48 @@ const OrderConfirmation = () => {
 
         if (!isActive) return;
 
-        if (!error && data?.order) {
+        if (!error && data?.order?.order_number) {
           if (data.order.id) setOrderId(data.order.id);
-          if (data.order.order_number) setOrderNumber(data.order.order_number);
+          setOrderNumber(data.order.order_number);
           if (data.order.order_email) setOrderEmail(data.order.order_email);
           setIsLoading(false);
           return;
         }
-
-        // If payment not completed yet (e.g. Klarna async), retry
-        if (data?.error === 'payment_not_completed' && retryCount < maxRetries) {
-          console.log(`[order-confirmation] Payment not yet confirmed, retry ${retryCount + 1}/${maxRetries}...`);
-          retryTimerRef.current = setTimeout(() => {
-            if (isActive) setRetryCount((c) => c + 1);
-          }, 3000);
-          return;
-        }
       } catch (err) {
-        console.error('[order-confirmation] Failed to ensure order:', err);
+        console.error('[order-confirmation] ensure_order failed:', err);
       }
 
-      // Fallback: try direct DB lookup
+      // Step 2: Direct DB lookup by stripe_session_id
+      if (!foundOrder && isActive) {
+        try {
+          const { data } = await supabase
+            .from('orders')
+            .select('id, order_number, order_email')
+            .eq('stripe_session_id', sessionId)
+            .maybeSingle();
+
+          if (!isActive) return;
+          if (data?.order_number) {
+            setOrderId(data.id);
+            setOrderNumber(data.order_number);
+            if (data.order_email) setOrderEmail(data.order_email);
+            setIsLoading(false);
+            return;
+          }
+        } catch {}
+      }
+
+      // Step 3: No order found yet — retry if attempts remain
       if (!isActive) return;
-      try {
-        const { data } = await supabase
-          .from('orders')
-          .select('id, order_number, order_email')
-          .eq('stripe_session_id', sessionId)
-          .maybeSingle();
-
-        if (!isActive) return;
-        if (data?.id) setOrderId(data.id);
-        if (data?.order_number) setOrderNumber(data.order_number);
-        if (data?.order_email) setOrderEmail(data.order_email);
-      } catch {}
-
-      setIsLoading(false);
+      if (retryCount < maxRetries) {
+        console.log(`[order-confirmation] Order not found yet, retry ${retryCount + 1}/${maxRetries}...`);
+        retryTimerRef.current = setTimeout(() => {
+          if (isActive) setRetryCount((c) => c + 1);
+        }, 2500);
+      } else {
+        // Give up after all retries
+        setIsLoading(false);
+      }
     };
 
     resolveOrder();
