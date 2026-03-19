@@ -807,7 +807,6 @@ export function AdminProductForm({
           setFormData={setFormData}
         />
       </div>
-      </div>
 
       {/* ── Storytelling Fields ── */}
       <div className="border-t border-border pt-4 mt-2">
