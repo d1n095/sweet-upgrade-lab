@@ -54,6 +54,8 @@ const AdminActivityLog = () => {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedLog, setExpandedLog] = useState<string | null>(null);
+  const [activeCard, setActiveCard] = useState<string>('all');
+  const logsListRef = { current: null as HTMLDivElement | null };
 
   const fetchLogs = async () => {
     setIsLoading(true);
