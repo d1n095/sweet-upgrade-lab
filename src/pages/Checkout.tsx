@@ -62,7 +62,7 @@ const Checkout = () => {
   const navigate = useNavigate();
   const { language } = useLanguage();
   const cl = getContentLang(language);
-  const { items, clearCart } = useCartStore();
+  const { items, clearCart, _hasHydrated } = useCartStore();
   const { checkoutEnabled, autoSaveProfile } = useStoreSettings();
   const { user } = useAuth();
   const shippingConfig = useShippingConfig();
