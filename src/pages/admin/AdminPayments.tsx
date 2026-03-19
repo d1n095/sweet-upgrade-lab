@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -19,6 +19,7 @@ import { useFounderRole } from '@/hooks/useFounderRole';
 import { useStoreSettings } from '@/stores/storeSettingsStore';
 import { usePaymentMethodsStore } from '@/stores/paymentMethodsStore';
 import { PAYMENT_ICON_MAP, GenericIcon } from '@/components/trust/PaymentMethodIcons';
+const AdminWebhookStatus = lazy(() => import('@/components/admin/AdminWebhookStatus'));
 
 // ─── Types ───
 interface FinanceData {
@@ -215,6 +216,7 @@ const AdminPayments = () => {
         <ScrollableTabs>
           <TabsList className="w-max bg-secondary/50">
             <TabsTrigger value="methods" className="gap-1.5 text-xs"><CreditCard className="w-3.5 h-3.5" /> Betalningsmetoder</TabsTrigger>
+            <TabsTrigger value="webhook" className="gap-1.5 text-xs"><Zap className="w-3.5 h-3.5" /> Webhook</TabsTrigger>
             <TabsTrigger value="overview" className="gap-1.5 text-xs"><Wallet className="w-3.5 h-3.5" /> Ekonomi</TabsTrigger>
             {isFounder && (
               <TabsTrigger value="founder" className="gap-1.5 text-xs"><Lock className="w-3.5 h-3.5" /> Grundare</TabsTrigger>
@@ -294,6 +296,13 @@ const AdminPayments = () => {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Webhook Status Tab */}
+        <TabsContent value="webhook" className="space-y-6">
+          <Suspense fallback={<div className="flex items-center justify-center h-32"><RefreshCw className="w-6 h-6 animate-spin text-muted-foreground" /></div>}>
+            <AdminWebhookStatus />
+          </Suspense>
         </TabsContent>
 
         {/* Economy Overview Tab */}

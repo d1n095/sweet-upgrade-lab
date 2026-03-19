@@ -28,6 +28,30 @@ const extractUuid = (v: string): string | null => {
 const isPreviewOrigin = (origin: string) =>
   origin.includes("id-preview--") || origin.includes("localhost") || origin.includes("127.0.0.1");
 
+/**
+ * Resolve user_id from the Authorization header.
+ * Returns a real UUID if the user is logged in, otherwise null.
+ */
+async function resolveUserId(req: Request): Promise<string | null> {
+  const authHeader = req.headers.get("authorization") || req.headers.get("Authorization");
+  if (!authHeader) return null;
+
+  const token = authHeader.replace("Bearer ", "");
+  if (!token) return null;
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const anonClient = createClient(supabaseUrl, supabaseAnonKey);
+
+  try {
+    const { data, error } = await anonClient.auth.getUser(token);
+    if (error || !data?.user?.id) return null;
+    return data.user.id;
+  } catch {
+    return null;
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -73,6 +97,9 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Resolve the logged-in user's ID from the JWT token
+    const authenticatedUserId = await resolveUserId(req);
+
     const body = await req.json().catch(() => ({}));
     const { items, shipping, email, language = "sv", paymentMethod } = body ?? {};
 
@@ -98,7 +125,7 @@ serve(async (req) => {
 
     const selectedMethods = ALLOWED_METHODS[paymentMethod];
 
-    // 1) Fetch trusted prices from DB and reserve stock (strict), OR fallback to client payload (preview only)
+    // 1) Fetch trusted prices from DB and reserve stock
     const trustedItems: { id: string; title: string; price: number; quantity: number; image: string; source: "db" | "client" }[] = [];
     const warnings: string[] = [];
 
@@ -116,7 +143,6 @@ serve(async (req) => {
         return json({ error: "Item id is required", code: "ITEM_ID_REQUIRED" });
       }
 
-      // Prefer DB lookup when we have a UUID.
       if (isUuid(productId)) {
         const { data: product } = await supabase
           .from("products")
@@ -129,7 +155,6 @@ serve(async (req) => {
             await releaseReservedStock();
             return json({ error: "Product not found or unavailable", code: "PRODUCT_NOT_FOUND" });
           }
-
           warnings.push(`fallback_client_item:${productId}`);
         } else {
           const p: any = product;
@@ -142,7 +167,6 @@ serve(async (req) => {
             }
             warnings.push(`stock_check_skipped:${productId}`);
           } else {
-            // Reserve stock immediately to avoid overselling; we will rollback on any later failure.
             await supabase
               .from("products")
               .update({ reserved_stock: p.reserved_stock + quantity })
@@ -174,7 +198,6 @@ serve(async (req) => {
       const clientImage = typeof item?.image === "string" ? item.image : "";
 
       if (!Number.isFinite(clientPrice) || clientPrice <= 0) {
-        // This is critical — without a price we can't create a Stripe session.
         await releaseReservedStock();
         return json({
           error:
@@ -200,7 +223,7 @@ serve(async (req) => {
       return json({ error: "No valid items", code: "NO_VALID_ITEMS" });
     }
 
-    // 2) Calculate totals using TRUSTED prices + DB shipping config (fallback defaults)
+    // 2) Calculate totals
     const subtotal = trustedItems.reduce((sum: number, item) => sum + item.price * item.quantity, 0);
 
     let shippingCostValue = 39;
@@ -225,10 +248,8 @@ serve(async (req) => {
     const shippingCost = subtotal >= freeShippingThreshold ? 0 : shippingCostValue;
     const totalAmount = subtotal + shippingCost;
 
-    // Stripe has a minimum amount in SEK
     if (totalAmount < 3) {
       await releaseReservedStock();
-
       const msg =
         language === "sv"
           ? "Minsta totalbelopp är 3 kr. Lägg till fler varor eller öka antal."
@@ -236,10 +257,34 @@ serve(async (req) => {
       return json({ error: msg, code: "MIN_AMOUNT" });
     }
 
-    // 3) Create order with status "pending", payment_status "unpaid" (best effort; don't block preview)
+    // Determine user_id: use authenticated user if available, otherwise try to find by email
+    let userId = authenticatedUserId;
+
+    if (!userId) {
+      // Try to find a user by email in profiles
+      try {
+        const { data: profileByEmail } = await supabase
+          .from("profiles")
+          .select("user_id")
+          .eq("user_id", (
+            await supabase.rpc("admin_search_users", { p_query: email }).then(r => r.data?.[0]?.user_id)
+          ) || "00000000-0000-0000-0000-000000000000")
+          .maybeSingle();
+        if (profileByEmail) {
+          userId = profileByEmail.user_id;
+        }
+      } catch {
+        // Ignore – fallback to placeholder
+      }
+    }
+
+    // Final fallback: use a placeholder UUID (guest checkout)
+    const orderUserId = userId || "00000000-0000-0000-0000-000000000000";
+
+    // 3) Create order
     const orderData = {
       order_email: email,
-      user_id: "00000000-0000-0000-0000-000000000000",
+      user_id: orderUserId,
       total_amount: totalAmount,
       currency: "SEK",
       status: "pending",
@@ -264,7 +309,7 @@ serve(async (req) => {
         {
           status: "pending",
           timestamp: new Date().toISOString(),
-          note: "Order created — payment_status: unpaid",
+          note: `Order created — payment_status: unpaid, user: ${orderUserId === "00000000-0000-0000-0000-000000000000" ? "guest" : "authenticated"}`,
         },
       ],
       notes: warnings.length ? `Warnings: ${warnings.join(",")}` : "",
@@ -279,16 +324,15 @@ serve(async (req) => {
 
       if (orderError) throw orderError;
       orderId = (order as any).id;
-      console.log("Pre-payment order created:", orderId);
+      console.log("Pre-payment order created:", orderId, "user_id:", orderUserId);
     } catch (orderErr: any) {
-      // Rollback reserved stock (order failed, so no reason to keep reservations)
       await releaseReservedStock();
 
       await supabase.from("activity_logs").insert({
         log_type: "error",
         category: "order",
         message: "Failed to create pre-payment order",
-        details: { error: orderErr?.message || String(orderErr), email, previewMode },
+        details: { error: orderErr?.message || String(orderErr), email, previewMode, user_id: orderUserId },
       });
 
       if (!previewMode) {
@@ -302,7 +346,7 @@ serve(async (req) => {
       orderId = null;
     }
 
-    // 4) Create Stripe session (always attempt if we have prices)
+    // 4) Create Stripe session
     const lineItems = trustedItems.map((item) => ({
       price_data: {
         currency: "sek",
@@ -329,6 +373,7 @@ serve(async (req) => {
         cancel_url: `${origin}/checkout`,
         metadata: {
           ...(orderId ? { order_id: orderId } : {}),
+          ...(orderUserId !== "00000000-0000-0000-0000-000000000000" ? { user_id: orderUserId } : {}),
           shipping_name: shipping?.name || "",
           shipping_address: shipping?.address || "",
           shipping_zip: shipping?.zip || "",
@@ -362,13 +407,8 @@ serve(async (req) => {
     } catch (stripeErr: any) {
       console.error("Stripe session create failed:", stripeErr);
 
-      // Best-effort cleanup
-      try {
-        await releaseReservedStock();
-      } catch {}
-      try {
-        await deleteOrderIfCreated();
-      } catch {}
+      try { await releaseReservedStock(); } catch {}
+      try { await deleteOrderIfCreated(); } catch {}
 
       await supabase.from("activity_logs").insert({
         log_type: "error",
@@ -399,7 +439,7 @@ serve(async (req) => {
       });
     }
 
-    // 5) Save stripe_session_id on the order (if we managed to create one)
+    // 5) Save stripe_session_id on the order
     if (orderId) {
       await supabase
         .from("orders")
@@ -417,6 +457,8 @@ serve(async (req) => {
         total: totalAmount,
         reserved_items: reservedItems,
         warnings,
+        user_id: orderUserId,
+        authenticated: !!authenticatedUserId,
       },
       order_id: orderId,
     });
@@ -426,18 +468,13 @@ serve(async (req) => {
       sessionId: session.id,
       orderId,
       ...(warnings.length ? { warnings } : {}),
-      ...(previewMode ? { debug: { previewMode, itemSources: trustedItems.map((i) => i.source) } } : {}),
+      ...(previewMode ? { debug: { previewMode, itemSources: trustedItems.map((i) => i.source), authenticated: !!authenticatedUserId } } : {}),
     });
   } catch (error: any) {
     console.error("Checkout error:", error);
 
-    // Best-effort rollback to avoid stuck stock / orphan orders
-    try {
-      await releaseReservedStock();
-    } catch {}
-    try {
-      await deleteOrderIfCreated();
-    } catch {}
+    try { await releaseReservedStock(); } catch {}
+    try { await deleteOrderIfCreated(); } catch {}
 
     const userMessage = error?.message?.includes("payment_method_types")
       ? "En betalningsmetod stöds inte just nu. Försök med kort eller Klarna."
