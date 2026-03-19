@@ -355,7 +355,6 @@ const TrackOrder = () => {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    required
                     placeholder={t.emailPlaceholder}
                   />
                 </div>
