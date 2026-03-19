@@ -545,8 +545,8 @@ const Checkout = () => {
           {debugInfo.data?.sessionId && (
             <p className="text-muted-foreground">sessionId: <span className="text-foreground">{String(debugInfo.data.sessionId).slice(0, 30)}…</span></p>
           )}
-          {debugInfo.data?.url && (
-            <p className="text-muted-foreground">url: <span className="text-green-600 dark:text-green-400 break-all">{String(debugInfo.data.url).slice(0, 60)}…</span></p>
+          {(debugInfo.url || debugInfo.data?.sessionUrl || debugInfo.data?.url) && (
+            <p className="text-muted-foreground">url: <span className="text-green-600 dark:text-green-400 break-all">{String(debugInfo.url || debugInfo.data?.sessionUrl || debugInfo.data?.url)}</span></p>
           )}
           {debugInfo.error && (
             <p className="text-red-600 dark:text-red-400">error: {debugInfo.error}</p>
@@ -556,6 +556,12 @@ const Checkout = () => {
           )}
           {debugInfo.status && (
             <p className="text-muted-foreground">HTTP: <span className="text-foreground">{debugInfo.status}</span></p>
+          )}
+          {debugInfo.data && (
+            <details className="text-muted-foreground">
+              <summary className="cursor-pointer">Full response JSON</summary>
+              <pre className="mt-1 whitespace-pre-wrap break-all text-[10px] text-foreground">{JSON.stringify(debugInfo.data, null, 2)}</pre>
+            </details>
           )}
           <p className="text-muted-foreground">items: {debugInfo.itemCount || items.length} | total: {total} SEK</p>
         </div>
