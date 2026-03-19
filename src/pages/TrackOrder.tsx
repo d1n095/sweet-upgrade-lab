@@ -185,6 +185,8 @@ const TrackOrder = () => {
         return;
       }
 
+      setSearchedQuery(cleanInput || cleanEmail);
+
       if (cleanInput && isStripeSessionId(cleanInput)) {
         const ensuredOrder = await ensureOrderFromSession(cleanInput);
         if (ensuredOrder) {
