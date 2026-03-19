@@ -201,12 +201,7 @@ serve(async (req) => {
         shipping_country: shipping?.country || 'SE',
         shipping_phone: shipping?.phone || '',
       },
-      payment_method_options: {
-        card: {
-          // Apple Pay and Google Pay are automatically available when card is enabled
-          // They show up based on the customer's device/browser
-        },
-      },
+      // Apple Pay and Google Pay are automatically available when card is enabled
       shipping_options: [
         {
           shipping_rate_data: {

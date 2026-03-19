@@ -10,15 +10,10 @@ const DEFAULT_METHODS: PaymentMethod[] = [
   { id: 'visa', name: 'Visa', enabled: true },
   { id: 'mastercard', name: 'Mastercard', enabled: true },
   { id: 'klarna', name: 'Klarna', enabled: true },
-  { id: 'swish', name: 'Swish', enabled: true },
   { id: 'applepay', name: 'Apple Pay', enabled: true },
   { id: 'googlepay', name: 'Google Pay', enabled: true },
+  { id: 'revolut', name: 'Revolut Pay', enabled: true },
   { id: 'paypal', name: 'PayPal', enabled: false },
-  { id: 'bancontact', name: 'Bancontact', enabled: false },
-  { id: 'ideal', name: 'iDEAL', enabled: false },
-  { id: 'giropay', name: 'Giropay', enabled: false },
-  { id: 'eps', name: 'EPS', enabled: false },
-  { id: 'p24', name: 'Przelewy24', enabled: false },
 ];
 
 interface PaymentMethodsStore {

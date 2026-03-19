@@ -236,15 +236,21 @@ const AdminPayments = () => {
               <p className="text-xs text-muted-foreground">Dessa metoder är tillgängliga vid betalning via Stripe Checkout.</p>
               <div className="space-y-1.5">
                 {STRIPE_METHODS.map((m) => (
-                  <div key={m.id} className={`flex items-center justify-between p-3 rounded-lg border ${m.supported ? 'border-primary/20 bg-primary/5' : 'border-border bg-muted/30'}`}>
+                  <div key={m.id} className={`flex items-center justify-between p-3 rounded-lg border ${
+                    m.status === 'active' ? 'border-primary/20 bg-primary/5' : 
+                    m.status === 'requires_action' ? 'border-amber-500/30 bg-amber-500/5' :
+                    'border-border bg-muted/30'
+                  }`}>
                     <div className="flex items-center gap-3">
-                      <span className={`text-sm font-medium ${m.supported ? 'text-foreground' : 'text-muted-foreground'}`}>{m.name}</span>
+                      <span className={`text-sm font-medium ${m.status === 'active' ? 'text-foreground' : 'text-muted-foreground'}`}>{m.name}</span>
                       {m.note && <span className="text-[10px] text-muted-foreground">{m.note}</span>}
                     </div>
-                    {m.supported ? (
+                    {m.status === 'active' ? (
                       <Badge variant="outline" className="text-xs text-green-600 border-green-200">Aktiv</Badge>
+                    ) : m.status === 'requires_action' ? (
+                      <Badge variant="outline" className="text-xs text-amber-600 border-amber-200">Kräver åtgärd</Badge>
                     ) : (
-                      <Badge variant="secondary" className="text-xs">Kommer snart</Badge>
+                      <Badge variant="secondary" className="text-xs">Inaktiv</Badge>
                     )}
                   </div>
                 ))}

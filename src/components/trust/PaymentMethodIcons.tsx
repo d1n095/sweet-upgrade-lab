@@ -76,14 +76,20 @@ const GenericIcon = ({ name, size = 'sm' }: { name: string } & IconProps) => (
   </div>
 );
 
+const RevolutIcon = ({ size = 'sm' }: IconProps) => (
+  <div className={`${sizeClasses[size]} rounded-md bg-[#0075EB] flex items-center justify-center`}>
+    <span className="font-bold text-white" style={{ fontSize: size === 'sm' ? 9 : 11 }}>Revolut</span>
+  </div>
+);
+
 export const PAYMENT_ICON_MAP: Record<string, React.FC<IconProps>> = {
   visa: VisaIcon,
   mastercard: MastercardIcon,
   klarna: KlarnaIcon,
-  swish: SwishIcon,
   applepay: ApplePayIcon,
   googlepay: GooglePayIcon,
   paypal: PayPalIcon,
+  revolut: RevolutIcon,
 };
 
 export { GenericIcon };
