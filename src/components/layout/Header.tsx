@@ -242,46 +242,42 @@ const Header = () => {
       >
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-14 md:h-15 gap-2">
-            {/* Logo */}
-            <button
-              onClick={() => {
-                if (location.pathname === '/') {
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                } else {
-                  navigate('/');
-                }
-              }}
-              className="flex items-center gap-2.5 group cursor-pointer min-h-[44px] shrink-0"
-            >
-              <div className="w-9 h-9 rounded-lg bg-gradient-accent flex items-center justify-center shadow-sm">
-                <Leaf className="w-5 h-5 text-accent-foreground" />
-              </div>
-              <span className="font-display text-lg font-semibold">
-                4The<span className="text-gradient">People</span>
-              </span>
-            </button>
+            {/* Logo + Shop (desktop) */}
+            <div className="flex items-center gap-1 md:gap-3 shrink-0">
+              <button
+                onClick={() => {
+                  if (location.pathname === '/') {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  } else {
+                    navigate('/');
+                  }
+                }}
+                className="flex items-center gap-2.5 group cursor-pointer min-h-[44px] shrink-0"
+              >
+                <div className="w-9 h-9 rounded-lg bg-gradient-accent flex items-center justify-center shadow-sm">
+                  <Leaf className="w-5 h-5 text-accent-foreground" />
+                </div>
+                <span className="font-display text-lg font-semibold">
+                  4The<span className="text-gradient">People</span>
+                </span>
+              </button>
+
+              {/* Desktop Shop CTA */}
+              <Link
+                to="/produkter"
+                className={`hidden md:flex items-center gap-2 text-base font-semibold px-5 py-2 rounded-full transition-all min-h-[44px] ${
+                  location.pathname === '/produkter'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'bg-secondary/60 text-foreground hover:bg-secondary hover:shadow-sm'
+                }`}
+              >
+                <Store className="w-[18px] h-[18px]" />
+                Shop
+              </Link>
+            </div>
 
             {/* Desktop Nav */}
             <nav className="hidden md:flex items-center gap-5 min-w-0 overflow-visible">
-              {productDropdownItems.length > 0 ? (
-                <NavDropdown
-                  label="Shop"
-                  href="/produkter"
-                  items={productDropdownItems}
-                  isActive={location.pathname === '/produkter'}
-                />
-              ) : (
-                <Link
-                  to="/produkter"
-                  className={`text-sm font-semibold px-4 py-1.5 rounded-full transition-all ${
-                    location.pathname === '/produkter'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-secondary/60 text-foreground hover:bg-secondary'
-                  }`}
-                >
-                  Shop
-                </Link>
-              )}
 
               <NavDropdown
                 label={t('nav.about')}
