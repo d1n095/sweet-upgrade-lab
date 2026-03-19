@@ -189,6 +189,25 @@ serve(async (req) => {
         },
         ensured.orderId,
       );
+
+      // Send order confirmation email
+      try {
+        const emailFnUrl = `${supabaseUrl}/functions/v1/send-order-email`;
+        await fetch(emailFnUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseServiceKey}`,
+          },
+          body: JSON.stringify({
+            order_id: ensured.orderId,
+            email_type: 'order_confirmation',
+          }),
+        });
+        console.log('[stripe-webhook] Order confirmation email triggered for', ensured.order?.order_number);
+      } catch (emailErr: any) {
+        console.warn('[stripe-webhook] Failed to trigger order email:', emailErr?.message);
+      }
     }
 
     return ok({
