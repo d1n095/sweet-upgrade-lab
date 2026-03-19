@@ -71,6 +71,16 @@ const AdminShipping = () => {
     delivery_info_sv: '7–10 arbetsdagar från våra leverantörer',
     delivery_info_en: '7–10 business days from our suppliers',
     free_shipping_enabled: true,
+    // Weight-based shipping
+    shipping_weight_enabled: false,
+    shipping_tier_1_max_grams: '1000',
+    shipping_tier_1_price: '49',
+    shipping_tier_2_max_grams: '5000',
+    shipping_tier_2_price: '79',
+    shipping_tier_3_price: '129',
+    shipping_price_per_kg: '15',
+    shipping_max_weight_grams: '30000',
+    shipping_fallback_price: '99',
   });
 
   useEffect(() => {
