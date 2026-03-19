@@ -219,7 +219,7 @@ const Checkout = () => {
   const [debugSteps, setDebugSteps] = useState<string[]>([]);
 
   const addDebugStep = (step: string) => {
-    const ts = new Date().toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3 });
+    const ts = new Date().toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     setDebugSteps(prev => [...prev, `[${ts}] ${step}`]);
     console.log(`=== ${step} ===`);
   };
