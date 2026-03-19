@@ -282,8 +282,11 @@ const Checkout = () => {
           } as any).eq('user_id', user.id).then(() => {});
         }
         
-        clearCart();
+        // Redirect FIRST, clear cart after (localStorage will be cleared on return via order-confirmation)
         window.location.href = data.url;
+        // Clear cart after redirect is initiated so user doesn't get stuck with empty cart
+        setTimeout(() => clearCart(), 500);
+        return; // Stop execution - don't hit finally block's setIsSubmitting
       }
     } catch (err: any) {
       console.error('Checkout error:', err);
