@@ -19,7 +19,7 @@ const OrderConfirmation = () => {
   const [orderEmail, setOrderEmail] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [retryCount, setRetryCount] = useState(0);
-  const maxRetries = 5;
+  const maxRetries = 12;
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearCart = useCartStore((s) => s.clearCart);
