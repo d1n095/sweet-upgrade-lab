@@ -132,8 +132,12 @@ export const useCartStore = create<CartStore>()(
     {
       name: 'shopify-cart',
       storage: createJSONStorage(() => localStorage),
-      onRehydrateStorage: () => (state) => {
-        state?.setHasHydrated(true);
+      onRehydrateStorage: () => (_state, error) => {
+        if (error) {
+          console.error('Cart rehydration failed:', error);
+        }
+        // Always unlock UI even if persisted data is malformed
+        useCartStore.setState({ _hasHydrated: true });
       },
       partialize: (state) => ({
         items: state.items,
