@@ -500,7 +500,7 @@ const Checkout = () => {
         <div className="max-w-lg text-center px-4">
           <ShoppingBag className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
           <h1 className="text-2xl font-bold mb-4">{t.emptyCart}</h1>
-          <Button onClick={() => navigate('/products')}>{t.goToShop}</Button>
+          <Button asChild><Link to="/produkter">{t.goToShop}</Link></Button>
         </div>
       </div>
     );
