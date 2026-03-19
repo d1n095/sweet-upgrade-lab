@@ -39,7 +39,98 @@ const TrackOrder = () => {
   const [notFound, setNotFound] = useState(false);
 
   const statusSteps = [
-...
+    {
+      id: 'pending',
+      icon: FileCheck,
+      label: {
+        sv: 'Order mottagen',
+        en: 'Order received',
+        no: 'Ordre mottatt',
+        da: 'Ordre modtaget',
+        de: 'Bestellung eingegangen'
+      },
+      description: {
+        sv: 'Vi har tagit emot din beställning',
+        en: 'We have received your order',
+        no: 'Vi har mottatt din bestilling',
+        da: 'Vi har modtaget din ordre',
+        de: 'Wir haben Ihre Bestellung erhalten'
+      }
+    },
+    {
+      id: 'processing',
+      icon: Package,
+      label: {
+        sv: 'Behandlas',
+        en: 'Processing',
+        no: 'Behandles',
+        da: 'Behandles',
+        de: 'In Bearbeitung'
+      },
+      description: {
+        sv: 'Din order förbereds för leverans',
+        en: 'Your order is being prepared',
+        no: 'Din ordre forberedes for levering',
+        da: 'Din ordre forberedes til levering',
+        de: 'Ihre Bestellung wird vorbereitet'
+      }
+    },
+    {
+      id: 'shipped',
+      icon: Truck,
+      label: {
+        sv: 'På väg till dig',
+        en: 'On its way',
+        no: 'På vei til deg',
+        da: 'På vej til dig',
+        de: 'Unterwegs zu Ihnen'
+      },
+      description: {
+        sv: 'Din order är på väg från leverantören',
+        en: 'Your order is on its way from the supplier',
+        no: 'Din ordre er på vei fra leverandøren',
+        da: 'Din ordre er på vej fra leverandøren',
+        de: 'Ihre Bestellung ist auf dem Weg vom Lieferanten'
+      }
+    },
+    {
+      id: 'in_transit',
+      icon: Building2,
+      label: {
+        sv: 'Ankommit distributionscenter',
+        en: 'Arrived at distribution',
+        no: 'Ankommet distribusjonssenter',
+        da: 'Ankommet distributionscenter',
+        de: 'Im Verteilzentrum angekommen'
+      },
+      description: {
+        sv: 'Paketet är på väg till ditt område',
+        en: 'Package is heading to your area',
+        no: 'Pakken er på vei til ditt område',
+        da: 'Pakken er på vej til dit område',
+        de: 'Paket ist auf dem Weg in Ihre Region'
+      }
+    },
+    {
+      id: 'delivered',
+      icon: CheckCircle2,
+      label: {
+        sv: 'Utlevererad',
+        en: 'Delivered',
+        no: 'Levert',
+        da: 'Leveret',
+        de: 'Zugestellt'
+      },
+      description: {
+        sv: 'Din order har levererats',
+        en: 'Your order has been delivered',
+        no: 'Din ordre er levert',
+        da: 'Din ordre er leveret',
+        de: 'Ihre Bestellung wurde zugestellt'
+      }
+    },
+  ];
+
   const isStripeSessionId = (value: string) => /^cs_(test|live)_[A-Za-z0-9]+$/.test(value);
 
   const ensureOrderFromSession = async (sessionId: string): Promise<OrderData | null> => {
