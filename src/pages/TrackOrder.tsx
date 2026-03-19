@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Search, Package, Truck, CheckCircle2, Clock, MapPin, AlertCircle, FileCheck, Building2, XCircle, RefreshCw, Loader2 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
