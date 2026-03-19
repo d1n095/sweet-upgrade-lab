@@ -462,14 +462,33 @@ const TrackOrder = () => {
                   {t.notFoundTitle}
                 </h3>
                 <p className="text-muted-foreground mb-4">
-                  {t.notFoundDescription}
+                  {language === 'sv'
+                    ? 'Det kan ta upp till 1 minut efter betalning innan din order visas här. Försök igen om en stund.'
+                    : 'It may take up to 1 minute after payment for your order to appear here. Please try again shortly.'}
                 </p>
-                <p className="text-sm text-muted-foreground">
-                  {t.notFoundHelp}
+                {searchedQuery && (
+                  <p className="text-xs text-muted-foreground mb-4 font-mono bg-muted/50 rounded px-3 py-2 inline-block">
+                    {language === 'sv' ? 'Sökte efter' : 'Searched for'}: {searchedQuery}
+                  </p>
+                )}
+                <div className="flex flex-col sm:flex-row gap-3 justify-center mt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => doSearch(orderNumber, email)}
+                    className="gap-2"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    {language === 'sv' ? 'Sök igen' : 'Search again'}
+                  </Button>
+                  <Button variant="outline" asChild>
+                    <a href="/contact">{t.contactUs}</a>
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-4">
+                  {language === 'sv'
+                    ? 'Tips: Du kan söka med ordernummer (ORD-XXXXX), e-post eller Stripe-referens.'
+                    : 'Tip: You can search by order number (ORD-XXXXX), email, or Stripe reference.'}
                 </p>
-                <Button variant="outline" className="mt-4" asChild>
-                  <a href="/contact">{t.contactUs}</a>
-                </Button>
               </div>
             </motion.div>
           )}
