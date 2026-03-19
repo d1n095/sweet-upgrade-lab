@@ -230,6 +230,10 @@ const AdminShipping = () => {
           />
         </TabsContent>
 
+        <TabsContent value="weight">
+          <WeightTiersTab settings={settings} setSettings={setSettings} saving={saving} onSave={handleSaveSettings} />
+        </TabsContent>
+
         <TabsContent value="extras">
           <ShippingExtrasTab />
         </TabsContent>
