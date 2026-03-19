@@ -173,9 +173,10 @@ serve(async (req) => {
 
     const origin = req.headers.get('origin') || 'https://4thepeople.se';
 
-    // Payment methods: card (covers Apple Pay & Google Pay via Stripe), Klarna, Swish
+    // Payment methods: card (covers Apple Pay & Google Pay via Stripe), Klarna
+    // Note: Swish is NOT supported by Stripe and must use a separate PSP
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card', 'klarna', 'swish'],
+      payment_method_types: ['card', 'klarna'],
       mode: 'payment',
       customer_email: email,
       line_items: lineItems,
@@ -223,7 +224,7 @@ serve(async (req) => {
     await supabase.from('activity_logs').insert({
       log_type: 'info', category: 'order',
       message: 'Checkout session created, stock reserved',
-      details: { order_id: order.id, stripe_session: session.id, total: totalAmount, reserved_items: reservedItems, payment_methods: ['card', 'klarna', 'swish', 'apple_pay', 'google_pay'] },
+      details: { order_id: order.id, stripe_session: session.id, total: totalAmount, reserved_items: reservedItems, payment_methods: ['card', 'klarna', 'apple_pay', 'google_pay'] },
       order_id: order.id,
     });
 
@@ -232,7 +233,10 @@ serve(async (req) => {
     });
   } catch (error: any) {
     console.error('Checkout error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    const userMessage = error.message?.includes('payment_method_types')
+      ? 'En betalningsmetod stöds inte just nu. Försök med kort eller Klarna.'
+      : error.message || 'Något gick fel vid checkout';
+    return new Response(JSON.stringify({ error: userMessage }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }

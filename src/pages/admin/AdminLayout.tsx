@@ -38,7 +38,7 @@ const navItems: NavItem[] = [
   { to: '/admin/members', label: 'Användare', icon: Users, role: 'admin' },
   { to: '/admin/reviews', label: 'Recensioner', icon: Star, role: 'all' },
   { to: '/admin/partners', label: 'Partners', icon: Handshake, role: 'admin' },
-  { to: '/admin/finance', label: 'Betalning', icon: Wallet, role: 'admin' },
+  { to: '/admin/finance', label: 'Betalningar', icon: Wallet, role: 'admin' },
   { to: '/admin/content', label: 'Innehåll', icon: FileText, role: 'admin' },
   { to: '/admin/campaigns', label: 'Kampanjer', icon: Percent, role: 'admin' },
   { to: '/admin/shipping', label: 'Frakt', icon: Truck, role: 'admin' },
