@@ -146,6 +146,8 @@ const AdminOrderManager = () => {
       cancelled: 'Cancelled',
       failed: 'Failed',
       abandoned: 'Abandoned',
+      returned: 'Returned',
+      lost: 'Lost',
       refund: 'Refund',
       refundConfirm: 'Mark as refunded?',
       refunded: 'Refunded',
