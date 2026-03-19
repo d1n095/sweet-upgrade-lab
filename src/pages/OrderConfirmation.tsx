@@ -189,21 +189,6 @@ const OrderConfirmation = () => {
                 <p className="text-sm font-medium">{t.waitingTitle}</p>
                 <p className="text-xs text-muted-foreground">{t.waitingDesc}</p>
               </div>
-            ) : sessionId ? (
-              <div className="inline-block bg-card border border-border/50 rounded-xl px-6 py-3">
-                <p className="text-sm text-muted-foreground">{t.referenceLabel}</p>
-                <div className="flex items-center gap-2">
-                  <p className="font-mono text-sm truncate max-w-[280px]">{sessionId}</p>
-                  <button onClick={copySessionId} className="text-muted-foreground hover:text-foreground">
-                    <Copy className="w-4 h-4" />
-                  </button>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {language === 'sv'
-                    ? 'Spara denna referens – ditt ordernummer kan visas med kort fördröjning.'
-                    : 'Save this reference – your order number may appear with a short delay.'}
-                </p>
-              </div>
             ) : null}
           </motion.div>
 
