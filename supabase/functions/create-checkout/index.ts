@@ -22,7 +22,7 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { items, shipping, email, language = 'sv' } = await req.json();
+    const { items, shipping, email, language = 'sv', paymentMethod } = await req.json();
 
     if (!items || items.length === 0) {
       return new Response(JSON.stringify({ error: 'No items provided' }), {
