@@ -13,7 +13,10 @@ import { toast } from 'sonner';
 
 interface OrderData {
   id: string;
+  order_number: string | null;
   shopify_order_number: string | null;
+  stripe_session_id: string | null;
+  order_email: string;
   status: string;
   tracking_number: string | null;
   estimated_delivery: string | null;
@@ -133,30 +136,37 @@ const TrackOrder = () => {
     setOrderData(null);
 
     try {
-      const cleanInput = orderNumber.replace('#', '').trim();
-      const cleanEmail = email.toLowerCase().trim();
-      
-      // Search by order_number, shopify_order_number, tracking_number, or id
-      // Combined with email for security
+      const cleanInput = orderNumber.replace('#', '').trim().replace(/[(),]/g, '');
+      const cleanEmail = email.toLowerCase().trim().replace(/[(),]/g, '');
+
+      if (!cleanInput && !cleanEmail) {
+        toast.error(language === 'sv' ? 'Ange ordernummer eller e-post' : 'Enter order number or email');
+        setNotFound(true);
+        return;
+      }
+
+      const orFilters: string[] = [];
+      if (cleanInput) {
+        orFilters.push(
+          `order_number.eq.${cleanInput}`,
+          `shopify_order_number.eq.${cleanInput}`,
+          `tracking_number.eq.${cleanInput}`,
+          `stripe_session_id.eq.${cleanInput}`,
+          `id.eq.${cleanInput}`,
+        );
+      }
+      if (cleanEmail) {
+        orFilters.push(`order_email.eq.${cleanEmail}`);
+      }
+
       let query = supabase
         .from('orders')
-        .select('*');
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(1);
 
-      // Build flexible OR search across multiple fields
-      if (cleanInput && cleanEmail) {
-        query = query
-          .or(`order_number.eq.${cleanInput},shopify_order_number.eq.${cleanInput},tracking_number.eq.${cleanInput},id.eq.${cleanInput}`)
-          .eq('order_email', cleanEmail);
-      } else if (cleanInput) {
-        // Allow search by just order number / tracking number
-        query = query
-          .or(`order_number.eq.${cleanInput},shopify_order_number.eq.${cleanInput},tracking_number.eq.${cleanInput},id.eq.${cleanInput}`);
-      } else if (cleanEmail) {
-        // Allow search by just email (returns latest order)
-        query = query
-          .eq('order_email', cleanEmail)
-          .order('created_at', { ascending: false })
-          .limit(1);
+      if (orFilters.length > 0) {
+        query = query.or(orFilters.join(','));
       }
 
       const { data, error } = await query.maybeSingle();
@@ -165,7 +175,7 @@ const TrackOrder = () => {
         console.error('Order search error:', error);
         setNotFound(true);
       } else if (data) {
-        setOrderData(data);
+        setOrderData(data as OrderData);
       } else {
         setNotFound(true);
       }
@@ -198,11 +208,11 @@ const TrackOrder = () => {
     sv: {
       pageTitle: 'Spåra din order',
       pageBadge: 'Orderspårning',
-      pageDescription: 'Ange ditt ordernummer och e-postadress för att se status på din leverans.',
+      pageDescription: 'Ange ordernummer eller e-postadress för att se status på din leverans.',
       orderNumber: 'Ordernummer',
-      orderNumberPlaceholder: 'T.ex. #1001',
+      orderNumberPlaceholder: 'T.ex. ORD-00017 eller Stripe-session',
       email: 'E-postadress',
-      emailPlaceholder: 'din@email.se',
+      emailPlaceholder: 'din@email.se (valfritt)',
       searchButton: 'Sök order',
       searching: 'Söker...',
       notFoundTitle: 'Ingen order hittades',
@@ -219,11 +229,11 @@ const TrackOrder = () => {
     en: {
       pageTitle: 'Track your order',
       pageBadge: 'Order Tracking',
-      pageDescription: 'Enter your order number and email to check your delivery status.',
+      pageDescription: 'Enter order number or email to check your delivery status.',
       orderNumber: 'Order number',
-      orderNumberPlaceholder: 'E.g. #1001',
+      orderNumberPlaceholder: 'E.g. ORD-00017 or Stripe session',
       email: 'Email address',
-      emailPlaceholder: 'your@email.com',
+      emailPlaceholder: 'your@email.com (optional)',
       searchButton: 'Search order',
       searching: 'Searching...',
       notFoundTitle: 'No order found',
@@ -343,7 +353,6 @@ const TrackOrder = () => {
                     id="orderNumber"
                     value={orderNumber}
                     onChange={(e) => setOrderNumber(e.target.value)}
-                    required
                     placeholder={t.orderNumberPlaceholder}
                   />
                 </div>
@@ -419,7 +428,7 @@ const TrackOrder = () => {
                     : 'Your payment could not be processed. You can try again below.'}
                 </p>
                 <p className="text-sm text-muted-foreground mb-6">
-                  {language === 'sv' ? 'Order' : 'Order'} #{orderData.shopify_order_number || orderData.id.slice(0, 8)} · {formatDate(orderData.created_at)}
+                  {language === 'sv' ? 'Order' : 'Order'} {orderData.order_number || orderData.shopify_order_number || orderData.id.slice(0, 8)} · {formatDate(orderData.created_at)}
                 </p>
                 <Button
                   onClick={async () => {
@@ -473,7 +482,7 @@ const TrackOrder = () => {
                 <div className="flex items-center justify-between mb-8">
                   <div>
                     <p className="text-sm text-muted-foreground">
-                      {t.orderDetails} #{orderData.shopify_order_number || orderData.id.slice(0, 8)}
+                      {t.orderDetails} {orderData.order_number || orderData.shopify_order_number || orderData.id.slice(0, 8)}
                     </p>
                     <p className="text-sm text-muted-foreground mt-1">
                       {t.orderDate}: {formatDate(orderData.created_at)}
