@@ -68,9 +68,18 @@ const DbProductCard = ({ product, index, compact = false }: DbProductCardProps) 
     ? Math.round((1 - product.price / product.original_price) * 100)
     : null;
 
+  const maxAddable = !product.allow_overselling
+    ? Math.max(0, availableStock - quantityInCart)
+    : Infinity;
+
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+
+    if (!product.allow_overselling && quantity + quantityInCart > availableStock) {
+      toast.error(lang === 'sv' ? `Max ${availableStock} st i lager` : `Max ${availableStock} in stock`);
+      return;
+    }
 
     const cartProduct = {
       dbId: product.id,
