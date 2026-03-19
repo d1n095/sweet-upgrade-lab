@@ -163,19 +163,19 @@ const TrackOrder = () => {
         .from('orders')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(1);
+        .limit(20);
 
       if (orFilters.length > 0) {
         query = query.or(orFilters.join(','));
       }
 
-      const { data, error } = await query.maybeSingle();
+      const { data, error } = await query;
 
       if (error) {
         console.error('Order search error:', error);
         setNotFound(true);
-      } else if (data) {
-        setOrderData(data as OrderData);
+      } else if (data && data.length > 0) {
+        setOrderData(data[0] as OrderData);
       } else {
         setNotFound(true);
       }
