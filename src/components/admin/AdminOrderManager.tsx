@@ -425,7 +425,12 @@ const AdminOrderManager = () => {
     return statusOptions.find(s => s.value === status)?.color || 'bg-secondary text-secondary-foreground';
   };
 
-  const filteredOrders = filter === 'all' ? orders : orders.filter(o => o.status === filter);
+  const filteredOrders = orders.filter(o => {
+    if (filter !== 'all' && o.status !== filter) return false;
+    if (paymentFilter === 'paid' && o.payment_status !== 'paid') return false;
+    if (paymentFilter === 'unpaid' && o.payment_status === 'paid') return false;
+    return true;
+  });
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString(language === 'sv' ? 'sv-SE' : 'en-US', {
@@ -568,6 +573,19 @@ const AdminOrderManager = () => {
             </Button>
           );
         })}
+      </div>
+
+      {/* Payment Status Filters */}
+      <div className="flex flex-wrap gap-2">
+        <Button variant={paymentFilter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setPaymentFilter('all')}>
+          {content.paymentAll}
+        </Button>
+        <Button variant={paymentFilter === 'paid' ? 'default' : 'outline'} size="sm" onClick={() => setPaymentFilter('paid')}>
+          {content.paid} ({orders.filter(o => o.payment_status === 'paid').length})
+        </Button>
+        <Button variant={paymentFilter === 'unpaid' ? 'default' : 'outline'} size="sm" onClick={() => setPaymentFilter('unpaid')}>
+          {content.unpaid} ({orders.filter(o => o.payment_status !== 'paid').length})
+        </Button>
       </div>
 
       {/* Orders List */}
