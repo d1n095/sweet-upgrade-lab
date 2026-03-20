@@ -591,7 +591,7 @@ const AdminDbProductManager = () => {
                 {t.addProduct}
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="max-w-2xl max-h-[95vh]">
               <DialogHeader><DialogTitle>{t.addProduct}</DialogTitle></DialogHeader>
               <AdminProductForm
                 t={t} language={language}
@@ -697,8 +697,8 @@ const AdminDbProductManager = () => {
 
       {/* Edit Dialog */}
       <Dialog open={isEditOpen} onOpenChange={(open) => { setIsEditOpen(open); if (!open) { setSelected(null); resetForm(); } }}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>{t.editProduct}: {selected?.title_sv}</DialogTitle></DialogHeader>
+        <DialogContent className="max-w-2xl max-h-[95vh]">
+          <DialogHeader><DialogTitle className="truncate">{t.editProduct}: {selected?.title_sv}</DialogTitle></DialogHeader>
           <AdminProductForm
             t={t} language={language}
             productCategories={productCategories} suggestedTags={suggestedTags}

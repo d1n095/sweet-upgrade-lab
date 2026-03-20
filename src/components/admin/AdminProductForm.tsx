@@ -544,7 +544,11 @@ export function AdminProductForm({
   );
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+    <form onSubmit={onSubmit} className="space-y-5 max-h-[85vh] overflow-y-auto pr-2 -mr-2">
+      {/* ── Step 1: Grundinfo ── */}
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+        {language === 'sv' ? '📦 Grundinfo' : '📦 Basic Info'}
+      </p>
       <div className="space-y-2">
         <Label htmlFor="title">{t.productName}</Label>
         <Input
@@ -673,6 +677,9 @@ export function AdminProductForm({
       </div>
 
       {/* Visibility & Inventory */}
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider pt-2">
+        {language === 'sv' ? '💰 Pris & lager' : '💰 Price & Inventory'}
+      </p>
       <div className="bg-secondary/30 rounded-lg p-4 space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -783,6 +790,9 @@ export function AdminProductForm({
       </div>
 
       {/* Image upload section */}
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider pt-2">
+        {language === 'sv' ? '🖼️ Media & innehåll' : '🖼️ Media & Content'}
+      </p>
       <div className="space-y-2">
         <Label className="flex items-center gap-2"><Image className="w-4 h-4" /> Produktbilder</Label>
         <div className="flex flex-wrap gap-2 mb-2">
