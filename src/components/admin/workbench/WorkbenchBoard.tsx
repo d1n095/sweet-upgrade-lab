@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-  Plus, User, Clock, CheckCircle2, Circle, Play, X, Zap, UserCheck,
+  Plus, User, Clock, CheckCircle2, Circle, Play, X, Zap, UserCheck, RotateCcw, Bot,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -69,6 +69,45 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const [newType, setNewType] = useState('general');
   const [creating, setCreating] = useState(false);
   const [autoAssigning, setAutoAssigning] = useState(false);
+  const [runningAutomation, setRunningAutomation] = useState(false);
+
+  // Recent automation logs for badges
+  const { data: automationLogs = [] } = useQuery({
+    queryKey: ['automation-logs-recent'],
+    queryFn: async () => {
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { data } = await supabase
+        .from('automation_logs')
+        .select('*')
+        .gte('created_at', since)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      return data || [];
+    },
+  });
+
+  const getTaskAutomationBadge = (taskId: string) => {
+    const log = automationLogs.find(l => l.target_id === taskId);
+    if (!log) return null;
+    return log.action_type;
+  };
+
+  const runAutomation = async () => {
+    setRunningAutomation(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('automation-engine');
+      if (error) throw error;
+      const r = data?.results;
+      toast.success(`Automation klar: ${r?.escalated || 0} eskalerade, ${r?.reassigned || 0} omfördelade, ${r?.reprioritized || 0} omprior., ${r?.alerts || 0} alerts`);
+      queryClient.invalidateQueries({ queryKey: ['staff-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['automation-logs-recent'] });
+      queryClient.invalidateQueries({ queryKey: ['workbench-stats'] });
+    } catch (e: any) {
+      toast.error('Automation misslyckades: ' + e.message);
+    } finally {
+      setRunningAutomation(false);
+    }
+  };
 
   // Fetch staff profiles for displaying assigned names
   const { data: staffProfiles = [] } = useQuery({
@@ -217,6 +256,10 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
               Auto-fördela ({openCount})
             </Button>
           )}
+          <Button size="sm" variant="outline" className="gap-1.5" onClick={runAutomation} disabled={runningAutomation}>
+            <Bot className="w-4 h-4" />
+            {runningAutomation ? 'Kör...' : 'Automation'}
+          </Button>
           <Button size="sm" className="gap-1.5" onClick={() => setShowCreate(!showCreate)}>
             {showCreate ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
             {showCreate ? 'Stäng' : 'Ny uppgift'}
@@ -284,6 +327,14 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
                         <Badge variant="secondary" className="text-[9px]">
                           {TASK_TYPES.find(t => t.key === task.task_type)?.label || task.task_type}
                         </Badge>
+                        {getTaskAutomationBadge(task.id) && (
+                          <Badge variant="outline" className="text-[9px] gap-0.5 bg-purple-100 text-purple-700 border-purple-200">
+                            <Bot className="w-2.5 h-2.5" />
+                            {getTaskAutomationBadge(task.id) === 'escalate' ? 'Eskalerad' :
+                             getTaskAutomationBadge(task.id) === 'reassign' ? 'Omfördelad' :
+                             getTaskAutomationBadge(task.id) === 'reprioritize' ? 'Omprioriterad' : 'Auto'}
+                          </Badge>
+                        )}
                         {task.assigned_to && (
                           <Badge variant="outline" className="text-[9px] gap-0.5">
                             <UserCheck className="w-2.5 h-2.5" />
