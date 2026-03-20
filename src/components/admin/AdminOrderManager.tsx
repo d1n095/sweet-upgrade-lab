@@ -79,6 +79,9 @@ const AdminOrderManager = () => {
   const [filter, setFilter] = useState<string>('all');
   const [paymentFilter, setPaymentFilter] = useState<string>('all');
   const [fulfillmentTab, setFulfillmentTab] = useState<string>('all');
+  const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
+  const [batchProcessing, setBatchProcessing] = useState(false);
+  const [batchProgress, setBatchProgress] = useState({ done: 0, total: 0 });
 
   const t = {
     sv: {
