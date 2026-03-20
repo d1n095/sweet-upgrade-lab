@@ -67,6 +67,7 @@ export type DbProductInsert = Omit<DbProduct, 'id' | 'created_at' | 'updated_at'
   meta_keywords?: string | null;
   weight_grams?: number | null;
   status?: ProductStatus;
+  is_sellable?: boolean;
 };
 
 export const fetchDbProducts = async (adminView = false): Promise<DbProduct[]> => {
