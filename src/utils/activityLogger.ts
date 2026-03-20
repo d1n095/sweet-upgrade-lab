@@ -1,7 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 
 type LogType = 'info' | 'success' | 'error' | 'warning';
-type LogCategory = 'order' | 'admin' | 'system' | 'payment' | 'product' | 'auth' | 'security' | 'shipping' | 'campaign' | 'ingredient' | 'recipe';
+type LogCategory = 'order' | 'admin' | 'system' | 'payment' | 'product' | 'auth' | 'security' | 'shipping' | 'campaign' | 'ingredient' | 'recipe' | 'fulfillment';
 
 interface LogEntry {
   log_type: LogType;

@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import {
   Plus, GripVertical, User, Clock, AlertTriangle, CheckCircle2, Circle, Play, X,
 } from 'lucide-react';
+import { Package } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
