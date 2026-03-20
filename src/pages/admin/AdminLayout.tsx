@@ -188,7 +188,8 @@ const AdminLayout = () => {
             <AdminGlobalSearch />
             <h2 className="text-sm font-semibold">{currentPage?.label || 'Admin'}</h2>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <AdminNotificationBell />
             {!siteActive && (
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-destructive/10 border border-destructive/20">
                 <span className="w-1.5 h-1.5 rounded-full bg-destructive animate-pulse" />
