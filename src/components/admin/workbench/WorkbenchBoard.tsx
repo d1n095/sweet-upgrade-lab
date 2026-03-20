@@ -256,6 +256,10 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
               Auto-fördela ({openCount})
             </Button>
           )}
+          <Button size="sm" variant="outline" className="gap-1.5" onClick={runAutomation} disabled={runningAutomation}>
+            <Bot className="w-4 h-4" />
+            {runningAutomation ? 'Kör...' : 'Automation'}
+          </Button>
           <Button size="sm" className="gap-1.5" onClick={() => setShowCreate(!showCreate)}>
             {showCreate ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
             {showCreate ? 'Stäng' : 'Ny uppgift'}
