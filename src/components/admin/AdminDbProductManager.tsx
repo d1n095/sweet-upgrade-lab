@@ -306,6 +306,7 @@ const AdminDbProductManager = () => {
         meta_keywords: formData.metaKeywords || null,
         weight_grams: formData.weightGrams ? parseInt(formData.weightGrams) : null,
       } as any);
+      await setProductCategories(selected.id, formData.categoryIds);
       toast.success(t.productUpdated);
       queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });
       setIsEditOpen(false);
