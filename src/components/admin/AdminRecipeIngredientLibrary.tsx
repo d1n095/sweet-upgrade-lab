@@ -114,7 +114,10 @@ const AdminRecipeIngredientLibrary = () => {
           category: form.category,
           description_sv: form.description_sv.trim() || null,
           description_en: form.description_en.trim() || null,
+          benefits_sv: form.benefits_sv ? form.benefits_sv.split(',').map(s => s.trim()).filter(Boolean) : [],
+          risks_sv: form.risks_sv ? form.risks_sv.split(',').map(s => s.trim()).filter(Boolean) : [],
           is_active: form.is_active,
+          is_searchable: form.is_searchable,
           updated_at: new Date().toISOString(),
         }).eq('id', editing.id);
         toast.success('Ingrediens uppdaterad!');
