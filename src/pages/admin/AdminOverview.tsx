@@ -126,6 +126,7 @@ const AdminOverview = () => {
       icon: ShoppingCart,
       color: 'text-blue-600',
       bgColor: 'bg-blue-500/10',
+      href: '/admin/orders',
     },
     {
       title: 'Intäkter idag',
@@ -133,6 +134,7 @@ const AdminOverview = () => {
       icon: DollarSign,
       color: 'text-green-600',
       bgColor: 'bg-green-500/10',
+      href: '/admin/finance',
     },
     {
       title: 'Väntande ordrar',
@@ -140,6 +142,7 @@ const AdminOverview = () => {
       icon: Clock,
       color: 'text-amber-600',
       bgColor: 'bg-amber-500/10',
+      href: '/admin/orders',
     },
     {
       title: 'Produkter',
@@ -147,6 +150,7 @@ const AdminOverview = () => {
       icon: Package,
       color: 'text-primary',
       bgColor: 'bg-primary/10',
+      href: '/admin/products',
     },
   ];
 
