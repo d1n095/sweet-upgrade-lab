@@ -17,6 +17,7 @@ import ProductIngredients from '@/components/product/ProductIngredients';
 import ProductCertifications from '@/components/product/ProductCertifications';
 import ZoomableImage from '@/components/product/ZoomableImage';
 import MobileBuyBar from '@/components/product/MobileBuyBar';
+import RelatedProducts from '@/components/product/RelatedProducts';
 import SEOHead from '@/components/seo/SEOHead';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
