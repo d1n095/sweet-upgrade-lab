@@ -168,7 +168,7 @@ const AdminOverview = () => {
         {topCards.map((card) => (
           <Card
             key={card.title}
-            className="border-border cursor-pointer hover:shadow-md hover:border-primary/20 transition-all group"
+            className="border-border cursor-pointer hover:shadow-md hover:border-primary/20 transition-all active:scale-[0.97] group"
             onClick={() => navigate(card.href)}
           >
             <CardContent className="pt-5 pb-4">
@@ -178,7 +178,7 @@ const AdminOverview = () => {
                   <card.icon className={`w-4 h-4 ${card.color}`} />
                 </div>
               </div>
-              <p className="text-2xl font-bold">{loading ? '–' : card.value}</p>
+              <p className="text-xl sm:text-2xl font-bold">{loading ? '–' : card.value}</p>
             </CardContent>
           </Card>
         ))}
