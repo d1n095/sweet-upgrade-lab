@@ -50,7 +50,7 @@ const AdminNotificationBell = () => {
         table: 'notifications',
       }, (payload) => {
         const n = payload.new as any as Notification;
-        if (n.user_id === user?.id) {
+        if (n?.user_id === user?.id) {
           setNotifications(prev => [n, ...prev].slice(0, 20));
         }
       })
