@@ -23,6 +23,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/context/LanguageContext';
 import { toast } from 'sonner';
 import { logActivity } from '@/utils/activityLogger';
+import { getOrderDisplayId } from '@/utils/orderDisplay';
 
 interface Order {
   id: string;
