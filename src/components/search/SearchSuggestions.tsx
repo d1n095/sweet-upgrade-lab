@@ -66,14 +66,46 @@ const SearchSuggestions = () => {
         const q = searchQuery.trim().toLowerCase();
 
         if (q) {
-          // Search products by title AND ingredients
+          // Search products by title, ingredients AND tags
           const { data } = await supabase
             .from('products')
-            .select('id, title_sv, title_en, handle, price, currency, image_urls, ingredients_sv, ingredients_en, status')
+            .select('id, title_sv, title_en, handle, price, currency, image_urls, ingredients_sv, ingredients_en, status, tags')
             .eq('is_visible', true)
             .in('status', ['active', 'coming_soon', 'info'])
-            .or(`title_sv.ilike.%${q}%,title_en.ilike.%${q}%,ingredients_sv.ilike.%${q}%,ingredients_en.ilike.%${q}%`)
+            .or(`title_sv.ilike.%${q}%,title_en.ilike.%${q}%,ingredients_sv.ilike.%${q}%,ingredients_en.ilike.%${q}%,tags.cs.{${q}}`)
             .limit(8);
+
+          // Also search product_tags table for matching tag names
+          const { data: tagMatches } = await supabase
+            .from('product_tags')
+            .select('id, name_sv')
+            .ilike('name_sv', `%${q}%`)
+            .limit(5);
+
+          // If we found matching tags, get products with those tags
+          let tagProductIds: string[] = [];
+          if (tagMatches && tagMatches.length > 0) {
+            const tagIds = tagMatches.map(t => t.id);
+            const { data: relations } = await supabase
+              .from('product_tag_relations')
+              .select('product_id')
+              .in('tag_id', tagIds);
+            tagProductIds = (relations || []).map(r => r.product_id);
+          }
+
+          // Fetch tag-matched products not already in results
+          let extraProducts: DbProductResult[] = [];
+          const existingIds = new Set((data || []).map(p => p.id));
+          const missingTagProductIds = tagProductIds.filter(id => !existingIds.has(id));
+          if (missingTagProductIds.length > 0) {
+            const { data: tagProds } = await supabase
+              .from('products')
+              .select('id, title_sv, title_en, handle, price, currency, image_urls, ingredients_sv, ingredients_en, status')
+              .in('id', missingTagProductIds.slice(0, 4))
+              .eq('is_visible', true)
+              .in('status', ['active', 'coming_soon', 'info']);
+            extraProducts = (tagProds || []) as DbProductResult[];
+          }
 
           // Search ingredients from recipe_ingredients
           const { data: ingData } = await supabase
