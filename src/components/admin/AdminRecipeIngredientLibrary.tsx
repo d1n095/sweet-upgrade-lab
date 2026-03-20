@@ -27,7 +27,10 @@ interface RecipeIngredient {
   category: string;
   description_sv: string | null;
   description_en: string | null;
+  benefits_sv: string[] | null;
+  risks_sv: string[] | null;
   is_active: boolean;
+  is_searchable: boolean;
   display_order: number;
 }
 
@@ -54,7 +57,10 @@ const AdminRecipeIngredientLibrary = () => {
     category: 'Övrigt',
     description_sv: '',
     description_en: '',
+    benefits_sv: '',
+    risks_sv: '',
     is_active: true,
+    is_searchable: true,
   });
 
   const categories = [...new Set([...DEFAULT_CATEGORIES, ...ingredients.map(i => i.category)])].sort();
@@ -73,7 +79,7 @@ const AdminRecipeIngredientLibrary = () => {
   useEffect(() => { fetchIngredients(); }, [fetchIngredients]);
 
   const resetForm = () => {
-    setForm({ name_sv: '', name_en: '', category: 'Övrigt', description_sv: '', description_en: '', is_active: true });
+    setForm({ name_sv: '', name_en: '', category: 'Övrigt', description_sv: '', description_en: '', benefits_sv: '', risks_sv: '', is_active: true, is_searchable: true });
     setEditing(null);
   };
 
@@ -87,7 +93,10 @@ const AdminRecipeIngredientLibrary = () => {
       category: item.category,
       description_sv: item.description_sv || '',
       description_en: item.description_en || '',
+      benefits_sv: (item.benefits_sv || []).join(', '),
+      risks_sv: (item.risks_sv || []).join(', '),
       is_active: item.is_active,
+      is_searchable: item.is_searchable,
     });
     setIsFormOpen(true);
   };
@@ -103,7 +112,10 @@ const AdminRecipeIngredientLibrary = () => {
           category: form.category,
           description_sv: form.description_sv.trim() || null,
           description_en: form.description_en.trim() || null,
+          benefits_sv: form.benefits_sv ? form.benefits_sv.split(',').map(s => s.trim()).filter(Boolean) : [],
+          risks_sv: form.risks_sv ? form.risks_sv.split(',').map(s => s.trim()).filter(Boolean) : [],
           is_active: form.is_active,
+          is_searchable: form.is_searchable,
           updated_at: new Date().toISOString(),
         }).eq('id', editing.id);
         toast.success('Ingrediens uppdaterad!');
@@ -115,7 +127,10 @@ const AdminRecipeIngredientLibrary = () => {
           category: form.category,
           description_sv: form.description_sv.trim() || null,
           description_en: form.description_en.trim() || null,
+          benefits_sv: form.benefits_sv ? form.benefits_sv.split(',').map(s => s.trim()).filter(Boolean) : [],
+          risks_sv: form.risks_sv ? form.risks_sv.split(',').map(s => s.trim()).filter(Boolean) : [],
           is_active: form.is_active,
+          is_searchable: form.is_searchable,
           display_order: ingredients.length,
         });
         toast.success('Ingrediens tillagd!');
@@ -301,9 +316,29 @@ const AdminRecipeIngredientLibrary = () => {
                 rows={2}
               />
             </div>
+            <div className="space-y-2">
+              <Label>Fördelar (kommaseparerade)</Label>
+              <Input
+                value={form.benefits_sv}
+                onChange={e => setForm(f => ({ ...f, benefits_sv: e.target.value }))}
+                placeholder="Lugnande, antiinflammatorisk, doftande"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Risker (kommaseparerade)</Label>
+              <Input
+                value={form.risks_sv}
+                onChange={e => setForm(f => ({ ...f, risks_sv: e.target.value }))}
+                placeholder="Kan vara irriterande vid hög koncentration"
+              />
+            </div>
             <div className="flex items-center justify-between">
               <Label>Aktiv</Label>
               <Switch checked={form.is_active} onCheckedChange={v => setForm(f => ({ ...f, is_active: v }))} />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label>Sökbar (visas i sök)</Label>
+              <Switch checked={form.is_searchable} onCheckedChange={v => setForm(f => ({ ...f, is_searchable: v }))} />
             </div>
             <div className="flex gap-2 pt-2">
               <Button variant="outline" className="flex-1" onClick={() => { setIsFormOpen(false); resetForm(); }}>

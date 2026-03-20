@@ -71,22 +71,30 @@ const SearchSuggestions = () => {
             .from('products')
             .select('id, title_sv, title_en, handle, price, currency, image_urls, ingredients_sv, ingredients_en, status')
             .eq('is_visible', true)
-            .in('status', ['active', 'coming_soon'])
+            .in('status', ['active', 'coming_soon', 'info'])
             .or(`title_sv.ilike.%${q}%,title_en.ilike.%${q}%,ingredients_sv.ilike.%${q}%,ingredients_en.ilike.%${q}%`)
-            .limit(6);
+            .limit(8);
 
-          // Sort: active first, then coming_soon
+          // Search ingredients from recipe_ingredients
+          const { data: ingData } = await supabase
+            .from('recipe_ingredients')
+            .select('id, name_sv, name_en')
+            .eq('is_active', true)
+            .eq('is_searchable', true)
+            .or(`name_sv.ilike.%${q}%,name_en.ilike.%${q}%`)
+            .limit(5);
+
+          // Sort: active first, then coming_soon, then info
+          const statusOrder: Record<string, number> = { active: 0, coming_soon: 1, info: 2 };
           const sorted = ((data || []) as DbProductResult[]).sort((a, b) => {
-            if (a.status === 'active' && b.status !== 'active') return -1;
-            if (a.status !== 'active' && b.status === 'active') return 1;
-            return 0;
+            return (statusOrder[a.status] ?? 3) - (statusOrder[b.status] ?? 3);
           });
           setSuggestions(sorted);
 
           // Log search to search_logs for admin analytics
           logSearchStandalone(q, (data || []).length);
 
-          // Find which ingredients matched
+          // Find which ingredients matched (from both product text and ingredient DB)
           const matched = new Set<string>();
           (data || []).forEach((p: any) => {
             const ingStr = language === 'sv' ? p.ingredients_sv : (p.ingredients_en || p.ingredients_sv);
@@ -96,7 +104,12 @@ const SearchSuggestions = () => {
               });
             }
           });
-          setIngredientMatches([...matched].slice(0, 3));
+          // Also add DB ingredient matches
+          (ingData || []).forEach((ing: any) => {
+            const name = language === 'sv' ? ing.name_sv : (ing.name_en || ing.name_sv);
+            if (name) matched.add(name);
+          });
+          setIngredientMatches([...matched].slice(0, 5));
 
           // Track ingredient search
           if (matched.size > 0) {
@@ -237,6 +250,11 @@ const SearchSuggestions = () => {
                         {product.status === 'coming_soon' && (
                           <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-[10px] font-medium">
                             {sv ? 'Kommer snart' : 'Coming soon'}
+                          </span>
+                        )}
+                        {product.status === 'info' && (
+                          <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 text-[10px] font-medium">
+                            {sv ? 'Info' : 'Info'}
                           </span>
                         )}
                       </div>

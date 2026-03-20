@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Package, FlaskConical, ChefHat, AlertTriangle, Eye, FileText, Archive, Image } from 'lucide-react';
+import { Package, FlaskConical, ChefHat, AlertTriangle, Eye, FileText, Archive, Image, BarChart3, Clock, Info } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger, ScrollableTabs } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,9 +8,10 @@ import AdminProductImportExport from '@/components/admin/AdminProductImportExpor
 import AdminRecipeIngredientLibrary from '@/components/admin/AdminRecipeIngredientLibrary';
 import AdminRecipeTemplateBuilder from '@/components/admin/AdminRecipeTemplateBuilder';
 import AdminImageGallery from '@/components/admin/AdminImageGallery';
+import AdminSearchAnalytics from '@/components/admin/AdminSearchAnalytics';
 
 const AdminProducts = () => {
-  const [stats, setStats] = useState({ total: 0, visible: 0, lowStock: 0, ingredients: 0, drafts: 0, archived: 0 });
+  const [stats, setStats] = useState({ total: 0, visible: 0, lowStock: 0, ingredients: 0, drafts: 0, archived: 0, comingSoon: 0, info: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -28,6 +29,8 @@ const AdminProducts = () => {
         ingredients: ingredients || 0,
         drafts: prods.filter(p => p.status === 'draft').length,
         archived: prods.filter(p => p.status === 'archived').length,
+        comingSoon: prods.filter(p => p.status === 'coming_soon').length,
+        info: prods.filter(p => p.status === 'info').length,
       });
       setLoading(false);
     };
@@ -44,10 +47,12 @@ const AdminProducts = () => {
         <AdminProductImportExport />
       </div>
 
-      <div className="grid grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
+      <div className="grid grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-3">
         {[
           { label: 'Aktiva', value: stats.total, icon: Package, color: 'text-primary' },
           { label: 'Synliga', value: stats.visible, icon: Eye, color: 'text-green-600' },
+          { label: 'Kommer snart', value: stats.comingSoon, icon: Clock, color: 'text-amber-600' },
+          { label: 'Info', value: stats.info, icon: Info, color: 'text-blue-600' },
           { label: 'Utkast', value: stats.drafts, icon: FileText, color: 'text-amber-600' },
           { label: 'Arkiverade', value: stats.archived, icon: Archive, color: 'text-blue-600' },
           { label: 'Lågt lager', value: stats.lowStock, icon: AlertTriangle, color: 'text-orange-600' },
@@ -80,6 +85,9 @@ const AdminProducts = () => {
             <TabsTrigger value="gallery" className="gap-1.5 text-xs">
               <Image className="w-3.5 h-3.5" /> Bildgalleri
             </TabsTrigger>
+            <TabsTrigger value="search" className="gap-1.5 text-xs">
+              <BarChart3 className="w-3.5 h-3.5" /> Sökdata
+            </TabsTrigger>
           </TabsList>
         </ScrollableTabs>
 
@@ -87,6 +95,7 @@ const AdminProducts = () => {
         <TabsContent value="ingredients"><AdminRecipeIngredientLibrary /></TabsContent>
         <TabsContent value="recipes"><AdminRecipeTemplateBuilder /></TabsContent>
         <TabsContent value="gallery"><AdminImageGallery /></TabsContent>
+        <TabsContent value="search"><AdminSearchAnalytics /></TabsContent>
       </Tabs>
     </div>
   );

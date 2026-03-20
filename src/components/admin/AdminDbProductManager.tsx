@@ -182,9 +182,9 @@ const AdminDbProductManager = () => {
       const updates: Record<string, any> = { status: newStatus };
       if (newStatus !== 'active') updates.is_visible = false;
       await updateDbProduct(product.id, updates);
-      const labels: Record<ProductStatus, string> = sv
-        ? { active: 'Aktiverad', draft: 'Flyttad till utkast', archived: 'Arkiverad' }
-        : { active: 'Activated', draft: 'Moved to drafts', archived: 'Archived' };
+      const labels: Partial<Record<ProductStatus, string>> = sv
+        ? { active: 'Aktiverad', draft: 'Flyttad till utkast', archived: 'Arkiverad', coming_soon: 'Kommer snart', info: 'Infosida', hidden: 'Dold' }
+        : { active: 'Activated', draft: 'Moved to drafts', archived: 'Archived', coming_soon: 'Coming soon', info: 'Info page', hidden: 'Hidden' };
       toast.success(labels[newStatus]);
       queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });
     } catch (err: any) {
@@ -355,9 +355,9 @@ const AdminDbProductManager = () => {
     for (const id of selectedIds) {
       try { await updateDbProduct(id, updates); updated++; } catch { /* skip */ }
     }
-    const labels: Record<ProductStatus, string> = sv
-      ? { active: 'aktiverade', draft: 'flyttade till utkast', archived: 'arkiverade' }
-      : { active: 'activated', draft: 'moved to drafts', archived: 'archived' };
+    const labels: Partial<Record<ProductStatus, string>> = sv
+      ? { active: 'aktiverade', draft: 'flyttade till utkast', archived: 'arkiverade', coming_soon: 'satta som kommer snart', info: 'satta som info', hidden: 'dolda' }
+      : { active: 'activated', draft: 'moved to drafts', archived: 'archived', coming_soon: 'set as coming soon', info: 'set as info', hidden: 'hidden' };
     toast.success(`${updated} ${sv ? 'produkter' : 'products'} ${labels[status]}`);
     setSelectedIds(new Set());
     queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });

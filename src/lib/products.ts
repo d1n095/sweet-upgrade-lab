@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 
-export type ProductStatus = 'active' | 'draft' | 'archived';
+export type ProductStatus = 'active' | 'draft' | 'archived' | 'coming_soon' | 'info' | 'hidden';
 
 export interface DbProduct {
   id: string;
@@ -40,11 +40,12 @@ export interface DbProduct {
   meta_keywords: string | null;
   weight_grams: number | null;
   status: ProductStatus;
+  is_sellable: boolean;
   created_at: string;
   updated_at: string;
 }
 
-export type DbProductInsert = Omit<DbProduct, 'id' | 'created_at' | 'updated_at' | 'handle' | 'ingredients_sv' | 'ingredients_en' | 'certifications' | 'reserved_stock' | 'currency' | 'recipe_sv' | 'recipe_en' | 'feeling_sv' | 'feeling_en' | 'effects_sv' | 'effects_en' | 'usage_sv' | 'usage_en' | 'extended_description_sv' | 'extended_description_en' | 'meta_title' | 'meta_description' | 'meta_keywords' | 'weight_grams' | 'status'> & {
+export type DbProductInsert = Omit<DbProduct, 'id' | 'created_at' | 'updated_at' | 'handle' | 'ingredients_sv' | 'ingredients_en' | 'certifications' | 'reserved_stock' | 'currency' | 'recipe_sv' | 'recipe_en' | 'feeling_sv' | 'feeling_en' | 'effects_sv' | 'effects_en' | 'usage_sv' | 'usage_en' | 'extended_description_sv' | 'extended_description_en' | 'meta_title' | 'meta_description' | 'meta_keywords' | 'weight_grams' | 'status' | 'is_sellable'> & {
   handle?: string;
   ingredients_sv?: string | null;
   ingredients_en?: string | null;
@@ -66,6 +67,7 @@ export type DbProductInsert = Omit<DbProduct, 'id' | 'created_at' | 'updated_at'
   meta_keywords?: string | null;
   weight_grams?: number | null;
   status?: ProductStatus;
+  is_sellable?: boolean;
 };
 
 export const fetchDbProducts = async (adminView = false): Promise<DbProduct[]> => {
@@ -110,8 +112,33 @@ export const fetchDbProductByHandle = async (handle: string): Promise<DbProduct 
     .select('*')
     .eq('handle', handle)
     .eq('is_visible', true)
-    .eq('status', 'active')
+    .in('status', ['active', 'coming_soon', 'info'])
     .maybeSingle();
   if (error) throw error;
   return data as DbProduct | null;
+};
+
+// Fetch product ingredients (many-to-many)
+export const fetchProductIngredients = async (productId: string) => {
+  const { data, error } = await supabase
+    .from('product_ingredients')
+    .select('*, recipe_ingredients(*)')
+    .eq('product_id', productId)
+    .order('display_order');
+  if (error) throw error;
+  return data || [];
+};
+
+// Set product ingredients (replace all)
+export const setProductIngredients = async (productId: string, ingredientIds: string[]) => {
+  await supabase.from('product_ingredients').delete().eq('product_id', productId);
+  if (ingredientIds.length > 0) {
+    const rows = ingredientIds.map((id, i) => ({
+      product_id: productId,
+      ingredient_id: id,
+      display_order: i,
+    }));
+    const { error } = await supabase.from('product_ingredients').insert(rows);
+    if (error) throw error;
+  }
 };
