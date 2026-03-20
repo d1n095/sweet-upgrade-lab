@@ -226,7 +226,11 @@ const Checkout = () => {
     console.log(`=== ${step} ===`);
   };
 
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
+
   const startCheckout = useCallback(async () => {
+    if (isCheckingOut) return;
+    setIsCheckingOut(true);
     setDebugSteps([]);
     addDebugStep('✅ REAL PAY HANDLER TRIGGERED');
     setCheckoutError(null);
@@ -256,10 +260,16 @@ const Checkout = () => {
         paymentMethod: selectedPayment,
       };
 
-      const { data: sessionData } = await supabase.auth.getSession();
+      // Get auth token in parallel with nothing else blocking
+      const tokenPromise = supabase.auth.getSession();
+
+      const { data: sessionData } = await tokenPromise;
       const accessToken = sessionData.session?.access_token;
 
       addDebugStep(`🔑 Auth token: ${accessToken ? 'YES' : 'NO'}`);
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
 
       const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout`, {
         method: 'POST',
@@ -269,8 +279,10 @@ const Checkout = () => {
           ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         },
         body: JSON.stringify(checkoutBody),
+        signal: controller.signal,
       });
 
+      clearTimeout(timeoutId);
       addDebugStep(`📥 FETCH COMPLETE — HTTP ${res.status}`);
 
       let data: any = null;
@@ -305,11 +317,14 @@ const Checkout = () => {
       addDebugStep('🚀 REDIRECT LINE REACHED — redirecting NOW');
       window.location.href = url;
     } catch (err: any) {
+      setIsCheckingOut(false);
       console.error('Checkout redirect failed:', err);
 
-      const message = typeof err?.message === 'string' && err.message.length > 0
-        ? err.message
-        : t.checkoutFailed;
+      const message = err?.name === 'AbortError'
+        ? t.checkoutTimeout
+        : typeof err?.message === 'string' && err.message.length > 0
+          ? err.message
+          : t.checkoutFailed;
 
       setCheckoutError(message);
       setDebugInfo(prev => ({ ...prev, step: 'failed', error: message }));
@@ -327,7 +342,7 @@ const Checkout = () => {
 
       toast.error(message);
     }
-  }, [cl, form, items, selectedPayment, t.checkoutFailed, total]);
+  }, [cl, form, items, selectedPayment, t.checkoutFailed, t.checkoutTimeout, total, isCheckingOut]);
 
   const handleSubmit = (event?: React.FormEvent | React.MouseEvent) => {
     event?.preventDefault();
