@@ -522,6 +522,53 @@ export type Database = {
         }
         Relationships: []
       }
+      categories: {
+        Row: {
+          created_at: string
+          display_order: number
+          icon: string | null
+          id: string
+          is_visible: boolean
+          name_en: string | null
+          name_sv: string
+          parent_id: string | null
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          icon?: string | null
+          id?: string
+          is_visible?: boolean
+          name_en?: string | null
+          name_sv: string
+          parent_id?: string | null
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          icon?: string | null
+          id?: string
+          is_visible?: boolean
+          name_en?: string | null
+          name_sv?: string
+          parent_id?: string | null
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       donation_projects: {
         Row: {
           created_at: string
@@ -1169,6 +1216,42 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      product_categories: {
+        Row: {
+          category_id: string
+          created_at: string
+          id: string
+          product_id: string
+        }
+        Insert: {
+          category_id: string
+          created_at?: string
+          id?: string
+          product_id: string
+        }
+        Update: {
+          category_id?: string
+          created_at?: string
+          id?: string
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_categories_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_categories_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       product_ingredients: {
         Row: {
