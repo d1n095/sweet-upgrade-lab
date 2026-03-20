@@ -2406,6 +2406,7 @@ export type Database = {
       staff_tasks: {
         Row: {
           assigned_to: string | null
+          claimed_at: string | null
           claimed_by: string | null
           completed_at: string | null
           created_at: string
@@ -2423,6 +2424,7 @@ export type Database = {
         }
         Insert: {
           assigned_to?: string | null
+          claimed_at?: string | null
           claimed_by?: string | null
           completed_at?: string | null
           created_at?: string
@@ -2440,6 +2442,7 @@ export type Database = {
         }
         Update: {
           assigned_to?: string | null
+          claimed_at?: string | null
           claimed_by?: string | null
           completed_at?: string | null
           created_at?: string

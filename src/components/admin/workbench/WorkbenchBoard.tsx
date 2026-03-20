@@ -182,10 +182,11 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
 
   const moveTask = async (taskId: string, newStatus: string) => {
     if (!user) return;
+    const now = new Date().toISOString();
     const updates: Record<string, any> = { status: newStatus };
-    if (newStatus === 'claimed') updates.claimed_by = user.id;
-    if (newStatus === 'in_progress') updates.claimed_by = user.id;
-    if (newStatus === 'done') updates.completed_at = new Date().toISOString();
+    if (newStatus === 'claimed') { updates.claimed_by = user.id; updates.claimed_at = now; }
+    if (newStatus === 'in_progress') { updates.claimed_by = user.id; if (!updates.claimed_at) updates.claimed_at = now; }
+    if (newStatus === 'done') updates.completed_at = now;
     const { error } = await supabase.from('staff_tasks').update(updates).eq('id', taskId);
     if (error) { toast.error('Kunde inte flytta uppgift'); return; }
     queryClient.invalidateQueries({ queryKey: ['staff-tasks'] });
