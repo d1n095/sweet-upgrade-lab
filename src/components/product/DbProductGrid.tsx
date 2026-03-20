@@ -160,6 +160,11 @@ const DbProductGrid = () => {
           })}
         </div>
 
+        {/* Use Case / Tag Filters */}
+        <div className="mb-8">
+          <UseCaseFilter selectedTagId={selectedTagId} onSelect={setSelectedTagId} />
+        </div>
+
         {/* Loading */}
         {isLoading && (
           <div className="flex flex-col items-center justify-center py-20">
