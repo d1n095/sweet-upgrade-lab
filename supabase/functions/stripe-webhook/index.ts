@@ -274,10 +274,6 @@ function ok(body: unknown) {
   });
 }
 
-function isStripeSessionId(value: string): boolean {
-  return /^cs_(test|live)_[A-Za-z0-9]+$/.test(value);
-}
-
 async function findOrderBySession(supabase: any, sessionId: string): Promise<string | null> {
   const { data } = await supabase
     .from('orders')
