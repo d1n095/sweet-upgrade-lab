@@ -39,6 +39,7 @@ interface FinanceData {
     total_amount: number;
     created_at: string;
     order_number: string | null;
+    payment_intent_id: string | null;
   }>;
 }
 
