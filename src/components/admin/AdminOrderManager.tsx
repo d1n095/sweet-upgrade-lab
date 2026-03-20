@@ -468,7 +468,7 @@ const AdminOrderManager = () => {
       }).eq('id', order.id);
       if (error) throw error;
       setOrders(prev => prev.map(o => o.id === order.id ? { ...o, fulfillment_status: 'packed', packed_at: new Date().toISOString(), packed_by: currentUser?.id || null, status: 'processing', status_history: newHistory } : o));
-      logActivity({ log_type: 'success', category: 'fulfillment', message: `Order ${order.order_number} packad`, order_id: order.id });
+      logActivity({ log_type: 'success', category: 'fulfillment', message: `Order ${getOrderDisplayId(order)} packad`, order_id: order.id });
       toast.success(language === 'sv' ? 'Order markerad som packad' : 'Order marked as packed');
     } catch (err) {
       console.error(err);
