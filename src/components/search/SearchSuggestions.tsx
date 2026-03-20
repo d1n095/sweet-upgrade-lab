@@ -252,6 +252,11 @@ const SearchSuggestions = () => {
                             {sv ? 'Kommer snart' : 'Coming soon'}
                           </span>
                         )}
+                        {product.status === 'info' && (
+                          <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 text-[10px] font-medium">
+                            {sv ? 'Info' : 'Info'}
+                          </span>
+                        )}
                       </div>
                       <p className="text-xs text-muted-foreground">
                         {formatPrice(product.price, product.currency)}
