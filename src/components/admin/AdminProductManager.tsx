@@ -500,7 +500,7 @@ const AdminProductManager = () => {
       setFormData({
         title: (node.title as string) || '', description: (node.description as string) || '',
         price: ((node.priceRange as any)?.minVariantPrice?.amount as string) || '0',
-        currency: 'SEK', productType: (node.productType as string) || '', categoryIds: [], tags,
+        currency: 'SEK', productType: (node.productType as string) || '', categoryIds: [], tagIds: [], tags,
         vendor: (node.vendor as string) || '4ThePeople',
         isVisible: (node.availableForSale as boolean) !== false,
         inventory: 0, allowOverselling: false, imageUrls: [],
