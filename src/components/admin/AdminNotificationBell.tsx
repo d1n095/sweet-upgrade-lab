@@ -10,8 +10,9 @@ import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { sv } from 'date-fns/locale';
 
-interface Notification {
+interface AdminNotif {
   id: string;
+  user_id: string;
   type: string;
   message: string;
   related_id: string | null;
