@@ -82,8 +82,6 @@ const AdminRecipeIngredientLibrary = () => {
     setForm({ name_sv: '', name_en: '', category: 'Övrigt', description_sv: '', description_en: '', benefits_sv: '', risks_sv: '', is_active: true, is_searchable: true });
     setEditing(null);
   };
-    setEditing(null);
-  };
 
   const openAdd = () => { resetForm(); setIsFormOpen(true); };
 
