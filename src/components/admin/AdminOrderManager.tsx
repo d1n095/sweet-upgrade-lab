@@ -676,7 +676,7 @@ const AdminOrderManager = () => {
       <p>${escHtml(addr.zip)} ${escHtml(addr.city)}</p>
       <p>${escHtml(addr.country || 'Sverige')}</p>
       ${addr.phone ? `<p>Tel: ${escHtml(addr.phone)}</p>` : ''}
-      <p class="order">${escHtml(order.order_number)}</p></div>
+      <p class="order">${escHtml(getOrderDisplayId(order))}</p></div>
       <script>window.print()</script></body></html>`;
     const w = window.open('', '_blank');
     if (w) { w.document.write(html); w.document.close(); }
