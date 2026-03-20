@@ -408,7 +408,7 @@ const AdminOrderManager = () => {
       logActivity({
         log_type: 'warning',
         category: 'order',
-        message: `Order raderad: ${order.order_number || order.id.slice(0, 8)}`,
+        message: `Order raderad: ${getOrderDisplayId(order)}`,
         details: { order_email: order.order_email, total: order.total_amount },
         order_id: order.id,
       });
