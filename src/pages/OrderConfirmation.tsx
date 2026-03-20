@@ -99,8 +99,8 @@ const OrderConfirmation = () => {
       badge: 'Tack för din beställning!',
       title: 'Din order är mottagen',
       subtitle: 'Vi har tagit emot din beställning och påbörjar behandlingen inom kort.',
-      orderNumberLabel: 'Ordernummer',
-      referenceLabel: 'Betalningsreferens',
+      orderNumberLabel: 'Order-ID',
+      referenceLabel: 'Referens',
       waitingTitle: 'Väntar på betalningsbekräftelse...',
       waitingDesc: 'Din betalning behandlas. Ordernumret visas automatiskt inom några sekunder.',
       steps: [
