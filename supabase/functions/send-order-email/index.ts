@@ -192,7 +192,7 @@ function renderStatusUpdateEmail(order: any, newStatus: string): string {
         ${status.desc}
       </p>
       <p style="color:${BRAND.muted};margin:0;font-size:13px;font-family:${BRAND.font};">
-        Order: <strong style="color:${BRAND.primary};">${order.order_number}</strong>
+        Order: <strong style="color:${BRAND.primary};">#${(order.payment_intent_id || order.id || '').slice(-8).toUpperCase()}</strong>
       </p>
       ${order.tracking_number ? `<p style="color:${BRAND.muted};margin:8px 0 0;font-size:13px;font-family:${BRAND.font};">Spårningsnummer: <strong>${order.tracking_number}</strong></p>` : ""}
     </div>
