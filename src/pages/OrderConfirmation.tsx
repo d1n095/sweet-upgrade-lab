@@ -48,12 +48,17 @@ const OrderConfirmation = () => {
         try {
           // Use lookup-order edge function to bypass RLS for guest users
           const { data: fnData, error: fnError } = await supabase.functions.invoke('lookup-order', {
-            body: { query: sessionId, email: '' },
+            body: { session_id: sessionId },
           });
 
           if (isCancelled || activeSessionRef.current !== sessionId) return;
 
-          if (!fnError && fnData?.found && fnData.order?.order_number) {
+          if (
+            !fnError &&
+            fnData?.found &&
+            fnData.order?.order_number &&
+            fnData.order?.stripe_session_id === sessionId
+          ) {
             const order = fnData.order;
             setOrderId(order.id);
             setOrderNumber(order.order_number);

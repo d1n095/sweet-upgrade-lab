@@ -25,11 +25,12 @@ serve(async (req) => {
     );
 
     const body = await req.json().catch(() => ({}));
+    const sessionId = (body.session_id || "").trim();
     const query = (body.query || "").trim();
     const email = (body.email || "").trim().toLowerCase();
 
-    if (!query && !email) {
-      return json({ error: "Missing query or email" }, 400);
+    if (!sessionId && !query && !email) {
+      return json({ error: "Missing session_id, query or email" }, 400);
     }
 
     // Build search — service role bypasses RLS
@@ -42,8 +43,10 @@ serve(async (req) => {
       .order("created_at", { ascending: false })
       .limit(1);
 
-    // If we have an order number/tracking/session, search by that + require email match
-    if (query) {
+    // Prefer explicit session lookup for confirmation page
+    if (sessionId) {
+      dbQuery = dbQuery.eq("stripe_session_id", sessionId);
+    } else if (query) {
       const orFilters = [
         `order_number.eq.${query}`,
         `shopify_order_number.eq.${query}`,
@@ -69,6 +72,11 @@ serve(async (req) => {
 
     const order = data[0];
 
+    // Extra guard to ensure exact confirmation lookup by Stripe session
+    if (sessionId && order.stripe_session_id !== sessionId) {
+      return json({ found: false });
+    }
+
     // If email was provided, verify it matches (prevents enumeration)
     if (email && order.order_email.toLowerCase() !== email) {
       return json({ found: false });
@@ -81,6 +89,7 @@ serve(async (req) => {
         id: order.id,
         order_number: order.order_number,
         shopify_order_number: order.shopify_order_number,
+        stripe_session_id: order.stripe_session_id,
         order_email: order.order_email,
         status: order.status,
         tracking_number: order.tracking_number,
