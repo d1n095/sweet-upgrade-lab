@@ -1170,6 +1170,45 @@ export type Database = {
         }
         Relationships: []
       }
+      product_ingredients: {
+        Row: {
+          created_at: string
+          display_order: number
+          id: string
+          ingredient_id: string
+          product_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          ingredient_id: string
+          product_id: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          ingredient_id?: string
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_ingredients_ingredient_id_fkey"
+            columns: ["ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "recipe_ingredients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_ingredients_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_sales: {
         Row: {
           created_at: string
@@ -1287,6 +1326,7 @@ export type Database = {
           image_urls: string[] | null
           ingredients_en: string | null
           ingredients_sv: string | null
+          is_sellable: boolean
           is_visible: boolean
           meta_description: string | null
           meta_keywords: string | null
@@ -1328,6 +1368,7 @@ export type Database = {
           image_urls?: string[] | null
           ingredients_en?: string | null
           ingredients_sv?: string | null
+          is_sellable?: boolean
           is_visible?: boolean
           meta_description?: string | null
           meta_keywords?: string | null
@@ -1369,6 +1410,7 @@ export type Database = {
           image_urls?: string[] | null
           ingredients_en?: string | null
           ingredients_sv?: string | null
+          is_sellable?: boolean
           is_visible?: boolean
           meta_description?: string | null
           meta_keywords?: string | null
@@ -1462,6 +1504,8 @@ export type Database = {
       }
       recipe_ingredients: {
         Row: {
+          benefits_en: string[] | null
+          benefits_sv: string[] | null
           category: string
           created_at: string
           description_en: string | null
@@ -1469,11 +1513,17 @@ export type Database = {
           display_order: number
           id: string
           is_active: boolean
+          is_searchable: boolean
           name_en: string | null
           name_sv: string
+          risks_en: string[] | null
+          risks_sv: string[] | null
+          slug: string | null
           updated_at: string
         }
         Insert: {
+          benefits_en?: string[] | null
+          benefits_sv?: string[] | null
           category?: string
           created_at?: string
           description_en?: string | null
@@ -1481,11 +1531,17 @@ export type Database = {
           display_order?: number
           id?: string
           is_active?: boolean
+          is_searchable?: boolean
           name_en?: string | null
           name_sv: string
+          risks_en?: string[] | null
+          risks_sv?: string[] | null
+          slug?: string | null
           updated_at?: string
         }
         Update: {
+          benefits_en?: string[] | null
+          benefits_sv?: string[] | null
           category?: string
           created_at?: string
           description_en?: string | null
@@ -1493,8 +1549,12 @@ export type Database = {
           display_order?: number
           id?: string
           is_active?: boolean
+          is_searchable?: boolean
           name_en?: string | null
           name_sv?: string
+          risks_en?: string[] | null
+          risks_sv?: string[] | null
+          slug?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -1738,25 +1798,49 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          matched_ingredient_id: string | null
+          matched_product_id: string | null
           results_count: number
           search_term: string
           session_id: string | null
+          user_id: string | null
         }
         Insert: {
           created_at?: string
           id?: string
+          matched_ingredient_id?: string | null
+          matched_product_id?: string | null
           results_count?: number
           search_term: string
           session_id?: string | null
+          user_id?: string | null
         }
         Update: {
           created_at?: string
           id?: string
+          matched_ingredient_id?: string | null
+          matched_product_id?: string | null
           results_count?: number
           search_term?: string
           session_id?: string | null
+          user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "search_logs_matched_ingredient_id_fkey"
+            columns: ["matched_ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "recipe_ingredients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "search_logs_matched_product_id_fkey"
+            columns: ["matched_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       shipping_carriers: {
         Row: {
