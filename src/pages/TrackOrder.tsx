@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { storeConfig } from '@/config/storeConfig';
 import { toast } from 'sonner';
+import { getOrderDisplayId } from '@/utils/orderDisplay';
 
 interface OrderData {
   id: string;
