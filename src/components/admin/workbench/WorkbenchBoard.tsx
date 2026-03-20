@@ -6,13 +6,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-  Plus, GripVertical, User, Clock, AlertTriangle, CheckCircle2, Circle, Play, X,
+  Plus, User, Clock, CheckCircle2, Circle, Play, X, Zap, UserCheck,
 } from 'lucide-react';
-import { Package } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -70,6 +68,31 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const [newPriority, setNewPriority] = useState('medium');
   const [newType, setNewType] = useState('general');
   const [creating, setCreating] = useState(false);
+  const [autoAssigning, setAutoAssigning] = useState(false);
+
+  // Fetch staff profiles for displaying assigned names
+  const { data: staffProfiles = [] } = useQuery({
+    queryKey: ['staff-profiles'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .in('role', ['admin', 'founder', 'moderator', 'warehouse', 'support', 'finance', 'it', 'manager', 'marketing'] as any[]);
+      if (!data?.length) return [];
+      const userIds = [...new Set(data.map(r => r.user_id))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, username')
+        .in('user_id', userIds);
+      return profiles || [];
+    },
+  });
+
+  const getStaffName = (userId: string | null) => {
+    if (!userId) return null;
+    const p = staffProfiles.find(s => s.user_id === userId);
+    return p?.username || userId.slice(0, 6);
+  };
 
   const { data: tasks = [], isLoading } = useQuery({
     queryKey: ['staff-tasks'],
@@ -83,7 +106,6 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     },
   });
 
-  // Realtime subscription
   useEffect(() => {
     const channel = supabase
       .channel('staff-tasks-realtime')
@@ -95,19 +117,60 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     return () => { supabase.removeChannel(channel); };
   }, [queryClient]);
 
+  // Auto-assign a single task using the DB function
+  const autoAssignSingle = async (taskId: string, taskType: string) => {
+    const { data, error } = await supabase.rpc('auto_assign_task', { p_task_type: taskType });
+    if (error || !data) {
+      toast.error('Ingen tillgänglig personal hittades');
+      return;
+    }
+    const { error: updateErr } = await supabase
+      .from('staff_tasks')
+      .update({ assigned_to: data, status: 'claimed', claimed_by: data } as any)
+      .eq('id', taskId);
+    if (updateErr) { toast.error('Kunde inte tilldela'); return; }
+    const name = getStaffName(data as string) || 'personal';
+    toast.success(`Auto-tilldelad till ${name}`);
+    queryClient.invalidateQueries({ queryKey: ['staff-tasks'] });
+  };
+
+  // Auto-assign ALL open tasks
+  const autoAssignAll = async () => {
+    const openTasks = tasks.filter(t => t.status === 'open' && !t.assigned_to);
+    if (!openTasks.length) { toast.info('Inga öppna uppgifter att fördela'); return; }
+    setAutoAssigning(true);
+    let assigned = 0;
+    for (const task of openTasks) {
+      const { data } = await supabase.rpc('auto_assign_task', { p_task_type: task.task_type });
+      if (data) {
+        await supabase.from('staff_tasks')
+          .update({ assigned_to: data, status: 'claimed', claimed_by: data } as any)
+          .eq('id', task.id);
+        assigned++;
+      }
+    }
+    toast.success(`${assigned} av ${openTasks.length} uppgifter fördelade`);
+    queryClient.invalidateQueries({ queryKey: ['staff-tasks'] });
+    setAutoAssigning(false);
+  };
+
   const handleCreate = async () => {
     if (!newTitle.trim() || !user) return;
     setCreating(true);
     try {
+      // Auto-assign on creation
+      const { data: bestUser } = await supabase.rpc('auto_assign_task', { p_task_type: newType });
       const { error } = await supabase.from('staff_tasks').insert({
         title: newTitle.trim(),
         description: newDesc.trim() || null,
         priority: newPriority,
         task_type: newType,
         created_by: user.id,
+        ...(bestUser ? { assigned_to: bestUser, status: 'claimed', claimed_by: bestUser } : {}),
       } as any);
       if (error) throw error;
-      toast.success('Uppgift skapad');
+      const name = bestUser ? getStaffName(bestUser as string) : null;
+      toast.success(name ? `Uppgift skapad → tilldelad ${name}` : 'Uppgift skapad (ingen tillgänglig)');
       setNewTitle(''); setNewDesc(''); setShowCreate(false);
       queryClient.invalidateQueries({ queryKey: ['staff-tasks'] });
     } catch (err: any) {
@@ -123,7 +186,6 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     if (newStatus === 'claimed') updates.claimed_by = user.id;
     if (newStatus === 'in_progress') updates.claimed_by = user.id;
     if (newStatus === 'done') updates.completed_at = new Date().toISOString();
-
     const { error } = await supabase.from('staff_tasks').update(updates).eq('id', taskId);
     if (error) { toast.error('Kunde inte flytta uppgift'); return; }
     queryClient.invalidateQueries({ queryKey: ['staff-tasks'] });
@@ -141,14 +203,24 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     return idx > 0 ? order[idx - 1] : null;
   };
 
+  const openCount = tasks.filter(t => t.status === 'open' && !t.assigned_to).length;
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <p className="text-sm text-muted-foreground">{tasks.filter(t => t.status !== 'done').length} aktiva uppgifter</p>
-        <Button size="sm" className="gap-1.5" onClick={() => setShowCreate(!showCreate)}>
-          {showCreate ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-          {showCreate ? 'Stäng' : 'Ny uppgift'}
-        </Button>
+        <div className="flex gap-2">
+          {openCount > 0 && (
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={autoAssignAll} disabled={autoAssigning}>
+              <Zap className="w-4 h-4" />
+              Auto-fördela ({openCount})
+            </Button>
+          )}
+          <Button size="sm" className="gap-1.5" onClick={() => setShowCreate(!showCreate)}>
+            {showCreate ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+            {showCreate ? 'Stäng' : 'Ny uppgift'}
+          </Button>
+        </div>
       </div>
 
       {showCreate && (
@@ -156,7 +228,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
           <CardContent className="pt-4 pb-4 space-y-3">
             <Input placeholder="Uppgiftsnamn..." value={newTitle} onChange={e => setNewTitle(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleCreate()} />
             <Textarea placeholder="Beskrivning (valfritt)..." value={newDesc} onChange={e => setNewDesc(e.target.value)} rows={2} />
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <Select value={newPriority} onValueChange={setNewPriority}>
                 <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -173,6 +245,9 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
               </Select>
               <Button onClick={handleCreate} disabled={creating || !newTitle.trim()}>Skapa</Button>
             </div>
+            <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+              <Zap className="w-3 h-3" /> Uppgiften auto-tilldelas vid skapande
+            </p>
           </CardContent>
         </Card>
       )}
@@ -208,6 +283,12 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
                         <Badge variant="secondary" className="text-[9px]">
                           {TASK_TYPES.find(t => t.key === task.task_type)?.label || task.task_type}
                         </Badge>
+                        {task.assigned_to && (
+                          <Badge variant="outline" className="text-[9px] gap-0.5">
+                            <UserCheck className="w-2.5 h-2.5" />
+                            {getStaffName(task.assigned_to)}
+                          </Badge>
+                        )}
                         {task.due_at && (
                           <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
                             <Clock className="w-3 h-3" />
@@ -216,6 +297,12 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
                         )}
                       </div>
                       <div className="flex gap-1 pt-1">
+                        {task.status === 'open' && !task.assigned_to && (
+                          <Button variant="outline" size="sm" className="text-[10px] h-6 px-2 gap-0.5"
+                            onClick={() => autoAssignSingle(task.id, task.task_type)}>
+                            <Zap className="w-3 h-3" /> Tilldela
+                          </Button>
+                        )}
                         {getPrevStatus(task.status) && (
                           <Button variant="ghost" size="sm" className="text-[10px] h-6 px-2" onClick={() => moveTask(task.id, getPrevStatus(task.status)!)}>
                             ← Tillbaka

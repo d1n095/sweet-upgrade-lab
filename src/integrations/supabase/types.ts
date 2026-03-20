@@ -2639,6 +2639,7 @@ export type Database = {
           username: string
         }[]
       }
+      auto_assign_task: { Args: { p_task_type: string }; Returns: string }
       calculate_level: { Args: { p_xp: number }; Returns: number }
       check_review_eligibility: {
         Args: { p_product_id: string; p_user_id: string }
