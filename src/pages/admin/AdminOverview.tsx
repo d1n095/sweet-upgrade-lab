@@ -133,7 +133,7 @@ const AdminOverview = () => {
 
         const { data: recent } = await supabase
           .from('orders')
-          .select('id, order_email, total_amount, status, payment_status, created_at, order_number')
+          .select('id, order_email, total_amount, status, payment_status, created_at, order_number, payment_intent_id')
           .order('created_at', { ascending: false })
           .limit(5);
         setRecentOrders((recent || []) as RecentOrder[]);
