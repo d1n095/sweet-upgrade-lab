@@ -44,6 +44,11 @@ interface Order {
   refund_status: string | null;
   refund_amount: number | null;
   refunded_at: string | null;
+  fulfillment_status: string;
+  packed_by: string | null;
+  packed_at: string | null;
+  shipped_by: string | null;
+  shipped_at: string | null;
 }
 
 const statusOptions = [
@@ -73,12 +78,20 @@ const AdminOrderManager = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [filter, setFilter] = useState<string>('all');
   const [paymentFilter, setPaymentFilter] = useState<string>('all');
+  const [fulfillmentTab, setFulfillmentTab] = useState<string>('all');
 
   const t = {
     sv: {
       title: 'Orderhantering',
       subtitle: 'Hantera och spåra alla ordrar',
       noOrders: 'Inga ordrar hittades',
+      toPack: 'Att packa',
+      packed: 'Packade',
+      fulfillmentAll: 'Alla',
+      markPacked: 'Markera packad',
+      markShipped: 'Markera skickad',
+      packing: 'Packas',
+      waitingPayment: 'Väntar betalning',
       order: 'Order',
       customer: 'Kund',
       status: 'Status',
@@ -130,6 +143,13 @@ const AdminOrderManager = () => {
       title: 'Order Management',
       subtitle: 'Manage and track all orders',
       noOrders: 'No orders found',
+      toPack: 'To pack',
+      packed: 'Packed',
+      fulfillmentAll: 'All',
+      markPacked: 'Mark packed',
+      markShipped: 'Mark shipped',
+      packing: 'Packing',
+      waitingPayment: 'Awaiting payment',
       order: 'Order',
       customer: 'Customer',
       status: 'Status',
@@ -414,8 +434,97 @@ const AdminOrderManager = () => {
     if (filter !== 'all' && o.status !== filter) return false;
     if (paymentFilter === 'paid' && o.payment_status !== 'paid') return false;
     if (paymentFilter === 'unpaid' && o.payment_status === 'paid') return false;
+    if (fulfillmentTab === 'to_pack' && !(o.payment_status === 'paid' && (o.fulfillment_status === 'pending' || o.fulfillment_status === 'unfulfilled'))) return false;
+    if (fulfillmentTab === 'packing' && o.fulfillment_status !== 'packing') return false;
+    if (fulfillmentTab === 'packed' && o.fulfillment_status !== 'packed') return false;
+    if (fulfillmentTab === 'shipped' && o.fulfillment_status !== 'shipped') return false;
+    if (fulfillmentTab === 'unpaid' && o.payment_status === 'paid') return false;
     return true;
   });
+  const handleMarkPacked = async (order: Order) => {
+    if (order.payment_status !== 'paid') {
+      toast.error(language === 'sv' ? 'Order måste vara betald först' : 'Order must be paid first');
+      return;
+    }
+    try {
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      const existingHistory = Array.isArray(order.status_history) ? order.status_history : [];
+      const newHistory = [...existingHistory, {
+        status: 'packed',
+        timestamp: new Date().toISOString(),
+        note: 'Markerad som packad',
+      }];
+      const { error } = await supabase.from('orders').update({
+        fulfillment_status: 'packed',
+        packed_by: currentUser?.id || null,
+        packed_at: new Date().toISOString(),
+        status: 'processing',
+        status_history: newHistory,
+      }).eq('id', order.id);
+      if (error) throw error;
+      setOrders(prev => prev.map(o => o.id === order.id ? { ...o, fulfillment_status: 'packed', packed_at: new Date().toISOString(), packed_by: currentUser?.id || null, status: 'processing', status_history: newHistory } : o));
+      logActivity({ log_type: 'success', category: 'fulfillment', message: `Order ${order.order_number} packad`, order_id: order.id });
+      toast.success(language === 'sv' ? 'Order markerad som packad' : 'Order marked as packed');
+    } catch (err) {
+      console.error(err);
+      toast.error(content.error);
+    }
+  };
+
+  const handleMarkShipped = async (order: Order) => {
+    if (order.payment_status !== 'paid') {
+      toast.error(language === 'sv' ? 'Order måste vara betald först' : 'Order must be paid first');
+      return;
+    }
+    try {
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      const existingHistory = Array.isArray(order.status_history) ? order.status_history : [];
+      const newHistory = [...existingHistory, {
+        status: 'shipped',
+        timestamp: new Date().toISOString(),
+        note: 'Markerad som skickad',
+      }];
+      const { error } = await supabase.from('orders').update({
+        fulfillment_status: 'shipped',
+        shipped_by: currentUser?.id || null,
+        shipped_at: new Date().toISOString(),
+        status: 'shipped',
+        status_history: newHistory,
+      }).eq('id', order.id);
+      if (error) throw error;
+      setOrders(prev => prev.map(o => o.id === order.id ? { ...o, fulfillment_status: 'shipped', shipped_at: new Date().toISOString(), shipped_by: currentUser?.id || null, status: 'shipped', status_history: newHistory } : o));
+      logActivity({ log_type: 'success', category: 'fulfillment', message: `Order ${order.order_number} skickad`, order_id: order.id });
+      toast.success(language === 'sv' ? 'Order markerad som skickad' : 'Order marked as shipped');
+      // Send status email
+      try {
+        await supabase.functions.invoke('send-order-email', { body: { order_id: order.id, email_type: 'status_update' } });
+      } catch {}
+    } catch (err) {
+      console.error(err);
+      toast.error(content.error);
+    }
+  };
+
+  const handleStartPacking = async (order: Order) => {
+    if (order.payment_status !== 'paid') {
+      toast.error(language === 'sv' ? 'Order måste vara betald först' : 'Order must be paid first');
+      return;
+    }
+    try {
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      const { error } = await supabase.from('orders').update({
+        fulfillment_status: 'packing',
+        packed_by: currentUser?.id || null,
+      }).eq('id', order.id);
+      if (error) throw error;
+      setOrders(prev => prev.map(o => o.id === order.id ? { ...o, fulfillment_status: 'packing', packed_by: currentUser?.id || null } : o));
+      toast.success(language === 'sv' ? 'Packning startad' : 'Packing started');
+    } catch (err) {
+      console.error(err);
+      toast.error(content.error);
+    }
+  };
+
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString(language === 'sv' ? 'sv-SE' : 'en-US', {
@@ -536,6 +645,28 @@ const AdminOrderManager = () => {
       </div>
 
       {/* Status Filters */}
+      {/* Fulfillment Tabs */}
+      <div className="flex flex-wrap gap-2 pb-2 border-b border-border">
+        {[
+          { key: 'all', label: content.fulfillmentAll, count: orders.length },
+          { key: 'unpaid', label: content.waitingPayment, count: orders.filter(o => o.payment_status !== 'paid').length },
+          { key: 'to_pack', label: content.toPack, count: orders.filter(o => o.payment_status === 'paid' && (o.fulfillment_status === 'pending' || o.fulfillment_status === 'unfulfilled')).length },
+          { key: 'packing', label: content.packing, count: orders.filter(o => o.fulfillment_status === 'packing').length },
+          { key: 'packed', label: content.packed, count: orders.filter(o => o.fulfillment_status === 'packed').length },
+          { key: 'shipped', label: content.shipped, count: orders.filter(o => o.fulfillment_status === 'shipped').length },
+        ].map(tab => (
+          <Button
+            key={tab.key}
+            variant={fulfillmentTab === tab.key ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => { setFulfillmentTab(tab.key); setFilter('all'); setPaymentFilter('all'); }}
+            className={tab.key === 'to_pack' && tab.count > 0 ? 'border-orange-400 dark:border-orange-600' : ''}
+          >
+            {tab.label} ({tab.count})
+          </Button>
+        ))}
+      </div>
+
       <div className="flex flex-wrap gap-2">
         <Button
           variant={filter === 'all' ? 'default' : 'outline'}
@@ -621,6 +752,19 @@ const AdminOrderManager = () => {
                           {order.refund_status === 'refunded' ? content.refunded : content.partialRefund}
                         </Badge>
                       )}
+                      {order.payment_status === 'paid' && (
+                        <Badge variant="outline" className={`text-[10px] h-5 ${
+                          order.fulfillment_status === 'shipped' ? 'border-green-300 text-green-700 dark:border-green-700 dark:text-green-400'
+                          : order.fulfillment_status === 'packed' ? 'border-blue-300 text-blue-700 dark:border-blue-700 dark:text-blue-400'
+                          : order.fulfillment_status === 'packing' ? 'border-orange-300 text-orange-700 dark:border-orange-700 dark:text-orange-400'
+                          : 'border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-400'
+                        }`}>
+                          {order.fulfillment_status === 'shipped' ? '📦 Skickad'
+                          : order.fulfillment_status === 'packed' ? '✅ Packad'
+                          : order.fulfillment_status === 'packing' ? '🔧 Packas'
+                          : '⏳ Att packa'}
+                        </Badge>
+                      )}
                       {order.payment_method && (
                         <Badge variant="secondary" className="text-[10px] h-5">
                           {getPaymentMethodLabel(order.payment_method)}
@@ -636,6 +780,40 @@ const AdminOrderManager = () => {
                   </div>
                    <div className="flex items-center gap-2">
                     {/* Payment status is controlled by Stripe webhook only — no manual "mark as paid" */}
+                    {/* Fulfillment actions – only for paid orders */}
+                    {order.payment_status === 'paid' && (order.fulfillment_status === 'pending' || order.fulfillment_status === 'unfulfilled') && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5 text-xs border-orange-300 text-orange-700 hover:bg-orange-50 dark:border-orange-700 dark:text-orange-400"
+                        onClick={(e) => { e.stopPropagation(); handleStartPacking(order); }}
+                      >
+                        <Package className="w-3.5 h-3.5" />
+                        {language === 'sv' ? 'Starta packning' : 'Start packing'}
+                      </Button>
+                    )}
+                    {order.payment_status === 'paid' && order.fulfillment_status === 'packing' && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5 text-xs border-blue-300 text-blue-700 hover:bg-blue-50 dark:border-blue-700 dark:text-blue-400"
+                        onClick={(e) => { e.stopPropagation(); handleMarkPacked(order); }}
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                        {content.markPacked}
+                      </Button>
+                    )}
+                    {order.payment_status === 'paid' && order.fulfillment_status === 'packed' && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5 text-xs border-green-300 text-green-700 hover:bg-green-50 dark:border-green-700 dark:text-green-400"
+                        onClick={(e) => { e.stopPropagation(); handleMarkShipped(order); }}
+                      >
+                        <Truck className="w-3.5 h-3.5" />
+                        {content.markShipped}
+                      </Button>
+                    )}
                     {order.payment_status === 'paid' && !order.refund_status && (
                       refundOrderId === order.id ? (
                         <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
