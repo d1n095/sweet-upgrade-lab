@@ -650,21 +650,7 @@ const AdminOrderManager = () => {
                     </p>
                   </div>
                    <div className="flex items-center gap-2">
-                    {/* Quick actions for pending/failed orders */}
-                    {(order.status === 'pending' || order.status === 'failed') && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="gap-1.5 text-xs border-green-300 text-green-700 hover:bg-green-50 dark:border-green-700 dark:text-green-400 dark:hover:bg-green-950/30"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleMarkAsPaid(order);
-                        }}
-                      >
-                        <CheckCircle className="w-3.5 h-3.5" />
-                        {language === 'sv' ? 'Markera betald' : 'Mark paid'}
-                      </Button>
-                    )}
+                    {/* Payment status is controlled by Stripe webhook only — no manual "mark as paid" */}
                     {order.payment_status === 'paid' && !order.refund_status && (
                       <Button
                         size="sm"
