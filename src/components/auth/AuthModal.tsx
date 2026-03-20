@@ -439,6 +439,13 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                     placeholder={lang === 'sv' ? 'Lösenord' : 'Password'}
                     value={password}
                     onChange={(e) => { setPassword(e.target.value); setFormError(''); }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const form = e.currentTarget.closest('form');
+                        if (form) form.requestSubmit();
+                      }
+                    }}
                     className="pl-11 pr-11 h-12 rounded-xl"
                     required
                     minLength={6}
