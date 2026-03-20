@@ -19,6 +19,7 @@ interface DbProductResult {
   image_urls: string[] | null;
   ingredients_sv: string | null;
   ingredients_en: string | null;
+  status: string;
 }
 
 const SearchSuggestions = () => {
@@ -68,12 +69,19 @@ const SearchSuggestions = () => {
           // Search products by title AND ingredients
           const { data } = await supabase
             .from('products')
-            .select('id, title_sv, title_en, handle, price, currency, image_urls, ingredients_sv, ingredients_en')
+            .select('id, title_sv, title_en, handle, price, currency, image_urls, ingredients_sv, ingredients_en, status')
             .eq('is_visible', true)
+            .in('status', ['active', 'coming_soon'])
             .or(`title_sv.ilike.%${q}%,title_en.ilike.%${q}%,ingredients_sv.ilike.%${q}%,ingredients_en.ilike.%${q}%`)
             .limit(6);
 
-          setSuggestions((data || []) as DbProductResult[]);
+          // Sort: active first, then coming_soon
+          const sorted = ((data || []) as DbProductResult[]).sort((a, b) => {
+            if (a.status === 'active' && b.status !== 'active') return -1;
+            if (a.status !== 'active' && b.status === 'active') return 1;
+            return 0;
+          });
+          setSuggestions(sorted);
 
           // Log search to search_logs for admin analytics
           logSearchStandalone(q, (data || []).length);
@@ -98,8 +106,9 @@ const SearchSuggestions = () => {
           // Random suggestions
           const { data } = await supabase
             .from('products')
-            .select('id, title_sv, title_en, handle, price, currency, image_urls, ingredients_sv, ingredients_en')
+            .select('id, title_sv, title_en, handle, price, currency, image_urls, ingredients_sv, ingredients_en, status')
             .eq('is_visible', true)
+            .eq('status', 'active')
             .limit(5);
           setSuggestions((data || []) as DbProductResult[]);
           setIngredientMatches([]);
