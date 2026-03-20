@@ -198,7 +198,7 @@ function renderStatusUpdateEmail(order: any, newStatus: string): string {
     </div>
 
     <div style="padding:0 24px 32px;text-align:center;">
-      <a href="https://4thepeople.se/track-order?q=${encodeURIComponent(order.order_number || "")}"
+      <a href="https://4thepeople.se/track-order?q=${encodeURIComponent(order.payment_intent_id || order.id || "")}"
          style="display:inline-block;background:${BRAND.primary};color:${BRAND.primaryFg};padding:12px 32px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:600;font-family:${BRAND.font};">
         Se orderstatus →
       </a>
