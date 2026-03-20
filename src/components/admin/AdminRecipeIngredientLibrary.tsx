@@ -27,7 +27,10 @@ interface RecipeIngredient {
   category: string;
   description_sv: string | null;
   description_en: string | null;
+  benefits_sv: string[] | null;
+  risks_sv: string[] | null;
   is_active: boolean;
+  is_searchable: boolean;
   display_order: number;
 }
 
