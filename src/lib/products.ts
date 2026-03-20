@@ -112,8 +112,33 @@ export const fetchDbProductByHandle = async (handle: string): Promise<DbProduct 
     .select('*')
     .eq('handle', handle)
     .eq('is_visible', true)
-    .eq('status', 'active')
+    .in('status', ['active', 'coming_soon', 'info'])
     .maybeSingle();
   if (error) throw error;
   return data as DbProduct | null;
+};
+
+// Fetch product ingredients (many-to-many)
+export const fetchProductIngredients = async (productId: string) => {
+  const { data, error } = await supabase
+    .from('product_ingredients')
+    .select('*, recipe_ingredients(*)')
+    .eq('product_id', productId)
+    .order('display_order');
+  if (error) throw error;
+  return data || [];
+};
+
+// Set product ingredients (replace all)
+export const setProductIngredients = async (productId: string, ingredientIds: string[]) => {
+  await supabase.from('product_ingredients').delete().eq('product_id', productId);
+  if (ingredientIds.length > 0) {
+    const rows = ingredientIds.map((id, i) => ({
+      product_id: productId,
+      ingredient_id: id,
+      display_order: i,
+    }));
+    const { error } = await supabase.from('product_ingredients').insert(rows);
+    if (error) throw error;
+  }
 };
