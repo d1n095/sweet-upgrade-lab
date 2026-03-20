@@ -7,6 +7,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { trackEvent } from '@/utils/analyticsTracker';
+import { logSearchStandalone } from '@/hooks/useInsightLogger';
 
 interface DbProductResult {
   id: string;
@@ -73,6 +74,9 @@ const SearchSuggestions = () => {
             .limit(6);
 
           setSuggestions((data || []) as DbProductResult[]);
+
+          // Log search to search_logs for admin analytics
+          logSearchStandalone(q, (data || []).length);
 
           // Find which ingredients matched
           const matched = new Set<string>();
