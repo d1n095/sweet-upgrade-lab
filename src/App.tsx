@@ -61,6 +61,7 @@ import AdminStaff from "./pages/admin/AdminStaff";
 import AdminIncidents from "./pages/admin/AdminIncidents";
 import AdminPayments from "./pages/admin/AdminPayments";
 import AdminInsights from "./pages/admin/AdminInsights";
+import ScanPackingMode from "./components/admin/warehouse/ScanPackingMode";
 
 const queryClient = new QueryClient();
 
