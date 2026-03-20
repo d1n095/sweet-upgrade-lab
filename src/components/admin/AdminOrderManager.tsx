@@ -72,6 +72,7 @@ const AdminOrderManager = () => {
   });
   const [isSaving, setIsSaving] = useState(false);
   const [filter, setFilter] = useState<string>('all');
+  const [paymentFilter, setPaymentFilter] = useState<string>('all');
 
   const t = {
     sv: {
@@ -104,6 +105,9 @@ const AdminOrderManager = () => {
       refundConfirm: 'Markera som återbetald?',
       refunded: 'Återbetald',
       partialRefund: 'Delvis återbetald',
+      paid: 'Betalda',
+      unpaid: 'Obetalda',
+      paymentAll: 'Alla betalningar',
       paymentMethod: 'Betalmetod',
       items: 'Produkter',
       address: 'Leveransadress',
@@ -152,6 +156,9 @@ const AdminOrderManager = () => {
       refundConfirm: 'Mark as refunded?',
       refunded: 'Refunded',
       partialRefund: 'Partially refunded',
+      paid: 'Paid',
+      unpaid: 'Unpaid',
+      paymentAll: 'All payments',
       paymentMethod: 'Payment method',
       items: 'Products',
       address: 'Shipping address',
