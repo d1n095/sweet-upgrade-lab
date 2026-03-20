@@ -233,7 +233,7 @@ const AdminDbProductManager = () => {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      await createDbProduct({
+      const newProduct = await createDbProduct({
         title_sv: formData.title,
         title_en: null,
         description_sv: formData.description || null,
@@ -263,6 +263,9 @@ const AdminDbProductManager = () => {
         weight_grams: formData.weightGrams ? parseInt(formData.weightGrams) : null,
         status: 'active',
       } as any);
+      if (formData.categoryIds.length > 0) {
+        await setProductCategories(newProduct.id, formData.categoryIds);
+      }
       toast.success(t.productAdded);
       queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });
       setIsAddOpen(false);
