@@ -72,6 +72,11 @@ serve(async (req) => {
 
     const order = data[0];
 
+    // Extra guard to ensure exact confirmation lookup by Stripe session
+    if (sessionId && order.stripe_session_id !== sessionId) {
+      return json({ found: false });
+    }
+
     // If email was provided, verify it matches (prevents enumeration)
     if (email && order.order_email.toLowerCase() !== email) {
       return json({ found: false });
@@ -84,6 +89,7 @@ serve(async (req) => {
         id: order.id,
         order_number: order.order_number,
         shopify_order_number: order.shopify_order_number,
+        stripe_session_id: order.stripe_session_id,
         order_email: order.order_email,
         status: order.status,
         tracking_number: order.tracking_number,
