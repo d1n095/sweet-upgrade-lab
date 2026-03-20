@@ -3,6 +3,7 @@ import { Package, FlaskConical, ChefHat, AlertTriangle, Eye, FileText, Archive, 
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger, ScrollableTabs } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
 import AdminDbProductManager from '@/components/admin/AdminDbProductManager';
 import AdminProductImportExport from '@/components/admin/AdminProductImportExport';
 import AdminRecipeIngredientLibrary from '@/components/admin/AdminRecipeIngredientLibrary';
@@ -13,6 +14,7 @@ import AdminSearchAnalytics from '@/components/admin/AdminSearchAnalytics';
 const AdminProducts = () => {
   const [stats, setStats] = useState({ total: 0, visible: 0, lowStock: 0, ingredients: 0, drafts: 0, archived: 0, comingSoon: 0, info: 0 });
   const [loading, setLoading] = useState(true);
+  const [activeMainTab, setActiveMainTab] = useState('products');
 
   useEffect(() => {
     const load = async () => {
@@ -47,30 +49,34 @@ const AdminProducts = () => {
         <AdminProductImportExport />
       </div>
 
-      <div className="grid grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-3">
         {[
-          { label: 'Aktiva', value: stats.total, icon: Package, color: 'text-primary' },
-          { label: 'Synliga', value: stats.visible, icon: Eye, color: 'text-green-600' },
-          { label: 'Kommer snart', value: stats.comingSoon, icon: Clock, color: 'text-amber-600' },
-          { label: 'Info', value: stats.info, icon: Info, color: 'text-blue-600' },
-          { label: 'Utkast', value: stats.drafts, icon: FileText, color: 'text-amber-600' },
-          { label: 'Arkiverade', value: stats.archived, icon: Archive, color: 'text-blue-600' },
-          { label: 'Lågt lager', value: stats.lowStock, icon: AlertTriangle, color: 'text-orange-600' },
-          { label: 'Ingredienser', value: stats.ingredients, icon: FlaskConical, color: 'text-purple-600' },
+          { label: 'Aktiva', value: stats.total, icon: Package, color: 'text-primary', tab: 'products' },
+          { label: 'Synliga', value: stats.visible, icon: Eye, color: 'text-green-600', tab: 'products' },
+          { label: 'Kommer snart', value: stats.comingSoon, icon: Clock, color: 'text-amber-600', tab: 'products' },
+          { label: 'Info', value: stats.info, icon: Info, color: 'text-blue-600', tab: 'products' },
+          { label: 'Utkast', value: stats.drafts, icon: FileText, color: 'text-amber-600', tab: 'products' },
+          { label: 'Arkiverade', value: stats.archived, icon: Archive, color: 'text-blue-600', tab: 'products' },
+          { label: 'Lågt lager', value: stats.lowStock, icon: AlertTriangle, color: 'text-orange-600', tab: 'products' },
+          { label: 'Ingredienser', value: stats.ingredients, icon: FlaskConical, color: 'text-purple-600', tab: 'ingredients' },
         ].map(s => (
-          <Card key={s.label} className="border-border">
-            <CardContent className="pt-4 pb-3">
+          <Card
+            key={s.label}
+            className="border-border cursor-pointer hover:bg-secondary/50 hover:shadow-sm transition-all active:scale-[0.97]"
+            onClick={() => setActiveMainTab(s.tab)}
+          >
+            <CardContent className="pt-3 pb-2 sm:pt-4 sm:pb-3">
               <div className="flex items-center gap-2 mb-1">
                 <s.icon className={`w-4 h-4 ${s.color}`} />
-                <span className="text-xs text-muted-foreground">{s.label}</span>
+                <span className="text-[10px] sm:text-xs text-muted-foreground truncate">{s.label}</span>
               </div>
-              <p className="text-xl font-bold">{loading ? '–' : s.value}</p>
+              <p className="text-lg sm:text-xl font-bold">{loading ? '–' : s.value}</p>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      <Tabs defaultValue="products" className="space-y-4">
+      <Tabs value={activeMainTab} onValueChange={setActiveMainTab} className="space-y-4">
         <ScrollableTabs>
           <TabsList className="w-max">
             <TabsTrigger value="products" className="gap-1.5 text-xs">

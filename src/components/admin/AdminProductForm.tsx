@@ -544,7 +544,11 @@ export function AdminProductForm({
   );
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+    <form onSubmit={onSubmit} className="space-y-5 max-h-[85vh] overflow-y-auto pr-2 -mr-2">
+      {/* ── Step 1: Grundinfo ── */}
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+        {language === 'sv' ? '📦 Grundinfo' : '📦 Basic Info'}
+      </p>
       <div className="space-y-2">
         <Label htmlFor="title">{t.productName}</Label>
         <Input
