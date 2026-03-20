@@ -73,7 +73,7 @@ const AdminNotificationBell = () => {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
   };
 
-  const handleClick = (n: Notification) => {
+  const handleClick = (n: AdminNotif) => {
     markAsRead(n.id);
     setOpen(false);
     if (n.related_type === 'incident') navigate('/admin/orders');
@@ -112,7 +112,7 @@ const AdminNotificationBell = () => {
           {notifications.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">Inga notiser</p>
           ) : (
-            notifications.map(n => (
+            notifications.map((n: AdminNotif) => (
               <button
                 key={n.id}
                 onClick={() => handleClick(n)}
