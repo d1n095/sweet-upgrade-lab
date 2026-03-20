@@ -146,11 +146,10 @@ const ScanPackingMode = () => {
       if (error) throw error;
 
       await logActivity({
-        log_type: 'fulfillment',
-        category: 'order',
+        log_type: 'success',
+        category: 'fulfillment',
         message: `Order skickad via scan`,
         order_id: activeOrder.id,
-        user_id: user.id,
         details: { tracking_number: trackingNumber },
       });
 
