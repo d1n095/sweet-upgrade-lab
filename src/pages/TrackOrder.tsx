@@ -237,8 +237,7 @@ const TrackOrder = () => {
   }, []);
 
   const getStatusIndex = (status: string): number => {
-    const statusOrder = ['pending', 'processing', 'shipped', 'in_transit', 'delivered'];
-    return statusOrder.indexOf(status);
+    return statusSteps.findIndex(step => step.aliases.includes(status));
   };
 
   const getLabel = (labels: { sv: string; en: string; no: string; da: string; de: string }) => {
