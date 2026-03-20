@@ -17,6 +17,7 @@ interface OrderData {
   order_number: string | null;
   shopify_order_number: string | null;
   stripe_session_id: string | null;
+  payment_intent_id: string | null;
   order_email: string;
   status: string;
   tracking_number: string | null;
