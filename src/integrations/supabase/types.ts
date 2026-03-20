@@ -2091,6 +2091,42 @@ export type Database = {
         }
         Relationships: []
       }
+      role_templates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          default_modules: string[]
+          description_sv: string | null
+          id: string
+          is_locked: boolean
+          name_sv: string
+          role_key: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          default_modules?: string[]
+          description_sv?: string | null
+          id?: string
+          is_locked?: boolean
+          name_sv: string
+          role_key: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          default_modules?: string[]
+          description_sv?: string | null
+          id?: string
+          is_locked?: boolean
+          name_sv?: string
+          role_key?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       search_logs: {
         Row: {
           created_at: string
