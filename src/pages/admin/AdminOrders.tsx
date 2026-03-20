@@ -7,6 +7,7 @@ import AdminOrderManager from '@/components/admin/AdminOrderManager';
 import AdminOrderAuditLog from '@/components/admin/AdminOrderAuditLog';
 import AdminDeletedOrders from '@/components/admin/AdminDeletedOrders';
 import AdminOrdersByStatus from '@/components/admin/AdminOrdersByStatus';
+import AdminRefundRequests from '@/components/admin/AdminRefundRequests';
 
 const AdminOrders = () => {
   const [stats, setStats] = useState({ total: 0, pending: 0, shipped: 0, revenue: 0, delivered: 0, returned: 0, lost: 0 });
