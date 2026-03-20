@@ -57,7 +57,10 @@ const AdminRecipeIngredientLibrary = () => {
     category: 'Övrigt',
     description_sv: '',
     description_en: '',
+    benefits_sv: '',
+    risks_sv: '',
     is_active: true,
+    is_searchable: true,
   });
 
   const categories = [...new Set([...DEFAULT_CATEGORIES, ...ingredients.map(i => i.category)])].sort();
