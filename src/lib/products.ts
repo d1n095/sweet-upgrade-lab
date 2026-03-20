@@ -40,6 +40,7 @@ export interface DbProduct {
   meta_keywords: string | null;
   weight_grams: number | null;
   status: ProductStatus;
+  is_sellable: boolean;
   created_at: string;
   updated_at: string;
 }
