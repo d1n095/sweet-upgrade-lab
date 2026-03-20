@@ -52,6 +52,7 @@ serve(async (req) => {
         `shopify_order_number.eq.${query}`,
         `tracking_number.eq.${query}`,
         `stripe_session_id.eq.${query}`,
+        `payment_intent_id.eq.${query}`,
       ];
       dbQuery = dbQuery.or(orFilters.join(","));
     } else if (email) {
