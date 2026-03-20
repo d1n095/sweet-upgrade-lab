@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 
-export type ProductStatus = 'active' | 'draft' | 'archived';
+export type ProductStatus = 'active' | 'draft' | 'archived' | 'coming_soon' | 'info' | 'hidden';
 
 export interface DbProduct {
   id: string;
