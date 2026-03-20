@@ -525,7 +525,7 @@ const TrackOrder = () => {
                 <div className="flex items-center justify-between mb-8">
                   <div>
                     <p className="text-sm text-muted-foreground">
-                      {t.orderDetails} {orderData.order_number || orderData.shopify_order_number || orderData.id.slice(0, 8)}
+                      {t.orderDetails} {getOrderDisplayId(orderData)}
                     </p>
                     <p className="text-sm text-muted-foreground mt-1">
                       {t.orderDate}: {formatDate(orderData.created_at)}
