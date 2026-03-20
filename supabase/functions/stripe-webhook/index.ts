@@ -274,6 +274,12 @@ function ok(body: unknown) {
   });
 }
 
+function isUniqueViolation(error: any): boolean {
+  const code = error?.code;
+  const message = String(error?.message || '').toLowerCase();
+  return code === '23505' || message.includes('duplicate key value');
+}
+
 async function findOrderBySession(supabase: any, sessionId: string): Promise<string | null> {
   const { data } = await supabase
     .from('orders')
@@ -458,9 +464,29 @@ async function createOrderFromSession(
     .from('orders')
     .insert(orderData)
     .select('id')
-    .single();
+    .maybeSingle();
 
   if (error) {
+    if (isUniqueViolation(error)) {
+      // Idempotency safety for concurrent duplicate deliveries
+      const existingBySession = await findOrderBySession(supabase, session.id);
+      if (existingBySession) {
+        return existingBySession;
+      }
+
+      if (paymentIntentId) {
+        const { data: existingByPI } = await supabase
+          .from('orders')
+          .select('id')
+          .eq('payment_intent_id', paymentIntentId)
+          .maybeSingle();
+
+        if (existingByPI?.id) {
+          return existingByPI.id;
+        }
+      }
+    }
+
     console.error('[stripe-webhook] Failed to create order:', error);
     await logEvent(supabase, 'error', 'order', 'Failed to create order from webhook', {
       stripe_session_id: session.id, email, amount: (session.amount_total || 0) / 100, error: error.message,
@@ -468,7 +494,7 @@ async function createOrderFromSession(
     return null;
   }
 
-  return insertedOrder.id;
+  return insertedOrder?.id || null;
 }
 
 async function logEvent(
