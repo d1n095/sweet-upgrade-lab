@@ -146,11 +146,14 @@ const AdminDbProductManager = () => {
       metaKeywords: (product as any).meta_keywords || '',
       weightGrams: (product as any).weight_grams?.toString() || '',
     });
-    // Load category IDs async
+    // Load category IDs and tag IDs async
     import('@/lib/categories').then(({ fetchProductCategoryIds }) => {
       fetchProductCategoryIds(product.id).then(ids => {
         setFormData(prev => ({ ...prev, categoryIds: ids }));
       });
+    });
+    fetchProductTagIds(product.id).then(ids => {
+      setFormData(prev => ({ ...prev, tagIds: ids }));
     });
     setIsEditOpen(true);
   };
