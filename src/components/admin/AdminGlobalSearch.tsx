@@ -125,16 +125,17 @@ const AdminGlobalSearch = () => {
         // Search orders
         const { data: orders } = await supabase
           .from('orders')
-          .select('id, order_email, order_number, shopify_order_number, total_amount, status')
-          .or(`order_email.ilike.%${q}%,shopify_order_number.ilike.%${q}%,order_number.ilike.%${q}%`)
+          .select('id, order_email, order_number, shopify_order_number, payment_intent_id, total_amount, status')
+          .or(`order_email.ilike.%${q}%,shopify_order_number.ilike.%${q}%,order_number.ilike.%${q}%,payment_intent_id.ilike.%${q}%`)
           .limit(5);
 
         if (orders) {
           for (const o of orders) {
+            const ref = o.payment_intent_id ? '#' + o.payment_intent_id.slice(-8).toUpperCase() : o.order_number || o.id.substring(0, 8);
             dbResults.push({
               type: 'order',
               id: o.id,
-              title: o.order_number || o.shopify_order_number || o.id.substring(0, 8),
+              title: ref,
               subtitle: `${o.order_email} · ${o.total_amount} SEK · ${o.status}`,
               href: '/admin/orders',
             });

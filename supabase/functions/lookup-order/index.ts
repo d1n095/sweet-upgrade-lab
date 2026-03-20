@@ -37,7 +37,7 @@ serve(async (req) => {
     let dbQuery = supabase
       .from("orders")
       .select(
-        "id, order_number, shopify_order_number, stripe_session_id, order_email, status, tracking_number, estimated_delivery, created_at, items, total_amount, currency, shipping_address, payment_status, payment_method",
+        "id, order_number, shopify_order_number, stripe_session_id, payment_intent_id, order_email, status, tracking_number, estimated_delivery, created_at, items, total_amount, currency, shipping_address, payment_status, payment_method",
       )
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
@@ -52,6 +52,7 @@ serve(async (req) => {
         `shopify_order_number.eq.${query}`,
         `tracking_number.eq.${query}`,
         `stripe_session_id.eq.${query}`,
+        `payment_intent_id.eq.${query}`,
       ];
       dbQuery = dbQuery.or(orFilters.join(","));
     } else if (email) {
@@ -90,6 +91,7 @@ serve(async (req) => {
         order_number: order.order_number,
         shopify_order_number: order.shopify_order_number,
         stripe_session_id: order.stripe_session_id,
+        payment_intent_id: order.payment_intent_id,
         order_email: order.order_email,
         status: order.status,
         tracking_number: order.tracking_number,

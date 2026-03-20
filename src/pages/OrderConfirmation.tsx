@@ -9,13 +9,15 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { storeConfig } from '@/config/storeConfig';
 import { supabase } from '@/integrations/supabase/client';
 import { useCartStore } from '@/stores/cartStore';
+import { getOrderDisplayId } from '@/utils/orderDisplay';
 
 const OrderConfirmation = () => {
   const { language } = useLanguage();
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get('session_id') || '';
-  const [orderNumber, setOrderNumber] = useState('');
+  const [orderRef, setOrderRef] = useState('');
   const [orderId, setOrderId] = useState('');
+  const [paymentIntentId, setPaymentIntentId] = useState('');
   const [orderEmail, setOrderEmail] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const maxRetries = 10;
@@ -29,8 +31,9 @@ const OrderConfirmation = () => {
 
   useEffect(() => {
     activeSessionRef.current = sessionId;
-    setOrderNumber('');
+    setOrderRef('');
     setOrderId('');
+    setPaymentIntentId('');
     setOrderEmail('');
     setIsLoading(Boolean(sessionId));
   }, [sessionId]);
@@ -56,12 +59,16 @@ const OrderConfirmation = () => {
           if (
             !fnError &&
             fnData?.found &&
-            fnData.order?.order_number &&
             fnData.order?.stripe_session_id === sessionId
           ) {
             const order = fnData.order;
             setOrderId(order.id);
-            setOrderNumber(order.order_number);
+            setPaymentIntentId(order.payment_intent_id || '');
+            setOrderRef(getOrderDisplayId({
+              payment_intent_id: order.payment_intent_id,
+              stripe_session_id: order.stripe_session_id,
+              id: order.id,
+            }));
             if (order.order_email) setOrderEmail(order.order_email);
             setIsLoading(false);
             return;
@@ -92,8 +99,8 @@ const OrderConfirmation = () => {
       badge: 'Tack för din beställning!',
       title: 'Din order är mottagen',
       subtitle: 'Vi har tagit emot din beställning och påbörjar behandlingen inom kort.',
-      orderNumberLabel: 'Ordernummer',
-      referenceLabel: 'Betalningsreferens',
+      orderNumberLabel: 'Order-ID',
+      referenceLabel: 'Referens',
       waitingTitle: 'Väntar på betalningsbekräftelse...',
       waitingDesc: 'Din betalning behandlas. Ordernumret visas automatiskt inom några sekunder.',
       steps: [
@@ -113,8 +120,8 @@ const OrderConfirmation = () => {
       badge: 'Thank you for your order!',
       title: 'Your order is confirmed',
       subtitle: 'We have received your order and will begin processing it shortly.',
-      orderNumberLabel: 'Order number',
-      referenceLabel: 'Payment reference',
+      orderNumberLabel: 'Order ID',
+      referenceLabel: 'Reference',
       waitingTitle: 'Waiting for payment confirmation...',
       waitingDesc: 'Your payment is being processed. The order number will appear automatically in a few seconds.',
       steps: [
@@ -134,11 +141,11 @@ const OrderConfirmation = () => {
 
   const t = content[language as keyof typeof content] || content.en;
 
-  // Track link uses ONLY DB-sourced order data
-  const trackHref = orderNumber
-    ? `/track-order?q=${encodeURIComponent(orderNumber)}`
+  // Track link uses payment_intent or session_id for lookup
+  const trackHref = paymentIntentId
+    ? `/track-order?q=${encodeURIComponent(paymentIntentId)}`
     : orderId
-      ? `/order/${orderId}`
+      ? `/track-order?q=${encodeURIComponent(orderId)}`
       : '/track-order';
 
   return (
@@ -160,10 +167,10 @@ const OrderConfirmation = () => {
             <p className="text-muted-foreground text-lg mb-6">{t.subtitle}</p>
 
             {/* Order number or loading state */}
-            {orderNumber ? (
+            {orderRef ? (
               <div className="inline-block bg-card border border-border/50 rounded-xl px-6 py-3">
                 <p className="text-sm text-muted-foreground">{t.orderNumberLabel}</p>
-                <p className="font-mono text-xl font-semibold">{orderNumber}</p>
+                <p className="font-mono text-xl font-semibold">{orderRef}</p>
               </div>
             ) : isLoading ? (
               <div className="inline-flex flex-col items-center gap-2 bg-card border border-border/50 rounded-xl px-6 py-4">

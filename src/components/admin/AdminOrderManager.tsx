@@ -23,6 +23,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/context/LanguageContext';
 import { toast } from 'sonner';
 import { logActivity } from '@/utils/activityLogger';
+import { getOrderDisplayId } from '@/utils/orderDisplay';
 
 interface Order {
   id: string;
@@ -407,7 +408,7 @@ const AdminOrderManager = () => {
       logActivity({
         log_type: 'warning',
         category: 'order',
-        message: `Order raderad: ${order.order_number || order.id.slice(0, 8)}`,
+        message: `Order raderad: ${getOrderDisplayId(order)}`,
         details: { order_email: order.order_email, total: order.total_amount },
         order_id: order.id,
       });
@@ -467,7 +468,7 @@ const AdminOrderManager = () => {
       }).eq('id', order.id);
       if (error) throw error;
       setOrders(prev => prev.map(o => o.id === order.id ? { ...o, fulfillment_status: 'packed', packed_at: new Date().toISOString(), packed_by: currentUser?.id || null, status: 'processing', status_history: newHistory } : o));
-      logActivity({ log_type: 'success', category: 'fulfillment', message: `Order ${order.order_number} packad`, order_id: order.id });
+      logActivity({ log_type: 'success', category: 'fulfillment', message: `Order ${getOrderDisplayId(order)} packad`, order_id: order.id });
       toast.success(language === 'sv' ? 'Order markerad som packad' : 'Order marked as packed');
     } catch (err) {
       console.error(err);
@@ -497,7 +498,7 @@ const AdminOrderManager = () => {
       }).eq('id', order.id);
       if (error) throw error;
       setOrders(prev => prev.map(o => o.id === order.id ? { ...o, fulfillment_status: 'shipped', shipped_at: new Date().toISOString(), shipped_by: currentUser?.id || null, status: 'shipped', status_history: newHistory } : o));
-      logActivity({ log_type: 'success', category: 'fulfillment', message: `Order ${order.order_number} skickad`, order_id: order.id });
+      logActivity({ log_type: 'success', category: 'fulfillment', message: `Order ${getOrderDisplayId(order)} skickad`, order_id: order.id });
       toast.success(language === 'sv' ? 'Order markerad som skickad' : 'Order marked as shipped');
       // Send status email
       try {
@@ -568,7 +569,7 @@ const AdminOrderManager = () => {
       }).eq('id', order.id);
       if (!error) {
         setOrders(prev => prev.map(o => o.id === order.id ? { ...o, fulfillment_status: 'packed', packed_at: new Date().toISOString(), packed_by: currentUser?.id || null, status: 'processing', status_history: newHistory } : o));
-        logActivity({ log_type: 'success', category: 'fulfillment', message: `Order ${order.order_number} batch-packad`, order_id: order.id });
+        logActivity({ log_type: 'success', category: 'fulfillment', message: `Order ${getOrderDisplayId(order)} batch-packad`, order_id: order.id });
       }
       setBatchProgress({ done: i + 1, total: eligible.length });
     }
@@ -597,7 +598,7 @@ const AdminOrderManager = () => {
       }).eq('id', order.id);
       if (!error) {
         setOrders(prev => prev.map(o => o.id === order.id ? { ...o, fulfillment_status: 'shipped', shipped_at: new Date().toISOString(), shipped_by: currentUser?.id || null, status: 'shipped', status_history: newHistory } : o));
-        logActivity({ log_type: 'success', category: 'fulfillment', message: `Order ${order.order_number} batch-skickad`, order_id: order.id });
+        logActivity({ log_type: 'success', category: 'fulfillment', message: `Order ${getOrderDisplayId(order)} batch-skickad`, order_id: order.id });
       }
       setBatchProgress({ done: i + 1, total: eligible.length });
     }
@@ -652,8 +653,8 @@ const AdminOrderManager = () => {
   const handlePrintOrder = (order: Order) => {
     const addr = parseShippingAddress(order.shipping_address);
     const items = Array.isArray(order.items) ? order.items : [];
-    const html = `<html><head><title>${escHtml(order.order_number || order.id.slice(0,8))}</title><style>body{font-family:system-ui;padding:40px;font-size:14px}h1{font-size:20px}table{width:100%;border-collapse:collapse;margin:16px 0}td,th{border:1px solid #ddd;padding:8px;text-align:left}th{background:#f5f5f5}.header{display:flex;justify-content:space-between;margin-bottom:24px}</style></head><body>
-      <div class="header"><div><h1>Order ${escHtml(order.order_number)}</h1><p>${formatDate(order.created_at)}</p></div><div><strong>Status:</strong> ${escHtml(statusLabels[order.status] || order.status)}<br><strong>Betalning:</strong> ${escHtml(order.payment_status)}</div></div>
+    const html = `<html><head><title>${escHtml(getOrderDisplayId(order))}</title><style>body{font-family:system-ui;padding:40px;font-size:14px}h1{font-size:20px}table{width:100%;border-collapse:collapse;margin:16px 0}td,th{border:1px solid #ddd;padding:8px;text-align:left}th{background:#f5f5f5}.header{display:flex;justify-content:space-between;margin-bottom:24px}</style></head><body>
+      <div class="header"><div><h1>Order ${escHtml(getOrderDisplayId(order))}</h1><p>${formatDate(order.created_at)}</p></div><div><strong>Status:</strong> ${escHtml(statusLabels[order.status] || order.status)}<br><strong>Betalning:</strong> ${escHtml(order.payment_status)}</div></div>
       <h3>Kund</h3><p>${escHtml(order.order_email)}${addr ? `<br>${escHtml(addr.name)}<br>${escHtml(addr.address)}<br>${escHtml(addr.zip)} ${escHtml(addr.city)}<br>${escHtml(addr.country)}${addr.phone ? '<br>Tel: '+escHtml(addr.phone) : ''}` : ''}</p>
       <h3>Produkter</h3><table><tr><th>Produkt</th><th>Antal</th><th>Pris</th></tr>${items.map((i:any) => `<tr><td>${escHtml(i.title || i.name || '-')}</td><td>${escHtml(String(i.quantity || 1))}</td><td>${escHtml(String(i.price || '-'))}</td></tr>`).join('')}</table>
       <p><strong>Totalt: ${formatCurrency(order.total_amount, order.currency)}</strong></p>
@@ -675,16 +676,16 @@ const AdminOrderManager = () => {
       <p>${escHtml(addr.zip)} ${escHtml(addr.city)}</p>
       <p>${escHtml(addr.country || 'Sverige')}</p>
       ${addr.phone ? `<p>Tel: ${escHtml(addr.phone)}</p>` : ''}
-      <p class="order">${escHtml(order.order_number)}</p></div>
+      <p class="order">${escHtml(getOrderDisplayId(order))}</p></div>
       <script>window.print()</script></body></html>`;
     const w = window.open('', '_blank');
     if (w) { w.document.write(html); w.document.close(); }
   };
 
   const handleExportCSV = () => {
-    const headers = ['Ordernummer', 'Email', 'Status', 'Betalning', 'Totalt', 'Valuta', 'Spårning', 'Skapad'];
+    const headers = ['Order-ID', 'Email', 'Status', 'Betalning', 'Totalt', 'Valuta', 'Spårning', 'Skapad'];
     const rows = filteredOrders.map(o => [
-      o.order_number || o.id.slice(0,8),
+      getOrderDisplayId(o),
       o.order_email,
       o.status,
       o.payment_status,
@@ -862,7 +863,7 @@ const AdminOrderManager = () => {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-sm font-mono">
-                        {order.order_number || order.shopify_order_number || `#${order.id.slice(0, 8)}`}
+                        {getOrderDisplayId(order)}
                       </span>
                       <Badge className={getStatusColor(order.status)}>
                         {statusLabels[order.status] || order.status}

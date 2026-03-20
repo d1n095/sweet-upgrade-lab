@@ -39,6 +39,7 @@ interface FinanceData {
     total_amount: number;
     created_at: string;
     order_number: string | null;
+    payment_intent_id: string | null;
   }>;
 }
 
@@ -68,7 +69,7 @@ const AdminFinance = () => {
         supabase.from('affiliates').select('pending_earnings, paid_earnings, total_earnings'),
         supabase.from('affiliate_payout_requests').select('amount, status').eq('status', 'pending'),
         supabase.from('affiliate_payout_requests').select('id, amount, status, created_at, payout_type').order('created_at', { ascending: false }).limit(5),
-        supabase.from('orders').select('id, order_email, total_amount, created_at, order_number').eq('payment_status', 'paid').order('created_at', { ascending: false }).limit(8),
+        supabase.from('orders').select('id, order_email, total_amount, created_at, order_number, payment_intent_id').eq('payment_status', 'paid').order('created_at', { ascending: false }).limit(8),
       ]);
 
       const orders = ordersRes.data || [];
@@ -274,7 +275,7 @@ const AdminFinance = () => {
                   onClick={() => navigate('/admin/orders')}
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{order.order_number || order.order_email}</p>
+                    <p className="text-sm font-medium truncate">{order.payment_intent_id ? '#' + order.payment_intent_id.slice(-8).toUpperCase() : order.order_email}</p>
                     <p className="text-xs text-muted-foreground">{formatTime(order.created_at)}</p>
                   </div>
                   <span className="text-sm font-bold text-green-600">+{fmt(order.total_amount)}</span>

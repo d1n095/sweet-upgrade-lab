@@ -23,6 +23,7 @@ interface RecentOrder {
   payment_status: string;
   created_at: string;
   order_number: string | null;
+  payment_intent_id: string | null;
 }
 
 interface LowStockProduct {
@@ -132,7 +133,7 @@ const AdminOverview = () => {
 
         const { data: recent } = await supabase
           .from('orders')
-          .select('id, order_email, total_amount, status, payment_status, created_at, order_number')
+          .select('id, order_email, total_amount, status, payment_status, created_at, order_number, payment_intent_id')
           .order('created_at', { ascending: false })
           .limit(5);
         setRecentOrders((recent || []) as RecentOrder[]);
@@ -375,7 +376,7 @@ const AdminOverview = () => {
                   className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 hover:bg-secondary/60 transition-colors"
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{order.order_number || order.order_email}</p>
+                    <p className="text-sm font-medium truncate">{order.payment_intent_id ? '#' + order.payment_intent_id.slice(-8).toUpperCase() : order.order_email}</p>
                     <p className="text-xs text-muted-foreground">{formatTime(order.created_at)}</p>
                   </div>
                   <div className="flex items-center gap-2 ml-3">

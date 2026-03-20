@@ -11,12 +11,14 @@ import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { storeConfig } from '@/config/storeConfig';
 import { toast } from 'sonner';
+import { getOrderDisplayId } from '@/utils/orderDisplay';
 
 interface OrderData {
   id: string;
   order_number: string | null;
   shopify_order_number: string | null;
   stripe_session_id: string | null;
+  payment_intent_id: string | null;
   order_email: string;
   status: string;
   tracking_number: string | null;
@@ -232,7 +234,7 @@ const TrackOrder = () => {
       pageBadge: 'Orderspårning',
       pageDescription: 'Ange ordernummer eller e-postadress för att se status på din leverans.',
       orderNumber: 'Ordernummer',
-      orderNumberPlaceholder: 'T.ex. ORD-00017',
+      orderNumberPlaceholder: 'T.ex. pi_xxx eller e-post',
       email: 'E-postadress',
       emailPlaceholder: 'din@email.se (valfritt)',
       searchButton: 'Sök order',
@@ -253,7 +255,7 @@ const TrackOrder = () => {
       pageBadge: 'Order Tracking',
       pageDescription: 'Enter order number or email to check your delivery status.',
       orderNumber: 'Order number',
-      orderNumberPlaceholder: 'E.g. ORD-00017',
+      orderNumberPlaceholder: 'E.g. pi_xxx or email',
       email: 'Email address',
       emailPlaceholder: 'your@email.com (optional)',
       searchButton: 'Search order',
@@ -469,7 +471,7 @@ const TrackOrder = () => {
                     : 'Your payment could not be processed. You can try again below.'}
                 </p>
                 <p className="text-sm text-muted-foreground mb-6">
-                  {language === 'sv' ? 'Order' : 'Order'} {orderData.order_number || orderData.shopify_order_number || orderData.id.slice(0, 8)} · {formatDate(orderData.created_at)}
+                  {language === 'sv' ? 'Order' : 'Order'} {getOrderDisplayId(orderData)} · {formatDate(orderData.created_at)}
                 </p>
                 <Button
                   onClick={async () => {
@@ -523,7 +525,7 @@ const TrackOrder = () => {
                 <div className="flex items-center justify-between mb-8">
                   <div>
                     <p className="text-sm text-muted-foreground">
-                      {t.orderDetails} {orderData.order_number || orderData.shopify_order_number || orderData.id.slice(0, 8)}
+                      {t.orderDetails} {getOrderDisplayId(orderData)}
                     </p>
                     <p className="text-sm text-muted-foreground mt-1">
                       {t.orderDate}: {formatDate(orderData.created_at)}

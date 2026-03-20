@@ -90,7 +90,7 @@ function renderOrderConfirmationEmail(order: any, items: OrderItem[], shipping: 
         Tack för din beställning!
       </h2>
       <p style="color:${BRAND.muted};margin:0;font-size:14px;">
-        Ordernummer: <strong style="color:${BRAND.primary};">${order.order_number}</strong>
+        Order-ID: <strong style="color:${BRAND.primary};">#${(order.payment_intent_id || order.id || '').slice(-8).toUpperCase()}</strong>
       </p>
       <p style="color:${BRAND.muted};margin:4px 0 0;font-size:13px;">
         ${formatDate(order.created_at)}
@@ -143,7 +143,7 @@ function renderOrderConfirmationEmail(order: any, items: OrderItem[], shipping: 
 
     <!-- CTA -->
     <div style="padding:0 24px 32px;text-align:center;">
-      <a href="https://4thepeople.se/track-order?q=${encodeURIComponent(order.order_number || "")}"
+      <a href="https://4thepeople.se/track-order?q=${encodeURIComponent(order.payment_intent_id || order.id || "")}"
          style="display:inline-block;background:${BRAND.primary};color:${BRAND.primaryFg};padding:12px 32px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:600;font-family:${BRAND.font};">
         Spåra din order →
       </a>
@@ -192,13 +192,13 @@ function renderStatusUpdateEmail(order: any, newStatus: string): string {
         ${status.desc}
       </p>
       <p style="color:${BRAND.muted};margin:0;font-size:13px;font-family:${BRAND.font};">
-        Order: <strong style="color:${BRAND.primary};">${order.order_number}</strong>
+        Order: <strong style="color:${BRAND.primary};">#${(order.payment_intent_id || order.id || '').slice(-8).toUpperCase()}</strong>
       </p>
       ${order.tracking_number ? `<p style="color:${BRAND.muted};margin:8px 0 0;font-size:13px;font-family:${BRAND.font};">Spårningsnummer: <strong>${order.tracking_number}</strong></p>` : ""}
     </div>
 
     <div style="padding:0 24px 32px;text-align:center;">
-      <a href="https://4thepeople.se/track-order?q=${encodeURIComponent(order.order_number || "")}"
+      <a href="https://4thepeople.se/track-order?q=${encodeURIComponent(order.payment_intent_id || order.id || "")}"
          style="display:inline-block;background:${BRAND.primary};color:${BRAND.primaryFg};padding:12px 32px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:600;font-family:${BRAND.font};">
         Se orderstatus →
       </a>
