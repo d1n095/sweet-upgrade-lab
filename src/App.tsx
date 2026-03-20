@@ -60,6 +60,7 @@ import AdminSEO from "./pages/admin/AdminSEO";
 import AdminStaff from "./pages/admin/AdminStaff";
 import AdminIncidents from "./pages/admin/AdminIncidents";
 import AdminPayments from "./pages/admin/AdminPayments";
+import AdminInsights from "./pages/admin/AdminInsights";
 
 const queryClient = new QueryClient();
 
@@ -134,6 +135,7 @@ const App = () => (
                 <Route path="finance" element={<AdminPayments />} />
                 <Route path="payments" element={<AdminPayments />} />
                 <Route path="staff" element={<AdminStaff />} />
+                <Route path="insights" element={<AdminInsights />} />
               </Route>
 
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
