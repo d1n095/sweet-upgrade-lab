@@ -46,23 +46,23 @@ const OrderConfirmation = () => {
 
       for (let attempt = 0; attempt < maxRetries && !isCancelled; attempt += 1) {
         try {
-          const { data, error } = await supabase
-            .from('orders')
-            .select('id, order_number, order_email, stripe_session_id')
-            .eq('stripe_session_id', sessionId)
-            .maybeSingle();
+          // Use lookup-order edge function to bypass RLS for guest users
+          const { data: fnData, error: fnError } = await supabase.functions.invoke('lookup-order', {
+            body: { query: sessionId, email: '' },
+          });
 
           if (isCancelled || activeSessionRef.current !== sessionId) return;
 
-          if (!error && data?.order_number && data.stripe_session_id === sessionId) {
-            setOrderId(data.id);
-            setOrderNumber(data.order_number);
-            if (data.order_email) setOrderEmail(data.order_email);
+          if (!fnError && fnData?.found && fnData.order?.order_number) {
+            const order = fnData.order;
+            setOrderId(order.id);
+            setOrderNumber(order.order_number);
+            if (order.order_email) setOrderEmail(order.order_email);
             setIsLoading(false);
             return;
           }
         } catch (err) {
-          console.error('[order-confirmation] DB lookup failed:', err);
+          console.error('[order-confirmation] lookup failed:', err);
         }
 
         if (attempt < maxRetries - 1) {
