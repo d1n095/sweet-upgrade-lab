@@ -49,6 +49,7 @@ const navItems: NavItem[] = [
   { to: '/admin/incidents', label: 'Ärenden', icon: AlertTriangle, role: 'all' },
   { to: '/admin/settings', label: 'Inställningar', icon: Settings, role: 'admin' },
   { to: '/admin/stats', label: 'Statistik', icon: BarChart3, role: 'admin' },
+  { to: '/admin/insights', label: 'Insights', icon: Activity, role: 'admin' },
   { to: '/admin/staff', label: 'Workbench', icon: Crown, role: 'founder' },
 ];
 
