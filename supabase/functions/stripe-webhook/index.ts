@@ -66,69 +66,6 @@ serve(async (req) => {
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-  const hasStripeSignature = !!req.headers.get('stripe-signature');
-
-  // Manual fallback used by /order-confirmation and /track-order
-  // to ensure order exists from session_id even when webhook delivery is delayed/misconfigured.
-  if (req.method === 'POST' && !hasStripeSignature) {
-    const payload = await req.json().catch(() => null);
-    const action = payload?.action;
-    const sessionId = typeof payload?.session_id === 'string' ? payload.session_id.trim() : '';
-
-    if (action !== 'ensure_order') {
-      return ok({ received: false, error: 'invalid_action' });
-    }
-
-    if (!isStripeSessionId(sessionId)) {
-      return ok({ received: false, error: 'invalid_session_id' });
-    }
-
-    let session: Stripe.Checkout.Session;
-    try {
-      session = await stripe.checkout.sessions.retrieve(sessionId);
-    } catch (err: any) {
-      console.error('[stripe-webhook] Could not retrieve session for ensure_order:', err?.message || err);
-      return ok({ received: false, error: 'session_not_found' });
-    }
-
-    if (session.status !== 'complete' || session.payment_status !== 'paid') {
-      return ok({
-        received: false,
-        error: 'payment_not_completed',
-        session_status: session.status,
-        payment_status: session.payment_status,
-      });
-    }
-
-    const ensured = await upsertPaidOrderFromSession(stripe, supabase, session);
-    if (!ensured.orderId) {
-      return ok({ received: false, error: ensured.error || 'order_creation_failed' });
-    }
-
-    await logEvent(
-      supabase,
-      ensured.duplicate ? 'info' : 'success',
-      'order',
-      ensured.duplicate
-        ? 'Order found via ensure_order fallback'
-        : 'Order created via ensure_order fallback',
-      {
-        stripe_session_id: session.id,
-        order_number: ensured.order?.order_number || null,
-        source: 'manual_fallback',
-      },
-      ensured.orderId,
-    );
-
-    return ok({
-      received: true,
-      ensured: true,
-      duplicate: ensured.duplicate,
-      order_id: ensured.orderId,
-      order: ensured.order,
-    });
-  }
-
   const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
   if (!webhookSecret) {
     console.error('STRIPE_WEBHOOK_SECRET not configured');
@@ -335,10 +272,6 @@ function ok(body: unknown) {
     status: 200,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
-}
-
-function isStripeSessionId(value: string): boolean {
-  return /^cs_(test|live)_[A-Za-z0-9]+$/.test(value);
 }
 
 async function findOrderBySession(supabase: any, sessionId: string): Promise<string | null> {
