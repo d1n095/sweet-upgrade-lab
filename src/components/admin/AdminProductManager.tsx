@@ -68,7 +68,7 @@ const AdminProductManager = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<ProductFormData>({
     title: '', description: '', price: '', currency: 'SEK',
-    productType: '', tags: '', vendor: '4ThePeople',
+    productType: '', categoryIds: [], tags: '', vendor: '4ThePeople',
     isVisible: true, inventory: 0, allowOverselling: false,
     imageUrls: [], ingredients: '', certifications: '', recipe: '',
     feeling: '', effects: '', usage: '', extendedDescription: '',
