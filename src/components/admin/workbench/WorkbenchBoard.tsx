@@ -327,6 +327,14 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
                         <Badge variant="secondary" className="text-[9px]">
                           {TASK_TYPES.find(t => t.key === task.task_type)?.label || task.task_type}
                         </Badge>
+                        {getTaskAutomationBadge(task.id) && (
+                          <Badge variant="outline" className="text-[9px] gap-0.5 bg-purple-100 text-purple-700 border-purple-200">
+                            <Bot className="w-2.5 h-2.5" />
+                            {getTaskAutomationBadge(task.id) === 'escalate' ? 'Eskalerad' :
+                             getTaskAutomationBadge(task.id) === 'reassign' ? 'Omfördelad' :
+                             getTaskAutomationBadge(task.id) === 'reprioritize' ? 'Omprioriterad' : 'Auto'}
+                          </Badge>
+                        )}
                         {task.assigned_to && (
                           <Badge variant="outline" className="text-[9px] gap-0.5">
                             <UserCheck className="w-2.5 h-2.5" />
