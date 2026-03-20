@@ -759,8 +759,13 @@ const Checkout = () => {
                     size="lg"
                     className="w-full h-14 text-base font-semibold"
                     onClick={handleSubmit}
+                    disabled={isCheckingOut}
                   >
-                    <Lock className="w-4 h-4 mr-2" />{t.paySecurely} — {formatPrice(total)}
+                    {isCheckingOut ? (
+                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{isSv ? 'Skapar säker betalning…' : 'Creating secure payment…'}</>
+                    ) : (
+                      <><Lock className="w-4 h-4 mr-2" />{t.paySecurely} — {formatPrice(total)}</>
+                    )}
                   </Button>
                 </div>
 
