@@ -785,8 +785,51 @@ const AdminOrderManager = () => {
         </Button>
       </div>
 
+      {/* Batch Action Bar */}
+      {showBatchCheckboxes && selectedOrders.size > 0 && (
+        <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/10 border border-primary/20">
+          <span className="text-sm font-medium">{selectedOrders.size} valda</span>
+          {batchProcessing ? (
+            <div className="flex items-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span className="text-sm">{batchProgress.done} / {batchProgress.total}</span>
+              <div className="w-32 h-2 bg-secondary rounded-full overflow-hidden">
+                <div className="h-full bg-primary transition-all" style={{ width: `${(batchProgress.done / batchProgress.total) * 100}%` }} />
+              </div>
+            </div>
+          ) : (
+            <>
+              {fulfillmentTab === 'to_pack' && (
+                <Button size="sm" onClick={handleBatchPack} className="gap-1.5">
+                  <Package className="w-3.5 h-3.5" />
+                  Batch-packa alla
+                </Button>
+              )}
+              {fulfillmentTab === 'packed' && (
+                <Button size="sm" onClick={handleBatchShip} className="gap-1.5">
+                  <Truck className="w-3.5 h-3.5" />
+                  Batch-skicka alla
+                </Button>
+              )}
+              <Button size="sm" variant="ghost" onClick={() => setSelectedOrders(new Set())}>
+                <X className="w-3.5 h-3.5" />
+              </Button>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Orders List */}
       <div className="space-y-2">
+        {showBatchCheckboxes && filteredOrders.length > 0 && (
+          <div className="flex items-center gap-2 px-4 py-1">
+            <Checkbox
+              checked={selectedOrders.size === filteredOrders.length && filteredOrders.length > 0}
+              onCheckedChange={toggleSelectAll}
+            />
+            <span className="text-xs text-muted-foreground">Markera alla</span>
+          </div>
+        )}
         {filteredOrders.length === 0 ? (
           <p className="text-center text-muted-foreground py-4">{content.noOrders}</p>
         ) : (
@@ -802,13 +845,20 @@ const AdminOrderManager = () => {
                 key={order.id}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="rounded-lg border border-border bg-secondary/30 overflow-hidden"
+                className={`rounded-lg border overflow-hidden ${selectedOrders.has(order.id) ? 'border-primary bg-primary/5' : 'border-border bg-secondary/30'}`}
               >
                 {/* Order Header */}
                 <div
                   className="flex items-center gap-3 p-4 cursor-pointer hover:bg-secondary/50 transition-colors"
                   onClick={() => setExpandedOrder(isExpanded ? null : order.id)}
                 >
+                  {showBatchCheckboxes && (
+                    <Checkbox
+                      checked={selectedOrders.has(order.id)}
+                      onCheckedChange={() => toggleOrderSelection(order.id)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-sm font-mono">
