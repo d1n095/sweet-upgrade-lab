@@ -227,10 +227,18 @@ const Checkout = () => {
   };
 
   const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [checkoutStage, setCheckoutStage] = useState<'idle' | 'connecting' | 'creating' | 'redirecting'>('idle');
+
+  const stageText = useMemo(() => ({
+    connecting: isSv ? 'Ansluter till säker betalning…' : 'Connecting to secure payment…',
+    creating: isSv ? 'Skapar betalningssession…' : 'Creating payment session…',
+    redirecting: isSv ? 'Omdirigerar till Stripe…' : 'Redirecting to Stripe…',
+  }), [isSv]);
 
   const startCheckout = useCallback(async () => {
     if (isCheckingOut) return;
     setIsCheckingOut(true);
+    setCheckoutStage('connecting');
     setDebugSteps([]);
     addDebugStep('✅ REAL PAY HANDLER TRIGGERED');
     setCheckoutError(null);
@@ -260,13 +268,12 @@ const Checkout = () => {
         paymentMethod: selectedPayment,
       };
 
-      // Get auth token in parallel with nothing else blocking
-      const tokenPromise = supabase.auth.getSession();
-
-      const { data: sessionData } = await tokenPromise;
+      // Get auth token
+      const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData.session?.access_token;
-
       addDebugStep(`🔑 Auth token: ${accessToken ? 'YES' : 'NO'}`);
+
+      setCheckoutStage('creating');
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000);
@@ -314,10 +321,12 @@ const Checkout = () => {
       }
 
       completedRef.current = true;
+      setCheckoutStage('redirecting');
       addDebugStep('🚀 REDIRECT LINE REACHED — redirecting NOW');
       window.location.href = url;
     } catch (err: any) {
       setIsCheckingOut(false);
+      setCheckoutStage('idle');
       console.error('Checkout redirect failed:', err);
 
       const message = err?.name === 'AbortError'
