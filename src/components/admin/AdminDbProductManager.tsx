@@ -124,6 +124,7 @@ const AdminDbProductManager = () => {
       price: product.price.toString(),
       currency: product.currency || 'SEK',
       productType: product.category || '',
+      categoryIds: [],
       tags: (product.tags || []).join(', '),
       vendor: product.vendor || '4ThePeople',
       isVisible: product.is_visible,
@@ -141,6 +142,12 @@ const AdminDbProductManager = () => {
       metaDescription: (product as any).meta_description || '',
       metaKeywords: (product as any).meta_keywords || '',
       weightGrams: (product as any).weight_grams?.toString() || '',
+    });
+    // Load category IDs async
+    import('@/lib/categories').then(({ fetchProductCategoryIds }) => {
+      fetchProductCategoryIds(product.id).then(ids => {
+        setFormData(prev => ({ ...prev, categoryIds: ids }));
+      });
     });
     setIsEditOpen(true);
   };
