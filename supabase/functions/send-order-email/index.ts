@@ -90,7 +90,7 @@ function renderOrderConfirmationEmail(order: any, items: OrderItem[], shipping: 
         Tack för din beställning!
       </h2>
       <p style="color:${BRAND.muted};margin:0;font-size:14px;">
-        Ordernummer: <strong style="color:${BRAND.primary};">${order.order_number}</strong>
+        Order-ID: <strong style="color:${BRAND.primary};">#${(order.payment_intent_id || order.id || '').slice(-8).toUpperCase()}</strong>
       </p>
       <p style="color:${BRAND.muted};margin:4px 0 0;font-size:13px;">
         ${formatDate(order.created_at)}
