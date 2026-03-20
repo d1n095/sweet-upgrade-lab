@@ -48,15 +48,40 @@ const DbProductGrid = () => {
     load();
   }, [t]);
 
+  // Load tag filter product IDs
+  useEffect(() => {
+    if (!selectedTagId) {
+      setTagProductIds(null);
+      return;
+    }
+    const loadTagProducts = async () => {
+      const { data } = await supabase
+        .from('product_tag_relations')
+        .select('product_id')
+        .eq('tag_id', selectedTagId);
+      setTagProductIds(new Set((data || []).map(r => r.product_id)));
+    };
+    loadTagProducts();
+  }, [selectedTagId]);
+
   const categoryFiltered = useMemo(() => {
-    if (activeCategory === 'all') return products;
-    const cat = categories.find(c => c.id === activeCategory);
-    if (!cat || !cat.query) return products;
-    const match = cat.query.match(/product_type:"?([^"&\s]+)"?/);
-    if (!match) return products;
-    const type = match[1].toLowerCase();
-    return products.filter(p => (p.category || '').toLowerCase() === type);
-  }, [products, activeCategory]);
+    let filtered = products;
+    if (activeCategory !== 'all') {
+      const cat = categories.find(c => c.id === activeCategory);
+      if (cat && cat.query) {
+        const match = cat.query.match(/product_type:"?([^"&\s]+)"?/);
+        if (match) {
+          const type = match[1].toLowerCase();
+          filtered = filtered.filter(p => (p.category || '').toLowerCase() === type);
+        }
+      }
+    }
+    // Apply tag filter
+    if (tagProductIds) {
+      filtered = filtered.filter(p => tagProductIds.has(p.id));
+    }
+    return filtered;
+  }, [products, activeCategory, tagProductIds]);
 
   const searchFiltered = useMemo(() => {
     if (!searchQuery.trim()) return categoryFiltered;
