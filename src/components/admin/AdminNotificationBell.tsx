@@ -21,6 +21,16 @@ interface AdminNotif {
   created_at: string;
 }
 
+const ROUTE_MAP: Record<string, string> = {
+  incident: '/admin/orders',
+  refund: '/admin/orders',
+  order: '/admin/orders',
+  task: '/admin/staff',
+  review: '/admin/communication',
+  product: '/admin/products',
+  member: '/admin/members',
+};
+
 const AdminNotificationBell = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -76,9 +86,8 @@ const AdminNotificationBell = () => {
   const handleClick = (n: AdminNotif) => {
     markAsRead(n.id);
     setOpen(false);
-    if (n.related_type === 'incident') navigate('/admin/orders');
-    else if (n.related_type === 'refund') navigate('/admin/orders');
-    else navigate('/admin/logs');
+    const route = (n.related_type && ROUTE_MAP[n.related_type]) || '/admin/logs';
+    navigate(route);
   };
 
   const typeStyles: Record<string, string> = {
@@ -93,7 +102,7 @@ const AdminNotificationBell = () => {
         <Button variant="ghost" size="icon" className="relative h-9 w-9">
           <Bell className="w-4 h-4" />
           {unreadCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 w-4.5 h-4.5 rounded-full bg-destructive text-[10px] text-destructive-foreground flex items-center justify-center font-bold min-w-[18px] h-[18px]">
+            <span className="absolute -top-0.5 -right-0.5 rounded-full bg-destructive text-[10px] text-destructive-foreground flex items-center justify-center font-bold min-w-[18px] h-[18px]">
               {unreadCount > 9 ? '9+' : unreadCount}
             </span>
           )}
