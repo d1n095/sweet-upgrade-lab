@@ -232,7 +232,14 @@ const SearchSuggestions = () => {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{title(product)}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-medium truncate">{title(product)}</p>
+                        {product.status === 'coming_soon' && (
+                          <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-[10px] font-medium">
+                            {sv ? 'Kommer snart' : 'Coming soon'}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-muted-foreground">
                         {formatPrice(product.price, product.currency)}
                       </p>
