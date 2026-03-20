@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   ClipboardList, Package, Truck, Check, Clock, Loader2,
@@ -68,6 +69,8 @@ const statusOptions = [
 
 const AdminOrderManager = () => {
   const { language } = useLanguage();
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') || 'all';
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
@@ -80,7 +83,7 @@ const AdminOrderManager = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [filter, setFilter] = useState<string>('all');
   const [paymentFilter, setPaymentFilter] = useState<string>('all');
-  const [fulfillmentTab, setFulfillmentTab] = useState<string>('all');
+  const [fulfillmentTab, setFulfillmentTab] = useState<string>(initialTab);
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
   const [batchProcessing, setBatchProcessing] = useState(false);
   const [batchProgress, setBatchProgress] = useState({ done: 0, total: 0 });

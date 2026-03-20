@@ -105,7 +105,7 @@ const AdminOverview = () => {
             .neq('status', 'done').order('created_at', { ascending: false }).limit(5),
           supabase.from('order_incidents').select('id, title, priority, sla_status, sla_deadline, order_id, status')
             .neq('status', 'resolved').neq('status', 'closed').order('created_at', { ascending: false }).limit(5),
-          supabase.from('orders').select('id', { count: 'exact', head: true }).in('status', ['confirmed', 'processing']),
+          supabase.from('orders').select('id', { count: 'exact', head: true }).eq('payment_status', 'paid').in('fulfillment_status', ['pending', 'unfulfilled']),
         ]);
 
         const prods = products.data || [];
@@ -229,7 +229,7 @@ const AdminOverview = () => {
 
           {/* Focus summary row */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <button onClick={() => navigate('/admin/orders')} className="flex items-center gap-2 p-2.5 rounded-lg bg-background border border-border hover:border-primary/20 transition-colors text-left">
+            <button onClick={() => navigate('/admin/orders?tab=to_pack')} className="flex items-center gap-2 p-2.5 rounded-lg bg-background border border-border hover:border-primary/20 transition-colors text-left">
               <Package className="w-4 h-4 text-orange-600 shrink-0" />
               <div>
                 <p className="text-lg font-bold leading-none">{loading ? '–' : ordersToPack}</p>
