@@ -27,6 +27,7 @@ export interface ProductFormData {
   currency: string;
   productType: string;
   categoryIds: string[];
+  tagIds: string[];
   tags: string;
   vendor: string;
   isVisible: boolean;
