@@ -7,6 +7,7 @@ import AdminOrderManager from '@/components/admin/AdminOrderManager';
 import AdminOrderAuditLog from '@/components/admin/AdminOrderAuditLog';
 import AdminDeletedOrders from '@/components/admin/AdminDeletedOrders';
 import AdminOrdersByStatus from '@/components/admin/AdminOrdersByStatus';
+import AdminRefundRequests from '@/components/admin/AdminRefundRequests';
 
 const AdminOrders = () => {
   const [stats, setStats] = useState({ total: 0, pending: 0, shipped: 0, revenue: 0, delivered: 0, returned: 0, lost: 0 });
@@ -76,6 +77,10 @@ const AdminOrders = () => {
             <PackageX className="w-3.5 h-3.5" />
             Borttappade {stats.lost > 0 && `(${stats.lost})`}
           </TabsTrigger>
+          <TabsTrigger value="refunds" className="gap-1.5">
+            <RotateCcw className="w-3.5 h-3.5" />
+            Återbetalningar
+          </TabsTrigger>
           <TabsTrigger value="deleted">Raderade</TabsTrigger>
           <TabsTrigger value="audit">Ändringslogg</TabsTrigger>
         </TabsList>
@@ -105,6 +110,9 @@ const AdminOrders = () => {
             icon={<PackageX className="w-5 h-5 text-rose-600" />}
             emptyMessage="Inga borttappade försändelser"
           />
+        </TabsContent>
+        <TabsContent value="refunds">
+          <AdminRefundRequests />
         </TabsContent>
         <TabsContent value="deleted">
           <AdminDeletedOrders />
