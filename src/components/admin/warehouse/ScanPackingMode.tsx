@@ -8,9 +8,10 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
+import { Progress } from '@/components/ui/progress';
 import {
   ScanLine, Package, CheckCircle2, AlertTriangle, X, Printer,
-  QrCode, Truck, Loader2, Camera,
+  QrCode, Truck, Loader2, XCircle, ShieldCheck,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -26,6 +27,7 @@ interface PackingOrder {
   payment_intent_id: string | null;
   stripe_session_id: string | null;
   fulfillment_status: string;
+  payment_status: string;
   created_at: string;
   tracking_number: string | null;
 }
@@ -40,20 +42,17 @@ const ScanPackingMode = () => {
   const [isPacking, setIsPacking] = useState(false);
   const [isShipping, setIsShipping] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
+  const [scanSuccess, setScanSuccess] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Focus scan input on mount
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
+  useEffect(() => { inputRef.current?.focus(); }, []);
 
-  // Fetch orders ready to pack
   const { data: packQueue = [] } = useQuery({
     queryKey: ['pack-queue'],
     queryFn: async () => {
       const { data } = await supabase
         .from('orders')
-        .select('id, order_email, total_amount, items, shipping_address, payment_intent_id, stripe_session_id, fulfillment_status, created_at, tracking_number')
+        .select('id, order_email, total_amount, items, shipping_address, payment_intent_id, stripe_session_id, fulfillment_status, payment_status, created_at, tracking_number')
         .eq('payment_status', 'paid')
         .in('fulfillment_status', ['pending', 'unfulfilled'])
         .is('deleted_at', null)
@@ -67,11 +66,11 @@ const ScanPackingMode = () => {
     const query = scanInput.trim();
     if (!query) return;
     setScanError(null);
+    setScanSuccess(null);
 
-    // Search by order ID, payment_intent, stripe_session, or email
     const { data } = await supabase
       .from('orders')
-      .select('id, order_email, total_amount, items, shipping_address, payment_intent_id, stripe_session_id, fulfillment_status, created_at, tracking_number')
+      .select('id, order_email, total_amount, items, shipping_address, payment_intent_id, stripe_session_id, fulfillment_status, payment_status, created_at, tracking_number')
       .eq('payment_status', 'paid')
       .is('deleted_at', null)
       .or(`id.eq.${query},payment_intent_id.eq.${query},stripe_session_id.eq.${query},order_email.ilike.%${query}%`)
@@ -84,6 +83,14 @@ const ScanPackingMode = () => {
       return;
     }
 
+    // Block if not paid
+    if ((data as any).payment_status !== 'paid') {
+      setScanError('Order ej betald – kan inte packas');
+      toast.error('Order ej betald');
+      return;
+    }
+
+    setScanSuccess(`Order ${getOrderDisplayId(data as any)} hittad`);
     setActiveOrder(data as PackingOrder);
     setCheckedItems({});
     setTrackingNumber(data.tracking_number || '');
@@ -94,10 +101,24 @@ const ScanPackingMode = () => {
     ? (Array.isArray(activeOrder.items) ? activeOrder.items : [])
     : [];
 
+  const checkedCount = Object.values(checkedItems).filter(Boolean).length;
   const allChecked = orderItems.length > 0 && orderItems.every((_, i) => checkedItems[i]);
+  const progressPercent = orderItems.length > 0 ? (checkedCount / orderItems.length) * 100 : 0;
+
+  const handleCheckItem = (idx: number, productTitle: string, checked: boolean) => {
+    setCheckedItems(prev => ({ ...prev, [idx]: checked }));
+    if (checked) {
+      setScanSuccess(`✓ ${productTitle}`);
+      setScanError(null);
+    }
+  };
 
   const handleMarkPacked = async () => {
     if (!activeOrder || !user) return;
+    if (activeOrder.payment_status !== 'paid') {
+      toast.error('Kan inte packa – order ej betald');
+      return;
+    }
     setIsPacking(true);
     try {
       const { error } = await supabase
@@ -121,7 +142,9 @@ const ScanPackingMode = () => {
       toast.success('Order markerad som packad ✓');
       setActiveOrder(null);
       setCheckedItems({});
+      setScanSuccess(null);
       queryClient.invalidateQueries({ queryKey: ['pack-queue'] });
+      inputRef.current?.focus();
     } catch (err: any) {
       toast.error(err.message || 'Kunde inte uppdatera order');
     } finally {
@@ -131,6 +154,10 @@ const ScanPackingMode = () => {
 
   const handleMarkShipped = async () => {
     if (!activeOrder || !user) return;
+    if (activeOrder.fulfillment_status !== 'packed') {
+      toast.error('Packa ordern först');
+      return;
+    }
     setIsShipping(true);
     try {
       const { error } = await supabase
@@ -148,7 +175,7 @@ const ScanPackingMode = () => {
       await logActivity({
         log_type: 'success',
         category: 'fulfillment',
-        message: `Order skickad via scan`,
+        message: `Order skickad`,
         order_id: activeOrder.id,
         details: { tracking_number: trackingNumber },
       });
@@ -157,7 +184,9 @@ const ScanPackingMode = () => {
       setActiveOrder(null);
       setCheckedItems({});
       setTrackingNumber('');
+      setScanSuccess(null);
       queryClient.invalidateQueries({ queryKey: ['pack-queue'] });
+      inputRef.current?.focus();
     } catch (err: any) {
       toast.error(err.message || 'Kunde inte uppdatera order');
     } finally {
@@ -167,48 +196,55 @@ const ScanPackingMode = () => {
 
   const generateLabel = () => {
     if (!activeOrder) return;
-    const addr = activeOrder.shipping_address;
-    const labelData = {
-      to: {
-        name: addr?.name || '',
-        address: addr?.address || '',
-        zip: addr?.zip || '',
-        city: addr?.city || '',
-        country: addr?.country || 'SE',
-      },
-      orderId: getOrderDisplayId(activeOrder as any),
-      items: orderItems.length,
-    };
-    
-    // Create printable label
-    const w = window.open('', '_blank', 'width=400,height=600');
+    const addr = activeOrder.shipping_address as any;
+    const ref = getOrderDisplayId(activeOrder as any);
+    const barcode = activeOrder.payment_intent_id || activeOrder.id.slice(0, 16);
+
+    const w = window.open('', '_blank', 'width=420,height=650');
     if (w) {
       w.document.write(`
-        <html><head><title>Fraktetikett</title>
+        <html><head><title>Fraktetikett – ${ref}</title>
         <style>
-          body { font-family: system-ui; padding: 20px; }
-          .label { border: 2px solid #000; padding: 20px; max-width: 350px; }
-          .barcode { font-family: monospace; font-size: 14px; letter-spacing: 2px; margin: 10px 0; padding: 8px; background: #f5f5f5; text-align: center; }
-          h2 { margin: 0 0 10px; }
-          .addr { margin: 15px 0; line-height: 1.6; }
-          .footer { margin-top: 15px; font-size: 12px; color: #666; }
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: -apple-system, system-ui, sans-serif; padding: 24px; }
+          .label { border: 3px solid #000; padding: 24px; max-width: 370px; margin: auto; }
+          .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 2px solid #000; padding-bottom: 12px; }
+          .header h2 { font-size: 18px; }
+          .barcode { font-family: 'Courier New', monospace; font-size: 13px; letter-spacing: 3px; margin: 12px 0; padding: 10px; background: #f0f0f0; text-align: center; word-break: break-all; border: 1px solid #ccc; }
+          .section { margin: 16px 0; }
+          .section-title { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #666; margin-bottom: 4px; }
+          .addr { line-height: 1.7; font-size: 15px; }
+          .addr strong { font-size: 16px; }
+          .meta { margin-top: 16px; padding-top: 12px; border-top: 1px dashed #ccc; font-size: 11px; color: #666; display: flex; justify-content: space-between; }
+          .items { font-size: 12px; color: #444; margin-top: 12px; padding: 8px; background: #fafafa; border: 1px solid #eee; }
+          .items li { margin: 2px 0; }
+          @media print { body { padding: 0; } }
         </style></head><body>
         <div class="label">
-          <h2>📦 Fraktetikett</h2>
-          <div class="barcode">${activeOrder.payment_intent_id || activeOrder.id.slice(0, 12)}</div>
-          <div class="addr">
-            <strong>${labelData.to.name}</strong><br/>
-            ${labelData.to.address}<br/>
-            ${labelData.to.zip} ${labelData.to.city}<br/>
-            ${labelData.to.country}
+          <div class="header">
+            <h2>📦 Fraktetikett</h2>
+            <span style="font-size:13px;font-weight:600">${ref}</span>
           </div>
-          <div class="footer">
-            Order: ${getOrderDisplayId(activeOrder as any)}<br/>
-            Antal artiklar: ${labelData.items}<br/>
-            Datum: ${new Date().toLocaleDateString('sv-SE')}
+          <div class="barcode">${barcode}</div>
+          <div class="section">
+            <div class="section-title">Mottagare</div>
+            <div class="addr">
+              <strong>${addr?.name || '—'}</strong><br/>
+              ${addr?.address || ''}<br/>
+              ${addr?.zip || ''} ${addr?.city || ''}<br/>
+              ${addr?.country || 'SE'}
+              ${addr?.phone ? '<br/>Tel: ' + addr.phone : ''}
+            </div>
+          </div>
+          <ul class="items">
+            ${orderItems.map((item: any) => `<li>${item.quantity}x ${item.title}</li>`).join('')}
+          </ul>
+          <div class="meta">
+            <span>Datum: ${new Date().toLocaleDateString('sv-SE')}</span>
+            <span>${orderItems.reduce((s: number, i: any) => s + (i.quantity || 1), 0)} artiklar</span>
           </div>
         </div>
-        <script>window.onload = () => window.print();</script>
+        <script>window.onload = () => { setTimeout(() => window.print(), 300); }</script>
         </body></html>
       `);
       w.document.close();
@@ -225,13 +261,13 @@ const ScanPackingMode = () => {
             Scan / Sök order
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-2">
           <div className="flex gap-2">
             <Input
               ref={inputRef}
               placeholder="Scanna QR/streckkod eller sök order-ID, email…"
               value={scanInput}
-              onChange={(e) => setScanInput(e.target.value)}
+              onChange={(e) => { setScanInput(e.target.value); setScanError(null); setScanSuccess(null); }}
               onKeyDown={(e) => e.key === 'Enter' && handleScan()}
               className="flex-1"
             />
@@ -241,9 +277,14 @@ const ScanPackingMode = () => {
             </Button>
           </div>
           {scanError && (
-            <p className="text-sm text-destructive mt-2 flex items-center gap-1">
-              <AlertTriangle className="w-3.5 h-3.5" /> {scanError}
-            </p>
+            <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">
+              <XCircle className="w-4 h-4 shrink-0" /> {scanError}
+            </div>
+          )}
+          {scanSuccess && !scanError && (
+            <div className="flex items-center gap-2 text-sm text-accent bg-accent/10 rounded-lg px-3 py-2">
+              <ShieldCheck className="w-4 h-4 shrink-0" /> {scanSuccess}
+            </div>
           )}
         </CardContent>
       </Card>
@@ -272,6 +313,8 @@ const ScanPackingMode = () => {
                       setActiveOrder(order);
                       setCheckedItems({});
                       setTrackingNumber(order.tracking_number || '');
+                      setScanError(null);
+                      setScanSuccess(`Order ${getOrderDisplayId(order as any)} vald`);
                     }}
                     className={cn(
                       'w-full text-left p-3 rounded-lg border transition-colors',
@@ -319,7 +362,7 @@ const ScanPackingMode = () => {
                     <Badge variant={activeOrder.fulfillment_status === 'packed' ? 'default' : 'secondary'}>
                       {activeOrder.fulfillment_status}
                     </Badge>
-                    <Button variant="ghost" size="icon" onClick={() => setActiveOrder(null)}>
+                    <Button variant="ghost" size="icon" onClick={() => { setActiveOrder(null); setScanSuccess(null); }}>
                       <X className="w-4 h-4" />
                     </Button>
                   </div>
@@ -338,6 +381,15 @@ const ScanPackingMode = () => {
                   </div>
                 )}
 
+                {/* Progress bar */}
+                <div className="space-y-1">
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Packningsframsteg</span>
+                    <span className="font-medium">{checkedCount} / {orderItems.length}</span>
+                  </div>
+                  <Progress value={progressPercent} className="h-2" />
+                </div>
+
                 {/* Items checklist */}
                 <div>
                   <p className="text-sm font-medium mb-2">Artiklar att packa:</p>
@@ -346,7 +398,7 @@ const ScanPackingMode = () => {
                       <div
                         key={idx}
                         className={cn(
-                          'flex items-center gap-3 p-3 rounded-lg border transition-colors',
+                          'flex items-center gap-3 p-3 rounded-lg border transition-all',
                           checkedItems[idx]
                             ? 'border-accent bg-accent/5'
                             : 'border-border'
@@ -354,7 +406,7 @@ const ScanPackingMode = () => {
                       >
                         <Checkbox
                           checked={!!checkedItems[idx]}
-                          onCheckedChange={(v) => setCheckedItems(prev => ({ ...prev, [idx]: !!v }))}
+                          onCheckedChange={(v) => handleCheckItem(idx, item.title || `Artikel ${idx + 1}`, !!v)}
                         />
                         {item.image && (
                           <img src={item.image} alt="" className="w-10 h-10 rounded object-cover" />
@@ -371,9 +423,6 @@ const ScanPackingMode = () => {
                       </div>
                     ))}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    {Object.values(checkedItems).filter(Boolean).length} / {orderItems.length} artiklar verifierade
-                  </p>
                 </div>
 
                 <Separator />
@@ -405,7 +454,7 @@ const ScanPackingMode = () => {
                     </Button>
                   )}
 
-                  {(activeOrder.fulfillment_status === 'packed' || allChecked) && activeOrder.fulfillment_status !== 'shipped' && (
+                  {activeOrder.fulfillment_status === 'packed' && (
                     <Button
                       onClick={handleMarkShipped}
                       disabled={isShipping}
@@ -430,7 +479,7 @@ const ScanPackingMode = () => {
                 {!allChecked && activeOrder.fulfillment_status !== 'packed' && (
                   <p className="text-xs text-amber-600 flex items-center gap-1">
                     <AlertTriangle className="w-3.5 h-3.5" />
-                    Markera alla artiklar som verifierade innan du kan packa
+                    Verifiera alla artiklar innan du kan markera som packad
                   </p>
                 )}
               </CardContent>
