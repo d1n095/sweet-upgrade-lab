@@ -498,7 +498,7 @@ const AdminOrderManager = () => {
       }).eq('id', order.id);
       if (error) throw error;
       setOrders(prev => prev.map(o => o.id === order.id ? { ...o, fulfillment_status: 'shipped', shipped_at: new Date().toISOString(), shipped_by: currentUser?.id || null, status: 'shipped', status_history: newHistory } : o));
-      logActivity({ log_type: 'success', category: 'fulfillment', message: `Order ${order.order_number} skickad`, order_id: order.id });
+      logActivity({ log_type: 'success', category: 'fulfillment', message: `Order ${getOrderDisplayId(order)} skickad`, order_id: order.id });
       toast.success(language === 'sv' ? 'Order markerad som skickad' : 'Order marked as shipped');
       // Send status email
       try {
