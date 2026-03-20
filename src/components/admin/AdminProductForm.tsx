@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { Sparkles } from 'lucide-react';
 import { DollarSign, Tag, Save, Eye, EyeOff, Boxes, Minus, Plus, Upload, X, Image, FlaskConical, ChefHat, Weight, Wand2, Loader2, Check } from 'lucide-react';
 import { RecipeTemplatePicker } from './RecipeTemplatePicker';
 import { supabase } from '@/integrations/supabase/client';
