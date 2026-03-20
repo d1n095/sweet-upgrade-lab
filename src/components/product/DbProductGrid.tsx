@@ -6,6 +6,7 @@ import { categories } from '@/data/categories';
 import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import { cn } from '@/lib/utils';
 import { useSearchStore } from '@/stores/searchStore';
+import { supabase } from '@/integrations/supabase/client';
 import {
   Select,
   SelectContent,
@@ -14,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import DbProductCard from './DbProductCard';
+import UseCaseFilter from './UseCaseFilter';
 
 type SortOption = 'default' | 'price-asc' | 'price-desc' | 'name-asc' | 'name-desc';
 
@@ -24,6 +26,8 @@ const DbProductGrid = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState('all');
+  const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
+  const [tagProductIds, setTagProductIds] = useState<Set<string> | null>(null);
   const [sortOption, setSortOption] = useState<SortOption>('default');
   const searchQuery = useSearchStore(state => state.searchQuery);
 
