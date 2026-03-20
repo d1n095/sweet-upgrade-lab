@@ -91,6 +91,7 @@ serve(async (req) => {
         order_number: order.order_number,
         shopify_order_number: order.shopify_order_number,
         stripe_session_id: order.stripe_session_id,
+        payment_intent_id: order.payment_intent_id,
         order_email: order.order_email,
         status: order.status,
         tracking_number: order.tracking_number,
