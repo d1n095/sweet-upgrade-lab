@@ -59,12 +59,16 @@ const OrderConfirmation = () => {
           if (
             !fnError &&
             fnData?.found &&
-            fnData.order?.order_number &&
             fnData.order?.stripe_session_id === sessionId
           ) {
             const order = fnData.order;
             setOrderId(order.id);
-            setOrderNumber(order.order_number);
+            setPaymentIntentId(order.payment_intent_id || '');
+            setOrderRef(getOrderDisplayId({
+              payment_intent_id: order.payment_intent_id,
+              stripe_session_id: order.stripe_session_id,
+              id: order.id,
+            }));
             if (order.order_email) setOrderEmail(order.order_email);
             setIsLoading(false);
             return;
