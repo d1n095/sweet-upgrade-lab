@@ -116,15 +116,16 @@ const SearchSuggestions = () => {
             .or(`name_sv.ilike.%${q}%,name_en.ilike.%${q}%`)
             .limit(5);
 
-          // Sort: active first, then coming_soon, then info
+          // Merge and sort: active first, then coming_soon, then info
           const statusOrder: Record<string, number> = { active: 0, coming_soon: 1, info: 2 };
-          const sorted = ((data || []) as DbProductResult[]).sort((a, b) => {
+          const allResults = [...((data || []) as DbProductResult[]), ...extraProducts];
+          const sorted = allResults.sort((a, b) => {
             return (statusOrder[a.status] ?? 3) - (statusOrder[b.status] ?? 3);
           });
-          setSuggestions(sorted);
+          setSuggestions(sorted.slice(0, 10));
 
           // Log search to search_logs for admin analytics
-          logSearchStandalone(q, (data || []).length);
+          logSearchStandalone(q, allResults.length);
 
           // Find which ingredients matched (from both product text and ingredient DB)
           const matched = new Set<string>();
