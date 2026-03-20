@@ -454,7 +454,7 @@ const ScanPackingMode = () => {
                     </Button>
                   )}
 
-                  {(activeOrder.fulfillment_status === 'packed') && activeOrder.fulfillment_status !== 'shipped' && (
+                  {activeOrder.fulfillment_status === 'packed' && (
                     <Button
                       onClick={handleMarkShipped}
                       disabled={isShipping}
