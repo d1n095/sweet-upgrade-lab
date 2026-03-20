@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { trackProductView } from '@/utils/analyticsTracker';
 import { motion } from 'framer-motion';
-import { ShoppingCart, Check, Loader2, Minus, Plus, Shield, RotateCcw, Truck, Share2, Languages } from 'lucide-react';
+import { ShoppingCart, Check, Loader2, Minus, Plus, Shield, RotateCcw, Truck, Share2, Languages, Sparkles, Droplets, Heart, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -22,7 +22,6 @@ import SEOHead from '@/components/seo/SEOHead';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 
-// Auto-generate SEO description from product data
 function generateAutoSeoDescription(product: DbProduct): string {
   const parts: string[] = [];
   if (product.description_sv) parts.push(product.description_sv.substring(0, 80));
@@ -35,7 +34,6 @@ function generateAutoSeoDescription(product: DbProduct): string {
   return result || `Köp ${product.title_sv} hos 4ThePeople — noggrant utvalt, giftfritt och hållbart.`;
 }
 
-// Auto-generate SEO keywords from product data
 function generateAutoSeoKeywords(product: DbProduct): string {
   const keywords: string[] = [product.title_sv];
   if (product.category) keywords.push(product.category);
@@ -49,6 +47,12 @@ function generateAutoSeoKeywords(product: DbProduct): string {
   return [...new Set(keywords)].join(', ');
 }
 
+/** Parse bullet points from text: "• one\n• two" or "one\ntwo" */
+function parseBullets(text: string | null | undefined): string[] {
+  if (!text) return [];
+  return text.split('\n').map(s => s.replace(/^[•\-\*]\s*/, '').trim()).filter(Boolean);
+}
+
 const ProductDetail = () => {
   const { handle } = useParams<{ handle: string }>();
   const { t, language } = useLanguage();
@@ -60,7 +64,6 @@ const ProductDetail = () => {
   const [quantity, setQuantity] = useState(1);
   const [isAdded, setIsAdded] = useState(false);
 
-  // AI translation hook
   const translated = useTranslatedProduct(product);
 
   useEffect(() => {
@@ -80,9 +83,7 @@ const ProductDetail = () => {
   }, [handle]);
 
   useEffect(() => {
-    if (product) {
-      trackProductView(product.id, product.title_sv, product.price);
-    }
+    if (product) trackProductView(product.id, product.title_sv, product.price);
   }, [product]);
 
   const formatPrice = (amount: number) =>
@@ -182,9 +183,7 @@ const ProductDetail = () => {
         <Header />
         <div className="container mx-auto px-4 py-32 text-center">
           <h1 className="text-2xl font-bold mb-4">{t('product.notfound')}</h1>
-          <Link to="/produkter">
-            <Button>{t('product.back')}</Button>
-          </Link>
+          <Link to="/produkter"><Button>{t('product.back')}</Button></Link>
         </div>
         <Footer />
       </div>
@@ -198,22 +197,20 @@ const ProductDetail = () => {
   const availableStock = product.stock - (product.reserved_stock || 0);
   const isOutOfStock = !product.allow_overselling && availableStock <= 0;
   const hasDiscount = product.original_price && product.original_price > product.price;
-  const discountPercent = hasDiscount
-    ? Math.round((1 - product.price / product.original_price!) * 100)
-    : 0;
+  const discountPercent = hasDiscount ? Math.round((1 - product.price / product.original_price!) * 100) : 0;
+
+  // Storytelling fields
+  const effects = parseBullets(lang === 'sv' ? product.effects_sv : (product.effects_en || product.effects_sv));
+  const feeling = lang === 'sv' ? product.feeling_sv : (product.feeling_en || product.feeling_sv);
+  const usage = lang === 'sv' ? product.usage_sv : (product.usage_en || product.usage_sv);
+  const extDescription = lang === 'sv' ? product.extended_description_sv : (product.extended_description_en || product.extended_description_sv);
 
   return (
     <div className="min-h-screen bg-background">
       <SEOHead
         title={product.meta_title || `${product.title_sv} — Köp online | 4thepeople`}
-        description={
-          product.meta_description ||
-          generateAutoSeoDescription(product)
-        }
-        keywords={
-          product.meta_keywords ||
-          generateAutoSeoKeywords(product)
-        }
+        description={product.meta_description || generateAutoSeoDescription(product)}
+        keywords={product.meta_keywords || generateAutoSeoKeywords(product)}
         canonical={`/product/${handle}`}
         ogType="product"
         ogImage={images[0]}
@@ -296,12 +293,7 @@ const ProductDetail = () => {
             </div>
 
             {/* Product info */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="flex flex-col"
-            >
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="flex flex-col">
               {product.vendor && (
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-2">{product.vendor}</p>
               )}
@@ -311,35 +303,54 @@ const ProductDetail = () => {
                   {lang === 'sv' ? 'Laddar...' : 'Translating...'}
                 </span>
               )}
-              <h1 className="font-display text-2xl md:text-3xl font-bold mb-4 leading-tight">{title}</h1>
+              <h1 className="font-display text-2xl md:text-3xl font-bold mb-3 leading-tight">{title}</h1>
+
+              {/* Hook / short description */}
+              {description && (
+                <p className="text-muted-foreground leading-relaxed mb-4 text-[15px]">{description}</p>
+              )}
 
               {/* Price */}
-              <div className="flex items-baseline gap-3 mb-4">
+              <div className="flex items-baseline gap-3 mb-3">
                 <span className="text-3xl font-bold">{formatPrice(product.price)}</span>
                 {hasDiscount && (
                   <span className="text-lg text-muted-foreground line-through">{formatPrice(product.original_price!)}</span>
                 )}
               </div>
 
-              {/* Stock status */}
-              <div className="mb-5">
+              {/* Stock + urgency */}
+              <div className="mb-4">
                 {isOutOfStock ? (
                   <span className="inline-flex items-center gap-1.5 text-sm text-destructive font-medium bg-destructive/10 px-3 py-1 rounded-full">{t('product.outofstockwarning')}</span>
                 ) : availableStock <= 5 ? (
                   <span className="inline-flex items-center gap-1.5 text-sm text-warning font-medium bg-warning/10 px-3 py-1 rounded-full">
-                    {t('product.lowstock').replace('{count}', String(availableStock))}
+                    🔥 {t('product.lowstock').replace('{count}', String(availableStock))}
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1.5 text-sm text-accent font-medium bg-accent/10 px-3 py-1 rounded-full">{t('product.instock')}</span>
                 )}
               </div>
 
-              {description && (
-                <p className="text-muted-foreground leading-relaxed mb-6">{description}</p>
+              {/* Effects bullets — "Varför denna?" */}
+              {effects.length > 0 && (
+                <div className="mb-5 p-4 rounded-xl bg-secondary/30 border border-border/50">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-accent" />
+                    {lang === 'sv' ? 'Effekter' : 'Effects'}
+                  </p>
+                  <ul className="space-y-1.5">
+                    {effects.map((e, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm">
+                        <span className="text-accent mt-0.5">✓</span>
+                        <span>{e}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
 
               {/* Quantity + Add to cart (desktop) */}
-              <div className="hidden md:flex items-center gap-3 mb-6">
+              <div className="hidden md:flex items-center gap-3 mb-5">
                 <div className="flex items-center border border-border rounded-lg">
                   <Button variant="ghost" size="icon" className="h-11 w-11 rounded-r-none" onClick={() => setQuantity(Math.max(1, quantity - 1))}>
                     <Minus className="w-4 h-4" />
@@ -351,7 +362,7 @@ const ProductDetail = () => {
                 </div>
                 <Button
                   size="lg"
-                  className={`flex-1 h-11 text-sm font-semibold transition-all ${isAdded ? 'bg-accent hover:bg-accent text-accent-foreground' : ''}`}
+                  className={`flex-1 h-12 text-sm font-semibold transition-all ${isAdded ? 'bg-accent hover:bg-accent text-accent-foreground' : ''}`}
                   onClick={handleAddToCart}
                   disabled={isOutOfStock}
                 >
@@ -369,7 +380,7 @@ const ProductDetail = () => {
               </div>
 
               {/* Trust badges */}
-              <div className="grid grid-cols-3 gap-3 mb-6">
+              <div className="grid grid-cols-3 gap-3 mb-5">
                 {[
                   { icon: Shield, label: t('product.securepayment') },
                   { icon: RotateCcw, label: t('product.returns') },
@@ -384,6 +395,59 @@ const ProductDetail = () => {
 
               <PaymentMethods />
             </motion.div>
+          </div>
+
+          {/* Storytelling sections below the fold */}
+          <div className="mt-16 space-y-12">
+            {/* Feeling */}
+            {feeling && (
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.2 }}
+                transition={{ duration: 0.5 }}
+                className="max-w-2xl"
+              >
+                <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                  <Heart className="w-4 h-4 text-accent" />
+                  {lang === 'sv' ? 'Känsla' : 'Feeling'}
+                </h3>
+                <p className="text-muted-foreground leading-relaxed">{feeling}</p>
+              </motion.div>
+            )}
+
+            {/* Usage */}
+            {usage && (
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.2 }}
+                transition={{ duration: 0.5 }}
+                className="max-w-2xl"
+              >
+                <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                  <Droplets className="w-4 h-4 text-accent" />
+                  {lang === 'sv' ? 'Så använder du den' : 'How to use'}
+                </h3>
+                <p className="text-muted-foreground leading-relaxed whitespace-pre-line">{usage}</p>
+              </motion.div>
+            )}
+
+            {/* Extended description */}
+            {extDescription && (
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.2 }}
+                transition={{ duration: 0.5 }}
+                className="max-w-2xl"
+              >
+                <h3 className="text-lg font-semibold mb-3">
+                  {lang === 'sv' ? 'Mer information' : 'More information'}
+                </h3>
+                <p className="text-muted-foreground leading-relaxed whitespace-pre-line">{extDescription}</p>
+              </motion.div>
+            )}
           </div>
 
           {/* Ingredients & Certifications */}
