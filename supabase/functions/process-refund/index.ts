@@ -23,7 +23,7 @@ serve(async (req) => {
       });
     }
 
-    // Verify auth - must be admin
+    // Verify auth
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -46,12 +46,15 @@ serve(async (req) => {
       });
     }
 
-    // Check admin role
+    const body = await req.json();
+    const { action, refund_request_id, order_id, reason } = body;
+
+    // Check user role
     const { data: roles } = await supabase
       .from("user_roles")
       .select("role")
       .eq("user_id", user.id)
-      .in("role", ["admin", "founder", "it"]);
+      .in("role", ["admin", "founder", "it", "moderator", "support", "manager"]);
 
     if (!roles || roles.length === 0) {
       return new Response(JSON.stringify({ error: "Forbidden" }), {
@@ -60,113 +63,257 @@ serve(async (req) => {
       });
     }
 
-    const { order_id } = await req.json();
+    const isAdmin = roles.some(r => ["admin", "founder", "it"].includes(r.role as string));
 
-    if (!order_id) {
-      return new Response(JSON.stringify({ error: "Missing order_id" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Get order
-    const { data: order, error: orderError } = await supabase
-      .from("orders")
-      .select("*")
-      .eq("id", order_id)
-      .single();
-
-    if (orderError || !order) {
-      return new Response(JSON.stringify({ error: "Order not found" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    if (order.payment_status !== "paid") {
-      return new Response(JSON.stringify({ error: "Order not paid" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    if (order.refund_status === "refunded") {
-      return new Response(JSON.stringify({ error: "Already refunded" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Try Stripe refund if we have payment_intent_id
-    let stripeRefundId = null;
-    if (order.payment_intent_id) {
-      try {
-        const refundRes = await fetch("https://api.stripe.com/v1/refunds", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${stripeKey}`,
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          body: `payment_intent=${order.payment_intent_id}`,
+    // ACTION: create_request — any staff can do this
+    if (action === "create_request") {
+      if (!order_id || !reason) {
+        return new Response(JSON.stringify({ error: "Missing order_id or reason" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
-        const refundData = await refundRes.json();
-        if (refundData.id) {
-          stripeRefundId = refundData.id;
-        } else {
-          console.error("Stripe refund failed:", refundData);
-        }
-      } catch (e) {
-        console.error("Stripe refund error:", e);
       }
+
+      const { data: order } = await supabase
+        .from("orders")
+        .select("id, payment_status, refund_status, total_amount")
+        .eq("id", order_id)
+        .single();
+
+      if (!order) {
+        return new Response(JSON.stringify({ error: "Order not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (order.payment_status !== "paid") {
+        return new Response(JSON.stringify({ error: "Order not paid" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (order.refund_status === "refunded") {
+        return new Response(JSON.stringify({ error: "Already refunded" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Check no pending request exists
+      const { data: existing } = await supabase
+        .from("refund_requests")
+        .select("id")
+        .eq("order_id", order_id)
+        .eq("status", "pending")
+        .limit(1);
+
+      if (existing && existing.length > 0) {
+        return new Response(JSON.stringify({ error: "Pending request already exists" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: request, error: insertErr } = await supabase
+        .from("refund_requests")
+        .insert({
+          order_id,
+          requested_by: user.id,
+          reason,
+          refund_amount: order.total_amount,
+          status: "pending",
+        })
+        .select()
+        .single();
+
+      if (insertErr) throw insertErr;
+
+      await supabase.from("activity_logs").insert({
+        log_type: "info",
+        category: "admin",
+        message: `Återbetalningsförfrågan skapad för order ${order_id.slice(0, 8)}`,
+        details: { reason, amount: order.total_amount, requested_by: user.email },
+        order_id,
+        user_id: user.id,
+      });
+
+      return new Response(JSON.stringify({ success: true, request }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // Update order in DB
-    const existingHistory = Array.isArray(order.status_history) ? order.status_history : [];
-    const newHistory = [
-      ...existingHistory,
-      {
-        status: "refunded",
-        timestamp: new Date().toISOString(),
-        note: stripeRefundId
-          ? `Återbetald via Stripe (${stripeRefundId})`
-          : "Manuellt markerad som återbetald av admin",
-      },
-    ];
+    // ACTION: approve — only admin can do this
+    if (action === "approve") {
+      if (!isAdmin) {
+        return new Response(JSON.stringify({ error: "Only admins can approve refunds" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
 
-    const { error: updateError } = await supabase
-      .from("orders")
-      .update({
+      if (!refund_request_id) {
+        return new Response(JSON.stringify({ error: "Missing refund_request_id" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: request } = await supabase
+        .from("refund_requests")
+        .select("*, orders!inner(id, payment_intent_id, total_amount, payment_status, refund_status, order_number, status_history)")
+        .eq("id", refund_request_id)
+        .eq("status", "pending")
+        .single();
+
+      if (!request) {
+        return new Response(JSON.stringify({ error: "Request not found or not pending" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const order = (request as any).orders;
+
+      if (order.payment_status !== "paid" || order.refund_status === "refunded") {
+        return new Response(JSON.stringify({ error: "Order not eligible for refund" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Execute Stripe refund
+      let stripeRefundId = null;
+      if (order.payment_intent_id) {
+        try {
+          const refundRes = await fetch("https://api.stripe.com/v1/refunds", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${stripeKey}`,
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: `payment_intent=${order.payment_intent_id}`,
+          });
+          const refundData = await refundRes.json();
+          if (refundData.id) {
+            stripeRefundId = refundData.id;
+          } else {
+            console.error("Stripe refund failed:", refundData);
+            // Update request as rejected if Stripe fails
+            await supabase.from("refund_requests").update({
+              status: "rejected",
+              admin_notes: `Stripe error: ${JSON.stringify(refundData.error?.message || refundData)}`,
+              approved_by: user.id,
+              processed_at: new Date().toISOString(),
+            }).eq("id", refund_request_id);
+
+            return new Response(JSON.stringify({ error: "Stripe refund failed", details: refundData }), {
+              status: 500,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+        } catch (e) {
+          console.error("Stripe refund error:", e);
+          return new Response(JSON.stringify({ error: "Stripe connection failed" }), {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+
+      // Update order
+      const existingHistory = Array.isArray(order.status_history) ? order.status_history : [];
+      const newHistory = [
+        ...existingHistory,
+        {
+          status: "refunded",
+          timestamp: new Date().toISOString(),
+          note: stripeRefundId
+            ? `Återbetald via Stripe (${stripeRefundId})`
+            : "Manuellt godkänd återbetalning",
+        },
+      ];
+
+      await supabase.from("orders").update({
         refund_status: "refunded",
         refund_amount: order.total_amount,
         refunded_at: new Date().toISOString(),
         status_history: newHistory,
-      })
-      .eq("id", order_id);
+      }).eq("id", order.id);
 
-    if (updateError) throw updateError;
-
-    // Log activity
-    await supabase.from("activity_logs").insert({
-      log_type: "warning",
-      category: "admin",
-      message: `Order ${order.order_number || order_id.slice(0, 8)} återbetald${stripeRefundId ? " via Stripe" : " manuellt"}`,
-      details: {
-        amount: order.total_amount,
+      // Update request
+      await supabase.from("refund_requests").update({
+        status: "approved",
+        approved_by: user.id,
         stripe_refund_id: stripeRefundId,
-        admin_user: user.email,
-      },
-      order_id,
-      user_id: user.id,
-    });
+        processed_at: new Date().toISOString(),
+      }).eq("id", refund_request_id);
 
-    return new Response(
-      JSON.stringify({
+      // Log
+      await supabase.from("activity_logs").insert({
+        log_type: "warning",
+        category: "admin",
+        message: `Återbetalning godkänd för order ${order.order_number || order.id.slice(0, 8)}${stripeRefundId ? " via Stripe" : ""}`,
+        details: {
+          amount: order.total_amount,
+          stripe_refund_id: stripeRefundId,
+          approved_by: user.email,
+          request_id: refund_request_id,
+        },
+        order_id: order.id,
+        user_id: user.id,
+      });
+
+      return new Response(JSON.stringify({
         success: true,
         stripe_refund_id: stripeRefundId,
         amount: order.total_amount,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ACTION: reject — only admin
+    if (action === "reject") {
+      if (!isAdmin) {
+        return new Response(JSON.stringify({ error: "Only admins can reject refunds" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (!refund_request_id) {
+        return new Response(JSON.stringify({ error: "Missing refund_request_id" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      await supabase.from("refund_requests").update({
+        status: "rejected",
+        approved_by: user.id,
+        admin_notes: body.admin_notes || null,
+        processed_at: new Date().toISOString(),
+      }).eq("id", refund_request_id).eq("status", "pending");
+
+      await supabase.from("activity_logs").insert({
+        log_type: "info",
+        category: "admin",
+        message: `Återbetalningsförfrågan avvisad`,
+        details: { request_id: refund_request_id, rejected_by: user.email, reason: body.admin_notes },
+        user_id: user.id,
+      });
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response(JSON.stringify({ error: "Invalid action. Use: create_request, approve, reject" }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (err) {
     console.error("Refund error:", err);
     return new Response(JSON.stringify({ error: "Internal error" }), {
