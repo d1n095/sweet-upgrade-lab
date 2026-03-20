@@ -23,6 +23,7 @@ interface RecentOrder {
   payment_status: string;
   created_at: string;
   order_number: string | null;
+  payment_intent_id: string | null;
 }
 
 interface LowStockProduct {
