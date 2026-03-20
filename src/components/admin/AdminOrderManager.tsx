@@ -598,7 +598,7 @@ const AdminOrderManager = () => {
       }).eq('id', order.id);
       if (!error) {
         setOrders(prev => prev.map(o => o.id === order.id ? { ...o, fulfillment_status: 'shipped', shipped_at: new Date().toISOString(), shipped_by: currentUser?.id || null, status: 'shipped', status_history: newHistory } : o));
-        logActivity({ log_type: 'success', category: 'fulfillment', message: `Order ${order.order_number} batch-skickad`, order_id: order.id });
+        logActivity({ log_type: 'success', category: 'fulfillment', message: `Order ${getOrderDisplayId(order)} batch-skickad`, order_id: order.id });
       }
       setBatchProgress({ done: i + 1, total: eligible.length });
     }
