@@ -338,37 +338,33 @@ const AdminOrderManager = () => {
     }
   };
 
-  const handleMarkAsRefunded = async (order: Order) => {
-    if (!confirm(language === 'sv' 
-      ? `Är du säker på att du vill återbetala ${formatCurrency(order.total_amount, order.currency)} till kunden? Detta kan inte ångras.`
-      : `Are you sure you want to refund ${formatCurrency(order.total_amount, order.currency)}? This cannot be undone.`
-    )) return;
+  const [refundReason, setRefundReason] = useState('');
+  const [refundOrderId, setRefundOrderId] = useState<string | null>(null);
+
+  const handleRequestRefund = async (order: Order) => {
+    if (!refundReason.trim()) {
+      toast.error(language === 'sv' ? 'Ange en anledning' : 'Enter a reason');
+      return;
+    }
 
     try {
-      toast.loading(language === 'sv' ? 'Bearbetar återbetalning...' : 'Processing refund...', { id: 'refund' });
+      toast.loading(language === 'sv' ? 'Skapar förfrågan...' : 'Creating request...', { id: 'refund' });
 
       const { data, error } = await supabase.functions.invoke('process-refund', {
-        body: { order_id: order.id },
+        body: { action: 'create_request', order_id: order.id, reason: refundReason },
       });
 
       if (error) throw error;
 
-      setOrders(prev =>
-        prev.map(o =>
-          o.id === order.id
-            ? { ...o, refund_status: 'refunded', refund_amount: order.total_amount, refunded_at: new Date().toISOString(), updated_at: new Date().toISOString() }
-            : o
-        )
-      );
-
-      const stripeInfo = data?.stripe_refund_id ? ` (Stripe: ${data.stripe_refund_id})` : '';
+      setRefundOrderId(null);
+      setRefundReason('');
       toast.success(
-        language === 'sv' ? `Återbetalning genomförd${stripeInfo}` : `Refund processed${stripeInfo}`,
+        language === 'sv' ? 'Återbetalningsförfrågan skapad' : 'Refund request created',
         { id: 'refund' }
       );
-    } catch (error) {
-      console.error('Failed to refund:', error);
-      toast.error(language === 'sv' ? 'Återbetalning misslyckades' : 'Refund failed', { id: 'refund' });
+    } catch (error: any) {
+      console.error('Failed to create refund request:', error);
+      toast.error(error?.message || (language === 'sv' ? 'Kunde inte skapa förfrågan' : 'Failed to create request'), { id: 'refund' });
     }
   };
 
