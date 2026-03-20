@@ -95,7 +95,10 @@ const AdminRecipeIngredientLibrary = () => {
       category: item.category,
       description_sv: item.description_sv || '',
       description_en: item.description_en || '',
+      benefits_sv: (item.benefits_sv || []).join(', '),
+      risks_sv: (item.risks_sv || []).join(', '),
       is_active: item.is_active,
+      is_searchable: item.is_searchable,
     });
     setIsFormOpen(true);
   };
