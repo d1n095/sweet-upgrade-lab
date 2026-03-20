@@ -24,7 +24,7 @@ interface AdminNotif {
 const AdminNotificationBell = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<AdminNotif[]>([]);
   const [open, setOpen] = useState(false);
 
   const unreadCount = notifications.filter(n => !n.read).length;
@@ -37,7 +37,7 @@ const AdminNotificationBell = () => {
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(20);
-    if (data) setNotifications(data as Notification[]);
+    if (data) setNotifications(data as AdminNotif[]);
   };
 
   useEffect(() => {
@@ -50,7 +50,7 @@ const AdminNotificationBell = () => {
         schema: 'public',
         table: 'notifications',
       }, (payload) => {
-        const n = payload.new as any as Notification;
+        const n = payload.new as any as AdminNotif;
         if (n?.user_id === user?.id) {
           setNotifications(prev => [n, ...prev].slice(0, 20));
         }
