@@ -7,6 +7,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { trackEvent } from '@/utils/analyticsTracker';
+import { logSearchStandalone } from '@/hooks/useInsightLogger';
 
 interface DbProductResult {
   id: string;
@@ -18,6 +19,7 @@ interface DbProductResult {
   image_urls: string[] | null;
   ingredients_sv: string | null;
   ingredients_en: string | null;
+  status: string;
 }
 
 const SearchSuggestions = () => {
@@ -67,12 +69,22 @@ const SearchSuggestions = () => {
           // Search products by title AND ingredients
           const { data } = await supabase
             .from('products')
-            .select('id, title_sv, title_en, handle, price, currency, image_urls, ingredients_sv, ingredients_en')
+            .select('id, title_sv, title_en, handle, price, currency, image_urls, ingredients_sv, ingredients_en, status')
             .eq('is_visible', true)
+            .in('status', ['active', 'coming_soon'])
             .or(`title_sv.ilike.%${q}%,title_en.ilike.%${q}%,ingredients_sv.ilike.%${q}%,ingredients_en.ilike.%${q}%`)
             .limit(6);
 
-          setSuggestions((data || []) as DbProductResult[]);
+          // Sort: active first, then coming_soon
+          const sorted = ((data || []) as DbProductResult[]).sort((a, b) => {
+            if (a.status === 'active' && b.status !== 'active') return -1;
+            if (a.status !== 'active' && b.status === 'active') return 1;
+            return 0;
+          });
+          setSuggestions(sorted);
+
+          // Log search to search_logs for admin analytics
+          logSearchStandalone(q, (data || []).length);
 
           // Find which ingredients matched
           const matched = new Set<string>();
@@ -94,8 +106,9 @@ const SearchSuggestions = () => {
           // Random suggestions
           const { data } = await supabase
             .from('products')
-            .select('id, title_sv, title_en, handle, price, currency, image_urls, ingredients_sv, ingredients_en')
+            .select('id, title_sv, title_en, handle, price, currency, image_urls, ingredients_sv, ingredients_en, status')
             .eq('is_visible', true)
+            .eq('status', 'active')
             .limit(5);
           setSuggestions((data || []) as DbProductResult[]);
           setIngredientMatches([]);
@@ -219,7 +232,14 @@ const SearchSuggestions = () => {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{title(product)}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-medium truncate">{title(product)}</p>
+                        {product.status === 'coming_soon' && (
+                          <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-[10px] font-medium">
+                            {sv ? 'Kommer snart' : 'Coming soon'}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-muted-foreground">
                         {formatPrice(product.price, product.currency)}
                       </p>

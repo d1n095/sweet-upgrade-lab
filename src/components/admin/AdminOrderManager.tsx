@@ -72,6 +72,7 @@ const AdminOrderManager = () => {
   });
   const [isSaving, setIsSaving] = useState(false);
   const [filter, setFilter] = useState<string>('all');
+  const [paymentFilter, setPaymentFilter] = useState<string>('all');
 
   const t = {
     sv: {
@@ -104,6 +105,9 @@ const AdminOrderManager = () => {
       refundConfirm: 'Markera som återbetald?',
       refunded: 'Återbetald',
       partialRefund: 'Delvis återbetald',
+      paid: 'Betalda',
+      unpaid: 'Obetalda',
+      paymentAll: 'Alla betalningar',
       paymentMethod: 'Betalmetod',
       items: 'Produkter',
       address: 'Leveransadress',
@@ -152,6 +156,9 @@ const AdminOrderManager = () => {
       refundConfirm: 'Mark as refunded?',
       refunded: 'Refunded',
       partialRefund: 'Partially refunded',
+      paid: 'Paid',
+      unpaid: 'Unpaid',
+      paymentAll: 'All payments',
       paymentMethod: 'Payment method',
       items: 'Products',
       address: 'Shipping address',
@@ -418,7 +425,12 @@ const AdminOrderManager = () => {
     return statusOptions.find(s => s.value === status)?.color || 'bg-secondary text-secondary-foreground';
   };
 
-  const filteredOrders = filter === 'all' ? orders : orders.filter(o => o.status === filter);
+  const filteredOrders = orders.filter(o => {
+    if (filter !== 'all' && o.status !== filter) return false;
+    if (paymentFilter === 'paid' && o.payment_status !== 'paid') return false;
+    if (paymentFilter === 'unpaid' && o.payment_status === 'paid') return false;
+    return true;
+  });
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString(language === 'sv' ? 'sv-SE' : 'en-US', {
@@ -563,6 +575,19 @@ const AdminOrderManager = () => {
         })}
       </div>
 
+      {/* Payment Status Filters */}
+      <div className="flex flex-wrap gap-2">
+        <Button variant={paymentFilter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setPaymentFilter('all')}>
+          {content.paymentAll}
+        </Button>
+        <Button variant={paymentFilter === 'paid' ? 'default' : 'outline'} size="sm" onClick={() => setPaymentFilter('paid')}>
+          {content.paid} ({orders.filter(o => o.payment_status === 'paid').length})
+        </Button>
+        <Button variant={paymentFilter === 'unpaid' ? 'default' : 'outline'} size="sm" onClick={() => setPaymentFilter('unpaid')}>
+          {content.unpaid} ({orders.filter(o => o.payment_status !== 'paid').length})
+        </Button>
+      </div>
+
       {/* Orders List */}
       <div className="space-y-2">
         {filteredOrders.length === 0 ? (
@@ -625,21 +650,7 @@ const AdminOrderManager = () => {
                     </p>
                   </div>
                    <div className="flex items-center gap-2">
-                    {/* Quick actions for pending/failed orders */}
-                    {(order.status === 'pending' || order.status === 'failed') && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="gap-1.5 text-xs border-green-300 text-green-700 hover:bg-green-50 dark:border-green-700 dark:text-green-400 dark:hover:bg-green-950/30"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleMarkAsPaid(order);
-                        }}
-                      >
-                        <CheckCircle className="w-3.5 h-3.5" />
-                        {language === 'sv' ? 'Markera betald' : 'Mark paid'}
-                      </Button>
-                    )}
+                    {/* Payment status is controlled by Stripe webhook only — no manual "mark as paid" */}
                     {order.payment_status === 'paid' && !order.refund_status && (
                       <Button
                         size="sm"
