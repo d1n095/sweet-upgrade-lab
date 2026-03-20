@@ -126,6 +126,7 @@ const AdminOverview = () => {
       icon: ShoppingCart,
       color: 'text-blue-600',
       bgColor: 'bg-blue-500/10',
+      href: '/admin/orders',
     },
     {
       title: 'Intäkter idag',
@@ -133,6 +134,7 @@ const AdminOverview = () => {
       icon: DollarSign,
       color: 'text-green-600',
       bgColor: 'bg-green-500/10',
+      href: '/admin/finance',
     },
     {
       title: 'Väntande ordrar',
@@ -140,6 +142,7 @@ const AdminOverview = () => {
       icon: Clock,
       color: 'text-amber-600',
       bgColor: 'bg-amber-500/10',
+      href: '/admin/orders',
     },
     {
       title: 'Produkter',
@@ -147,6 +150,7 @@ const AdminOverview = () => {
       icon: Package,
       color: 'text-primary',
       bgColor: 'bg-primary/10',
+      href: '/admin/products',
     },
   ];
 
@@ -162,7 +166,11 @@ const AdminOverview = () => {
       {/* Top Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {topCards.map((card) => (
-          <Card key={card.title} className="border-border">
+          <Card
+            key={card.title}
+            className="border-border cursor-pointer hover:shadow-md hover:border-primary/20 transition-all group"
+            onClick={() => navigate(card.href)}
+          >
             <CardContent className="pt-5 pb-4">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{card.title}</span>
