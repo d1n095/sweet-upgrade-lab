@@ -73,6 +73,7 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
   const [signupComplete, setSignupComplete] = useState(false);
   const [signupEmail, setSignupEmail] = useState('');
   const [formError, setFormError] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
   const usernameCheckTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Debounced username uniqueness check
@@ -453,9 +454,20 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                 </div>
               )}
 
-              {/* Forgot password link */}
+              {/* Remember me + Forgot password */}
               {mode === 'login' && (
-                <div className="text-right">
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="rounded border-border w-4 h-4 accent-primary"
+                    />
+                    <span className="text-sm text-muted-foreground">
+                      {lang === 'sv' ? 'Kom ihåg mig' : 'Remember me'}
+                    </span>
+                  </label>
                   <button
                     type="button"
                     onClick={() => handleModeChange('forgot')}
