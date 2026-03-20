@@ -396,6 +396,9 @@ const ProductDetail = () => {
             </div>
           )}
 
+          {/* Related Products */}
+          <RelatedProducts productId={product.id} />
+
           {/* Reviews */}
           <div className="mt-16 pt-12 border-t border-border">
             <h2 className="font-display text-2xl font-semibold mb-8 text-center">
