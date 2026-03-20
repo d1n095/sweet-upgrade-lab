@@ -15,8 +15,9 @@ const OrderConfirmation = () => {
   const { language } = useLanguage();
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get('session_id') || '';
-  const [orderNumber, setOrderNumber] = useState('');
+  const [orderRef, setOrderRef] = useState('');
   const [orderId, setOrderId] = useState('');
+  const [paymentIntentId, setPaymentIntentId] = useState('');
   const [orderEmail, setOrderEmail] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const maxRetries = 10;
