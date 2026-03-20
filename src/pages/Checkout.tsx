@@ -771,7 +771,7 @@ const Checkout = () => {
                     disabled={isCheckingOut}
                   >
                     {isCheckingOut ? (
-                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{isSv ? 'Skapar säker betalning…' : 'Creating secure payment…'}</>
+                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{stageText[checkoutStage as keyof typeof stageText] || stageText.connecting}</>
                     ) : (
                       <><Lock className="w-4 h-4 mr-2" />{t.paySecurely} — {formatPrice(total)}</>
                     )}
