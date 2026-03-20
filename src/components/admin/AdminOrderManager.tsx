@@ -339,47 +339,36 @@ const AdminOrderManager = () => {
   };
 
   const handleMarkAsRefunded = async (order: Order) => {
-    if (!confirm(content.refundConfirm)) return;
-    try {
-      const existingHistory = Array.isArray(order.status_history) ? order.status_history : [];
-      const newHistory = [...existingHistory, {
-        status: 'refunded',
-        timestamp: new Date().toISOString(),
-        note: 'Manuellt markerad som återbetald av admin',
-      }];
+    if (!confirm(language === 'sv' 
+      ? `Är du säker på att du vill återbetala ${formatCurrency(order.total_amount, order.currency)} till kunden? Detta kan inte ångras.`
+      : `Are you sure you want to refund ${formatCurrency(order.total_amount, order.currency)}? This cannot be undone.`
+    )) return;
 
-      const { error } = await supabase
-        .from('orders')
-        .update({
-          refund_status: 'refunded',
-          refund_amount: order.total_amount,
-          refunded_at: new Date().toISOString(),
-          status_history: newHistory,
-        })
-        .eq('id', order.id);
+    try {
+      toast.loading(language === 'sv' ? 'Bearbetar återbetalning...' : 'Processing refund...', { id: 'refund' });
+
+      const { data, error } = await supabase.functions.invoke('process-refund', {
+        body: { order_id: order.id },
+      });
 
       if (error) throw error;
 
       setOrders(prev =>
         prev.map(o =>
           o.id === order.id
-            ? { ...o, refund_status: 'refunded', refund_amount: order.total_amount, refunded_at: new Date().toISOString(), status_history: newHistory, updated_at: new Date().toISOString() }
+            ? { ...o, refund_status: 'refunded', refund_amount: order.total_amount, refunded_at: new Date().toISOString(), updated_at: new Date().toISOString() }
             : o
         )
       );
 
-      logActivity({
-        log_type: 'warning',
-        category: 'admin',
-        message: 'Order manually marked as refunded',
-        details: { amount: order.total_amount },
-        order_id: order.id,
-      });
-
-      toast.success(language === 'sv' ? 'Order markerad som återbetald' : 'Order marked as refunded');
+      const stripeInfo = data?.stripe_refund_id ? ` (Stripe: ${data.stripe_refund_id})` : '';
+      toast.success(
+        language === 'sv' ? `Återbetalning genomförd${stripeInfo}` : `Refund processed${stripeInfo}`,
+        { id: 'refund' }
+      );
     } catch (error) {
-      console.error('Failed to mark as refunded:', error);
-      toast.error(content.error);
+      console.error('Failed to refund:', error);
+      toast.error(language === 'sv' ? 'Återbetalning misslyckades' : 'Refund failed', { id: 'refund' });
     }
   };
 
