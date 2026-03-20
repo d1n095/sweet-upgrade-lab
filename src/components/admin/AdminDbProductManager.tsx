@@ -213,6 +213,7 @@ const AdminDbProductManager = () => {
       currency: source.currency || 'SEK',
       productType: source.category || '',
       categoryIds: [],
+      tagIds: [],
       tags: (source.tags || []).join(', '),
       vendor: source.vendor || '4ThePeople',
       isVisible: false,
