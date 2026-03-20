@@ -49,7 +49,7 @@ const AdminNotificationBell = () => {
         schema: 'public',
         table: 'notifications',
       }, (payload) => {
-        const n = payload.new as Notification;
+        const n = payload.new as any as Notification;
         if (n.user_id === user?.id) {
           setNotifications(prev => [n, ...prev].slice(0, 20));
         }
