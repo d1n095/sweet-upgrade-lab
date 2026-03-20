@@ -569,7 +569,7 @@ const AdminOrderManager = () => {
       }).eq('id', order.id);
       if (!error) {
         setOrders(prev => prev.map(o => o.id === order.id ? { ...o, fulfillment_status: 'packed', packed_at: new Date().toISOString(), packed_by: currentUser?.id || null, status: 'processing', status_history: newHistory } : o));
-        logActivity({ log_type: 'success', category: 'fulfillment', message: `Order ${order.order_number} batch-packad`, order_id: order.id });
+        logActivity({ log_type: 'success', category: 'fulfillment', message: `Order ${getOrderDisplayId(order)} batch-packad`, order_id: order.id });
       }
       setBatchProgress({ done: i + 1, total: eligible.length });
     }
