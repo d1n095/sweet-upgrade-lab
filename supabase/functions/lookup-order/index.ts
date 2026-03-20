@@ -25,11 +25,12 @@ serve(async (req) => {
     );
 
     const body = await req.json().catch(() => ({}));
+    const sessionId = (body.session_id || "").trim();
     const query = (body.query || "").trim();
     const email = (body.email || "").trim().toLowerCase();
 
-    if (!query && !email) {
-      return json({ error: "Missing query or email" }, 400);
+    if (!sessionId && !query && !email) {
+      return json({ error: "Missing session_id, query or email" }, 400);
     }
 
     // Build search — service role bypasses RLS
@@ -42,8 +43,10 @@ serve(async (req) => {
       .order("created_at", { ascending: false })
       .limit(1);
 
-    // If we have an order number/tracking/session, search by that + require email match
-    if (query) {
+    // Prefer explicit session lookup for confirmation page
+    if (sessionId) {
+      dbQuery = dbQuery.eq("stripe_session_id", sessionId);
+    } else if (query) {
       const orFilters = [
         `order_number.eq.${query}`,
         `shopify_order_number.eq.${query}`,
