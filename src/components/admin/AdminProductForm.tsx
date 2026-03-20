@@ -613,22 +613,12 @@ export function AdminProductForm({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="productType">{t.category}</Label>
-          <Select
-            value={formData.productType}
-            onValueChange={(value) => setFormData((prev) => ({ ...prev, productType: value }))}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder={t.selectCategory} />
-            </SelectTrigger>
-            <SelectContent>
-              {productCategories.map((cat) => (
-                <SelectItem key={cat.value} value={cat.value}>
-                  {cat.label[language as keyof typeof cat.label] ?? cat.label.en}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Label>{t.category}</Label>
+          <CategoryMultiSelect
+            language={language}
+            selectedIds={formData.categoryIds}
+            onChange={(ids) => setFormData(prev => ({ ...prev, categoryIds: ids }))}
+          />
         </div>
       </div>
 
