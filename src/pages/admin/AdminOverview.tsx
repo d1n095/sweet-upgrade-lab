@@ -166,7 +166,11 @@ const AdminOverview = () => {
       {/* Top Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {topCards.map((card) => (
-          <Card key={card.title} className="border-border">
+          <Card
+            key={card.title}
+            className="border-border cursor-pointer hover:shadow-md hover:border-primary/20 transition-all group"
+            onClick={() => navigate(card.href)}
+          >
             <CardContent className="pt-5 pb-4">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{card.title}</span>
