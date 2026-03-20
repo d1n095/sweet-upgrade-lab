@@ -105,7 +105,7 @@ const AdminOverview = () => {
             .neq('status', 'done').order('created_at', { ascending: false }).limit(5),
           supabase.from('order_incidents').select('id, title, priority, sla_status, sla_deadline, order_id, status')
             .neq('status', 'resolved').neq('status', 'closed').order('created_at', { ascending: false }).limit(5),
-          supabase.from('orders').select('id', { count: 'exact', head: true }).in('status', ['confirmed', 'processing']),
+          supabase.from('orders').select('id', { count: 'exact', head: true }).eq('payment_status', 'paid').in('fulfillment_status', ['pending', 'unfulfilled']),
         ]);
 
         const prods = products.data || [];
