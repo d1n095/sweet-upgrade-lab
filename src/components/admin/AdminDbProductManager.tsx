@@ -355,9 +355,9 @@ const AdminDbProductManager = () => {
     for (const id of selectedIds) {
       try { await updateDbProduct(id, updates); updated++; } catch { /* skip */ }
     }
-    const labels: Record<ProductStatus, string> = sv
-      ? { active: 'aktiverade', draft: 'flyttade till utkast', archived: 'arkiverade' }
-      : { active: 'activated', draft: 'moved to drafts', archived: 'archived' };
+    const labels: Partial<Record<ProductStatus, string>> = sv
+      ? { active: 'aktiverade', draft: 'flyttade till utkast', archived: 'arkiverade', coming_soon: 'satta som kommer snart', info: 'satta som info', hidden: 'dolda' }
+      : { active: 'activated', draft: 'moved to drafts', archived: 'archived', coming_soon: 'set as coming soon', info: 'set as info', hidden: 'hidden' };
     toast.success(`${updated} ${sv ? 'produkter' : 'products'} ${labels[status]}`);
     setSelectedIds(new Set());
     queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });
