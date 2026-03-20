@@ -6,6 +6,7 @@ import { categories } from '@/data/categories';
 import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import { cn } from '@/lib/utils';
 import { useSearchStore } from '@/stores/searchStore';
+import { supabase } from '@/integrations/supabase/client';
 import {
   Select,
   SelectContent,
@@ -14,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import DbProductCard from './DbProductCard';
+import UseCaseFilter from './UseCaseFilter';
 
 type SortOption = 'default' | 'price-asc' | 'price-desc' | 'name-asc' | 'name-desc';
 
@@ -24,6 +26,8 @@ const DbProductGrid = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState('all');
+  const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
+  const [tagProductIds, setTagProductIds] = useState<Set<string> | null>(null);
   const [sortOption, setSortOption] = useState<SortOption>('default');
   const searchQuery = useSearchStore(state => state.searchQuery);
 
@@ -44,15 +48,40 @@ const DbProductGrid = () => {
     load();
   }, [t]);
 
+  // Load tag filter product IDs
+  useEffect(() => {
+    if (!selectedTagId) {
+      setTagProductIds(null);
+      return;
+    }
+    const loadTagProducts = async () => {
+      const { data } = await supabase
+        .from('product_tag_relations')
+        .select('product_id')
+        .eq('tag_id', selectedTagId);
+      setTagProductIds(new Set((data || []).map(r => r.product_id)));
+    };
+    loadTagProducts();
+  }, [selectedTagId]);
+
   const categoryFiltered = useMemo(() => {
-    if (activeCategory === 'all') return products;
-    const cat = categories.find(c => c.id === activeCategory);
-    if (!cat || !cat.query) return products;
-    const match = cat.query.match(/product_type:"?([^"&\s]+)"?/);
-    if (!match) return products;
-    const type = match[1].toLowerCase();
-    return products.filter(p => (p.category || '').toLowerCase() === type);
-  }, [products, activeCategory]);
+    let filtered = products;
+    if (activeCategory !== 'all') {
+      const cat = categories.find(c => c.id === activeCategory);
+      if (cat && cat.query) {
+        const match = cat.query.match(/product_type:"?([^"&\s]+)"?/);
+        if (match) {
+          const type = match[1].toLowerCase();
+          filtered = filtered.filter(p => (p.category || '').toLowerCase() === type);
+        }
+      }
+    }
+    // Apply tag filter
+    if (tagProductIds) {
+      filtered = filtered.filter(p => tagProductIds.has(p.id));
+    }
+    return filtered;
+  }, [products, activeCategory, tagProductIds]);
 
   const searchFiltered = useMemo(() => {
     if (!searchQuery.trim()) return categoryFiltered;
@@ -129,6 +158,11 @@ const DbProductGrid = () => {
               </button>
             );
           })}
+        </div>
+
+        {/* Use Case / Tag Filters */}
+        <div className="mb-8">
+          <UseCaseFilter selectedTagId={selectedTagId} onSelect={setSelectedTagId} />
         </div>
 
         {/* Loading */}
