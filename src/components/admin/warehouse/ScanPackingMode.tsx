@@ -112,11 +112,10 @@ const ScanPackingMode = () => {
       if (error) throw error;
 
       await logActivity({
-        log_type: 'fulfillment',
-        category: 'order',
+        log_type: 'success',
+        category: 'fulfillment',
         message: `Order packad via scan`,
         order_id: activeOrder.id,
-        user_id: user.id,
       });
 
       toast.success('Order markerad som packad ✓');
