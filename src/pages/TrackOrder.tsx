@@ -254,7 +254,7 @@ const TrackOrder = () => {
       pageBadge: 'Order Tracking',
       pageDescription: 'Enter order number or email to check your delivery status.',
       orderNumber: 'Order number',
-      orderNumberPlaceholder: 'E.g. ORD-00017',
+      orderNumberPlaceholder: 'E.g. pi_xxx or email',
       email: 'Email address',
       emailPlaceholder: 'your@email.com (optional)',
       searchButton: 'Search order',
