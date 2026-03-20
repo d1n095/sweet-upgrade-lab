@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -79,6 +80,9 @@ const AdminOrderManager = () => {
   const [filter, setFilter] = useState<string>('all');
   const [paymentFilter, setPaymentFilter] = useState<string>('all');
   const [fulfillmentTab, setFulfillmentTab] = useState<string>('all');
+  const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
+  const [batchProcessing, setBatchProcessing] = useState(false);
+  const [batchProgress, setBatchProgress] = useState({ done: 0, total: 0 });
 
   const t = {
     sv: {
@@ -525,6 +529,83 @@ const AdminOrderManager = () => {
     }
   };
 
+  // Batch packing helpers
+  const showBatchCheckboxes = ['to_pack', 'packing', 'packed'].includes(fulfillmentTab);
+
+  const toggleOrderSelection = (orderId: string) => {
+    setSelectedOrders(prev => {
+      const next = new Set(prev);
+      if (next.has(orderId)) next.delete(orderId); else next.add(orderId);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedOrders.size === filteredOrders.length) {
+      setSelectedOrders(new Set());
+    } else {
+      setSelectedOrders(new Set(filteredOrders.map(o => o.id)));
+    }
+  };
+
+  const handleBatchPack = async () => {
+    const ids = Array.from(selectedOrders);
+    const eligible = orders.filter(o => ids.includes(o.id) && o.payment_status === 'paid' && ['unfulfilled', 'pending', 'packing'].includes(o.fulfillment_status));
+    if (eligible.length === 0) { toast.error('Inga giltiga orders att packa'); return; }
+    setBatchProcessing(true);
+    setBatchProgress({ done: 0, total: eligible.length });
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    for (let i = 0; i < eligible.length; i++) {
+      const order = eligible[i];
+      const existingHistory = Array.isArray(order.status_history) ? order.status_history : [];
+      const newHistory = [...existingHistory, { status: 'packed', timestamp: new Date().toISOString(), note: 'Batch-packad' }];
+      const { error } = await supabase.from('orders').update({
+        fulfillment_status: 'packed',
+        packed_by: currentUser?.id || null,
+        packed_at: new Date().toISOString(),
+        status: 'processing',
+        status_history: newHistory,
+      }).eq('id', order.id);
+      if (!error) {
+        setOrders(prev => prev.map(o => o.id === order.id ? { ...o, fulfillment_status: 'packed', packed_at: new Date().toISOString(), packed_by: currentUser?.id || null, status: 'processing', status_history: newHistory } : o));
+        logActivity({ log_type: 'success', category: 'fulfillment', message: `Order ${order.order_number} batch-packad`, order_id: order.id });
+      }
+      setBatchProgress({ done: i + 1, total: eligible.length });
+    }
+    setBatchProcessing(false);
+    setSelectedOrders(new Set());
+    toast.success(`${eligible.length} orders packade`);
+  };
+
+  const handleBatchShip = async () => {
+    const ids = Array.from(selectedOrders);
+    const eligible = orders.filter(o => ids.includes(o.id) && o.payment_status === 'paid' && o.fulfillment_status === 'packed');
+    if (eligible.length === 0) { toast.error('Inga packade orders att skicka'); return; }
+    setBatchProcessing(true);
+    setBatchProgress({ done: 0, total: eligible.length });
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    for (let i = 0; i < eligible.length; i++) {
+      const order = eligible[i];
+      const existingHistory = Array.isArray(order.status_history) ? order.status_history : [];
+      const newHistory = [...existingHistory, { status: 'shipped', timestamp: new Date().toISOString(), note: 'Batch-skickad' }];
+      const { error } = await supabase.from('orders').update({
+        fulfillment_status: 'shipped',
+        shipped_by: currentUser?.id || null,
+        shipped_at: new Date().toISOString(),
+        status: 'shipped',
+        status_history: newHistory,
+      }).eq('id', order.id);
+      if (!error) {
+        setOrders(prev => prev.map(o => o.id === order.id ? { ...o, fulfillment_status: 'shipped', shipped_at: new Date().toISOString(), shipped_by: currentUser?.id || null, status: 'shipped', status_history: newHistory } : o));
+        logActivity({ log_type: 'success', category: 'fulfillment', message: `Order ${order.order_number} batch-skickad`, order_id: order.id });
+      }
+      setBatchProgress({ done: i + 1, total: eligible.length });
+    }
+    setBatchProcessing(false);
+    setSelectedOrders(new Set());
+    toast.success(`${eligible.length} orders skickade`);
+  };
+
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString(language === 'sv' ? 'sv-SE' : 'en-US', {
@@ -659,7 +740,7 @@ const AdminOrderManager = () => {
             key={tab.key}
             variant={fulfillmentTab === tab.key ? 'default' : 'outline'}
             size="sm"
-            onClick={() => { setFulfillmentTab(tab.key); setFilter('all'); setPaymentFilter('all'); }}
+            onClick={() => { setFulfillmentTab(tab.key); setFilter('all'); setPaymentFilter('all'); setSelectedOrders(new Set()); }}
             className={tab.key === 'to_pack' && tab.count > 0 ? 'border-orange-400 dark:border-orange-600' : ''}
           >
             {tab.label} ({tab.count})
@@ -704,8 +785,51 @@ const AdminOrderManager = () => {
         </Button>
       </div>
 
+      {/* Batch Action Bar */}
+      {showBatchCheckboxes && selectedOrders.size > 0 && (
+        <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/10 border border-primary/20">
+          <span className="text-sm font-medium">{selectedOrders.size} valda</span>
+          {batchProcessing ? (
+            <div className="flex items-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span className="text-sm">{batchProgress.done} / {batchProgress.total}</span>
+              <div className="w-32 h-2 bg-secondary rounded-full overflow-hidden">
+                <div className="h-full bg-primary transition-all" style={{ width: `${(batchProgress.done / batchProgress.total) * 100}%` }} />
+              </div>
+            </div>
+          ) : (
+            <>
+              {fulfillmentTab === 'to_pack' && (
+                <Button size="sm" onClick={handleBatchPack} className="gap-1.5">
+                  <Package className="w-3.5 h-3.5" />
+                  Batch-packa alla
+                </Button>
+              )}
+              {fulfillmentTab === 'packed' && (
+                <Button size="sm" onClick={handleBatchShip} className="gap-1.5">
+                  <Truck className="w-3.5 h-3.5" />
+                  Batch-skicka alla
+                </Button>
+              )}
+              <Button size="sm" variant="ghost" onClick={() => setSelectedOrders(new Set())}>
+                <X className="w-3.5 h-3.5" />
+              </Button>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Orders List */}
       <div className="space-y-2">
+        {showBatchCheckboxes && filteredOrders.length > 0 && (
+          <div className="flex items-center gap-2 px-4 py-1">
+            <Checkbox
+              checked={selectedOrders.size === filteredOrders.length && filteredOrders.length > 0}
+              onCheckedChange={toggleSelectAll}
+            />
+            <span className="text-xs text-muted-foreground">Markera alla</span>
+          </div>
+        )}
         {filteredOrders.length === 0 ? (
           <p className="text-center text-muted-foreground py-4">{content.noOrders}</p>
         ) : (
@@ -721,13 +845,20 @@ const AdminOrderManager = () => {
                 key={order.id}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="rounded-lg border border-border bg-secondary/30 overflow-hidden"
+                className={`rounded-lg border overflow-hidden ${selectedOrders.has(order.id) ? 'border-primary bg-primary/5' : 'border-border bg-secondary/30'}`}
               >
                 {/* Order Header */}
                 <div
                   className="flex items-center gap-3 p-4 cursor-pointer hover:bg-secondary/50 transition-colors"
                   onClick={() => setExpandedOrder(isExpanded ? null : order.id)}
                 >
+                  {showBatchCheckboxes && (
+                    <Checkbox
+                      checked={selectedOrders.has(order.id)}
+                      onCheckedChange={() => toggleOrderSelection(order.id)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-sm font-mono">
