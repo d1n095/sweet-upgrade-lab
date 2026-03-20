@@ -740,7 +740,7 @@ const AdminOrderManager = () => {
             key={tab.key}
             variant={fulfillmentTab === tab.key ? 'default' : 'outline'}
             size="sm"
-            onClick={() => { setFulfillmentTab(tab.key); setFilter('all'); setPaymentFilter('all'); }}
+            onClick={() => { setFulfillmentTab(tab.key); setFilter('all'); setPaymentFilter('all'); setSelectedOrders(new Set()); }}
             className={tab.key === 'to_pack' && tab.count > 0 ? 'border-orange-400 dark:border-orange-600' : ''}
           >
             {tab.label} ({tab.count})
