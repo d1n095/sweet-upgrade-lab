@@ -129,7 +129,10 @@ const AdminRecipeIngredientLibrary = () => {
           category: form.category,
           description_sv: form.description_sv.trim() || null,
           description_en: form.description_en.trim() || null,
+          benefits_sv: form.benefits_sv ? form.benefits_sv.split(',').map(s => s.trim()).filter(Boolean) : [],
+          risks_sv: form.risks_sv ? form.risks_sv.split(',').map(s => s.trim()).filter(Boolean) : [],
           is_active: form.is_active,
+          is_searchable: form.is_searchable,
           display_order: ingredients.length,
         });
         toast.success('Ingrediens tillagd!');
