@@ -31,8 +31,9 @@ const OrderConfirmation = () => {
 
   useEffect(() => {
     activeSessionRef.current = sessionId;
-    setOrderNumber('');
+    setOrderRef('');
     setOrderId('');
+    setPaymentIntentId('');
     setOrderEmail('');
     setIsLoading(Boolean(sessionId));
   }, [sessionId]);
