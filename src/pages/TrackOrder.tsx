@@ -168,42 +168,16 @@ const TrackOrder = () => {
 
       setSearchedQuery(cleanInput || cleanEmail);
 
-      // For Stripe session IDs, search by stripe_session_id in DB
-      if (cleanInput && isStripeSessionId(cleanInput)) {
-        // Just add it to the OR filters below — no external call
-      }
-
-      const orFilters: string[] = [];
-      if (cleanInput) {
-        orFilters.push(
-          `order_number.eq.${cleanInput}`,
-          `shopify_order_number.eq.${cleanInput}`,
-          `tracking_number.eq.${cleanInput}`,
-          `stripe_session_id.eq.${cleanInput}`,
-          `id.eq.${cleanInput}`,
-        );
-      }
-      if (cleanEmail) {
-        orFilters.push(`order_email.eq.${cleanEmail}`);
-      }
-
-      let query = supabase
-        .from('orders')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(20);
-
-      if (orFilters.length > 0) {
-        query = query.or(orFilters.join(','));
-      }
-
-      const { data, error } = await query;
+      // Use edge function to bypass RLS — allows guest tracking
+      const { data, error } = await supabase.functions.invoke('lookup-order', {
+        body: { query: cleanInput, email: cleanEmail },
+      });
 
       if (error) {
-        console.error('Order search error:', error);
+        console.error('Order lookup error:', error);
         setNotFound(true);
-      } else if (data && data.length > 0) {
-        setOrderData(data[0] as OrderData);
+      } else if (data?.found && data.order) {
+        setOrderData(data.order as OrderData);
       } else {
         setNotFound(true);
       }
