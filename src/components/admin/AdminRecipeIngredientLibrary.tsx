@@ -79,7 +79,9 @@ const AdminRecipeIngredientLibrary = () => {
   useEffect(() => { fetchIngredients(); }, [fetchIngredients]);
 
   const resetForm = () => {
-    setForm({ name_sv: '', name_en: '', category: 'Övrigt', description_sv: '', description_en: '', is_active: true });
+    setForm({ name_sv: '', name_en: '', category: 'Övrigt', description_sv: '', description_en: '', benefits_sv: '', risks_sv: '', is_active: true, is_searchable: true });
+    setEditing(null);
+  };
     setEditing(null);
   };
 
