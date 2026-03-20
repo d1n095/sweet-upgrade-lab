@@ -69,7 +69,7 @@ const AdminFinance = () => {
         supabase.from('affiliates').select('pending_earnings, paid_earnings, total_earnings'),
         supabase.from('affiliate_payout_requests').select('amount, status').eq('status', 'pending'),
         supabase.from('affiliate_payout_requests').select('id, amount, status, created_at, payout_type').order('created_at', { ascending: false }).limit(5),
-        supabase.from('orders').select('id, order_email, total_amount, created_at, order_number').eq('payment_status', 'paid').order('created_at', { ascending: false }).limit(8),
+        supabase.from('orders').select('id, order_email, total_amount, created_at, order_number, payment_intent_id').eq('payment_status', 'paid').order('created_at', { ascending: false }).limit(8),
       ]);
 
       const orders = ordersRes.data || [];
