@@ -8,7 +8,7 @@ import {
   Loader2, Package, ClipboardList, BarChart3, Settings, Grid, Users,
   Handshake, Heart, Eye, LogOut, Home, Shield, Crown,
   Activity, User, Menu, X, Star, FileText, Percent, Truck, Wallet, Globe,
-  AlertTriangle,
+  AlertTriangle, ScanLine,
 } from 'lucide-react';
 import { useEmployeeRole } from '@/hooks/useEmployeeRole';
 import { useFounderRole } from '@/hooks/useFounderRole';
@@ -51,6 +51,7 @@ const navItems: NavItem[] = [
   { to: '/admin/stats', label: 'Statistik', icon: BarChart3, role: 'admin' },
   { to: '/admin/insights', label: 'Insights', icon: Activity, role: 'admin' },
   { to: '/admin/staff', label: 'Workbench', icon: Crown, role: 'founder' },
+  { to: '/admin/warehouse', label: 'Warehouse', icon: ScanLine, role: 'all' },
 ];
 
 const AdminLayout = () => {
