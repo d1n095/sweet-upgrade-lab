@@ -1184,11 +1184,14 @@ export type Database = {
           deleted_at: string | null
           delivered_at: string | null
           estimated_delivery: string | null
+          fulfillment_status: string
           id: string
           items: Json
           notes: string | null
           order_email: string
           order_number: string | null
+          packed_at: string | null
+          packed_by: string | null
           payment_intent_id: string | null
           payment_method: string | null
           payment_status: string
@@ -1196,6 +1199,8 @@ export type Database = {
           refund_status: string | null
           refunded_at: string | null
           review_reminder_sent: boolean
+          shipped_at: string | null
+          shipped_by: string | null
           shipping_address: Json | null
           shipping_method: string | null
           shopify_order_id: string | null
@@ -1214,11 +1219,14 @@ export type Database = {
           deleted_at?: string | null
           delivered_at?: string | null
           estimated_delivery?: string | null
+          fulfillment_status?: string
           id?: string
           items?: Json
           notes?: string | null
           order_email: string
           order_number?: string | null
+          packed_at?: string | null
+          packed_by?: string | null
           payment_intent_id?: string | null
           payment_method?: string | null
           payment_status?: string
@@ -1226,6 +1234,8 @@ export type Database = {
           refund_status?: string | null
           refunded_at?: string | null
           review_reminder_sent?: boolean
+          shipped_at?: string | null
+          shipped_by?: string | null
           shipping_address?: Json | null
           shipping_method?: string | null
           shopify_order_id?: string | null
@@ -1244,11 +1254,14 @@ export type Database = {
           deleted_at?: string | null
           delivered_at?: string | null
           estimated_delivery?: string | null
+          fulfillment_status?: string
           id?: string
           items?: Json
           notes?: string | null
           order_email?: string
           order_number?: string | null
+          packed_at?: string | null
+          packed_by?: string | null
           payment_intent_id?: string | null
           payment_method?: string | null
           payment_status?: string
@@ -1256,6 +1269,8 @@ export type Database = {
           refund_status?: string | null
           refunded_at?: string | null
           review_reminder_sent?: boolean
+          shipped_at?: string | null
+          shipped_by?: string | null
           shipping_address?: Json | null
           shipping_method?: string | null
           shopify_order_id?: string | null
