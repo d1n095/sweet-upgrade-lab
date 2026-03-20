@@ -53,7 +53,8 @@ const TrackOrder = () => {
 
   const statusSteps = [
     {
-      id: 'pending',
+      id: 'confirmed',
+      aliases: ['pending', 'confirmed'],
       icon: FileCheck,
       label: {
         sv: 'Order mottagen',
@@ -63,15 +64,16 @@ const TrackOrder = () => {
         de: 'Bestellung eingegangen'
       },
       description: {
-        sv: 'Vi har tagit emot din beställning',
-        en: 'We have received your order',
-        no: 'Vi har mottatt din bestilling',
-        da: 'Vi har modtaget din ordre',
-        de: 'Wir haben Ihre Bestellung erhalten'
+        sv: 'Vi har tagit emot din beställning och betalningen är bekräftad',
+        en: 'We have received your order and payment is confirmed',
+        no: 'Vi har mottatt din bestilling og betaling er bekreftet',
+        da: 'Vi har modtaget din ordre og betaling er bekræftet',
+        de: 'Wir haben Ihre Bestellung erhalten und die Zahlung bestätigt'
       }
     },
     {
       id: 'processing',
+      aliases: ['processing'],
       icon: Package,
       label: {
         sv: 'Behandlas',
@@ -90,6 +92,7 @@ const TrackOrder = () => {
     },
     {
       id: 'shipped',
+      aliases: ['shipped'],
       icon: Truck,
       label: {
         sv: 'På väg till dig',
@@ -108,6 +111,7 @@ const TrackOrder = () => {
     },
     {
       id: 'in_transit',
+      aliases: ['in_transit'],
       icon: Building2,
       label: {
         sv: 'Ankommit distributionscenter',
@@ -126,6 +130,7 @@ const TrackOrder = () => {
     },
     {
       id: 'delivered',
+      aliases: ['delivered'],
       icon: CheckCircle2,
       label: {
         sv: 'Utlevererad',
