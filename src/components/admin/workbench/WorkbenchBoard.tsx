@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-  Plus, User, Clock, CheckCircle2, Circle, Play, X, Zap, UserCheck,
+  Plus, User, Clock, CheckCircle2, Circle, Play, X, Zap, UserCheck, RotateCcw, Bot,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
