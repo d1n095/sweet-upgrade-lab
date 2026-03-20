@@ -94,7 +94,7 @@ const SearchSuggestions = () => {
           // Log search to search_logs for admin analytics
           logSearchStandalone(q, (data || []).length);
 
-          // Find which ingredients matched
+          // Find which ingredients matched (from both product text and ingredient DB)
           const matched = new Set<string>();
           (data || []).forEach((p: any) => {
             const ingStr = language === 'sv' ? p.ingredients_sv : (p.ingredients_en || p.ingredients_sv);
@@ -104,7 +104,12 @@ const SearchSuggestions = () => {
               });
             }
           });
-          setIngredientMatches([...matched].slice(0, 3));
+          // Also add DB ingredient matches
+          (ingData || []).forEach((ing: any) => {
+            const name = language === 'sv' ? ing.name_sv : (ing.name_en || ing.name_sv);
+            if (name) matched.add(name);
+          });
+          setIngredientMatches([...matched].slice(0, 5));
 
           // Track ingredient search
           if (matched.size > 0) {
