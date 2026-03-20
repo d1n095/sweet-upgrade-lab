@@ -769,6 +769,13 @@ export function AdminProductForm({
         />
       </div>
 
+      {/* AI Auto-categorize */}
+      <AiMetadataSuggestor
+        language={language}
+        formData={formData}
+        setFormData={setFormData}
+      />
+
       {/* Free-text tags (legacy/custom) */}
       <div className="space-y-2">
         <Label className="text-xs text-muted-foreground">{language === 'sv' ? 'Egna taggar (fritext)' : 'Custom tags (free text)'}</Label>
