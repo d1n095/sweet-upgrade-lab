@@ -275,7 +275,7 @@ const AdminFinance = () => {
                   onClick={() => navigate('/admin/orders')}
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{order.order_number || order.order_email}</p>
+                    <p className="text-sm font-medium truncate">{order.payment_intent_id ? '#' + order.payment_intent_id.slice(-8).toUpperCase() : order.order_email}</p>
                     <p className="text-xs text-muted-foreground">{formatTime(order.created_at)}</p>
                   </div>
                   <span className="text-sm font-bold text-green-600">+{fmt(order.total_amount)}</span>
