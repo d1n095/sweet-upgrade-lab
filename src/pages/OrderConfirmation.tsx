@@ -141,11 +141,11 @@ const OrderConfirmation = () => {
 
   const t = content[language as keyof typeof content] || content.en;
 
-  // Track link uses ONLY DB-sourced order data
-  const trackHref = orderNumber
-    ? `/track-order?q=${encodeURIComponent(orderNumber)}`
+  // Track link uses payment_intent or session_id for lookup
+  const trackHref = paymentIntentId
+    ? `/track-order?q=${encodeURIComponent(paymentIntentId)}`
     : orderId
-      ? `/order/${orderId}`
+      ? `/track-order?q=${encodeURIComponent(orderId)}`
       : '/track-order';
 
   return (
