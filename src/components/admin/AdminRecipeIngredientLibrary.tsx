@@ -318,9 +318,29 @@ const AdminRecipeIngredientLibrary = () => {
                 rows={2}
               />
             </div>
+            <div className="space-y-2">
+              <Label>Fördelar (kommaseparerade)</Label>
+              <Input
+                value={form.benefits_sv}
+                onChange={e => setForm(f => ({ ...f, benefits_sv: e.target.value }))}
+                placeholder="Lugnande, antiinflammatorisk, doftande"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Risker (kommaseparerade)</Label>
+              <Input
+                value={form.risks_sv}
+                onChange={e => setForm(f => ({ ...f, risks_sv: e.target.value }))}
+                placeholder="Kan vara irriterande vid hög koncentration"
+              />
+            </div>
             <div className="flex items-center justify-between">
               <Label>Aktiv</Label>
               <Switch checked={form.is_active} onCheckedChange={v => setForm(f => ({ ...f, is_active: v }))} />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label>Sökbar (visas i sök)</Label>
+              <Switch checked={form.is_searchable} onCheckedChange={v => setForm(f => ({ ...f, is_searchable: v }))} />
             </div>
             <div className="flex gap-2 pt-2">
               <Button variant="outline" className="flex-1" onClick={() => { setIsFormOpen(false); resetForm(); }}>
