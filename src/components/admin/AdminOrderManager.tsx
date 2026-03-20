@@ -683,9 +683,9 @@ const AdminOrderManager = () => {
   };
 
   const handleExportCSV = () => {
-    const headers = ['Ordernummer', 'Email', 'Status', 'Betalning', 'Totalt', 'Valuta', 'Spårning', 'Skapad'];
+    const headers = ['Order-ID', 'Email', 'Status', 'Betalning', 'Totalt', 'Valuta', 'Spårning', 'Skapad'];
     const rows = filteredOrders.map(o => [
-      o.order_number || o.id.slice(0,8),
+      getOrderDisplayId(o),
       o.order_email,
       o.status,
       o.payment_status,
