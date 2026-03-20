@@ -2334,6 +2334,45 @@ export type Database = {
         }
         Relationships: []
       }
+      staff_performance: {
+        Row: {
+          avg_completion_seconds: number
+          id: string
+          points: number
+          sla_hits: number
+          sla_misses: number
+          tasks_active: number
+          tasks_completed: number
+          total_completion_seconds: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avg_completion_seconds?: number
+          id?: string
+          points?: number
+          sla_hits?: number
+          sla_misses?: number
+          tasks_active?: number
+          tasks_completed?: number
+          total_completion_seconds?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avg_completion_seconds?: number
+          id?: string
+          points?: number
+          sla_hits?: number
+          sla_misses?: number
+          tasks_active?: number
+          tasks_completed?: number
+          total_completion_seconds?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       staff_permissions: {
         Row: {
           allowed_modules: string[]
