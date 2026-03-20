@@ -68,7 +68,7 @@ const AdminProductManager = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<ProductFormData>({
     title: '', description: '', price: '', currency: 'SEK',
-    productType: '', tags: '', vendor: '4ThePeople',
+    productType: '', categoryIds: [], tags: '', vendor: '4ThePeople',
     isVisible: true, inventory: 0, allowOverselling: false,
     imageUrls: [], ingredients: '', certifications: '', recipe: '',
     feeling: '', effects: '', usage: '', extendedDescription: '',
@@ -475,7 +475,7 @@ const AdminProductManager = () => {
   const resetForm = () => {
     setFormData({
       title: '', description: '', price: '', currency: 'SEK',
-      productType: '', tags: '', vendor: '4ThePeople',
+      productType: '', categoryIds: [], tags: '', vendor: '4ThePeople',
       isVisible: true, inventory: 0, allowOverselling: false,
       imageUrls: [], ingredients: '', certifications: '', recipe: '',
       feeling: '', effects: '', usage: '', extendedDescription: '',
@@ -500,7 +500,7 @@ const AdminProductManager = () => {
       setFormData({
         title: (node.title as string) || '', description: (node.description as string) || '',
         price: ((node.priceRange as any)?.minVariantPrice?.amount as string) || '0',
-        currency: 'SEK', productType: (node.productType as string) || '', tags,
+        currency: 'SEK', productType: (node.productType as string) || '', categoryIds: [], tags,
         vendor: (node.vendor as string) || '4ThePeople',
         isVisible: (node.availableForSale as boolean) !== false,
         inventory: 0, allowOverselling: false, imageUrls: [],

@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
+import { setProductCategories } from '@/lib/categories';
 import { motion } from 'framer-motion';
 import {
   Plus, Package, Edit, Trash2, Loader2, AlertTriangle,
@@ -44,7 +45,7 @@ const suggestedTags = [
 
 const emptyForm = (): ProductFormData => ({
   title: '', description: '', price: '', currency: 'SEK',
-  productType: '', tags: '', vendor: '4ThePeople',
+  productType: '', categoryIds: [], tags: '', vendor: '4ThePeople',
   isVisible: true, inventory: 0, allowOverselling: false,
   imageUrls: [], ingredients: '', certifications: '', recipe: '',
   feeling: '', effects: '', usage: '', extendedDescription: '',
@@ -124,6 +125,7 @@ const AdminDbProductManager = () => {
       price: product.price.toString(),
       currency: product.currency || 'SEK',
       productType: product.category || '',
+      categoryIds: [],
       tags: (product.tags || []).join(', '),
       vendor: product.vendor || '4ThePeople',
       isVisible: product.is_visible,
@@ -141,6 +143,12 @@ const AdminDbProductManager = () => {
       metaDescription: (product as any).meta_description || '',
       metaKeywords: (product as any).meta_keywords || '',
       weightGrams: (product as any).weight_grams?.toString() || '',
+    });
+    // Load category IDs async
+    import('@/lib/categories').then(({ fetchProductCategoryIds }) => {
+      fetchProductCategoryIds(product.id).then(ids => {
+        setFormData(prev => ({ ...prev, categoryIds: ids }));
+      });
     });
     setIsEditOpen(true);
   };
@@ -193,13 +201,13 @@ const AdminDbProductManager = () => {
   };
 
   const handleCopyFrom = async (source: DbProduct) => {
-    // Pre-fill form with source data and open add dialog (as new active product)
     setFormData({
       title: source.title_sv,
       description: source.description_sv || '',
       price: source.price.toString(),
       currency: source.currency || 'SEK',
       productType: source.category || '',
+      categoryIds: [],
       tags: (source.tags || []).join(', '),
       vendor: source.vendor || '4ThePeople',
       isVisible: false,
@@ -225,7 +233,7 @@ const AdminDbProductManager = () => {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      await createDbProduct({
+      const newProduct = await createDbProduct({
         title_sv: formData.title,
         title_en: null,
         description_sv: formData.description || null,
@@ -255,6 +263,9 @@ const AdminDbProductManager = () => {
         weight_grams: formData.weightGrams ? parseInt(formData.weightGrams) : null,
         status: 'active',
       } as any);
+      if (formData.categoryIds.length > 0) {
+        await setProductCategories(newProduct.id, formData.categoryIds);
+      }
       toast.success(t.productAdded);
       queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });
       setIsAddOpen(false);
@@ -295,6 +306,7 @@ const AdminDbProductManager = () => {
         meta_keywords: formData.metaKeywords || null,
         weight_grams: formData.weightGrams ? parseInt(formData.weightGrams) : null,
       } as any);
+      await setProductCategories(selected.id, formData.categoryIds);
       toast.success(t.productUpdated);
       queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });
       setIsEditOpen(false);

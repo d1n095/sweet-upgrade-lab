@@ -1,7 +1,9 @@
 import * as React from 'react';
-import { DollarSign, Tag, Save, Eye, EyeOff, Boxes, Minus, Plus, Upload, X, Image, FlaskConical, ChefHat, Weight, Wand2, Loader2 } from 'lucide-react';
+import { DollarSign, Tag, Save, Eye, EyeOff, Boxes, Minus, Plus, Upload, X, Image, FlaskConical, ChefHat, Weight, Wand2, Loader2, Check } from 'lucide-react';
 import { RecipeTemplatePicker } from './RecipeTemplatePicker';
 import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
+import { fetchCategories, DbCategory } from '@/lib/categories';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -23,6 +25,7 @@ export interface ProductFormData {
   price: string;
   currency: string;
   productType: string;
+  categoryIds: string[];
   tags: string;
   vendor: string;
   isVisible: boolean;
@@ -438,6 +441,83 @@ function AiContentGenerator({
   );
 }
 
+// ─── Category Multi-Select ───
+function CategoryMultiSelect({
+  language,
+  selectedIds,
+  onChange,
+}: {
+  language: string;
+  selectedIds: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const { data: categories = [] } = useQuery({
+    queryKey: ['form-categories'],
+    queryFn: () => fetchCategories(true),
+    staleTime: 30_000,
+  });
+
+  const sv = language === 'sv';
+  const parents = categories.filter(c => !c.parent_id);
+  const getChildren = (parentId: string) => categories.filter(c => c.parent_id === parentId);
+
+  const toggle = (id: string) => {
+    onChange(
+      selectedIds.includes(id)
+        ? selectedIds.filter(x => x !== id)
+        : [...selectedIds, id]
+    );
+  };
+
+  return (
+    <div className="border border-border rounded-lg p-3 bg-secondary/20 space-y-2 max-h-48 overflow-y-auto">
+      {parents.map(parent => {
+        const children = getChildren(parent.id);
+        const isSelected = selectedIds.includes(parent.id);
+        return (
+          <div key={parent.id}>
+            <button
+              type="button"
+              onClick={() => toggle(parent.id)}
+              className={`flex items-center gap-2 w-full text-left text-sm px-2 py-1 rounded transition-colors ${
+                isSelected ? 'bg-primary/15 text-primary font-medium' : 'hover:bg-secondary/60'
+              }`}
+            >
+              {isSelected ? <Check className="w-3.5 h-3.5" /> : <span className="w-3.5" />}
+              {parent.name_sv}
+            </button>
+            {children.length > 0 && (
+              <div className="ml-5 space-y-0.5">
+                {children.map(child => {
+                  const childSelected = selectedIds.includes(child.id);
+                  return (
+                    <button
+                      key={child.id}
+                      type="button"
+                      onClick={() => toggle(child.id)}
+                      className={`flex items-center gap-2 w-full text-left text-xs px-2 py-0.5 rounded transition-colors ${
+                        childSelected ? 'bg-primary/15 text-primary font-medium' : 'hover:bg-secondary/60 text-muted-foreground'
+                      }`}
+                    >
+                      {childSelected ? <Check className="w-3 h-3" /> : <span className="w-3" />}
+                      {child.name_sv}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+      {categories.length === 0 && (
+        <p className="text-xs text-muted-foreground text-center py-2">
+          {sv ? 'Inga kategorier skapade ännu' : 'No categories created yet'}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function AdminProductForm({
   t,
   language,
@@ -610,22 +690,12 @@ export function AdminProductForm({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="productType">{t.category}</Label>
-          <Select
-            value={formData.productType}
-            onValueChange={(value) => setFormData((prev) => ({ ...prev, productType: value }))}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder={t.selectCategory} />
-            </SelectTrigger>
-            <SelectContent>
-              {productCategories.map((cat) => (
-                <SelectItem key={cat.value} value={cat.value}>
-                  {cat.label[language as keyof typeof cat.label] ?? cat.label.en}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Label>{t.category}</Label>
+          <CategoryMultiSelect
+            language={language}
+            selectedIds={formData.categoryIds}
+            onChange={(ids) => setFormData(prev => ({ ...prev, categoryIds: ids }))}
+          />
         </div>
       </div>
 
