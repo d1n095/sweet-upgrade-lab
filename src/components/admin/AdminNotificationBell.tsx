@@ -112,7 +112,7 @@ const AdminNotificationBell = () => {
           {notifications.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">Inga notiser</p>
           ) : (
-            notifications.map((n: AdminNotif) => (
+            notifications.map((n) => (
               <button
                 key={n.id}
                 onClick={() => handleClick(n)}
