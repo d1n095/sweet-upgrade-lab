@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { logAuthEvent } from '@/utils/activityLogger';
 import AdminGlobalSearch from '@/components/admin/AdminGlobalSearch';
+import AdminNotificationBell from '@/components/admin/AdminNotificationBell';
 import { AnimatePresence, motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -45,6 +46,7 @@ const navItems: NavItem[] = [
   { to: '/admin/seo', label: 'SEO', icon: Globe, role: 'admin' },
   { to: '/admin/legal', label: 'Juridik & Donationer', icon: Heart, role: 'admin' },
   { to: '/admin/logs', label: 'Logg', icon: Activity, role: 'admin' },
+  { to: '/admin/incidents', label: 'Ärenden', icon: AlertTriangle, role: 'all' },
   { to: '/admin/settings', label: 'Inställningar', icon: Settings, role: 'admin' },
   { to: '/admin/stats', label: 'Statistik', icon: BarChart3, role: 'admin' },
   { to: '/admin/staff', label: 'Personal', icon: Crown, role: 'founder' },
@@ -186,7 +188,8 @@ const AdminLayout = () => {
             <AdminGlobalSearch />
             <h2 className="text-sm font-semibold">{currentPage?.label || 'Admin'}</h2>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <AdminNotificationBell />
             {!siteActive && (
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-destructive/10 border border-destructive/20">
                 <span className="w-1.5 h-1.5 rounded-full bg-destructive animate-pulse" />

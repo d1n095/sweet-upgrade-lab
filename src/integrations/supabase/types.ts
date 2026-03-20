@@ -1079,6 +1079,104 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          read: boolean
+          related_id: string | null
+          related_type: string | null
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          read?: boolean
+          related_id?: string | null
+          related_type?: string | null
+          type?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          read?: boolean
+          related_id?: string | null
+          related_type?: string | null
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      order_incidents: {
+        Row: {
+          assigned_to: string | null
+          created_at: string
+          description: string | null
+          escalated_at: string | null
+          id: string
+          order_id: string
+          priority: string
+          reported_by: string | null
+          resolution: string | null
+          resolved_at: string | null
+          sla_deadline: string | null
+          sla_status: string
+          status: string
+          title: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          created_at?: string
+          description?: string | null
+          escalated_at?: string | null
+          id?: string
+          order_id: string
+          priority?: string
+          reported_by?: string | null
+          resolution?: string | null
+          resolved_at?: string | null
+          sla_deadline?: string | null
+          sla_status?: string
+          status?: string
+          title: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          created_at?: string
+          description?: string | null
+          escalated_at?: string | null
+          id?: string
+          order_id?: string
+          priority?: string
+          reported_by?: string | null
+          resolution?: string | null
+          resolved_at?: string | null
+          sla_deadline?: string | null
+          sla_status?: string
+          status?: string
+          title?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_incidents_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           created_at: string

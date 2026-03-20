@@ -58,6 +58,7 @@ import AdminShipping from "./pages/admin/AdminShipping";
 import AdminFinance from "./pages/admin/AdminFinance";
 import AdminSEO from "./pages/admin/AdminSEO";
 import AdminStaff from "./pages/admin/AdminStaff";
+import AdminIncidents from "./pages/admin/AdminIncidents";
 import AdminPayments from "./pages/admin/AdminPayments";
 
 const queryClient = new QueryClient();
@@ -129,6 +130,7 @@ const App = () => (
                 <Route path="stats" element={<AdminStats />} />
                 <Route path="reviews" element={<AdminReviews />} />
                 <Route path="logs" element={<AdminLogs />} />
+                <Route path="incidents" element={<AdminIncidents />} />
                 <Route path="finance" element={<AdminPayments />} />
                 <Route path="payments" element={<AdminPayments />} />
                 <Route path="staff" element={<AdminStaff />} />
