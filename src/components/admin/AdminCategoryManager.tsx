@@ -1,296 +1,301 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  Grid, Plus, Eye, EyeOff, Trash2, Loader2, Save, X, Languages,
-  Cpu, Shirt, Droplets, Flame, Sparkles, Gem, Bed
+import {
+  Grid, Plus, Eye, EyeOff, Trash2, Loader2, Save, ChevronRight, ChevronDown,
+  Cpu, Shirt, Droplets, Flame, Sparkles, Gem, Bed, Tag, Leaf, GripVertical, Pencil,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from '@/components/ui/dialog';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { useLanguage } from '@/context/LanguageContext';
-import { useAutoTranslate } from '@/hooks/useAutoTranslate';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  fetchCategories, buildCategoryTree, createCategory, updateCategory, deleteCategory,
+  DbCategory,
+} from '@/lib/categories';
+import type { LucideIcon } from 'lucide-react';
 
-// Icons available for categories
-const availableIcons = [
-  { id: 'cpu', icon: Cpu, name: 'Elektronik' },
-  { id: 'shirt', icon: Shirt, name: 'Kläder' },
-  { id: 'droplets', icon: Droplets, name: 'Kroppsvård' },
-  { id: 'flame', icon: Flame, name: 'Populärt' },
-  { id: 'sparkles', icon: Sparkles, name: 'Ljus' },
-  { id: 'gem', icon: Gem, name: 'Smycken' },
-  { id: 'bed', icon: Bed, name: 'Hemtextil' },
-  { id: 'grid', icon: Grid, name: 'Standard' },
-];
+const iconMap: Record<string, LucideIcon> = {
+  Cpu, Shirt, Droplets, Flame, Sparkles, Gem, Bed, Grid, Tag, Leaf,
+};
 
-interface Category {
-  id: string;
-  name: { [key: string]: string };
-  iconId: string;
-  query?: string;
-  isVisible: boolean;
-  isBestsellerFilter?: boolean;
-}
+const iconOptions = Object.keys(iconMap);
 
-// Local storage key for categories
-const CATEGORIES_STORAGE_KEY = 'admin_categories';
-
-// Default categories matching src/data/categories.ts
-const defaultCategories: Category[] = [
-  { id: 'all', name: { sv: 'Alla', en: 'All', no: 'Alle', da: 'Alle', de: 'Alle', fi: 'Kaikki', nl: 'Alles', fr: 'Tout', es: 'Todo', pl: 'Wszystko' }, iconId: 'grid', isVisible: true },
-  { id: 'bestsaljare', name: { sv: 'Bästsäljare', en: 'Bestsellers', no: 'Bestselgere', da: 'Bestsellere', de: 'Bestseller', fi: 'Bestsellerit', nl: 'Bestsellers', fr: 'Meilleures ventes', es: 'Más vendidos', pl: 'Bestsellery' }, iconId: 'flame', isVisible: true, isBestsellerFilter: true },
-  { id: 'elektronik', name: { sv: 'Elektronik', en: 'Electronics', no: 'Elektronikk', da: 'Elektronik', de: 'Elektronik', fi: 'Elektroniikka', nl: 'Elektronica', fr: 'Électronique', es: 'Electrónica', pl: 'Elektronika' }, iconId: 'cpu', query: 'product_type:Elektronik', isVisible: true },
-  { id: 'klader', name: { sv: 'Mode', en: 'Fashion', no: 'Mote', da: 'Mode', de: 'Mode', fi: 'Muoti', nl: 'Mode', fr: 'Mode', es: 'Moda', pl: 'Moda' }, iconId: 'shirt', query: 'product_type:"Hampa-kläder" OR product_type:Kläder', isVisible: true },
-  { id: 'kroppsvard', name: { sv: 'Kroppsvård', en: 'Body Care', no: 'Kroppsvård', da: 'Kropspleje', de: 'Körperpflege', fi: 'Vartalonhoito', nl: 'Lichaamsverzorging', fr: 'Soins corporels', es: 'Cuidado corporal', pl: 'Pielęgnacja ciała' }, iconId: 'droplets', query: 'product_type:Kroppsvård', isVisible: true },
-  { id: 'ljus', name: { sv: 'Ljus', en: 'Candles', no: 'Lys', da: 'Lys', de: 'Kerzen', fi: 'Kynttilät', nl: 'Kaarsen', fr: 'Bougies', es: 'Velas', pl: 'Świece' }, iconId: 'sparkles', query: 'product_type:Ljus', isVisible: true },
-  { id: 'smycken', name: { sv: 'Smycken & Silver', en: 'Jewelry & Silver', no: 'Smykker', da: 'Smykker', de: 'Schmuck', fi: 'Korut', nl: 'Sieraden', fr: 'Bijoux', es: 'Joyas', pl: 'Biżuteria' }, iconId: 'gem', query: 'product_type:Smycken', isVisible: true },
-  { id: 'bastudofter', name: { sv: 'Bastudofter', en: 'Sauna Scents', no: 'Badstudufter', da: 'Saunadufte', de: 'Saunadüfte', fi: 'Saunatuoksut', nl: 'Saunageuren', fr: 'Parfums sauna', es: 'Aromas sauna', pl: 'Zapachy do sauny' }, iconId: 'flame', query: 'product_type:Bastudofter', isVisible: true },
-  { id: 'hem-textil', name: { sv: 'Hemtextil', en: 'Home Textiles', no: 'Hjemmetekstil', da: 'Hjemmetekstil', de: 'Heimtextilien', fi: 'Kodintekstiilit', nl: 'Woontextiel', fr: 'Textiles maison', es: 'Textiles hogar', pl: 'Tekstylia domowe' }, iconId: 'bed', query: 'product_type:Hemtextil OR product_type:Sängkläder OR product_type:Handdukar OR product_type:Filtar', isVisible: true },
-  { id: 'cbd', name: { sv: 'CBD', en: 'CBD', no: 'CBD', da: 'CBD', de: 'CBD', fi: 'CBD', nl: 'CBD', fr: 'CBD', es: 'CBD', pl: 'CBD' }, iconId: 'droplets', query: 'product_type:CBD', isVisible: false },
-];
+const getIcon = (name: string | null): LucideIcon => iconMap[name || 'Tag'] || Tag;
 
 const AdminCategoryManager = () => {
-  const { language } = useLanguage();
-  const { translate, isTranslating } = useAutoTranslate();
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [newCategory, setNewCategory] = useState({
-    id: '',
-    nameSv: '',
-    iconId: 'grid',
-    query: '',
+  const queryClient = useQueryClient();
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [editingCat, setEditingCat] = useState<DbCategory | null>(null);
+  const [deletingCat, setDeletingCat] = useState<DbCategory | null>(null);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [form, setForm] = useState({ name_sv: '', name_en: '', slug: '', icon: 'Tag', parent_id: '' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { data: categories = [], isLoading } = useQuery({
+    queryKey: ['admin-categories'],
+    queryFn: () => fetchCategories(true),
+    staleTime: 10_000,
   });
 
-  const content: Record<string, {
-    title: string;
-    subtitle: string;
-    addCategory: string;
-    categoryId: string;
-    nameSv: string;
-    icon: string;
-    query: string;
-    visible: string;
-    hidden: string;
-    save: string;
-    cancel: string;
-    delete: string;
-    categoryAdded: string;
-    categoryDeleted: string;
-    visibilityChanged: string;
-    error: string;
-    noCategories: string;
-    autoTranslate: string;
-    translating: string;
-  }> = {
-    sv: {
-      title: 'Kategorihantering',
-      subtitle: 'Lägg till, dölj och ta bort kategorier',
-      addCategory: 'Lägg till kategori',
-      categoryId: 'Kategori-ID (unikt)',
-      nameSv: 'Namn (Svenska)',
-      icon: 'Ikon',
-      query: 'Shopify-query (product_type:...)',
-      visible: 'Synlig',
-      hidden: 'Dold',
-      save: 'Spara',
-      cancel: 'Avbryt',
-      delete: 'Ta bort',
-      categoryAdded: 'Kategori tillagd!',
-      categoryDeleted: 'Kategori borttagen!',
-      visibilityChanged: 'Synlighet ändrad!',
-      error: 'Något gick fel',
-      noCategories: 'Inga kategorier',
-      autoTranslate: 'Översätter automatiskt till alla språk',
-      translating: 'Översätter...',
-    },
-    en: {
-      title: 'Category Management',
-      subtitle: 'Add, hide and remove categories',
-      addCategory: 'Add Category',
-      categoryId: 'Category ID (unique)',
-      nameSv: 'Name (Swedish)',
-      icon: 'Icon',
-      query: 'Shopify query (product_type:...)',
-      visible: 'Visible',
-      hidden: 'Hidden',
-      save: 'Save',
-      cancel: 'Cancel',
-      delete: 'Delete',
-      categoryAdded: 'Category added!',
-      categoryDeleted: 'Category deleted!',
-      visibilityChanged: 'Visibility changed!',
-      error: 'Something went wrong',
-      noCategories: 'No categories',
-      autoTranslate: 'Auto-translates to all languages',
-      translating: 'Translating...',
-    },
-    no: {
-      title: 'Kategorihåndtering',
-      subtitle: 'Legg til, skjul og fjern kategorier',
-      addCategory: 'Legg til kategori',
-      categoryId: 'Kategori-ID (unik)',
-      nameSv: 'Navn (Svensk)',
-      icon: 'Ikon',
-      query: 'Shopify-query (product_type:...)',
-      visible: 'Synlig',
-      hidden: 'Skjult',
-      save: 'Lagre',
-      cancel: 'Avbryt',
-      delete: 'Slett',
-      categoryAdded: 'Kategori lagt til!',
-      categoryDeleted: 'Kategori fjernet!',
-      visibilityChanged: 'Synlighet endret!',
-      error: 'Noe gikk galt',
-      noCategories: 'Ingen kategorier',
-      autoTranslate: 'Oversetter automatisk til alle språk',
-      translating: 'Oversetter...',
-    },
-    da: {
-      title: 'Kategorihåndtering',
-      subtitle: 'Tilføj, skjul og fjern kategorier',
-      addCategory: 'Tilføj kategori',
-      categoryId: 'Kategori-ID (unik)',
-      nameSv: 'Navn (Svensk)',
-      icon: 'Ikon',
-      query: 'Shopify-query (product_type:...)',
-      visible: 'Synlig',
-      hidden: 'Skjult',
-      save: 'Gem',
-      cancel: 'Annuller',
-      delete: 'Slet',
-      categoryAdded: 'Kategori tilføjet!',
-      categoryDeleted: 'Kategori fjernet!',
-      visibilityChanged: 'Synlighed ændret!',
-      error: 'Noget gik galt',
-      noCategories: 'Ingen kategorier',
-      autoTranslate: 'Oversætter automatisk til alle sprog',
-      translating: 'Oversætter...',
-    },
-    de: {
-      title: 'Kategorieverwaltung',
-      subtitle: 'Kategorien hinzufügen, ausblenden und entfernen',
-      addCategory: 'Kategorie hinzufügen',
-      categoryId: 'Kategorie-ID (eindeutig)',
-      nameSv: 'Name (Schwedisch)',
-      icon: 'Symbol',
-      query: 'Shopify-Query (product_type:...)',
-      visible: 'Sichtbar',
-      hidden: 'Versteckt',
-      save: 'Speichern',
-      cancel: 'Abbrechen',
-      delete: 'Löschen',
-      categoryAdded: 'Kategorie hinzugefügt!',
-      categoryDeleted: 'Kategorie entfernt!',
-      visibilityChanged: 'Sichtbarkeit geändert!',
-      error: 'Etwas ist schief gelaufen',
-      noCategories: 'Keine Kategorien',
-      autoTranslate: 'Übersetzt automatisch in alle Sprachen',
-      translating: 'Übersetzt...',
-    },
+  const tree = useMemo(() => buildCategoryTree(categories), [categories]);
+  const parentOptions = useMemo(() => categories.filter(c => !c.parent_id), [categories]);
+
+  const toggleExpand = (id: string) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
   };
 
-  const t = content[language as keyof typeof content] || content.en;
+  const resetForm = () => setForm({ name_sv: '', name_en: '', slug: '', icon: 'Tag', parent_id: '' });
 
-  // Load categories from localStorage on mount
-  useEffect(() => {
-    const stored = localStorage.getItem(CATEGORIES_STORAGE_KEY);
-    if (stored) {
-      try {
-        setCategories(JSON.parse(stored));
-      } catch {
-        setCategories(defaultCategories);
-      }
-    } else {
-      setCategories(defaultCategories);
+  const generateSlug = (name: string) =>
+    name.toLowerCase()
+      .replace(/[åÅ]/g, 'a').replace(/[äÄ]/g, 'a').replace(/[öÖ]/g, 'o')
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+  const handleAdd = async () => {
+    if (!form.name_sv.trim()) return;
+    setIsSubmitting(true);
+    try {
+      await createCategory({
+        name_sv: form.name_sv.trim(),
+        name_en: form.name_en.trim() || null,
+        slug: form.slug.trim() || generateSlug(form.name_sv),
+        icon: form.icon || 'Tag',
+        parent_id: form.parent_id || null,
+        display_order: categories.length,
+        is_visible: true,
+      });
+      toast.success('Kategori skapad!');
+      queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
+      setIsAddOpen(false);
+      resetForm();
+    } catch (err: any) {
+      toast.error('Fel: ' + (err?.message || ''));
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsLoading(false);
-  }, []);
-
-  // Save categories to localStorage
-  const saveCategories = (newCategories: Category[]) => {
-    setCategories(newCategories);
-    localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(newCategories));
-    // Dispatch custom event so Header can update
-    window.dispatchEvent(new CustomEvent('categories-updated', { detail: newCategories }));
   };
 
-  const toggleVisibility = (categoryId: string) => {
-    const updated = categories.map(cat => 
-      cat.id === categoryId ? { ...cat, isVisible: !cat.isVisible } : cat
+  const handleUpdate = async () => {
+    if (!editingCat || !form.name_sv.trim()) return;
+    setIsSubmitting(true);
+    try {
+      await updateCategory(editingCat.id, {
+        name_sv: form.name_sv.trim(),
+        name_en: form.name_en.trim() || null,
+        slug: form.slug.trim() || editingCat.slug,
+        icon: form.icon || editingCat.icon,
+        parent_id: form.parent_id || null,
+      });
+      toast.success('Kategori uppdaterad!');
+      queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
+      setEditingCat(null);
+      resetForm();
+    } catch (err: any) {
+      toast.error('Fel: ' + (err?.message || ''));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deletingCat) return;
+    try {
+      await deleteCategory(deletingCat.id);
+      toast.success('Kategori borttagen!');
+      queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
+    } catch (err: any) {
+      toast.error('Fel: ' + (err?.message || ''));
+    } finally {
+      setDeletingCat(null);
+    }
+  };
+
+  const handleToggleVisibility = async (cat: DbCategory) => {
+    try {
+      await updateCategory(cat.id, { is_visible: !cat.is_visible });
+      queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
+      toast.success(cat.is_visible ? 'Kategori dold' : 'Kategori synlig');
+    } catch (err: any) {
+      toast.error('Fel: ' + (err?.message || ''));
+    }
+  };
+
+  const openEdit = (cat: DbCategory) => {
+    setForm({
+      name_sv: cat.name_sv,
+      name_en: cat.name_en || '',
+      slug: cat.slug,
+      icon: cat.icon || 'Tag',
+      parent_id: cat.parent_id || '',
+    });
+    setEditingCat(cat);
+  };
+
+  const renderCategoryRow = (cat: DbCategory, depth = 0) => {
+    const Icon = getIcon(cat.icon);
+    const hasChildren = cat.children && cat.children.length > 0;
+    const isExpanded = expandedIds.has(cat.id);
+
+    return (
+      <div key={cat.id}>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className={`flex items-center gap-2 p-2.5 rounded-lg transition-colors hover:bg-secondary/60 ${
+            !cat.is_visible ? 'opacity-50' : ''
+          }`}
+          style={{ paddingLeft: `${12 + depth * 24}px` }}
+        >
+          {hasChildren ? (
+            <button onClick={() => toggleExpand(cat.id)} className="shrink-0 p-0.5">
+              {isExpanded
+                ? <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                : <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              }
+            </button>
+          ) : (
+            <span className="w-5" />
+          )}
+
+          <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+            <Icon className="w-4 h-4 text-primary" />
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <p className="font-medium text-sm truncate">{cat.name_sv}</p>
+            <p className="text-xs text-muted-foreground truncate">/{cat.slug}</p>
+          </div>
+
+          {hasChildren && (
+            <Badge variant="secondary" className="text-xs">
+              {cat.children!.length} under
+            </Badge>
+          )}
+
+          <Badge variant={cat.is_visible ? 'default' : 'outline'} className="text-xs shrink-0">
+            {cat.is_visible ? 'Synlig' : 'Dold'}
+          </Badge>
+
+          <div className="flex items-center gap-0.5 shrink-0">
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleToggleVisibility(cat)}>
+              {cat.is_visible ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+            </Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(cat)}>
+              <Pencil className="w-3.5 h-3.5" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeletingCat(cat)}>
+              <Trash2 className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        </motion.div>
+
+        {hasChildren && isExpanded && cat.children!.map(child => renderCategoryRow(child, depth + 1))}
+      </div>
     );
-    saveCategories(updated);
-    toast.success(t.visibilityChanged);
   };
 
-  const deleteCategory = (categoryId: string) => {
-    // Prevent deleting 'all' and 'bestsaljare'
-    if (categoryId === 'all' || categoryId === 'bestsaljare') {
-      toast.error('Denna kategori kan inte tas bort');
-      return;
-    }
-    const updated = categories.filter(cat => cat.id !== categoryId);
-    saveCategories(updated);
-    toast.success(t.categoryDeleted);
-  };
-
-  const addCategory = async () => {
-    if (!newCategory.id || !newCategory.nameSv) {
-      toast.error(t.error);
-      return;
-    }
-
-    // Check if ID already exists
-    if (categories.some(cat => cat.id === newCategory.id)) {
-      toast.error('ID finns redan');
-      return;
-    }
-
-    // Auto-translate the Swedish name to all other languages
-    let translatedNames: Record<string, string> = { sv: newCategory.nameSv };
-    
-    const translations = await translate(newCategory.nameSv, 'sv', 'e-commerce category name');
-    if (translations) {
-      translatedNames = { sv: newCategory.nameSv, ...translations };
-    } else {
-      // Fallback: use Swedish name for all
-      translatedNames = { sv: newCategory.nameSv, en: newCategory.nameSv };
-    }
-
-    const category: Category = {
-      id: newCategory.id.toLowerCase().replace(/\s+/g, '-'),
-      name: translatedNames,
-      iconId: newCategory.iconId,
-      query: newCategory.query || `product_type:${newCategory.nameSv}`,
-      isVisible: true,
-    };
-
-    saveCategories([...categories, category]);
-    setNewCategory({ id: '', nameSv: '', iconId: 'grid', query: '' });
-    setIsAddDialogOpen(false);
-    toast.success(t.categoryAdded);
-  };
-
-  const getIconComponent = (iconId: string) => {
-    const found = availableIcons.find(i => i.id === iconId);
-    return found ? found.icon : Grid;
-  };
+  const CategoryForm = ({ onSubmit, submitLabel }: { onSubmit: () => void; submitLabel: string }) => (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label>Namn (svenska) *</Label>
+        <Input
+          value={form.name_sv}
+          onChange={e => {
+            setForm(prev => ({
+              ...prev,
+              name_sv: e.target.value,
+              slug: prev.slug || generateSlug(e.target.value),
+            }));
+          }}
+          placeholder="T.ex. Bastudofter"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label>Namn (engelska)</Label>
+        <Input
+          value={form.name_en}
+          onChange={e => setForm(prev => ({ ...prev, name_en: e.target.value }))}
+          placeholder="Sauna Scents"
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-2">
+          <Label>Slug</Label>
+          <Input
+            value={form.slug}
+            onChange={e => setForm(prev => ({ ...prev, slug: e.target.value }))}
+            placeholder="bastudofter"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Ikon</Label>
+          <Select value={form.icon} onValueChange={v => setForm(prev => ({ ...prev, icon: v }))}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {iconOptions.map(name => {
+                const I = iconMap[name];
+                return (
+                  <SelectItem key={name} value={name}>
+                    <div className="flex items-center gap-2">
+                      <I className="w-4 h-4" />
+                      <span>{name}</span>
+                    </div>
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="space-y-2">
+        <Label>Förälder-kategori</Label>
+        <Select value={form.parent_id} onValueChange={v => setForm(prev => ({ ...prev, parent_id: v }))}>
+          <SelectTrigger>
+            <SelectValue placeholder="Ingen (toppnivå)" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">Ingen (toppnivå)</SelectItem>
+            {parentOptions
+              .filter(p => p.id !== editingCat?.id)
+              .map(p => (
+                <SelectItem key={p.id} value={p.id}>{p.name_sv}</SelectItem>
+              ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="flex gap-2 pt-2">
+        <Button
+          variant="outline"
+          className="flex-1"
+          onClick={() => { setIsAddOpen(false); setEditingCat(null); resetForm(); }}
+        >
+          Avbryt
+        </Button>
+        <Button className="flex-1 gap-2" onClick={onSubmit} disabled={isSubmitting || !form.name_sv.trim()}>
+          {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+          {submitLabel}
+        </Button>
+      </div>
+    </div>
+  );
 
   if (isLoading) {
     return (
@@ -308,174 +313,70 @@ const AdminCategoryManager = () => {
             <Grid className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <h3 className="font-semibold">{t.title}</h3>
-            <p className="text-sm text-muted-foreground">{t.subtitle}</p>
+            <h3 className="font-semibold">Kategorihantering</h3>
+            <p className="text-sm text-muted-foreground">
+              {categories.length} kategorier · {categories.filter(c => c.parent_id).length} underkategorier
+            </p>
           </div>
         </div>
 
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <Dialog open={isAddOpen} onOpenChange={open => { setIsAddOpen(open); if (!open) resetForm(); }}>
           <DialogTrigger asChild>
             <Button size="sm" className="gap-2">
-              <Plus className="w-4 h-4" />
-              {t.addCategory}
+              <Plus className="w-4 h-4" /> Ny kategori
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <Grid className="w-5 h-5 text-primary" />
-                {t.addCategory}
+                <Grid className="w-5 h-5 text-primary" /> Ny kategori
               </DialogTitle>
             </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>{t.categoryId}</Label>
-                <Input
-                  value={newCategory.id}
-                  onChange={(e) => setNewCategory(prev => ({ ...prev, id: e.target.value }))}
-                  placeholder="ny-kategori"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>{t.nameSv}</Label>
-                <Input
-                  value={newCategory.nameSv}
-                  onChange={(e) => setNewCategory(prev => ({ ...prev, nameSv: e.target.value }))}
-                  placeholder="Ny Kategori"
-                />
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Languages className="w-3 h-3" />
-                  {isTranslating ? t.translating : t.autoTranslate}
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>{t.icon}</Label>
-                <Select
-                  value={newCategory.iconId}
-                  onValueChange={(value) => setNewCategory(prev => ({ ...prev, iconId: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover border border-border z-50">
-                    {availableIcons.map((iconOption) => {
-                      const IconComp = iconOption.icon;
-                      return (
-                        <SelectItem key={iconOption.id} value={iconOption.id}>
-                          <div className="flex items-center gap-2">
-                            <IconComp className="w-4 h-4" />
-                            <span>{iconOption.name}</span>
-                          </div>
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>{t.query}</Label>
-                <Input
-                  value={newCategory.query}
-                  onChange={(e) => setNewCategory(prev => ({ ...prev, query: e.target.value }))}
-                  placeholder="product_type:NyKategori"
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setIsAddDialogOpen(false)}
-                  className="flex-1"
-                  disabled={isTranslating}
-                >
-                  {t.cancel}
-                </Button>
-                <Button onClick={addCategory} className="flex-1 gap-2" disabled={isTranslating}>
-                  {isTranslating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                  {isTranslating ? t.translating : t.save}
-                </Button>
-              </div>
-            </div>
+            <CategoryForm onSubmit={handleAdd} submitLabel="Skapa" />
           </DialogContent>
         </Dialog>
       </div>
 
-      {/* Category List */}
-      <div className="space-y-2 max-h-80 overflow-y-auto">
-        {categories.length === 0 ? (
-          <p className="text-center text-muted-foreground py-4">{t.noCategories}</p>
+      {/* Tree */}
+      <div className="border border-border rounded-lg divide-y divide-border/50">
+        {tree.length === 0 ? (
+          <p className="text-center text-muted-foreground py-6 text-sm">Inga kategorier ännu</p>
         ) : (
-          categories.map((category) => {
-            const IconComp = getIconComponent(category.iconId);
-            return (
-              <motion.div
-                key={category.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
-                  category.isVisible ? 'bg-secondary/50' : 'bg-muted/30 opacity-60'
-                }`}
-              >
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <IconComp className="w-5 h-5 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">
-                    {category.name[language] || category.name.sv}
-                  </p>
-                  {category.query && (
-                    <p className="text-xs text-muted-foreground truncate">
-                      {category.query}
-                    </p>
-                  )}
-                </div>
-                <Badge variant={category.isVisible ? 'default' : 'secondary'} className="text-xs">
-                  {category.isVisible ? t.visible : t.hidden}
-                </Badge>
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => toggleVisibility(category.id)}
-                  >
-                    {category.isVisible ? (
-                      <EyeOff className="w-4 h-4" />
-                    ) : (
-                      <Eye className="w-4 h-4" />
-                    )}
-                  </Button>
-                  {category.id !== 'all' && category.id !== 'bestsaljare' && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive"
-                      onClick={() => deleteCategory(category.id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  )}
-                </div>
-              </motion.div>
-            );
-          })
+          tree.map(cat => renderCategoryRow(cat))
         )}
       </div>
+
+      {/* Edit dialog */}
+      <Dialog open={!!editingCat} onOpenChange={open => { if (!open) { setEditingCat(null); resetForm(); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="w-5 h-5 text-primary" /> Redigera kategori
+            </DialogTitle>
+          </DialogHeader>
+          <CategoryForm onSubmit={handleUpdate} submitLabel="Uppdatera" />
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirm */}
+      <AlertDialog open={!!deletingCat} onOpenChange={open => { if (!open) setDeletingCat(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Ta bort kategori?</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{deletingCat?.name_sv}" tas bort. Underkategorier flyttas till toppnivå. Produktkopplingar tas bort.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Avbryt</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
+              Ta bort
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
 
 export default AdminCategoryManager;
-
-// Export function to get visible categories for use in Header
-export const getVisibleCategories = (): Category[] => {
-  const stored = localStorage.getItem(CATEGORIES_STORAGE_KEY);
-  if (stored) {
-    try {
-      const categories = JSON.parse(stored) as Category[];
-      return categories.filter(cat => cat.isVisible);
-    } catch {
-      return defaultCategories.filter(cat => cat.isVisible);
-    }
-  }
-  return defaultCategories.filter(cat => cat.isVisible);
-};
