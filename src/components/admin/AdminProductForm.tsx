@@ -520,6 +520,60 @@ function CategoryMultiSelect({
   );
 }
 
+// ─── Tag Multi-Select (DB-driven) ───
+function TagMultiSelect({
+  language,
+  selectedIds,
+  onChange,
+}: {
+  language: string;
+  selectedIds: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const { data: tags = [] } = useQuery({
+    queryKey: ['form-tags'],
+    queryFn: fetchTags,
+    staleTime: 30_000,
+  });
+
+  const sv = language === 'sv';
+
+  const toggle = (id: string) => {
+    onChange(
+      selectedIds.includes(id)
+        ? selectedIds.filter(x => x !== id)
+        : [...selectedIds, id]
+    );
+  };
+
+  return (
+    <div className="flex flex-wrap gap-1.5 border border-border rounded-lg p-3 bg-secondary/20">
+      {tags.map(tag => {
+        const isSelected = selectedIds.includes(tag.id);
+        return (
+          <button
+            key={tag.id}
+            type="button"
+            onClick={() => toggle(tag.id)}
+            className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+              isSelected
+                ? 'bg-primary/15 border-primary/30 text-primary font-medium'
+                : 'bg-background border-border text-foreground hover:bg-primary/5 hover:border-primary/20'
+            }`}
+          >
+            {isSelected ? '✓ ' : '+ '}{tag.name_sv}
+          </button>
+        );
+      })}
+      {tags.length === 0 && (
+        <p className="text-xs text-muted-foreground text-center py-2 w-full">
+          {sv ? 'Inga taggar skapade ännu' : 'No tags created yet'}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function AdminProductForm({
   t,
   language,
