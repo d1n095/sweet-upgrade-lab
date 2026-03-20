@@ -120,8 +120,8 @@ const OrderConfirmation = () => {
       badge: 'Thank you for your order!',
       title: 'Your order is confirmed',
       subtitle: 'We have received your order and will begin processing it shortly.',
-      orderNumberLabel: 'Order number',
-      referenceLabel: 'Payment reference',
+      orderNumberLabel: 'Order ID',
+      referenceLabel: 'Reference',
       waitingTitle: 'Waiting for payment confirmation...',
       waitingDesc: 'Your payment is being processed. The order number will appear automatically in a few seconds.',
       steps: [
