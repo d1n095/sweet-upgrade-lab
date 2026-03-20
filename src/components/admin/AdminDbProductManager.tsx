@@ -200,13 +200,13 @@ const AdminDbProductManager = () => {
   };
 
   const handleCopyFrom = async (source: DbProduct) => {
-    // Pre-fill form with source data and open add dialog (as new active product)
     setFormData({
       title: source.title_sv,
       description: source.description_sv || '',
       price: source.price.toString(),
       currency: source.currency || 'SEK',
       productType: source.category || '',
+      categoryIds: [],
       tags: (source.tags || []).join(', '),
       vendor: source.vendor || '4ThePeople',
       isVisible: false,
