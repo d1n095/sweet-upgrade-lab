@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { setProductCategories } from '@/lib/categories';
+import { setProductTags, fetchProductTagIds } from '@/lib/tags';
 import { motion } from 'framer-motion';
 import {
   Plus, Package, Edit, Trash2, Loader2, AlertTriangle,
@@ -45,7 +46,7 @@ const suggestedTags = [
 
 const emptyForm = (): ProductFormData => ({
   title: '', description: '', price: '', currency: 'SEK',
-  productType: '', categoryIds: [], tags: '', vendor: '4ThePeople',
+  productType: '', categoryIds: [], tagIds: [], tags: '', vendor: '4ThePeople',
   isVisible: true, inventory: 0, allowOverselling: false,
   imageUrls: [], ingredients: '', certifications: '', recipe: '',
   feeling: '', effects: '', usage: '', extendedDescription: '',
@@ -126,6 +127,7 @@ const AdminDbProductManager = () => {
       currency: product.currency || 'SEK',
       productType: product.category || '',
       categoryIds: [],
+      tagIds: [],
       tags: (product.tags || []).join(', '),
       vendor: product.vendor || '4ThePeople',
       isVisible: product.is_visible,
@@ -144,11 +146,14 @@ const AdminDbProductManager = () => {
       metaKeywords: (product as any).meta_keywords || '',
       weightGrams: (product as any).weight_grams?.toString() || '',
     });
-    // Load category IDs async
+    // Load category IDs and tag IDs async
     import('@/lib/categories').then(({ fetchProductCategoryIds }) => {
       fetchProductCategoryIds(product.id).then(ids => {
         setFormData(prev => ({ ...prev, categoryIds: ids }));
       });
+    });
+    fetchProductTagIds(product.id).then(ids => {
+      setFormData(prev => ({ ...prev, tagIds: ids }));
     });
     setIsEditOpen(true);
   };
@@ -208,6 +213,7 @@ const AdminDbProductManager = () => {
       currency: source.currency || 'SEK',
       productType: source.category || '',
       categoryIds: [],
+      tagIds: [],
       tags: (source.tags || []).join(', '),
       vendor: source.vendor || '4ThePeople',
       isVisible: false,
@@ -266,6 +272,7 @@ const AdminDbProductManager = () => {
       if (formData.categoryIds.length > 0) {
         await setProductCategories(newProduct.id, formData.categoryIds);
       }
+      await setProductTags(newProduct.id, formData.tagIds);
       toast.success(t.productAdded);
       queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });
       setIsAddOpen(false);
@@ -307,6 +314,7 @@ const AdminDbProductManager = () => {
         weight_grams: formData.weightGrams ? parseInt(formData.weightGrams) : null,
       } as any);
       await setProductCategories(selected.id, formData.categoryIds);
+      await setProductTags(selected.id, formData.tagIds);
       toast.success(t.productUpdated);
       queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });
       setIsEditOpen(false);

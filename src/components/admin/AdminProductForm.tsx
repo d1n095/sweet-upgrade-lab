@@ -4,6 +4,7 @@ import { RecipeTemplatePicker } from './RecipeTemplatePicker';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { fetchCategories, DbCategory } from '@/lib/categories';
+import { fetchTags, DbTag } from '@/lib/tags';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -26,6 +27,7 @@ export interface ProductFormData {
   currency: string;
   productType: string;
   categoryIds: string[];
+  tagIds: string[];
   tags: string;
   vendor: string;
   isVisible: boolean;
@@ -518,6 +520,60 @@ function CategoryMultiSelect({
   );
 }
 
+// ─── Tag Multi-Select (DB-driven) ───
+function TagMultiSelect({
+  language,
+  selectedIds,
+  onChange,
+}: {
+  language: string;
+  selectedIds: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const { data: tags = [] } = useQuery({
+    queryKey: ['form-tags'],
+    queryFn: fetchTags,
+    staleTime: 30_000,
+  });
+
+  const sv = language === 'sv';
+
+  const toggle = (id: string) => {
+    onChange(
+      selectedIds.includes(id)
+        ? selectedIds.filter(x => x !== id)
+        : [...selectedIds, id]
+    );
+  };
+
+  return (
+    <div className="flex flex-wrap gap-1.5 border border-border rounded-lg p-3 bg-secondary/20">
+      {tags.map(tag => {
+        const isSelected = selectedIds.includes(tag.id);
+        return (
+          <button
+            key={tag.id}
+            type="button"
+            onClick={() => toggle(tag.id)}
+            className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+              isSelected
+                ? 'bg-primary/15 border-primary/30 text-primary font-medium'
+                : 'bg-background border-border text-foreground hover:bg-primary/5 hover:border-primary/20'
+            }`}
+          >
+            {isSelected ? '✓ ' : '+ '}{tag.name_sv}
+          </button>
+        );
+      })}
+      {tags.length === 0 && (
+        <p className="text-xs text-muted-foreground text-center py-2 w-full">
+          {sv ? 'Inga taggar skapade ännu' : 'No tags created yet'}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function AdminProductForm({
   t,
   language,
@@ -699,16 +755,29 @@ export function AdminProductForm({
         </div>
       </div>
 
-      {/* Tags */}
+      {/* Tags (DB-driven) */}
       <div className="space-y-2">
-        <Label>{t.tags}</Label>
+        <Label className="flex items-center gap-1.5">
+          <Tag className="w-4 h-4" />
+          {language === 'sv' ? 'Taggar' : 'Tags'}
+        </Label>
+        <TagMultiSelect
+          language={language}
+          selectedIds={formData.tagIds}
+          onChange={(ids) => setFormData(prev => ({ ...prev, tagIds: ids }))}
+        />
+      </div>
+
+      {/* Free-text tags (legacy/custom) */}
+      <div className="space-y-2">
+        <Label className="text-xs text-muted-foreground">{language === 'sv' ? 'Egna taggar (fritext)' : 'Custom tags (free text)'}</Label>
         <div className="relative">
           <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             value={formData.tags}
             onChange={(e) => setFormData((prev) => ({ ...prev, tags: e.target.value }))}
             placeholder={t.tagsPlaceholder}
-            className="pl-9"
+            className="pl-9 text-xs h-8"
           />
         </div>
 
@@ -718,7 +787,7 @@ export function AdminProductForm({
               <Badge
                 key={tag}
                 variant="secondary"
-                className="cursor-pointer hover:bg-destructive/20"
+                className="cursor-pointer hover:bg-destructive/20 text-xs"
                 onClick={() => removeTag(tag)}
               >
                 {tag} ×
@@ -726,24 +795,6 @@ export function AdminProductForm({
             ))}
           </div>
         )}
-
-        <div>
-          <p className="text-xs text-muted-foreground mb-1.5">{t.suggestedTags}</p>
-          <div className="flex flex-wrap gap-1.5">
-            {suggestedTags
-              .filter((tag) => !currentTags.includes(tag))
-              .map((tag) => (
-                <Badge
-                  key={tag}
-                  variant="outline"
-                  className="cursor-pointer hover:bg-primary/10"
-                  onClick={() => addTag(tag)}
-                >
-                  + {tag}
-                </Badge>
-              ))}
-          </div>
-        </div>
       </div>
 
       {/* Visibility & Inventory */}

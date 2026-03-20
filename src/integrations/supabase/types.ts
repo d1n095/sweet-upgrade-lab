@@ -1322,6 +1322,72 @@ export type Database = {
         }
         Relationships: []
       }
+      product_tag_relations: {
+        Row: {
+          created_at: string
+          id: string
+          product_id: string
+          tag_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          product_id: string
+          tag_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          product_id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_tag_relations_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_tag_relations_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "product_tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_tags: {
+        Row: {
+          color: string | null
+          created_at: string
+          display_order: number | null
+          id: string
+          name_en: string | null
+          name_sv: string
+          slug: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          display_order?: number | null
+          id?: string
+          name_en?: string | null
+          name_sv: string
+          slug: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          display_order?: number | null
+          id?: string
+          name_en?: string | null
+          name_sv?: string
+          slug?: string
+        }
+        Relationships: []
+      }
       product_translation_cache: {
         Row: {
           created_at: string
