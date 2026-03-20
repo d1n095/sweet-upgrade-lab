@@ -167,10 +167,10 @@ const OrderConfirmation = () => {
             <p className="text-muted-foreground text-lg mb-6">{t.subtitle}</p>
 
             {/* Order number or loading state */}
-            {orderNumber ? (
+            {orderRef ? (
               <div className="inline-block bg-card border border-border/50 rounded-xl px-6 py-3">
                 <p className="text-sm text-muted-foreground">{t.orderNumberLabel}</p>
-                <p className="font-mono text-xl font-semibold">{orderNumber}</p>
+                <p className="font-mono text-xl font-semibold">{orderRef}</p>
               </div>
             ) : isLoading ? (
               <div className="inline-flex flex-col items-center gap-2 bg-card border border-border/50 rounded-xl px-6 py-4">
