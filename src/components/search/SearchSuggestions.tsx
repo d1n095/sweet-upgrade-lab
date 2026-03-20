@@ -71,15 +71,23 @@ const SearchSuggestions = () => {
             .from('products')
             .select('id, title_sv, title_en, handle, price, currency, image_urls, ingredients_sv, ingredients_en, status')
             .eq('is_visible', true)
-            .in('status', ['active', 'coming_soon'])
+            .in('status', ['active', 'coming_soon', 'info'])
             .or(`title_sv.ilike.%${q}%,title_en.ilike.%${q}%,ingredients_sv.ilike.%${q}%,ingredients_en.ilike.%${q}%`)
-            .limit(6);
+            .limit(8);
 
-          // Sort: active first, then coming_soon
+          // Search ingredients from recipe_ingredients
+          const { data: ingData } = await supabase
+            .from('recipe_ingredients')
+            .select('id, name_sv, name_en')
+            .eq('is_active', true)
+            .eq('is_searchable', true)
+            .or(`name_sv.ilike.%${q}%,name_en.ilike.%${q}%`)
+            .limit(5);
+
+          // Sort: active first, then coming_soon, then info
+          const statusOrder: Record<string, number> = { active: 0, coming_soon: 1, info: 2 };
           const sorted = ((data || []) as DbProductResult[]).sort((a, b) => {
-            if (a.status === 'active' && b.status !== 'active') return -1;
-            if (a.status !== 'active' && b.status === 'active') return 1;
-            return 0;
+            return (statusOrder[a.status] ?? 3) - (statusOrder[b.status] ?? 3);
           });
           setSuggestions(sorted);
 
