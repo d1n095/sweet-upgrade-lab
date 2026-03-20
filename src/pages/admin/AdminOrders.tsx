@@ -111,6 +111,9 @@ const AdminOrders = () => {
             emptyMessage="Inga borttappade försändelser"
           />
         </TabsContent>
+        <TabsContent value="refunds">
+          <AdminRefundRequests />
+        </TabsContent>
         <TabsContent value="deleted">
           <AdminDeletedOrders />
         </TabsContent>
