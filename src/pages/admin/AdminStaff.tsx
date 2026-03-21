@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  Shield, Users, Crown, ClipboardList, LayoutDashboard, UserCog,
+  Shield, Users, Crown, ClipboardList, LayoutDashboard, UserCog, Zap,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -8,6 +8,7 @@ import { useFounderRole } from '@/hooks/useFounderRole';
 import WorkbenchOverview from '@/components/admin/workbench/WorkbenchOverview';
 import WorkbenchBoard from '@/components/admin/workbench/WorkbenchBoard';
 import WorkbenchStaffPanel from '@/components/admin/workbench/WorkbenchStaffPanel';
+import QuickPackMode from '@/components/admin/workbench/QuickPackMode';
 
 import { useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -488,6 +489,7 @@ const AdminStaff = () => {
         <TabsList className="flex-wrap">
           <TabsTrigger value="overview" className="gap-1.5"><LayoutDashboard className="w-3.5 h-3.5" /> Översikt</TabsTrigger>
           <TabsTrigger value="workboard" className="gap-1.5"><ClipboardList className="w-3.5 h-3.5" /> Workboard</TabsTrigger>
+          <TabsTrigger value="quickpack" className="gap-1.5"><Zap className="w-3.5 h-3.5" /> Snabb packning</TabsTrigger>
           {isFounder && (
             <>
               <TabsTrigger value="staff" className="gap-1.5"><Users className="w-3.5 h-3.5" /> Personal</TabsTrigger>
@@ -503,6 +505,10 @@ const AdminStaff = () => {
 
         <TabsContent value="workboard">
           <WorkbenchBoard initialFilter={boardFilter} />
+        </TabsContent>
+
+        <TabsContent value="quickpack">
+          <QuickPackMode />
         </TabsContent>
 
         <TabsContent value="staff">

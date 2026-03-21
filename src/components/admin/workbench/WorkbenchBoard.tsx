@@ -7,17 +7,19 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Plus, User, Clock, CheckCircle2, Circle, Play, X, Zap, UserCheck, Bot,
   AlertTriangle, Package, Headphones, RotateCcw, FileText, Wrench, ShieldAlert,
-  FastForward, Pause, ArrowRight, Sparkles,
+  FastForward, Pause, ArrowRight, Sparkles, Timer, ToggleRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getOrderDisplayId } from '@/utils/orderDisplay';
 
 interface Task {
   id: string;
@@ -82,6 +84,39 @@ interface Props {
   initialFilter?: string;
 }
 
+// Task Snapshot: shows order info inline
+const TaskSnapshot = ({ orderId }: { orderId: string }) => {
+  const { data: order } = useQuery({
+    queryKey: ['task-snapshot', orderId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('orders')
+        .select('order_email, total_amount, items, shipping_address, created_at')
+        .eq('id', orderId)
+        .maybeSingle();
+      return data;
+    },
+    staleTime: 60000,
+  });
+
+  if (!order) return null;
+  const items = Array.isArray(order.items) ? order.items : [];
+  const addr = order.shipping_address as any;
+
+  return (
+    <div className="mt-3 pt-3 border-t border-border/50 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+      <div>
+        <span className="font-medium text-foreground">{order.order_email}</span>
+        <p>{order.total_amount?.toLocaleString('sv-SE')} kr</p>
+      </div>
+      <div>
+        {addr && <p>{addr.name} — {addr.city}</p>}
+        <p>{items.length} artikel{items.length !== 1 ? 'er' : ''}: {items.slice(0, 2).map((i: any) => i.title).join(', ')}{items.length > 2 ? '…' : ''}</p>
+      </div>
+    </div>
+  );
+};
+
 const WorkbenchBoard = ({ initialFilter }: Props) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -96,7 +131,10 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const [viewFilter, setViewFilter] = useState<ViewFilter>('all');
   const [escalating, setEscalating] = useState<string | null>(null);
   const [workMode, setWorkMode] = useState(false);
+  const [autoNext, setAutoNext] = useState(true);
   const [justCompleted, setJustCompleted] = useState<string | null>(null);
+  const [completedCount, setCompletedCount] = useState(0);
+  const [sessionStart] = useState(Date.now());
   const workModeRef = useRef(false);
   workModeRef.current = workMode;
 
@@ -323,10 +361,27 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     await supabase.from('staff_tasks').update(updates).eq('id', taskId);
     queryClient.invalidateQueries({ queryKey: ['staff-tasks'] });
 
-    // Work Mode: show feedback then auto-advance
-    if (newStatus === 'done' && workModeRef.current) {
+    if (newStatus === 'done') {
+      setCompletedCount(prev => prev + 1);
       setJustCompleted(taskId);
-      setTimeout(() => setJustCompleted(null), 1500);
+      toast.success('Klar ✓');
+      setTimeout(() => {
+        setJustCompleted(null);
+        // Auto-advance in work mode
+        if (workModeRef.current && autoNext) {
+          const next = getNextAction();
+          if (next) {
+            if (next.status === 'open') {
+              moveTask(next.id, 'claimed').then(() => moveTask(next.id, 'in_progress'));
+            } else if (next.status === 'claimed') {
+              moveTask(next.id, 'in_progress');
+            }
+          } else {
+            setWorkMode(false);
+            toast.info('Inga fler uppgifter – arbetsläge avslutat');
+          }
+        }
+      }, 1200);
     }
   };
 
@@ -508,17 +563,28 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
                 <div className="min-w-0">
                   <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Nästa att göra</p>
                   <p className="text-sm font-semibold truncate">{nextAction.title}</p>
-                  <div className="flex gap-1.5 mt-1">
+                  <div className="flex gap-1.5 mt-1 flex-wrap">
                     <Badge variant="outline" className={cn('text-[9px]', PRIORITY_COLORS[nextAction.priority])}>
                       {nextAction.priority === 'high' ? 'HÖG' : nextAction.priority === 'medium' ? 'MED' : 'LÅG'}
                     </Badge>
                     <Badge variant="secondary" className="text-[9px]">
                       {(TASK_TYPE_META[nextAction.task_type] || TASK_TYPE_META.general).label}
                     </Badge>
+                    {nextAction.related_order_id && (
+                      <Badge variant="outline" className="text-[9px] gap-0.5">
+                        <Package className="w-2.5 h-2.5" /> Order
+                      </Badge>
+                    )}
                   </div>
                 </div>
               </div>
-              <div className="flex gap-2 shrink-0">
+              <div className="flex gap-2 shrink-0 items-center">
+                {workMode && (
+                  <div className="flex items-center gap-2 mr-2">
+                    <label className="text-[10px] text-muted-foreground">Auto-nästa</label>
+                    <Switch checked={autoNext} onCheckedChange={setAutoNext} />
+                  </div>
+                )}
                 {!workMode ? (
                   <>
                     <Button size="sm" variant="outline" className="gap-1.5" onClick={() => {
@@ -544,24 +610,44 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
                 )}
               </div>
             </div>
+
+            {/* Task snapshot – order info */}
+            {nextAction.related_order_id && (
+              <TaskSnapshot orderId={nextAction.related_order_id} />
+            )}
           </CardContent>
         </Card>
       )}
 
-      {/* Done feedback toast */}
+      {/* Done feedback */}
       <AnimatePresence>
         {justCompleted && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 flex items-center gap-2"
+            className="bg-accent/10 border border-accent/30 rounded-lg p-3 flex items-center gap-2"
           >
-            <CheckCircle2 className="w-5 h-5 text-green-600" />
-            <span className="text-sm font-medium text-green-700">Klar ✓ — laddar nästa…</span>
+            <CheckCircle2 className="w-5 h-5 text-accent" />
+            <span className="text-sm font-medium text-accent">Klar ✓ — {autoNext && workMode ? 'laddar nästa…' : 'bra jobbat!'}</span>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Live speed stats */}
+      {completedCount > 0 && (
+        <div className="flex items-center gap-4 bg-secondary/30 rounded-xl px-4 py-2">
+          <div className="flex items-center gap-1.5 text-sm">
+            <CheckCircle2 className="w-4 h-4 text-accent" />
+            <span className="font-semibold">{completedCount}</span>
+            <span className="text-muted-foreground">klara</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <Timer className="w-4 h-4" />
+            ~{Math.round((completedCount / Math.max(1, (Date.now() - sessionStart) / 60000)) * 60)}/h
+          </div>
+        </div>
+      )}
 
       {/* Filter tabs */}
       <Tabs value={viewFilter} onValueChange={v => setViewFilter(v as ViewFilter)}>
