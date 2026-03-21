@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle, Package, Clock, Mail, ArrowRight, Truck, Loader2 } from 'lucide-react';
+import { CheckCircle, Package, Clock, Mail, ArrowRight, Truck, Loader2, Sparkles, ShoppingBag, Lightbulb } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -11,6 +11,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { useCartStore } from '@/stores/cartStore';
 import { getOrderDisplayId } from '@/utils/orderDisplay';
 
+interface RecommendedProduct {
+  id: string;
+  title_sv: string;
+  handle: string | null;
+  price: number;
+  image_urls: string[] | null;
+}
+
 const OrderConfirmation = () => {
   const { language } = useLanguage();
   const [searchParams] = useSearchParams();
@@ -20,14 +28,13 @@ const OrderConfirmation = () => {
   const [paymentIntentId, setPaymentIntentId] = useState('');
   const [orderEmail, setOrderEmail] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [recommended, setRecommended] = useState<RecommendedProduct[]>([]);
   const maxRetries = 10;
   const retryDelayMs = 1500;
   const activeSessionRef = useRef('');
 
   const clearCart = useCartStore((s) => s.clearCart);
-  useEffect(() => {
-    clearCart();
-  }, [clearCart]);
+  useEffect(() => { clearCart(); }, [clearCart]);
 
   useEffect(() => {
     activeSessionRef.current = sessionId;
@@ -42,25 +49,17 @@ const OrderConfirmation = () => {
     let isCancelled = false;
 
     const pollOrderBySession = async () => {
-      if (!sessionId) {
-        setIsLoading(false);
-        return;
-      }
+      if (!sessionId) { setIsLoading(false); return; }
 
       for (let attempt = 0; attempt < maxRetries && !isCancelled; attempt += 1) {
         try {
-          // Use lookup-order edge function to bypass RLS for guest users
           const { data: fnData, error: fnError } = await supabase.functions.invoke('lookup-order', {
             body: { session_id: sessionId },
           });
 
           if (isCancelled || activeSessionRef.current !== sessionId) return;
 
-          if (
-            !fnError &&
-            fnData?.found &&
-            fnData.order?.stripe_session_id === sessionId
-          ) {
+          if (!fnError && fnData?.found && fnData.order?.stripe_session_id === sessionId) {
             const order = fnData.order;
             setOrderId(order.id);
             setPaymentIntentId(order.payment_intent_id || '');
@@ -88,65 +87,60 @@ const OrderConfirmation = () => {
     };
 
     void pollOrderBySession();
-
-    return () => {
-      isCancelled = true;
-    };
+    return () => { isCancelled = true; };
   }, [sessionId, maxRetries, retryDelayMs]);
 
-  const content = {
-    sv: {
-      badge: 'Tack för din beställning!',
-      title: 'Din order är mottagen',
-      subtitle: 'Vi har tagit emot din beställning och påbörjar behandlingen inom kort.',
-      orderNumberLabel: 'Order-ID',
-      referenceLabel: 'Referens',
-      waitingTitle: 'Väntar på betalningsbekräftelse...',
-      waitingDesc: 'Din betalning behandlas. Ordernumret visas automatiskt inom några sekunder.',
-      steps: [
-        { icon: CheckCircle, title: 'Order mottagen', description: 'Vi har tagit emot din beställning och skickat en bekräftelse till din e-post.' },
-        { icon: Package, title: 'Vi behandlar din order', description: 'Vi granskar din beställning manuellt för att säkerställa kvalitet innan leverans.' },
-        { icon: Truck, title: 'Leverans från leverantör', description: `Produkten skickas direkt från vår EU-baserade leverantör inom 1-3 arbetsdagar.` },
-        { icon: Mail, title: 'Du får spårningsinformation', description: 'När paketet har skickats får du ett mail med spårningslänk.' },
-      ],
-      deliveryTime: `Beräknad leveranstid: ${storeConfig.shipping.deliveryDays} arbetsdagar`,
-      emailInfo: 'Orderbekräftelse skickas till din e-post när betalningen är bekräftad.',
-      trackOrder: 'Spåra din order',
-      continueShopping: 'Fortsätt handla',
-      questions: 'Har du frågor?',
-      contactUs: 'Kontakta oss på',
-    },
-    en: {
-      badge: 'Thank you for your order!',
-      title: 'Your order is confirmed',
-      subtitle: 'We have received your order and will begin processing it shortly.',
-      orderNumberLabel: 'Order ID',
-      referenceLabel: 'Reference',
-      waitingTitle: 'Waiting for payment confirmation...',
-      waitingDesc: 'Your payment is being processed. The order number will appear automatically in a few seconds.',
-      steps: [
-        { icon: CheckCircle, title: 'Order received', description: 'We have received your order and sent a confirmation to your email.' },
-        { icon: Package, title: 'We process your order', description: 'We manually review your order to ensure quality before shipping.' },
-        { icon: Truck, title: 'Shipped from supplier', description: `The product ships directly from our EU-based supplier within 1-3 business days.` },
-        { icon: Mail, title: 'You receive tracking info', description: "When the package has been shipped, you'll receive an email with tracking." },
-      ],
-      deliveryTime: `Estimated delivery: ${storeConfig.shipping.deliveryDays} business days`,
-      emailInfo: 'Order confirmation is sent to your email after payment is confirmed.',
-      trackOrder: 'Track your order',
-      continueShopping: 'Continue shopping',
-      questions: 'Have questions?',
-      contactUs: 'Contact us at',
-    },
+  // Load recommended products for soft upsell
+  useEffect(() => {
+    const loadRecommended = async () => {
+      const { data } = await supabase
+        .from('products')
+        .select('id, title_sv, handle, price, image_urls')
+        .eq('is_visible', true)
+        .eq('status', 'active')
+        .order('units_sold_30d', { ascending: false })
+        .limit(3);
+      setRecommended((data || []) as RecommendedProduct[]);
+    };
+    loadRecommended();
+  }, []);
+
+  const isSv = language === 'sv';
+
+  const t = {
+    badge: isSv ? 'Tack för din beställning!' : 'Thank you for your order!',
+    title: isSv ? 'Din order är mottagen' : 'Your order is confirmed',
+    subtitle: isSv ? 'Vi har tagit emot din beställning och påbörjar behandlingen inom kort.' : 'We have received your order and will begin processing it shortly.',
+    orderNumberLabel: isSv ? 'Order-ID' : 'Order ID',
+    waitingTitle: isSv ? 'Väntar på betalningsbekräftelse...' : 'Waiting for payment confirmation...',
+    waitingDesc: isSv ? 'Din betalning behandlas. Ordernumret visas automatiskt inom några sekunder.' : 'Your payment is being processed. The order number will appear automatically in a few seconds.',
+    steps: [
+      { icon: CheckCircle, title: isSv ? 'Order mottagen' : 'Order received', description: isSv ? 'Vi har tagit emot din beställning och skickat en bekräftelse till din e-post.' : 'We have received your order and sent a confirmation to your email.' },
+      { icon: Package, title: isSv ? 'Vi behandlar din order' : 'We process your order', description: isSv ? 'Vi granskar din beställning manuellt för att säkerställa kvalitet.' : 'We manually review your order to ensure quality.' },
+      { icon: Truck, title: isSv ? 'Leverans' : 'Shipping', description: isSv ? 'Produkten skickas inom 1–3 arbetsdagar.' : 'Product ships within 1–3 business days.' },
+      { icon: Mail, title: isSv ? 'Spårningsinformation' : 'Tracking info', description: isSv ? 'Du får ett mail med spårningslänk när paketet skickats.' : "You'll receive tracking info via email when shipped." },
+    ],
+    deliveryTime: isSv ? `Beräknad leveranstid: ${storeConfig.shipping.deliveryDays} arbetsdagar` : `Estimated delivery: ${storeConfig.shipping.deliveryDays} business days`,
+    emailInfo: isSv ? 'Orderbekräftelse skickas till din e-post.' : 'Order confirmation sent to your email.',
+    trackOrder: isSv ? 'Spåra din order' : 'Track your order',
+    continueShopping: isSv ? 'Fortsätt handla' : 'Continue shopping',
+    questions: isSv ? 'Har du frågor?' : 'Have questions?',
+    contactUs: isSv ? 'Kontakta oss på' : 'Contact us at',
+    tipsTitle: isSv ? 'Tips för bästa resultat' : 'Tips for best results',
+    tips: isSv
+      ? ['Förvara svalt och torrt', 'Läs instruktionerna på förpackningen', 'Kontakta oss om du har frågor']
+      : ['Store in a cool, dry place', 'Read the instructions on the packaging', 'Contact us if you have questions'],
+    youMayAlsoLike: isSv ? 'Populära produkter' : 'Popular products',
   };
 
-  const t = content[language as keyof typeof content] || content.en;
-
-  // Track link uses payment_intent or session_id for lookup
   const trackHref = paymentIntentId
     ? `/track-order?q=${encodeURIComponent(paymentIntentId)}`
     : orderId
       ? `/track-order?q=${encodeURIComponent(orderId)}`
       : '/track-order';
+
+  const formatPrice = (amount: number) =>
+    new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK', minimumFractionDigits: 0 }).format(amount);
 
   return (
     <div className="min-h-screen bg-background">
@@ -158,15 +152,12 @@ const OrderConfirmation = () => {
             <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2, type: 'spring' }} className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
               <CheckCircle className="w-10 h-10 text-primary" />
             </motion.div>
-
             <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4">
               {t.badge}
             </span>
-
             <h1 className="font-display text-4xl md:text-5xl font-semibold mb-4">{t.title}</h1>
             <p className="text-muted-foreground text-lg mb-6">{t.subtitle}</p>
 
-            {/* Order number or loading state */}
             {orderRef ? (
               <div className="inline-block bg-card border border-border/50 rounded-xl px-6 py-3">
                 <p className="text-sm text-muted-foreground">{t.orderNumberLabel}</p>
@@ -181,10 +172,10 @@ const OrderConfirmation = () => {
             ) : null}
           </motion.div>
 
-          {/* Process Steps */}
+          {/* What happens next */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-card border border-border/50 rounded-2xl p-6 md:p-8 mb-8">
             <h2 className="font-display text-xl font-semibold mb-6 text-center">
-              {language === 'sv' ? 'Vad händer nu?' : 'What happens next?'}
+              {isSv ? 'Vad händer nu?' : 'What happens next?'}
             </h2>
             <div className="space-y-6">
               {t.steps.map((step, index) => (
@@ -201,25 +192,69 @@ const OrderConfirmation = () => {
             </div>
           </motion.div>
 
+          {/* Usage tips */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="bg-secondary/30 border border-border/50 rounded-2xl p-6 mb-8">
+            <h3 className="font-semibold mb-3 flex items-center gap-2">
+              <Lightbulb className="w-4 h-4 text-accent" />
+              {t.tipsTitle}
+            </h3>
+            <ul className="space-y-2">
+              {t.tips.map((tip, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                  <span className="text-accent mt-0.5">✓</span>
+                  <span>{tip}</span>
+                </li>
+              ))}
+            </ul>
+          </motion.div>
+
           {/* Delivery Time */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }} className="bg-primary/5 rounded-2xl p-6 text-center mb-8">
             <Clock className="w-8 h-8 text-primary mx-auto mb-3" />
             <p className="font-medium text-lg">{t.deliveryTime}</p>
             <p className="text-sm text-muted-foreground mt-2">{t.emailInfo}</p>
-            {orderEmail ? (
+            {orderEmail && (
               <p className="text-xs text-muted-foreground mt-1">
-                {language === 'sv' ? 'E-post:' : 'Email:'} {orderEmail}
+                {isSv ? 'E-post:' : 'Email:'} {orderEmail}
               </p>
-            ) : null}
+            )}
           </motion.div>
+
+          {/* Soft upsell — popular products */}
+          {recommended.length > 0 && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.65 }} className="mb-8">
+              <h3 className="font-display text-lg font-semibold mb-4 text-center flex items-center justify-center gap-2">
+                <Sparkles className="w-4 h-4 text-accent" />
+                {t.youMayAlsoLike}
+              </h3>
+              <div className="grid grid-cols-3 gap-3">
+                {recommended.map(product => (
+                  <Link
+                    key={product.id}
+                    to={`/product/${product.handle || product.id}`}
+                    className="bg-card border border-border/50 rounded-xl p-3 hover:shadow-md transition-shadow group"
+                  >
+                    <div className="aspect-square rounded-lg bg-secondary/30 overflow-hidden mb-2">
+                      {product.image_urls?.[0] ? (
+                        <img src={product.image_urls[0]} alt={product.title_sv} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <ShoppingBag className="w-6 h-6 text-muted-foreground/30" />
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-sm font-medium truncate">{product.title_sv}</p>
+                    <p className="text-xs text-muted-foreground">{formatPrice(product.price)}</p>
+                  </Link>
+                ))}
+              </div>
+            </motion.div>
+          )}
 
           {/* Actions */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }} className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button asChild>
-              <Link
-                to={trackHref}
-                className="flex items-center gap-2"
-              >
+              <Link to={trackHref} className="flex items-center gap-2">
                 {t.trackOrder}
                 <ArrowRight className="w-4 h-4" />
               </Link>
