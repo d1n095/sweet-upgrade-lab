@@ -937,7 +937,7 @@ const AdminStats = () => {
         {/* ─── Orders Tab ─── */}
         <TabsContent value="orders">
           <div className="space-y-4">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <Card className="border-border">
                 <CardContent className="pt-4 pb-3 text-center">
                   <DollarSign className="w-4 h-4 mx-auto text-green-600 mb-1" />

@@ -172,7 +172,7 @@ const AdminDashboardCharts = () => {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold">Konverteringsgrad (%)</CardTitle>
           </CardHeader>
-          <CardContent className="h-48">
+          <CardContent className="h-40 sm:h-48">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={conversionData}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
