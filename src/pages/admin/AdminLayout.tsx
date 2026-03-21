@@ -193,6 +193,7 @@ const AdminLayout = () => {
             <h2 className="text-sm font-semibold">{currentPage?.label || 'Admin'}</h2>
           </div>
           <div className="flex items-center gap-2">
+            <BugReportButton />
             <AdminNotificationBell />
             {!siteActive && (
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-destructive/10 border border-destructive/20">
