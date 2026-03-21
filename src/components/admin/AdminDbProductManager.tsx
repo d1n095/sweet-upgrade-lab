@@ -52,6 +52,7 @@ const emptyForm = (): ProductFormData => ({
   imageUrls: [], ingredients: '', certifications: '', recipe: '',
   feeling: '', effects: '', usage: '', extendedDescription: '',
   metaTitle: '', metaDescription: '', metaKeywords: '', weightGrams: '',
+  ingredientIds: [],
 });
 
 const AdminDbProductManager = () => {
