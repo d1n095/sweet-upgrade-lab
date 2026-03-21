@@ -509,7 +509,30 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
 
   const escalatedCount = tasks.filter(t => t.status === 'escalated').length;
   const myCount = tasks.filter(t => (t.assigned_to === user?.id || t.claimed_by === user?.id) && t.status !== 'done').length;
+  const doneCount = tasks.filter(t => (t.assigned_to === user?.id || t.claimed_by === user?.id) && t.status === 'done').length;
   const openCount = tasks.filter(t => t.status === 'open' && !t.assigned_to).length;
+
+  const toggleBulkSelect = (taskId: string) => {
+    setBulkSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(taskId)) next.delete(taskId); else next.add(taskId);
+      return next;
+    });
+  };
+
+  const bulkClaimAll = async () => {
+    if (!user || bulkSelected.size === 0) return;
+    const now = new Date().toISOString();
+    for (const taskId of bulkSelected) {
+      await supabase.from('staff_tasks').update({
+        status: 'claimed', claimed_by: user.id, assigned_to: user.id, claimed_at: now, updated_at: now,
+      } as any).eq('id', taskId);
+    }
+    toast.success(`${bulkSelected.size} uppgifter tagna`);
+    setBulkSelected(new Set());
+    setBulkMode(false);
+    queryClient.invalidateQueries({ queryKey: ['staff-tasks'] });
+  };
 
   const renderTaskCard = (task: Task) => {
     const typeMeta = TASK_TYPE_META[task.task_type] || TASK_TYPE_META.general;
