@@ -21,6 +21,7 @@ import AdminGlobalSearch from '@/components/admin/AdminGlobalSearch';
 import AdminNotificationBell from '@/components/admin/AdminNotificationBell';
 import { AnimatePresence, motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
+import MiniWorkbench from '@/components/admin/MiniWorkbench';
 
 // role: 'all' = everyone with admin/employee access, 'admin' = admin only, 'founder' = founder only
 interface NavItem {
