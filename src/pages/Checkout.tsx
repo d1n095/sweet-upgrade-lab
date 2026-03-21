@@ -136,7 +136,7 @@ const Checkout = () => {
     apartment: isSv ? 'Lägenhetsnummer (valfritt)' : 'Apartment (optional)',
     zip: isSv ? 'Postnummer' : 'Postal code',
     city: isSv ? 'Stad' : 'City',
-    phone: isSv ? 'Telefon (valfritt)' : 'Phone (optional)',
+    phone: isSv ? 'Telefon *' : 'Phone *',
     subtotal: isSv ? 'Delsumma' : 'Subtotal',
     shipping: isSv ? 'Frakt' : 'Shipping',
     freeShipping: isSv ? 'Fri frakt' : 'Free shipping',
