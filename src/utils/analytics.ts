@@ -52,6 +52,7 @@ export const trackEvent = ({ category, action, label, value }: TrackEventParams)
   if (typeof window !== 'undefined' && (window as any).gtag) {
     (window as any).gtag('event', action, { event_category: category, event_label: label, value });
   }
+};
 
 // E-commerce specific tracking
 export const trackProductView = (productId: string, productName: string, price: number) => {
