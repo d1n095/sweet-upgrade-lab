@@ -344,6 +344,49 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     return idx > 0 ? order[idx - 1] : null;
   };
 
+  // Compute "next action" task: escalated > high prio > oldest open/claimed for current user
+  const getNextAction = useCallback((): Task | null => {
+    const activeTasks = tasks.filter(t => 
+      t.status !== 'done' && t.status !== 'cancelled' &&
+      (t.assigned_to === user?.id || t.claimed_by === user?.id || t.status === 'open')
+    );
+    // Escalated first
+    const escalated = activeTasks.filter(t => t.status === 'escalated');
+    if (escalated.length) return escalated[0];
+    // My in_progress
+    const myInProgress = activeTasks.filter(t => t.status === 'in_progress' && (t.claimed_by === user?.id || t.assigned_to === user?.id));
+    if (myInProgress.length) return myInProgress[0];
+    // My claimed
+    const myClaimed = activeTasks.filter(t => t.status === 'claimed' && (t.claimed_by === user?.id || t.assigned_to === user?.id));
+    if (myClaimed.length) return myClaimed[0];
+    // High prio open
+    const highOpen = activeTasks.filter(t => t.status === 'open' && t.priority === 'high');
+    if (highOpen.length) return highOpen[0];
+    // Any open
+    const anyOpen = activeTasks.filter(t => t.status === 'open');
+    if (anyOpen.length) return anyOpen[0];
+    return null;
+  }, [tasks, user?.id]);
+
+  const nextAction = getNextAction();
+
+  const startWorkMode = async () => {
+    setWorkMode(true);
+    const next = getNextAction();
+    if (next) {
+      if (next.status === 'open') {
+        await moveTask(next.id, 'claimed');
+        await moveTask(next.id, 'in_progress');
+      } else if (next.status === 'claimed') {
+        await moveTask(next.id, 'in_progress');
+      }
+      toast.success('Arbetsläge aktiverat – kör på!');
+    } else {
+      toast.info('Inga uppgifter att starta');
+      setWorkMode(false);
+    }
+  };
+
   const escalatedCount = tasks.filter(t => t.status === 'escalated').length;
   const myCount = tasks.filter(t => (t.assigned_to === user?.id || t.claimed_by === user?.id) && t.status !== 'done').length;
   const openCount = tasks.filter(t => t.status === 'open' && !t.assigned_to).length;
