@@ -380,16 +380,16 @@ const ScanPackingMode = () => {
                 <div className="flex flex-wrap gap-2 pt-2">
                   {activeOrder.fulfillment_status !== 'packed' && activeOrder.fulfillment_status !== 'shipped' && (
                     <Button
-                      onClick={handleMarkPacked}
+                      onClick={handlePackAndShip}
                       disabled={!allChecked || isPacking}
                       className="flex-1"
                     >
                       {isPacking ? (
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                       ) : (
-                        <CheckCircle2 className="w-4 h-4 mr-2" />
+                        <Package className="w-4 h-4 mr-2" />
                       )}
-                      Markera som packad
+                      Packa & skapa frakt
                     </Button>
                   )}
 
@@ -408,11 +408,6 @@ const ScanPackingMode = () => {
                       Markera som skickad
                     </Button>
                   )}
-
-                   <Button variant="outline" onClick={handleCreateShipment}>
-                     <Truck className="w-4 h-4 mr-2" />
-                     Skapa frakt (Shipmondo)
-                   </Button>
                 </div>
 
                 {!allChecked && activeOrder.fulfillment_status !== 'packed' && (
