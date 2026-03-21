@@ -10,7 +10,7 @@ import AdminOrdersByStatus from '@/components/admin/AdminOrdersByStatus';
 import AdminRefundRequests from '@/components/admin/AdminRefundRequests';
 
 const AdminOrders = () => {
-  const [stats, setStats] = useState({ total: 0, pending: 0, shipped: 0, revenue: 0, delivered: 0, returned: 0, lost: 0 });
+  const [stats, setStats] = useState({ total: 0, pending: 0, shipped: 0, revenue: 0, delivered: 0, returned: 0, lost: 0, readyToShip: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
