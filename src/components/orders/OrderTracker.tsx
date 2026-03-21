@@ -4,6 +4,7 @@ import {
   Package, Truck, MapPin, CheckCircle2, Clock, 
   Loader2, RefreshCw, ExternalLink
 } from 'lucide-react';
+import ReorderButton from './ReorderButton';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
@@ -245,9 +246,12 @@ const OrderTracker = () => {
                       {formatDate(order.created_at)}
                     </p>
                   </div>
-                  <p className="font-bold text-primary">
-                    {formatPrice(order.total_amount, order.currency)}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <ReorderButton orderId={order.id} items={Array.isArray(order.items) ? order.items as any[] : []} />
+                    <p className="font-bold text-primary">
+                      {formatPrice(order.total_amount, order.currency)}
+                    </p>
+                  </div>
                 </div>
               </div>
 

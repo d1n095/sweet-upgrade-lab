@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { usePurchaseHistory } from '@/hooks/usePurchaseHistory';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Package, Loader2, ArrowUpDown } from 'lucide-react';
 import { fetchDbProducts, DbProduct } from '@/lib/products';
@@ -20,6 +21,7 @@ import UseCaseFilter from './UseCaseFilter';
 type SortOption = 'default' | 'price-asc' | 'price-desc' | 'name-asc' | 'name-desc';
 
 const DbProductGrid = () => {
+  const { hasPurchased } = usePurchaseHistory();
   const { language, t } = useLanguage();
   const lang = getContentLang(language);
   const [products, setProducts] = useState<DbProduct[]>([]);
@@ -199,7 +201,7 @@ const DbProductGrid = () => {
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <DbProductCard product={product} index={index} compact />
+                  <DbProductCard product={product} index={index} compact isPurchased={hasPurchased(product.id)} />
                 </motion.div>
               ))}
             </AnimatePresence>

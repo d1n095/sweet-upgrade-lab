@@ -16,6 +16,7 @@ interface DbProductCardProps {
   product: DbProduct;
   index: number;
   compact?: boolean;
+  isPurchased?: boolean;
 }
 
 const FALLBACK_IMAGE = '/placeholder.svg';
@@ -42,7 +43,7 @@ const StockIndicator = ({ stock, allowOverselling, lang }: { stock: number; allo
   );
 };
 
-const DbProductCard = ({ product, index, compact = false }: DbProductCardProps) => {
+const DbProductCard = ({ product, index, compact = false, isPurchased = false }: DbProductCardProps) => {
   const { language, t } = useLanguage();
   const lang = getContentLang(language);
   const { items, addItem } = useCartStore();
@@ -179,6 +180,16 @@ const DbProductCard = ({ product, index, compact = false }: DbProductCardProps) 
               <div className="absolute top-3 right-3 z-10">
                 <Badge variant="destructive" className="text-[10px] font-semibold px-2 py-0.5 rounded-full">
                   -{discountPercent}%
+                </Badge>
+              </div>
+            )}
+
+            {/* Purchased badge */}
+            {isPurchased && (
+              <div className="absolute bottom-3 right-3 z-10">
+                <Badge className="bg-accent/90 text-accent-foreground text-[10px] px-2 py-0.5 rounded-full">
+                  <Check className="w-3 h-3 mr-0.5" />
+                  {lang === 'sv' ? 'Köpt' : 'Bought'}
                 </Badge>
               </div>
             )}
