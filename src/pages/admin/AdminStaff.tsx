@@ -489,6 +489,7 @@ const AdminStaff = () => {
         <TabsList className="flex-wrap">
           <TabsTrigger value="overview" className="gap-1.5"><LayoutDashboard className="w-3.5 h-3.5" /> Översikt</TabsTrigger>
           <TabsTrigger value="workboard" className="gap-1.5"><ClipboardList className="w-3.5 h-3.5" /> Workboard</TabsTrigger>
+          <TabsTrigger value="quickpack" className="gap-1.5"><Zap className="w-3.5 h-3.5" /> Snabb packning</TabsTrigger>
           {isFounder && (
             <>
               <TabsTrigger value="staff" className="gap-1.5"><Users className="w-3.5 h-3.5" /> Personal</TabsTrigger>
