@@ -521,7 +521,7 @@ const AdminStats = () => {
         </div>
 
         {/* Secondary stats row */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
           <Card className="border-border">
             <CardContent className="pt-4 pb-3 text-center">
               <Tooltip>
