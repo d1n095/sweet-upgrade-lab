@@ -761,13 +761,16 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
       )}
 
       {/* Filter tabs */}
-      <Tabs value={viewFilter} onValueChange={v => setViewFilter(v as ViewFilter)}>
+      <Tabs value={viewFilter} onValueChange={v => { setViewFilter(v as ViewFilter); setBulkMode(false); setBulkSelected(new Set()); }}>
         <TabsList>
           <TabsTrigger value="all" className="gap-1.5">
             Alla <Badge variant="secondary" className="text-[9px] ml-1">{tasks.filter(t => t.status !== 'done').length}</Badge>
           </TabsTrigger>
           <TabsTrigger value="mine" className="gap-1.5">
-            Mina {myCount > 0 && <Badge variant="secondary" className="text-[9px] ml-1">{myCount}</Badge>}
+            Mina {myCount > 0 ? <Badge variant="secondary" className="text-[9px] ml-1">{myCount}</Badge> : <span className="text-[9px] text-muted-foreground ml-1">(visar öppna)</span>}
+          </TabsTrigger>
+          <TabsTrigger value="done" className="gap-1.5">
+            Klara {doneCount > 0 && <Badge variant="secondary" className="text-[9px] ml-1">{doneCount}</Badge>}
           </TabsTrigger>
           <TabsTrigger value="escalated" className={cn('gap-1.5', escalatedCount > 0 && 'text-destructive')}>
             <AlertTriangle className="w-3.5 h-3.5" /> Eskalerade
@@ -780,8 +783,20 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
       </Tabs>
 
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <p className="text-sm text-muted-foreground">{sortedTasks.filter(t => t.status !== 'done').length} uppgifter</p>
+        <p className="text-sm text-muted-foreground">{sortedTasks.length} uppgifter{viewFilter === 'mine' && myActiveCount === 0 ? ' (visar öppna – du har inga aktiva)' : ''}</p>
         <div className="flex gap-2">
+          {/* Bulk mode toggle */}
+          {viewFilter === 'open' && openCount > 0 && (
+            <Button size="sm" variant={bulkMode ? 'default' : 'outline'} className="gap-1.5" onClick={() => { setBulkMode(!bulkMode); setBulkSelected(new Set()); }}>
+              {bulkMode ? <X className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
+              {bulkMode ? 'Avbryt' : 'Markera'}
+            </Button>
+          )}
+          {bulkMode && bulkSelected.size > 0 && (
+            <Button size="sm" className="gap-1.5" onClick={bulkClaimAll}>
+              <UserCheck className="w-4 h-4" /> Ta alla ({bulkSelected.size})
+            </Button>
+          )}
           {openCount > 0 && (
             <Button size="sm" variant="outline" className="gap-1.5" onClick={autoAssignAll} disabled={autoAssigning}>
               <Zap className="w-4 h-4" /> Auto-fördela ({openCount})
