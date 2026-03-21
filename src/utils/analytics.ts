@@ -24,9 +24,14 @@ export const trackPageView = (pageName: string, language: string) => {
     console.log('[Analytics] Page View:', data);
   }
 
-  // TODO: Send to analytics service
-  // gtag('event', 'page_view', { page_title: pageName });
-  // fbq('track', 'PageView');
+  // Google Analytics
+  if (typeof window !== 'undefined' && (window as any).gtag) {
+    (window as any).gtag('event', 'page_view', { page_title: pageName, page_location: data.url });
+  }
+  // Meta Pixel
+  if (typeof window !== 'undefined' && (window as any).fbq) {
+    (window as any).fbq('track', 'PageView');
+  }
 };
 
 // Track custom events
@@ -43,8 +48,10 @@ export const trackEvent = ({ category, action, label, value }: TrackEventParams)
     console.log('[Analytics] Event:', data);
   }
 
-  // TODO: Send to analytics service
-  // gtag('event', action, { event_category: category, event_label: label, value });
+  // Google Analytics
+  if (typeof window !== 'undefined' && (window as any).gtag) {
+    (window as any).gtag('event', action, { event_category: category, event_label: label, value });
+  }
 };
 
 // E-commerce specific tracking

@@ -1,5 +1,8 @@
 // Central store configuration - single source of truth for all store settings
 export const storeConfig = {
+  // Site URL - single source of truth for all links
+  siteUrl: 'https://4thepeople.se',
+
   // Company founding year
   foundingYear: 2026,
 
