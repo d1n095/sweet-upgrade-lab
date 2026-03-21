@@ -78,15 +78,22 @@ export const useAuth = () => {
     };
   }, [user?.id, setUserId, syncWithDatabase]);
 
-  const signUp = async (email: string, password: string, username?: string) => {
+  const signUp = async (email: string, password: string, username?: string, phone?: string) => {
+    const metadata: Record<string, string> = {};
+    if (username) metadata.username = username;
+    if (phone) metadata.phone = phone;
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: window.location.origin,
-        data: username ? { username } : undefined,
+        data: Object.keys(metadata).length > 0 ? metadata : undefined,
       },
     });
+    // Save phone to profile after signup
+    if (!error && data.user && phone) {
+      supabase.from('profiles').update({ phone }).eq('user_id', data.user.id).then(() => {});
+    }
     return { data, error };
   };
 

@@ -54,6 +54,7 @@ interface FieldErrors {
   address?: string;
   zip?: string;
   city?: string;
+  phone?: string;
 }
 
 const Checkout = () => {
@@ -136,12 +137,12 @@ const Checkout = () => {
     apartment: isSv ? 'Lägenhetsnummer (valfritt)' : 'Apartment (optional)',
     zip: isSv ? 'Postnummer' : 'Postal code',
     city: isSv ? 'Stad' : 'City',
-    phone: isSv ? 'Telefon (valfritt)' : 'Phone (optional)',
+    phone: isSv ? 'Telefon *' : 'Phone *',
     subtotal: isSv ? 'Delsumma' : 'Subtotal',
     shipping: isSv ? 'Frakt' : 'Shipping',
     freeShipping: isSv ? 'Fri frakt' : 'Free shipping',
     total: isSv ? 'Totalt' : 'Total',
-    paySecurely: isSv ? 'Betala säkert' : 'Pay securely',
+    paySecurely: isSv ? 'Betala säkert – få det inom 1–3 dagar' : 'Pay securely – get it within 1–3 days',
     backToCart: isSv ? 'Tillbaka' : 'Back',
     emptyCart: isSv ? 'Din kundvagn är tom' : 'Your cart is empty',
     goToShop: isSv ? 'Gå till butiken' : 'Go to shop',
@@ -155,7 +156,8 @@ const Checkout = () => {
     errorName: isSv ? 'Ange ditt namn' : 'Enter your name',
     errorAddress: isSv ? 'Ange din adress' : 'Enter your address',
     errorZip: isSv ? 'Ange postnummer' : 'Enter postal code',
-    errorCity: isSv ? 'Ange stad' : 'Enter city',
+     errorCity: isSv ? 'Ange stad' : 'Enter city',
+    errorPhone: isSv ? 'Ange telefonnummer' : 'Enter phone number',
     checkoutFailed: isSv ? 'Betalningen kunde inte genomföras. Försök igen.' : 'Payment could not be processed. Please try again.',
     checkoutTimeout: isSv ? 'Checkout tog för lång tid. Försök igen.' : 'Checkout timed out. Please retry.',
     retry: isSv ? 'Försök igen' : 'Retry',
@@ -173,6 +175,10 @@ const Checkout = () => {
       case 'address': return !value.trim() ? t.errorAddress : undefined;
       case 'zip': return !value.trim() ? t.errorZip : undefined;
       case 'city': return !value.trim() ? t.errorCity : undefined;
+      case 'phone': {
+        const digits = value.replace(/\D/g, '');
+        return digits.length < 7 ? (t as any).errorPhone : undefined;
+      }
       default: return undefined;
     }
   }, [t]);
@@ -211,7 +217,7 @@ const Checkout = () => {
     if (isCheckingOut) return;
 
     // Validate required fields first
-    const requiredFields = ['email', 'name', 'address', 'zip', 'city'] as const;
+    const requiredFields = ['email', 'name', 'address', 'zip', 'city', 'phone'] as const;
     const newErrors: FieldErrors = {};
     let hasErrors = false;
     for (const field of requiredFields) {

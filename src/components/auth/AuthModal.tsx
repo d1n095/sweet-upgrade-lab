@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Mail, Lock, Loader2, Crown, ArrowLeft, CheckCircle, Eye, EyeOff, UserCircle, AlertCircle, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import { Mail, Lock, Loader2, Crown, ArrowLeft, CheckCircle, Eye, EyeOff, UserCircle, AlertCircle, ShieldAlert, CheckCircle2, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/useAuth';
@@ -64,6 +64,8 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
+  const [phone, setPhone] = useState('');
+  const [phoneError, setPhoneError] = useState('');
   const [usernameError, setUsernameError] = useState('');
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
   const [checkingUsername, setCheckingUsername] = useState(false);
@@ -75,6 +77,17 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
   const [formError, setFormError] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   const usernameCheckTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const validatePhone = (value: string): string | null => {
+    if (!value || !value.trim()) {
+      return lang === 'sv' ? 'Telefonnummer krävs' : 'Phone number is required';
+    }
+    const digits = value.replace(/\D/g, '');
+    if (digits.length < 7 || digits.length > 15) {
+      return lang === 'sv' ? 'Ogiltigt telefonnummer' : 'Invalid phone number';
+    }
+    return null;
+  };
 
   // Debounced username uniqueness check
   const checkUsernameAvailability = (value: string) => {
@@ -115,7 +128,7 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
     e.preventDefault();
     setFormError('');
 
-    // Validate username for registration (REQUIRED)
+    // Validate username + phone for registration (REQUIRED)
     if (mode === 'register') {
       const error = validateUsername(username, lang);
       if (error) {
@@ -124,6 +137,11 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
       }
       if (usernameAvailable === false) {
         setUsernameError(lang === 'sv' ? 'Användarnamnet är redan taget' : 'Username is already taken');
+        return;
+      }
+      const pError = validatePhone(phone);
+      if (pError) {
+        setPhoneError(pError);
         return;
       }
     }
@@ -166,7 +184,7 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
         toast.success(lang === 'sv' ? 'Välkommen tillbaka!' : 'Welcome back!');
         onClose();
       } else {
-        const { error } = await signUp(email, password, username);
+        const { error } = await signUp(email, password, username, phone);
         if (error) {
           if (error.message.includes('already registered')) {
             setFormError(lang === 'sv' ? 'E-postadressen är redan registrerad. Logga in istället.' : 'Email is already registered. Sign in instead.');
@@ -201,6 +219,7 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
     setSignupComplete(false);
     setFormError('');
     setUsernameError('');
+    setPhoneError('');
     setUsernameAvailable(null);
   };
 
@@ -211,8 +230,10 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
       setResetSent(false);
       setFormError('');
       setUsernameError('');
+      setPhoneError('');
       setUsernameAvailable(null);
       setUsername('');
+      setPhone('');
     }
   }, [isOpen]);
 
@@ -419,6 +440,36 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                 </div>
               )}
 
+              {/* Phone field for registration - REQUIRED */}
+              {mode === 'register' && (
+                <div>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <Input
+                      type="tel"
+                      inputMode="tel"
+                      placeholder={lang === 'sv' ? 'Telefonnummer *' : 'Phone number *'}
+                      value={phone}
+                      onChange={(e) => {
+                        setPhone(e.target.value);
+                        setPhoneError('');
+                        setFormError('');
+                      }}
+                      className="pl-11 h-12 rounded-xl"
+                      required
+                    />
+                  </div>
+                  {phoneError && (
+                    <p className="text-xs text-destructive mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" /> {phoneError}
+                    </p>
+                  )}
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    {lang === 'sv' ? 'T.ex. 070-123 45 67' : 'E.g. 070-123 45 67'}
+                  </p>
+                </div>
+              )}
+
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
@@ -487,7 +538,7 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
 
               <Button
                 type="submit"
-                disabled={loading || (mode === 'register' && (!!usernameError || !username || checkingUsername))}
+                disabled={loading || (mode === 'register' && (!!usernameError || !username || checkingUsername || !!phoneError || !phone))}
                 className="w-full h-12 rounded-xl font-semibold"
               >
                 {loading ? (

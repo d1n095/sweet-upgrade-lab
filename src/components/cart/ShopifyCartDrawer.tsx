@@ -90,9 +90,9 @@ const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
   }, [isOpen, items]);
 
   const t = {
-    sv: { cart: 'Kundvagn', empty: 'Din kundvagn är tom', continue: 'Fortsätt handla', subtotal: 'Delsumma', total: 'Totalt', youSave: 'Du sparar', checkout: 'Gå till kassan', recommended: 'Komplettera din order' },
-    en: { cart: 'Cart', empty: 'Your cart is empty', continue: 'Continue shopping', subtotal: 'Subtotal', total: 'Total', youSave: 'You save', checkout: 'Go to checkout', recommended: 'Complete your order' },
-  }[cl as 'sv' | 'en'] || { cart: 'Cart', empty: 'Your cart is empty', continue: 'Continue shopping', subtotal: 'Subtotal', total: 'Total', youSave: 'You save', checkout: 'Go to checkout', recommended: 'You might like' };
+    sv: { cart: 'Kundvagn', empty: 'Din kundvagn är tom', continue: 'Fortsätt handla', subtotal: 'Delsumma', total: 'Totalt', youSave: 'Du sparar', checkout: 'Till kassan – säkra din order', recommended: 'Köps ofta tillsammans', addFor: 'Lägg till för' },
+    en: { cart: 'Cart', empty: 'Your cart is empty', continue: 'Continue shopping', subtotal: 'Subtotal', total: 'Total', youSave: 'You save', checkout: 'Checkout – secure your order', recommended: 'Frequently bought together', addFor: 'Add for' },
+  }[cl as 'sv' | 'en'] || { cart: 'Cart', empty: 'Your cart is empty', continue: 'Continue shopping', subtotal: 'Subtotal', total: 'Total', youSave: 'You save', checkout: 'Checkout – secure your order', recommended: 'Frequently bought together', addFor: 'Add for' };
 
   const formatPrice = (price: number, currency: string) =>
     new Intl.NumberFormat('sv-SE', { style: 'currency', currency, minimumFractionDigits: 0 }).format(price);
@@ -231,10 +231,11 @@ const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
                               <Link to={`/product/${product.handle || product.id}`} onClick={onClose}>
                                 <p className="text-sm font-medium truncate">{product.title_sv}</p>
                               </Link>
-                              <p className="text-xs text-muted-foreground">{formatPrice(product.price, 'SEK')}</p>
+                              <p className="text-xs font-semibold text-primary">+{formatPrice(product.price, 'SEK')}</p>
                             </div>
-                            <Button size="icon" variant="outline" className="h-8 w-8 shrink-0 rounded-lg" onClick={() => handleAddRecommended(product)}>
-                              <Plus className="w-3.5 h-3.5" />
+                            <Button size="sm" variant="outline" className="shrink-0 rounded-lg text-xs gap-1" onClick={() => handleAddRecommended(product)}>
+                              <Plus className="w-3 h-3" />
+                              {cl === 'sv' ? 'Lägg till' : 'Add'}
                             </Button>
                           </div>
                         ))}
