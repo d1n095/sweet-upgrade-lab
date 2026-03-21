@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import AddressAutocomplete from '@/components/checkout/AddressAutocomplete';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, ShoppingBag, Truck, Shield, Lock, RotateCcw, Clock, Loader2, AlertTriangle } from 'lucide-react';
@@ -461,9 +462,23 @@ const Checkout = () => {
 
                     <div>
                       <Label htmlFor="address">{t.address} *</Label>
-                      <Input id="address" autoComplete="street-address" required
-                        value={form.address} onChange={(e) => updateField('address', e.target.value)} onBlur={() => handleBlur('address')}
-                        className={touched.address && errors.address ? 'border-destructive' : ''} />
+                      <AddressAutocomplete
+                        id="address"
+                        value={form.address}
+                        onChange={(val) => updateField('address', val)}
+                        onSelect={(result) => {
+                          setForm(prev => ({
+                            ...prev,
+                            address: result.address,
+                            zip: result.postal_code || prev.zip,
+                            city: result.city || prev.city,
+                          }));
+                          // Clear errors for auto-filled fields
+                          setErrors(prev => ({ ...prev, address: undefined, zip: undefined, city: undefined }));
+                        }}
+                        onBlur={() => handleBlur('address')}
+                        className={touched.address && errors.address ? 'border-destructive' : ''}
+                      />
                       {renderFieldError('address')}
                     </div>
 
