@@ -62,6 +62,7 @@ import AdminStaff from "./pages/admin/AdminStaff";
 import AdminIncidents from "./pages/admin/AdminIncidents";
 import AdminPayments from "./pages/admin/AdminPayments";
 import AdminInsights from "./pages/admin/AdminInsights";
+import AdminDatabase from "./pages/admin/AdminDatabase";
 import ScanPackingMode from "./components/admin/warehouse/ScanPackingMode";
 
 const queryClient = new QueryClient();
@@ -138,6 +139,7 @@ const App = () => (
                 <Route path="payments" element={<AdminPayments />} />
                 <Route path="staff" element={<AdminStaff />} />
                 <Route path="insights" element={<AdminInsights />} />
+                <Route path="database" element={<AdminDatabase />} />
                 <Route path="warehouse" element={<ScanPackingMode />} />
               </Route>
 
