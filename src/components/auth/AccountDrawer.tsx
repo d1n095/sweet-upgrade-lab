@@ -80,12 +80,6 @@ const AccountDrawer = ({ isOpen, onClose }: AccountDrawerProps) => {
       description: language === 'sv' ? 'Dina belöningar' : 'Your rewards',
     },
     {
-      icon: Heart,
-      label: language === 'sv' ? 'Donationer' : 'Donations',
-      href: '/profile?tab=donations',
-      description: language === 'sv' ? 'Din påverkan' : 'Your impact',
-    },
-    {
       icon: MapPin,
       label: language === 'sv' ? 'Spåra order' : 'Track Order',
       href: '/track-order',

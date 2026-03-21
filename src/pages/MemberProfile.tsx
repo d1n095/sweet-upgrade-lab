@@ -396,10 +396,7 @@ const MemberProfile = () => {
               <ReferralDashboard />
             </TabsContent>
 
-            {/* Donations Tab */}
-            <TabsContent value="donations">
-              <DonationImpact />
-            </TabsContent>
+            {/* Donations Tab - removed from public, admin only */}
 
             {/* Settings Tab */}
             <TabsContent value="settings">
