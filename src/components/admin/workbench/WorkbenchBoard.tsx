@@ -98,7 +98,10 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const [viewFilter, setViewFilter] = useState<ViewFilter>('all');
   const [escalating, setEscalating] = useState<string | null>(null);
   const [workMode, setWorkMode] = useState(false);
+  const [autoNext, setAutoNext] = useState(true);
   const [justCompleted, setJustCompleted] = useState<string | null>(null);
+  const [completedCount, setCompletedCount] = useState(0);
+  const [sessionStart] = useState(Date.now());
   const workModeRef = useRef(false);
   workModeRef.current = workMode;
 
