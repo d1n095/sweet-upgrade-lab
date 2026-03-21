@@ -311,8 +311,23 @@ serve(async (req) => {
         });
     }
 
-    // Enqueue to transactional_emails queue via pgmq
+    // Idempotency: check if this exact email was already sent/enqueued
     const messageId = `order-${email_type}-${order.id}`;
+    const { data: existing } = await supabase
+      .from("email_send_log")
+      .select("id")
+      .eq("message_id", messageId)
+      .limit(1);
+
+    if (existing && existing.length > 0) {
+      console.log(`[send-order-email] Already sent ${messageId}, skipping`);
+      return new Response(JSON.stringify({ success: true, message_id: messageId, skipped: true }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Enqueue to transactional_emails queue via pgmq
     const payload = {
       to: order.order_email,
       subject,
