@@ -184,7 +184,7 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
         toast.success(lang === 'sv' ? 'Välkommen tillbaka!' : 'Welcome back!');
         onClose();
       } else {
-        const { error } = await signUp(email, password, username);
+        const { error } = await signUp(email, password, username, phone);
         if (error) {
           if (error.message.includes('already registered')) {
             setFormError(lang === 'sv' ? 'E-postadressen är redan registrerad. Logga in istället.' : 'Email is already registered. Sign in instead.');
