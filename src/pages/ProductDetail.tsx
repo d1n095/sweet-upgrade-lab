@@ -405,16 +405,16 @@ const ProductDetail = () => {
                 </div>
                 <Button
                   size="lg"
-                  className={`flex-1 h-12 text-sm font-semibold transition-all ${isAdded ? 'bg-accent hover:bg-accent text-accent-foreground' : ''}`}
+                  className={`flex-1 h-12 text-sm font-semibold transition-all ${isAdded ? 'bg-accent hover:bg-accent/90 text-accent-foreground' : 'bg-accent hover:bg-accent/90 text-accent-foreground'}`}
                   onClick={handleAddToCart}
                   disabled={isOutOfStock}
                 >
                   {isOutOfStock ? (
                     t('product.outofstock')
                   ) : isAdded ? (
-                    <><Check className="w-4 h-4 mr-2" />{t('product.added')}</>
+                    <><Check className="w-4 h-4 mr-2" />{lang === 'sv' ? 'Tillagd!' : 'Added!'}</>
                   ) : (
-                    <><ShoppingCart className="w-4 h-4 mr-2" />{t('product.addtocart')}</>
+                    <><ShoppingCart className="w-4 h-4 mr-2" />{lang === 'sv' ? 'Lägg i kundvagn' : 'Add to cart'}</>
                   )}
                 </Button>
                 <Button variant="outline" size="icon" className="h-11 w-11 shrink-0" onClick={handleShare}>

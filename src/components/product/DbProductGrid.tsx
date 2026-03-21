@@ -159,7 +159,9 @@ const DbProductGrid = () => {
 
         {/* Category Filters */}
         <div className="flex flex-wrap gap-2 mb-8">
-          {categories.map((category) => {
+          {categories
+            .filter(cat => cat.id === 'all' || (categoryCounts[cat.id] ?? 0) > 0)
+            .map((category) => {
             const Icon = category.icon;
             const isActive = activeCategory === category.id;
             return (
