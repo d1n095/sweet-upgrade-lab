@@ -714,7 +714,7 @@ const AdminStats = () => {
                         </div>
                       ))}
                     </div>
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div className="p-4 rounded-xl bg-secondary/50 text-center">
                         <p className={`text-2xl font-bold ${conversionRate >= 50 ? 'text-green-600' : 'text-primary'}`}>{conversionRate}%</p>
                         <p className="text-xs text-muted-foreground mt-1">Konvertering</p>
