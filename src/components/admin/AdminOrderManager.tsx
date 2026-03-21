@@ -88,6 +88,7 @@ const AdminOrderManager = () => {
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
   const [batchProcessing, setBatchProcessing] = useState(false);
   const [batchProgress, setBatchProgress] = useState({ done: 0, total: 0 });
+  const [shippingOrder, setShippingOrder] = useState<Order | null>(null);
 
   const t = {
     sv: {
