@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { usePurchaseHistory } from '@/hooks/usePurchaseHistory';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Package, Loader2, ArrowUpDown } from 'lucide-react';
 import { fetchDbProducts, DbProduct } from '@/lib/products';
