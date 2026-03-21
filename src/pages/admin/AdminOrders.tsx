@@ -122,6 +122,14 @@ const AdminOrders = () => {
             emptyMessage="Inga borttappade försändelser"
           />
         </TabsContent>
+        <TabsContent value="ready_to_ship">
+          <AdminOrdersByStatus
+            status="ready_to_ship"
+            title="Väntar på postning"
+            icon={<Mail className="w-5 h-5 text-indigo-600" />}
+            emptyMessage="Inga ordrar väntar på postning"
+          />
+        </TabsContent>
         <TabsContent value="refunds">
           <AdminRefundRequests />
         </TabsContent>

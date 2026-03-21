@@ -830,11 +830,13 @@ const AdminOrderManager = () => {
                       {order.payment_status === 'paid' && (
                         <Badge variant="outline" className={`text-[10px] h-5 ${
                           order.fulfillment_status === 'shipped' ? 'border-green-300 text-green-700 dark:border-green-700 dark:text-green-400'
+                          : order.fulfillment_status === 'ready_to_ship' ? 'border-indigo-300 text-indigo-700 dark:border-indigo-700 dark:text-indigo-400'
                           : order.fulfillment_status === 'packed' ? 'border-blue-300 text-blue-700 dark:border-blue-700 dark:text-blue-400'
                           : order.fulfillment_status === 'packing' ? 'border-orange-300 text-orange-700 dark:border-orange-700 dark:text-orange-400'
                           : 'border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-400'
                         }`}>
                           {order.fulfillment_status === 'shipped' ? '📦 Skickad'
+                          : order.fulfillment_status === 'ready_to_ship' ? '📮 Väntar postning'
                           : order.fulfillment_status === 'packed' ? '✅ Packad'
                           : order.fulfillment_status === 'packing' ? '🔧 Packas'
                           : '⏳ Att packa'}
