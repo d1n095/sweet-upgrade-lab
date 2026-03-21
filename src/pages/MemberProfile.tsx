@@ -336,7 +336,6 @@ const MemberProfile = () => {
                       { value: 'reviews', icon: Star, label: language === 'sv' ? 'Recensioner' : 'Reviews', badge: reviews.length || undefined },
                       { value: 'rewards', icon: Gift, label: language === 'sv' ? 'Koder' : 'Codes', badge: unusedRewards.length || undefined },
                       { value: 'referral', icon: Users, label: language === 'sv' ? 'Bjud in' : 'Refer' },
-                      { value: 'donations', icon: TrendingUp, label: language === 'sv' ? 'Donationer' : 'Donations' },
                       { value: 'settings', icon: Settings, label: language === 'sv' ? 'Inställningar' : 'Settings' },
                     ].map(({ value, icon: Icon, label, badge }) => (
                       <button
