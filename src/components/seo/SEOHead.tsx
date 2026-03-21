@@ -25,7 +25,7 @@ const SEOHead = ({
   schemaData
 }: SEOHeadProps) => {
   const fullTitle = title.includes('4thepeople') ? title : `${title} | 4thepeople`;
-  const siteUrl = 'https://4thepeople.se';
+  const siteUrl = storeConfig.siteUrl;
   const canonicalUrl = canonical ? `${siteUrl}${canonical}` : undefined;
 
   // Generate schema.org structured data
