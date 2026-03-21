@@ -336,6 +336,7 @@ serve(async (req) => {
       html,
       from_name: "4ThePeople",
       message_id: messageId,
+      idempotency_key: messageId,
       label: `order_${email_type}`,
       purpose: "transactional",
     };

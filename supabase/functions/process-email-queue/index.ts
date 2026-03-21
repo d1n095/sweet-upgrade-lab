@@ -255,7 +255,7 @@ Deno.serve(async (req) => {
             subject: payload.subject,
             html: payload.html,
             text: payload.text,
-            purpose: payload.purpose || (queue === 'transactional_emails' ? 'transactional' : 'auth'),
+            purpose: payload.purpose,
             label: payload.label,
             idempotency_key: payload.idempotency_key,
             unsubscribe_token: payload.unsubscribe_token,

@@ -2788,10 +2788,22 @@ export type Database = {
           payload: Json
           source_queue: string
         }
-        Returns: number
+        Returns: undefined
       }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
+        Returns: {
+          message: Json
+          msg_id: number
+          read_ct: number
+        }[]
+      }
+      read_emails: {
+        Args: {
+          batch_size?: number
+          queue_name: string
+          visibility_timeout?: number
+        }
         Returns: {
           message: Json
           msg_id: number
