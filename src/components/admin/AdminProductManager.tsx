@@ -701,20 +701,20 @@ const AdminProductManager = () => {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
             <Package className="w-5 h-5 text-accent" />
           </div>
-          <div>
-            <h3 className="font-semibold">{t.title}</h3>
-            <p className="text-sm text-muted-foreground">{t.subtitle}</p>
+          <div className="min-w-0">
+            <h3 className="font-semibold truncate">{t.title}</h3>
+            <p className="text-sm text-muted-foreground truncate">{t.subtitle}</p>
           </div>
         </div>
 
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
-            <Button size="sm" className="gap-2">
+            <Button size="sm" className="gap-2 flex-shrink-0 w-full sm:w-auto">
               <Plus className="w-4 h-4" />
               {t.addProduct}
             </Button>
@@ -759,9 +759,10 @@ const AdminProductManager = () => {
               key={product.node.id}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors group"
+              className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors group cursor-pointer active:bg-secondary/80"
+              onClick={() => handleEditClick(product)}
             >
-              <div className="w-12 h-12 rounded-md bg-muted flex-shrink-0 overflow-hidden">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-md bg-muted flex-shrink-0 overflow-hidden">
                 {product.node.images.edges[0]?.node && (
                   <img
                     src={product.node.images.edges[0].node.url}
@@ -771,31 +772,39 @@ const AdminProductManager = () => {
                 )}
                 {!product.node.images.edges[0]?.node && (
                   <div className="w-full h-full flex items-center justify-center">
-                    <ImageIcon className="w-5 h-5 text-muted-foreground" />
+                    <ImageIcon className="w-4 h-4 text-muted-foreground" />
                   </div>
                 )}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-sm truncate">{product.node.title}</p>
-                <p className="text-xs text-muted-foreground">
-                  {formatPrice(
-                    product.node.priceRange.minVariantPrice.amount,
-                    product.node.priceRange.minVariantPrice.currencyCode
-                  )}
-                </p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <p className="text-xs text-muted-foreground">
+                    {formatPrice(
+                      product.node.priceRange.minVariantPrice.amount,
+                      product.node.priceRange.minVariantPrice.currencyCode
+                    )}
+                  </p>
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 sm:hidden">
+                    {product.node.variants.edges[0]?.node.availableForSale 
+                      ? t.inStock
+                      : t.outOfStock
+                    }
+                  </Badge>
+                </div>
               </div>
-              <Badge variant="outline" className="text-xs">
+              <Badge variant="outline" className="text-xs hidden sm:inline-flex flex-shrink-0">
                 {product.node.variants.edges[0]?.node.availableForSale 
                   ? t.inStock
                   : t.outOfStock
                 }
               </Badge>
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex-shrink-0">
                 <Button
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8"
-                  onClick={() => handleEditClick(product)}
+                  onClick={(e) => { e.stopPropagation(); handleEditClick(product); }}
                 >
                   <Edit className="w-4 h-4" />
                 </Button>
@@ -803,7 +812,7 @@ const AdminProductManager = () => {
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8 text-destructive hover:text-destructive"
-                  onClick={() => handleDeleteClick(product)}
+                  onClick={(e) => { e.stopPropagation(); handleDeleteClick(product); }}
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>
