@@ -17,7 +17,7 @@ const AdminOrders = () => {
     const load = async () => {
       const { data } = await supabase
         .from('orders')
-        .select('status, total_amount, payment_status, deleted_at')
+        .select('status, total_amount, payment_status, deleted_at, fulfillment_status')
         .is('deleted_at', null);
       const ords = data || [];
       setStats({
