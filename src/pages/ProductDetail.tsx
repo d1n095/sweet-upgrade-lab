@@ -65,6 +65,7 @@ const ProductDetail = () => {
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [isAdded, setIsAdded] = useState(false);
+  const [viewerCount] = useState(() => Math.floor(Math.random() * 8) + 3);
 
   const translated = useTranslatedProduct(product);
 
