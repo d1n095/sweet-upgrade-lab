@@ -494,7 +494,40 @@ async function createOrderFromSession(
     return null;
   }
 
-  return insertedOrder?.id || null;
+  const orderId = insertedOrder?.id || null;
+
+  // Auto-create packing task for this order
+  if (orderId) {
+    try {
+      // Check no task already exists for this order
+      const { data: existingTask } = await supabase
+        .from('staff_tasks')
+        .select('id')
+        .eq('related_order_id', orderId)
+        .eq('task_type', 'packing')
+        .maybeSingle();
+
+      if (!existingTask) {
+        // Try auto-assign
+        const { data: assignee } = await supabase.rpc('auto_assign_task', { p_task_type: 'packing' });
+
+        await supabase.from('staff_tasks').insert({
+          title: `Packa order – ${email}`,
+          description: `Order ${(session.amount_total || 0) / 100} ${(session.currency || 'SEK').toUpperCase()}`,
+          task_type: 'packing',
+          status: 'open',
+          priority: (session.amount_total || 0) >= 100000 ? 'high' : 'medium',
+          related_order_id: orderId,
+          assigned_to: assignee || null,
+        });
+        console.log('[stripe-webhook] Packing task created for order', orderId);
+      }
+    } catch (taskErr: any) {
+      console.warn('[stripe-webhook] Failed to create packing task:', taskErr?.message);
+    }
+  }
+
+  return orderId;
 }
 
 async function logEvent(
