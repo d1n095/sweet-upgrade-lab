@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import AddressAutocomplete from '@/components/checkout/AddressAutocomplete';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, ShoppingBag, Truck, Shield, Lock, RotateCcw, Clock, Loader2, AlertTriangle } from 'lucide-react';
