@@ -518,21 +518,28 @@ const AdminOrderManager = () => {
     if (eligible.length === 0) { toast.error('Inga giltiga orders att packa'); return; }
     setBatchProcessing(true);
     setBatchProgress({ done: 0, total: eligible.length });
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
     for (let i = 0; i < eligible.length; i++) {
       const order = eligible[i];
       try {
-        const { data, error } = await supabase.functions.invoke('create-shipment', {
-          body: { order_id: order.id },
-        });
-        if (!error && data?.success) {
+        const existingHistory = Array.isArray(order.status_history) ? order.status_history : [];
+        const newHistory = [...existingHistory, { status: 'packed', timestamp: new Date().toISOString(), note: 'Batch-packad' }];
+        const { error } = await supabase.from('orders').update({
+          fulfillment_status: 'packed',
+          packed_by: currentUser?.id || null,
+          packed_at: new Date().toISOString(),
+          status: 'processing',
+          status_history: newHistory,
+        }).eq('id', order.id);
+        if (!error) {
           setOrders(prev => prev.map(o => o.id === order.id ? {
             ...o,
             fulfillment_status: 'packed',
             packed_at: new Date().toISOString(),
-            tracking_number: data.tracking_number || o.tracking_number,
+            packed_by: currentUser?.id || null,
             status: 'processing',
+            status_history: newHistory,
           } : o));
-          if (data.label_url) window.open(data.label_url, '_blank');
         }
       } catch (err) {
         console.error(`Batch pack error for ${order.id}:`, err);
@@ -541,36 +548,11 @@ const AdminOrderManager = () => {
     }
     setBatchProcessing(false);
     setSelectedOrders(new Set());
-    toast.success(`${eligible.length} orders packade & frakt skapad`);
+    toast.success(`${eligible.length} orders packade`);
   };
 
   const handleBatchShip = async () => {
-    const ids = Array.from(selectedOrders);
-    const eligible = orders.filter(o => ids.includes(o.id) && o.payment_status === 'paid' && o.fulfillment_status === 'packed');
-    if (eligible.length === 0) { toast.error('Inga packade orders att skicka'); return; }
-    setBatchProcessing(true);
-    setBatchProgress({ done: 0, total: eligible.length });
-    const { data: { user: currentUser } } = await supabase.auth.getUser();
-    for (let i = 0; i < eligible.length; i++) {
-      const order = eligible[i];
-      const existingHistory = Array.isArray(order.status_history) ? order.status_history : [];
-      const newHistory = [...existingHistory, { status: 'shipped', timestamp: new Date().toISOString(), note: 'Batch-skickad' }];
-      const { error } = await supabase.from('orders').update({
-        fulfillment_status: 'shipped',
-        shipped_by: currentUser?.id || null,
-        shipped_at: new Date().toISOString(),
-        status: 'shipped',
-        status_history: newHistory,
-      }).eq('id', order.id);
-      if (!error) {
-        setOrders(prev => prev.map(o => o.id === order.id ? { ...o, fulfillment_status: 'shipped', shipped_at: new Date().toISOString(), shipped_by: currentUser?.id || null, status: 'shipped', status_history: newHistory } : o));
-        logActivity({ log_type: 'success', category: 'fulfillment', message: `Order ${getOrderDisplayId(order)} batch-skickad`, order_id: order.id });
-      }
-      setBatchProgress({ done: i + 1, total: eligible.length });
-    }
-    setBatchProcessing(false);
-    setSelectedOrders(new Set());
-    toast.success(`${eligible.length} orders skickade`);
+    toast.info(language === 'sv' ? 'Använd "Lägg till frakt" per order för att ange spårningsnummer' : 'Use "Add shipping" per order to enter tracking numbers');
   };
 
 
