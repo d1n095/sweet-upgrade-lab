@@ -401,7 +401,14 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
                 <Zap className="w-3 h-3" /> Tilldela
               </Button>
             )}
-            {/* Escalate button – available on open/claimed/in_progress */}
+            {/* Unclaim – release task back to open */}
+            {['claimed', 'in_progress'].includes(task.status) && (task.claimed_by === user?.id || task.assigned_to === user?.id) && (
+              <Button variant="ghost" size="sm" className="text-[10px] h-6 px-2 gap-0.5 text-muted-foreground"
+                onClick={() => unclaimTask(task.id)}>
+                <X className="w-3 h-3" /> Släpp
+              </Button>
+            )}
+            {/* Escalate button */}
             {['open', 'claimed', 'in_progress'].includes(task.status) && (
               <Button variant="outline" size="sm"
                 className="text-[10px] h-6 px-2 gap-0.5 text-destructive border-destructive/30 hover:bg-destructive/10"
