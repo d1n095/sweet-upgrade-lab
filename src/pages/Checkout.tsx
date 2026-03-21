@@ -72,6 +72,7 @@ const Checkout = () => {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [selectedPayment, setSelectedPayment] = useState<'card' | 'klarna'>('card');
+  const [selectedShipping, setSelectedShipping] = useState<'postnord' | 'dhl'>('postnord');
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [form, setForm] = useState({
     email: '',
@@ -266,6 +267,7 @@ const Checkout = () => {
         email: form.email,
         language: cl,
         paymentMethod: selectedPayment,
+        shippingMethod: selectedShipping,
       };
 
       // Get auth token
@@ -435,54 +437,12 @@ const Checkout = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Debug steps panel – only for admin/founder/it roles */}
-      {isAdmin && <div className="fixed top-16 right-4 z-[9999] w-80 bg-card border-2 border-primary/50 rounded-lg shadow-xl p-3 text-xs font-mono space-y-2 max-h-80 overflow-auto">
-        <div className="flex items-center justify-between">
-          <p className="font-bold text-foreground">🔍 Checkout Debug</p>
-          <Badge variant="outline" className="text-[10px]">{debugSteps.length} steg</Badge>
+      {/* Minimal debug indicator for admins */}
+      {isAdmin && checkoutError && (
+        <div className="fixed top-16 right-4 z-[9999] bg-destructive/10 border border-destructive/30 rounded-lg p-2 text-xs max-w-60">
+          <p className="text-destructive font-medium">❌ {checkoutError}</p>
         </div>
-
-        {/* Live steps log */}
-        {debugSteps.length === 0 ? (
-          <p className="text-muted-foreground text-[11px] italic">Klicka "Betala" för att se flödet här…</p>
-        ) : (
-          <div className="space-y-0.5 border border-border rounded p-2 bg-secondary/30">
-            {debugSteps.map((step, i) => (
-              <p key={i} className="text-[11px] text-foreground">{step}</p>
-            ))}
-          </div>
-        )}
-
-        {/* Error display */}
-        {checkoutError && (
-          <div className="border border-destructive/40 bg-destructive/10 rounded p-2">
-            <p className="text-[11px] text-destructive font-semibold">❌ {checkoutError}</p>
-          </div>
-        )}
-
-        {/* Response data */}
-        {debugInfo.data && (
-          <details className="text-muted-foreground">
-            <summary className="cursor-pointer text-[11px]">📄 Full response JSON</summary>
-            <pre className="mt-1 whitespace-pre-wrap break-all text-[10px] text-foreground bg-secondary/50 rounded p-1">{JSON.stringify(debugInfo.data, null, 2)}</pre>
-          </details>
-        )}
-
-        {/* Test redirect */}
-        <button
-          onClick={() => { addDebugStep('🧪 TEST REDIRECT CLICKED'); window.location.href = 'https://checkout.stripe.com'; }}
-          className="w-full px-2 py-1.5 bg-primary text-primary-foreground rounded text-[10px] font-semibold hover:opacity-90"
-        >
-          🧪 TEST: Stripe Redirect fungerar?
-        </button>
-
-        <button
-          onClick={() => { setDebugSteps([]); setDebugInfo({}); setCheckoutError(null); }}
-          className="w-full px-2 py-1 border border-border rounded text-[10px] text-muted-foreground hover:text-foreground"
-        >
-          Rensa
-        </button>
-      </div>}
+      )}
       {/* Minimal checkout header — distraction-free */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border">
         <div className="container mx-auto px-4 h-14 flex items-center justify-between max-w-5xl">
@@ -616,6 +576,54 @@ const Checkout = () => {
                         value={form.phone}
                         onChange={(e) => updateField('phone', e.target.value)}
                       />
+                    </div>
+
+                    {/* Shipping method selector */}
+                    <div className="pt-2">
+                      <Label className="mb-3 block">{isSv ? 'Fraktmetod' : 'Shipping method'} *</Label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedShipping('postnord')}
+                          className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all min-h-[90px] ${
+                            selectedShipping === 'postnord'
+                              ? 'border-primary bg-primary/5 shadow-sm'
+                              : 'border-border hover:border-primary/40'
+                          }`}
+                        >
+                          {selectedShipping === 'postnord' && (
+                            <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                              <Check className="w-3 h-3 text-primary-foreground" />
+                            </div>
+                          )}
+                          <Truck className="w-6 h-6 text-foreground" />
+                          <span className="text-sm font-medium">PostNord</span>
+                          <span className="text-[10px] text-muted-foreground leading-tight text-center">
+                            {isSv ? '7–10 arbetsdagar' : '7–10 business days'}
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setSelectedShipping('dhl')}
+                          className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all min-h-[90px] ${
+                            selectedShipping === 'dhl'
+                              ? 'border-primary bg-primary/5 shadow-sm'
+                              : 'border-border hover:border-primary/40'
+                          }`}
+                        >
+                          {selectedShipping === 'dhl' && (
+                            <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                              <Check className="w-3 h-3 text-primary-foreground" />
+                            </div>
+                          )}
+                          <Truck className="w-6 h-6 text-foreground" />
+                          <span className="text-sm font-medium">DHL</span>
+                          <span className="text-[10px] text-muted-foreground leading-tight text-center">
+                            {isSv ? '5–8 arbetsdagar' : '5–8 business days'}
+                          </span>
+                        </button>
+                      </div>
                     </div>
 
                     {/* Payment method selector */}
