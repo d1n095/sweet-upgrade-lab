@@ -53,6 +53,7 @@ interface Order {
   packed_at: string | null;
   shipped_by: string | null;
   shipped_at: string | null;
+  shipping_method: string | null;
 }
 
 const statusOptions = [
