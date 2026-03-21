@@ -878,38 +878,7 @@ const AdminOrderManager = () => {
                         {language === 'sv' ? 'Lägg till frakt' : 'Add shipping'}
                       </Button>
                     )}
-                    {order.payment_status === 'paid' && !order.refund_status && (
-                      refundOrderId === order.id ? (
-                        <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                          <Input
-                            placeholder={language === 'sv' ? 'Anledning...' : 'Reason...'}
-                            value={refundReason}
-                            onChange={(e) => setRefundReason(e.target.value)}
-                            className="h-7 text-xs w-36"
-                            onKeyDown={(e) => { if (e.key === 'Enter') handleRequestRefund(order); }}
-                          />
-                          <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => handleRequestRefund(order)}>
-                            {language === 'sv' ? 'Skicka' : 'Send'}
-                          </Button>
-                          <Button size="sm" variant="ghost" className="h-7 text-xs px-1.5" onClick={() => { setRefundOrderId(null); setRefundReason(''); }}>
-                            <X className="w-3.5 h-3.5" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="gap-1.5 text-xs border-purple-300 text-purple-700 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-400 dark:hover:bg-purple-950/30"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setRefundOrderId(order.id);
-                          }}
-                        >
-                          <RotateCcw className="w-3.5 h-3.5" />
-                          {language === 'sv' ? 'Begär återbetalning' : 'Request refund'}
-                        </Button>
-                      )
-                    )}
+                    {/* Refund requests are handled via the dedicated Återbetalningar tab */}
                     {deleteConfirmId === order.id ? (
                       <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                         <span className="text-xs text-destructive">{language === 'sv' ? 'Radera?' : 'Delete?'}</span>
