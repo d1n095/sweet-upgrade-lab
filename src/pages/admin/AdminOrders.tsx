@@ -32,6 +32,12 @@ const AdminOrders = () => {
       setLoading(false);
     };
     load();
+
+    const channel = supabase
+      .channel('admin-orders-stats')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => load())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const fmt = (n: number) => new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK', minimumFractionDigits: 0 }).format(n);

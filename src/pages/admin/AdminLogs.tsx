@@ -1,4 +1,6 @@
 import AdminActivityLog from '@/components/admin/AdminActivityLog';
+import AdminBugReports from '@/components/admin/AdminBugReports';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const AdminLogs = () => {
   return (
@@ -9,7 +11,18 @@ const AdminLogs = () => {
           Full spårbarhet — alla händelser, inloggningar, orderändringar och säkerhetshändelser
         </p>
       </div>
-      <AdminActivityLog />
+      <Tabs defaultValue="activity">
+        <TabsList>
+          <TabsTrigger value="activity">Aktivitetslogg</TabsTrigger>
+          <TabsTrigger value="bugs">Buggrapporter</TabsTrigger>
+        </TabsList>
+        <TabsContent value="activity">
+          <AdminActivityLog />
+        </TabsContent>
+        <TabsContent value="bugs">
+          <AdminBugReports />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
