@@ -208,18 +208,52 @@ const Checkout = () => {
 
   const startCheckout = useCallback(async () => {
     if (isCheckingOut) return;
+
+    // Validate required fields first
+    const requiredFields = ['email', 'name', 'address', 'zip', 'city'] as const;
+    const newErrors: FieldErrors = {};
+    let hasErrors = false;
+    for (const field of requiredFields) {
+      const error = validateField(field, form[field]);
+      if (error) {
+        newErrors[field] = error;
+        hasErrors = true;
+      }
+    }
+    if (hasErrors) {
+      setErrors(newErrors);
+      setTouched(Object.fromEntries(requiredFields.map(f => [f, true])));
+      toast.error(isSv ? 'Fyll i alla obligatoriska fält' : 'Please fill in all required fields');
+      return;
+    }
+
     setIsCheckingOut(true);
     setCheckoutStage('connecting');
     setCheckoutError(null);
 
     try {
-      const checkoutItems = items.map(item => ({
-        id: (item.product as any).dbId || item.variantId,
-        title: item.product.node.title,
-        price: Number.parseFloat(item.price.amount),
-        quantity: item.quantity,
-        image: item.product.node.images?.edges?.[0]?.node?.url || '',
-      }));
+      const checkoutItems = items.map((item, idx) => {
+        // Defensive: handle corrupted cart items from localStorage
+        const product = item?.product;
+        const node = product?.node;
+        const title = node?.title || item?.variantTitle || `Produkt ${idx + 1}`;
+        const dbId = (product as any)?.dbId;
+        const id = dbId || item?.variantId || `item_${idx}`;
+        const price = Number.parseFloat(item?.price?.amount ?? '0');
+        const image = node?.images?.edges?.[0]?.node?.url || '';
+
+        return {
+          id,
+          title,
+          price: Number.isFinite(price) && price > 0 ? price : 0,
+          quantity: item?.quantity || 1,
+          image,
+        };
+      }).filter(i => i.price > 0);
+
+      if (checkoutItems.length === 0) {
+        throw new Error(isSv ? 'Inga giltiga produkter i kundvagnen' : 'No valid products in cart');
+      }
 
       // Build full address string including c/o, apartment, company
       const addressParts = [form.address];
@@ -231,12 +265,12 @@ const Checkout = () => {
         shipping: {
           name: form.name,
           address: fullAddress,
-          careOf: form.careOf,
-          company: form.company,
+          careOf: form.careOf || '',
+          company: form.company || '',
           zip: form.zip,
           city: form.city,
-          country: form.country,
-          phone: form.phone,
+          country: form.country || 'SE',
+          phone: form.phone || '',
         },
         email: form.email,
         language: cl,
@@ -294,7 +328,7 @@ const Checkout = () => {
       });
       toast.error(message);
     }
-  }, [cl, form, items, t.checkoutFailed, t.checkoutTimeout, isCheckingOut]);
+  }, [cl, form, items, t, isCheckingOut, isSv, validateField]);
 
   const handleSubmit = (event?: React.FormEvent | React.MouseEvent) => {
     event?.preventDefault();
