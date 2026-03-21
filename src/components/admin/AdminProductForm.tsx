@@ -405,10 +405,25 @@ function AiContentGenerator({
       const content = data?.content;
       if (!content) throw new Error('No content returned');
 
+      // Build hook + description combo
+      const hookLine = content.hook ? content.hook : '';
+      const descWithHook = hookLine
+        ? `${hookLine}\n\n${content.description || ''}`
+        : (content.description || '');
+
+      // Build extended description with trust + upsell
+      let extDesc = content.extended_description || '';
+      if (content.trust_badges) {
+        extDesc += `\n\n🛡️ ${content.trust_badges}`;
+      }
+      if (content.upsell_text) {
+        extDesc += `\n\n💡 ${content.upsell_text}`;
+      }
+
       setFormData(prev => ({
         ...prev,
-        description: prev.description || content.description || '',
-        extendedDescription: prev.extendedDescription || content.extended_description || '',
+        description: prev.description || descWithHook,
+        extendedDescription: prev.extendedDescription || extDesc,
         effects: prev.effects || content.effects || '',
         feeling: prev.feeling || content.feeling || '',
         usage: prev.usage || content.usage || '',
