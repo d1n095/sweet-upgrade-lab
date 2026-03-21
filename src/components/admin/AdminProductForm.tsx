@@ -268,7 +268,7 @@ function IngredientPickerSection({
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => isSelected ? removeIngredient(item.name_sv) : addIngredient(item.name_sv)}
+                  onClick={() => isSelected ? removeIngredient(item.name_sv) : addIngredient(item.name_sv, item.id)}
                   className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
                     isSelected
                       ? 'bg-primary/15 border-primary/30 text-primary font-medium'
