@@ -408,6 +408,14 @@ const AdminOrderManager = () => {
         .update({ deleted_at: new Date().toISOString() })
         .eq('id', order.id);
       if (error) throw error;
+
+      // Cancel linked tasks
+      await supabase
+        .from('staff_tasks')
+        .update({ status: 'cancelled', completed_at: new Date().toISOString() })
+        .eq('related_order_id', order.id)
+        .in('status', ['open', 'claimed', 'in_progress']);
+
       setOrders(prev => prev.filter(o => o.id !== order.id));
       if (expandedOrder === order.id) setExpandedOrder(null);
       setDeleteConfirmId(null);

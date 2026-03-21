@@ -89,61 +89,75 @@ const AdminOverview = () => {
   const [focusIncidents, setFocusIncidents] = useState<FocusIncident[]>([]);
   const [ordersToPack, setOrdersToPack] = useState(0);
 
+  const load = async () => {
+    try {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+
+      const [products, orders, todayOrders, members, reviews, tasks, incidents, packOrders] = await Promise.all([
+        supabase.from('products').select('id, title_sv, stock, reserved_stock, allow_overselling'),
+        supabase.from('orders').select('id, status, total_amount, payment_status').is('deleted_at', null),
+        supabase.from('orders').select('id, total_amount, payment_status').is('deleted_at', null).gte('created_at', todayStart.toISOString()),
+        supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('is_member', true),
+        supabase.from('reviews').select('id', { count: 'exact', head: true }).eq('is_approved', false),
+        supabase.from('staff_tasks').select('id, title, priority, task_type, status, due_at, related_order_id')
+          .neq('status', 'done').neq('status', 'cancelled').order('created_at', { ascending: false }).limit(5),
+        supabase.from('order_incidents').select('id, title, priority, sla_status, sla_deadline, order_id, status')
+          .neq('status', 'resolved').neq('status', 'closed').order('created_at', { ascending: false }).limit(5),
+        supabase.from('orders').select('id', { count: 'exact', head: true }).is('deleted_at', null).eq('payment_status', 'paid').in('fulfillment_status', ['pending', 'unfulfilled']),
+      ]);
+
+      const prods = products.data || [];
+      const ords = orders.data || [];
+      const todayOrdsList = todayOrders.data || [];
+      const lowStock = prods.filter(p => !p.allow_overselling && p.stock <= 5 && p.stock >= 0);
+
+      setStats({
+        totalProducts: prods.length,
+        lowStockProducts: lowStock.length,
+        totalOrders: ords.length,
+        pendingOrders: ords.filter(o => o.status === 'pending').length,
+        totalMembers: members.count || 0,
+        pendingReviews: reviews.count || 0,
+        ordersToday: todayOrdsList.length,
+        revenueToday: todayOrdsList
+          .filter(o => o.payment_status === 'paid')
+          .reduce((sum, o) => sum + (o.total_amount || 0), 0),
+      });
+
+      setLowStockItems(lowStock.slice(0, 5) as LowStockProduct[]);
+      setFocusTasks((tasks.data || []) as FocusTask[]);
+      setFocusIncidents((incidents.data || []) as FocusIncident[]);
+      setOrdersToPack(packOrders.count || 0);
+
+      const { data: recent } = await supabase
+        .from('orders')
+        .select('id, order_email, total_amount, status, payment_status, created_at, order_number, payment_intent_id')
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+        .limit(5);
+      setRecentOrders((recent || []) as RecentOrder[]);
+    } catch (e) {
+      console.error('Failed to load admin stats:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const load = async () => {
-      try {
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
-
-        const [products, orders, todayOrders, members, reviews, tasks, incidents, packOrders] = await Promise.all([
-          supabase.from('products').select('id, title_sv, stock, reserved_stock, allow_overselling'),
-          supabase.from('orders').select('id, status, total_amount, payment_status'),
-          supabase.from('orders').select('id, total_amount, payment_status').gte('created_at', todayStart.toISOString()),
-          supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('is_member', true),
-          supabase.from('reviews').select('id', { count: 'exact', head: true }).eq('is_approved', false),
-          supabase.from('staff_tasks').select('id, title, priority, task_type, status, due_at, related_order_id')
-            .neq('status', 'done').order('created_at', { ascending: false }).limit(5),
-          supabase.from('order_incidents').select('id, title, priority, sla_status, sla_deadline, order_id, status')
-            .neq('status', 'resolved').neq('status', 'closed').order('created_at', { ascending: false }).limit(5),
-          supabase.from('orders').select('id', { count: 'exact', head: true }).eq('payment_status', 'paid').in('fulfillment_status', ['pending', 'unfulfilled']),
-        ]);
-
-        const prods = products.data || [];
-        const ords = orders.data || [];
-        const todayOrdsList = todayOrders.data || [];
-        const lowStock = prods.filter(p => !p.allow_overselling && p.stock <= 5 && p.stock >= 0);
-
-        setStats({
-          totalProducts: prods.length,
-          lowStockProducts: lowStock.length,
-          totalOrders: ords.length,
-          pendingOrders: ords.filter(o => o.status === 'pending').length,
-          totalMembers: members.count || 0,
-          pendingReviews: reviews.count || 0,
-          ordersToday: todayOrdsList.length,
-          revenueToday: todayOrdsList
-            .filter(o => o.payment_status === 'paid')
-            .reduce((sum, o) => sum + (o.total_amount || 0), 0),
-        });
-
-        setLowStockItems(lowStock.slice(0, 5) as LowStockProduct[]);
-        setFocusTasks((tasks.data || []) as FocusTask[]);
-        setFocusIncidents((incidents.data || []) as FocusIncident[]);
-        setOrdersToPack(packOrders.count || 0);
-
-        const { data: recent } = await supabase
-          .from('orders')
-          .select('id, order_email, total_amount, status, payment_status, created_at, order_number, payment_intent_id')
-          .order('created_at', { ascending: false })
-          .limit(5);
-        setRecentOrders((recent || []) as RecentOrder[]);
-      } catch (e) {
-        console.error('Failed to load admin stats:', e);
-      } finally {
-        setLoading(false);
-      }
-    };
     load();
+
+    // Realtime refresh on order changes
+    const channel = supabase
+      .channel('dashboard-orders')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+        load();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'staff_tasks' }, () => {
+        load();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const formatCurrency = (amount: number) =>
