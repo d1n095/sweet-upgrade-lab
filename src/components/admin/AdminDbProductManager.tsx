@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { setProductCategories } from '@/lib/categories';
 import { setProductTags, fetchProductTagIds } from '@/lib/tags';
+import { setProductIngredients, fetchProductIngredients } from '@/lib/products';
 import { motion } from 'framer-motion';
 import {
   Plus, Package, Edit, Trash2, Loader2, AlertTriangle,
