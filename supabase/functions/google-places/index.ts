@@ -5,9 +5,38 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Simple in-memory rate limit per IP
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT = 30; // max requests per window
+const RATE_WINDOW_MS = 60_000; // 1 minute
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Rate limiting
+  const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const now = Date.now();
+  const entry = rateLimitMap.get(clientIp);
+  if (entry && entry.resetAt > now) {
+    entry.count++;
+    if (entry.count > RATE_LIMIT) {
+      return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
+        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  } else {
+    rateLimitMap.set(clientIp, { count: 1, resetAt: now + RATE_WINDOW_MS });
+  }
+
+  // Require at least anon key
+  const authHeader = req.headers.get("Authorization") || "";
+  const apiKey = req.headers.get("apikey") || "";
+  if (!authHeader && !apiKey) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   const apiKey = Deno.env.get("GOOGLE_MAPS_API_KEY");

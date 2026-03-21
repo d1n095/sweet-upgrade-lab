@@ -7,6 +7,13 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+// Auth helper: require service role key for internal email sends
+function verifyServiceRole(req: Request): boolean {
+  const authHeader = req.headers.get("Authorization") || "";
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  return authHeader === `Bearer ${serviceRoleKey}`;
+}
+
 interface OrderItem {
   id?: string;
   title: string;
