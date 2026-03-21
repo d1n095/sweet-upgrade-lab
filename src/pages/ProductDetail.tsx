@@ -409,6 +409,18 @@ const ProductDetail = () => {
                 </Button>
               </div>
 
+              {/* Micro copy under CTA */}
+              <div className="hidden md:flex items-center gap-4 mb-5 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5 text-accent" />
+                  {lang === 'sv' ? 'Skickas inom 1–3 dagar' : 'Ships within 1–3 days'}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Package className="w-3.5 h-3.5 text-accent" />
+                  {lang === 'sv' ? 'Fri frakt över 499 kr' : 'Free shipping over 499 kr'}
+                </span>
+              </div>
+
               {/* Trust badges - hidden on mobile (shown in MobileBuyBar) */}
               <div className="hidden md:grid grid-cols-3 gap-3 mb-5">
                 {[
