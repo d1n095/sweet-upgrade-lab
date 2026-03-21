@@ -701,20 +701,20 @@ const AdminProductManager = () => {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
             <Package className="w-5 h-5 text-accent" />
           </div>
-          <div>
-            <h3 className="font-semibold">{t.title}</h3>
-            <p className="text-sm text-muted-foreground">{t.subtitle}</p>
+          <div className="min-w-0">
+            <h3 className="font-semibold truncate">{t.title}</h3>
+            <p className="text-sm text-muted-foreground truncate">{t.subtitle}</p>
           </div>
         </div>
 
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
-            <Button size="sm" className="gap-2">
+            <Button size="sm" className="gap-2 flex-shrink-0 w-full sm:w-auto">
               <Plus className="w-4 h-4" />
               {t.addProduct}
             </Button>
