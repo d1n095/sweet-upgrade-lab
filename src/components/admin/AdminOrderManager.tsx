@@ -451,78 +451,46 @@ const AdminOrderManager = () => {
     if (fulfillmentTab === 'unpaid' && o.payment_status === 'paid') return false;
     return true;
   });
-  const handlePackAndShip = async (order: Order) => {
+  const handleMarkPacked = async (order: Order) => {
     if (order.payment_status !== 'paid') {
       toast.error(language === 'sv' ? 'Order måste vara betald först' : 'Order must be paid first');
-      return;
-    }
-    if (order.fulfillment_status === 'shipped' || (order.fulfillment_status === 'packed' && order.tracking_number)) {
-      toast.error(language === 'sv' ? 'Frakt redan skapad' : 'Shipment already created');
-      return;
-    }
-    try {
-      toast.loading(language === 'sv' ? 'Skapar frakt…' : 'Creating shipment…', { id: `ship-${order.id}` });
-      const { data, error } = await supabase.functions.invoke('create-shipment', {
-        body: { order_id: order.id },
-      });
-      toast.dismiss(`ship-${order.id}`);
-      if (error) throw new Error(error.message || 'Edge function error');
-      if (!data?.success) throw new Error(data?.error || 'Unknown error');
-      setOrders(prev => prev.map(o => o.id === order.id ? {
-        ...o,
-        fulfillment_status: 'packed',
-        packed_at: new Date().toISOString(),
-        tracking_number: data.tracking_number || o.tracking_number,
-        status: 'processing',
-      } : o));
-      if (data.label_url) window.open(data.label_url, '_blank');
-      toast.success(
-        data.shipmondo_used
-          ? (language === 'sv' ? 'Packad & frakt skapad ✓' : 'Packed & shipment created ✓')
-          : (language === 'sv' ? 'Packad ✓ (Shipmondo ej konfigurerad)' : 'Packed ✓ (Shipmondo not configured)')
-      );
-    } catch (err: any) {
-      toast.dismiss(`ship-${order.id}`);
-      console.error(err);
-      toast.error(err.message || content.error);
-    }
-  };
-
-  const handleMarkShipped = async (order: Order) => {
-    if (order.payment_status !== 'paid') {
-      toast.error(language === 'sv' ? 'Order måste vara betald först' : 'Order must be paid first');
-      return;
-    }
-    if (order.fulfillment_status !== 'packed') {
-      toast.error(language === 'sv' ? 'Packa ordern först' : 'Pack the order first');
       return;
     }
     try {
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       const existingHistory = Array.isArray(order.status_history) ? order.status_history : [];
       const newHistory = [...existingHistory, {
-        status: 'shipped',
+        status: 'packed',
         timestamp: new Date().toISOString(),
-        note: 'Markerad som skickad',
+        note: 'Markerad som packad',
       }];
       const { error } = await supabase.from('orders').update({
-        fulfillment_status: 'shipped',
-        shipped_by: currentUser?.id || null,
-        shipped_at: new Date().toISOString(),
-        status: 'shipped',
+        fulfillment_status: 'packed',
+        packed_by: currentUser?.id || null,
+        packed_at: new Date().toISOString(),
+        status: 'processing',
         status_history: newHistory,
       }).eq('id', order.id);
       if (error) throw error;
-      setOrders(prev => prev.map(o => o.id === order.id ? { ...o, fulfillment_status: 'shipped', shipped_at: new Date().toISOString(), shipped_by: currentUser?.id || null, status: 'shipped', status_history: newHistory } : o));
-      logActivity({ log_type: 'success', category: 'fulfillment', message: `Order ${getOrderDisplayId(order)} skickad`, order_id: order.id });
-      toast.success(language === 'sv' ? 'Order markerad som skickad' : 'Order marked as shipped');
-      try {
-        await supabase.functions.invoke('send-order-email', { body: { order_id: order.id, email_type: 'status_update' } });
-      } catch {}
+      setOrders(prev => prev.map(o => o.id === order.id ? { ...o, fulfillment_status: 'packed', packed_at: new Date().toISOString(), packed_by: currentUser?.id || null, status: 'processing', status_history: newHistory } : o));
+      logActivity({ log_type: 'success', category: 'fulfillment', message: `Order ${getOrderDisplayId(order)} packad`, order_id: order.id });
+      toast.success(language === 'sv' ? 'Order markerad som packad ✓' : 'Order marked as packed ✓');
     } catch (err) {
       console.error(err);
       toast.error(content.error);
     }
+  };
+
+  const handleShippingComplete = (orderId: string, data: { carrier: string; tracking_number: string; tracking_url: string | null }) => {
+    setOrders(prev => prev.map(o => o.id === orderId ? {
+      ...o,
+      fulfillment_status: 'shipped',
+      status: 'shipped',
+      shipped_at: new Date().toISOString(),
+      tracking_number: data.tracking_number,
+      shipping_method: data.carrier,
+    } : o));
+    setShippingOrder(null);
   };
 
   // Batch packing helpers
