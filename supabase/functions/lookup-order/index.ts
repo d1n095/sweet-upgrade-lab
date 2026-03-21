@@ -33,6 +33,16 @@ serve(async (req) => {
       return json({ error: "Missing session_id, query or email" }, 400);
     }
 
+    // Rate-limit: require email for non-session lookups to prevent enumeration
+    if (!sessionId && query && !email) {
+      return json({ error: "Email required for order lookup" }, 400);
+    }
+
+    // Input validation
+    if (sessionId && sessionId.length > 200) return json({ error: "Invalid session_id" }, 400);
+    if (query && query.length > 100) return json({ error: "Invalid query" }, 400);
+    if (email && (email.length > 255 || !email.includes("@"))) return json({ error: "Invalid email" }, 400);
+
     // Build search — service role bypasses RLS
     let dbQuery = supabase
       .from("orders")
