@@ -345,11 +345,16 @@ const ProductDetail = () => {
                 <p className="text-muted-foreground leading-relaxed mb-4 text-[15px]">{description}</p>
               )}
 
-              {/* 4. PRICE */}
+              {/* 4. PRICE + SAVINGS */}
               <div className="flex items-baseline gap-3 mb-2">
                 <span className="text-3xl font-bold">{formatPrice(product.price)}</span>
                 {hasDiscount && (
-                  <span className="text-lg text-muted-foreground line-through">{formatPrice(product.original_price!)}</span>
+                  <>
+                    <span className="text-lg text-muted-foreground line-through">{formatPrice(product.original_price!)}</span>
+                    <span className="text-sm font-semibold text-destructive bg-destructive/10 px-2 py-0.5 rounded-full">
+                      {lang === 'sv' ? `Spara ${discountPercent}%` : `Save ${discountPercent}%`}
+                    </span>
+                  </>
                 )}
               </div>
 
