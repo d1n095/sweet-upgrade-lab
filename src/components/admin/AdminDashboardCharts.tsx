@@ -154,7 +154,7 @@ const AdminDashboardCharts = () => {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold">Ordrar</CardTitle>
           </CardHeader>
-          <CardContent className="h-56">
+          <CardContent className="h-48 sm:h-56">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
