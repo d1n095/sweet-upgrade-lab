@@ -118,6 +118,7 @@ const AdminDbProductManager = () => {
   const openEdit = (product: DbProduct) => {
     setSelected(product);
     setFormData({
+      ...DEFAULT_PRODUCT_FORM_DATA,
       title: product.title_sv,
       description: product.description_sv || '',
       price: product.price.toString(),
