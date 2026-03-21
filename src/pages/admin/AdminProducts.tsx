@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react';
-import { Package, FlaskConical, ChefHat, AlertTriangle, Eye, FileText, Archive, Image, BarChart3, Clock, Info } from 'lucide-react';
+import { Package, FlaskConical, ChefHat, AlertTriangle, Eye, FileText, Archive, Image, BarChart3, Clock, Info, Activity } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger, ScrollableTabs } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
-import { useNavigate } from 'react-router-dom';
 import AdminDbProductManager from '@/components/admin/AdminDbProductManager';
 import AdminProductImportExport from '@/components/admin/AdminProductImportExport';
 import AdminRecipeIngredientLibrary from '@/components/admin/AdminRecipeIngredientLibrary';
 import AdminRecipeTemplateBuilder from '@/components/admin/AdminRecipeTemplateBuilder';
 import AdminImageGallery from '@/components/admin/AdminImageGallery';
 import AdminSearchAnalytics from '@/components/admin/AdminSearchAnalytics';
+import AdminStockIntelligence from '@/components/admin/AdminStockIntelligence';
 
 const AdminProducts = () => {
   const [stats, setStats] = useState({ total: 0, visible: 0, lowStock: 0, ingredients: 0, drafts: 0, archived: 0, comingSoon: 0, info: 0 });
@@ -19,7 +19,7 @@ const AdminProducts = () => {
   useEffect(() => {
     const load = async () => {
       const [{ data: products }, { count: ingredients }] = await Promise.all([
-        supabase.from('products').select('id, is_visible, stock, allow_overselling, status'),
+        supabase.from('products').select('id, is_visible, stock, allow_overselling, status, low_stock_threshold'),
         supabase.from('recipe_ingredients').select('*', { count: 'exact', head: true }),
       ]);
       const prods = (products || []) as any[];
@@ -27,7 +27,7 @@ const AdminProducts = () => {
       setStats({
         total: active.length,
         visible: active.filter(p => p.is_visible).length,
-        lowStock: active.filter(p => !p.allow_overselling && p.stock <= 5).length,
+        lowStock: active.filter(p => !p.allow_overselling && p.stock <= (p.low_stock_threshold || 5)).length,
         ingredients: ingredients || 0,
         drafts: prods.filter(p => p.status === 'draft').length,
         archived: prods.filter(p => p.status === 'archived').length,
@@ -57,7 +57,7 @@ const AdminProducts = () => {
           { label: 'Info', value: stats.info, icon: Info, color: 'text-blue-600', tab: 'products' },
           { label: 'Utkast', value: stats.drafts, icon: FileText, color: 'text-amber-600', tab: 'products' },
           { label: 'Arkiverade', value: stats.archived, icon: Archive, color: 'text-blue-600', tab: 'products' },
-          { label: 'Lågt lager', value: stats.lowStock, icon: AlertTriangle, color: 'text-orange-600', tab: 'products' },
+          { label: 'Lågt lager', value: stats.lowStock, icon: AlertTriangle, color: 'text-orange-600', tab: 'stock' },
           { label: 'Ingredienser', value: stats.ingredients, icon: FlaskConical, color: 'text-purple-600', tab: 'ingredients' },
         ].map(s => (
           <Card
@@ -82,6 +82,9 @@ const AdminProducts = () => {
             <TabsTrigger value="products" className="gap-1.5 text-xs">
               <Package className="w-3.5 h-3.5" /> Produkter
             </TabsTrigger>
+            <TabsTrigger value="stock" className="gap-1.5 text-xs">
+              <Activity className="w-3.5 h-3.5" /> Lagerintelligens
+            </TabsTrigger>
             <TabsTrigger value="ingredients" className="gap-1.5 text-xs">
               <FlaskConical className="w-3.5 h-3.5" /> Ingrediensbibliotek
             </TabsTrigger>
@@ -98,6 +101,7 @@ const AdminProducts = () => {
         </ScrollableTabs>
 
         <TabsContent value="products"><AdminDbProductManager /></TabsContent>
+        <TabsContent value="stock"><AdminStockIntelligence /></TabsContent>
         <TabsContent value="ingredients"><AdminRecipeIngredientLibrary /></TabsContent>
         <TabsContent value="recipes"><AdminRecipeTemplateBuilder /></TabsContent>
         <TabsContent value="gallery"><AdminImageGallery /></TabsContent>
