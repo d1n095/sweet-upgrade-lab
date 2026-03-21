@@ -41,6 +41,11 @@ export interface DbProduct {
   weight_grams: number | null;
   status: ProductStatus;
   is_sellable: boolean;
+  low_stock_threshold: number;
+  restock_amount: number;
+  units_sold_7d: number;
+  units_sold_30d: number;
+  last_sold_at: string | null;
   created_at: string;
   updated_at: string;
 }

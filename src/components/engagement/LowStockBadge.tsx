@@ -4,16 +4,19 @@ import { useLanguage } from '@/context/LanguageContext';
 
 interface LowStockBadgeProps {
   productId: string;
+  stock?: number;
+  threshold?: number;
   compact?: boolean;
 }
 
-const LowStockBadge = ({ productId, compact = false }: LowStockBadgeProps) => {
+const LowStockBadge = ({ productId, stock, threshold = 5, compact = false }: LowStockBadgeProps) => {
   const { language } = useLanguage();
 
-  // Simulate stock level based on product id
-  const stockLevel = (productId.charCodeAt(productId.length - 1) % 10) + 1;
-  const isLowStock = stockLevel <= 5;
-  const isVeryLowStock = stockLevel <= 3;
+  // Use real stock if provided, fallback to simulated
+  const stockLevel = stock ?? ((productId.charCodeAt(productId.length - 1) % 10) + 1);
+  const effectiveThreshold = threshold || 5;
+  const isLowStock = stockLevel > 0 && stockLevel <= effectiveThreshold;
+  const isVeryLowStock = stockLevel > 0 && stockLevel <= Math.ceil(effectiveThreshold / 2);
 
   if (!isLowStock) return null;
 
@@ -25,17 +28,11 @@ const LowStockBadge = ({ productId, compact = false }: LowStockBadgeProps) => {
         className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${
           isVeryLowStock 
             ? 'bg-destructive/10 text-destructive' 
-            : 'bg-accent/10 text-accent'
+            : 'bg-orange-100 text-orange-700 dark:bg-orange-950/30 dark:text-orange-400'
         }`}
       >
-        {isVeryLowStock ? (
-          <Flame className="w-3 h-3" />
-        ) : (
-          <AlertTriangle className="w-3 h-3" />
-        )}
-        <span>
-          {language === 'sv' ? `${stockLevel} kvar` : `${stockLevel} left`}
-        </span>
+        {isVeryLowStock ? <Flame className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
+        <span>{language === 'sv' ? `${stockLevel} kvar` : `${stockLevel} left`}</span>
       </motion.div>
     );
   }
@@ -47,14 +44,10 @@ const LowStockBadge = ({ productId, compact = false }: LowStockBadgeProps) => {
       className={`flex items-center gap-2 text-sm px-3 py-2 rounded-lg ${
         isVeryLowStock 
           ? 'bg-destructive/10 text-destructive border border-destructive/20' 
-          : 'bg-accent/10 text-accent border border-accent/20'
+          : 'bg-orange-50 text-orange-700 border border-orange-200 dark:bg-orange-950/20 dark:text-orange-400 dark:border-orange-800'
       }`}
     >
-      {isVeryLowStock ? (
-        <Flame className="w-4 h-4" />
-      ) : (
-        <AlertTriangle className="w-4 h-4" />
-      )}
+      {isVeryLowStock ? <Flame className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
       <span className="font-medium">
         {isVeryLowStock 
           ? (language === 'sv' ? `Bara ${stockLevel} kvar! Skynda!` : `Only ${stockLevel} left! Hurry!`)

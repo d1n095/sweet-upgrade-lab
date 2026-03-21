@@ -469,8 +469,9 @@ const AdminDbProductManager = () => {
   };
 
   const stockBadge = (product: DbProduct) => {
+    const threshold = product.low_stock_threshold || 5;
     if (product.stock <= 0) return <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-5">{t.outOfStock}</Badge>;
-    if (product.stock <= 5) return <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 text-orange-600 border-orange-300">{product.stock} st</Badge>;
+    if (product.stock <= threshold) return <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 text-orange-600 border-orange-300">{product.stock} st</Badge>;
     return <span className="text-xs text-muted-foreground">{product.stock}</span>;
   };
 
