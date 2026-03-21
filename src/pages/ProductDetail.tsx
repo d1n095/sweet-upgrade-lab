@@ -422,30 +422,36 @@ const ProductDetail = () => {
                 </Button>
               </div>
 
-              {/* 8. MICRO TRUST — shipping, guarantee (near CTA) */}
-              <div className="hidden md:flex items-center gap-4 mb-4 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5 text-accent" />
-                  {lang === 'sv' ? 'Skickas inom 1–3 dagar' : 'Ships within 1–3 days'}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Package className="w-3.5 h-3.5 text-accent" />
-                  {lang === 'sv' ? 'Fri frakt över 499 kr' : 'Free shipping over 499 kr'}
-                </span>
-              </div>
-
-              {/* Trust badges — compact, near CTA */}
-              <div className="hidden md:flex items-center gap-3 mb-5">
-                {[
-                  { icon: Shield, label: t('product.securepayment') },
-                  { icon: RotateCcw, label: t('product.returns') },
-                  { icon: Truck, label: t('product.fastdelivery') },
-                ].map(({ icon: Icon, label }, i) => (
-                  <div key={i} className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-secondary/40 border border-border/50">
-                    <Icon className="w-3.5 h-3.5 text-accent" />
-                    <span className="text-xs text-muted-foreground">{label}</span>
-                  </div>
-                ))}
+              {/* 8. MICRO TRUST — shipping, guarantee, social proof (near CTA) */}
+              <div className="hidden md:flex flex-col gap-2 mb-4">
+                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1.5">
+                    <Check className="w-3.5 h-3.5 text-accent" />
+                    {lang === 'sv' ? 'I lager – skickas idag' : 'In stock – ships today'}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <Shield className="w-3.5 h-3.5 text-accent" />
+                    {lang === 'sv' ? '30 dagars garanti' : '30 day guarantee'}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <Users className="w-3.5 h-3.5 text-accent" />
+                    {lang === 'sv' ? '1000+ nöjda kunder' : '1000+ happy customers'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1.5">
+                    <Package className="w-3.5 h-3.5 text-accent" />
+                    {lang === 'sv' ? 'Fri frakt över 499 kr' : 'Free shipping over 499 kr'}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <RotateCcw className="w-3.5 h-3.5 text-accent" />
+                    {t('product.returns')}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <Truck className="w-3.5 h-3.5 text-accent" />
+                    {lang === 'sv' ? 'Leverans 1–3 dagar' : 'Delivery 1–3 days'}
+                  </span>
+                </div>
               </div>
 
               <div className="hidden md:block">

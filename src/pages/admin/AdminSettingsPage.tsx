@@ -245,6 +245,46 @@ const AdminSettingsPage = () => {
           </p>
         </TabsContent>
 
+        {/* Shipping */}
+        <TabsContent value="shipping" className="space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold flex items-center gap-2 mb-1">
+              🚚 Fraktinställningar
+            </h2>
+            <p className="text-muted-foreground text-sm mb-4">Gränser och leveranstider hanteras via butiksinställningar i databasen</p>
+          </div>
+          <div className="grid gap-3 max-w-xl">
+            <Card className="border-border">
+              <CardContent className="pt-4 pb-4 space-y-3">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <Label className="text-sm font-medium">Fri frakt-gräns</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">Hanteras i store_settings (free_shipping_threshold)</p>
+                  </div>
+                  <Badge variant="outline">499 kr</Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <Label className="text-sm font-medium">Standard fraktkostnad</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">Hanteras i store_settings (shipping_cost)</p>
+                  </div>
+                  <Badge variant="outline">49 kr</Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <Label className="text-sm font-medium">Leveranstid</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">Visas för kunder i kassan</p>
+                  </div>
+                  <Badge variant="outline">3–5 vardagar</Badge>
+                </div>
+              </CardContent>
+            </Card>
+            <p className="text-xs text-muted-foreground">
+              Fraktinställningar uppdateras via butiksinställningar i databasen för att synkroniseras i realtid.
+            </p>
+          </div>
+        </TabsContent>
+
         <TabsContent value="pages" className="space-y-4">
           <div>
             <h2 className="text-lg font-semibold flex items-center gap-2 mb-1">

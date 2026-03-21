@@ -222,25 +222,39 @@ const AdminOverview = () => {
         </div>
       </div>
 
-      {/* Focus action */}
-      <button
-        onClick={() => recommended.href !== '#' && navigate(recommended.href)}
-        className="w-full flex items-center gap-3 p-3 rounded-xl bg-primary/[0.03] border border-primary/10 hover:border-primary/30 hover:shadow-sm transition-all active:scale-[0.99] text-left"
-      >
-        <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center shrink-0',
-          recommended.color === 'text-destructive' ? 'bg-destructive/10' :
-          recommended.color === 'text-orange-600' ? 'bg-orange-500/10' :
-          recommended.color === 'text-blue-600' ? 'bg-blue-500/10' :
-          recommended.color === 'text-yellow-600' ? 'bg-yellow-500/10' : 'bg-green-500/10'
-        )}>
-          <recommended.icon className={cn('w-5 h-5', recommended.color)} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold">👉 {recommended.label}</p>
-          <p className="text-xs text-muted-foreground truncate">{recommended.desc}</p>
-        </div>
-        <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
-      </button>
+      {/* Recommended Actions Panel */}
+      <Card className="border-border">
+        <CardContent className="pt-4 pb-3">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Rekommenderade åtgärder</p>
+          {actionItems.length === 0 ? (
+            <div className="flex items-center gap-3 p-2">
+              <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center shrink-0">
+                <CheckCircle2 className="w-4 h-4 text-green-600" />
+              </div>
+              <p className="text-sm text-muted-foreground">Allt under kontroll — inga brådskande uppgifter</p>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              {actionItems.slice(0, 4).map((item, i) => (
+                <button
+                  key={i}
+                  onClick={() => navigate(item.href)}
+                  className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-secondary/50 transition-colors text-left group"
+                >
+                  <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center shrink-0', item.bg)}>
+                    <item.icon className={cn('w-4 h-4', item.color)} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">{item.label}</p>
+                    <p className="text-xs text-muted-foreground truncate">{item.desc}</p>
+                  </div>
+                  <ChevronRight className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                </button>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* KPI Cards → click opens Statistics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
