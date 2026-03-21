@@ -1094,31 +1094,117 @@ export function AdminProductForm({
         setFormData={setFormData}
       />
 
-      {/* Certifications */}
-      <div className="space-y-2">
-        <Label htmlFor="certifications">
-          {language === 'sv' ? 'Certifieringar (kommaseparerade)' : 'Certifications (comma-separated)'}
-        </Label>
-        <Input
-          id="certifications"
-          value={formData.certifications}
-          onChange={(e) => setFormData((prev) => ({ ...prev, certifications: e.target.value }))}
-          placeholder="Cruelty-Free, Vegan, Organic..."
-        />
+      {/* ── PIM: Produktdata ── */}
+      <div className="border-t border-border pt-4 mt-2">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+          {language === 'sv' ? '🧪 Produktdata' : '🧪 Product Data'}
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="shelfLife" className="text-xs">
+              {language === 'sv' ? 'Hållbarhet' : 'Shelf Life'}
+            </Label>
+            <Input
+              id="shelfLife"
+              value={formData.shelfLife}
+              onChange={(e) => setFormData(prev => ({ ...prev, shelfLife: e.target.value }))}
+              placeholder={language === 'sv' ? 'Ex: 12 månader' : 'e.g. 12 months'}
+              className="text-xs"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="material" className="text-xs">
+              {language === 'sv' ? 'Material' : 'Material'}
+            </Label>
+            <Input
+              id="material"
+              value={formData.material}
+              onChange={(e) => setFormData(prev => ({ ...prev, material: e.target.value }))}
+              placeholder={language === 'sv' ? 'Ex: Naturlig mentol, kristallform' : 'e.g. Natural menthol, crystal form'}
+              className="text-xs"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="specialEffects" className="text-xs">
+              {language === 'sv' ? 'Specialeffekter' : 'Special Effects'}
+            </Label>
+            <Input
+              id="specialEffects"
+              value={formData.specialEffects}
+              onChange={(e) => setFormData(prev => ({ ...prev, specialEffects: e.target.value }))}
+              placeholder={language === 'sv' ? 'Ex: Kylande, uppfriskande' : 'e.g. Cooling, refreshing'}
+              className="text-xs"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="usageArea" className="text-xs">
+              {language === 'sv' ? 'Användningsområde' : 'Usage Area'}
+            </Label>
+            <Input
+              id="usageArea"
+              value={formData.usageArea}
+              onChange={(e) => setFormData(prev => ({ ...prev, usageArea: e.target.value }))}
+              placeholder={language === 'sv' ? 'Ex: Bastu, andning, aromaterapi' : 'e.g. Sauna, breathing, aromatherapy'}
+              className="text-xs"
+            />
+          </div>
+        </div>
+
+        {/* Certifications */}
+        <div className="space-y-1.5 mt-3">
+          <Label htmlFor="certifications" className="text-xs">
+            {language === 'sv' ? 'Certifieringar' : 'Certifications'}
+          </Label>
+          <Input
+            id="certifications"
+            value={formData.certifications}
+            onChange={(e) => setFormData(prev => ({ ...prev, certifications: e.target.value }))}
+            placeholder="Cruelty-Free, Vegan, Organic..."
+            className="text-xs"
+          />
+        </div>
       </div>
 
-      {/* Recipe */}
-      <div className="space-y-2">
-        <Label htmlFor="recipe">
-          {language === 'sv' ? 'Recept / Användningsinstruktioner' : 'Recipe / Usage Instructions'}
-        </Label>
-        <Textarea
-          id="recipe"
-          value={formData.recipe}
-          onChange={(e) => setFormData((prev) => ({ ...prev, recipe: e.target.value }))}
-          placeholder={language === 'sv' ? 'Beskriv recept eller hur produkten används...' : 'Describe recipe or how to use the product...'}
-          rows={3}
-        />
+      {/* ── Structured Usage Steps ── */}
+      <div className="border-t border-border pt-4 mt-2">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+          {language === 'sv' ? '📋 Användning (3 steg)' : '📋 Usage (3 steps)'}
+        </p>
+        <div className="space-y-2">
+          {[
+            { key: 'usageStep1' as const, num: '1' },
+            { key: 'usageStep2' as const, num: '2' },
+            { key: 'usageStep3' as const, num: '3' },
+          ].map(({ key, num }) => (
+            <div key={key} className="flex items-center gap-2">
+              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0">{num}</span>
+              <Input
+                value={formData[key]}
+                onChange={(e) => setFormData(prev => ({ ...prev, [key]: e.target.value }))}
+                placeholder={language === 'sv'
+                  ? num === '1' ? 'Ex: Tillsätt en nypa kristaller' : num === '2' ? 'Ex: Häll på varmt vatten' : 'Ex: Njut av doften'
+                  : num === '1' ? 'e.g. Add a pinch of crystals' : num === '2' ? 'e.g. Pour hot water' : 'e.g. Enjoy the scent'
+                }
+                className="text-xs"
+              />
+            </div>
+          ))}
+        </div>
+        {/* Legacy usage field */}
+        <div className="space-y-1.5 mt-3">
+          <Label htmlFor="recipe" className="text-xs text-muted-foreground">
+            {language === 'sv' ? 'Recept / Extra instruktioner' : 'Recipe / Extra instructions'}
+          </Label>
+          <Textarea
+            id="recipe"
+            value={formData.recipe}
+            onChange={(e) => setFormData(prev => ({ ...prev, recipe: e.target.value }))}
+            placeholder={language === 'sv' ? 'Fritext...' : 'Freeform...'}
+            rows={2}
+            className="text-xs"
+          />
+        </div>
       </div>
 
       {/* ── Weight Field ── */}
@@ -1132,21 +1218,69 @@ export function AdminProductForm({
             id="weightGrams"
             type="number"
             value={formData.weightGrams}
-            onChange={(e) => setFormData((prev) => ({ ...prev, weightGrams: e.target.value }))}
+            onChange={(e) => setFormData(prev => ({ ...prev, weightGrams: e.target.value }))}
             placeholder={language === 'sv' ? 'Ex: 250' : 'e.g. 250'}
             className="w-40"
             min="0"
           />
-          <p className="text-xs text-muted-foreground">
-            {language === 'sv'
-              ? 'Krävs för fraktberäkning. Ange vikten i gram.'
-              : 'Required for shipping calculation. Enter weight in grams.'}
-          </p>
           {!formData.weightGrams && formData.title && (
             <p className="text-xs text-amber-600 flex items-center gap-1">
-              ⚠️ {language === 'sv' ? 'Vikt saknas — fraktberäkning kommer använda standardpris' : 'Weight missing — shipping will use default price'}
+              ⚠️ {language === 'sv' ? 'Vikt saknas — fraktberäkning använder standardpris' : 'Weight missing — shipping uses default price'}
             </p>
           )}
+        </div>
+      </div>
+
+      {/* ── JSON Import ── */}
+      <div className="border-t border-border pt-4 mt-2">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+          {language === 'sv' ? '📥 Importera produktdata' : '📥 Import Product Data'}
+        </p>
+        <div className="flex items-center gap-2">
+          <label className="cursor-pointer">
+            <Button type="button" variant="outline" size="sm" className="gap-1.5 text-xs h-7" asChild>
+              <span>
+                <Upload className="w-3 h-3" />
+                {language === 'sv' ? 'Importera JSON' : 'Import JSON'}
+              </span>
+            </Button>
+            <input
+              type="file"
+              accept=".json"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                try {
+                  const text = await file.text();
+                  const data = JSON.parse(text);
+                  setFormData(prev => ({
+                    ...prev,
+                    title: data.title || prev.title,
+                    description: data.description || prev.description,
+                    price: data.price?.toString() || prev.price,
+                    ingredients: data.ingredients || prev.ingredients,
+                    shelfLife: data.shelfLife || data.shelf_life || prev.shelfLife,
+                    material: data.material || prev.material,
+                    specialEffects: data.specialEffects || data.special_effects || prev.specialEffects,
+                    usageArea: data.usageArea || data.usage_area || prev.usageArea,
+                    usageStep1: data.usageStep1 || data.step1 || prev.usageStep1,
+                    usageStep2: data.usageStep2 || data.step2 || prev.usageStep2,
+                    usageStep3: data.usageStep3 || data.step3 || prev.usageStep3,
+                    weightGrams: data.weightGrams?.toString() || data.weight?.toString() || prev.weightGrams,
+                    certifications: Array.isArray(data.certifications) ? data.certifications.join(', ') : (data.certifications || prev.certifications),
+                  }));
+                  toast.success(language === 'sv' ? 'Produktdata importerad!' : 'Product data imported!');
+                } catch {
+                  toast.error(language === 'sv' ? 'Ogiltig JSON-fil' : 'Invalid JSON file');
+                }
+                e.target.value = '';
+              }}
+            />
+          </label>
+          <p className="text-xs text-muted-foreground">
+            {language === 'sv' ? 'Ladda upp en JSON-fil med produktdata' : 'Upload a JSON file with product data'}
+          </p>
         </div>
       </div>
 
@@ -1159,10 +1293,10 @@ export function AdminProductForm({
         />
       </div>
 
-      {/* ── Storytelling Fields ── */}
+      {/* ── Storytelling Fields (AI output) ── */}
       <div className="border-t border-border pt-4 mt-2">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-          {language === 'sv' ? '✨ Storytelling' : '✨ Storytelling'}
+          {language === 'sv' ? '✨ Storytelling (AI-genererat)' : '✨ Storytelling (AI-generated)'}
         </p>
 
         <div className="space-y-3">
@@ -1173,8 +1307,8 @@ export function AdminProductForm({
             <Textarea
               id="feeling"
               value={formData.feeling}
-              onChange={(e) => setFormData((prev) => ({ ...prev, feeling: e.target.value }))}
-              placeholder={language === 'sv' ? 'Tänk dig att öppna bastudörren och mötas av frisk luft...' : 'Imagine opening the sauna door and being met by fresh air...'}
+              onChange={(e) => setFormData(prev => ({ ...prev, feeling: e.target.value }))}
+              placeholder={language === 'sv' ? 'Tänk dig att öppna bastudörren...' : 'Imagine opening the sauna door...'}
               rows={2}
               className="text-xs"
             />
@@ -1187,8 +1321,8 @@ export function AdminProductForm({
             <Textarea
               id="effects"
               value={formData.effects}
-              onChange={(e) => setFormData((prev) => ({ ...prev, effects: e.target.value }))}
-              placeholder={language === 'sv' ? 'Uppiggande & kylande känsla\nFräsch mentholton\nRen bastuupplevelse' : 'Invigorating & cooling\nFresh menthol tone\nPure sauna experience'}
+              onChange={(e) => setFormData(prev => ({ ...prev, effects: e.target.value }))}
+              placeholder={language === 'sv' ? 'Uppiggande & kylande\nFräsch mentholton' : 'Invigorating & cooling\nFresh menthol tone'}
               rows={3}
               className="text-xs"
             />
@@ -1196,12 +1330,12 @@ export function AdminProductForm({
 
           <div className="space-y-1.5">
             <Label htmlFor="usage" className="text-xs">
-              {language === 'sv' ? 'Användning' : 'How to use'}
+              {language === 'sv' ? 'Användning (fritext)' : 'How to use (freeform)'}
             </Label>
             <Input
               id="usage"
               value={formData.usage}
-              onChange={(e) => setFormData((prev) => ({ ...prev, usage: e.target.value }))}
+              onChange={(e) => setFormData(prev => ({ ...prev, usage: e.target.value }))}
               placeholder={language === 'sv' ? '5 droppar per skopa vatten' : '5 drops per scoop of water'}
               className="text-xs"
             />
@@ -1209,13 +1343,13 @@ export function AdminProductForm({
 
           <div className="space-y-1.5">
             <Label htmlFor="extendedDescription" className="text-xs">
-              {language === 'sv' ? 'Utökad beskrivning (fritext)' : 'Extended description (freeform)'}
+              {language === 'sv' ? 'Utökad beskrivning' : 'Extended description'}
             </Label>
             <Textarea
               id="extendedDescription"
               value={formData.extendedDescription}
-              onChange={(e) => setFormData((prev) => ({ ...prev, extendedDescription: e.target.value }))}
-              placeholder={language === 'sv' ? 'Beskriv produktens historia, filosofi eller säljargument...' : 'Describe the product story, philosophy or selling points...'}
+              onChange={(e) => setFormData(prev => ({ ...prev, extendedDescription: e.target.value }))}
+              placeholder={language === 'sv' ? 'Historia, filosofi, säljargument...' : 'Story, philosophy, selling points...'}
               rows={4}
               className="text-xs"
             />
@@ -1223,76 +1357,113 @@ export function AdminProductForm({
         </div>
       </div>
 
-      {/* ── SEO Section ── */}
+      {/* ── SEO Section with Auto/Manual Toggle ── */}
       <div className="border-t border-border pt-4 mt-2">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-          {language === 'sv' ? '🔍 SEO' : '🔍 SEO'}
-        </p>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            🔍 SEO
+          </p>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">
+              {formData.seoMode === 'auto'
+                ? (language === 'sv' ? '🤖 Automatisk SEO' : '🤖 Auto SEO')
+                : (language === 'sv' ? '✏️ Manuell SEO' : '✏️ Manual SEO')
+              }
+            </span>
+            <Switch
+              checked={formData.seoMode === 'manual'}
+              onCheckedChange={(checked) => setFormData(prev => ({ ...prev, seoMode: checked ? 'manual' : 'auto' }))}
+            />
+          </div>
+        </div>
 
         {/* Google Preview */}
         <div className="mb-4 p-3 rounded-lg bg-secondary/30 border border-border/50">
           <p className="text-xs text-muted-foreground mb-2">{language === 'sv' ? 'Google-förhandsgranskning' : 'Google Preview'}</p>
           <div className="space-y-0.5">
-            <p className="text-[#1a0dab] text-sm font-medium truncate">
+            <p className="text-primary text-sm font-medium truncate">
               {formData.metaTitle || `${formData.title} | 4thepeople`}
             </p>
-            <p className="text-[#006621] text-xs truncate">
+            <p className="text-xs text-muted-foreground truncate">
               4thepeople.se › produkt › {(formData.title || 'produkt').toLowerCase().replace(/\s+/g, '-').replace(/[^a-zåäö0-9-]/g, '')}
             </p>
-            <p className="text-[#545454] text-xs line-clamp-2">
+            <p className="text-xs text-foreground/70 line-clamp-2">
               {formData.metaDescription || (language === 'sv' ? 'Meta-beskrivning genereras automatiskt...' : 'Meta description will be auto-generated...')}
             </p>
           </div>
         </div>
 
-        <div className="space-y-3">
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="metaTitle" className="text-xs">SEO-titel</Label>
-              <span className={`text-xs ${(formData.metaTitle?.length || 0) > 60 ? 'text-destructive' : 'text-muted-foreground'}`}>
-                {formData.metaTitle?.length || 0}/60
-              </span>
+        {formData.seoMode === 'auto' ? (
+          <div className="p-3 rounded-lg bg-primary/5 border border-primary/10">
+            <p className="text-xs text-muted-foreground">
+              {language === 'sv'
+                ? '🔒 SEO genereras automatiskt av AI när du sparar. Byt till manuellt läge för att redigera.'
+                : '🔒 SEO is auto-generated by AI when you save. Switch to manual mode to edit.'}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="metaTitle" className="text-xs">SEO-titel</Label>
+                <span className={`text-xs ${(formData.metaTitle?.length || 0) > 60 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                  {formData.metaTitle?.length || 0}/60
+                </span>
+              </div>
+              <Input
+                id="metaTitle"
+                value={formData.metaTitle}
+                onChange={(e) => setFormData(prev => ({ ...prev, metaTitle: e.target.value }))}
+                placeholder={language === 'sv' ? 'Produktnamn — Köp online | 4thepeople' : 'Product Name — Buy online | 4thepeople'}
+                className="text-xs"
+                maxLength={70}
+              />
             </div>
-            <Input
-              id="metaTitle"
-              value={formData.metaTitle}
-              onChange={(e) => setFormData((prev) => ({ ...prev, metaTitle: e.target.value }))}
-              placeholder={language === 'sv' ? 'Produktnamn — Köp online | 4thepeople' : 'Product Name — Buy online | 4thepeople'}
-              className="text-xs"
-              maxLength={70}
-            />
-          </div>
 
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="metaDescription" className="text-xs">Meta-beskrivning</Label>
-              <span className={`text-xs ${(formData.metaDescription?.length || 0) > 155 ? 'text-destructive' : 'text-muted-foreground'}`}>
-                {formData.metaDescription?.length || 0}/155
-              </span>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="metaDescription" className="text-xs">Meta-beskrivning</Label>
+                <span className={`text-xs ${(formData.metaDescription?.length || 0) > 155 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                  {formData.metaDescription?.length || 0}/155
+                </span>
+              </div>
+              <Textarea
+                id="metaDescription"
+                value={formData.metaDescription}
+                onChange={(e) => setFormData(prev => ({ ...prev, metaDescription: e.target.value }))}
+                placeholder={language === 'sv' ? 'Köp [produkt] hos 4thepeople. Naturligt, hållbart.' : 'Buy [product] at 4thepeople. Natural, sustainable.'}
+                rows={2}
+                className="text-xs"
+                maxLength={165}
+              />
             </div>
-            <Textarea
-              id="metaDescription"
-              value={formData.metaDescription}
-              onChange={(e) => setFormData((prev) => ({ ...prev, metaDescription: e.target.value }))}
-              placeholder={language === 'sv' ? 'Köp [produkt] hos 4thepeople. Naturligt, hållbart och noggrant utvalt.' : 'Buy [product] at 4thepeople. Natural, sustainable and carefully selected.'}
-              rows={2}
-              className="text-xs"
-              maxLength={165}
-            />
-          </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="metaKeywords" className="text-xs">{language === 'sv' ? 'Nyckelord (kommaseparerade)' : 'Keywords (comma-separated)'}</Label>
-            <Input
-              id="metaKeywords"
-              value={formData.metaKeywords}
-              onChange={(e) => setFormData((prev) => ({ ...prev, metaKeywords: e.target.value }))}
-              placeholder={language === 'sv' ? 'bastudoft, naturlig, premium, köp online' : 'sauna scent, natural, premium, buy online'}
-              className="text-xs"
-            />
+            <div className="space-y-1.5">
+              <Label htmlFor="metaKeywords" className="text-xs">{language === 'sv' ? 'Nyckelord' : 'Keywords'}</Label>
+              <Input
+                id="metaKeywords"
+                value={formData.metaKeywords}
+                onChange={(e) => setFormData(prev => ({ ...prev, metaKeywords: e.target.value }))}
+                placeholder={language === 'sv' ? 'bastudoft, naturlig, premium' : 'sauna scent, natural, premium'}
+                className="text-xs"
+              />
+            </div>
           </div>
-        </div>
+        )}
       </div>
+
+      {/* ── Required fields check ── */}
+      {formData.title && (!formData.weightGrams || !formData.price) && (
+        <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+          <p className="text-xs text-amber-700 font-medium">
+            {language === 'sv' ? '⚠️ Obligatoriska fält saknas innan publicering:' : '⚠️ Required fields missing before publishing:'}
+          </p>
+          <ul className="text-xs text-amber-600 mt-1 list-disc list-inside">
+            {!formData.price && <li>{language === 'sv' ? 'Pris' : 'Price'}</li>}
+            {!formData.weightGrams && <li>{language === 'sv' ? 'Vikt' : 'Weight'}</li>}
+          </ul>
+        </div>
+      )}
 
       <div className="flex gap-2 pt-2">
         <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
