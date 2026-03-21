@@ -146,6 +146,7 @@ const App = () => (
             </Routes>
           </MaintenanceGuard>
           <CookieBanner />
+          <MiniWorkbench />
         </BrowserRouter>
       </TooltipProvider>
     </LanguageProvider>
