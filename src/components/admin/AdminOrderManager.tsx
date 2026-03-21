@@ -897,26 +897,15 @@ const AdminOrderManager = () => {
                    <div className="flex items-center gap-2">
                     {/* Payment status is controlled by Stripe webhook only — no manual "mark as paid" */}
                     {/* Fulfillment actions – only for paid orders */}
-                    {order.payment_status === 'paid' && (order.fulfillment_status === 'pending' || order.fulfillment_status === 'unfulfilled') && (
+                    {order.payment_status === 'paid' && !['packed', 'shipped'].includes(order.fulfillment_status) && !order.tracking_number && (
                       <Button
                         size="sm"
                         variant="outline"
-                        className="gap-1.5 text-xs border-orange-300 text-orange-700 hover:bg-orange-50 dark:border-orange-700 dark:text-orange-400"
-                        onClick={(e) => { e.stopPropagation(); handleStartPacking(order); }}
+                        className="gap-1.5 text-xs border-primary/50 text-primary hover:bg-primary/10"
+                        onClick={(e) => { e.stopPropagation(); handlePackAndShip(order); }}
                       >
                         <Package className="w-3.5 h-3.5" />
-                        {language === 'sv' ? 'Starta packning' : 'Start packing'}
-                      </Button>
-                    )}
-                    {order.payment_status === 'paid' && order.fulfillment_status === 'packing' && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="gap-1.5 text-xs border-blue-300 text-blue-700 hover:bg-blue-50 dark:border-blue-700 dark:text-blue-400"
-                        onClick={(e) => { e.stopPropagation(); handleMarkPacked(order); }}
-                      >
-                        <Check className="w-3.5 h-3.5" />
-                        {content.markPacked}
+                        {language === 'sv' ? 'Packa & skapa frakt' : 'Pack & create shipment'}
                       </Button>
                     )}
                     {order.payment_status === 'paid' && order.fulfillment_status === 'packed' && (
