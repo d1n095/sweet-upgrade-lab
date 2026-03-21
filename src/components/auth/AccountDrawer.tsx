@@ -2,7 +2,6 @@ import { useNavigate } from 'react-router-dom';
 import { 
   User, 
   Package, 
-  Heart, 
   LogOut, 
   Crown, 
   ShoppingBag,
