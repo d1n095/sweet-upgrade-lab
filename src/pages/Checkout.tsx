@@ -72,13 +72,14 @@ const Checkout = () => {
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
-  const [selectedPayment, setSelectedPayment] = useState<'card' | 'klarna'>('card');
-  const [selectedShipping, setSelectedShipping] = useState<'postnord' | 'dhl'>('postnord');
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [form, setForm] = useState({
     email: '',
     name: '',
+    careOf: '',
+    company: '',
     address: '',
+    apartment: '',
     zip: '',
     city: '',
     country: 'SE',
