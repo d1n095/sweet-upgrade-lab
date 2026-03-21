@@ -868,10 +868,10 @@ const AdminOrderManager = () => {
                         size="sm"
                         variant="outline"
                         className="gap-1.5 text-xs border-primary/50 text-primary hover:bg-primary/10"
-                        onClick={(e) => { e.stopPropagation(); handlePackAndShip(order); }}
+                        onClick={(e) => { e.stopPropagation(); handleMarkPacked(order); }}
                       >
                         <Package className="w-3.5 h-3.5" />
-                        {language === 'sv' ? 'Packa & skapa frakt' : 'Pack & create shipment'}
+                        {language === 'sv' ? 'Markera packad' : 'Mark packed'}
                       </Button>
                     )}
                     {order.payment_status === 'paid' && order.fulfillment_status === 'packed' && (
@@ -879,10 +879,10 @@ const AdminOrderManager = () => {
                         size="sm"
                         variant="outline"
                         className="gap-1.5 text-xs border-green-300 text-green-700 hover:bg-green-50 dark:border-green-700 dark:text-green-400"
-                        onClick={(e) => { e.stopPropagation(); handleMarkShipped(order); }}
+                        onClick={(e) => { e.stopPropagation(); setShippingOrder(order); }}
                       >
                         <Truck className="w-3.5 h-3.5" />
-                        {content.markShipped}
+                        {language === 'sv' ? 'Lägg till frakt' : 'Add shipping'}
                       </Button>
                     )}
                     {order.payment_status === 'paid' && !order.refund_status && (
