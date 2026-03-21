@@ -299,7 +299,9 @@ serve(async (req) => {
         html = renderOrderConfirmationEmail(order, items, shipping);
         break;
       case "status_update":
-        subject = `Din order ${order.order_number} — ${order.status === "shipped" ? "har skickats" : "statusuppdatering"}`;
+        subject = order.status === "shipped"
+          ? `Din order #${(order.payment_intent_id || order.id || '').slice(-8).toUpperCase()} är skickad 🚚`
+          : `Din order ${order.order_number} — statusuppdatering`;
         html = renderStatusUpdateEmail(order, order.status);
         break;
       default:

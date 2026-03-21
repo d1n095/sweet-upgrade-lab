@@ -98,7 +98,7 @@ const ShippingFormDialog = ({ open, onOpenChange, order, onShipped }: ShippingFo
         tracking_url: finalUrl,
       });
 
-      toast.success('Order markerad som skickad ✓');
+      toast.success(emailSent ? 'Order skickad ✓ Mail skickat till kund' : 'Order skickad ✓ (mail kunde inte skickas)');
       onOpenChange(false);
       setTrackingNumber('');
       setTrackingUrl('');
