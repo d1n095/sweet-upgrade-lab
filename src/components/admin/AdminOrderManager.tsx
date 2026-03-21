@@ -1203,11 +1203,22 @@ const AdminOrderManager = () => {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={(e) => { e.stopPropagation(); handlePackAndShip(order); }}
+                        onClick={(e) => { e.stopPropagation(); handleMarkPacked(order); }}
                         className="gap-2"
                       >
                         <Package className="w-4 h-4" />
-                        {language === 'sv' ? 'Packa & skapa frakt' : 'Pack & create shipment'}
+                        {language === 'sv' ? 'Markera packad' : 'Mark packed'}
+                      </Button>
+                    )}
+                    {order.payment_status === 'paid' && order.fulfillment_status === 'packed' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => { e.stopPropagation(); setShippingOrder(order); }}
+                        className="gap-2"
+                      >
+                        <Truck className="w-4 h-4" />
+                        {language === 'sv' ? 'Lägg till frakt' : 'Add shipping'}
                       </Button>
                     )}
                   </div>
@@ -1217,6 +1228,13 @@ const AdminOrderManager = () => {
           })
         )}
       </div>
+
+      <ShippingFormDialog
+        open={!!shippingOrder}
+        onOpenChange={(open) => !open && setShippingOrder(null)}
+        order={shippingOrder}
+        onShipped={handleShippingComplete}
+      />
     </div>
   );
 };
