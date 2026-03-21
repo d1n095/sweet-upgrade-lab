@@ -67,6 +67,7 @@ const ProductDetail = () => {
   const [quantity, setQuantity] = useState(1);
   const [isAdded, setIsAdded] = useState(false);
   const [viewerCount] = useState(() => Math.floor(Math.random() * 8) + 3);
+  const { hasPurchased } = usePurchaseHistory();
 
   const translated = useTranslatedProduct(product);
 
