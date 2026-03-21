@@ -339,6 +339,7 @@ const AdminLayout = () => {
             <Outlet />
           </div>
         </main>
+        <MiniWorkbench />
       </div>
     </div>
   );
