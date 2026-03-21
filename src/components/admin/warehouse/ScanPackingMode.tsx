@@ -10,13 +10,14 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import {
-  ScanLine, Package, CheckCircle2, AlertTriangle, X, Printer,
+  ScanLine, Package, CheckCircle2, AlertTriangle, X,
   QrCode, Truck, Loader2, XCircle, ShieldCheck,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { logActivity } from '@/utils/activityLogger';
 import { getOrderDisplayId } from '@/utils/orderDisplay';
+import ShippingFormDialog from '@/components/admin/ShippingFormDialog';
 
 interface PackingOrder {
   id: string;
