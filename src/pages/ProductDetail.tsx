@@ -228,7 +228,7 @@ const ProductDetail = () => {
         }}
       />
       <Header />
-      <main className="pt-24 pb-28 md:pb-20">
+      <main className="pt-24 pb-40 md:pb-20">
         <div className="container mx-auto px-4">
           {/* Breadcrumb */}
           <nav className="flex items-center gap-2 text-xs mb-6">
