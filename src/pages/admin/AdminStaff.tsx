@@ -488,9 +488,13 @@ const AdminStaff = () => {
         <TabsList className="flex-wrap">
           <TabsTrigger value="overview" className="gap-1.5"><LayoutDashboard className="w-3.5 h-3.5" /> Översikt</TabsTrigger>
           <TabsTrigger value="workboard" className="gap-1.5"><ClipboardList className="w-3.5 h-3.5" /> Workboard</TabsTrigger>
-          <TabsTrigger value="staff" className="gap-1.5"><Users className="w-3.5 h-3.5" /> Personal</TabsTrigger>
-          <TabsTrigger value="roles" className="gap-1.5"><UserCog className="w-3.5 h-3.5" /> Roller</TabsTrigger>
-          <TabsTrigger value="manage" className="gap-1.5"><Shield className="w-3.5 h-3.5" /> Behörigheter</TabsTrigger>
+          {isFounder && (
+            <>
+              <TabsTrigger value="staff" className="gap-1.5"><Users className="w-3.5 h-3.5" /> Personal</TabsTrigger>
+              <TabsTrigger value="roles" className="gap-1.5"><UserCog className="w-3.5 h-3.5" /> Roller</TabsTrigger>
+              <TabsTrigger value="manage" className="gap-1.5"><Shield className="w-3.5 h-3.5" /> Behörigheter</TabsTrigger>
+            </>
+          )}
         </TabsList>
 
         <TabsContent value="overview">

@@ -56,6 +56,12 @@ const AccountDrawer = ({ isOpen, onClose }: AccountDrawerProps) => {
 
   const menuItems = [
     {
+      icon: Package,
+      label: language === 'sv' ? 'Mina beställningar' : 'My Orders',
+      href: '/profile?tab=orders',
+      description: language === 'sv' ? 'Se orderhistorik & status' : 'View order history & status',
+    },
+    {
       icon: User,
       label: language === 'sv' ? 'Min profil' : 'My Profile',
       href: '/profile',
