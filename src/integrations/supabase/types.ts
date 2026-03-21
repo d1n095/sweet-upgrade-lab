@@ -2777,7 +2777,78 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      profiles_limited: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          id: string | null
+          is_member: boolean | null
+          level: number | null
+          member_since: string | null
+          trust_score: number | null
+          user_id: string | null
+          username: string | null
+          xp: number | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          id?: string | null
+          is_member?: boolean | null
+          level?: number | null
+          member_since?: string | null
+          trust_score?: number | null
+          user_id?: string | null
+          username?: string | null
+          xp?: number | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          id?: string | null
+          is_member?: boolean | null
+          level?: number | null
+          member_since?: string | null
+          trust_score?: number | null
+          user_id?: string | null
+          username?: string | null
+          xp?: number | null
+        }
+        Relationships: []
+      }
+      profiles_shipping: {
+        Row: {
+          address: string | null
+          city: string | null
+          country: string | null
+          first_name: string | null
+          last_name: string | null
+          phone: string | null
+          user_id: string | null
+          zip: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          country?: string | null
+          first_name?: string | null
+          last_name?: string | null
+          phone?: string | null
+          user_id?: string | null
+          zip?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          country?: string | null
+          first_name?: string | null
+          last_name?: string | null
+          phone?: string | null
+          user_id?: string | null
+          zip?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       add_user_xp: {
@@ -2818,6 +2889,32 @@ export type Database = {
       get_dashboard_stats: {
         Args: { p_from: string; p_to: string }
         Returns: Json
+      }
+      get_order_shipping_profiles: {
+        Args: { p_order_ids: string[] }
+        Returns: {
+          address: string
+          city: string
+          country: string
+          first_name: string
+          last_name: string
+          phone: string
+          user_id: string
+          zip: string
+        }[]
+      }
+      get_support_profile: {
+        Args: { p_user_id: string }
+        Returns: {
+          city: string
+          country: string
+          created_at: string
+          first_name: string
+          is_member: boolean
+          level: number
+          user_id: string
+          username: string
+        }[]
       }
       has_role: {
         Args: {
