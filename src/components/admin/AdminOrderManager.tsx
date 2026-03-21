@@ -25,6 +25,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { toast } from 'sonner';
 import { logActivity } from '@/utils/activityLogger';
 import { getOrderDisplayId } from '@/utils/orderDisplay';
+import ShippingFormDialog from '@/components/admin/ShippingFormDialog';
 
 interface Order {
   id: string;
