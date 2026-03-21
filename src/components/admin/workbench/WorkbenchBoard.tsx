@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getOrderDisplayId } from '@/utils/orderDisplay';
+import { useNavigate } from 'react-router-dom';
 
 interface Task {
   id: string;
@@ -119,6 +120,7 @@ const TaskSnapshot = ({ orderId }: { orderId: string }) => {
 
 const WorkbenchBoard = ({ initialFilter }: Props) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -131,7 +133,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const [viewFilter, setViewFilter] = useState<ViewFilter>('all');
   const [escalating, setEscalating] = useState<string | null>(null);
   const [workMode, setWorkMode] = useState(false);
-  const [autoNext, setAutoNext] = useState(true);
+  const [autoNext, setAutoNext] = useState(false);
   const [justCompleted, setJustCompleted] = useState<string | null>(null);
   const [completedCount, setCompletedCount] = useState(0);
   const [sessionStart] = useState(Date.now());
@@ -351,8 +353,45 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     queryClient.invalidateQueries({ queryKey: ['staff-tasks'] });
   };
 
+  const hasOpenedLabelCheckpoint = (statusHistory: any): boolean => {
+    if (!Array.isArray(statusHistory)) return false;
+    return statusHistory.some((entry: any) => entry?.status === 'label_opened' || entry?.label_opened === true);
+  };
+
+  const openOrderFromTask = (task: Task) => {
+    if (!task.related_order_id) return;
+    navigate(`/admin/orders?tab=to_pack&focus=${task.related_order_id}`);
+  };
+
   const moveTask = async (taskId: string, newStatus: string) => {
     if (!user) return;
+
+    if (newStatus === 'done') {
+      const currentTask = tasks.find((t) => t.id === taskId);
+      if (currentTask?.related_order_id && ['pack_order', 'packing'].includes(currentTask.task_type)) {
+        const { data: order } = await supabase
+          .from('orders')
+          .select('payment_status, fulfillment_status, status_history')
+          .eq('id', currentTask.related_order_id)
+          .maybeSingle();
+
+        if (!order || order.payment_status !== 'paid') {
+          toast.error('Ordern måste vara betald innan uppgiften kan slutföras');
+          return;
+        }
+
+        if (!hasOpenedLabelCheckpoint(order.status_history)) {
+          toast.error('Öppna fraktsedeln minst en gång innan du markerar klar');
+          return;
+        }
+
+        if (!['ready_to_ship', 'packed', 'shipped'].includes(order.fulfillment_status)) {
+          toast.error('Markera ordern som packad först');
+          return;
+        }
+      }
+    }
+
     const now = new Date().toISOString();
     const updates: Record<string, any> = { status: newStatus, updated_at: now };
     if (newStatus === 'claimed') { updates.claimed_by = user.id; updates.claimed_at = now; }
@@ -372,7 +411,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
           const next = getNextAction();
           if (next) {
             if (next.status === 'open') {
-              moveTask(next.id, 'claimed').then(() => moveTask(next.id, 'in_progress'));
+              moveTask(next.id, 'claimed');
             } else if (next.status === 'claimed') {
               moveTask(next.id, 'in_progress');
             }
@@ -431,7 +470,6 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     if (next) {
       if (next.status === 'open') {
         await moveTask(next.id, 'claimed');
-        await moveTask(next.id, 'in_progress');
       } else if (next.status === 'claimed') {
         await moveTask(next.id, 'in_progress');
       }
@@ -505,6 +543,16 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
           </div>
 
           <div className="flex gap-1 pt-1 flex-wrap">
+            {task.related_order_id && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-[10px] h-6 px-2"
+                onClick={() => openOrderFromTask(task)}
+              >
+                Öppna order
+              </Button>
+            )}
             {task.status === 'open' && !task.assigned_to && (
               <Button variant="outline" size="sm" className="text-[10px] h-6 px-2 gap-0.5"
                 onClick={() => autoAssignSingle(task.id, task.task_type)}>
@@ -587,6 +635,11 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
                 )}
                 {!workMode ? (
                   <>
+                    {nextAction.related_order_id && (
+                      <Button size="sm" variant="ghost" className="gap-1.5" onClick={() => openOrderFromTask(nextAction)}>
+                        Öppna order
+                      </Button>
+                    )}
                     <Button size="sm" variant="outline" className="gap-1.5" onClick={() => {
                       if (nextAction.status === 'open') moveTask(nextAction.id, 'claimed');
                       else if (nextAction.status === 'claimed') moveTask(nextAction.id, 'in_progress');
