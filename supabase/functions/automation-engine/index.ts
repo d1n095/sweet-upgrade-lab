@@ -95,53 +95,78 @@ Deno.serve(async (req) => {
       results.escalated++;
     }
 
-    // ─── 3. AUTO-REASSIGN: Claimed but idle > 2h ───
-    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
-    const { data: idleTasks } = await supabase
+    // ─── 3. AUTO-REASSIGN: Claimed but idle > 10min ───
+    const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    const { data: idleClaimedTasks } = await supabase
       .from("staff_tasks")
       .select("id, title, assigned_to, claimed_by, claimed_at, task_type")
       .eq("status", "claimed")
       .not("claimed_at", "is", null)
-      .lt("claimed_at", twoHoursAgo);
+      .lt("claimed_at", tenMinAgo);
 
-    for (const task of idleTasks || []) {
-      // Find new assignee
+    for (const task of idleClaimedTasks || []) {
       const { data: newAssignee } = await supabase.rpc("auto_assign_task", {
         p_task_type: task.task_type,
       });
 
-      const updates: Record<string, any> = {
+      await supabase.from("staff_tasks").update({
         status: "open",
-        assigned_to: newAssignee || null,
+        assigned_to: null,
         claimed_by: null,
         claimed_at: null,
         updated_at: new Date().toISOString(),
-      };
-
-      if (newAssignee) {
-        updates.status = "open";
-        updates.assigned_to = newAssignee;
-      }
-
-      await supabase.from("staff_tasks").update(updates).eq("id", task.id);
+      }).eq("id", task.id);
 
       await supabase.from("automation_logs").insert({
         action_type: "reassign",
         target_type: "task",
         target_id: task.id,
-        reason: `Claimed i >2h utan aktivitet. Omfördelad.`,
-        details: {
-          old_assignee: task.claimed_by,
-          new_assignee: newAssignee,
-        },
+        reason: `Claimed i >10min utan start. Återställd till öppen.`,
+        details: { old_assignee: task.claimed_by },
       });
 
-      // Notify old assignee
       if (task.claimed_by) {
         await supabase.from("notifications").insert({
           user_id: task.claimed_by,
           type: "info",
-          message: `🔄 Uppgift omfördelad: ${task.title}`,
+          message: `🔄 Uppgift timeout: ${task.title}`,
+          related_id: task.id,
+          related_type: "task",
+        });
+      }
+      results.reassigned++;
+    }
+
+    // ─── 3b. AUTO-REASSIGN: in_progress but idle > 60min ───
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { data: idleInProgressTasks } = await supabase
+      .from("staff_tasks")
+      .select("id, title, assigned_to, claimed_by, updated_at, task_type")
+      .eq("status", "in_progress")
+      .lt("updated_at", oneHourAgo);
+
+    for (const task of idleInProgressTasks || []) {
+      await supabase.from("staff_tasks").update({
+        status: "open",
+        assigned_to: null,
+        claimed_by: null,
+        claimed_at: null,
+        updated_at: new Date().toISOString(),
+      }).eq("id", task.id);
+
+      await supabase.from("automation_logs").insert({
+        action_type: "reassign",
+        target_type: "task",
+        target_id: task.id,
+        reason: `In progress >60min utan aktivitet. Återställd till öppen.`,
+        details: { old_assignee: task.claimed_by },
+      });
+
+      if (task.claimed_by) {
+        await supabase.from("notifications").insert({
+          user_id: task.claimed_by,
+          type: "info",
+          message: `🔄 Uppgift timeout (inaktiv >1h): ${task.title}`,
           related_id: task.id,
           related_type: "task",
         });

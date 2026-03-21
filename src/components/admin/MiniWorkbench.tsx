@@ -90,7 +90,7 @@ const MiniWorkbench = () => {
   const escalatedCount = allTasks.filter(t => t.status === 'escalated').length;
   const myCount = allTasks.filter(t => t.assigned_to === user?.id || t.claimed_by === user?.id).length;
 
-  const handleAction = async (taskId: string, action: 'claim' | 'start' | 'done' | 'escalate') => {
+  const handleAction = async (taskId: string, action: 'claim' | 'start' | 'done' | 'escalate' | 'unclaim') => {
     if (!user) return;
     setActing(taskId);
     try {
@@ -99,6 +99,11 @@ const MiniWorkbench = () => {
           claimed_by: user.id, claimed_at: new Date().toISOString(), status: 'claimed',
         }).eq('id', taskId);
         toast.success('Task claimad');
+      } else if (action === 'unclaim') {
+        await supabase.from('staff_tasks').update({
+          claimed_by: null, assigned_to: null, claimed_at: null, status: 'open',
+        } as any).eq('id', taskId);
+        toast.success('Uppdrag släppt');
       } else if (action === 'start') {
         await supabase.from('staff_tasks').update({ status: 'in_progress' }).eq('id', taskId);
         toast.success('Task startad');
@@ -179,6 +184,11 @@ const MiniWorkbench = () => {
                     {task.status === 'open' && (
                       <Button size="sm" variant="outline" className="h-6 text-[10px] px-2" onClick={() => handleAction(task.id, 'claim')} disabled={acting === task.id}>
                         {acting === task.id ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Claim'}
+                      </Button>
+                    )}
+                    {(task.status === 'claimed' || task.status === 'in_progress') && (task.claimed_by === user?.id || task.assigned_to === user?.id) && (
+                      <Button size="sm" variant="ghost" className="h-6 text-[10px] px-2 text-muted-foreground" onClick={() => handleAction(task.id, 'unclaim')} disabled={acting === task.id}>
+                        Släpp
                       </Button>
                     )}
                     {(task.status === 'claimed' || task.status === 'escalated') && (
