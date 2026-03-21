@@ -267,6 +267,7 @@ const Checkout = () => {
         email: form.email,
         language: cl,
         paymentMethod: selectedPayment,
+        shippingMethod: selectedShipping,
       };
 
       // Get auth token
