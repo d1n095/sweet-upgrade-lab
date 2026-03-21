@@ -16,6 +16,7 @@ interface DbProductCardProps {
   product: DbProduct;
   index: number;
   compact?: boolean;
+  isPurchased?: boolean;
 }
 
 const FALLBACK_IMAGE = '/placeholder.svg';
