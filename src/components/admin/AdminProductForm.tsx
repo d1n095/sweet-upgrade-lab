@@ -67,6 +67,16 @@ const CURRENCY_OPTIONS = [
   { value: 'GBP', symbol: '£' },
 ];
 
+export const DEFAULT_PRODUCT_FORM_DATA: ProductFormData = {
+  title: '', description: '', price: '', currency: 'SEK', productType: '',
+  categoryIds: [], tagIds: [], tags: '', vendor: '', isVisible: true,
+  inventory: 0, allowOverselling: false, imageUrls: [], ingredients: '',
+  certifications: '', recipe: '', feeling: '', effects: '', usage: '',
+  extendedDescription: '', metaTitle: '', metaDescription: '', metaKeywords: '',
+  weightGrams: '', ingredientIds: [],
+  shelfLife: '', material: '', specialEffects: '', usageArea: '',
+  usageStep1: '', usageStep2: '', usageStep3: '', seoMode: 'auto',
+};
 export type ProductCategoryOption = {
   value: string;
   label: { sv: string; en: string };
