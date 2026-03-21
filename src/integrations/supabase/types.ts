@@ -2798,6 +2798,18 @@ export type Database = {
           read_ct: number
         }[]
       }
+      read_emails: {
+        Args: {
+          batch_size?: number
+          queue_name: string
+          visibility_timeout?: number
+        }
+        Returns: {
+          message: Json
+          msg_id: number
+          read_ct: number
+        }[]
+      }
       validate_affiliate_code: {
         Args: { p_code: string }
         Returns: {
