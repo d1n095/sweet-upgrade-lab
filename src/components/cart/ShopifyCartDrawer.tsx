@@ -9,6 +9,7 @@ import { useCartDiscounts } from '@/hooks/useCartDiscounts';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import ShippingProgressBar from './ShippingProgressBar';
+import CartReservationTimer from './CartReservationTimer';
 import LoginIncentives from '@/components/auth/LoginIncentives';
 import AuthModal from '@/components/auth/AuthModal';
 

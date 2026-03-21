@@ -50,7 +50,6 @@ function generateAutoSeoKeywords(product: DbProduct): string {
   return [...new Set(keywords)].join(', ');
 }
 
-/** Parse bullet points from text: "• one\n• two" or "one\ntwo" */
 function parseBullets(text: string | null | undefined): string[] {
   if (!text) return [];
   return text.split('\n').map(s => s.replace(/^[•\-\*]\s*/, '').trim()).filter(Boolean);
@@ -204,7 +203,6 @@ const ProductDetail = () => {
   const hasDiscount = product.original_price && product.original_price > product.price;
   const discountPercent = hasDiscount ? Math.round((1 - product.price / product.original_price!) * 100) : 0;
 
-  // Storytelling fields
   const effects = parseBullets(lang === 'sv' ? product.effects_sv : (product.effects_en || product.effects_sv));
   const feeling = lang === 'sv' ? product.feeling_sv : (product.feeling_en || product.feeling_sv);
   const usage = lang === 'sv' ? product.usage_sv : (product.usage_en || product.usage_sv);
@@ -298,7 +296,7 @@ const ProductDetail = () => {
               )}
             </div>
 
-            {/* Product info */}
+            {/* Product info — CONVERSION OPTIMIZED ORDER */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="flex flex-col">
               {product.vendor && (
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-2">{product.vendor}</p>
@@ -309,15 +307,11 @@ const ProductDetail = () => {
                   {lang === 'sv' ? 'Laddar...' : 'Translating...'}
                 </span>
               )}
-              <h1 className="font-display text-2xl md:text-3xl font-bold mb-2 leading-tight">{title}</h1>
-              {product && hasPurchased(product.id) && (
-                <span className="inline-flex items-center gap-1 text-xs font-medium text-accent bg-accent/10 px-2 py-0.5 rounded-full mb-2">
-                  <Check className="w-3 h-3" />
-                  {lang === 'sv' ? 'Du har köpt denna tidigare' : 'You\'ve purchased this before'}
-                </span>
-              )}
 
-              {/* Review stars + viewer count */}
+              {/* 1. TITLE */}
+              <h1 className="font-display text-2xl md:text-3xl font-bold mb-1 leading-tight">{title}</h1>
+
+              {/* 2. REVIEWS + VIEWERS (social proof immediately) */}
               <div className="flex items-center gap-3 mb-3 flex-wrap">
                 {reviewStats.count > 0 && (
                   <div className="flex items-center gap-1">
@@ -338,22 +332,28 @@ const ProductDetail = () => {
                   <Eye className="w-3.5 h-3.5" />
                   {viewerCount} {lang === 'sv' ? 'tittar just nu' : 'viewing now'}
                 </span>
+                {product && hasPurchased(product.id) && (
+                  <span className="inline-flex items-center gap-1 text-xs font-medium text-accent bg-accent/10 px-2 py-0.5 rounded-full">
+                    <Check className="w-3 h-3" />
+                    {lang === 'sv' ? 'Köpt tidigare' : 'Purchased before'}
+                  </span>
+                )}
               </div>
 
-              {/* Hook / short description */}
+              {/* 3. SHORT HOOK */}
               {description && (
                 <p className="text-muted-foreground leading-relaxed mb-4 text-[15px]">{description}</p>
               )}
 
-              {/* Price */}
-              <div className="flex items-baseline gap-3 mb-3">
+              {/* 4. PRICE */}
+              <div className="flex items-baseline gap-3 mb-2">
                 <span className="text-3xl font-bold">{formatPrice(product.price)}</span>
                 {hasDiscount && (
                   <span className="text-lg text-muted-foreground line-through">{formatPrice(product.original_price!)}</span>
                 )}
               </div>
 
-              {/* Stock + urgency */}
+              {/* 5. URGENCY — stock status */}
               <div className="mb-4">
                 {isOutOfStock ? (
                   <span className="inline-flex items-center gap-1.5 text-sm text-destructive font-medium bg-destructive/10 px-3 py-1 rounded-full">{t('product.outofstockwarning')}</span>
@@ -366,7 +366,7 @@ const ProductDetail = () => {
                 )}
               </div>
 
-              {/* Effects bullets — "Varför denna?" */}
+              {/* 6. EFFECTS — bullet points */}
               {effects.length > 0 && (
                 <div className="mb-5 p-4 rounded-xl bg-secondary/30 border border-border/50">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1.5">
@@ -387,8 +387,8 @@ const ProductDetail = () => {
               {/* Bundle offers */}
               <ProductBundles productId={product.id} />
 
-              {/* Quantity + Add to cart (desktop) */}
-              <div className="hidden md:flex items-center gap-3 mb-5">
+              {/* 7. CTA — Quantity + Add to cart (desktop) */}
+              <div className="hidden md:flex items-center gap-3 mb-4">
                 <div className="flex items-center border border-border rounded-lg">
                   <Button variant="ghost" size="icon" className="h-11 w-11 rounded-r-none" onClick={() => setQuantity(Math.max(1, quantity - 1))}>
                     <Minus className="w-4 h-4" />
@@ -417,8 +417,8 @@ const ProductDetail = () => {
                 </Button>
               </div>
 
-              {/* Micro copy under CTA */}
-              <div className="hidden md:flex items-center gap-4 mb-5 text-xs text-muted-foreground">
+              {/* 8. MICRO TRUST — shipping, guarantee (near CTA) */}
+              <div className="hidden md:flex items-center gap-4 mb-4 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1">
                   <Clock className="w-3.5 h-3.5 text-accent" />
                   {lang === 'sv' ? 'Skickas inom 1–3 dagar' : 'Ships within 1–3 days'}
@@ -429,16 +429,16 @@ const ProductDetail = () => {
                 </span>
               </div>
 
-              {/* Trust badges - hidden on mobile (shown in MobileBuyBar) */}
-              <div className="hidden md:grid grid-cols-3 gap-3 mb-5">
+              {/* Trust badges — compact, near CTA */}
+              <div className="hidden md:flex items-center gap-3 mb-5">
                 {[
                   { icon: Shield, label: t('product.securepayment') },
                   { icon: RotateCcw, label: t('product.returns') },
                   { icon: Truck, label: t('product.fastdelivery') },
                 ].map(({ icon: Icon, label }, i) => (
-                  <div key={i} className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-secondary/40 border border-border/50 text-center">
-                    <Icon className="w-4 h-4 text-accent" />
-                    <span className="text-xs text-muted-foreground leading-tight">{label}</span>
+                  <div key={i} className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-secondary/40 border border-border/50">
+                    <Icon className="w-3.5 h-3.5 text-accent" />
+                    <span className="text-xs text-muted-foreground">{label}</span>
                   </div>
                 ))}
               </div>
@@ -449,9 +449,8 @@ const ProductDetail = () => {
             </motion.div>
           </div>
 
-          {/* Storytelling sections below the fold */}
+          {/* Below the fold — storytelling */}
           <div className="mt-16 space-y-12">
-            {/* Feeling */}
             {feeling && (
               <motion.div
                 initial={{ opacity: 0, y: 16 }}
@@ -468,7 +467,6 @@ const ProductDetail = () => {
               </motion.div>
             )}
 
-            {/* Usage */}
             {usage && (
               <motion.div
                 initial={{ opacity: 0, y: 16 }}
@@ -485,7 +483,6 @@ const ProductDetail = () => {
               </motion.div>
             )}
 
-            {/* Extended description */}
             {extDescription && (
               <motion.div
                 initial={{ opacity: 0, y: 16 }}
@@ -516,7 +513,7 @@ const ProductDetail = () => {
           {/* Related Products */}
           <RelatedProducts productId={product.id} />
 
-          {/* Reviews */}
+          {/* Full Reviews */}
           <div className="mt-16 pt-12 border-t border-border">
             <h2 className="font-display text-2xl font-semibold mb-8 text-center">
               {t('product.reviews')}
