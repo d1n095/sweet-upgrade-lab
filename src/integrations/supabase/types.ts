@@ -362,6 +362,36 @@ export type Database = {
         }
         Relationships: []
       }
+      automation_rules: {
+        Row: {
+          config: Json
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          rule_key: string
+          updated_at: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          rule_key: string
+          updated_at?: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          rule_key?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bug_reports: {
         Row: {
           created_at: string
@@ -1656,6 +1686,8 @@ export type Database = {
           ingredients_sv: string | null
           is_sellable: boolean
           is_visible: boolean
+          last_sold_at: string | null
+          low_stock_threshold: number
           meta_description: string | null
           meta_keywords: string | null
           meta_title: string | null
@@ -1664,11 +1696,14 @@ export type Database = {
           recipe_en: string | null
           recipe_sv: string | null
           reserved_stock: number
+          restock_amount: number
           status: string
           stock: number
           tags: string[] | null
           title_en: string | null
           title_sv: string
+          units_sold_30d: number
+          units_sold_7d: number
           updated_at: string
           usage_en: string | null
           usage_sv: string | null
@@ -1698,6 +1733,8 @@ export type Database = {
           ingredients_sv?: string | null
           is_sellable?: boolean
           is_visible?: boolean
+          last_sold_at?: string | null
+          low_stock_threshold?: number
           meta_description?: string | null
           meta_keywords?: string | null
           meta_title?: string | null
@@ -1706,11 +1743,14 @@ export type Database = {
           recipe_en?: string | null
           recipe_sv?: string | null
           reserved_stock?: number
+          restock_amount?: number
           status?: string
           stock?: number
           tags?: string[] | null
           title_en?: string | null
           title_sv: string
+          units_sold_30d?: number
+          units_sold_7d?: number
           updated_at?: string
           usage_en?: string | null
           usage_sv?: string | null
@@ -1740,6 +1780,8 @@ export type Database = {
           ingredients_sv?: string | null
           is_sellable?: boolean
           is_visible?: boolean
+          last_sold_at?: string | null
+          low_stock_threshold?: number
           meta_description?: string | null
           meta_keywords?: string | null
           meta_title?: string | null
@@ -1748,11 +1790,14 @@ export type Database = {
           recipe_en?: string | null
           recipe_sv?: string | null
           reserved_stock?: number
+          restock_amount?: number
           status?: string
           stock?: number
           tags?: string[] | null
           title_en?: string | null
           title_sv?: string
+          units_sold_30d?: number
+          units_sold_7d?: number
           updated_at?: string
           usage_en?: string | null
           usage_sv?: string | null
