@@ -57,6 +57,7 @@ interface FieldErrors {
   address?: string;
   zip?: string;
   city?: string;
+  country?: string;
 }
 
 const Checkout = () => {
