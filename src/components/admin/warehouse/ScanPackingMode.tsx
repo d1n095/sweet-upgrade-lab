@@ -93,7 +93,6 @@ const ScanPackingMode = () => {
     setScanSuccess(`Order ${getOrderDisplayId(data as any)} hittad`);
     setActiveOrder(data as PackingOrder);
     setCheckedItems({});
-    setTrackingNumber(data.tracking_number || '');
     setScanInput('');
   };
 
