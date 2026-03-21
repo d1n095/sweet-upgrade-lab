@@ -7,6 +7,13 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+// Auth helper: require service role key for internal email sends
+function verifyServiceRole(req: Request): boolean {
+  const authHeader = req.headers.get("Authorization") || "";
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  return authHeader === `Bearer ${serviceRoleKey}`;
+}
+
 interface OrderItem {
   id?: string;
   title: string;
@@ -253,6 +260,13 @@ function renderStatusUpdateEmail(order: any, newStatus: string): string {
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Auth: only service role can send order emails
+  if (!verifyServiceRole(req)) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   try {
