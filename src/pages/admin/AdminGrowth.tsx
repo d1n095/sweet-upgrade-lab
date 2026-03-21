@@ -32,7 +32,7 @@ const AdminGrowth = () => {
       const orders = ordersRes.data || [];
 
       // Funnel
-      const views = events.filter(e => e.event_type === 'page_view').length || Math.max(orders.length * 8, 100);
+      const views = events.filter(e => e.event_type === 'product_view').length;
       const carts = events.filter(e => e.event_type === 'add_to_cart').length || Math.max(orders.length * 3, 20);
       const checkouts = events.filter(e => e.event_type === 'checkout_start').length || Math.max(orders.length * 2, 10);
       const purchases = orders.filter(o => o.payment_status === 'paid').length;
