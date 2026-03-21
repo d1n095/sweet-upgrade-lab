@@ -217,7 +217,7 @@ const Checkout = () => {
     if (isCheckingOut) return;
 
     // Validate required fields first
-    const requiredFields = ['email', 'name', 'address', 'zip', 'city'] as const;
+    const requiredFields = ['email', 'name', 'address', 'zip', 'city', 'phone'] as const;
     const newErrors: FieldErrors = {};
     let hasErrors = false;
     for (const field of requiredFields) {
