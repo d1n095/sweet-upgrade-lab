@@ -66,15 +66,33 @@ const DbProductGrid = () => {
     loadTagProducts();
   }, [selectedTagId]);
 
+  // Count products per category for hiding empty ones
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: products.length };
+    categories.forEach(cat => {
+      if (cat.id === 'all') return;
+      if (cat.isBestsellerFilter) {
+        counts[cat.id] = products.filter(p => p.badge === 'bestseller').length;
+      } else if (cat.query) {
+        const types = [...cat.query.matchAll(/product_type:"?([^"&\s]+)"?/g)].map(m => m[1].toLowerCase());
+        counts[cat.id] = products.filter(p => types.includes((p.category || '').toLowerCase())).length;
+      } else {
+        counts[cat.id] = 0;
+      }
+    });
+    return counts;
+  }, [products]);
+
   const categoryFiltered = useMemo(() => {
     let filtered = products;
     if (activeCategory !== 'all') {
       const cat = categories.find(c => c.id === activeCategory);
-      if (cat && cat.query) {
-        const match = cat.query.match(/product_type:"?([^"&\s]+)"?/);
-        if (match) {
-          const type = match[1].toLowerCase();
-          filtered = filtered.filter(p => (p.category || '').toLowerCase() === type);
+      if (cat) {
+        if (cat.isBestsellerFilter) {
+          filtered = filtered.filter(p => p.badge === 'bestseller');
+        } else if (cat.query) {
+          const types = [...cat.query.matchAll(/product_type:"?([^"&\s]+)"?/g)].map(m => m[1].toLowerCase());
+          filtered = filtered.filter(p => types.includes((p.category || '').toLowerCase()));
         }
       }
     }
