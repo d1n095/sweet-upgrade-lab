@@ -8,6 +8,7 @@ import { useFounderRole } from '@/hooks/useFounderRole';
 import WorkbenchOverview from '@/components/admin/workbench/WorkbenchOverview';
 import WorkbenchBoard from '@/components/admin/workbench/WorkbenchBoard';
 import WorkbenchStaffPanel from '@/components/admin/workbench/WorkbenchStaffPanel';
+import QuickPackMode from '@/components/admin/workbench/QuickPackMode';
 
 import { useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
