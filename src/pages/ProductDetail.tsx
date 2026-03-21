@@ -345,11 +345,16 @@ const ProductDetail = () => {
                 <p className="text-muted-foreground leading-relaxed mb-4 text-[15px]">{description}</p>
               )}
 
-              {/* 4. PRICE */}
+              {/* 4. PRICE + SAVINGS */}
               <div className="flex items-baseline gap-3 mb-2">
                 <span className="text-3xl font-bold">{formatPrice(product.price)}</span>
                 {hasDiscount && (
-                  <span className="text-lg text-muted-foreground line-through">{formatPrice(product.original_price!)}</span>
+                  <>
+                    <span className="text-lg text-muted-foreground line-through">{formatPrice(product.original_price!)}</span>
+                    <span className="text-sm font-semibold text-destructive bg-destructive/10 px-2 py-0.5 rounded-full">
+                      {lang === 'sv' ? `Spara ${discountPercent}%` : `Save ${discountPercent}%`}
+                    </span>
+                  </>
                 )}
               </div>
 
@@ -400,16 +405,16 @@ const ProductDetail = () => {
                 </div>
                 <Button
                   size="lg"
-                  className={`flex-1 h-12 text-sm font-semibold transition-all ${isAdded ? 'bg-accent hover:bg-accent text-accent-foreground' : ''}`}
+                  className={`flex-1 h-12 text-sm font-semibold transition-all ${isAdded ? 'bg-accent hover:bg-accent/90 text-accent-foreground' : 'bg-accent hover:bg-accent/90 text-accent-foreground'}`}
                   onClick={handleAddToCart}
                   disabled={isOutOfStock}
                 >
                   {isOutOfStock ? (
                     t('product.outofstock')
                   ) : isAdded ? (
-                    <><Check className="w-4 h-4 mr-2" />{t('product.added')}</>
+                    <><Check className="w-4 h-4 mr-2" />{lang === 'sv' ? 'Tillagd!' : 'Added!'}</>
                   ) : (
-                    <><ShoppingCart className="w-4 h-4 mr-2" />{t('product.addtocart')}</>
+                    <><ShoppingCart className="w-4 h-4 mr-2" />{lang === 'sv' ? 'Lägg i kundvagn' : 'Add to cart'}</>
                   )}
                 </Button>
                 <Button variant="outline" size="icon" className="h-11 w-11 shrink-0" onClick={handleShare}>

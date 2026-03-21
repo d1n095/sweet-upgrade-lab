@@ -1,11 +1,13 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { motion } from 'framer-motion';
 import {
   TrendingUp, Package, RefreshCw, Search, Eye, ShoppingCart,
   AlertTriangle, BarChart3, MousePointerClick, Lightbulb, CheckCircle, XCircle,
   Plus, Minus, LogOut, DollarSign, Target, Activity, Trash2, Shield,
-  Clock, User, Info, ArrowRight, Calendar, TrendingDown, Ban, HelpCircle
+  Clock, User, Info, ArrowRight, Calendar, TrendingDown, Ban, HelpCircle, Loader2
 } from 'lucide-react';
+
+const AdminDashboardCharts = lazy(() => import('@/components/admin/AdminDashboardCharts'));
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -519,7 +521,7 @@ const AdminStats = () => {
         </div>
 
         {/* Secondary stats row */}
-        <div className="grid grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           <Card className="border-border">
             <CardContent className="pt-4 pb-3 text-center">
               <Tooltip>
@@ -578,6 +580,11 @@ const AdminStats = () => {
           </Card>
         </div>
       </TooltipProvider>
+
+      {/* ─── Charts ─── */}
+      <Suspense fallback={<div className="flex items-center justify-center h-48"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>}>
+        <AdminDashboardCharts />
+      </Suspense>
 
       {/* ─── Activity log summary ─── */}
       {(() => {

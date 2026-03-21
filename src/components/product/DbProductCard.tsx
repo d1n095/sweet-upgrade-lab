@@ -240,10 +240,15 @@ const DbProductCard = ({ product, index, compact = false, isPurchased = false }:
             </div>
 
             {/* Price */}
-            <div className="flex items-baseline gap-2 mb-2.5 mt-auto">
+            <div className="flex items-baseline gap-2 mb-2.5 mt-auto flex-wrap">
               <span className="text-base font-bold text-foreground">{formatPrice(product.price)}</span>
               {product.original_price && product.original_price > product.price && (
-                <span className="text-xs text-muted-foreground line-through">{formatPrice(product.original_price)}</span>
+                <>
+                  <span className="text-xs text-muted-foreground line-through">{formatPrice(product.original_price)}</span>
+                  <span className="text-[10px] font-semibold text-destructive">
+                    -{discountPercent}%
+                  </span>
+                </>
               )}
             </div>
 

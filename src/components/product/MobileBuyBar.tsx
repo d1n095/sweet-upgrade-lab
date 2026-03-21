@@ -53,7 +53,7 @@ const MobileBuyBar = ({ quantity, setQuantity, isAdded, isOutOfStock, price, onA
         </div>
         <Button
           size="lg"
-          className={`flex-1 h-12 text-sm font-semibold transition-all ${isAdded ? 'bg-accent hover:bg-accent text-accent-foreground' : ''}`}
+          className={`flex-1 h-12 text-sm font-semibold transition-all ${isAdded ? 'bg-accent hover:bg-accent/90 text-accent-foreground' : 'bg-accent hover:bg-accent/90 text-accent-foreground'}`}
           onClick={onAddToCart}
           disabled={isOutOfStock}
         >
