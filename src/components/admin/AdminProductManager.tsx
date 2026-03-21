@@ -67,12 +67,8 @@ const AdminProductManager = () => {
   const [selectedProduct, setSelectedProduct] = useState<ShopifyProduct | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<ProductFormData>({
-    title: '', description: '', price: '', currency: 'SEK',
-    productType: '', categoryIds: [], tagIds: [], tags: '', vendor: '4ThePeople',
-    isVisible: true, inventory: 0, allowOverselling: false,
-    imageUrls: [], ingredients: '', certifications: '', recipe: '',
-    feeling: '', effects: '', usage: '', extendedDescription: '',
-    metaTitle: '', metaDescription: '', metaKeywords: '', weightGrams: '',
+    ...DEFAULT_PRODUCT_FORM_DATA,
+    vendor: '4ThePeople',
   });
 
   const { data: products = [], isLoading: productsLoading } = useQuery({
