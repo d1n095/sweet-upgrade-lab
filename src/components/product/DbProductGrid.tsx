@@ -201,7 +201,7 @@ const DbProductGrid = () => {
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <DbProductCard product={product} index={index} compact />
+                  <DbProductCard product={product} index={index} compact isPurchased={hasPurchased(product.id)} />
                 </motion.div>
               ))}
             </AnimatePresence>
