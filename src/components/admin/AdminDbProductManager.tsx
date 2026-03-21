@@ -320,6 +320,7 @@ const AdminDbProductManager = () => {
       } as any);
       await setProductCategories(selected.id, formData.categoryIds);
       await setProductTags(selected.id, formData.tagIds);
+      await setProductIngredients(selected.id, formData.ingredientIds || []);
       toast.success(t.productUpdated);
       queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });
       setIsEditOpen(false);
