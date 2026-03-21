@@ -25,6 +25,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { toast } from 'sonner';
 import { logActivity } from '@/utils/activityLogger';
 import { getOrderDisplayId } from '@/utils/orderDisplay';
+import ShippingFormDialog from '@/components/admin/ShippingFormDialog';
 
 interface Order {
   id: string;
@@ -52,6 +53,7 @@ interface Order {
   packed_at: string | null;
   shipped_by: string | null;
   shipped_at: string | null;
+  shipping_method: string | null;
 }
 
 const statusOptions = [
@@ -87,6 +89,7 @@ const AdminOrderManager = () => {
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
   const [batchProcessing, setBatchProcessing] = useState(false);
   const [batchProgress, setBatchProgress] = useState({ done: 0, total: 0 });
+  const [shippingOrder, setShippingOrder] = useState<Order | null>(null);
 
   const t = {
     sv: {
@@ -449,78 +452,46 @@ const AdminOrderManager = () => {
     if (fulfillmentTab === 'unpaid' && o.payment_status === 'paid') return false;
     return true;
   });
-  const handlePackAndShip = async (order: Order) => {
+  const handleMarkPacked = async (order: Order) => {
     if (order.payment_status !== 'paid') {
       toast.error(language === 'sv' ? 'Order måste vara betald först' : 'Order must be paid first');
-      return;
-    }
-    if (order.fulfillment_status === 'shipped' || (order.fulfillment_status === 'packed' && order.tracking_number)) {
-      toast.error(language === 'sv' ? 'Frakt redan skapad' : 'Shipment already created');
-      return;
-    }
-    try {
-      toast.loading(language === 'sv' ? 'Skapar frakt…' : 'Creating shipment…', { id: `ship-${order.id}` });
-      const { data, error } = await supabase.functions.invoke('create-shipment', {
-        body: { order_id: order.id },
-      });
-      toast.dismiss(`ship-${order.id}`);
-      if (error) throw new Error(error.message || 'Edge function error');
-      if (!data?.success) throw new Error(data?.error || 'Unknown error');
-      setOrders(prev => prev.map(o => o.id === order.id ? {
-        ...o,
-        fulfillment_status: 'packed',
-        packed_at: new Date().toISOString(),
-        tracking_number: data.tracking_number || o.tracking_number,
-        status: 'processing',
-      } : o));
-      if (data.label_url) window.open(data.label_url, '_blank');
-      toast.success(
-        data.shipmondo_used
-          ? (language === 'sv' ? 'Packad & frakt skapad ✓' : 'Packed & shipment created ✓')
-          : (language === 'sv' ? 'Packad ✓ (Shipmondo ej konfigurerad)' : 'Packed ✓ (Shipmondo not configured)')
-      );
-    } catch (err: any) {
-      toast.dismiss(`ship-${order.id}`);
-      console.error(err);
-      toast.error(err.message || content.error);
-    }
-  };
-
-  const handleMarkShipped = async (order: Order) => {
-    if (order.payment_status !== 'paid') {
-      toast.error(language === 'sv' ? 'Order måste vara betald först' : 'Order must be paid first');
-      return;
-    }
-    if (order.fulfillment_status !== 'packed') {
-      toast.error(language === 'sv' ? 'Packa ordern först' : 'Pack the order first');
       return;
     }
     try {
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       const existingHistory = Array.isArray(order.status_history) ? order.status_history : [];
       const newHistory = [...existingHistory, {
-        status: 'shipped',
+        status: 'packed',
         timestamp: new Date().toISOString(),
-        note: 'Markerad som skickad',
+        note: 'Markerad som packad',
       }];
       const { error } = await supabase.from('orders').update({
-        fulfillment_status: 'shipped',
-        shipped_by: currentUser?.id || null,
-        shipped_at: new Date().toISOString(),
-        status: 'shipped',
+        fulfillment_status: 'packed',
+        packed_by: currentUser?.id || null,
+        packed_at: new Date().toISOString(),
+        status: 'processing',
         status_history: newHistory,
       }).eq('id', order.id);
       if (error) throw error;
-      setOrders(prev => prev.map(o => o.id === order.id ? { ...o, fulfillment_status: 'shipped', shipped_at: new Date().toISOString(), shipped_by: currentUser?.id || null, status: 'shipped', status_history: newHistory } : o));
-      logActivity({ log_type: 'success', category: 'fulfillment', message: `Order ${getOrderDisplayId(order)} skickad`, order_id: order.id });
-      toast.success(language === 'sv' ? 'Order markerad som skickad' : 'Order marked as shipped');
-      try {
-        await supabase.functions.invoke('send-order-email', { body: { order_id: order.id, email_type: 'status_update' } });
-      } catch {}
+      setOrders(prev => prev.map(o => o.id === order.id ? { ...o, fulfillment_status: 'packed', packed_at: new Date().toISOString(), packed_by: currentUser?.id || null, status: 'processing', status_history: newHistory } : o));
+      logActivity({ log_type: 'success', category: 'fulfillment', message: `Order ${getOrderDisplayId(order)} packad`, order_id: order.id });
+      toast.success(language === 'sv' ? 'Order markerad som packad ✓' : 'Order marked as packed ✓');
     } catch (err) {
       console.error(err);
       toast.error(content.error);
     }
+  };
+
+  const handleShippingComplete = (orderId: string, data: { carrier: string; tracking_number: string; tracking_url: string | null }) => {
+    setOrders(prev => prev.map(o => o.id === orderId ? {
+      ...o,
+      fulfillment_status: 'shipped',
+      status: 'shipped',
+      shipped_at: new Date().toISOString(),
+      tracking_number: data.tracking_number,
+      shipping_method: data.carrier,
+    } : o));
+    setShippingOrder(null);
   };
 
   // Batch packing helpers
@@ -548,21 +519,28 @@ const AdminOrderManager = () => {
     if (eligible.length === 0) { toast.error('Inga giltiga orders att packa'); return; }
     setBatchProcessing(true);
     setBatchProgress({ done: 0, total: eligible.length });
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
     for (let i = 0; i < eligible.length; i++) {
       const order = eligible[i];
       try {
-        const { data, error } = await supabase.functions.invoke('create-shipment', {
-          body: { order_id: order.id },
-        });
-        if (!error && data?.success) {
+        const existingHistory = Array.isArray(order.status_history) ? order.status_history : [];
+        const newHistory = [...existingHistory, { status: 'packed', timestamp: new Date().toISOString(), note: 'Batch-packad' }];
+        const { error } = await supabase.from('orders').update({
+          fulfillment_status: 'packed',
+          packed_by: currentUser?.id || null,
+          packed_at: new Date().toISOString(),
+          status: 'processing',
+          status_history: newHistory,
+        }).eq('id', order.id);
+        if (!error) {
           setOrders(prev => prev.map(o => o.id === order.id ? {
             ...o,
             fulfillment_status: 'packed',
             packed_at: new Date().toISOString(),
-            tracking_number: data.tracking_number || o.tracking_number,
+            packed_by: currentUser?.id || null,
             status: 'processing',
+            status_history: newHistory,
           } : o));
-          if (data.label_url) window.open(data.label_url, '_blank');
         }
       } catch (err) {
         console.error(`Batch pack error for ${order.id}:`, err);
@@ -571,36 +549,11 @@ const AdminOrderManager = () => {
     }
     setBatchProcessing(false);
     setSelectedOrders(new Set());
-    toast.success(`${eligible.length} orders packade & frakt skapad`);
+    toast.success(`${eligible.length} orders packade`);
   };
 
   const handleBatchShip = async () => {
-    const ids = Array.from(selectedOrders);
-    const eligible = orders.filter(o => ids.includes(o.id) && o.payment_status === 'paid' && o.fulfillment_status === 'packed');
-    if (eligible.length === 0) { toast.error('Inga packade orders att skicka'); return; }
-    setBatchProcessing(true);
-    setBatchProgress({ done: 0, total: eligible.length });
-    const { data: { user: currentUser } } = await supabase.auth.getUser();
-    for (let i = 0; i < eligible.length; i++) {
-      const order = eligible[i];
-      const existingHistory = Array.isArray(order.status_history) ? order.status_history : [];
-      const newHistory = [...existingHistory, { status: 'shipped', timestamp: new Date().toISOString(), note: 'Batch-skickad' }];
-      const { error } = await supabase.from('orders').update({
-        fulfillment_status: 'shipped',
-        shipped_by: currentUser?.id || null,
-        shipped_at: new Date().toISOString(),
-        status: 'shipped',
-        status_history: newHistory,
-      }).eq('id', order.id);
-      if (!error) {
-        setOrders(prev => prev.map(o => o.id === order.id ? { ...o, fulfillment_status: 'shipped', shipped_at: new Date().toISOString(), shipped_by: currentUser?.id || null, status: 'shipped', status_history: newHistory } : o));
-        logActivity({ log_type: 'success', category: 'fulfillment', message: `Order ${getOrderDisplayId(order)} batch-skickad`, order_id: order.id });
-      }
-      setBatchProgress({ done: i + 1, total: eligible.length });
-    }
-    setBatchProcessing(false);
-    setSelectedOrders(new Set());
-    toast.success(`${eligible.length} orders skickade`);
+    toast.info(language === 'sv' ? 'Använd "Lägg till frakt" per order för att ange spårningsnummer' : 'Use "Add shipping" per order to enter tracking numbers');
   };
 
 
@@ -898,10 +851,10 @@ const AdminOrderManager = () => {
                         size="sm"
                         variant="outline"
                         className="gap-1.5 text-xs border-primary/50 text-primary hover:bg-primary/10"
-                        onClick={(e) => { e.stopPropagation(); handlePackAndShip(order); }}
+                        onClick={(e) => { e.stopPropagation(); handleMarkPacked(order); }}
                       >
                         <Package className="w-3.5 h-3.5" />
-                        {language === 'sv' ? 'Packa & skapa frakt' : 'Pack & create shipment'}
+                        {language === 'sv' ? 'Markera packad' : 'Mark packed'}
                       </Button>
                     )}
                     {order.payment_status === 'paid' && order.fulfillment_status === 'packed' && (
@@ -909,10 +862,10 @@ const AdminOrderManager = () => {
                         size="sm"
                         variant="outline"
                         className="gap-1.5 text-xs border-green-300 text-green-700 hover:bg-green-50 dark:border-green-700 dark:text-green-400"
-                        onClick={(e) => { e.stopPropagation(); handleMarkShipped(order); }}
+                        onClick={(e) => { e.stopPropagation(); setShippingOrder(order); }}
                       >
                         <Truck className="w-3.5 h-3.5" />
-                        {content.markShipped}
+                        {language === 'sv' ? 'Lägg till frakt' : 'Add shipping'}
                       </Button>
                     )}
                     {order.payment_status === 'paid' && !order.refund_status && (
@@ -1233,11 +1186,22 @@ const AdminOrderManager = () => {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={(e) => { e.stopPropagation(); handlePackAndShip(order); }}
+                        onClick={(e) => { e.stopPropagation(); handleMarkPacked(order); }}
                         className="gap-2"
                       >
                         <Package className="w-4 h-4" />
-                        {language === 'sv' ? 'Packa & skapa frakt' : 'Pack & create shipment'}
+                        {language === 'sv' ? 'Markera packad' : 'Mark packed'}
+                      </Button>
+                    )}
+                    {order.payment_status === 'paid' && order.fulfillment_status === 'packed' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => { e.stopPropagation(); setShippingOrder(order); }}
+                        className="gap-2"
+                      >
+                        <Truck className="w-4 h-4" />
+                        {language === 'sv' ? 'Lägg till frakt' : 'Add shipping'}
                       </Button>
                     )}
                   </div>
@@ -1247,6 +1211,13 @@ const AdminOrderManager = () => {
           })
         )}
       </div>
+
+      <ShippingFormDialog
+        open={!!shippingOrder}
+        onOpenChange={(open) => !open && setShippingOrder(null)}
+        order={shippingOrder}
+        onShipped={handleShippingComplete}
+      />
     </div>
   );
 };

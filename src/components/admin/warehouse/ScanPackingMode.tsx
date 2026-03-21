@@ -10,13 +10,14 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import {
-  ScanLine, Package, CheckCircle2, AlertTriangle, X, Printer,
+  ScanLine, Package, CheckCircle2, AlertTriangle, X,
   QrCode, Truck, Loader2, XCircle, ShieldCheck,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { logActivity } from '@/utils/activityLogger';
 import { getOrderDisplayId } from '@/utils/orderDisplay';
+import ShippingFormDialog from '@/components/admin/ShippingFormDialog';
 
 interface PackingOrder {
   id: string;
@@ -38,9 +39,8 @@ const ScanPackingMode = () => {
   const [scanInput, setScanInput] = useState('');
   const [activeOrder, setActiveOrder] = useState<PackingOrder | null>(null);
   const [checkedItems, setCheckedItems] = useState<Record<number, boolean>>({});
-  const [trackingNumber, setTrackingNumber] = useState('');
   const [isPacking, setIsPacking] = useState(false);
-  const [isShipping, setIsShipping] = useState(false);
+  const [shippingDialogOpen, setShippingDialogOpen] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
   const [scanSuccess, setScanSuccess] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -93,7 +93,6 @@ const ScanPackingMode = () => {
     setScanSuccess(`Order ${getOrderDisplayId(data as any)} hittad`);
     setActiveOrder(data as PackingOrder);
     setCheckedItems({});
-    setTrackingNumber(data.tracking_number || '');
     setScanInput('');
   };
 
@@ -113,81 +112,46 @@ const ScanPackingMode = () => {
     }
   };
 
-  const handlePackAndShip = async () => {
+  const handleMarkPacked = async () => {
     if (!activeOrder || !user) return;
     if (activeOrder.payment_status !== 'paid') {
       toast.error('Kan inte packa – order ej betald');
       return;
     }
-    if (activeOrder.fulfillment_status === 'shipped' || (activeOrder.fulfillment_status === 'packed' && activeOrder.tracking_number)) {
-      toast.error('Frakt redan skapad');
-      return;
-    }
     setIsPacking(true);
     try {
-      toast.loading('Skapar frakt…', { id: `ship-${activeOrder.id}` });
-      const { data, error } = await supabase.functions.invoke('create-shipment', {
-        body: { order_id: activeOrder.id },
-      });
-      toast.dismiss(`ship-${activeOrder.id}`);
-      if (error) throw new Error(error.message || 'Edge function error');
-      if (!data?.success) throw new Error(data?.error || 'Unknown error');
-
-      if (data.label_url) window.open(data.label_url, '_blank');
-
-      toast.success(data.shipmondo_used ? 'Packad & frakt skapad ✓' : 'Packad ✓ (Shipmondo ej konfigurerad)');
-      setActiveOrder(null);
-      setCheckedItems({});
-      setScanSuccess(null);
-      setTrackingNumber(data.tracking_number || '');
-      queryClient.invalidateQueries({ queryKey: ['pack-queue'] });
-      inputRef.current?.focus();
-    } catch (err: any) {
-      toast.dismiss(`ship-${activeOrder.id}`);
-      toast.error(err.message || 'Kunde inte skapa frakt');
-    } finally {
-      setIsPacking(false);
-    }
-  };
-
-  const handleMarkShipped = async () => {
-    if (!activeOrder || !user) return;
-    if (activeOrder.fulfillment_status !== 'packed') {
-      toast.error('Packa ordern först');
-      return;
-    }
-    setIsShipping(true);
-    try {
-      const { error } = await supabase
-        .from('orders')
-        .update({
-          fulfillment_status: 'shipped',
-          shipped_at: new Date().toISOString(),
-          shipped_by: user.id,
-        })
-        .eq('id', activeOrder.id);
-
+      const { error } = await supabase.from('orders').update({
+        fulfillment_status: 'packed',
+        packed_at: new Date().toISOString(),
+        packed_by: user.id,
+        status: 'processing',
+      }).eq('id', activeOrder.id);
       if (error) throw error;
 
       await logActivity({
         log_type: 'success',
         category: 'fulfillment',
-        message: `Order skickad`,
+        message: `Order packad`,
         order_id: activeOrder.id,
       });
 
-      toast.success('Order markerad som skickad ✓');
-      setActiveOrder(null);
-      setCheckedItems({});
-      setTrackingNumber('');
-      setScanSuccess(null);
+      setActiveOrder({ ...activeOrder, fulfillment_status: 'packed' });
+      toast.success('Order markerad som packad ✓');
       queryClient.invalidateQueries({ queryKey: ['pack-queue'] });
-      inputRef.current?.focus();
     } catch (err: any) {
-      toast.error(err.message || 'Kunde inte uppdatera order');
+      toast.error(err.message || 'Kunde inte packa order');
     } finally {
-      setIsShipping(false);
+      setIsPacking(false);
     }
+  };
+
+  const handleShipped = (orderId: string) => {
+    setActiveOrder(null);
+    setCheckedItems({});
+    setScanSuccess(null);
+    setShippingDialogOpen(false);
+    queryClient.invalidateQueries({ queryKey: ['pack-queue'] });
+    inputRef.current?.focus();
   };
 
   return (
@@ -251,7 +215,6 @@ const ScanPackingMode = () => {
                     onClick={() => {
                       setActiveOrder(order);
                       setCheckedItems({});
-                      setTrackingNumber(order.tracking_number || '');
                       setScanError(null);
                       setScanSuccess(`Order ${getOrderDisplayId(order as any)} vald`);
                     }}
@@ -366,11 +329,11 @@ const ScanPackingMode = () => {
 
                 <Separator />
 
-                {/* Tracking number – populated automatically by Shipmondo API */}
-                {trackingNumber && (
+                {/* Tracking info if already has it */}
+                {activeOrder.tracking_number && (
                   <div className="bg-accent/10 rounded-lg p-3 text-sm">
                     <p className="font-medium mb-1">Spårningsnummer:</p>
-                    <p className="font-mono">{trackingNumber}</p>
+                    <p className="font-mono">{activeOrder.tracking_number}</p>
                   </div>
                 )}
 
@@ -378,7 +341,7 @@ const ScanPackingMode = () => {
                 <div className="flex flex-wrap gap-2 pt-2">
                   {activeOrder.fulfillment_status !== 'packed' && activeOrder.fulfillment_status !== 'shipped' && (
                     <Button
-                      onClick={handlePackAndShip}
+                      onClick={handleMarkPacked}
                       disabled={!allChecked || isPacking}
                       className="flex-1"
                     >
@@ -387,23 +350,18 @@ const ScanPackingMode = () => {
                       ) : (
                         <Package className="w-4 h-4 mr-2" />
                       )}
-                      Packa & skapa frakt
+                      Markera som packad
                     </Button>
                   )}
 
                   {activeOrder.fulfillment_status === 'packed' && (
                     <Button
-                      onClick={handleMarkShipped}
-                      disabled={isShipping}
+                      onClick={() => setShippingDialogOpen(true)}
                       variant="default"
                       className="flex-1"
                     >
-                      {isShipping ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <Truck className="w-4 h-4 mr-2" />
-                      )}
-                      Markera som skickad
+                      <Truck className="w-4 h-4 mr-2" />
+                      Lägg till frakt
                     </Button>
                   )}
                 </div>
@@ -419,6 +377,13 @@ const ScanPackingMode = () => {
           )}
         </div>
       </div>
+
+      <ShippingFormDialog
+        open={shippingDialogOpen}
+        onOpenChange={setShippingDialogOpen}
+        order={activeOrder as any}
+        onShipped={handleShipped}
+      />
     </div>
   );
 };
