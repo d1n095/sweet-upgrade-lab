@@ -42,9 +42,27 @@ async function resolveUserId(req: Request): Promise<string | null> {
   }
 }
 
+// Simple in-memory rate limit per IP for checkout
+const checkoutRateLimit = new Map<string, { count: number; resetAt: number }>();
+const CHECKOUT_RATE_LIMIT = 10;
+const CHECKOUT_RATE_WINDOW = 60_000;
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Rate limiting
+  const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const now = Date.now();
+  const entry = checkoutRateLimit.get(clientIp);
+  if (entry && entry.resetAt > now) {
+    entry.count++;
+    if (entry.count > CHECKOUT_RATE_LIMIT) {
+      return json({ error: "Too many requests" }, 429);
+    }
+  } else {
+    checkoutRateLimit.set(clientIp, { count: 1, resetAt: now + CHECKOUT_RATE_WINDOW });
   }
 
   let supabase: ReturnType<typeof createClient> | null = null;
