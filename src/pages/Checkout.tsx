@@ -175,6 +175,10 @@ const Checkout = () => {
       case 'address': return !value.trim() ? t.errorAddress : undefined;
       case 'zip': return !value.trim() ? t.errorZip : undefined;
       case 'city': return !value.trim() ? t.errorCity : undefined;
+      case 'phone': {
+        const digits = value.replace(/\D/g, '');
+        return digits.length < 7 ? (t as any).errorPhone : undefined;
+      }
       default: return undefined;
     }
   }, [t]);
