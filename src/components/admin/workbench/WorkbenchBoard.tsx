@@ -7,17 +7,19 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Plus, User, Clock, CheckCircle2, Circle, Play, X, Zap, UserCheck, Bot,
   AlertTriangle, Package, Headphones, RotateCcw, FileText, Wrench, ShieldAlert,
-  FastForward, Pause, ArrowRight, Sparkles,
+  FastForward, Pause, ArrowRight, Sparkles, Timer, ToggleRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getOrderDisplayId } from '@/utils/orderDisplay';
 
 interface Task {
   id: string;
