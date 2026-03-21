@@ -312,7 +312,9 @@ serve(async (req) => {
     }
 
     // Idempotency: check if this exact email was already sent/enqueued
-    const messageId = `order-${email_type}-${order.id}`;
+    const messageId = email_type === 'status_update'
+      ? `order-${email_type}-${order.id}-${order.status || 'unknown'}`
+      : `order-${email_type}-${order.id}`;
     const { data: existing } = await supabase
       .from("email_send_log")
       .select("id")
@@ -334,6 +336,8 @@ serve(async (req) => {
       html,
       from_name: "4ThePeople",
       message_id: messageId,
+      label: `order_${email_type}`,
+      purpose: "transactional",
     };
 
     const { data: queueResult, error: queueError } = await supabase.rpc("enqueue_email", {

@@ -15,7 +15,12 @@ const WorkbenchOverview = ({ onNavigate }: Props) => {
       const [tasksRes, incidentsRes, ordersRes] = await Promise.all([
         supabase.from('staff_tasks').select('status', { count: 'exact', head: false }).neq('status', 'cancelled'),
         supabase.from('order_incidents').select('status, priority, sla_status'),
-        supabase.from('orders').select('status').is('deleted_at', null).in('status', ['confirmed', 'processing']),
+        supabase
+          .from('orders')
+          .select('status, payment_status, fulfillment_status')
+          .is('deleted_at', null)
+          .neq('status', 'cancelled')
+          .eq('payment_status', 'paid'),
       ]);
 
       const tasks = tasksRes.data || [];
@@ -27,7 +32,8 @@ const WorkbenchOverview = ({ onNavigate }: Props) => {
         inProgressTasks: tasks.filter(t => t.status === 'in_progress').length,
         escalatedTasks: tasks.filter(t => t.status === 'escalated').length,
         escalatedIncidents: incidents.filter(i => i.sla_status === 'overdue' || i.priority === 'high').length,
-        ordersToPack: orders.filter(o => o.status === 'confirmed' || o.status === 'processing').length,
+        ordersToPack: orders.filter(o => ['pending', 'unfulfilled', 'packing'].includes((o as any).fulfillment_status)).length,
+        readyToShip: orders.filter(o => ['ready_to_ship', 'packed'].includes((o as any).fulfillment_status)).length,
       };
     },
     refetchInterval: 30000,
@@ -56,11 +62,11 @@ const WorkbenchOverview = ({ onNavigate }: Props) => {
       onClick: () => onNavigate('workboard', 'packing'),
     },
     {
-      label: 'Pågående arbete',
-      value: stats?.inProgressTasks ?? 0,
+      label: 'Väntar på postning',
+      value: stats?.readyToShip ?? 0,
       icon: Clock,
       color: 'text-green-600 bg-green-600/10',
-      onClick: () => onNavigate('workboard', 'in_progress'),
+      onClick: () => onNavigate('workboard'),
     },
   ];
 
