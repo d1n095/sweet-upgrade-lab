@@ -130,7 +130,7 @@ const AdminDashboardCharts = () => {
         ))}
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Revenue chart */}
         <Card className="border-border">
           <CardHeader className="pb-2">
