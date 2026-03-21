@@ -113,40 +113,38 @@ const ScanPackingMode = () => {
     }
   };
 
-  const handleMarkPacked = async () => {
+  const handlePackAndShip = async () => {
     if (!activeOrder || !user) return;
     if (activeOrder.payment_status !== 'paid') {
       toast.error('Kan inte packa – order ej betald');
       return;
     }
+    if (activeOrder.fulfillment_status === 'shipped' || (activeOrder.fulfillment_status === 'packed' && activeOrder.tracking_number)) {
+      toast.error('Frakt redan skapad');
+      return;
+    }
     setIsPacking(true);
     try {
-      const { error } = await supabase
-        .from('orders')
-        .update({
-          fulfillment_status: 'packed',
-          packed_at: new Date().toISOString(),
-          packed_by: user.id,
-        })
-        .eq('id', activeOrder.id);
-
-      if (error) throw error;
-
-      await logActivity({
-        log_type: 'success',
-        category: 'fulfillment',
-        message: `Order packad via scan`,
-        order_id: activeOrder.id,
+      toast.loading('Skapar frakt…', { id: `ship-${activeOrder.id}` });
+      const { data, error } = await supabase.functions.invoke('create-shipment', {
+        body: { order_id: activeOrder.id },
       });
+      toast.dismiss(`ship-${activeOrder.id}`);
+      if (error) throw new Error(error.message || 'Edge function error');
+      if (!data?.success) throw new Error(data?.error || 'Unknown error');
 
-      toast.success('Order markerad som packad ✓');
+      if (data.label_url) window.open(data.label_url, '_blank');
+
+      toast.success(data.shipmondo_used ? 'Packad & frakt skapad ✓' : 'Packad ✓ (Shipmondo ej konfigurerad)');
       setActiveOrder(null);
       setCheckedItems({});
       setScanSuccess(null);
+      setTrackingNumber(data.tracking_number || '');
       queryClient.invalidateQueries({ queryKey: ['pack-queue'] });
       inputRef.current?.focus();
     } catch (err: any) {
-      toast.error(err.message || 'Kunde inte uppdatera order');
+      toast.dismiss(`ship-${activeOrder.id}`);
+      toast.error(err.message || 'Kunde inte skapa frakt');
     } finally {
       setIsPacking(false);
     }
@@ -166,7 +164,6 @@ const ScanPackingMode = () => {
           fulfillment_status: 'shipped',
           shipped_at: new Date().toISOString(),
           shipped_by: user.id,
-          tracking_number: trackingNumber || null,
         })
         .eq('id', activeOrder.id);
 
@@ -177,7 +174,6 @@ const ScanPackingMode = () => {
         category: 'fulfillment',
         message: `Order skickad`,
         order_id: activeOrder.id,
-        details: { tracking_number: trackingNumber },
       });
 
       toast.success('Order markerad som skickad ✓');
@@ -192,11 +188,6 @@ const ScanPackingMode = () => {
     } finally {
       setIsShipping(false);
     }
-  };
-
-  const handleCreateShipment = () => {
-    // Shipmondo integration placeholder — API key not yet configured
-    toast.info('Shipmondo-integration ej konfigurerad ännu. Kontakta admin för API-nyckel.');
   };
 
   return (
@@ -375,30 +366,28 @@ const ScanPackingMode = () => {
 
                 <Separator />
 
-                {/* Tracking number */}
-                <div>
-                  <label className="text-sm font-medium mb-1 block">Spårningsnummer</label>
-                  <Input
-                    placeholder="Ange spårningsnummer…"
-                    value={trackingNumber}
-                    onChange={(e) => setTrackingNumber(e.target.value)}
-                  />
-                </div>
+                {/* Tracking number – populated automatically by Shipmondo API */}
+                {trackingNumber && (
+                  <div className="bg-accent/10 rounded-lg p-3 text-sm">
+                    <p className="font-medium mb-1">Spårningsnummer:</p>
+                    <p className="font-mono">{trackingNumber}</p>
+                  </div>
+                )}
 
                 {/* Actions */}
                 <div className="flex flex-wrap gap-2 pt-2">
                   {activeOrder.fulfillment_status !== 'packed' && activeOrder.fulfillment_status !== 'shipped' && (
                     <Button
-                      onClick={handleMarkPacked}
+                      onClick={handlePackAndShip}
                       disabled={!allChecked || isPacking}
                       className="flex-1"
                     >
                       {isPacking ? (
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                       ) : (
-                        <CheckCircle2 className="w-4 h-4 mr-2" />
+                        <Package className="w-4 h-4 mr-2" />
                       )}
-                      Markera som packad
+                      Packa & skapa frakt
                     </Button>
                   )}
 
@@ -417,11 +406,6 @@ const ScanPackingMode = () => {
                       Markera som skickad
                     </Button>
                   )}
-
-                   <Button variant="outline" onClick={handleCreateShipment}>
-                     <Truck className="w-4 h-4 mr-2" />
-                     Skapa frakt (Shipmondo)
-                   </Button>
                 </div>
 
                 {!allChecked && activeOrder.fulfillment_status !== 'packed' && (
