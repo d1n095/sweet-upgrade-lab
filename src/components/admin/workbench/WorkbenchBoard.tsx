@@ -159,6 +159,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
       const { data, error } = await supabase
         .from('staff_tasks')
         .select('*')
+        .neq('status', 'cancelled')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return (data || []) as Task[];
