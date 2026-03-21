@@ -184,6 +184,16 @@ const DbProductCard = ({ product, index, compact = false, isPurchased = false }:
               </div>
             )}
 
+            {/* Purchased badge */}
+            {isPurchased && (
+              <div className="absolute bottom-3 right-3 z-10">
+                <Badge className="bg-accent/90 text-accent-foreground text-[10px] px-2 py-0.5 rounded-full">
+                  <Check className="w-3 h-3 mr-0.5" />
+                  {lang === 'sv' ? 'Köpt' : 'Bought'}
+                </Badge>
+              </div>
+            )}
+
             {/* Wishlist */}
             <div className="absolute top-3 left-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
               <WishlistButton
