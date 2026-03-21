@@ -507,6 +507,10 @@ const AdminStaff = () => {
           <WorkbenchBoard initialFilter={boardFilter} />
         </TabsContent>
 
+        <TabsContent value="quickpack">
+          <QuickPackMode />
+        </TabsContent>
+
         <TabsContent value="staff">
           <WorkbenchStaffPanel />
         </TabsContent>
