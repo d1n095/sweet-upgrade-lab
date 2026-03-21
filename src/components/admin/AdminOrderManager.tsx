@@ -668,21 +668,9 @@ const AdminOrderManager = () => {
     if (w) { w.document.write(html); w.document.close(); }
   };
 
-  const handlePrintShippingLabel = (order: Order) => {
-    const addr = parseShippingAddress(order.shipping_address);
-    if (!addr) { toast.error(language === 'sv' ? 'Ingen leveransadress' : 'No shipping address'); return; }
-    const html = `<html><head><title>Fraktsedel</title><style>body{font-family:system-ui;padding:40px}div{border:2px solid #000;padding:32px;max-width:400px;margin:0 auto}.from{margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid #ccc;font-size:12px}h2{margin:0 0 8px}p{margin:4px 0;font-size:16px}.order{font-size:12px;color:#666;margin-top:16px}</style></head><body>
-      <div><div class="from"><strong>Avsändare:</strong><br>4ThePeople<br>Sverige</div>
-      <h2>Mottagare</h2>
-      <p><strong>${escHtml(addr.name)}</strong></p>
-      <p>${escHtml(addr.address)}</p>
-      <p>${escHtml(addr.zip)} ${escHtml(addr.city)}</p>
-      <p>${escHtml(addr.country || 'Sverige')}</p>
-      ${addr.phone ? `<p>Tel: ${escHtml(addr.phone)}</p>` : ''}
-      <p class="order">${escHtml(getOrderDisplayId(order))}</p></div>
-      <script>window.print()</script></body></html>`;
-    const w = window.open('', '_blank');
-    if (w) { w.document.write(html); w.document.close(); }
+  const handleCreateShipment = (order: Order) => {
+    // Shipmondo integration placeholder — API key not yet configured
+    toast.info('Shipmondo-integration ej konfigurerad ännu. Kontakta admin för API-nyckel.');
   };
 
   const handleExportCSV = () => {
@@ -1266,11 +1254,11 @@ const AdminOrderManager = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={(e) => { e.stopPropagation(); handlePrintShippingLabel(order); }}
+                      onClick={(e) => { e.stopPropagation(); handleCreateShipment(order); }}
                       className="gap-2"
                     >
-                      <FileText className="w-4 h-4" />
-                      {language === 'sv' ? 'Fraktsedel' : 'Shipping Label'}
+                      <Truck className="w-4 h-4" />
+                      {language === 'sv' ? 'Skapa frakt' : 'Create Shipment'}
                     </Button>
                   </div>
                 )}
