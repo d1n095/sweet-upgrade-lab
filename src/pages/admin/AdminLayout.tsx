@@ -124,12 +124,17 @@ const AdminLayout = () => {
     }
   }, [hasAccess, combinedLoading, navigate]);
 
-  // Filter nav items based on role
-  const visibleNavItems = navItems.filter(item => {
+  // Filter nav groups based on role
+  const filterItem = (item: NavItem) => {
     if (item.role === 'founder') return isFounder;
     if (isAdmin) return true;
     return item.role === 'all';
-  });
+  };
+  const visibleGroups = navGroups.map(g => ({
+    ...g,
+    items: g.items.filter(filterItem),
+  })).filter(g => g.items.length > 0);
+  const visibleNavItems = allNavItems.filter(filterItem);
 
   useEffect(() => { setMobileNavOpen(false); }, [location.pathname]);
 
