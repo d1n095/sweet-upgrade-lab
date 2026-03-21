@@ -676,7 +676,8 @@ const AdminOrderManager = () => {
           { key: 'unpaid', label: content.waitingPayment, count: orders.filter(o => o.payment_status !== 'paid').length },
           { key: 'to_pack', label: content.toPack, count: orders.filter(o => o.payment_status === 'paid' && (o.fulfillment_status === 'pending' || o.fulfillment_status === 'unfulfilled')).length },
           { key: 'packing', label: content.packing, count: orders.filter(o => o.fulfillment_status === 'packing').length },
-          { key: 'packed', label: content.packed, count: orders.filter(o => o.fulfillment_status === 'packed').length },
+          { key: 'packed', label: content.packed, count: orders.filter(o => o.fulfillment_status === 'packed' || o.fulfillment_status === 'ready_to_ship').length },
+          { key: 'ready_to_ship', label: language === 'sv' ? 'Väntar på postning' : 'Ready to ship', count: orders.filter(o => o.fulfillment_status === 'ready_to_ship').length },
           { key: 'shipped', label: content.shipped, count: orders.filter(o => o.fulfillment_status === 'shipped').length },
         ].map(tab => (
           <Button
