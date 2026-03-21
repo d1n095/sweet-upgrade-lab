@@ -538,7 +538,7 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
 
               <Button
                 type="submit"
-                disabled={loading || (mode === 'register' && (!!usernameError || !username || checkingUsername))}
+                disabled={loading || (mode === 'register' && (!!usernameError || !username || checkingUsername || !!phoneError || !phone))}
                 className="w-full h-12 rounded-xl font-semibold"
               >
                 {loading ? (

@@ -231,10 +231,11 @@ const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
                               <Link to={`/product/${product.handle || product.id}`} onClick={onClose}>
                                 <p className="text-sm font-medium truncate">{product.title_sv}</p>
                               </Link>
-                              <p className="text-xs text-muted-foreground">{formatPrice(product.price, 'SEK')}</p>
+                              <p className="text-xs font-semibold text-primary">+{formatPrice(product.price, 'SEK')}</p>
                             </div>
-                            <Button size="icon" variant="outline" className="h-8 w-8 shrink-0 rounded-lg" onClick={() => handleAddRecommended(product)}>
-                              <Plus className="w-3.5 h-3.5" />
+                            <Button size="sm" variant="outline" className="shrink-0 rounded-lg text-xs gap-1" onClick={() => handleAddRecommended(product)}>
+                              <Plus className="w-3 h-3" />
+                              {cl === 'sv' ? 'Lägg till' : 'Add'}
                             </Button>
                           </div>
                         ))}
