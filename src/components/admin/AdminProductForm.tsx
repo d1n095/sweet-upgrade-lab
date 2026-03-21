@@ -1177,6 +1177,77 @@ export function AdminProductForm({
         </div>
       </div>
 
+      {/* ── SEO Section ── */}
+      <div className="border-t border-border pt-4 mt-2">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+          {language === 'sv' ? '🔍 SEO' : '🔍 SEO'}
+        </p>
+
+        {/* Google Preview */}
+        <div className="mb-4 p-3 rounded-lg bg-secondary/30 border border-border/50">
+          <p className="text-xs text-muted-foreground mb-2">{language === 'sv' ? 'Google-förhandsgranskning' : 'Google Preview'}</p>
+          <div className="space-y-0.5">
+            <p className="text-[#1a0dab] text-sm font-medium truncate">
+              {formData.metaTitle || `${formData.title} | 4thepeople`}
+            </p>
+            <p className="text-[#006621] text-xs truncate">
+              4thepeople.se › produkt › {(formData.title || 'produkt').toLowerCase().replace(/\s+/g, '-').replace(/[^a-zåäö0-9-]/g, '')}
+            </p>
+            <p className="text-[#545454] text-xs line-clamp-2">
+              {formData.metaDescription || (language === 'sv' ? 'Meta-beskrivning genereras automatiskt...' : 'Meta description will be auto-generated...')}
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="metaTitle" className="text-xs">SEO-titel</Label>
+              <span className={`text-xs ${(formData.metaTitle?.length || 0) > 60 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                {formData.metaTitle?.length || 0}/60
+              </span>
+            </div>
+            <Input
+              id="metaTitle"
+              value={formData.metaTitle}
+              onChange={(e) => setFormData((prev) => ({ ...prev, metaTitle: e.target.value }))}
+              placeholder={language === 'sv' ? 'Produktnamn — Köp online | 4thepeople' : 'Product Name — Buy online | 4thepeople'}
+              className="text-xs"
+              maxLength={70}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="metaDescription" className="text-xs">Meta-beskrivning</Label>
+              <span className={`text-xs ${(formData.metaDescription?.length || 0) > 155 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                {formData.metaDescription?.length || 0}/155
+              </span>
+            </div>
+            <Textarea
+              id="metaDescription"
+              value={formData.metaDescription}
+              onChange={(e) => setFormData((prev) => ({ ...prev, metaDescription: e.target.value }))}
+              placeholder={language === 'sv' ? 'Köp [produkt] hos 4thepeople. Naturligt, hållbart och noggrant utvalt.' : 'Buy [product] at 4thepeople. Natural, sustainable and carefully selected.'}
+              rows={2}
+              className="text-xs"
+              maxLength={165}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="metaKeywords" className="text-xs">{language === 'sv' ? 'Nyckelord (kommaseparerade)' : 'Keywords (comma-separated)'}</Label>
+            <Input
+              id="metaKeywords"
+              value={formData.metaKeywords}
+              onChange={(e) => setFormData((prev) => ({ ...prev, metaKeywords: e.target.value }))}
+              placeholder={language === 'sv' ? 'bastudoft, naturlig, premium, köp online' : 'sauna scent, natural, premium, buy online'}
+              className="text-xs"
+            />
+          </div>
+        </div>
+      </div>
+
       <div className="flex gap-2 pt-2">
         <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
           {t.cancel}

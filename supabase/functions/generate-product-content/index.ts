@@ -37,6 +37,9 @@ Return a JSON object with these exact keys:
 - effects: Benefits/effects as newline-separated bullet points (3-5 points)
 - feeling: A sensory/emotional description of the product experience (1-2 sentences)
 - usage: Clear usage instructions (1-2 sentences)
+- seo_title: SEO-optimized page title (max 60 chars). Format: "Product Name + Category + 1-2 modifiers (e.g. naturlig, premium) | 4thepeople"
+- meta_description: SEO meta description (max 155 chars). Compelling, includes main keyword and call-to-action.
+- meta_keywords: 6-8 relevant SEO keywords, comma-separated. Include product name, category, key ingredients, and intent words like "köp" or "bästa".
 
 All text should be in ${lang}. Make it feel premium but approachable.`;
 
