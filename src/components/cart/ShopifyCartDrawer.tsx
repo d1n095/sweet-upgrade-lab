@@ -178,6 +178,15 @@ const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
 
                   <ShippingProgressBar cartTotal={finalTotal} />
 
+                  <CartReservationTimer lang={cl} />
+
+                  {/* Trust signals */}
+                  <div className="flex items-center justify-center gap-4 py-2 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1">🛡 {cl === 'sv' ? '30 dagars garanti' : '30-day guarantee'}</span>
+                    <span className="text-border">•</span>
+                    <span className="flex items-center gap-1">🔒 {cl === 'sv' ? 'Säker betalning' : 'Secure payment'}</span>
+                  </div>
+
                   {!user && showLoginIncentive && (
                     <LoginIncentives onLogin={() => setIsAuthOpen(true)} onContinue={() => setShowLoginIncentive(false)} />
                   )}
