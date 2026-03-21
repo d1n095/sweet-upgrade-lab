@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Mail, Lock, Loader2, Crown, ArrowLeft, CheckCircle, Eye, EyeOff, UserCircle, AlertCircle, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import { Mail, Lock, Loader2, Crown, ArrowLeft, CheckCircle, Eye, EyeOff, UserCircle, AlertCircle, ShieldAlert, CheckCircle2, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/useAuth';
