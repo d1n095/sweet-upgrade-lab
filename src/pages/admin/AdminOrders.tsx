@@ -28,6 +28,7 @@ const AdminOrders = () => {
         delivered: ords.filter(o => o.status === 'delivered').length,
         returned: ords.filter(o => o.status === 'returned').length,
         lost: ords.filter(o => o.status === 'lost').length,
+        readyToShip: ords.filter(o => o.fulfillment_status === 'ready_to_ship').length,
       });
       setLoading(false);
     };
