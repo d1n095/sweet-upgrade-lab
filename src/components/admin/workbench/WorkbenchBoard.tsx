@@ -8,8 +8,10 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  Plus, User, Clock, CheckCircle2, Circle, Play, X, Zap, UserCheck, RotateCcw, Bot,
+  Plus, User, Clock, CheckCircle2, Circle, Play, X, Zap, UserCheck, Bot,
+  AlertTriangle, Package, Headphones, RotateCcw, FileText, Wrench, ShieldAlert,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -32,10 +34,11 @@ interface Task {
   related_incident_id: string | null;
 }
 
-const COLUMNS = [
+const STATUS_COLUMNS = [
   { key: 'open', label: 'Öppna', icon: Circle, color: 'text-muted-foreground' },
   { key: 'claimed', label: 'Tagna', icon: User, color: 'text-blue-600' },
   { key: 'in_progress', label: 'Pågående', icon: Play, color: 'text-orange-600' },
+  { key: 'escalated', label: 'Eskalerade', icon: AlertTriangle, color: 'text-destructive' },
   { key: 'done', label: 'Klara', icon: CheckCircle2, color: 'text-green-600' },
 ];
 
@@ -45,15 +48,33 @@ const PRIORITY_COLORS: Record<string, string> = {
   low: 'bg-green-500/10 text-green-700 border-green-500/20',
 };
 
+const TASK_TYPE_META: Record<string, { label: string; icon: typeof Package; color: string }> = {
+  pack_order: { label: 'Packning', icon: Package, color: 'text-orange-600 bg-orange-600/10' },
+  packing: { label: 'Packning', icon: Package, color: 'text-orange-600 bg-orange-600/10' },
+  shipping: { label: 'Frakt', icon: Package, color: 'text-blue-600 bg-blue-600/10' },
+  support_case: { label: 'Support', icon: Headphones, color: 'text-cyan-600 bg-cyan-600/10' },
+  support: { label: 'Support', icon: Headphones, color: 'text-cyan-600 bg-cyan-600/10' },
+  refund_request: { label: 'Återbetalning', icon: RotateCcw, color: 'text-purple-600 bg-purple-600/10' },
+  refund: { label: 'Återbetalning', icon: RotateCcw, color: 'text-purple-600 bg-purple-600/10' },
+  incident: { label: 'Incident', icon: ShieldAlert, color: 'text-destructive bg-destructive/10' },
+  review: { label: 'Recension', icon: FileText, color: 'text-pink-600 bg-pink-600/10' },
+  manual_task: { label: 'Manuell', icon: Wrench, color: 'text-muted-foreground bg-secondary' },
+  general: { label: 'Allmänt', icon: FileText, color: 'text-muted-foreground bg-secondary' },
+  other: { label: 'Övrigt', icon: FileText, color: 'text-muted-foreground bg-secondary' },
+};
+
 const TASK_TYPES = [
   { key: 'general', label: 'Allmänt' },
-  { key: 'packing', label: 'Packning' },
+  { key: 'pack_order', label: 'Packning' },
   { key: 'shipping', label: 'Frakt' },
-  { key: 'support', label: 'Support' },
-  { key: 'review', label: 'Recension' },
-  { key: 'refund', label: 'Återbetalning' },
+  { key: 'support_case', label: 'Support' },
+  { key: 'refund_request', label: 'Återbetalning' },
+  { key: 'incident', label: 'Incident' },
+  { key: 'manual_task', label: 'Manuell' },
   { key: 'other', label: 'Övrigt' },
 ];
+
+type ViewFilter = 'all' | 'mine' | 'escalated' | 'open';
 
 interface Props {
   initialFilter?: string;
@@ -70,8 +91,9 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const [creating, setCreating] = useState(false);
   const [autoAssigning, setAutoAssigning] = useState(false);
   const [runningAutomation, setRunningAutomation] = useState(false);
+  const [viewFilter, setViewFilter] = useState<ViewFilter>('all');
+  const [escalating, setEscalating] = useState<string | null>(null);
 
-  // Recent automation logs for badges
   const { data: automationLogs = [] } = useQuery({
     queryKey: ['automation-logs-recent'],
     queryFn: async () => {
@@ -98,10 +120,9 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
       const { data, error } = await supabase.functions.invoke('automation-engine');
       if (error) throw error;
       const r = data?.results;
-      toast.success(`Automation klar: ${r?.escalated || 0} eskalerade, ${r?.reassigned || 0} omfördelade, ${r?.reprioritized || 0} omprior., ${r?.alerts || 0} alerts`);
+      toast.success(`Automation klar: ${r?.escalated || 0} eskalerade, ${r?.reassigned || 0} omfördelade`);
       queryClient.invalidateQueries({ queryKey: ['staff-tasks'] });
       queryClient.invalidateQueries({ queryKey: ['automation-logs-recent'] });
-      queryClient.invalidateQueries({ queryKey: ['workbench-stats'] });
     } catch (e: any) {
       toast.error('Automation misslyckades: ' + e.message);
     } finally {
@@ -109,7 +130,6 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     }
   };
 
-  // Fetch staff profiles for displaying assigned names
   const { data: staffProfiles = [] } = useQuery({
     queryKey: ['staff-profiles'],
     queryFn: async () => {
@@ -156,39 +176,100 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     return () => { supabase.removeChannel(channel); };
   }, [queryClient]);
 
-  // Auto-assign a single task using the DB function
+  // Filter tasks based on view
+  const filteredTasks = tasks.filter(t => {
+    if (viewFilter === 'mine') return t.assigned_to === user?.id || t.claimed_by === user?.id;
+    if (viewFilter === 'escalated') return t.status === 'escalated';
+    if (viewFilter === 'open') return t.status === 'open';
+    return true;
+  });
+
+  // Sort: escalated first, then high priority, then oldest
+  const sortedTasks = [...filteredTasks].sort((a, b) => {
+    if (a.status === 'escalated' && b.status !== 'escalated') return -1;
+    if (b.status === 'escalated' && a.status !== 'escalated') return 1;
+    const pOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
+    const pDiff = (pOrder[a.priority] ?? 1) - (pOrder[b.priority] ?? 1);
+    if (pDiff !== 0) return pDiff;
+    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+  });
+
+  const escalateTask = async (taskId: string) => {
+    if (!user) return;
+    setEscalating(taskId);
+    try {
+      // Set task to escalated + high priority
+      await supabase.from('staff_tasks').update({
+        status: 'escalated',
+        priority: 'high',
+        updated_at: new Date().toISOString(),
+      } as any).eq('id', taskId);
+
+      // Auto-assign to admin/founder
+      const { data: adminUser } = await supabase.rpc('auto_assign_task', { p_task_type: 'support' });
+      if (adminUser) {
+        await supabase.from('staff_tasks').update({
+          assigned_to: adminUser,
+        } as any).eq('id', taskId);
+      }
+
+      // Notify admins
+      const { data: admins } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .in('role', ['admin', 'founder'] as any[]);
+
+      const task = tasks.find(t => t.id === taskId);
+      for (const a of admins || []) {
+        await supabase.from('notifications').insert({
+          user_id: a.user_id,
+          type: 'urgent',
+          message: `🚨 Eskalerad: ${task?.title || 'Uppgift'}`,
+          related_id: taskId,
+          related_type: 'task',
+        });
+      }
+
+      // Log
+      await supabase.from('automation_logs').insert({
+        action_type: 'escalate',
+        target_type: 'task',
+        target_id: taskId,
+        reason: `Manuellt eskalerad av ${getStaffName(user.id) || 'personal'}`,
+        details: { escalated_by: user.id },
+      });
+
+      toast.success('Uppgift eskalerad → admins notifierade');
+      queryClient.invalidateQueries({ queryKey: ['staff-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['automation-logs-recent'] });
+    } catch {
+      toast.error('Kunde inte eskalera');
+    } finally {
+      setEscalating(null);
+    }
+  };
+
   const autoAssignSingle = async (taskId: string, taskType: string) => {
     const { data, error } = await supabase.rpc('auto_assign_task', { p_task_type: taskType });
-    if (error || !data) {
-      toast.error('Ingen tillgänglig personal hittades');
-      return;
-    }
-    const { error: updateErr } = await supabase
-      .from('staff_tasks')
-      .update({ assigned_to: data, status: 'claimed', claimed_by: data } as any)
-      .eq('id', taskId);
-    if (updateErr) { toast.error('Kunde inte tilldela'); return; }
-    const name = getStaffName(data as string) || 'personal';
-    toast.success(`Auto-tilldelad till ${name}`);
+    if (error || !data) { toast.error('Ingen tillgänglig personal'); return; }
+    await supabase.from('staff_tasks').update({ assigned_to: data, status: 'claimed', claimed_by: data } as any).eq('id', taskId);
+    toast.success(`Tilldelad till ${getStaffName(data as string) || 'personal'}`);
     queryClient.invalidateQueries({ queryKey: ['staff-tasks'] });
   };
 
-  // Auto-assign ALL open tasks
   const autoAssignAll = async () => {
     const openTasks = tasks.filter(t => t.status === 'open' && !t.assigned_to);
-    if (!openTasks.length) { toast.info('Inga öppna uppgifter att fördela'); return; }
+    if (!openTasks.length) { toast.info('Inga öppna uppgifter'); return; }
     setAutoAssigning(true);
     let assigned = 0;
     for (const task of openTasks) {
       const { data } = await supabase.rpc('auto_assign_task', { p_task_type: task.task_type });
       if (data) {
-        await supabase.from('staff_tasks')
-          .update({ assigned_to: data, status: 'claimed', claimed_by: data } as any)
-          .eq('id', task.id);
+        await supabase.from('staff_tasks').update({ assigned_to: data, status: 'claimed', claimed_by: data } as any).eq('id', task.id);
         assigned++;
       }
     }
-    toast.success(`${assigned} av ${openTasks.length} uppgifter fördelade`);
+    toast.success(`${assigned} av ${openTasks.length} fördelade`);
     queryClient.invalidateQueries({ queryKey: ['staff-tasks'] });
     setAutoAssigning(false);
   };
@@ -197,9 +278,8 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     if (!newTitle.trim() || !user) return;
     setCreating(true);
     try {
-      // Auto-assign on creation
       const { data: bestUser } = await supabase.rpc('auto_assign_task', { p_task_type: newType });
-      const { error } = await supabase.from('staff_tasks').insert({
+      await supabase.from('staff_tasks').insert({
         title: newTitle.trim(),
         description: newDesc.trim() || null,
         priority: newPriority,
@@ -207,9 +287,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
         created_by: user.id,
         ...(bestUser ? { assigned_to: bestUser, status: 'claimed', claimed_by: bestUser } : {}),
       } as any);
-      if (error) throw error;
-      const name = bestUser ? getStaffName(bestUser as string) : null;
-      toast.success(name ? `Uppgift skapad → tilldelad ${name}` : 'Uppgift skapad (ingen tillgänglig)');
+      toast.success(bestUser ? `Skapad → tilldelad ${getStaffName(bestUser as string)}` : 'Skapad (ingen tillgänglig)');
       setNewTitle(''); setNewDesc(''); setShowCreate(false);
       queryClient.invalidateQueries({ queryKey: ['staff-tasks'] });
     } catch (err: any) {
@@ -222,43 +300,154 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const moveTask = async (taskId: string, newStatus: string) => {
     if (!user) return;
     const now = new Date().toISOString();
-    const updates: Record<string, any> = { status: newStatus };
+    const updates: Record<string, any> = { status: newStatus, updated_at: now };
     if (newStatus === 'claimed') { updates.claimed_by = user.id; updates.claimed_at = now; }
     if (newStatus === 'in_progress') { updates.claimed_by = user.id; if (!updates.claimed_at) updates.claimed_at = now; }
     if (newStatus === 'done') updates.completed_at = now;
-    const { error } = await supabase.from('staff_tasks').update(updates).eq('id', taskId);
-    if (error) { toast.error('Kunde inte flytta uppgift'); return; }
+    await supabase.from('staff_tasks').update(updates).eq('id', taskId);
     queryClient.invalidateQueries({ queryKey: ['staff-tasks'] });
   };
 
   const getNextStatus = (current: string) => {
+    if (current === 'escalated') return 'in_progress';
     const order = ['open', 'claimed', 'in_progress', 'done'];
     const idx = order.indexOf(current);
     return idx < order.length - 1 ? order[idx + 1] : null;
   };
 
   const getPrevStatus = (current: string) => {
+    if (current === 'escalated') return 'open';
     const order = ['open', 'claimed', 'in_progress', 'done'];
     const idx = order.indexOf(current);
     return idx > 0 ? order[idx - 1] : null;
   };
 
+  const escalatedCount = tasks.filter(t => t.status === 'escalated').length;
+  const myCount = tasks.filter(t => (t.assigned_to === user?.id || t.claimed_by === user?.id) && t.status !== 'done').length;
   const openCount = tasks.filter(t => t.status === 'open' && !t.assigned_to).length;
+
+  const renderTaskCard = (task: Task) => {
+    const typeMeta = TASK_TYPE_META[task.task_type] || TASK_TYPE_META.general;
+    const TypeIcon = typeMeta.icon;
+    const isEscalated = task.status === 'escalated';
+
+    return (
+      <Card key={task.id} className={cn(
+        'border-border hover:shadow-sm transition-shadow',
+        isEscalated && 'border-destructive/40 bg-destructive/5'
+      )}>
+        <CardContent className="pt-3 pb-3 space-y-2">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-1.5 min-w-0 flex-1">
+              <div className={cn('w-5 h-5 rounded flex items-center justify-center shrink-0', typeMeta.color)}>
+                <TypeIcon className="w-3 h-3" />
+              </div>
+              <h4 className="text-sm font-medium leading-tight truncate">{task.title}</h4>
+            </div>
+            <Badge variant="outline" className={cn('text-[9px] shrink-0', PRIORITY_COLORS[task.priority])}>
+              {task.priority === 'high' ? 'HÖG' : task.priority === 'medium' ? 'MED' : 'LÅG'}
+            </Badge>
+          </div>
+
+          {task.description && (
+            <p className="text-xs text-muted-foreground line-clamp-2">{task.description}</p>
+          )}
+
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Badge variant="secondary" className={cn('text-[9px] gap-0.5', typeMeta.color)}>
+              <TypeIcon className="w-2.5 h-2.5" />
+              {typeMeta.label}
+            </Badge>
+            {isEscalated && (
+              <Badge variant="destructive" className="text-[9px] gap-0.5">
+                <AlertTriangle className="w-2.5 h-2.5" /> Eskalerad
+              </Badge>
+            )}
+            {getTaskAutomationBadge(task.id) && (
+              <Badge variant="outline" className="text-[9px] gap-0.5 bg-purple-100 text-purple-700 border-purple-200">
+                <Bot className="w-2.5 h-2.5" />
+                {getTaskAutomationBadge(task.id) === 'escalate' ? 'Auto-eskalerad' :
+                 getTaskAutomationBadge(task.id) === 'reassign' ? 'Omfördelad' : 'Auto'}
+              </Badge>
+            )}
+            {task.assigned_to && (
+              <Badge variant="outline" className="text-[9px] gap-0.5">
+                <UserCheck className="w-2.5 h-2.5" />
+                {getStaffName(task.assigned_to)}
+              </Badge>
+            )}
+            {task.due_at && (
+              <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                <Clock className="w-3 h-3" />
+                {format(new Date(task.due_at), 'dd/MM HH:mm')}
+              </span>
+            )}
+          </div>
+
+          <div className="flex gap-1 pt-1 flex-wrap">
+            {task.status === 'open' && !task.assigned_to && (
+              <Button variant="outline" size="sm" className="text-[10px] h-6 px-2 gap-0.5"
+                onClick={() => autoAssignSingle(task.id, task.task_type)}>
+                <Zap className="w-3 h-3" /> Tilldela
+              </Button>
+            )}
+            {/* Escalate button – available on open/claimed/in_progress */}
+            {['open', 'claimed', 'in_progress'].includes(task.status) && (
+              <Button variant="outline" size="sm"
+                className="text-[10px] h-6 px-2 gap-0.5 text-destructive border-destructive/30 hover:bg-destructive/10"
+                onClick={() => escalateTask(task.id)}
+                disabled={escalating === task.id}>
+                <AlertTriangle className="w-3 h-3" /> Eskalera
+              </Button>
+            )}
+            {getPrevStatus(task.status) && (
+              <Button variant="ghost" size="sm" className="text-[10px] h-6 px-2" onClick={() => moveTask(task.id, getPrevStatus(task.status)!)}>
+                ← Tillbaka
+              </Button>
+            )}
+            {getNextStatus(task.status) && (
+              <Button variant="default" size="sm" className="text-[10px] h-6 px-2 ml-auto" onClick={() => moveTask(task.id, getNextStatus(task.status)!)}>
+                {getNextStatus(task.status) === 'claimed' ? 'Ta' :
+                 getNextStatus(task.status) === 'in_progress' ? 'Starta' : 'Klar'} →
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
     <div className="space-y-4">
+      {/* Filter tabs */}
+      <Tabs value={viewFilter} onValueChange={v => setViewFilter(v as ViewFilter)}>
+        <TabsList>
+          <TabsTrigger value="all" className="gap-1.5">
+            Alla <Badge variant="secondary" className="text-[9px] ml-1">{tasks.filter(t => t.status !== 'done').length}</Badge>
+          </TabsTrigger>
+          <TabsTrigger value="mine" className="gap-1.5">
+            Mina {myCount > 0 && <Badge variant="secondary" className="text-[9px] ml-1">{myCount}</Badge>}
+          </TabsTrigger>
+          <TabsTrigger value="escalated" className={cn('gap-1.5', escalatedCount > 0 && 'text-destructive')}>
+            <AlertTriangle className="w-3.5 h-3.5" /> Eskalerade
+            {escalatedCount > 0 && <Badge variant="destructive" className="text-[9px] ml-1">{escalatedCount}</Badge>}
+          </TabsTrigger>
+          <TabsTrigger value="open" className="gap-1.5">
+            Öppna {openCount > 0 && <Badge variant="secondary" className="text-[9px] ml-1">{openCount}</Badge>}
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <p className="text-sm text-muted-foreground">{tasks.filter(t => t.status !== 'done').length} aktiva uppgifter</p>
+        <p className="text-sm text-muted-foreground">{sortedTasks.filter(t => t.status !== 'done').length} uppgifter</p>
         <div className="flex gap-2">
           {openCount > 0 && (
             <Button size="sm" variant="outline" className="gap-1.5" onClick={autoAssignAll} disabled={autoAssigning}>
-              <Zap className="w-4 h-4" />
-              Auto-fördela ({openCount})
+              <Zap className="w-4 h-4" /> Auto-fördela ({openCount})
             </Button>
           )}
           <Button size="sm" variant="outline" className="gap-1.5" onClick={runAutomation} disabled={runningAutomation}>
-            <Bot className="w-4 h-4" />
-            {runningAutomation ? 'Kör...' : 'Automation'}
+            <Bot className="w-4 h-4" /> {runningAutomation ? 'Kör...' : 'Automation'}
           </Button>
           <Button size="sm" className="gap-1.5" onClick={() => setShowCreate(!showCreate)}>
             {showCreate ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
@@ -289,87 +478,31 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
               </Select>
               <Button onClick={handleCreate} disabled={creating || !newTitle.trim()}>Skapa</Button>
             </div>
-            <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-              <Zap className="w-3 h-3" /> Uppgiften auto-tilldelas vid skapande
-            </p>
           </CardContent>
         </Card>
       )}
 
       {/* Kanban columns */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-        {COLUMNS.map(col => {
-          const colTasks = tasks.filter(t => t.status === col.key);
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+        {STATUS_COLUMNS.map(col => {
+          const colTasks = sortedTasks.filter(t => t.status === col.key);
           return (
             <div key={col.key} className="space-y-2">
               <div className="flex items-center gap-2 px-1">
                 <col.icon className={cn('w-4 h-4', col.color)} />
                 <span className="text-sm font-semibold">{col.label}</span>
-                <Badge variant="secondary" className="text-[10px] ml-auto">{colTasks.length}</Badge>
+                <Badge variant={col.key === 'escalated' && colTasks.length > 0 ? 'destructive' : 'secondary'} className="text-[10px] ml-auto">
+                  {colTasks.length}
+                </Badge>
               </div>
-              <div className="space-y-2 min-h-[100px] bg-secondary/20 rounded-lg p-2">
+              <div className={cn(
+                'space-y-2 min-h-[100px] rounded-lg p-2',
+                col.key === 'escalated' && colTasks.length > 0 ? 'bg-destructive/5' : 'bg-secondary/20'
+              )}>
                 {colTasks.length === 0 && (
                   <p className="text-xs text-muted-foreground text-center py-6">Inga uppgifter</p>
                 )}
-                {colTasks.map(task => (
-                  <Card key={task.id} className="border-border hover:shadow-sm transition-shadow">
-                    <CardContent className="pt-3 pb-3 space-y-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <h4 className="text-sm font-medium leading-tight">{task.title}</h4>
-                        <Badge variant="outline" className={cn('text-[9px] shrink-0', PRIORITY_COLORS[task.priority])}>
-                          {task.priority === 'high' ? 'HÖG' : task.priority === 'medium' ? 'MED' : 'LÅG'}
-                        </Badge>
-                      </div>
-                      {task.description && (
-                        <p className="text-xs text-muted-foreground line-clamp-2">{task.description}</p>
-                      )}
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <Badge variant="secondary" className="text-[9px]">
-                          {TASK_TYPES.find(t => t.key === task.task_type)?.label || task.task_type}
-                        </Badge>
-                        {getTaskAutomationBadge(task.id) && (
-                          <Badge variant="outline" className="text-[9px] gap-0.5 bg-purple-100 text-purple-700 border-purple-200">
-                            <Bot className="w-2.5 h-2.5" />
-                            {getTaskAutomationBadge(task.id) === 'escalate' ? 'Eskalerad' :
-                             getTaskAutomationBadge(task.id) === 'reassign' ? 'Omfördelad' :
-                             getTaskAutomationBadge(task.id) === 'reprioritize' ? 'Omprioriterad' : 'Auto'}
-                          </Badge>
-                        )}
-                        {task.assigned_to && (
-                          <Badge variant="outline" className="text-[9px] gap-0.5">
-                            <UserCheck className="w-2.5 h-2.5" />
-                            {getStaffName(task.assigned_to)}
-                          </Badge>
-                        )}
-                        {task.due_at && (
-                          <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
-                            <Clock className="w-3 h-3" />
-                            {format(new Date(task.due_at), 'dd/MM HH:mm')}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex gap-1 pt-1">
-                        {task.status === 'open' && !task.assigned_to && (
-                          <Button variant="outline" size="sm" className="text-[10px] h-6 px-2 gap-0.5"
-                            onClick={() => autoAssignSingle(task.id, task.task_type)}>
-                            <Zap className="w-3 h-3" /> Tilldela
-                          </Button>
-                        )}
-                        {getPrevStatus(task.status) && (
-                          <Button variant="ghost" size="sm" className="text-[10px] h-6 px-2" onClick={() => moveTask(task.id, getPrevStatus(task.status)!)}>
-                            ← Tillbaka
-                          </Button>
-                        )}
-                        {getNextStatus(task.status) && (
-                          <Button variant="default" size="sm" className="text-[10px] h-6 px-2 ml-auto" onClick={() => moveTask(task.id, getNextStatus(task.status)!)}>
-                            {getNextStatus(task.status) === 'claimed' ? 'Ta' :
-                             getNextStatus(task.status) === 'in_progress' ? 'Starta' : 'Klar'} →
-                          </Button>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                {colTasks.map(renderTaskCard)}
               </div>
             </div>
           );
