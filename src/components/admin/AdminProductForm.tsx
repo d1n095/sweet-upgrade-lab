@@ -135,17 +135,28 @@ function IngredientPickerSection({
     [formData.ingredients]
   );
 
-  const addIngredient = React.useCallback((name: string) => {
+  const addIngredient = React.useCallback((name: string, id?: string) => {
     if (!currentIngredients.includes(name)) {
       const next = [...currentIngredients, name].join(', ');
-      setFormData(prev => ({ ...prev, ingredients: next }));
+      setFormData(prev => ({
+        ...prev,
+        ingredients: next,
+        ingredientIds: id ? [...(prev.ingredientIds || []), id] : prev.ingredientIds,
+      }));
     }
   }, [currentIngredients, setFormData]);
 
   const removeIngredient = React.useCallback((name: string) => {
+    const idx = currentIngredients.indexOf(name);
     const next = currentIngredients.filter(i => i !== name).join(', ');
-    setFormData(prev => ({ ...prev, ingredients: next }));
-  }, [currentIngredients, setFormData]);
+    // Also remove corresponding ingredient ID
+    const matchingLib = libraryItems.find(li => li.name_sv === name);
+    setFormData(prev => ({
+      ...prev,
+      ingredients: next,
+      ingredientIds: matchingLib ? (prev.ingredientIds || []).filter(id => id !== matchingLib.id) : prev.ingredientIds,
+    }));
+  }, [currentIngredients, setFormData, libraryItems]);
 
   const categories = React.useMemo(
     () => [...new Set(libraryItems.map(i => i.category))].sort(),
