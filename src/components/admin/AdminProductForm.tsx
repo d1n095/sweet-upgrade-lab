@@ -46,6 +46,7 @@ export interface ProductFormData {
   metaDescription: string;
   metaKeywords: string;
   weightGrams: string;
+  ingredientIds?: string[];
 }
 
 const CURRENCY_OPTIONS = [
