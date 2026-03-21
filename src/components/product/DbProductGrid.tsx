@@ -21,6 +21,7 @@ import UseCaseFilter from './UseCaseFilter';
 type SortOption = 'default' | 'price-asc' | 'price-desc' | 'name-asc' | 'name-desc';
 
 const DbProductGrid = () => {
+  const { hasPurchased } = usePurchaseHistory();
   const { language, t } = useLanguage();
   const lang = getContentLang(language);
   const [products, setProducts] = useState<DbProduct[]>([]);
