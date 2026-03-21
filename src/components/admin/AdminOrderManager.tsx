@@ -661,10 +661,6 @@ const AdminOrderManager = () => {
     if (w) { w.document.write(html); w.document.close(); }
   };
 
-  const handleCreateShipment = (order: Order) => {
-    // Shipmondo integration placeholder — API key not yet configured
-    toast.info('Shipmondo-integration ej konfigurerad ännu. Kontakta admin för API-nyckel.');
-  };
 
   const handleExportCSV = () => {
     const headers = ['Order-ID', 'Email', 'Status', 'Betalning', 'Totalt', 'Valuta', 'Spårning', 'Skapad'];
