@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -12,10 +12,12 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Plus, User, Clock, CheckCircle2, Circle, Play, X, Zap, UserCheck, Bot,
   AlertTriangle, Package, Headphones, RotateCcw, FileText, Wrench, ShieldAlert,
+  FastForward, Pause, ArrowRight, Sparkles,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface Task {
   id: string;
@@ -93,6 +95,10 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const [runningAutomation, setRunningAutomation] = useState(false);
   const [viewFilter, setViewFilter] = useState<ViewFilter>('all');
   const [escalating, setEscalating] = useState<string | null>(null);
+  const [workMode, setWorkMode] = useState(false);
+  const [justCompleted, setJustCompleted] = useState<string | null>(null);
+  const workModeRef = useRef(false);
+  workModeRef.current = workMode;
 
   const { data: automationLogs = [] } = useQuery({
     queryKey: ['automation-logs-recent'],
@@ -316,6 +322,12 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     if (newStatus === 'done') updates.completed_at = now;
     await supabase.from('staff_tasks').update(updates).eq('id', taskId);
     queryClient.invalidateQueries({ queryKey: ['staff-tasks'] });
+
+    // Work Mode: show feedback then auto-advance
+    if (newStatus === 'done' && workModeRef.current) {
+      setJustCompleted(taskId);
+      setTimeout(() => setJustCompleted(null), 1500);
+    }
   };
 
   const getNextStatus = (current: string) => {
@@ -330,6 +342,49 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     const order = ['open', 'claimed', 'in_progress', 'done'];
     const idx = order.indexOf(current);
     return idx > 0 ? order[idx - 1] : null;
+  };
+
+  // Compute "next action" task: escalated > high prio > oldest open/claimed for current user
+  const getNextAction = useCallback((): Task | null => {
+    const activeTasks = tasks.filter(t => 
+      t.status !== 'done' && t.status !== 'cancelled' &&
+      (t.assigned_to === user?.id || t.claimed_by === user?.id || t.status === 'open')
+    );
+    // Escalated first
+    const escalated = activeTasks.filter(t => t.status === 'escalated');
+    if (escalated.length) return escalated[0];
+    // My in_progress
+    const myInProgress = activeTasks.filter(t => t.status === 'in_progress' && (t.claimed_by === user?.id || t.assigned_to === user?.id));
+    if (myInProgress.length) return myInProgress[0];
+    // My claimed
+    const myClaimed = activeTasks.filter(t => t.status === 'claimed' && (t.claimed_by === user?.id || t.assigned_to === user?.id));
+    if (myClaimed.length) return myClaimed[0];
+    // High prio open
+    const highOpen = activeTasks.filter(t => t.status === 'open' && t.priority === 'high');
+    if (highOpen.length) return highOpen[0];
+    // Any open
+    const anyOpen = activeTasks.filter(t => t.status === 'open');
+    if (anyOpen.length) return anyOpen[0];
+    return null;
+  }, [tasks, user?.id]);
+
+  const nextAction = getNextAction();
+
+  const startWorkMode = async () => {
+    setWorkMode(true);
+    const next = getNextAction();
+    if (next) {
+      if (next.status === 'open') {
+        await moveTask(next.id, 'claimed');
+        await moveTask(next.id, 'in_progress');
+      } else if (next.status === 'claimed') {
+        await moveTask(next.id, 'in_progress');
+      }
+      toast.success('Arbetsläge aktiverat – kör på!');
+    } else {
+      toast.info('Inga uppgifter att starta');
+      setWorkMode(false);
+    }
   };
 
   const escalatedCount = tasks.filter(t => t.status === 'escalated').length;
@@ -436,6 +491,78 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
 
   return (
     <div className="space-y-4">
+      {/* Next Action Engine */}
+      {nextAction && (
+        <Card className={cn(
+          'border-2 overflow-hidden',
+          nextAction.status === 'escalated' ? 'border-destructive/50 bg-destructive/5' : 'border-primary/30 bg-primary/5'
+        )}>
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center shrink-0',
+                  nextAction.status === 'escalated' ? 'bg-destructive/20 text-destructive' : 'bg-primary/20 text-primary'
+                )}>
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Nästa att göra</p>
+                  <p className="text-sm font-semibold truncate">{nextAction.title}</p>
+                  <div className="flex gap-1.5 mt-1">
+                    <Badge variant="outline" className={cn('text-[9px]', PRIORITY_COLORS[nextAction.priority])}>
+                      {nextAction.priority === 'high' ? 'HÖG' : nextAction.priority === 'medium' ? 'MED' : 'LÅG'}
+                    </Badge>
+                    <Badge variant="secondary" className="text-[9px]">
+                      {(TASK_TYPE_META[nextAction.task_type] || TASK_TYPE_META.general).label}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                {!workMode ? (
+                  <>
+                    <Button size="sm" variant="outline" className="gap-1.5" onClick={() => {
+                      if (nextAction.status === 'open') moveTask(nextAction.id, 'claimed');
+                      else if (nextAction.status === 'claimed') moveTask(nextAction.id, 'in_progress');
+                      else if (['in_progress', 'escalated'].includes(nextAction.status)) moveTask(nextAction.id, 'done');
+                    }}>
+                      {nextAction.status === 'open' ? 'Ta' : nextAction.status === 'claimed' ? 'Starta' : 'Klar'} <ArrowRight className="w-3 h-3" />
+                    </Button>
+                    <Button size="sm" className="gap-1.5" onClick={startWorkMode}>
+                      <FastForward className="w-4 h-4" /> Arbetsläge
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button size="sm" variant="default" className="gap-1.5" onClick={() => moveTask(nextAction.id, 'done')}>
+                      <CheckCircle2 className="w-4 h-4" /> Klar → Nästa
+                    </Button>
+                    <Button size="sm" variant="outline" className="gap-1.5" onClick={() => { setWorkMode(false); toast.info('Arbetsläge avslutat'); }}>
+                      <Pause className="w-4 h-4" /> Pausa
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Done feedback toast */}
+      <AnimatePresence>
+        {justCompleted && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 flex items-center gap-2"
+          >
+            <CheckCircle2 className="w-5 h-5 text-green-600" />
+            <span className="text-sm font-medium text-green-700">Klar ✓ — laddar nästa…</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Filter tabs */}
       <Tabs value={viewFilter} onValueChange={v => setViewFilter(v as ViewFilter)}>
         <TabsList>

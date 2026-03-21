@@ -208,7 +208,39 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ─── 5. AUTO-ALERTS: Bottleneck detection ───
+    // ─── 5. AUTO-CLEANUP: Cancel orphan tasks (order deleted) ───
+    const { data: orphanTasks } = await supabase
+      .from("staff_tasks")
+      .select("id, related_order_id")
+      .not("related_order_id", "is", null)
+      .in("status", ["open", "claimed", "in_progress", "escalated"]);
+
+    let orphansCancelled = 0;
+    for (const task of orphanTasks || []) {
+      const { data: order } = await supabase
+        .from("orders")
+        .select("id, deleted_at")
+        .eq("id", task.related_order_id!)
+        .single();
+
+      if (!order || order.deleted_at) {
+        await supabase.from("staff_tasks").update({
+          status: "cancelled",
+          updated_at: new Date().toISOString(),
+        }).eq("id", task.id);
+
+        await supabase.from("automation_logs").insert({
+          action_type: "cleanup",
+          target_type: "task",
+          target_id: task.id,
+          reason: "Order raderad – task automatiskt avbruten.",
+        });
+        orphansCancelled++;
+      }
+    }
+    results.reassigned += orphansCancelled;
+
+    // ─── 6. AUTO-ALERTS: Bottleneck detection ───
     // Alert if >5 orders stuck in same status for >24h
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const { data: stuckOrders, count: stuckCount } = await supabase
