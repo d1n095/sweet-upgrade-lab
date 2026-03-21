@@ -114,6 +114,13 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Auth: require service role
+  if (!verifyServiceRole(req)) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   try {
     const { email, language: rawLang = 'sv' }: WelcomeEmailRequest = await req.json();
     const language = ['sv', 'en', 'no', 'da', 'de'].includes(rawLang) ? rawLang as 'sv' | 'en' | 'no' | 'da' | 'de' : 'sv';
