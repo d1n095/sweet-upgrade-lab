@@ -322,6 +322,12 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     if (newStatus === 'done') updates.completed_at = now;
     await supabase.from('staff_tasks').update(updates).eq('id', taskId);
     queryClient.invalidateQueries({ queryKey: ['staff-tasks'] });
+
+    // Work Mode: show feedback then auto-advance
+    if (newStatus === 'done' && workModeRef.current) {
+      setJustCompleted(taskId);
+      setTimeout(() => setJustCompleted(null), 1500);
+    }
   };
 
   const getNextStatus = (current: string) => {
