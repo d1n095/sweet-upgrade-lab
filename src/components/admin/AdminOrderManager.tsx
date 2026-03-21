@@ -1163,7 +1163,7 @@ const AdminOrderManager = () => {
                       <Printer className="w-4 h-4" />
                       {language === 'sv' ? 'Skriv ut' : 'Print'}
                     </Button>
-                    {order.payment_status === 'paid' && !['packed', 'shipped'].includes(order.fulfillment_status) && !order.tracking_number && (
+                    {order.payment_status === 'paid' && !['ready_to_ship', 'packed', 'shipped'].includes(order.fulfillment_status) && !order.tracking_number && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -1174,7 +1174,7 @@ const AdminOrderManager = () => {
                         {language === 'sv' ? 'Markera packad' : 'Mark packed'}
                       </Button>
                     )}
-                    {order.payment_status === 'paid' && order.fulfillment_status === 'packed' && (
+                    {order.payment_status === 'paid' && (order.fulfillment_status === 'packed' || order.fulfillment_status === 'ready_to_ship') && (
                       <Button
                         variant="outline"
                         size="sm"

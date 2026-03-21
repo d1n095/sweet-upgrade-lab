@@ -332,9 +332,10 @@ serve(async (req) => {
     // Enqueue to transactional_emails queue via pgmq
     const payload = {
       to: order.order_email,
+      from: "order@notify.4thepeople.se",
+      sender_domain: "notify.4thepeople.se",
       subject,
       html,
-      from_name: "4ThePeople",
       message_id: messageId,
       idempotency_key: messageId,
       label: `order_${email_type}`,
