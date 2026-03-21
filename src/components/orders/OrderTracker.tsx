@@ -4,6 +4,7 @@ import {
   Package, Truck, MapPin, CheckCircle2, Clock, 
   Loader2, RefreshCw, ExternalLink
 } from 'lucide-react';
+import ReorderButton from './ReorderButton';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
