@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import {
   Package, ClipboardList, Users, Star, TrendingUp, AlertTriangle,
   DollarSign, ShoppingCart, Plus, Eye, Power, ArrowRight, Clock,
-  Zap, CheckCircle2, PlayCircle, Timer, ChevronRight,
+  Zap, CheckCircle2, PlayCircle, Timer, ChevronRight, Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +14,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { sv } from 'date-fns/locale';
+
+const AdminDashboardCharts = lazy(() => import('@/components/admin/AdminDashboardCharts'));
 
 interface RecentOrder {
   id: string;
