@@ -225,13 +225,38 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     return () => { supabase.removeChannel(channel); };
   }, [queryClient]);
 
+  // Fetch user skills for filtering
+  const { data: userSkills = [] } = useQuery({
+    queryKey: ['user-skills', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data } = await supabase
+        .from('staff_permissions')
+        .select('skill_categories')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      return (data?.skill_categories as string[]) || [];
+    },
+    enabled: !!user?.id,
+  });
+
   // Filter tasks based on view
   const filteredTasks = tasks.filter(t => {
-    if (viewFilter === 'mine') return t.assigned_to === user?.id || t.claimed_by === user?.id;
+    if (viewFilter === 'mine') {
+      const isMine = t.assigned_to === user?.id || t.claimed_by === user?.id;
+      if (isMine) return t.status !== 'done';
+      return false;
+    }
+    if (viewFilter === 'done') return (t.assigned_to === user?.id || t.claimed_by === user?.id) && t.status === 'done';
     if (viewFilter === 'escalated') return t.status === 'escalated';
     if (viewFilter === 'open') return t.status === 'open';
-    return true;
+    // Default 'all' - exclude done
+    return t.status !== 'done';
   });
+
+  // Auto-fallback: if "mine" is empty (no active tasks), show all open
+  const myActiveCount = tasks.filter(t => (t.assigned_to === user?.id || t.claimed_by === user?.id) && t.status !== 'done' && t.status !== 'cancelled').length;
+  const effectiveFilter = viewFilter === 'mine' && myActiveCount === 0 ? 'open' : viewFilter;
 
   // Sort: escalated first, then high priority, then oldest
   const sortedTasks = [...filteredTasks].sort((a, b) => {
