@@ -199,6 +199,8 @@ serve(async (req) => {
       email: customerEmail,
       user_id: authenticatedUserId || "",
       shipping_name: shipping?.name || "",
+      shipping_care_of: shipping?.careOf || "",
+      shipping_company: shipping?.company || "",
       shipping_address: shipping?.address || "",
       shipping_zip: shipping?.zip || "",
       shipping_city: shipping?.city || "",
