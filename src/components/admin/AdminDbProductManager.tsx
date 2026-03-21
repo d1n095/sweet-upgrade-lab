@@ -25,7 +25,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { toast } from 'sonner';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  AdminProductForm, ProductFormData, AdminProductFormStrings
+  AdminProductForm, ProductFormData, AdminProductFormStrings, DEFAULT_PRODUCT_FORM_DATA
 } from '@/components/admin/AdminProductForm';
 import { fetchDbProducts, createDbProduct, updateDbProduct, deleteDbProduct, DbProduct, ProductStatus } from '@/lib/products';
 

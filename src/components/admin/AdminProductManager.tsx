@@ -32,6 +32,7 @@ import {
   AdminProductForm,
   type AdminProductFormStrings,
   type ProductFormData,
+  DEFAULT_PRODUCT_FORM_DATA,
 } from '@/components/admin/AdminProductForm';
 
 // Product categories
