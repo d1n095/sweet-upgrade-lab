@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ClipboardList, Clock, Truck, DollarSign, RotateCcw, PackageX, CheckCircle2 } from 'lucide-react';
+import { ClipboardList, Clock, Truck, DollarSign, RotateCcw, PackageX, CheckCircle2, Mail } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
