@@ -558,27 +558,30 @@ const AdminOrderManager = () => {
     if (eligible.length === 0) { toast.error('Inga giltiga orders att packa'); return; }
     setBatchProcessing(true);
     setBatchProgress({ done: 0, total: eligible.length });
-    const { data: { user: currentUser } } = await supabase.auth.getUser();
     for (let i = 0; i < eligible.length; i++) {
       const order = eligible[i];
-      const existingHistory = Array.isArray(order.status_history) ? order.status_history : [];
-      const newHistory = [...existingHistory, { status: 'packed', timestamp: new Date().toISOString(), note: 'Batch-packad' }];
-      const { error } = await supabase.from('orders').update({
-        fulfillment_status: 'packed',
-        packed_by: currentUser?.id || null,
-        packed_at: new Date().toISOString(),
-        status: 'processing',
-        status_history: newHistory,
-      }).eq('id', order.id);
-      if (!error) {
-        setOrders(prev => prev.map(o => o.id === order.id ? { ...o, fulfillment_status: 'packed', packed_at: new Date().toISOString(), packed_by: currentUser?.id || null, status: 'processing', status_history: newHistory } : o));
-        logActivity({ log_type: 'success', category: 'fulfillment', message: `Order ${getOrderDisplayId(order)} batch-packad`, order_id: order.id });
+      try {
+        const { data, error } = await supabase.functions.invoke('create-shipment', {
+          body: { order_id: order.id },
+        });
+        if (!error && data?.success) {
+          setOrders(prev => prev.map(o => o.id === order.id ? {
+            ...o,
+            fulfillment_status: 'packed',
+            packed_at: new Date().toISOString(),
+            tracking_number: data.tracking_number || o.tracking_number,
+            status: 'processing',
+          } : o));
+          if (data.label_url) window.open(data.label_url, '_blank');
+        }
+      } catch (err) {
+        console.error(`Batch pack error for ${order.id}:`, err);
       }
       setBatchProgress({ done: i + 1, total: eligible.length });
     }
     setBatchProcessing(false);
     setSelectedOrders(new Set());
-    toast.success(`${eligible.length} orders packade`);
+    toast.success(`${eligible.length} orders packade & frakt skapad`);
   };
 
   const handleBatchShip = async () => {
