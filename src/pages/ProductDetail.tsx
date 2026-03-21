@@ -310,6 +310,12 @@ const ProductDetail = () => {
                 </span>
               )}
               <h1 className="font-display text-2xl md:text-3xl font-bold mb-2 leading-tight">{title}</h1>
+              {product && hasPurchased(product.id) && (
+                <span className="inline-flex items-center gap-1 text-xs font-medium text-accent bg-accent/10 px-2 py-0.5 rounded-full mb-2">
+                  <Check className="w-3 h-3" />
+                  {lang === 'sv' ? 'Du har köpt denna tidigare' : 'You\'ve purchased this before'}
+                </span>
+              )}
 
               {/* Review stars + viewer count */}
               <div className="flex items-center gap-3 mb-3 flex-wrap">
