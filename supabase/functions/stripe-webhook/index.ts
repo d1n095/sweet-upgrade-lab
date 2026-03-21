@@ -39,14 +39,19 @@ serve(async (req) => {
       lastEventTime = lastEvents[0]?.time || null;
     } catch {}
 
+    // Only expose health check to authenticated admin callers
+    const healthAuthHeader = req.headers.get('Authorization') || '';
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+    const isAdmin = healthAuthHeader === `Bearer ${serviceKey}`;
+
     return new Response(JSON.stringify({
       status: 'ok',
       stripe_key_configured: !!stripeKey,
       webhook_secret_configured: !!webhookSecret,
-      webhook_secret_prefix: webhookSecret ? webhookSecret.substring(0, 10) + '...' : null,
+      // NEVER expose secret prefix publicly
       supabase_url_configured: !!supabaseUrl,
-      last_event_time: lastEventTime,
-      recent_events: lastEvents,
+      last_event_time: isAdmin ? lastEventTime : undefined,
+      recent_events: isAdmin ? lastEvents : undefined,
       timestamp: new Date().toISOString(),
     }), {
       status: 200,
