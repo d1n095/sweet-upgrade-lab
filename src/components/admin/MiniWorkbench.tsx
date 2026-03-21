@@ -186,6 +186,11 @@ const MiniWorkbench = () => {
                         {acting === task.id ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Claim'}
                       </Button>
                     )}
+                    {(task.status === 'claimed' || task.status === 'in_progress') && (task.claimed_by === user?.id || task.assigned_to === user?.id) && (
+                      <Button size="sm" variant="ghost" className="h-6 text-[10px] px-2 text-muted-foreground" onClick={() => handleAction(task.id, 'unclaim')} disabled={acting === task.id}>
+                        Släpp
+                      </Button>
+                    )}
                     {(task.status === 'claimed' || task.status === 'escalated') && (
                       <Button size="sm" variant="outline" className="h-6 text-[10px] px-2 gap-1" onClick={() => handleAction(task.id, 'start')} disabled={acting === task.id}>
                         <Play className="w-3 h-3" /> Starta
