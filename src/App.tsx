@@ -35,6 +35,7 @@ import DonationsPanel from "./pages/DonationsPanel";
 import ReferralLanding from "./pages/ReferralLanding";
 import CookieBanner from "./components/cookie/CookieBanner";
 import MaintenanceGuard from "./components/guards/MaintenanceGuard";
+import MiniWorkbench from "./components/admin/MiniWorkbench";
 import { usePageVisibility, ToggleablePage } from "./stores/pageVisibilityStore";
 import { useAdminRole } from "./hooks/useAdminRole";
 
