@@ -368,6 +368,11 @@ const AdminOverview = () => {
         </Button>
       </div>
 
+      {/* 📊 Charts */}
+      <Suspense fallback={<div className="flex items-center justify-center h-48"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>}>
+        <AdminDashboardCharts />
+      </Suspense>
+
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Recent Orders */}
         <Card className="border-border">
