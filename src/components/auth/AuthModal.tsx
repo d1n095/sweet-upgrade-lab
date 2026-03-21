@@ -64,6 +64,8 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
+  const [phone, setPhone] = useState('');
+  const [phoneError, setPhoneError] = useState('');
   const [usernameError, setUsernameError] = useState('');
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
   const [checkingUsername, setCheckingUsername] = useState(false);
@@ -75,6 +77,17 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
   const [formError, setFormError] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   const usernameCheckTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const validatePhone = (value: string): string | null => {
+    if (!value || !value.trim()) {
+      return lang === 'sv' ? 'Telefonnummer krävs' : 'Phone number is required';
+    }
+    const digits = value.replace(/\D/g, '');
+    if (digits.length < 7 || digits.length > 15) {
+      return lang === 'sv' ? 'Ogiltigt telefonnummer' : 'Invalid phone number';
+    }
+    return null;
+  };
 
   // Debounced username uniqueness check
   const checkUsernameAvailability = (value: string) => {
