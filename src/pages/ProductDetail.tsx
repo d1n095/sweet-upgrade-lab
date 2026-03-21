@@ -18,6 +18,7 @@ import ProductCertifications from '@/components/product/ProductCertifications';
 import ZoomableImage from '@/components/product/ZoomableImage';
 import MobileBuyBar from '@/components/product/MobileBuyBar';
 import RelatedProducts from '@/components/product/RelatedProducts';
+import ProductBundles from '@/components/product/ProductBundles';
 import SEOHead from '@/components/seo/SEOHead';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
@@ -348,6 +349,9 @@ const ProductDetail = () => {
                   </ul>
                 </div>
               )}
+
+              {/* Bundle offers */}
+              <ProductBundles productId={product.id} />
 
               {/* Quantity + Add to cart (desktop) */}
               <div className="hidden md:flex items-center gap-3 mb-5">
