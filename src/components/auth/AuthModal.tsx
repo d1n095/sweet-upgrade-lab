@@ -219,6 +219,7 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
     setSignupComplete(false);
     setFormError('');
     setUsernameError('');
+    setPhoneError('');
     setUsernameAvailable(null);
   };
 
