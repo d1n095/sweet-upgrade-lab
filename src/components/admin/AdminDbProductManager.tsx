@@ -209,6 +209,7 @@ const AdminDbProductManager = () => {
 
   const handleCopyFrom = async (source: DbProduct) => {
     setFormData({
+      ...DEFAULT_PRODUCT_FORM_DATA,
       title: source.title_sv,
       description: source.description_sv || '',
       price: source.price.toString(),
