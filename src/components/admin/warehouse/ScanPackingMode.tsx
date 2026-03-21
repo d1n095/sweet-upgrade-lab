@@ -194,61 +194,9 @@ const ScanPackingMode = () => {
     }
   };
 
-  const generateLabel = () => {
-    if (!activeOrder) return;
-    const addr = activeOrder.shipping_address as any;
-    const ref = getOrderDisplayId(activeOrder as any);
-    const barcode = activeOrder.payment_intent_id || activeOrder.id.slice(0, 16);
-
-    const w = window.open('', '_blank', 'width=420,height=650');
-    if (w) {
-      w.document.write(`
-        <html><head><title>Fraktetikett – ${ref}</title>
-        <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { font-family: -apple-system, system-ui, sans-serif; padding: 24px; }
-          .label { border: 3px solid #000; padding: 24px; max-width: 370px; margin: auto; }
-          .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 2px solid #000; padding-bottom: 12px; }
-          .header h2 { font-size: 18px; }
-          .barcode { font-family: 'Courier New', monospace; font-size: 13px; letter-spacing: 3px; margin: 12px 0; padding: 10px; background: #f0f0f0; text-align: center; word-break: break-all; border: 1px solid #ccc; }
-          .section { margin: 16px 0; }
-          .section-title { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #666; margin-bottom: 4px; }
-          .addr { line-height: 1.7; font-size: 15px; }
-          .addr strong { font-size: 16px; }
-          .meta { margin-top: 16px; padding-top: 12px; border-top: 1px dashed #ccc; font-size: 11px; color: #666; display: flex; justify-content: space-between; }
-          .items { font-size: 12px; color: #444; margin-top: 12px; padding: 8px; background: #fafafa; border: 1px solid #eee; }
-          .items li { margin: 2px 0; }
-          @media print { body { padding: 0; } }
-        </style></head><body>
-        <div class="label">
-          <div class="header">
-            <h2>📦 Fraktetikett</h2>
-            <span style="font-size:13px;font-weight:600">${ref}</span>
-          </div>
-          <div class="barcode">${barcode}</div>
-          <div class="section">
-            <div class="section-title">Mottagare</div>
-            <div class="addr">
-              <strong>${addr?.name || '—'}</strong><br/>
-              ${addr?.address || ''}<br/>
-              ${addr?.zip || ''} ${addr?.city || ''}<br/>
-              ${addr?.country || 'SE'}
-              ${addr?.phone ? '<br/>Tel: ' + addr.phone : ''}
-            </div>
-          </div>
-          <ul class="items">
-            ${orderItems.map((item: any) => `<li>${item.quantity}x ${item.title}</li>`).join('')}
-          </ul>
-          <div class="meta">
-            <span>Datum: ${new Date().toLocaleDateString('sv-SE')}</span>
-            <span>${orderItems.reduce((s: number, i: any) => s + (i.quantity || 1), 0)} artiklar</span>
-          </div>
-        </div>
-        <script>window.onload = () => { setTimeout(() => window.print(), 300); }</script>
-        </body></html>
-      `);
-      w.document.close();
-    }
+  const handleCreateShipment = () => {
+    // Shipmondo integration placeholder — API key not yet configured
+    toast.info('Shipmondo-integration ej konfigurerad ännu. Kontakta admin för API-nyckel.');
   };
 
   return (
