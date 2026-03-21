@@ -295,23 +295,27 @@ const MemberProfile = () => {
                         {t.member}
                       </Badge>
                     )}
-                    {/* Level badge */}
-                    <Badge className="bg-accent/10 text-accent text-[10px]">
-                      <Award className="w-3 h-3 mr-1" />
-                      Level {level}
-                    </Badge>
+                    {/* Level badge - only for admin/staff */}
+                    {(isAdmin || isEmployee) && (
+                      <Badge className="bg-accent/10 text-accent text-[10px]">
+                        <Award className="w-3 h-3 mr-1" />
+                        Level {level}
+                      </Badge>
+                    )}
                   </div>
-                  {/* XP Progress bar */}
-                  <div className="mt-2 flex items-center gap-2 max-w-[280px]">
-                    <Zap className="w-3.5 h-3.5 text-accent shrink-0" />
-                    <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-gradient-to-r from-accent to-primary rounded-full transition-all duration-500"
-                        style={{ width: `${xpProgress}%` }}
-                      />
+                  {/* XP Progress bar - only for admin/staff */}
+                  {(isAdmin || isEmployee) && (
+                    <div className="mt-2 flex items-center gap-2 max-w-[280px]">
+                      <Zap className="w-3.5 h-3.5 text-accent shrink-0" />
+                      <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-gradient-to-r from-accent to-primary rounded-full transition-all duration-500"
+                          style={{ width: `${xpProgress}%` }}
+                        />
+                      </div>
+                      <span className="text-[10px] text-muted-foreground shrink-0">{xp} XP</span>
                     </div>
-                    <span className="text-[10px] text-muted-foreground shrink-0">{xp} XP</span>
-                  </div>
+                  )}
                 </div>
               </div>
               <Button variant="outline" onClick={handleSignOut}>
@@ -332,7 +336,6 @@ const MemberProfile = () => {
                       { value: 'reviews', icon: Star, label: language === 'sv' ? 'Recensioner' : 'Reviews', badge: reviews.length || undefined },
                       { value: 'rewards', icon: Gift, label: language === 'sv' ? 'Koder' : 'Codes', badge: unusedRewards.length || undefined },
                       { value: 'referral', icon: Users, label: language === 'sv' ? 'Bjud in' : 'Refer' },
-                      { value: 'donations', icon: TrendingUp, label: language === 'sv' ? 'Donationer' : 'Donations' },
                       { value: 'settings', icon: Settings, label: language === 'sv' ? 'Inställningar' : 'Settings' },
                     ].map(({ value, icon: Icon, label, badge }) => (
                       <button
@@ -393,10 +396,7 @@ const MemberProfile = () => {
               <ReferralDashboard />
             </TabsContent>
 
-            {/* Donations Tab */}
-            <TabsContent value="donations">
-              <DonationImpact />
-            </TabsContent>
+            {/* Donations Tab - removed from public, admin only */}
 
             {/* Settings Tab */}
             <TabsContent value="settings">

@@ -11,11 +11,11 @@ export const storeConfig = {
     generousFreeMin: 480,
     generousFreeMax: 520,
     deliveryTime: {
-      sv: '7–10 arbetsdagar från våra leverantörer',
-      en: '7–10 business days from our suppliers',
+      sv: '3–5 vardagar',
+      en: '3–5 business days',
     },
-    deliveryDays: '7-10',
-    provider: 'Pålitliga leverantörer',
+    deliveryDays: '3-5',
+    provider: '',
   },
 
   // Returns

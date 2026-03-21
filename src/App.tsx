@@ -108,10 +108,10 @@ const App = () => (
               <Route path="/suggest-product" element={<PageGuard pageId="suggest-product"><SuggestProduct /></PageGuard>} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/whats-new" element={<PageGuard pageId="whats-new"><WhatsNew /></PageGuard>} />
-              <Route path="/donations" element={<PageGuard pageId="donations"><Donations /></PageGuard>} />
+              <Route path="/donations" element={<Navigate to="/" replace />} />
               <Route path="/balance" element={<BalancePage />} />
               <Route path="/affiliate-panel" element={<AffiliatePanel />} />
-              <Route path="/donations-panel" element={<DonationsPanel />} />
+              <Route path="/donations-panel" element={<Navigate to="/" replace />} />
               <Route path="/r/:code" element={<ReferralLanding />} />
 
               <Route path="/admin" element={<AdminLayout />}>

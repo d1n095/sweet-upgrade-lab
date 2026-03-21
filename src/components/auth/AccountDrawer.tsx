@@ -2,7 +2,6 @@ import { useNavigate } from 'react-router-dom';
 import { 
   User, 
   Package, 
-  Heart, 
   LogOut, 
   Crown, 
   ShoppingBag,
@@ -78,12 +77,6 @@ const AccountDrawer = ({ isOpen, onClose }: AccountDrawerProps) => {
       label: language === 'sv' ? 'Rabattkoder' : 'Discount Codes',
       href: '/profile?tab=rewards',
       description: language === 'sv' ? 'Dina belöningar' : 'Your rewards',
-    },
-    {
-      icon: Heart,
-      label: language === 'sv' ? 'Donationer' : 'Donations',
-      href: '/profile?tab=donations',
-      description: language === 'sv' ? 'Din påverkan' : 'Your impact',
     },
     {
       icon: MapPin,
@@ -275,21 +268,12 @@ const AccountDrawer = ({ isOpen, onClose }: AccountDrawerProps) => {
         <div className="my-6 border-t border-border" />
 
         {/* Quick stats */}
-        <div className="grid grid-cols-2 gap-3 mb-6">
-          <div className="p-4 rounded-xl bg-secondary/30">
-            <ShoppingBag className="w-5 h-5 text-primary mb-2" />
-            <p className="text-2xl font-bold">{stats.ordersCount}</p>
-            <p className="text-xs text-muted-foreground">
-              {language === 'sv' ? 'Beställningar' : 'Orders'}
-            </p>
-          </div>
-          <div className="p-4 rounded-xl bg-secondary/30">
-            <Heart className="w-5 h-5 text-accent mb-2" />
-            <p className="text-2xl font-bold">{stats.totalDonated} kr</p>
-            <p className="text-xs text-muted-foreground">
-              {language === 'sv' ? 'Donerat' : 'Donated'}
-            </p>
-          </div>
+        <div className="p-4 rounded-xl bg-secondary/30 mb-6">
+          <ShoppingBag className="w-5 h-5 text-primary mb-2" />
+          <p className="text-2xl font-bold">{stats.ordersCount}</p>
+          <p className="text-xs text-muted-foreground">
+            {language === 'sv' ? 'Beställningar' : 'Orders'}
+          </p>
         </div>
 
         {/* Sign out button */}

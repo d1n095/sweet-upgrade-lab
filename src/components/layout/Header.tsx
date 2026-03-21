@@ -185,7 +185,6 @@ const Header = () => {
 
   const aboutSubMenu = [
     { href: '/about', label: t('nav.aboutus') },
-    ...(isVisible('donations') ? [{ href: '/donations', label: t('nav.donations') }] : []),
   ];
 
   const contactSubMenu = [
