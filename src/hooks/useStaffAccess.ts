@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
-const WORKBENCH_ROLES = ['admin', 'founder', 'warehouse', 'support', 'moderator', 'it', 'manager'];
+const WORKBENCH_ROLES = ['admin', 'founder', 'warehouse', 'support', 'moderator', 'it', 'manager'] as const;
 
 export const useStaffAccess = () => {
   const { user, loading: authLoading } = useAuth();
