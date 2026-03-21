@@ -328,10 +328,27 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     await supabase.from('staff_tasks').update(updates).eq('id', taskId);
     queryClient.invalidateQueries({ queryKey: ['staff-tasks'] });
 
-    // Work Mode: show feedback then auto-advance
-    if (newStatus === 'done' && workModeRef.current) {
+    if (newStatus === 'done') {
+      setCompletedCount(prev => prev + 1);
       setJustCompleted(taskId);
-      setTimeout(() => setJustCompleted(null), 1500);
+      toast.success('Klar ✓');
+      setTimeout(() => {
+        setJustCompleted(null);
+        // Auto-advance in work mode
+        if (workModeRef.current && autoNext) {
+          const next = getNextAction();
+          if (next) {
+            if (next.status === 'open') {
+              moveTask(next.id, 'claimed').then(() => moveTask(next.id, 'in_progress'));
+            } else if (next.status === 'claimed') {
+              moveTask(next.id, 'in_progress');
+            }
+          } else {
+            setWorkMode(false);
+            toast.info('Inga fler uppgifter – arbetsläge avslutat');
+          }
+        }
+      }, 1200);
     }
   };
 
