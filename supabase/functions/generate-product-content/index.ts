@@ -29,23 +29,40 @@ serve(async (req) => {
       ? `\nExisting product data for context: ${JSON.stringify(existingData)}`
       : "";
 
-    const systemPrompt = `You are a professional e-commerce copywriter for a Swedish natural/organic products brand called 4ThePeople. Write in ${lang}. Be natural, sales-focused but not spammy. Use a warm, authentic tone. The brand values sustainability, quality, and Nordic craftsmanship.
+    const systemPrompt = `You are an elite conversion copywriter for a Swedish natural/organic products brand called 4ThePeople. Write in ${lang}. Your ONLY goal is to make people BUY. Use psychological triggers: simplicity, instant results, safety, sensory language. Short punchy sentences. No fluff. No long paragraphs. The brand values sustainability, quality, and Nordic craftsmanship.
 
 Return a JSON object with these exact keys:
-- description: A compelling product description (2-3 sentences, max 200 chars)
-- extended_description: A longer storytelling description (3-5 sentences, focuses on experience and philosophy)
-- effects: Benefits/effects as newline-separated bullet points (3-5 points)
-- feeling: A sensory/emotional description of the product experience (1-2 sentences)
-- usage: Clear usage instructions (1-2 sentences)
-- seo_title: SEO-optimized page title (max 60 chars). Format: "Product Name + Category + 1-2 modifiers (e.g. naturlig, premium) | 4thepeople"
+
+- hook: A powerful one-liner that immediately communicates the product's #1 benefit. Max 60 chars. Think: "Opens your airways in seconds" or "Pure calm in every drop". This is the FIRST thing the customer sees.
+
+- description: A short sales-focused description (2-3 sentences, max 200 chars). Create desire and urgency. Focus on what the customer GETS, not what the product IS.
+
+- extended_description: A storytelling description (3-5 sentences). Paint the experience. How does the customer's life improve? What ritual does this create? Make them FEEL it.
+
+- effects: Benefits as newline-separated bullet points (4-5 points). Each bullet should be scannable, concrete, and start with an action/result. Example: "✓ Öppnar luftvägarna direkt", NOT "Kan hjälpa med andning".
+
+- feeling: A sensory/emotional description (1-2 sentences). What does it smell/feel/taste like? What emotion does it trigger? Use vivid sensory language.
+
+- usage: Step-by-step usage instructions. Simple, numbered. Example: "1. Tillsätt 2-3 kristaller i bastun. 2. Andas djupt. 3. Känn effekten direkt." Max 3 steps.
+
+- trust_badges: A comma-separated list of 3-4 trust signals. Examples: "100% Naturlig", "Handgjord i Sverige", "Snabb leverans", "Säker att använda".
+
+- upsell_text: A short suggestion for complementary products (1 sentence). Example: "Kombinera med vår bastudoft för en komplett upplevelse."
+
+- seo_title: SEO-optimized page title (max 60 chars). Format: "Product Name + benefit keyword | 4thepeople"
 - meta_description: SEO meta description (max 155 chars). Compelling, includes main keyword and call-to-action.
 - meta_keywords: 6-8 relevant SEO keywords, comma-separated. Include product name, category, key ingredients, and intent words like "köp" or "bästa".
 
-All text should be in ${lang}. Make it feel premium but approachable.`;
+RULES:
+- Every sentence must earn its place. If it doesn't sell, cut it.
+- Use "du/din" (you/your) to speak directly to the customer.
+- Include at least one psychological trigger per section (simplicity, speed, safety, social proof).
+- All text in ${lang}. Premium but approachable tone.`;
 
-    const userPrompt = `Generate product content for:
+    const userPrompt = `Generate conversion-optimized product content for:
 Product name: ${productName}${categoryInfo}${ingredientInfo}${existingInfo}
 
+Remember: The goal is SALES. Make the customer feel they NEED this product.
 Return ONLY valid JSON, no markdown fences.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
