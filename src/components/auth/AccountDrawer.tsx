@@ -269,21 +269,12 @@ const AccountDrawer = ({ isOpen, onClose }: AccountDrawerProps) => {
         <div className="my-6 border-t border-border" />
 
         {/* Quick stats */}
-        <div className="grid grid-cols-2 gap-3 mb-6">
-          <div className="p-4 rounded-xl bg-secondary/30">
-            <ShoppingBag className="w-5 h-5 text-primary mb-2" />
-            <p className="text-2xl font-bold">{stats.ordersCount}</p>
-            <p className="text-xs text-muted-foreground">
-              {language === 'sv' ? 'Beställningar' : 'Orders'}
-            </p>
-          </div>
-          <div className="p-4 rounded-xl bg-secondary/30">
-            <Star className="w-5 h-5 text-accent mb-2" />
-            <p className="text-2xl font-bold">{stats.reviewsCount || 0}</p>
-            <p className="text-xs text-muted-foreground">
-              {language === 'sv' ? 'Recensioner' : 'Reviews'}
-            </p>
-          </div>
+        <div className="p-4 rounded-xl bg-secondary/30 mb-6">
+          <ShoppingBag className="w-5 h-5 text-primary mb-2" />
+          <p className="text-2xl font-bold">{stats.ordersCount}</p>
+          <p className="text-xs text-muted-foreground">
+            {language === 'sv' ? 'Beställningar' : 'Orders'}
+          </p>
         </div>
 
         {/* Sign out button */}
