@@ -11,24 +11,26 @@ interface LogEntry {
   order_id?: string;
 }
 
-export const logActivity = async (entry: LogEntry) => {
+// Use the security definer function instead of direct insert
+const safeLog = async (logType: string, category: string, message: string, details?: Record<string, any>, orderId?: string) => {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    await supabase.from('activity_logs').insert({
-      log_type: entry.log_type,
-      category: entry.category,
-      message: entry.message,
-      details: {
-        ...(entry.details || {}),
-        user_email: user?.email || null,
-        timestamp: new Date().toISOString(),
-      },
-      order_id: entry.order_id || null,
-      user_id: user?.id || null,
+    await supabase.rpc('log_activity', {
+      p_log_type: logType,
+      p_category: category,
+      p_message: message.slice(0, 500),
+      p_details: details ? details as any : null,
+      p_order_id: orderId || null,
     });
   } catch (e) {
     console.error('Failed to log activity:', e);
   }
+};
+
+export const logActivity = async (entry: LogEntry) => {
+  await safeLog(entry.log_type, entry.category, entry.message, {
+    ...(entry.details || {}),
+    timestamp: new Date().toISOString(),
+  }, entry.order_id);
 };
 
 // Login/logout tracking
@@ -40,37 +42,21 @@ export const logAuthEvent = async (action: 'login' | 'logout' | 'login_failed' |
     signup: `Ny registrering: ${email}`,
     password_reset: `Lösenordsåterställning: ${email}`,
   };
-  try {
-    await supabase.from('activity_logs').insert({
-      log_type: action === 'login_failed' ? 'warning' : 'info',
-      category: 'auth',
-      message: messages[action] || action,
-      details: { action, email, ...(details || {}), timestamp: new Date().toISOString() },
-    });
-  } catch (e) {
-    console.error('Failed to log auth event:', e);
-  }
+  await safeLog(
+    action === 'login_failed' ? 'warning' : 'info',
+    'auth',
+    messages[action] || action,
+    { action, email, ...(details || {}), timestamp: new Date().toISOString() }
+  );
 };
 
 // Security event tracking
 export const logSecurityEvent = async (message: string, details?: Record<string, any>) => {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    await supabase.from('activity_logs').insert({
-      log_type: 'warning',
-      category: 'security',
-      message,
-      details: {
-        ...(details || {}),
-        user_id: user?.id || null,
-        user_email: user?.email || null,
-        timestamp: new Date().toISOString(),
-        user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
-      },
-    });
-  } catch (e) {
-    console.error('Failed to log security event:', e);
-  }
+  await safeLog('warning', 'security', message, {
+    ...(details || {}),
+    timestamp: new Date().toISOString(),
+    user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
+  });
 };
 
 // Settings change tracking
