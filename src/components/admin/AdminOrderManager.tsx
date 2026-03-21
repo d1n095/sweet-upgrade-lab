@@ -449,39 +449,50 @@ const AdminOrderManager = () => {
     if (fulfillmentTab === 'unpaid' && o.payment_status === 'paid') return false;
     return true;
   });
-  const handleMarkPacked = async (order: Order) => {
+  const handlePackAndShip = async (order: Order) => {
     if (order.payment_status !== 'paid') {
       toast.error(language === 'sv' ? 'Order måste vara betald först' : 'Order must be paid first');
       return;
     }
+    if (order.fulfillment_status === 'shipped' || (order.fulfillment_status === 'packed' && order.tracking_number)) {
+      toast.error(language === 'sv' ? 'Frakt redan skapad' : 'Shipment already created');
+      return;
+    }
     try {
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      const existingHistory = Array.isArray(order.status_history) ? order.status_history : [];
-      const newHistory = [...existingHistory, {
-        status: 'packed',
-        timestamp: new Date().toISOString(),
-        note: 'Markerad som packad',
-      }];
-      const { error } = await supabase.from('orders').update({
+      toast.loading(language === 'sv' ? 'Skapar frakt…' : 'Creating shipment…', { id: `ship-${order.id}` });
+      const { data, error } = await supabase.functions.invoke('create-shipment', {
+        body: { order_id: order.id },
+      });
+      toast.dismiss(`ship-${order.id}`);
+      if (error) throw new Error(error.message || 'Edge function error');
+      if (!data?.success) throw new Error(data?.error || 'Unknown error');
+      setOrders(prev => prev.map(o => o.id === order.id ? {
+        ...o,
         fulfillment_status: 'packed',
-        packed_by: currentUser?.id || null,
         packed_at: new Date().toISOString(),
+        tracking_number: data.tracking_number || o.tracking_number,
         status: 'processing',
-        status_history: newHistory,
-      }).eq('id', order.id);
-      if (error) throw error;
-      setOrders(prev => prev.map(o => o.id === order.id ? { ...o, fulfillment_status: 'packed', packed_at: new Date().toISOString(), packed_by: currentUser?.id || null, status: 'processing', status_history: newHistory } : o));
-      logActivity({ log_type: 'success', category: 'fulfillment', message: `Order ${getOrderDisplayId(order)} packad`, order_id: order.id });
-      toast.success(language === 'sv' ? 'Order markerad som packad' : 'Order marked as packed');
-    } catch (err) {
+      } : o));
+      if (data.label_url) window.open(data.label_url, '_blank');
+      toast.success(
+        data.shipmondo_used
+          ? (language === 'sv' ? 'Packad & frakt skapad ✓' : 'Packed & shipment created ✓')
+          : (language === 'sv' ? 'Packad ✓ (Shipmondo ej konfigurerad)' : 'Packed ✓ (Shipmondo not configured)')
+      );
+    } catch (err: any) {
+      toast.dismiss(`ship-${order.id}`);
       console.error(err);
-      toast.error(content.error);
+      toast.error(err.message || content.error);
     }
   };
 
   const handleMarkShipped = async (order: Order) => {
     if (order.payment_status !== 'paid') {
       toast.error(language === 'sv' ? 'Order måste vara betald först' : 'Order must be paid first');
+      return;
+    }
+    if (order.fulfillment_status !== 'packed') {
+      toast.error(language === 'sv' ? 'Packa ordern först' : 'Pack the order first');
       return;
     }
     try {
@@ -503,30 +514,9 @@ const AdminOrderManager = () => {
       setOrders(prev => prev.map(o => o.id === order.id ? { ...o, fulfillment_status: 'shipped', shipped_at: new Date().toISOString(), shipped_by: currentUser?.id || null, status: 'shipped', status_history: newHistory } : o));
       logActivity({ log_type: 'success', category: 'fulfillment', message: `Order ${getOrderDisplayId(order)} skickad`, order_id: order.id });
       toast.success(language === 'sv' ? 'Order markerad som skickad' : 'Order marked as shipped');
-      // Send status email
       try {
         await supabase.functions.invoke('send-order-email', { body: { order_id: order.id, email_type: 'status_update' } });
       } catch {}
-    } catch (err) {
-      console.error(err);
-      toast.error(content.error);
-    }
-  };
-
-  const handleStartPacking = async (order: Order) => {
-    if (order.payment_status !== 'paid') {
-      toast.error(language === 'sv' ? 'Order måste vara betald först' : 'Order must be paid first');
-      return;
-    }
-    try {
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      const { error } = await supabase.from('orders').update({
-        fulfillment_status: 'packing',
-        packed_by: currentUser?.id || null,
-      }).eq('id', order.id);
-      if (error) throw error;
-      setOrders(prev => prev.map(o => o.id === order.id ? { ...o, fulfillment_status: 'packing', packed_by: currentUser?.id || null } : o));
-      toast.success(language === 'sv' ? 'Packning startad' : 'Packing started');
     } catch (err) {
       console.error(err);
       toast.error(content.error);
