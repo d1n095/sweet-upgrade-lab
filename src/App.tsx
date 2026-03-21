@@ -63,6 +63,8 @@ import AdminIncidents from "./pages/admin/AdminIncidents";
 import AdminPayments from "./pages/admin/AdminPayments";
 import AdminInsights from "./pages/admin/AdminInsights";
 import AdminDatabase from "./pages/admin/AdminDatabase";
+import AdminOps from "./pages/admin/AdminOps";
+import AdminGrowth from "./pages/admin/AdminGrowth";
 import ScanPackingMode from "./components/admin/warehouse/ScanPackingMode";
 
 const queryClient = new QueryClient();
