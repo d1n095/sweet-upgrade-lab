@@ -730,6 +730,21 @@ const AdminStats = () => {
                         <p className="text-xs text-muted-foreground mt-1">Checkout-besök</p>
                       </div>
                     </div>
+                    {/* Insight text */}
+                    <div className="p-3 rounded-lg bg-primary/5 border border-primary/10">
+                      <p className="text-xs font-semibold text-primary flex items-center gap-1.5 mb-1">
+                        <Lightbulb className="w-3.5 h-3.5" /> Insikt
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {conversionRate >= 70 ? '✅ Hög checkout-konvertering — bra optimerad kassa.' :
+                         conversionRate >= 40 ? '⚡ Normal konvertering. Testa enklare checkout eller starkare trust-signaler.' :
+                         analytics.checkout_abandons > analytics.checkout_completes
+                           ? `⚠️ ${100 - conversionRate}% lämnar kassan. Vanliga orsaker: fraktkostnad, komplicerad checkout eller saknade betalmetoder.`
+                           : analytics.product_views > 0 && analytics.cart_adds === 0
+                             ? '⚠️ Många visningar men få lägger i vagn. Kontrollera produktpris och CTA.'
+                             : 'Samlar in mer data för att ge insikter.'}
+                      </p>
+                    </div>
                   </>
                 )}
               </CardContent>

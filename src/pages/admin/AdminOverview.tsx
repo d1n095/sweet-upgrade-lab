@@ -172,15 +172,20 @@ const AdminOverview = () => {
     return new Date(dateStr).toLocaleDateString('sv-SE', { month: 'short', day: 'numeric' });
   };
 
-  const recommended = useMemo(() => {
+  const actionItems = useMemo(() => {
+    const items: { label: string; desc: string; href: string; icon: any; color: string; bg: string }[] = [];
     const overdueInc = focusIncidents.filter(i => i.sla_status === 'overdue');
-    if (overdueInc.length > 0) return { label: 'Lös försenat ärende', desc: overdueInc[0].title, href: '/admin/orders', icon: AlertTriangle, color: 'text-destructive' };
+    if (overdueInc.length > 0) items.push({ label: 'Lös försenat ärende', desc: overdueInc[0].title, href: '/admin/orders', icon: AlertTriangle, color: 'text-destructive', bg: 'bg-destructive/10' });
     const highTasks = focusTasks.filter(t => t.priority === 'high');
-    if (highTasks.length > 0) return { label: 'Hög prioritet', desc: highTasks[0].title, href: '/admin/staff', icon: Zap, color: 'text-orange-600' };
-    if (ordersToPack > 0) return { label: `Packa ${ordersToPack} order`, desc: 'Väntar på packning', href: '/admin/orders', icon: Package, color: 'text-blue-600' };
-    if (stats.pendingReviews > 0) return { label: 'Granska recensioner', desc: `${stats.pendingReviews} väntande`, href: '/admin/communication', icon: Star, color: 'text-yellow-600' };
-    return { label: 'Allt under kontroll', desc: 'Inga brådskande uppgifter', href: '#', icon: CheckCircle2, color: 'text-green-600' };
-  }, [focusIncidents, focusTasks, ordersToPack, stats.pendingReviews]);
+    if (highTasks.length > 0) items.push({ label: `${highTasks.length} hög prioritet`, desc: highTasks[0].title, href: '/admin/staff', icon: Zap, color: 'text-orange-600', bg: 'bg-orange-500/10' });
+    if (ordersToPack > 0) items.push({ label: `Packa ${ordersToPack} order`, desc: 'Väntar på packning', href: '/admin/orders', icon: Package, color: 'text-blue-600', bg: 'bg-blue-500/10' });
+    if (stats.lowStockProducts > 0) items.push({ label: `${stats.lowStockProducts} lågt lager`, desc: 'Kontrollera lagerstatus', href: '/admin/products', icon: Package, color: 'text-amber-600', bg: 'bg-amber-500/10' });
+    if (stats.pendingReviews > 0) items.push({ label: 'Granska recensioner', desc: `${stats.pendingReviews} väntande`, href: '/admin/communication', icon: Star, color: 'text-yellow-600', bg: 'bg-yellow-500/10' });
+    if (stats.conversionRate > 0 && stats.conversionRate < 30) items.push({ label: 'Låg konvertering', desc: `${stats.conversionRate}% — kontrollera checkout-flödet`, href: '/admin/stats', icon: TrendingUp, color: 'text-purple-600', bg: 'bg-purple-500/10' });
+    return items;
+  }, [focusIncidents, focusTasks, ordersToPack, stats.pendingReviews, stats.lowStockProducts, stats.conversionRate]);
+
+  const recommended = actionItems[0] || { label: 'Allt under kontroll', desc: 'Inga brådskande uppgifter', href: '#', icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-500/10' };
 
   const topCards = [
     { title: 'Intäkter idag', value: fmt(stats.revenueToday), icon: DollarSign, color: 'text-green-600', bg: 'bg-green-500/10', href: '/admin/stats' },
@@ -217,25 +222,39 @@ const AdminOverview = () => {
         </div>
       </div>
 
-      {/* Focus action */}
-      <button
-        onClick={() => recommended.href !== '#' && navigate(recommended.href)}
-        className="w-full flex items-center gap-3 p-3 rounded-xl bg-primary/[0.03] border border-primary/10 hover:border-primary/30 hover:shadow-sm transition-all active:scale-[0.99] text-left"
-      >
-        <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center shrink-0',
-          recommended.color === 'text-destructive' ? 'bg-destructive/10' :
-          recommended.color === 'text-orange-600' ? 'bg-orange-500/10' :
-          recommended.color === 'text-blue-600' ? 'bg-blue-500/10' :
-          recommended.color === 'text-yellow-600' ? 'bg-yellow-500/10' : 'bg-green-500/10'
-        )}>
-          <recommended.icon className={cn('w-5 h-5', recommended.color)} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold">👉 {recommended.label}</p>
-          <p className="text-xs text-muted-foreground truncate">{recommended.desc}</p>
-        </div>
-        <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
-      </button>
+      {/* Recommended Actions Panel */}
+      <Card className="border-border">
+        <CardContent className="pt-4 pb-3">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Rekommenderade åtgärder</p>
+          {actionItems.length === 0 ? (
+            <div className="flex items-center gap-3 p-2">
+              <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center shrink-0">
+                <CheckCircle2 className="w-4 h-4 text-green-600" />
+              </div>
+              <p className="text-sm text-muted-foreground">Allt under kontroll — inga brådskande uppgifter</p>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              {actionItems.slice(0, 4).map((item, i) => (
+                <button
+                  key={i}
+                  onClick={() => navigate(item.href)}
+                  className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-secondary/50 transition-colors text-left group"
+                >
+                  <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center shrink-0', item.bg)}>
+                    <item.icon className={cn('w-4 h-4', item.color)} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">{item.label}</p>
+                    <p className="text-xs text-muted-foreground truncate">{item.desc}</p>
+                  </div>
+                  <ChevronRight className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                </button>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* KPI Cards → click opens Statistics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
