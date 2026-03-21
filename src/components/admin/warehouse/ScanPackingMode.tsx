@@ -215,7 +215,6 @@ const ScanPackingMode = () => {
                     onClick={() => {
                       setActiveOrder(order);
                       setCheckedItems({});
-                      setTrackingNumber(order.tracking_number || '');
                       setScanError(null);
                       setScanSuccess(`Order ${getOrderDisplayId(order as any)} vald`);
                     }}
