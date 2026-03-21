@@ -130,13 +130,13 @@ const AdminDashboardCharts = () => {
         ))}
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Revenue chart */}
         <Card className="border-border">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold">Intäkter</CardTitle>
           </CardHeader>
-          <CardContent className="h-56">
+          <CardContent className="h-48 sm:h-56">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
@@ -154,7 +154,7 @@ const AdminDashboardCharts = () => {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold">Ordrar</CardTitle>
           </CardHeader>
-          <CardContent className="h-56">
+          <CardContent className="h-48 sm:h-56">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
@@ -172,7 +172,7 @@ const AdminDashboardCharts = () => {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold">Konverteringsgrad (%)</CardTitle>
           </CardHeader>
-          <CardContent className="h-48">
+          <CardContent className="h-40 sm:h-48">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={conversionData}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />

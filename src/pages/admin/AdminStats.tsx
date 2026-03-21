@@ -426,7 +426,7 @@ const AdminStats = () => {
 
       {/* ─── Overview Cards (all from RPC) ─── */}
       <TooltipProvider delayDuration={200}>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <Card className="border-border">
             <CardContent className="pt-5 pb-4">
               <div className="flex items-center justify-between mb-2">
@@ -521,7 +521,7 @@ const AdminStats = () => {
         </div>
 
         {/* Secondary stats row */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
           <Card className="border-border">
             <CardContent className="pt-4 pb-3 text-center">
               <Tooltip>
@@ -714,7 +714,7 @@ const AdminStats = () => {
                         </div>
                       ))}
                     </div>
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div className="p-4 rounded-xl bg-secondary/50 text-center">
                         <p className={`text-2xl font-bold ${conversionRate >= 50 ? 'text-green-600' : 'text-primary'}`}>{conversionRate}%</p>
                         <p className="text-xs text-muted-foreground mt-1">Konvertering</p>
@@ -937,7 +937,7 @@ const AdminStats = () => {
         {/* ─── Orders Tab ─── */}
         <TabsContent value="orders">
           <div className="space-y-4">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <Card className="border-border">
                 <CardContent className="pt-4 pb-3 text-center">
                   <DollarSign className="w-4 h-4 mx-auto text-green-600 mb-1" />
