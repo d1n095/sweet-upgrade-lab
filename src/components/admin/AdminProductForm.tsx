@@ -175,13 +175,13 @@ function IngredientPickerSection({
   const handleAddNew = async () => {
     if (!newName.trim()) return;
     setSavingNew(true);
-    const { error } = await supabase.from('recipe_ingredients').insert({
+    const { data: inserted, error } = await supabase.from('recipe_ingredients').insert({
       name_sv: newName.trim(),
       category: newCategory,
       display_order: libraryItems.length,
-    });
-    if (!error) {
-      addIngredient(newName.trim());
+    }).select('id').single();
+    if (!error && inserted) {
+      addIngredient(newName.trim(), inserted.id);
       setNewName('');
       setAddingNew(false);
       fetchIngredients();
