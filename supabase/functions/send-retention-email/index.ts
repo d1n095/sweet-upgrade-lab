@@ -6,6 +6,12 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Auth helper
+function verifyServiceRole(req: Request): boolean {
+  const authHeader = req.headers.get("Authorization") || "";
+  return authHeader === `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`;
+}
+
 const BRAND = {
   primary: "hsl(220, 20%, 10%)",
   primaryFg: "#ffffff",
