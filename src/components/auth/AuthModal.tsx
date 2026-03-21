@@ -230,8 +230,10 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
       setResetSent(false);
       setFormError('');
       setUsernameError('');
+      setPhoneError('');
       setUsernameAvailable(null);
       setUsername('');
+      setPhone('');
     }
   }, [isOpen]);
 
