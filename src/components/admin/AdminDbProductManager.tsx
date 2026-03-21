@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { setProductCategories } from '@/lib/categories';
 import { setProductTags, fetchProductTagIds } from '@/lib/tags';
+import { setProductIngredients, fetchProductIngredients } from '@/lib/products';
 import { motion } from 'framer-motion';
 import {
   Plus, Package, Edit, Trash2, Loader2, AlertTriangle,
@@ -51,6 +52,7 @@ const emptyForm = (): ProductFormData => ({
   imageUrls: [], ingredients: '', certifications: '', recipe: '',
   feeling: '', effects: '', usage: '', extendedDescription: '',
   metaTitle: '', metaDescription: '', metaKeywords: '', weightGrams: '',
+  ingredientIds: [],
 });
 
 const AdminDbProductManager = () => {
@@ -154,6 +156,10 @@ const AdminDbProductManager = () => {
     });
     fetchProductTagIds(product.id).then(ids => {
       setFormData(prev => ({ ...prev, tagIds: ids }));
+    });
+    fetchProductIngredients(product.id).then(rows => {
+      const ids = rows.map((r: any) => r.ingredient_id);
+      setFormData(prev => ({ ...prev, ingredientIds: ids }));
     });
     setIsEditOpen(true);
   };
@@ -273,6 +279,9 @@ const AdminDbProductManager = () => {
         await setProductCategories(newProduct.id, formData.categoryIds);
       }
       await setProductTags(newProduct.id, formData.tagIds);
+      if (formData.ingredientIds && formData.ingredientIds.length > 0) {
+        await setProductIngredients(newProduct.id, formData.ingredientIds);
+      }
       toast.success(t.productAdded);
       queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });
       setIsAddOpen(false);
@@ -315,6 +324,7 @@ const AdminDbProductManager = () => {
       } as any);
       await setProductCategories(selected.id, formData.categoryIds);
       await setProductTags(selected.id, formData.tagIds);
+      await setProductIngredients(selected.id, formData.ingredientIds || []);
       toast.success(t.productUpdated);
       queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });
       setIsEditOpen(false);

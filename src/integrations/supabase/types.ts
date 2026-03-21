@@ -2446,6 +2446,7 @@ export type Database = {
           granted_by: string | null
           id: string
           notes: string | null
+          skill_categories: string[]
           updated_at: string
           user_id: string
         }
@@ -2455,6 +2456,7 @@ export type Database = {
           granted_by?: string | null
           id?: string
           notes?: string | null
+          skill_categories?: string[]
           updated_at?: string
           user_id: string
         }
@@ -2464,6 +2466,7 @@ export type Database = {
           granted_by?: string | null
           id?: string
           notes?: string | null
+          skill_categories?: string[]
           updated_at?: string
           user_id?: string
         }

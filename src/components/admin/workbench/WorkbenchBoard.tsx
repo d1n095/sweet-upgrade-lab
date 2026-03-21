@@ -79,7 +79,7 @@ const TASK_TYPES = [
   { key: 'other', label: 'Övrigt' },
 ];
 
-type ViewFilter = 'all' | 'mine' | 'escalated' | 'open';
+type ViewFilter = 'all' | 'mine' | 'escalated' | 'open' | 'done';
 
 interface Props {
   initialFilter?: string;
@@ -138,6 +138,8 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const [completedCount, setCompletedCount] = useState(0);
   const [sessionStart] = useState(Date.now());
   const workModeRef = useRef(false);
+  const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
+  const [bulkMode, setBulkMode] = useState(false);
   workModeRef.current = workMode;
 
   const { data: automationLogs = [] } = useQuery({
@@ -223,13 +225,38 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     return () => { supabase.removeChannel(channel); };
   }, [queryClient]);
 
+  // Fetch user skills for filtering
+  const { data: userSkills = [] } = useQuery({
+    queryKey: ['user-skills', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data } = await supabase
+        .from('staff_permissions')
+        .select('skill_categories')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      return (data?.skill_categories as string[]) || [];
+    },
+    enabled: !!user?.id,
+  });
+
   // Filter tasks based on view
   const filteredTasks = tasks.filter(t => {
-    if (viewFilter === 'mine') return t.assigned_to === user?.id || t.claimed_by === user?.id;
+    if (viewFilter === 'mine') {
+      const isMine = t.assigned_to === user?.id || t.claimed_by === user?.id;
+      if (isMine) return t.status !== 'done';
+      return false;
+    }
+    if (viewFilter === 'done') return (t.assigned_to === user?.id || t.claimed_by === user?.id) && t.status === 'done';
     if (viewFilter === 'escalated') return t.status === 'escalated';
     if (viewFilter === 'open') return t.status === 'open';
-    return true;
+    // Default 'all' - exclude done
+    return t.status !== 'done';
   });
+
+  // Auto-fallback: if "mine" is empty (no active tasks), show all open
+  const myActiveCount = tasks.filter(t => (t.assigned_to === user?.id || t.claimed_by === user?.id) && t.status !== 'done' && t.status !== 'cancelled').length;
+  const effectiveFilter = viewFilter === 'mine' && myActiveCount === 0 ? 'open' : viewFilter;
 
   // Sort: escalated first, then high priority, then oldest
   const sortedTasks = [...filteredTasks].sort((a, b) => {
@@ -482,7 +509,30 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
 
   const escalatedCount = tasks.filter(t => t.status === 'escalated').length;
   const myCount = tasks.filter(t => (t.assigned_to === user?.id || t.claimed_by === user?.id) && t.status !== 'done').length;
+  const doneCount = tasks.filter(t => (t.assigned_to === user?.id || t.claimed_by === user?.id) && t.status === 'done').length;
   const openCount = tasks.filter(t => t.status === 'open' && !t.assigned_to).length;
+
+  const toggleBulkSelect = (taskId: string) => {
+    setBulkSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(taskId)) next.delete(taskId); else next.add(taskId);
+      return next;
+    });
+  };
+
+  const bulkClaimAll = async () => {
+    if (!user || bulkSelected.size === 0) return;
+    const now = new Date().toISOString();
+    for (const taskId of bulkSelected) {
+      await supabase.from('staff_tasks').update({
+        status: 'claimed', claimed_by: user.id, assigned_to: user.id, claimed_at: now, updated_at: now,
+      } as any).eq('id', taskId);
+    }
+    toast.success(`${bulkSelected.size} uppgifter tagna`);
+    setBulkSelected(new Set());
+    setBulkMode(false);
+    queryClient.invalidateQueries({ queryKey: ['staff-tasks'] });
+  };
 
   const renderTaskCard = (task: Task) => {
     const typeMeta = TASK_TYPE_META[task.task_type] || TASK_TYPE_META.general;
@@ -492,11 +542,19 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     return (
       <Card key={task.id} className={cn(
         'border-border hover:shadow-sm transition-shadow',
-        isEscalated && 'border-destructive/40 bg-destructive/5'
+        isEscalated && 'border-destructive/40 bg-destructive/5',
+        bulkSelected.has(task.id) && 'ring-2 ring-primary/50'
       )}>
         <CardContent className="pt-3 pb-3 space-y-2">
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-center gap-1.5 min-w-0 flex-1">
+              {bulkMode && task.status === 'open' && (
+                <button onClick={() => toggleBulkSelect(task.id)} className="shrink-0 mt-0.5">
+                  {bulkSelected.has(task.id)
+                    ? <CheckCircle2 className="w-4 h-4 text-primary" />
+                    : <Circle className="w-4 h-4 text-muted-foreground" />}
+                </button>
+              )}
               <div className={cn('w-5 h-5 rounded flex items-center justify-center shrink-0', typeMeta.color)}>
                 <TypeIcon className="w-3 h-3" />
               </div>
@@ -703,13 +761,16 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
       )}
 
       {/* Filter tabs */}
-      <Tabs value={viewFilter} onValueChange={v => setViewFilter(v as ViewFilter)}>
+      <Tabs value={viewFilter} onValueChange={v => { setViewFilter(v as ViewFilter); setBulkMode(false); setBulkSelected(new Set()); }}>
         <TabsList>
           <TabsTrigger value="all" className="gap-1.5">
             Alla <Badge variant="secondary" className="text-[9px] ml-1">{tasks.filter(t => t.status !== 'done').length}</Badge>
           </TabsTrigger>
           <TabsTrigger value="mine" className="gap-1.5">
-            Mina {myCount > 0 && <Badge variant="secondary" className="text-[9px] ml-1">{myCount}</Badge>}
+            Mina {myCount > 0 ? <Badge variant="secondary" className="text-[9px] ml-1">{myCount}</Badge> : <span className="text-[9px] text-muted-foreground ml-1">(visar öppna)</span>}
+          </TabsTrigger>
+          <TabsTrigger value="done" className="gap-1.5">
+            Klara {doneCount > 0 && <Badge variant="secondary" className="text-[9px] ml-1">{doneCount}</Badge>}
           </TabsTrigger>
           <TabsTrigger value="escalated" className={cn('gap-1.5', escalatedCount > 0 && 'text-destructive')}>
             <AlertTriangle className="w-3.5 h-3.5" /> Eskalerade
@@ -722,8 +783,20 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
       </Tabs>
 
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <p className="text-sm text-muted-foreground">{sortedTasks.filter(t => t.status !== 'done').length} uppgifter</p>
+        <p className="text-sm text-muted-foreground">{sortedTasks.length} uppgifter{viewFilter === 'mine' && myActiveCount === 0 ? ' (visar öppna – du har inga aktiva)' : ''}</p>
         <div className="flex gap-2">
+          {/* Bulk mode toggle */}
+          {viewFilter === 'open' && openCount > 0 && (
+            <Button size="sm" variant={bulkMode ? 'default' : 'outline'} className="gap-1.5" onClick={() => { setBulkMode(!bulkMode); setBulkSelected(new Set()); }}>
+              {bulkMode ? <X className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
+              {bulkMode ? 'Avbryt' : 'Markera'}
+            </Button>
+          )}
+          {bulkMode && bulkSelected.size > 0 && (
+            <Button size="sm" className="gap-1.5" onClick={bulkClaimAll}>
+              <UserCheck className="w-4 h-4" /> Ta alla ({bulkSelected.size})
+            </Button>
+          )}
           {openCount > 0 && (
             <Button size="sm" variant="outline" className="gap-1.5" onClick={autoAssignAll} disabled={autoAssigning}>
               <Zap className="w-4 h-4" /> Auto-fördela ({openCount})

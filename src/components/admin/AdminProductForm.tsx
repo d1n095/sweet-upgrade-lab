@@ -46,6 +46,7 @@ export interface ProductFormData {
   metaDescription: string;
   metaKeywords: string;
   weightGrams: string;
+  ingredientIds?: string[];
 }
 
 const CURRENCY_OPTIONS = [
@@ -134,17 +135,28 @@ function IngredientPickerSection({
     [formData.ingredients]
   );
 
-  const addIngredient = React.useCallback((name: string) => {
+  const addIngredient = React.useCallback((name: string, id?: string) => {
     if (!currentIngredients.includes(name)) {
       const next = [...currentIngredients, name].join(', ');
-      setFormData(prev => ({ ...prev, ingredients: next }));
+      setFormData(prev => ({
+        ...prev,
+        ingredients: next,
+        ingredientIds: id ? [...(prev.ingredientIds || []), id] : prev.ingredientIds,
+      }));
     }
   }, [currentIngredients, setFormData]);
 
   const removeIngredient = React.useCallback((name: string) => {
+    const idx = currentIngredients.indexOf(name);
     const next = currentIngredients.filter(i => i !== name).join(', ');
-    setFormData(prev => ({ ...prev, ingredients: next }));
-  }, [currentIngredients, setFormData]);
+    // Also remove corresponding ingredient ID
+    const matchingLib = libraryItems.find(li => li.name_sv === name);
+    setFormData(prev => ({
+      ...prev,
+      ingredients: next,
+      ingredientIds: matchingLib ? (prev.ingredientIds || []).filter(id => id !== matchingLib.id) : prev.ingredientIds,
+    }));
+  }, [currentIngredients, setFormData, libraryItems]);
 
   const categories = React.useMemo(
     () => [...new Set(libraryItems.map(i => i.category))].sort(),
@@ -163,13 +175,13 @@ function IngredientPickerSection({
   const handleAddNew = async () => {
     if (!newName.trim()) return;
     setSavingNew(true);
-    const { error } = await supabase.from('recipe_ingredients').insert({
+    const { data: inserted, error } = await supabase.from('recipe_ingredients').insert({
       name_sv: newName.trim(),
       category: newCategory,
       display_order: libraryItems.length,
-    });
-    if (!error) {
-      addIngredient(newName.trim());
+    }).select('id').single();
+    if (!error && inserted) {
+      addIngredient(newName.trim(), inserted.id);
       setNewName('');
       setAddingNew(false);
       fetchIngredients();
@@ -256,7 +268,7 @@ function IngredientPickerSection({
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => isSelected ? removeIngredient(item.name_sv) : addIngredient(item.name_sv)}
+                  onClick={() => isSelected ? removeIngredient(item.name_sv) : addIngredient(item.name_sv, item.id)}
                   className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
                     isSelected
                       ? 'bg-primary/15 border-primary/30 text-primary font-medium'
