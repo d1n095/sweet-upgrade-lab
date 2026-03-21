@@ -33,29 +33,69 @@ interface NavItem {
   role: 'all' | 'admin' | 'founder';
 }
 
-const navItems: NavItem[] = [
-  { to: '/admin', label: 'Dashboard', icon: BarChart3, end: true, role: 'all' },
-  { to: '/admin/orders', label: 'Ordrar', icon: ClipboardList, role: 'all' },
-  { to: '/admin/products', label: 'Produkter', icon: Package, role: 'all' },
-  { to: '/admin/categories', label: 'Kategorier', icon: Grid, role: 'admin' },
-  { to: '/admin/members', label: 'Användare', icon: Users, role: 'admin' },
-  { to: '/admin/reviews', label: 'Recensioner', icon: Star, role: 'all' },
-  { to: '/admin/partners', label: 'Partners', icon: Handshake, role: 'admin' },
-  { to: '/admin/finance', label: 'Betalningar', icon: Wallet, role: 'admin' },
-  { to: '/admin/content', label: 'Innehåll', icon: FileText, role: 'admin' },
-  { to: '/admin/campaigns', label: 'Kampanjer', icon: Percent, role: 'admin' },
-  { to: '/admin/shipping', label: 'Frakt', icon: Truck, role: 'admin' },
-  { to: '/admin/seo', label: 'SEO', icon: Globe, role: 'admin' },
-  { to: '/admin/legal', label: 'Juridik & Donationer', icon: Heart, role: 'admin' },
-  { to: '/admin/logs', label: 'Logg', icon: Activity, role: 'admin' },
-  { to: '/admin/incidents', label: 'Ärenden', icon: AlertTriangle, role: 'all' },
-  { to: '/admin/database', label: 'Databas', icon: Grid, role: 'admin' },
-  { to: '/admin/settings', label: 'Inställningar', icon: Settings, role: 'admin' },
-  { to: '/admin/stats', label: 'Statistik', icon: BarChart3, role: 'admin' },
-  { to: '/admin/insights', label: 'Insights', icon: Activity, role: 'admin' },
-  { to: '/admin/staff', label: 'Workbench', icon: Crown, role: 'founder' },
-  { to: '/admin/warehouse', label: 'Warehouse', icon: ScanLine, role: 'all' },
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
+
+const navGroups: NavGroup[] = [
+  {
+    label: '',
+    items: [
+      { to: '/admin', label: 'Dashboard', icon: BarChart3, end: true, role: 'all' },
+    ],
+  },
+  {
+    label: 'DRIFT',
+    items: [
+      { to: '/admin/ops', label: 'Operations', icon: ClipboardList, role: 'all' },
+      { to: '/admin/orders', label: 'Ordrar', icon: ClipboardList, role: 'all' },
+      { to: '/admin/incidents', label: 'Ärenden', icon: AlertTriangle, role: 'all' },
+      { to: '/admin/warehouse', label: 'Warehouse', icon: ScanLine, role: 'all' },
+      { to: '/admin/shipping', label: 'Frakt', icon: Truck, role: 'admin' },
+      { to: '/admin/staff', label: 'Workbench', icon: Crown, role: 'founder' },
+    ],
+  },
+  {
+    label: 'LAGER',
+    items: [
+      { to: '/admin/products', label: 'Produkter', icon: Package, role: 'all' },
+      { to: '/admin/categories', label: 'Kategorier', icon: Grid, role: 'admin' },
+      { to: '/admin/reviews', label: 'Recensioner', icon: Star, role: 'all' },
+    ],
+  },
+  {
+    label: 'TILLVÄXT',
+    items: [
+      { to: '/admin/growth', label: 'Tillväxt', icon: Activity, role: 'admin' },
+      { to: '/admin/stats', label: 'Statistik', icon: BarChart3, role: 'admin' },
+      { to: '/admin/insights', label: 'Insights', icon: Activity, role: 'admin' },
+      { to: '/admin/campaigns', label: 'Kampanjer', icon: Percent, role: 'admin' },
+      { to: '/admin/seo', label: 'SEO', icon: Globe, role: 'admin' },
+    ],
+  },
+  {
+    label: 'EKONOMI',
+    items: [
+      { to: '/admin/finance', label: 'Ekonomi', icon: Wallet, role: 'admin' },
+      { to: '/admin/partners', label: 'Partners', icon: Handshake, role: 'admin' },
+    ],
+  },
+  {
+    label: 'SYSTEM',
+    items: [
+      { to: '/admin/members', label: 'Användare', icon: Users, role: 'admin' },
+      { to: '/admin/content', label: 'Innehåll', icon: FileText, role: 'admin' },
+      { to: '/admin/legal', label: 'Juridik', icon: Heart, role: 'admin' },
+      { to: '/admin/logs', label: 'Logg', icon: Activity, role: 'admin' },
+      { to: '/admin/database', label: 'Databas', icon: Grid, role: 'admin' },
+      { to: '/admin/settings', label: 'Inställningar', icon: Settings, role: 'admin' },
+    ],
+  },
 ];
+
+// Flatten for lookups
+const allNavItems = navGroups.flatMap(g => g.items);
 
 const AdminLayout = () => {
   const { isAdmin, isLoading } = useAdminRole();
