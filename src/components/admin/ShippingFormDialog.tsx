@@ -83,11 +83,13 @@ const ShippingFormDialog = ({ open, onOpenChange, order, onShipped }: ShippingFo
         order_id: order.id,
       });
 
-      // Send status email
+      // Send shipping notification email
+      let emailSent = false;
       try {
-        await supabase.functions.invoke('send-order-email', {
+        const { error: emailError } = await supabase.functions.invoke('send-order-email', {
           body: { order_id: order.id, email_type: 'status_update' },
         });
+        emailSent = !emailError;
       } catch {}
 
       onShipped(order.id, {
