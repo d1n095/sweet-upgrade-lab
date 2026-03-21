@@ -228,7 +228,7 @@ const ProductDetail = () => {
         }}
       />
       <Header />
-      <main className="pt-24 pb-28 md:pb-20">
+      <main className="pt-24 pb-40 md:pb-20">
         <div className="container mx-auto px-4">
           {/* Breadcrumb */}
           <nav className="flex items-center gap-2 text-xs mb-6">
@@ -379,8 +379,8 @@ const ProductDetail = () => {
                 </Button>
               </div>
 
-              {/* Trust badges */}
-              <div className="grid grid-cols-3 gap-3 mb-5">
+              {/* Trust badges - hidden on mobile (shown in MobileBuyBar) */}
+              <div className="hidden md:grid grid-cols-3 gap-3 mb-5">
                 {[
                   { icon: Shield, label: t('product.securepayment') },
                   { icon: RotateCcw, label: t('product.returns') },
@@ -393,7 +393,9 @@ const ProductDetail = () => {
                 ))}
               </div>
 
-              <PaymentMethods />
+              <div className="hidden md:block">
+                <PaymentMethods />
+              </div>
             </motion.div>
           </div>
 
