@@ -366,15 +366,13 @@ const ScanPackingMode = () => {
 
                 <Separator />
 
-                {/* Tracking number */}
-                <div>
-                  <label className="text-sm font-medium mb-1 block">Spårningsnummer</label>
-                  <Input
-                    placeholder="Ange spårningsnummer…"
-                    value={trackingNumber}
-                    onChange={(e) => setTrackingNumber(e.target.value)}
-                  />
-                </div>
+                {/* Tracking number – populated automatically by Shipmondo API */}
+                {trackingNumber && (
+                  <div className="bg-accent/10 rounded-lg p-3 text-sm">
+                    <p className="font-medium mb-1">Spårningsnummer:</p>
+                    <p className="font-mono">{trackingNumber}</p>
+                  </div>
+                )}
 
                 {/* Actions */}
                 <div className="flex flex-wrap gap-2 pt-2">
