@@ -39,9 +39,8 @@ const ScanPackingMode = () => {
   const [scanInput, setScanInput] = useState('');
   const [activeOrder, setActiveOrder] = useState<PackingOrder | null>(null);
   const [checkedItems, setCheckedItems] = useState<Record<number, boolean>>({});
-  const [trackingNumber, setTrackingNumber] = useState('');
   const [isPacking, setIsPacking] = useState(false);
-  const [isShipping, setIsShipping] = useState(false);
+  const [shippingDialogOpen, setShippingDialogOpen] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
   const [scanSuccess, setScanSuccess] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
