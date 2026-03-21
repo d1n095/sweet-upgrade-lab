@@ -84,6 +84,10 @@ const AdminOrders = () => {
             <PackageX className="w-3.5 h-3.5" />
             Borttappade {stats.lost > 0 && `(${stats.lost})`}
           </TabsTrigger>
+          <TabsTrigger value="ready_to_ship" className="gap-1.5">
+            <Mail className="w-3.5 h-3.5" />
+            Väntar på postning {stats.readyToShip > 0 && `(${stats.readyToShip})`}
+          </TabsTrigger>
           <TabsTrigger value="refunds" className="gap-1.5">
             <RotateCcw className="w-3.5 h-3.5" />
             Återbetalningar
