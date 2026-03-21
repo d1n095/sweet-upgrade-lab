@@ -2829,6 +2829,16 @@ export type Database = {
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_founder: { Args: { _user_id: string }; Returns: boolean }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
+      log_activity: {
+        Args: {
+          p_category: string
+          p_details?: Json
+          p_log_type: string
+          p_message: string
+          p_order_id?: string
+        }
+        Returns: undefined
+      }
       move_to_dlq: {
         Args: {
           dlq_name: string
