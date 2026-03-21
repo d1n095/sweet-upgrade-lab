@@ -12,6 +12,7 @@ import { useCartStore } from '@/stores/cartStore';
 import { useTranslatedProduct } from '@/hooks/useTranslatedProduct';
 import PaymentMethods from '@/components/trust/PaymentMethods';
 import { useProductReviewStats } from '@/hooks/useProductReviewStats';
+import { usePurchaseHistory } from '@/hooks/usePurchaseHistory';
 import ReviewList from '@/components/reviews/ReviewList';
 import ReviewForm from '@/components/reviews/ReviewForm';
 import ProductIngredients from '@/components/product/ProductIngredients';
