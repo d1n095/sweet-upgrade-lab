@@ -128,7 +128,7 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
     e.preventDefault();
     setFormError('');
 
-    // Validate username for registration (REQUIRED)
+    // Validate username + phone for registration (REQUIRED)
     if (mode === 'register') {
       const error = validateUsername(username, lang);
       if (error) {
@@ -137,6 +137,11 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
       }
       if (usernameAvailable === false) {
         setUsernameError(lang === 'sv' ? 'Användarnamnet är redan taget' : 'Username is already taken');
+        return;
+      }
+      const pError = validatePhone(phone);
+      if (pError) {
+        setPhoneError(pError);
         return;
       }
     }
