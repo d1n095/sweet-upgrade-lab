@@ -2788,7 +2788,7 @@ export type Database = {
           payload: Json
           source_queue: string
         }
-        Returns: number
+        Returns: undefined
       }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
