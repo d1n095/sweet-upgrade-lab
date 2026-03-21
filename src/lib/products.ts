@@ -50,7 +50,7 @@ export interface DbProduct {
   updated_at: string;
 }
 
-export type DbProductInsert = Omit<DbProduct, 'id' | 'created_at' | 'updated_at' | 'handle' | 'ingredients_sv' | 'ingredients_en' | 'certifications' | 'reserved_stock' | 'currency' | 'recipe_sv' | 'recipe_en' | 'feeling_sv' | 'feeling_en' | 'effects_sv' | 'effects_en' | 'usage_sv' | 'usage_en' | 'extended_description_sv' | 'extended_description_en' | 'meta_title' | 'meta_description' | 'meta_keywords' | 'weight_grams' | 'status' | 'is_sellable'> & {
+export type DbProductInsert = Omit<DbProduct, 'id' | 'created_at' | 'updated_at' | 'handle' | 'ingredients_sv' | 'ingredients_en' | 'certifications' | 'reserved_stock' | 'currency' | 'recipe_sv' | 'recipe_en' | 'feeling_sv' | 'feeling_en' | 'effects_sv' | 'effects_en' | 'usage_sv' | 'usage_en' | 'extended_description_sv' | 'extended_description_en' | 'meta_title' | 'meta_description' | 'meta_keywords' | 'weight_grams' | 'status' | 'is_sellable' | 'low_stock_threshold' | 'restock_amount' | 'units_sold_7d' | 'units_sold_30d' | 'last_sold_at'> & {
   handle?: string;
   ingredients_sv?: string | null;
   ingredients_en?: string | null;
