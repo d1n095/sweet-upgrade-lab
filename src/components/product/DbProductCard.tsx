@@ -43,7 +43,7 @@ const StockIndicator = ({ stock, allowOverselling, lang }: { stock: number; allo
   );
 };
 
-const DbProductCard = ({ product, index, compact = false }: DbProductCardProps) => {
+const DbProductCard = ({ product, index, compact = false, isPurchased = false }: DbProductCardProps) => {
   const { language, t } = useLanguage();
   const lang = getContentLang(language);
   const { items, addItem } = useCartStore();
