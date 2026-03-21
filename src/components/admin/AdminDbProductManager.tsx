@@ -25,7 +25,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { toast } from 'sonner';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  AdminProductForm, ProductFormData, AdminProductFormStrings
+  AdminProductForm, ProductFormData, AdminProductFormStrings, DEFAULT_PRODUCT_FORM_DATA
 } from '@/components/admin/AdminProductForm';
 import { fetchDbProducts, createDbProduct, updateDbProduct, deleteDbProduct, DbProduct, ProductStatus } from '@/lib/products';
 
@@ -46,13 +46,8 @@ const suggestedTags = [
 ];
 
 const emptyForm = (): ProductFormData => ({
-  title: '', description: '', price: '', currency: 'SEK',
-  productType: '', categoryIds: [], tagIds: [], tags: '', vendor: '4ThePeople',
-  isVisible: true, inventory: 0, allowOverselling: false,
-  imageUrls: [], ingredients: '', certifications: '', recipe: '',
-  feeling: '', effects: '', usage: '', extendedDescription: '',
-  metaTitle: '', metaDescription: '', metaKeywords: '', weightGrams: '',
-  ingredientIds: [],
+  ...DEFAULT_PRODUCT_FORM_DATA,
+  vendor: '4ThePeople',
 });
 
 const AdminDbProductManager = () => {
@@ -123,6 +118,7 @@ const AdminDbProductManager = () => {
   const openEdit = (product: DbProduct) => {
     setSelected(product);
     setFormData({
+      ...DEFAULT_PRODUCT_FORM_DATA,
       title: product.title_sv,
       description: product.description_sv || '',
       price: product.price.toString(),
@@ -213,6 +209,7 @@ const AdminDbProductManager = () => {
 
   const handleCopyFrom = async (source: DbProduct) => {
     setFormData({
+      ...DEFAULT_PRODUCT_FORM_DATA,
       title: source.title_sv,
       description: source.description_sv || '',
       price: source.price.toString(),
