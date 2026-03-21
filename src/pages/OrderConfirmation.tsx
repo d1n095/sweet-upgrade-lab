@@ -10,6 +10,7 @@ import { storeConfig } from '@/config/storeConfig';
 import { supabase } from '@/integrations/supabase/client';
 import { useCartStore } from '@/stores/cartStore';
 import { getOrderDisplayId } from '@/utils/orderDisplay';
+import { trackCheckoutComplete } from '@/utils/analyticsTracker';
 
 interface RecommendedProduct {
   id: string;
