@@ -1254,11 +1254,11 @@ const AdminOrderManager = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={(e) => { e.stopPropagation(); handlePrintShippingLabel(order); }}
+                      onClick={(e) => { e.stopPropagation(); handleCreateShipment(order); }}
                       className="gap-2"
                     >
-                      <FileText className="w-4 h-4" />
-                      {language === 'sv' ? 'Fraktsedel' : 'Shipping Label'}
+                      <Truck className="w-4 h-4" />
+                      {language === 'sv' ? 'Skapa frakt' : 'Create Shipment'}
                     </Button>
                   </div>
                 )}
