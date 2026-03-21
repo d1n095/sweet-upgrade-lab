@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -12,10 +12,12 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Plus, User, Clock, CheckCircle2, Circle, Play, X, Zap, UserCheck, Bot,
   AlertTriangle, Package, Headphones, RotateCcw, FileText, Wrench, ShieldAlert,
+  FastForward, Pause, ArrowRight, Sparkles,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface Task {
   id: string;
