@@ -437,54 +437,12 @@ const Checkout = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Debug steps panel – only for admin/founder/it roles */}
-      {isAdmin && <div className="fixed top-16 right-4 z-[9999] w-80 bg-card border-2 border-primary/50 rounded-lg shadow-xl p-3 text-xs font-mono space-y-2 max-h-80 overflow-auto">
-        <div className="flex items-center justify-between">
-          <p className="font-bold text-foreground">🔍 Checkout Debug</p>
-          <Badge variant="outline" className="text-[10px]">{debugSteps.length} steg</Badge>
+      {/* Minimal debug indicator for admins */}
+      {isAdmin && checkoutError && (
+        <div className="fixed top-16 right-4 z-[9999] bg-destructive/10 border border-destructive/30 rounded-lg p-2 text-xs max-w-60">
+          <p className="text-destructive font-medium">❌ {checkoutError}</p>
         </div>
-
-        {/* Live steps log */}
-        {debugSteps.length === 0 ? (
-          <p className="text-muted-foreground text-[11px] italic">Klicka "Betala" för att se flödet här…</p>
-        ) : (
-          <div className="space-y-0.5 border border-border rounded p-2 bg-secondary/30">
-            {debugSteps.map((step, i) => (
-              <p key={i} className="text-[11px] text-foreground">{step}</p>
-            ))}
-          </div>
-        )}
-
-        {/* Error display */}
-        {checkoutError && (
-          <div className="border border-destructive/40 bg-destructive/10 rounded p-2">
-            <p className="text-[11px] text-destructive font-semibold">❌ {checkoutError}</p>
-          </div>
-        )}
-
-        {/* Response data */}
-        {debugInfo.data && (
-          <details className="text-muted-foreground">
-            <summary className="cursor-pointer text-[11px]">📄 Full response JSON</summary>
-            <pre className="mt-1 whitespace-pre-wrap break-all text-[10px] text-foreground bg-secondary/50 rounded p-1">{JSON.stringify(debugInfo.data, null, 2)}</pre>
-          </details>
-        )}
-
-        {/* Test redirect */}
-        <button
-          onClick={() => { addDebugStep('🧪 TEST REDIRECT CLICKED'); window.location.href = 'https://checkout.stripe.com'; }}
-          className="w-full px-2 py-1.5 bg-primary text-primary-foreground rounded text-[10px] font-semibold hover:opacity-90"
-        >
-          🧪 TEST: Stripe Redirect fungerar?
-        </button>
-
-        <button
-          onClick={() => { setDebugSteps([]); setDebugInfo({}); setCheckoutError(null); }}
-          className="w-full px-2 py-1 border border-border rounded text-[10px] text-muted-foreground hover:text-foreground"
-        >
-          Rensa
-        </button>
-      </div>}
+      )}
       {/* Minimal checkout header — distraction-free */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border">
         <div className="container mx-auto px-4 h-14 flex items-center justify-between max-w-5xl">
