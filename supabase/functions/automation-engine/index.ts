@@ -240,6 +240,78 @@ Deno.serve(async (req) => {
     }
     results.reassigned += orphansCancelled;
 
+    // ─── 5b. STOCK INTELLIGENCE: Update sales velocity ───
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+    const { data: activeProducts } = await supabase
+      .from("products")
+      .select("id, title_sv, stock, low_stock_threshold, status")
+      .eq("status", "active");
+
+    for (const prod of activeProducts || []) {
+      // Count units sold from orders in last 7/30 days
+      const { data: orders7d } = await supabase
+        .from("orders")
+        .select("items")
+        .eq("payment_status", "paid")
+        .gte("created_at", sevenDaysAgo);
+
+      const { data: orders30d } = await supabase
+        .from("orders")
+        .select("items")
+        .eq("payment_status", "paid")
+        .gte("created_at", thirtyDaysAgo);
+
+      let sold7d = 0, sold30d = 0;
+      for (const o of orders7d || []) {
+        const items = Array.isArray(o.items) ? o.items : [];
+        for (const item of items) {
+          if ((item as any)?.product_id === prod.id) sold7d += (item as any)?.quantity || 1;
+        }
+      }
+      for (const o of orders30d || []) {
+        const items = Array.isArray(o.items) ? o.items : [];
+        for (const item of items) {
+          if ((item as any)?.product_id === prod.id) sold30d += (item as any)?.quantity || 1;
+        }
+      }
+
+      await supabase.from("products").update({
+        units_sold_7d: sold7d,
+        units_sold_30d: sold30d,
+      }).eq("id", prod.id);
+
+      // Alert if stock is low
+      if (prod.stock <= prod.low_stock_threshold && prod.stock > 0) {
+        const { data: admins } = await supabase
+          .from("user_roles")
+          .select("user_id")
+          .in("role", ["admin", "founder"]);
+
+        for (const a of admins || []) {
+          const { data: recent } = await supabase
+            .from("notifications")
+            .select("id")
+            .eq("user_id", a.user_id)
+            .ilike("message", `%${prod.title_sv}%lager%`)
+            .gte("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+            .limit(1);
+
+          if (!recent?.length) {
+            await supabase.from("notifications").insert({
+              user_id: a.user_id,
+              type: "warning",
+              message: `📦 Lågt lager: ${prod.title_sv} (${prod.stock} kvar)`,
+              related_type: "product",
+              related_id: prod.id,
+            });
+            results.alerts++;
+          }
+        }
+      }
+    }
+
     // ─── 6. AUTO-ALERTS: Bottleneck detection ───
     // Alert if >5 orders stuck in same status for >24h
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
