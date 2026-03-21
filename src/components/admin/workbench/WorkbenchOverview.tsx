@@ -25,6 +25,7 @@ const WorkbenchOverview = ({ onNavigate }: Props) => {
       return {
         openTasks: tasks.filter(t => t.status !== 'done').length,
         inProgressTasks: tasks.filter(t => t.status === 'in_progress').length,
+        escalatedTasks: tasks.filter(t => t.status === 'escalated').length,
         escalatedIncidents: incidents.filter(i => i.sla_status === 'overdue' || i.priority === 'high').length,
         ordersToPack: orders.filter(o => o.status === 'confirmed' || o.status === 'processing').length,
       };
