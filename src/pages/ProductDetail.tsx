@@ -379,8 +379,8 @@ const ProductDetail = () => {
                 </Button>
               </div>
 
-              {/* Trust badges */}
-              <div className="grid grid-cols-3 gap-3 mb-5">
+              {/* Trust badges - hidden on mobile (shown in MobileBuyBar) */}
+              <div className="hidden md:grid grid-cols-3 gap-3 mb-5">
                 {[
                   { icon: Shield, label: t('product.securepayment') },
                   { icon: RotateCcw, label: t('product.returns') },
@@ -393,7 +393,9 @@ const ProductDetail = () => {
                 ))}
               </div>
 
-              <PaymentMethods />
+              <div className="hidden md:block">
+                <PaymentMethods />
+              </div>
             </motion.div>
           </div>
 
