@@ -329,11 +329,11 @@ const ScanPackingMode = () => {
 
                 <Separator />
 
-                {/* Tracking number – populated automatically by Shipmondo API */}
-                {trackingNumber && (
+                {/* Tracking info if already has it */}
+                {activeOrder.tracking_number && (
                   <div className="bg-accent/10 rounded-lg p-3 text-sm">
                     <p className="font-medium mb-1">Spårningsnummer:</p>
-                    <p className="font-mono">{trackingNumber}</p>
+                    <p className="font-mono">{activeOrder.tracking_number}</p>
                   </div>
                 )}
 
@@ -341,7 +341,7 @@ const ScanPackingMode = () => {
                 <div className="flex flex-wrap gap-2 pt-2">
                   {activeOrder.fulfillment_status !== 'packed' && activeOrder.fulfillment_status !== 'shipped' && (
                     <Button
-                      onClick={handlePackAndShip}
+                      onClick={handleMarkPacked}
                       disabled={!allChecked || isPacking}
                       className="flex-1"
                     >
@@ -350,23 +350,18 @@ const ScanPackingMode = () => {
                       ) : (
                         <Package className="w-4 h-4 mr-2" />
                       )}
-                      Packa & skapa frakt
+                      Markera som packad
                     </Button>
                   )}
 
                   {activeOrder.fulfillment_status === 'packed' && (
                     <Button
-                      onClick={handleMarkShipped}
-                      disabled={isShipping}
+                      onClick={() => setShippingDialogOpen(true)}
                       variant="default"
                       className="flex-1"
                     >
-                      {isShipping ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <Truck className="w-4 h-4 mr-2" />
-                      )}
-                      Markera som skickad
+                      <Truck className="w-4 h-4 mr-2" />
+                      Lägg till frakt
                     </Button>
                   )}
                 </div>
@@ -382,6 +377,13 @@ const ScanPackingMode = () => {
           )}
         </div>
       </div>
+
+      <ShippingFormDialog
+        open={shippingDialogOpen}
+        onOpenChange={setShippingDialogOpen}
+        order={activeOrder as any}
+        onShipped={handleShipped}
+      />
     </div>
   );
 };
