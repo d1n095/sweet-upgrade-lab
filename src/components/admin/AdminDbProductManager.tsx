@@ -157,6 +157,10 @@ const AdminDbProductManager = () => {
     fetchProductTagIds(product.id).then(ids => {
       setFormData(prev => ({ ...prev, tagIds: ids }));
     });
+    fetchProductIngredients(product.id).then(rows => {
+      const ids = rows.map((r: any) => r.ingredient_id);
+      setFormData(prev => ({ ...prev, ingredientIds: ids }));
+    });
     setIsEditOpen(true);
   };
 
