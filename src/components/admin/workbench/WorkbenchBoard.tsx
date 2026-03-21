@@ -95,6 +95,10 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const [runningAutomation, setRunningAutomation] = useState(false);
   const [viewFilter, setViewFilter] = useState<ViewFilter>('all');
   const [escalating, setEscalating] = useState<string | null>(null);
+  const [workMode, setWorkMode] = useState(false);
+  const [justCompleted, setJustCompleted] = useState<string | null>(null);
+  const workModeRef = useRef(false);
+  workModeRef.current = workMode;
 
   const { data: automationLogs = [] } = useQuery({
     queryKey: ['automation-logs-recent'],
