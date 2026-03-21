@@ -418,10 +418,10 @@ const ScanPackingMode = () => {
                     </Button>
                   )}
 
-                  <Button variant="outline" onClick={generateLabel}>
-                    <Printer className="w-4 h-4 mr-2" />
-                    Skriv ut etikett
-                  </Button>
+                   <Button variant="outline" onClick={handleCreateShipment}>
+                     <Truck className="w-4 h-4 mr-2" />
+                     Skapa frakt (Shipmondo)
+                   </Button>
                 </div>
 
                 {!allChecked && activeOrder.fulfillment_status !== 'packed' && (

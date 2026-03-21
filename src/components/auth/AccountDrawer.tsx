@@ -68,12 +68,6 @@ const AccountDrawer = ({ isOpen, onClose }: AccountDrawerProps) => {
       description: language === 'sv' ? 'Hantera dina uppgifter' : 'Manage your details',
     },
     {
-      icon: Package,
-      label: language === 'sv' ? 'Mina beställningar' : 'My Orders',
-      href: '/profile?tab=orders',
-      description: language === 'sv' ? 'Se orderhistorik' : 'View order history',
-    },
-    {
       icon: Star,
       label: language === 'sv' ? 'Mina recensioner' : 'My Reviews',
       href: '/profile?tab=reviews',
