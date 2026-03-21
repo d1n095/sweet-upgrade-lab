@@ -350,6 +350,9 @@ const ProductDetail = () => {
                 </div>
               )}
 
+              {/* Bundle offers */}
+              <ProductBundles productId={product.id} />
+
               {/* Quantity + Add to cart (desktop) */}
               <div className="hidden md:flex items-center gap-3 mb-5">
                 <div className="flex items-center border border-border rounded-lg">
