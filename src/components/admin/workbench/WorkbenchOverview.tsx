@@ -25,6 +25,7 @@ const WorkbenchOverview = ({ onNavigate }: Props) => {
       return {
         openTasks: tasks.filter(t => t.status !== 'done').length,
         inProgressTasks: tasks.filter(t => t.status === 'in_progress').length,
+        escalatedTasks: tasks.filter(t => t.status === 'escalated').length,
         escalatedIncidents: incidents.filter(i => i.sla_status === 'overdue' || i.priority === 'high').length,
         ordersToPack: orders.filter(o => o.status === 'confirmed' || o.status === 'processing').length,
       };
@@ -41,11 +42,11 @@ const WorkbenchOverview = ({ onNavigate }: Props) => {
       onClick: () => onNavigate('workboard'),
     },
     {
-      label: 'Eskalerade ärenden',
-      value: stats?.escalatedIncidents ?? 0,
+      label: 'Eskalerade',
+      value: (stats?.escalatedTasks ?? 0) + (stats?.escalatedIncidents ?? 0),
       icon: AlertTriangle,
       color: 'text-destructive bg-destructive/10',
-      onClick: () => onNavigate('workboard', 'high'),
+      onClick: () => onNavigate('workboard', 'escalated'),
     },
     {
       label: 'Orders att packa',
