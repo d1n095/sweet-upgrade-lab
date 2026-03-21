@@ -84,6 +84,39 @@ interface Props {
   initialFilter?: string;
 }
 
+// Task Snapshot: shows order info inline
+const TaskSnapshot = ({ orderId }: { orderId: string }) => {
+  const { data: order } = useQuery({
+    queryKey: ['task-snapshot', orderId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('orders')
+        .select('order_email, total_amount, items, shipping_address, created_at')
+        .eq('id', orderId)
+        .maybeSingle();
+      return data;
+    },
+    staleTime: 60000,
+  });
+
+  if (!order) return null;
+  const items = Array.isArray(order.items) ? order.items : [];
+  const addr = order.shipping_address as any;
+
+  return (
+    <div className="mt-3 pt-3 border-t border-border/50 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+      <div>
+        <span className="font-medium text-foreground">{order.order_email}</span>
+        <p>{order.total_amount?.toLocaleString('sv-SE')} kr</p>
+      </div>
+      <div>
+        {addr && <p>{addr.name} — {addr.city}</p>}
+        <p>{items.length} artikel{items.length !== 1 ? 'er' : ''}: {items.slice(0, 2).map((i: any) => i.title).join(', ')}{items.length > 2 ? '…' : ''}</p>
+      </div>
+    </div>
+  );
+};
+
 const WorkbenchBoard = ({ initialFilter }: Props) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
