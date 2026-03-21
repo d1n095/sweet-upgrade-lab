@@ -278,10 +278,10 @@ const AccountDrawer = ({ isOpen, onClose }: AccountDrawerProps) => {
             </p>
           </div>
           <div className="p-4 rounded-xl bg-secondary/30">
-            <Heart className="w-5 h-5 text-accent mb-2" />
-            <p className="text-2xl font-bold">{stats.totalDonated} kr</p>
+            <Star className="w-5 h-5 text-accent mb-2" />
+            <p className="text-2xl font-bold">{stats.reviewsCount || 0}</p>
             <p className="text-xs text-muted-foreground">
-              {language === 'sv' ? 'Donerat' : 'Donated'}
+              {language === 'sv' ? 'Recensioner' : 'Reviews'}
             </p>
           </div>
         </div>
