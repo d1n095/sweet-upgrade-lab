@@ -530,17 +530,28 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
                 <div className="min-w-0">
                   <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Nästa att göra</p>
                   <p className="text-sm font-semibold truncate">{nextAction.title}</p>
-                  <div className="flex gap-1.5 mt-1">
+                  <div className="flex gap-1.5 mt-1 flex-wrap">
                     <Badge variant="outline" className={cn('text-[9px]', PRIORITY_COLORS[nextAction.priority])}>
                       {nextAction.priority === 'high' ? 'HÖG' : nextAction.priority === 'medium' ? 'MED' : 'LÅG'}
                     </Badge>
                     <Badge variant="secondary" className="text-[9px]">
                       {(TASK_TYPE_META[nextAction.task_type] || TASK_TYPE_META.general).label}
                     </Badge>
+                    {nextAction.related_order_id && (
+                      <Badge variant="outline" className="text-[9px] gap-0.5">
+                        <Package className="w-2.5 h-2.5" /> Order
+                      </Badge>
+                    )}
                   </div>
                 </div>
               </div>
-              <div className="flex gap-2 shrink-0">
+              <div className="flex gap-2 shrink-0 items-center">
+                {workMode && (
+                  <div className="flex items-center gap-2 mr-2">
+                    <label className="text-[10px] text-muted-foreground">Auto-nästa</label>
+                    <Switch checked={autoNext} onCheckedChange={setAutoNext} />
+                  </div>
+                )}
                 {!workMode ? (
                   <>
                     <Button size="sm" variant="outline" className="gap-1.5" onClick={() => {
@@ -566,24 +577,44 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
                 )}
               </div>
             </div>
+
+            {/* Task snapshot – order info */}
+            {nextAction.related_order_id && (
+              <TaskSnapshot orderId={nextAction.related_order_id} />
+            )}
           </CardContent>
         </Card>
       )}
 
-      {/* Done feedback toast */}
+      {/* Done feedback */}
       <AnimatePresence>
         {justCompleted && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 flex items-center gap-2"
+            className="bg-accent/10 border border-accent/30 rounded-lg p-3 flex items-center gap-2"
           >
-            <CheckCircle2 className="w-5 h-5 text-green-600" />
-            <span className="text-sm font-medium text-green-700">Klar ✓ — laddar nästa…</span>
+            <CheckCircle2 className="w-5 h-5 text-accent" />
+            <span className="text-sm font-medium text-accent">Klar ✓ — {autoNext && workMode ? 'laddar nästa…' : 'bra jobbat!'}</span>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Live speed stats */}
+      {completedCount > 0 && (
+        <div className="flex items-center gap-4 bg-secondary/30 rounded-xl px-4 py-2">
+          <div className="flex items-center gap-1.5 text-sm">
+            <CheckCircle2 className="w-4 h-4 text-accent" />
+            <span className="font-semibold">{completedCount}</span>
+            <span className="text-muted-foreground">klara</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <Timer className="w-4 h-4" />
+            ~{Math.round((completedCount / Math.max(1, (Date.now() - sessionStart) / 60000)) * 60)}/h
+          </div>
+        </div>
+      )}
 
       {/* Filter tabs */}
       <Tabs value={viewFilter} onValueChange={v => setViewFilter(v as ViewFilter)}>
