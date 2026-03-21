@@ -46,13 +46,8 @@ const suggestedTags = [
 ];
 
 const emptyForm = (): ProductFormData => ({
-  title: '', description: '', price: '', currency: 'SEK',
-  productType: '', categoryIds: [], tagIds: [], tags: '', vendor: '4ThePeople',
-  isVisible: true, inventory: 0, allowOverselling: false,
-  imageUrls: [], ingredients: '', certifications: '', recipe: '',
-  feeling: '', effects: '', usage: '', extendedDescription: '',
-  metaTitle: '', metaDescription: '', metaKeywords: '', weightGrams: '',
-  ingredientIds: [],
+  ...DEFAULT_PRODUCT_FORM_DATA,
+  vendor: '4ThePeople',
 });
 
 const AdminDbProductManager = () => {
