@@ -47,7 +47,7 @@ serve(async (req) => {
     let dbQuery = supabase
       .from("orders")
       .select(
-        "id, order_number, shopify_order_number, stripe_session_id, payment_intent_id, order_email, status, tracking_number, estimated_delivery, created_at, items, total_amount, currency, shipping_address, payment_status, payment_method",
+        "id, order_number, shopify_order_number, stripe_session_id, payment_intent_id, order_email, status, tracking_number, estimated_delivery, created_at, items, total_amount, currency, payment_status, payment_method",
       )
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
@@ -55,16 +55,19 @@ serve(async (req) => {
 
     // Prefer explicit session lookup for confirmation page
     if (sessionId) {
-      dbQuery = dbQuery.eq("stripe_session_id", sessionId);
+      // Session lookup also requires email to prevent enumeration
+      if (!email) {
+        return json({ error: "Email required for session lookup" }, 400);
+      }
+      dbQuery = dbQuery.eq("stripe_session_id", sessionId).eq("order_email", email);
     } else if (query) {
       const orFilters = [
         `order_number.eq.${query}`,
         `shopify_order_number.eq.${query}`,
         `tracking_number.eq.${query}`,
-        `stripe_session_id.eq.${query}`,
-        `payment_intent_id.eq.${query}`,
       ];
-      dbQuery = dbQuery.or(orFilters.join(","));
+      // Only allow session/payment ID lookup with email match
+      dbQuery = dbQuery.or(orFilters.join(",")).eq("order_email", email);
     } else if (email) {
       // Email-only search — return latest order for that email
       dbQuery = dbQuery.eq("order_email", email);
@@ -83,26 +86,18 @@ serve(async (req) => {
 
     const order = data[0];
 
-    // Extra guard to ensure exact confirmation lookup by Stripe session
-    if (sessionId && order.stripe_session_id !== sessionId) {
-      return json({ found: false });
-    }
-
-    // If email was provided, verify it matches (prevents enumeration)
+    // Extra guard: verify email always matches
     if (email && order.order_email.toLowerCase() !== email) {
       return json({ found: false });
     }
 
-    // Strip sensitive fields
+    // Return ONLY safe fields — never shipping_address, never payment_intent_id
     return json({
       found: true,
       order: {
         id: order.id,
         order_number: order.order_number,
-        shopify_order_number: order.shopify_order_number,
         stripe_session_id: order.stripe_session_id,
-        payment_intent_id: order.payment_intent_id,
-        order_email: order.order_email,
         status: order.status,
         tracking_number: order.tracking_number,
         estimated_delivery: order.estimated_delivery,
@@ -110,7 +105,6 @@ serve(async (req) => {
         items: order.items,
         total_amount: order.total_amount,
         currency: order.currency,
-        shipping_address: order.shipping_address,
         payment_status: order.payment_status,
       },
     });
