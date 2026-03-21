@@ -47,6 +47,15 @@ export interface ProductFormData {
   metaKeywords: string;
   weightGrams: string;
   ingredientIds?: string[];
+  // PIM light fields
+  shelfLife: string;
+  material: string;
+  specialEffects: string;
+  usageArea: string;
+  usageStep1: string;
+  usageStep2: string;
+  usageStep3: string;
+  seoMode: 'auto' | 'manual';
 }
 
 const CURRENCY_OPTIONS = [
