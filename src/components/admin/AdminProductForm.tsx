@@ -400,6 +400,9 @@ function AiContentGenerator({
         effects: prev.effects || content.effects || '',
         feeling: prev.feeling || content.feeling || '',
         usage: prev.usage || content.usage || '',
+        metaTitle: prev.metaTitle || content.seo_title || '',
+        metaDescription: prev.metaDescription || content.meta_description || '',
+        metaKeywords: prev.metaKeywords || content.meta_keywords || '',
       }));
 
       toast.success(sv ? 'Innehåll genererat! Redigera efter behov.' : 'Content generated! Edit as needed.');
