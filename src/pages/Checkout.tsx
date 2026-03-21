@@ -1,24 +1,21 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ShoppingBag, Truck, Shield, CreditCard, AlertTriangle, Lock, RotateCcw, Clock, Check, Loader2 } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, Truck, Shield, Lock, RotateCcw, Clock, Loader2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { useCartStore } from '@/stores/cartStore';
 import { useLanguage, getContentLang } from '@/context/LanguageContext';
-import { storeConfig } from '@/config/storeConfig';
 import PaymentMethods from '@/components/trust/PaymentMethods';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useStoreSettings } from '@/stores/storeSettingsStore';
 import { logActivity } from '@/utils/activityLogger';
-import { trackCheckoutStart, trackCheckoutStep, trackCheckoutAbandon, trackEvent } from '@/utils/analyticsTracker';
+import { trackCheckoutStart, trackCheckoutAbandon, trackEvent } from '@/utils/analyticsTracker';
 import { useAuth } from '@/hooks/useAuth';
-import { useAdminRole } from '@/hooks/useAdminRole';
 
-// Swedish postal code → city lookup (common codes)
+// Swedish postal code → city lookup
 const ZIP_CITY_MAP: Record<string, string> = {
   '10': 'Stockholm', '11': 'Stockholm', '12': 'Stockholm', '13': 'Stockholm',
   '16': 'Stockholm', '17': 'Stockholm', '18': 'Stockholm', '19': 'Stockholm',
@@ -30,9 +27,8 @@ const ZIP_CITY_MAP: Record<string, string> = {
   '85': 'Sundsvall', '90': 'Umeå', '95': 'Luleå',
 };
 
-// Hook to get shipping settings from DB
 const useShippingConfig = () => {
-  const [config, setConfig] = useState({ cost: 39 as number, freeThreshold: 500 as number });
+  const [config, setConfig] = useState({ cost: 39, freeThreshold: 500 });
   useEffect(() => {
     supabase
       .from('store_settings')
@@ -67,17 +63,17 @@ const Checkout = () => {
   const { checkoutEnabled } = useStoreSettings();
   const { user } = useAuth();
   const shippingConfig = useShippingConfig();
-  const { isAdmin } = useAdminRole();
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
-  const [selectedPayment, setSelectedPayment] = useState<'card' | 'klarna'>('card');
-  const [selectedShipping, setSelectedShipping] = useState<'postnord' | 'dhl'>('postnord');
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [form, setForm] = useState({
     email: '',
     name: '',
+    careOf: '',
+    company: '',
     address: '',
+    apartment: '',
     zip: '',
     city: '',
     country: 'SE',
@@ -89,7 +85,6 @@ const Checkout = () => {
   // Auto-fill from logged-in user's profile
   useEffect(() => {
     if (profileLoaded || !user) return;
-
     const loadProfileData = async () => {
       try {
         const { data } = await supabase
@@ -97,12 +92,10 @@ const Checkout = () => {
           .select('first_name, last_name, full_name, phone, address, zip, city, country')
           .eq('user_id', user.id)
           .maybeSingle();
-
         const d = data as any;
         const profileName = d?.first_name && d?.last_name
           ? `${d.first_name} ${d.last_name}`
           : d?.full_name || '';
-
         setForm(prev => ({
           ...prev,
           email: user.email || prev.email,
@@ -118,10 +111,8 @@ const Checkout = () => {
       }
       setProfileLoaded(true);
     };
-
     loadProfileData();
   }, [user, profileLoaded]);
-
 
   const subtotal = useMemo(() =>
     items.reduce((sum, item) => sum + (parseFloat(item.price.amount) * item.quantity), 0),
@@ -138,7 +129,10 @@ const Checkout = () => {
     shippingInfo: isSv ? 'Leveransinformation' : 'Shipping information',
     email: isSv ? 'E-post' : 'Email',
     name: isSv ? 'Fullständigt namn' : 'Full name',
-    address: isSv ? 'Adress' : 'Address',
+    careOf: 'c/o',
+    company: isSv ? 'Företag (valfritt)' : 'Company (optional)',
+    address: isSv ? 'Gatuadress' : 'Street address',
+    apartment: isSv ? 'Lägenhetsnummer (valfritt)' : 'Apartment (optional)',
     zip: isSv ? 'Postnummer' : 'Postal code',
     city: isSv ? 'Stad' : 'City',
     phone: isSv ? 'Telefon (valfritt)' : 'Phone (optional)',
@@ -147,7 +141,6 @@ const Checkout = () => {
     freeShipping: isSv ? 'Fri frakt' : 'Free shipping',
     total: isSv ? 'Totalt' : 'Total',
     paySecurely: isSv ? 'Betala säkert' : 'Pay securely',
-    processing: isSv ? 'Bearbetar...' : 'Processing...',
     backToCart: isSv ? 'Tillbaka' : 'Back',
     emptyCart: isSv ? 'Din kundvagn är tom' : 'Your cart is empty',
     goToShop: isSv ? 'Gå till butiken' : 'Go to shop',
@@ -157,10 +150,6 @@ const Checkout = () => {
     guarantee: isSv ? '30 dagars garanti' : '30-day guarantee',
     encrypted: isSv ? 'Din betalning är krypterad och säker' : 'Your payment is encrypted and secure',
     returnPolicy: isSv ? 'Returpolicy' : 'Return policy',
-    lowStock: isSv ? 'Endast {n} kvar' : 'Only {n} left',
-    fillAllFields: isSv ? 'Fyll i alla obligatoriska fält' : 'Please fill in all required fields',
-    invalidCart: isSv ? 'Kundvagnen är ogiltig. Uppdatera sidan och försök igen.' : 'Cart data is invalid. Refresh and try again.',
-    hydrationTimeout: isSv ? 'Kundvagnen laddades inte klart. Försök igen.' : 'Cart hydration timed out. Please try again.',
     errorEmail: isSv ? 'Ange en giltig e-postadress' : 'Enter a valid email address',
     errorName: isSv ? 'Ange ditt namn' : 'Enter your name',
     errorAddress: isSv ? 'Ange din adress' : 'Enter your address',
@@ -168,9 +157,9 @@ const Checkout = () => {
     errorCity: isSv ? 'Ange stad' : 'Enter city',
     checkoutFailed: isSv ? 'Betalningen kunde inte genomföras. Försök igen.' : 'Payment could not be processed. Please try again.',
     checkoutTimeout: isSv ? 'Checkout tog för lång tid. Försök igen.' : 'Checkout timed out. Please retry.',
-    invalidSession: isSv ? 'Kunde inte skapa betalningssession. Försök igen.' : 'Could not create payment session. Please retry.',
     retry: isSv ? 'Försök igen' : 'Retry',
     qty: isSv ? 'Antal' : 'Qty',
+    standardShipping: isSv ? 'Standardleverans (7–10 dagar)' : 'Standard delivery (7–10 days)',
   }), [isSv]);
 
   const formatPrice = (amount: number) =>
@@ -178,21 +167,14 @@ const Checkout = () => {
 
   const validateField = useCallback((field: string, value: string): string | undefined => {
     switch (field) {
-      case 'email':
-        return !value || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? t.errorEmail : undefined;
-      case 'name':
-        return !value.trim() ? t.errorName : undefined;
-      case 'address':
-        return !value.trim() ? t.errorAddress : undefined;
-      case 'zip':
-        return !value.trim() ? t.errorZip : undefined;
-      case 'city':
-        return !value.trim() ? t.errorCity : undefined;
-      default:
-        return undefined;
+      case 'email': return !value || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? t.errorEmail : undefined;
+      case 'name': return !value.trim() ? t.errorName : undefined;
+      case 'address': return !value.trim() ? t.errorAddress : undefined;
+      case 'zip': return !value.trim() ? t.errorZip : undefined;
+      case 'city': return !value.trim() ? t.errorCity : undefined;
+      default: return undefined;
     }
   }, [t]);
-
 
   const handleBlur = (field: string) => {
     setTouched(prev => ({ ...prev, [field]: true }));
@@ -202,7 +184,6 @@ const Checkout = () => {
 
   const updateField = (field: string, value: string) => {
     setForm(prev => ({ ...prev, [field]: value }));
-
     if (field === 'zip' && value.length >= 2) {
       const prefix = value.substring(0, 2);
       const city = ZIP_CITY_MAP[prefix];
@@ -210,21 +191,10 @@ const Checkout = () => {
         setForm(prev => ({ ...prev, city }));
       }
     }
-
     if (touched[field]) {
       const error = validateField(field, value);
       setErrors(prev => ({ ...prev, [field]: error }));
     }
-  };
-
-  // DEBUG state
-  const [debugInfo, setDebugInfo] = useState<Record<string, any>>({});
-  const [debugSteps, setDebugSteps] = useState<string[]>([]);
-
-  const addDebugStep = (step: string) => {
-    const ts = new Date().toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    setDebugSteps(prev => [...prev, `[${ts}] ${step}`]);
-    console.log(`=== ${step} ===`);
   };
 
   const [isCheckingOut, setIsCheckingOut] = useState(false);
@@ -240,12 +210,9 @@ const Checkout = () => {
     if (isCheckingOut) return;
     setIsCheckingOut(true);
     setCheckoutStage('connecting');
-    setDebugSteps([]);
-    addDebugStep('✅ REAL PAY HANDLER TRIGGERED');
     setCheckoutError(null);
 
     try {
-      addDebugStep('📡 CALLING CHECKOUT API');
       const checkoutItems = items.map(item => ({
         id: (item.product as any).dbId || item.variantId,
         title: item.product.node.title,
@@ -254,11 +221,18 @@ const Checkout = () => {
         image: item.product.node.images?.edges?.[0]?.node?.url || '',
       }));
 
+      // Build full address string including c/o, apartment, company
+      const addressParts = [form.address];
+      if (form.apartment) addressParts.push(form.apartment);
+      const fullAddress = addressParts.join(', ');
+
       const checkoutBody = {
         items: checkoutItems,
         shipping: {
           name: form.name,
-          address: form.address,
+          address: fullAddress,
+          careOf: form.careOf,
+          company: form.company,
           zip: form.zip,
           city: form.city,
           country: form.country,
@@ -266,14 +240,10 @@ const Checkout = () => {
         },
         email: form.email,
         language: cl,
-        paymentMethod: selectedPayment,
-        shippingMethod: selectedShipping,
       };
 
-      // Get auth token
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData.session?.access_token;
-      addDebugStep(`🔑 Auth token: ${accessToken ? 'YES' : 'NO'}`);
 
       setCheckoutStage('creating');
 
@@ -292,44 +262,22 @@ const Checkout = () => {
       });
 
       clearTimeout(timeoutId);
-      addDebugStep(`📥 FETCH COMPLETE — HTTP ${res.status}`);
 
       let data: any = null;
-      try {
-        data = await res.json();
-      } catch {
-        data = null;
-      }
+      try { data = await res.json(); } catch { data = null; }
 
-      addDebugStep(`📦 Response keys: ${data ? Object.keys(data).join(', ') : 'NULL'}`);
-
-      if (!res.ok) {
-        throw new Error(data?.error || `HTTP_${res.status}`);
-      }
+      if (!res.ok) throw new Error(data?.error || `HTTP_${res.status}`);
 
       const url = data?.sessionUrl || data?.url;
-      addDebugStep(`🔗 URL: ${url ? url.substring(0, 60) + '…' : 'MISSING'}`);
-
-      if (!url) {
-        setDebugInfo({
-          step: 'no_stripe_url',
-          status: res.status,
-          data,
-          url: null,
-          error: 'No Stripe URL returned',
-        });
-        addDebugStep('❌ No Stripe URL in response!');
-        throw new Error('No Stripe URL returned');
-      }
+      if (!url) throw new Error('No Stripe URL returned');
 
       completedRef.current = true;
       setCheckoutStage('redirecting');
-      addDebugStep('🚀 REDIRECT LINE REACHED — redirecting NOW');
       window.location.href = url;
     } catch (err: any) {
       setIsCheckingOut(false);
       setCheckoutStage('idle');
-      console.error('Checkout redirect failed:', err);
+      console.error('Checkout failed:', err);
 
       const message = err?.name === 'AbortError'
         ? t.checkoutTimeout
@@ -338,64 +286,40 @@ const Checkout = () => {
           : t.checkoutFailed;
 
       setCheckoutError(message);
-      setDebugInfo(prev => ({ ...prev, step: 'failed', error: message }));
-
       logActivity({
         log_type: 'error',
         category: 'payment',
         message: 'Checkout failed',
-        details: {
-          error: message,
-          email: form.email,
-          payment_method: selectedPayment,
-        },
+        details: { error: message, email: form.email },
       });
-
       toast.error(message);
     }
-  }, [cl, form, items, selectedPayment, t.checkoutFailed, t.checkoutTimeout, total, isCheckingOut]);
+  }, [cl, form, items, t.checkoutFailed, t.checkoutTimeout, isCheckingOut]);
 
   const handleSubmit = (event?: React.FormEvent | React.MouseEvent) => {
     event?.preventDefault();
     void startCheckout();
   };
 
-  // Get stock info for low-stock badges
-  const getItemStock = (item: any) => {
-    const product = item.product as any;
-    if (product?.dbId && product?.node) {
-      const stock = product.node.variants?.edges?.[0]?.node?.availableForSale;
-      // We don't have exact stock here, but we can check from the product data
-      return null;
-    }
-    return null;
-  };
-
-  // Track checkout page view with item details (must be before early returns)
+  // Track checkout page view
   useEffect(() => {
     if (items.length > 0) {
-      const itemDetails = items.map(item => ({
-        title: item.product.node.title,
-        price: parseFloat(item.price.amount),
-        quantity: item.quantity,
-      }));
       trackCheckoutStart(items.length, total);
-      trackEvent('checkout_start_detail', { items: itemDetails, total });
-    }
-    return () => {
-      if (items.length > 0 && !completedRef.current) {
-        const abandonItems = items.map(item => ({
+      trackEvent('checkout_start_detail', {
+        items: items.map(item => ({
           title: item.product.node.title,
           price: parseFloat(item.price.amount),
           quantity: item.quantity,
-        }));
+        })),
+        total,
+      });
+    }
+    return () => {
+      if (items.length > 0 && !completedRef.current) {
         trackCheckoutAbandon('checkout_page', items.length, total);
-        trackEvent('checkout_abandon_detail', { items: abandonItems, total });
       }
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // No hydration blocking - checkout always renders
 
   if (!checkoutEnabled) {
     return (
@@ -410,9 +334,7 @@ const Checkout = () => {
           <p className="text-muted-foreground mb-6">
             {isSv ? 'Vi kan just nu inte ta emot beställningar. Försök igen senare.' : 'We cannot accept orders at this time. Please try again later.'}
           </p>
-          <Button asChild>
-            <Link to="/produkter">{isSv ? 'Tillbaka till produkter' : 'Back to products'}</Link>
-          </Button>
+          <Button asChild><Link to="/produkter">{isSv ? 'Tillbaka till produkter' : 'Back to products'}</Link></Button>
         </div>
       </div>
     );
@@ -437,19 +359,10 @@ const Checkout = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Minimal debug indicator for admins */}
-      {isAdmin && checkoutError && (
-        <div className="fixed top-16 right-4 z-[9999] bg-destructive/10 border border-destructive/30 rounded-lg p-2 text-xs max-w-60">
-          <p className="text-destructive font-medium">❌ {checkoutError}</p>
-        </div>
-      )}
-      {/* Minimal checkout header — distraction-free */}
+      {/* Minimal checkout header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border">
         <div className="container mx-auto px-4 h-14 flex items-center justify-between max-w-5xl">
-          <Link
-            to="/produkter"
-            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
+          <Link to="/produkter" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="w-4 h-4" />
             {t.backToCart}
           </Link>
@@ -475,11 +388,7 @@ const Checkout = () => {
 
           <div className="grid lg:grid-cols-5 gap-8">
             {/* Left: Shipping form */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="lg:col-span-3"
-            >
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="lg:col-span-3">
               <form id="checkout-form" onSubmit={handleSubmit} className="space-y-6">
                 <div className="bg-card border border-border rounded-2xl p-6">
                   <h2 className="font-display text-lg font-semibold mb-5 flex items-center gap-2">
@@ -490,205 +399,90 @@ const Checkout = () => {
                   <div className="space-y-4">
                     <div>
                       <Label htmlFor="email">{t.email} *</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        inputMode="email"
-                        autoComplete="email"
-                        autoCapitalize="off"
-                        required
-                        value={form.email}
-                        onChange={(e) => updateField('email', e.target.value)}
-                        onBlur={() => handleBlur('email')}
-                        placeholder="namn@example.com"
-                        className={touched.email && errors.email ? 'border-destructive' : ''}
-                      />
+                      <Input id="email" type="email" inputMode="email" autoComplete="email" autoCapitalize="off" required
+                        value={form.email} onChange={(e) => updateField('email', e.target.value)} onBlur={() => handleBlur('email')}
+                        placeholder="namn@example.com" className={touched.email && errors.email ? 'border-destructive' : ''} />
                       {renderFieldError('email')}
                     </div>
 
                     <div>
                       <Label htmlFor="name">{t.name} *</Label>
-                      <Input
-                        id="name"
-                        autoComplete="name"
-                        autoCapitalize="words"
-                        required
-                        value={form.name}
-                        onChange={(e) => updateField('name', e.target.value)}
-                        onBlur={() => handleBlur('name')}
-                        className={touched.name && errors.name ? 'border-destructive' : ''}
-                      />
+                      <Input id="name" autoComplete="name" autoCapitalize="words" required
+                        value={form.name} onChange={(e) => updateField('name', e.target.value)} onBlur={() => handleBlur('name')}
+                        className={touched.name && errors.name ? 'border-destructive' : ''} />
                       {renderFieldError('name')}
                     </div>
 
                     <div>
+                      <Label htmlFor="company">{t.company}</Label>
+                      <Input id="company" autoComplete="organization"
+                        value={form.company} onChange={(e) => updateField('company', e.target.value)} />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="careOf">{t.careOf} ({isSv ? 'valfritt' : 'optional'})</Label>
+                      <Input id="careOf" value={form.careOf} onChange={(e) => updateField('careOf', e.target.value)}
+                        placeholder={isSv ? 'c/o Namn' : 'c/o Name'} />
+                    </div>
+
+                    <div>
                       <Label htmlFor="address">{t.address} *</Label>
-                      <Input
-                        id="address"
-                        autoComplete="street-address"
-                        required
-                        value={form.address}
-                        onChange={(e) => updateField('address', e.target.value)}
-                        onBlur={() => handleBlur('address')}
-                        className={touched.address && errors.address ? 'border-destructive' : ''}
-                      />
+                      <Input id="address" autoComplete="street-address" required
+                        value={form.address} onChange={(e) => updateField('address', e.target.value)} onBlur={() => handleBlur('address')}
+                        className={touched.address && errors.address ? 'border-destructive' : ''} />
                       {renderFieldError('address')}
+                    </div>
+
+                    <div>
+                      <Label htmlFor="apartment">{t.apartment}</Label>
+                      <Input id="apartment" value={form.apartment} onChange={(e) => updateField('apartment', e.target.value)}
+                        placeholder={isSv ? 'Lgh 1001' : 'Apt 1001'} />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="zip">{t.zip} *</Label>
-                        <Input
-                          id="zip"
-                          inputMode="numeric"
-                          autoComplete="postal-code"
-                          required
-                          value={form.zip}
-                          onChange={(e) => updateField('zip', e.target.value)}
-                          onBlur={() => handleBlur('zip')}
-                          placeholder="123 45"
-                          className={touched.zip && errors.zip ? 'border-destructive' : ''}
-                        />
+                        <Input id="zip" inputMode="numeric" autoComplete="postal-code" required
+                          value={form.zip} onChange={(e) => updateField('zip', e.target.value)} onBlur={() => handleBlur('zip')}
+                          placeholder="123 45" className={touched.zip && errors.zip ? 'border-destructive' : ''} />
                         {renderFieldError('zip')}
                       </div>
                       <div>
                         <Label htmlFor="city">{t.city} *</Label>
-                        <Input
-                          id="city"
-                          autoComplete="address-level2"
-                          required
-                          value={form.city}
-                          onChange={(e) => updateField('city', e.target.value)}
-                          onBlur={() => handleBlur('city')}
-                          className={touched.city && errors.city ? 'border-destructive' : ''}
-                        />
+                        <Input id="city" autoComplete="address-level2" required
+                          value={form.city} onChange={(e) => updateField('city', e.target.value)} onBlur={() => handleBlur('city')}
+                          className={touched.city && errors.city ? 'border-destructive' : ''} />
                         {renderFieldError('city')}
                       </div>
                     </div>
 
                     <div>
                       <Label htmlFor="phone">{t.phone}</Label>
-                      <Input
-                        id="phone"
-                        type="tel"
-                        inputMode="tel"
-                        autoComplete="tel"
-                        value={form.phone}
-                        onChange={(e) => updateField('phone', e.target.value)}
-                      />
+                      <Input id="phone" type="tel" inputMode="tel" autoComplete="tel"
+                        value={form.phone} onChange={(e) => updateField('phone', e.target.value)} />
                     </div>
 
-                    {/* Shipping method selector */}
+                    {/* Single shipping method */}
                     <div className="pt-2">
-                      <Label className="mb-3 block">{isSv ? 'Fraktmetod' : 'Shipping method'} *</Label>
-                      <div className="grid grid-cols-2 gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedShipping('postnord')}
-                          className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all min-h-[90px] ${
-                            selectedShipping === 'postnord'
-                              ? 'border-primary bg-primary/5 shadow-sm'
-                              : 'border-border hover:border-primary/40'
-                          }`}
-                        >
-                          {selectedShipping === 'postnord' && (
-                            <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-                              <Check className="w-3 h-3 text-primary-foreground" />
-                            </div>
-                          )}
-                          <Truck className="w-6 h-6 text-foreground" />
-                          <span className="text-sm font-medium">PostNord</span>
-                          <span className="text-[10px] text-muted-foreground leading-tight text-center">
-                            {isSv ? '7–10 arbetsdagar' : '7–10 business days'}
-                          </span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setSelectedShipping('dhl')}
-                          className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all min-h-[90px] ${
-                            selectedShipping === 'dhl'
-                              ? 'border-primary bg-primary/5 shadow-sm'
-                              : 'border-border hover:border-primary/40'
-                          }`}
-                        >
-                          {selectedShipping === 'dhl' && (
-                            <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-                              <Check className="w-3 h-3 text-primary-foreground" />
-                            </div>
-                          )}
-                          <Truck className="w-6 h-6 text-foreground" />
-                          <span className="text-sm font-medium">DHL</span>
-                          <span className="text-[10px] text-muted-foreground leading-tight text-center">
-                            {isSv ? '5–8 arbetsdagar' : '5–8 business days'}
-                          </span>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Payment method selector */}
-                    <div className="pt-2">
-                      <Label className="mb-3 block">{isSv ? 'Betalningsmetod' : 'Payment method'} *</Label>
-                      <div className="grid grid-cols-2 gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedPayment('card')}
-                          className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all min-h-[100px] ${
-                            selectedPayment === 'card'
-                              ? 'border-primary bg-primary/5 shadow-sm'
-                              : 'border-border hover:border-primary/40'
-                          }`}
-                        >
-                          {selectedPayment === 'card' && (
-                            <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-                              <Check className="w-3 h-3 text-primary-foreground" />
-                            </div>
-                          )}
-                          <CreditCard className="w-6 h-6 text-foreground" />
-                          <span className="text-sm font-medium">{isSv ? 'Kort' : 'Card'}</span>
-                          <span className="text-[10px] text-muted-foreground leading-tight text-center">
-                            Visa, Mastercard, Apple Pay, Google Pay
-                          </span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setSelectedPayment('klarna')}
-                          className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all min-h-[100px] ${
-                            selectedPayment === 'klarna'
-                              ? 'border-primary bg-primary/5 shadow-sm'
-                              : 'border-border hover:border-primary/40'
-                          }`}
-                        >
-                          {selectedPayment === 'klarna' && (
-                            <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-                              <Check className="w-3 h-3 text-primary-foreground" />
-                            </div>
-                          )}
-                          <div className="w-6 h-6 flex items-center justify-center">
-                            <span className="text-base font-black tracking-tight text-primary" style={{ fontFamily: 'system-ui' }}>K.</span>
-                          </div>
-                          <span className="text-sm font-medium">Klarna</span>
-                          <span className="text-[10px] text-muted-foreground leading-tight text-center">
-                            {isSv ? 'Faktura, delbetalning' : 'Pay later, installments'}
-                          </span>
-                        </button>
+                      <Label className="mb-3 block">{isSv ? 'Fraktmetod' : 'Shipping method'}</Label>
+                      <div className="flex items-center gap-3 p-4 rounded-xl border-2 border-primary bg-primary/5">
+                        <Truck className="w-5 h-5 text-primary shrink-0" />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium">{t.standardShipping}</p>
+                          <p className="text-xs text-muted-foreground">{shippingCost === 0 ? t.freeShipping : formatPrice(shippingCost)}</p>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Desktop: encryption + returns under form */}
+                {/* Desktop encryption info */}
                 <div className="hidden lg:block space-y-3">
                   <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
-                    <Lock className="w-3 h-3" />
-                    {t.encrypted}
+                    <Lock className="w-3 h-3" />{t.encrypted}
                   </div>
                   <div className="text-center">
-                    <Link
-                      to="/policies/returns"
-                      className="text-xs text-muted-foreground hover:text-foreground underline transition-colors"
-                    >
+                    <Link to="/policies/returns" className="text-xs text-muted-foreground hover:text-foreground underline transition-colors">
                       {t.returnPolicy}
                     </Link>
                   </div>
@@ -696,17 +490,11 @@ const Checkout = () => {
               </form>
             </motion.div>
 
-            {/* Right: Order summary — sticky on desktop */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="lg:col-span-2"
-            >
+            {/* Right: Order summary */}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="lg:col-span-2">
               <div className="bg-card border border-border rounded-2xl p-6 lg:sticky lg:top-20">
                 <h2 className="font-display text-lg font-semibold mb-5 flex items-center gap-2">
-                  <ShoppingBag className="w-5 h-5 text-primary" />
-                  {t.orderSummary}
+                  <ShoppingBag className="w-5 h-5 text-primary" />{t.orderSummary}
                 </h2>
 
                 <div className="space-y-4 mb-6">
@@ -714,11 +502,7 @@ const Checkout = () => {
                     <div key={item.variantId} className="flex gap-3">
                       <div className="w-14 h-14 rounded-lg bg-secondary/50 overflow-hidden flex-shrink-0">
                         {item.product.node.images?.edges?.[0]?.node && (
-                          <img
-                            src={item.product.node.images.edges[0].node.url}
-                            alt={item.product.node.title}
-                            className="w-full h-full object-cover"
-                          />
+                          <img src={item.product.node.images.edges[0].node.url} alt={item.product.node.title} className="w-full h-full object-cover" />
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -749,7 +533,6 @@ const Checkout = () => {
                   </div>
                 </div>
 
-                {/* Delivery estimate */}
                 <div className="flex items-center gap-2 mt-4 p-3 rounded-xl bg-secondary/40 border border-border/50">
                   <Clock className="w-4 h-4 text-accent shrink-0" />
                   <span className="text-xs text-muted-foreground">{t.deliveryEstimate}</span>
@@ -758,26 +541,13 @@ const Checkout = () => {
                 {checkoutError && (
                   <div className="mt-5 rounded-xl border border-destructive/40 bg-destructive/5 p-3 space-y-2">
                     <p className="text-xs text-destructive">{checkoutError}</p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleSubmit}
-                    >
-                      {t.retry}
-                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={handleSubmit}>{t.retry}</Button>
                   </div>
                 )}
 
                 {/* Desktop pay button */}
                 <div className="hidden lg:block mt-5 space-y-3">
-                  <Button
-                    type="button"
-                    size="lg"
-                    className="w-full h-14 text-base font-semibold"
-                    onClick={handleSubmit}
-                    disabled={isCheckingOut}
-                  >
+                  <Button type="button" size="lg" className="w-full h-14 text-base font-semibold" onClick={handleSubmit} disabled={isCheckingOut}>
                     {isCheckingOut ? (
                       <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{stageText[checkoutStage as keyof typeof stageText] || stageText.connecting}</>
                     ) : (
@@ -786,15 +556,10 @@ const Checkout = () => {
                   </Button>
                 </div>
 
-                <div className="mt-4">
-                  <PaymentMethods />
-                </div>
+                <div className="mt-4"><PaymentMethods /></div>
 
                 <div className="mt-3 text-center">
-                  <Link
-                    to="/policies/returns"
-                    className="text-xs text-muted-foreground hover:text-foreground underline transition-colors lg:hidden"
-                  >
+                  <Link to="/policies/returns" className="text-xs text-muted-foreground hover:text-foreground underline transition-colors lg:hidden">
                     {t.returnPolicy}
                   </Link>
                 </div>
@@ -811,13 +576,7 @@ const Checkout = () => {
             <p className="text-[11px] text-destructive">{checkoutError}</p>
           </div>
         )}
-        <Button
-          type="button"
-          size="lg"
-          className="w-full h-12 text-sm font-semibold"
-          onClick={handleSubmit}
-          disabled={isCheckingOut}
-        >
+        <Button type="button" size="lg" className="w-full h-12 text-sm font-semibold" onClick={handleSubmit} disabled={isCheckingOut}>
           {isCheckingOut ? (
             <><Loader2 className="w-3.5 h-3.5 mr-1.5 shrink-0 animate-spin" /><span className="truncate">{stageText[checkoutStage as keyof typeof stageText] || stageText.connecting}</span></>
           ) : (

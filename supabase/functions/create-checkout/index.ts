@@ -62,7 +62,7 @@ serve(async (req) => {
     const authenticatedUserId = await resolveUserId(req);
 
     const body = await req.json().catch(() => ({}));
-    const { items, shipping, email, language = "sv", paymentMethod } = body ?? {};
+    const { items, shipping, email, language = "sv" } = body ?? {};
 
     const origin = req.headers.get("origin") || "https://4thepeople.se";
     const warnings: string[] = [];
@@ -75,16 +75,6 @@ serve(async (req) => {
 
     const customerEmail = email || "guest@checkout.local";
     if (!email) console.warn("No email provided, using fallback");
-
-    // Payment method — default to card if invalid
-    const ALLOWED_METHODS: Record<string, string[]> = {
-      card: ["card"],
-      klarna: ["klarna"],
-    };
-    const selectedMethods = ALLOWED_METHODS[paymentMethod] || ["card"];
-    if (!ALLOWED_METHODS[paymentMethod]) {
-      console.warn(`Unknown paymentMethod "${paymentMethod}", defaulting to card`);
-    }
 
     // Build line items — fetch DB prices but NEVER block on failure
     const trustedItems: { id: string; title: string; price: number; quantity: number; image: string }[] = [];
@@ -209,6 +199,8 @@ serve(async (req) => {
       email: customerEmail,
       user_id: authenticatedUserId || "",
       shipping_name: shipping?.name || "",
+      shipping_care_of: shipping?.careOf || "",
+      shipping_company: shipping?.company || "",
       shipping_address: shipping?.address || "",
       shipping_zip: shipping?.zip || "",
       shipping_city: shipping?.city || "",
@@ -242,7 +234,6 @@ serve(async (req) => {
     console.log("Creating Stripe session...", { itemCount: trustedItems.length, totalAmount });
 
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: selectedMethods,
       mode: "payment",
       customer_email: customerEmail,
       line_items: lineItems,
