@@ -2945,6 +2945,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      normalize_phone: { Args: { p_phone: string }; Returns: string }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {
