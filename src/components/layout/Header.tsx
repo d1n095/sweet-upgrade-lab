@@ -439,7 +439,7 @@ const Header = () => {
                 </AnimatePresence>
               </Button>
 
-              {/* Hamburger — mobile only */}
+              {/* Hamburger — mobile only (right side) */}
               <Button
                 variant="ghost"
                 size="icon"
