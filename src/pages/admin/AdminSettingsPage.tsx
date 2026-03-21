@@ -90,12 +90,13 @@ const AdminSettingsPage = () => {
       <Tabs defaultValue="general" className="space-y-6">
         <ScrollableTabs>
           <TabsList className="w-max bg-secondary/50">
-            <TabsTrigger value="general">Generellt</TabsTrigger>
-            <TabsTrigger value="profile">Profil & Kund</TabsTrigger>
-            <TabsTrigger value="payments">Betalningar</TabsTrigger>
-            <TabsTrigger value="pages">Sidor</TabsTrigger>
-            <TabsTrigger value="homepage">Startsida</TabsTrigger>
-            <TabsTrigger value="advanced">Avancerat</TabsTrigger>
+            <TabsTrigger value="general">🔐 Generellt</TabsTrigger>
+            <TabsTrigger value="profile">👤 Profil & Kund</TabsTrigger>
+            <TabsTrigger value="payments">💰 Betalningar</TabsTrigger>
+            <TabsTrigger value="shipping">🚚 Frakt</TabsTrigger>
+            <TabsTrigger value="pages">📄 Sidor</TabsTrigger>
+            <TabsTrigger value="homepage">🏠 Startsida</TabsTrigger>
+            <TabsTrigger value="advanced">⚙️ System</TabsTrigger>
           </TabsList>
         </ScrollableTabs>
 
