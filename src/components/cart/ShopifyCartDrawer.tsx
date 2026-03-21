@@ -90,9 +90,9 @@ const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
   }, [isOpen, items]);
 
   const t = {
-    sv: { cart: 'Kundvagn', empty: 'Din kundvagn är tom', continue: 'Fortsätt handla', subtotal: 'Delsumma', total: 'Totalt', youSave: 'Du sparar', checkout: 'Gå till kassan', recommended: 'Komplettera din order' },
-    en: { cart: 'Cart', empty: 'Your cart is empty', continue: 'Continue shopping', subtotal: 'Subtotal', total: 'Total', youSave: 'You save', checkout: 'Go to checkout', recommended: 'Complete your order' },
-  }[cl as 'sv' | 'en'] || { cart: 'Cart', empty: 'Your cart is empty', continue: 'Continue shopping', subtotal: 'Subtotal', total: 'Total', youSave: 'You save', checkout: 'Go to checkout', recommended: 'You might like' };
+    sv: { cart: 'Kundvagn', empty: 'Din kundvagn är tom', continue: 'Fortsätt handla', subtotal: 'Delsumma', total: 'Totalt', youSave: 'Du sparar', checkout: 'Till kassan – säkra din order', recommended: 'Köps ofta tillsammans', addFor: 'Lägg till för' },
+    en: { cart: 'Cart', empty: 'Your cart is empty', continue: 'Continue shopping', subtotal: 'Subtotal', total: 'Total', youSave: 'You save', checkout: 'Checkout – secure your order', recommended: 'Frequently bought together', addFor: 'Add for' },
+  }[cl as 'sv' | 'en'] || { cart: 'Cart', empty: 'Your cart is empty', continue: 'Continue shopping', subtotal: 'Subtotal', total: 'Total', youSave: 'You save', checkout: 'Checkout – secure your order', recommended: 'Frequently bought together', addFor: 'Add for' };
 
   const formatPrice = (price: number, currency: string) =>
     new Intl.NumberFormat('sv-SE', { style: 'currency', currency, minimumFractionDigits: 0 }).format(price);
