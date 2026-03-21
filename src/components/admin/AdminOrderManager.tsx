@@ -470,20 +470,20 @@ const AdminOrderManager = () => {
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       const existingHistory = Array.isArray(order.status_history) ? order.status_history : [];
       const newHistory = [...existingHistory, {
-        status: 'packed',
+        status: 'ready_to_ship',
         timestamp: new Date().toISOString(),
-        note: 'Markerad som packad',
+        note: 'Markerad som packad — väntar på postning',
       }];
       const { error } = await supabase.from('orders').update({
-        fulfillment_status: 'packed',
+        fulfillment_status: 'ready_to_ship',
         packed_by: currentUser?.id || null,
         packed_at: new Date().toISOString(),
         status: 'processing',
         status_history: newHistory,
       }).eq('id', order.id);
       if (error) throw error;
-      setOrders(prev => prev.map(o => o.id === order.id ? { ...o, fulfillment_status: 'packed', packed_at: new Date().toISOString(), packed_by: currentUser?.id || null, status: 'processing', status_history: newHistory } : o));
-      logActivity({ log_type: 'success', category: 'fulfillment', message: `Order ${getOrderDisplayId(order)} packad`, order_id: order.id });
+      setOrders(prev => prev.map(o => o.id === order.id ? { ...o, fulfillment_status: 'ready_to_ship', packed_at: new Date().toISOString(), packed_by: currentUser?.id || null, status: 'processing', status_history: newHistory } : o));
+      logActivity({ log_type: 'success', category: 'fulfillment', message: `Order ${getOrderDisplayId(order)} packad — väntar på postning`, order_id: order.id });
       toast.success(language === 'sv' ? 'Order markerad som packad ✓' : 'Order marked as packed ✓');
     } catch (err) {
       console.error(err);
@@ -1163,7 +1163,7 @@ const AdminOrderManager = () => {
                       <Printer className="w-4 h-4" />
                       {language === 'sv' ? 'Skriv ut' : 'Print'}
                     </Button>
-                    {order.payment_status === 'paid' && !['packed', 'shipped'].includes(order.fulfillment_status) && !order.tracking_number && (
+                    {order.payment_status === 'paid' && !['ready_to_ship', 'packed', 'shipped'].includes(order.fulfillment_status) && !order.tracking_number && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -1174,7 +1174,7 @@ const AdminOrderManager = () => {
                         {language === 'sv' ? 'Markera packad' : 'Mark packed'}
                       </Button>
                     )}
-                    {order.payment_status === 'paid' && order.fulfillment_status === 'packed' && (
+                    {order.payment_status === 'paid' && (order.fulfillment_status === 'packed' || order.fulfillment_status === 'ready_to_ship') && (
                       <Button
                         variant="outline"
                         size="sm"
