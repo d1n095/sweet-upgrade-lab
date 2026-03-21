@@ -79,7 +79,7 @@ const TASK_TYPES = [
   { key: 'other', label: 'Övrigt' },
 ];
 
-type ViewFilter = 'all' | 'mine' | 'escalated' | 'open';
+type ViewFilter = 'all' | 'mine' | 'escalated' | 'open' | 'done';
 
 interface Props {
   initialFilter?: string;
