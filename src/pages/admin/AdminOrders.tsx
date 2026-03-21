@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ClipboardList, Clock, Truck, DollarSign, RotateCcw, PackageX, CheckCircle2 } from 'lucide-react';
+import { ClipboardList, Clock, Truck, DollarSign, RotateCcw, PackageX, CheckCircle2, Mail } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,14 +10,14 @@ import AdminOrdersByStatus from '@/components/admin/AdminOrdersByStatus';
 import AdminRefundRequests from '@/components/admin/AdminRefundRequests';
 
 const AdminOrders = () => {
-  const [stats, setStats] = useState({ total: 0, pending: 0, shipped: 0, revenue: 0, delivered: 0, returned: 0, lost: 0 });
+  const [stats, setStats] = useState({ total: 0, pending: 0, shipped: 0, revenue: 0, delivered: 0, returned: 0, lost: 0, readyToShip: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
       const { data } = await supabase
         .from('orders')
-        .select('status, total_amount, payment_status, deleted_at')
+        .select('status, total_amount, payment_status, deleted_at, fulfillment_status')
         .is('deleted_at', null);
       const ords = data || [];
       setStats({
@@ -28,6 +28,7 @@ const AdminOrders = () => {
         delivered: ords.filter(o => o.status === 'delivered').length,
         returned: ords.filter(o => o.status === 'returned').length,
         lost: ords.filter(o => o.status === 'lost').length,
+        readyToShip: ords.filter(o => o.fulfillment_status === 'ready_to_ship').length,
       });
       setLoading(false);
     };
@@ -83,6 +84,10 @@ const AdminOrders = () => {
             <PackageX className="w-3.5 h-3.5" />
             Borttappade {stats.lost > 0 && `(${stats.lost})`}
           </TabsTrigger>
+          <TabsTrigger value="ready_to_ship" className="gap-1.5">
+            <Mail className="w-3.5 h-3.5" />
+            Väntar på postning {stats.readyToShip > 0 && `(${stats.readyToShip})`}
+          </TabsTrigger>
           <TabsTrigger value="refunds" className="gap-1.5">
             <RotateCcw className="w-3.5 h-3.5" />
             Återbetalningar
@@ -115,6 +120,14 @@ const AdminOrders = () => {
             title="Borttappade försändelser"
             icon={<PackageX className="w-5 h-5 text-rose-600" />}
             emptyMessage="Inga borttappade försändelser"
+          />
+        </TabsContent>
+        <TabsContent value="ready_to_ship">
+          <AdminOrdersByStatus
+            status="ready_to_ship"
+            title="Väntar på postning"
+            icon={<Mail className="w-5 h-5 text-indigo-600" />}
+            emptyMessage="Inga ordrar väntar på postning"
           />
         </TabsContent>
         <TabsContent value="refunds">

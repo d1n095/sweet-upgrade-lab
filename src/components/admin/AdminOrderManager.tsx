@@ -455,7 +455,8 @@ const AdminOrderManager = () => {
     if (paymentFilter === 'unpaid' && o.payment_status === 'paid') return false;
     if (fulfillmentTab === 'to_pack' && !(o.payment_status === 'paid' && (o.fulfillment_status === 'pending' || o.fulfillment_status === 'unfulfilled'))) return false;
     if (fulfillmentTab === 'packing' && o.fulfillment_status !== 'packing') return false;
-    if (fulfillmentTab === 'packed' && o.fulfillment_status !== 'packed') return false;
+    if (fulfillmentTab === 'packed' && o.fulfillment_status !== 'packed' && o.fulfillment_status !== 'ready_to_ship') return false;
+    if (fulfillmentTab === 'ready_to_ship' && o.fulfillment_status !== 'ready_to_ship') return false;
     if (fulfillmentTab === 'shipped' && o.fulfillment_status !== 'shipped') return false;
     if (fulfillmentTab === 'unpaid' && o.payment_status === 'paid') return false;
     return true;
@@ -675,7 +676,8 @@ const AdminOrderManager = () => {
           { key: 'unpaid', label: content.waitingPayment, count: orders.filter(o => o.payment_status !== 'paid').length },
           { key: 'to_pack', label: content.toPack, count: orders.filter(o => o.payment_status === 'paid' && (o.fulfillment_status === 'pending' || o.fulfillment_status === 'unfulfilled')).length },
           { key: 'packing', label: content.packing, count: orders.filter(o => o.fulfillment_status === 'packing').length },
-          { key: 'packed', label: content.packed, count: orders.filter(o => o.fulfillment_status === 'packed').length },
+          { key: 'packed', label: content.packed, count: orders.filter(o => o.fulfillment_status === 'packed' || o.fulfillment_status === 'ready_to_ship').length },
+          { key: 'ready_to_ship', label: language === 'sv' ? 'Väntar på postning' : 'Ready to ship', count: orders.filter(o => o.fulfillment_status === 'ready_to_ship').length },
           { key: 'shipped', label: content.shipped, count: orders.filter(o => o.fulfillment_status === 'shipped').length },
         ].map(tab => (
           <Button
@@ -828,11 +830,13 @@ const AdminOrderManager = () => {
                       {order.payment_status === 'paid' && (
                         <Badge variant="outline" className={`text-[10px] h-5 ${
                           order.fulfillment_status === 'shipped' ? 'border-green-300 text-green-700 dark:border-green-700 dark:text-green-400'
+                          : order.fulfillment_status === 'ready_to_ship' ? 'border-indigo-300 text-indigo-700 dark:border-indigo-700 dark:text-indigo-400'
                           : order.fulfillment_status === 'packed' ? 'border-blue-300 text-blue-700 dark:border-blue-700 dark:text-blue-400'
                           : order.fulfillment_status === 'packing' ? 'border-orange-300 text-orange-700 dark:border-orange-700 dark:text-orange-400'
                           : 'border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-400'
                         }`}>
                           {order.fulfillment_status === 'shipped' ? '📦 Skickad'
+                          : order.fulfillment_status === 'ready_to_ship' ? '📮 Väntar postning'
                           : order.fulfillment_status === 'packed' ? '✅ Packad'
                           : order.fulfillment_status === 'packing' ? '🔧 Packas'
                           : '⏳ Att packa'}
@@ -876,38 +880,7 @@ const AdminOrderManager = () => {
                         {language === 'sv' ? 'Lägg till frakt' : 'Add shipping'}
                       </Button>
                     )}
-                    {order.payment_status === 'paid' && !order.refund_status && (
-                      refundOrderId === order.id ? (
-                        <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                          <Input
-                            placeholder={language === 'sv' ? 'Anledning...' : 'Reason...'}
-                            value={refundReason}
-                            onChange={(e) => setRefundReason(e.target.value)}
-                            className="h-7 text-xs w-36"
-                            onKeyDown={(e) => { if (e.key === 'Enter') handleRequestRefund(order); }}
-                          />
-                          <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => handleRequestRefund(order)}>
-                            {language === 'sv' ? 'Skicka' : 'Send'}
-                          </Button>
-                          <Button size="sm" variant="ghost" className="h-7 text-xs px-1.5" onClick={() => { setRefundOrderId(null); setRefundReason(''); }}>
-                            <X className="w-3.5 h-3.5" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="gap-1.5 text-xs border-purple-300 text-purple-700 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-400 dark:hover:bg-purple-950/30"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setRefundOrderId(order.id);
-                          }}
-                        >
-                          <RotateCcw className="w-3.5 h-3.5" />
-                          {language === 'sv' ? 'Begär återbetalning' : 'Request refund'}
-                        </Button>
-                      )
-                    )}
+                    {/* Refund requests are handled via the dedicated Återbetalningar tab */}
                     {deleteConfirmId === order.id ? (
                       <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                         <span className="text-xs text-destructive">{language === 'sv' ? 'Radera?' : 'Delete?'}</span>
