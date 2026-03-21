@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useStaffAccess } from '@/hooks/useStaffAccess';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -44,6 +45,7 @@ const MiniWorkbench = () => {
   const { hasAccess, isLoading: accessLoading } = useStaffAccess();
   const isMobile = useIsMobile();
   const location = useLocation();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [acting, setActing] = useState<string | null>(null);
@@ -94,6 +96,13 @@ const MiniWorkbench = () => {
     if (!user) return;
     setActing(taskId);
     try {
+      const task = allTasks.find(t => t.id === taskId);
+
+      const hasOpenedLabelCheckpoint = (statusHistory: any): boolean => {
+        if (!Array.isArray(statusHistory)) return false;
+        return statusHistory.some((entry: any) => entry?.status === 'label_opened' || entry?.label_opened === true);
+      };
+
       if (action === 'claim') {
         await supabase.from('staff_tasks').update({
           claimed_by: user.id, claimed_at: new Date().toISOString(), status: 'claimed',
@@ -106,8 +115,34 @@ const MiniWorkbench = () => {
         toast.success('Uppdrag släppt');
       } else if (action === 'start') {
         await supabase.from('staff_tasks').update({ status: 'in_progress' }).eq('id', taskId);
+        if (task?.related_order_id && ['pack_order', 'packing'].includes(task.task_type)) {
+          navigate(`/admin/orders?tab=to_pack&focus=${task.related_order_id}`);
+        }
         toast.success('Task startad');
       } else if (action === 'done') {
+        if (task?.related_order_id && ['pack_order', 'packing'].includes(task.task_type)) {
+          const { data: order } = await supabase
+            .from('orders')
+            .select('payment_status, fulfillment_status, status_history')
+            .eq('id', task.related_order_id)
+            .maybeSingle();
+
+          if (!order || order.payment_status !== 'paid') {
+            toast.error('Ordern är inte betald');
+            return;
+          }
+
+          if (!hasOpenedLabelCheckpoint(order.status_history)) {
+            toast.error('Öppna fraktsedeln innan du markerar klar');
+            return;
+          }
+
+          if (!['ready_to_ship', 'packed', 'shipped'].includes(order.fulfillment_status)) {
+            toast.error('Markera ordern som packad först');
+            return;
+          }
+        }
+
         await supabase.from('staff_tasks').update({
           status: 'done', completed_at: new Date().toISOString(),
         }).eq('id', taskId);
@@ -117,7 +152,6 @@ const MiniWorkbench = () => {
           status: 'escalated', priority: 'high', updated_at: new Date().toISOString(),
         } as any).eq('id', taskId);
         const { data: admins } = await supabase.from('user_roles').select('user_id').in('role', ['admin', 'founder'] as any[]);
-        const task = allTasks.find(t => t.id === taskId);
         for (const a of admins || []) {
           await supabase.from('notifications').insert({
             user_id: a.user_id, type: 'urgent',
@@ -181,6 +215,16 @@ const MiniWorkbench = () => {
                     )}
                   </div>
                   <div className="flex gap-1.5 flex-wrap">
+                    {task.related_order_id && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 text-[10px] px-2"
+                        onClick={() => navigate(`/admin/orders?tab=to_pack&focus=${task.related_order_id}`)}
+                      >
+                        Öppna order
+                      </Button>
+                    )}
                     {task.status === 'open' && (
                       <Button size="sm" variant="outline" className="h-6 text-[10px] px-2" onClick={() => handleAction(task.id, 'claim')} disabled={acting === task.id}>
                         {acting === task.id ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Claim'}
