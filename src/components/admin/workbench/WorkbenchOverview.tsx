@@ -13,9 +13,9 @@ const WorkbenchOverview = ({ onNavigate }: Props) => {
     queryKey: ['workbench-stats'],
     queryFn: async () => {
       const [tasksRes, incidentsRes, ordersRes] = await Promise.all([
-        supabase.from('staff_tasks').select('status', { count: 'exact', head: false }),
+        supabase.from('staff_tasks').select('status', { count: 'exact', head: false }).neq('status', 'cancelled'),
         supabase.from('order_incidents').select('status, priority, sla_status'),
-        supabase.from('orders').select('status').in('status', ['confirmed', 'processing']),
+        supabase.from('orders').select('status').is('deleted_at', null).in('status', ['confirmed', 'processing']),
       ]);
 
       const tasks = tasksRes.data || [];
