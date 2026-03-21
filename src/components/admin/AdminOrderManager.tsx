@@ -455,7 +455,8 @@ const AdminOrderManager = () => {
     if (paymentFilter === 'unpaid' && o.payment_status === 'paid') return false;
     if (fulfillmentTab === 'to_pack' && !(o.payment_status === 'paid' && (o.fulfillment_status === 'pending' || o.fulfillment_status === 'unfulfilled'))) return false;
     if (fulfillmentTab === 'packing' && o.fulfillment_status !== 'packing') return false;
-    if (fulfillmentTab === 'packed' && o.fulfillment_status !== 'packed') return false;
+    if (fulfillmentTab === 'packed' && o.fulfillment_status !== 'packed' && o.fulfillment_status !== 'ready_to_ship') return false;
+    if (fulfillmentTab === 'ready_to_ship' && o.fulfillment_status !== 'ready_to_ship') return false;
     if (fulfillmentTab === 'shipped' && o.fulfillment_status !== 'shipped') return false;
     if (fulfillmentTab === 'unpaid' && o.payment_status === 'paid') return false;
     return true;
