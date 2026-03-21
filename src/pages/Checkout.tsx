@@ -620,6 +620,54 @@ const Checkout = () => {
                       />
                     </div>
 
+                    {/* Shipping method selector */}
+                    <div className="pt-2">
+                      <Label className="mb-3 block">{isSv ? 'Fraktmetod' : 'Shipping method'} *</Label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedShipping('postnord')}
+                          className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all min-h-[90px] ${
+                            selectedShipping === 'postnord'
+                              ? 'border-primary bg-primary/5 shadow-sm'
+                              : 'border-border hover:border-primary/40'
+                          }`}
+                        >
+                          {selectedShipping === 'postnord' && (
+                            <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                              <Check className="w-3 h-3 text-primary-foreground" />
+                            </div>
+                          )}
+                          <Truck className="w-6 h-6 text-foreground" />
+                          <span className="text-sm font-medium">PostNord</span>
+                          <span className="text-[10px] text-muted-foreground leading-tight text-center">
+                            {isSv ? '7–10 arbetsdagar' : '7–10 business days'}
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setSelectedShipping('dhl')}
+                          className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all min-h-[90px] ${
+                            selectedShipping === 'dhl'
+                              ? 'border-primary bg-primary/5 shadow-sm'
+                              : 'border-border hover:border-primary/40'
+                          }`}
+                        >
+                          {selectedShipping === 'dhl' && (
+                            <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                              <Check className="w-3 h-3 text-primary-foreground" />
+                            </div>
+                          )}
+                          <Truck className="w-6 h-6 text-foreground" />
+                          <span className="text-sm font-medium">DHL</span>
+                          <span className="text-[10px] text-muted-foreground leading-tight text-center">
+                            {isSv ? '5–8 arbetsdagar' : '5–8 business days'}
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+
                     {/* Payment method selector */}
                     <div className="pt-2">
                       <Label className="mb-3 block">{isSv ? 'Betalningsmetod' : 'Payment method'} *</Label>
