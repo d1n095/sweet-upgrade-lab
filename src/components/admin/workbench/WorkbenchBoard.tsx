@@ -298,6 +298,15 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     }
   };
 
+  const unclaimTask = async (taskId: string) => {
+    if (!user) return;
+    await supabase.from('staff_tasks').update({
+      status: 'open', assigned_to: null, claimed_by: null, claimed_at: null, updated_at: new Date().toISOString(),
+    } as any).eq('id', taskId);
+    toast.success('Uppdrag släppt');
+    queryClient.invalidateQueries({ queryKey: ['staff-tasks'] });
+  };
+
   const moveTask = async (taskId: string, newStatus: string) => {
     if (!user) return;
     const now = new Date().toISOString();
