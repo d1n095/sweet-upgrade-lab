@@ -491,6 +491,78 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
 
   return (
     <div className="space-y-4">
+      {/* Next Action Engine */}
+      {nextAction && (
+        <Card className={cn(
+          'border-2 overflow-hidden',
+          nextAction.status === 'escalated' ? 'border-destructive/50 bg-destructive/5' : 'border-primary/30 bg-primary/5'
+        )}>
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center shrink-0',
+                  nextAction.status === 'escalated' ? 'bg-destructive/20 text-destructive' : 'bg-primary/20 text-primary'
+                )}>
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Nästa att göra</p>
+                  <p className="text-sm font-semibold truncate">{nextAction.title}</p>
+                  <div className="flex gap-1.5 mt-1">
+                    <Badge variant="outline" className={cn('text-[9px]', PRIORITY_COLORS[nextAction.priority])}>
+                      {nextAction.priority === 'high' ? 'HÖG' : nextAction.priority === 'medium' ? 'MED' : 'LÅG'}
+                    </Badge>
+                    <Badge variant="secondary" className="text-[9px]">
+                      {(TASK_TYPE_META[nextAction.task_type] || TASK_TYPE_META.general).label}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                {!workMode ? (
+                  <>
+                    <Button size="sm" variant="outline" className="gap-1.5" onClick={() => {
+                      if (nextAction.status === 'open') moveTask(nextAction.id, 'claimed');
+                      else if (nextAction.status === 'claimed') moveTask(nextAction.id, 'in_progress');
+                      else if (['in_progress', 'escalated'].includes(nextAction.status)) moveTask(nextAction.id, 'done');
+                    }}>
+                      {nextAction.status === 'open' ? 'Ta' : nextAction.status === 'claimed' ? 'Starta' : 'Klar'} <ArrowRight className="w-3 h-3" />
+                    </Button>
+                    <Button size="sm" className="gap-1.5" onClick={startWorkMode}>
+                      <FastForward className="w-4 h-4" /> Arbetsläge
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button size="sm" variant="default" className="gap-1.5" onClick={() => moveTask(nextAction.id, 'done')}>
+                      <CheckCircle2 className="w-4 h-4" /> Klar → Nästa
+                    </Button>
+                    <Button size="sm" variant="outline" className="gap-1.5" onClick={() => { setWorkMode(false); toast.info('Arbetsläge avslutat'); }}>
+                      <Pause className="w-4 h-4" /> Pausa
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Done feedback toast */}
+      <AnimatePresence>
+        {justCompleted && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 flex items-center gap-2"
+          >
+            <CheckCircle2 className="w-5 h-5 text-green-600" />
+            <span className="text-sm font-medium text-green-700">Klar ✓ — laddar nästa…</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Filter tabs */}
       <Tabs value={viewFilter} onValueChange={v => setViewFilter(v as ViewFilter)}>
         <TabsList>
