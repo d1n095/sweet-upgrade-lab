@@ -42,11 +42,11 @@ const WorkbenchOverview = ({ onNavigate }: Props) => {
       onClick: () => onNavigate('workboard'),
     },
     {
-      label: 'Eskalerade ärenden',
-      value: stats?.escalatedIncidents ?? 0,
+      label: 'Eskalerade',
+      value: (stats?.escalatedTasks ?? 0) + (stats?.escalatedIncidents ?? 0),
       icon: AlertTriangle,
       color: 'text-destructive bg-destructive/10',
-      onClick: () => onNavigate('workboard', 'high'),
+      onClick: () => onNavigate('workboard', 'escalated'),
     },
     {
       label: 'Orders att packa',
