@@ -1229,15 +1229,17 @@ const AdminOrderManager = () => {
                       <Printer className="w-4 h-4" />
                       {language === 'sv' ? 'Skriv ut' : 'Print'}
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={(e) => { e.stopPropagation(); handleCreateShipment(order); }}
-                      className="gap-2"
-                    >
-                      <Truck className="w-4 h-4" />
-                      {language === 'sv' ? 'Skapa frakt' : 'Create Shipment'}
-                    </Button>
+                    {order.payment_status === 'paid' && !['packed', 'shipped'].includes(order.fulfillment_status) && !order.tracking_number && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => { e.stopPropagation(); handlePackAndShip(order); }}
+                        className="gap-2"
+                      >
+                        <Package className="w-4 h-4" />
+                        {language === 'sv' ? 'Packa & skapa frakt' : 'Pack & create shipment'}
+                      </Button>
+                    )}
                   </div>
                 )}
               </motion.div>
