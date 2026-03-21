@@ -307,7 +307,30 @@ const ProductDetail = () => {
                   {lang === 'sv' ? 'Laddar...' : 'Translating...'}
                 </span>
               )}
-              <h1 className="font-display text-2xl md:text-3xl font-bold mb-3 leading-tight">{title}</h1>
+              <h1 className="font-display text-2xl md:text-3xl font-bold mb-2 leading-tight">{title}</h1>
+
+              {/* Review stars + viewer count */}
+              <div className="flex items-center gap-3 mb-3 flex-wrap">
+                {reviewStats.count > 0 && (
+                  <div className="flex items-center gap-1">
+                    <div className="flex gap-px">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`w-4 h-4 ${i < Math.round(reviewStats.average) ? 'fill-yellow-400 text-yellow-400' : 'fill-muted text-muted-foreground/30'}`}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-sm text-muted-foreground ml-1">
+                      {reviewStats.average} ({reviewStats.count})
+                    </span>
+                  </div>
+                )}
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Eye className="w-3.5 h-3.5" />
+                  {viewerCount} {lang === 'sv' ? 'tittar just nu' : 'viewing now'}
+                </span>
+              </div>
 
               {/* Hook / short description */}
               {description && (
