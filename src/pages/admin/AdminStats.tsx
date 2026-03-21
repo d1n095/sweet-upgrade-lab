@@ -1,11 +1,13 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { motion } from 'framer-motion';
 import {
   TrendingUp, Package, RefreshCw, Search, Eye, ShoppingCart,
   AlertTriangle, BarChart3, MousePointerClick, Lightbulb, CheckCircle, XCircle,
   Plus, Minus, LogOut, DollarSign, Target, Activity, Trash2, Shield,
-  Clock, User, Info, ArrowRight, Calendar, TrendingDown, Ban, HelpCircle
+  Clock, User, Info, ArrowRight, Calendar, TrendingDown, Ban, HelpCircle, Loader2
 } from 'lucide-react';
+
+const AdminDashboardCharts = lazy(() => import('@/components/admin/AdminDashboardCharts'));
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
