@@ -234,7 +234,6 @@ serve(async (req) => {
     console.log("Creating Stripe session...", { itemCount: trustedItems.length, totalAmount });
 
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: selectedMethods,
       mode: "payment",
       customer_email: customerEmail,
       line_items: lineItems,
