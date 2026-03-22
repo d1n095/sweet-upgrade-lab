@@ -205,6 +205,9 @@ const AdminDatabase = () => {
     if (col.key === 'comment') {
       return <span className="text-sm truncate max-w-[200px] block">{String(val).slice(0, 80)}</span>;
     }
+    if (col.key === 'event_data' && typeof val === 'object') {
+      return <span className="text-xs font-mono truncate max-w-[200px] block">{JSON.stringify(val).slice(0, 80)}</span>;
+    }
     return <span className="text-sm">{String(val)}</span>;
   };
 
