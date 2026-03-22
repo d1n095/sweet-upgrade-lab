@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
@@ -7,6 +8,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
+
+const ALLOWED_ROLES = ['admin', 'founder', 'it', 'manager', 'marketing'];
 
 interface NotifyInfluencerRequest {
   email: string;
@@ -17,35 +20,74 @@ interface NotifyInfluencerRequest {
   isUpdate?: boolean;
 }
 
+function escapeHtml(str: string): string {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Auth: require service role or valid staff JWT
   const authHeader = req.headers.get("Authorization") || "";
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  if (authHeader !== `Bearer ${serviceRoleKey}`) {
-    const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
-    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+
+  if (authHeader === `Bearer ${serviceRoleKey}`) {
+    // OK - service role
+  } else {
+    if (!authHeader.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const userSupabase = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },
     });
-    const { data } = await supabase.auth.getClaims(authHeader.replace("Bearer ", ""));
-    if (!data?.claims?.sub) {
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await userSupabase.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims?.sub) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const userId = claimsData.claims.sub;
+    const adminSupabase = createClient(supabaseUrl, serviceRoleKey);
+    const { data: roles } = await adminSupabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId)
+      .in('role', ALLOWED_ROLES)
+      .limit(1);
+
+    if (!roles?.length) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
   }
 
   try {
-    const { email, name, code, maxProducts, validUntil, isUpdate }: NotifyInfluencerRequest = await req.json();
+    const body = await req.json();
+    const { email, name, code, maxProducts, validUntil, isUpdate } = body as NotifyInfluencerRequest;
+
+    // Input validation
+    if (!email || !email.includes("@") || !name || !code) {
+      return new Response(JSON.stringify({ error: "Invalid input" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const safeName = escapeHtml(name);
+    const safeCode = escapeHtml(code);
+    const safeMaxProducts = Number(maxProducts) || 1;
 
     const validUntilText = validUntil 
       ? `Giltig till: ${new Date(validUntil).toLocaleDateString('sv-SE')}`
       : 'Ingen utgångstid';
 
     const subject = isUpdate 
-      ? `Din influencer-kod har uppdaterats - ${code}`
-      : `Välkommen som VIP-influencer! Din kod: ${code}`;
+      ? `Din influencer-kod har uppdaterats - ${safeCode}`
+      : `Välkommen som VIP-influencer! Din kod: ${safeCode}`;
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -64,7 +106,7 @@ const handler = async (req: Request): Promise<Response> => {
           
           <div style="background: white; padding: 40px 30px; border-radius: 0 0 16px 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
             <p style="font-size: 18px; color: #1e293b; margin-bottom: 24px;">
-              Hej <strong>${name}</strong>! 👋
+              Hej <strong>${safeName}</strong>! 👋
             </p>
             
             <p style="font-size: 16px; color: #64748b; line-height: 1.6; margin-bottom: 24px;">
@@ -76,17 +118,17 @@ const handler = async (req: Request): Promise<Response> => {
             
             <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 2px solid #22c55e; border-radius: 12px; padding: 24px; text-align: center; margin-bottom: 24px;">
               <p style="font-size: 14px; color: #64748b; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 1px;">Din personliga kod</p>
-              <p style="font-size: 32px; font-weight: bold; color: #1a5f3f; margin: 0; font-family: monospace; letter-spacing: 2px;">${code}</p>
+              <p style="font-size: 32px; font-weight: bold; color: #1a5f3f; margin: 0; font-family: monospace; letter-spacing: 2px;">${safeCode}</p>
             </div>
             
             <div style="background: #f8fafc; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
               <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
                 <span style="color: #64748b;">Antal gratisprodukter:</span>
-                <strong style="color: #1e293b;">${maxProducts} st</strong>
+                <strong style="color: #1e293b;">${safeMaxProducts} st</strong>
               </div>
               <div style="display: flex; justify-content: space-between;">
                 <span style="color: #64748b;">Giltighet:</span>
-                <strong style="color: #1e293b;">${validUntilText}</strong>
+                <strong style="color: #1e293b;">${escapeHtml(validUntilText)}</strong>
               </div>
             </div>
             
@@ -95,7 +137,7 @@ const handler = async (req: Request): Promise<Response> => {
             <ol style="color: #64748b; line-height: 1.8; padding-left: 20px; margin-bottom: 24px;">
               <li>Besök vår hemsida och logga in med din email</li>
               <li>Lägg till önskade produkter i varukorgen</li>
-              <li>I kassan, skriv in din kod <strong>${code}</strong> i rabattfältet</li>
+              <li>I kassan, skriv in din kod <strong>${safeCode}</strong> i rabattfältet</li>
               <li>Välj vilka produkter du vill ha gratis</li>
               <li>Klart! Produkten läggs till utan kostnad 🎉</li>
             </ol>
@@ -112,7 +154,7 @@ const handler = async (req: Request): Promise<Response> => {
           </div>
           
           <p style="text-align: center; color: #94a3b8; font-size: 12px; margin-top: 24px;">
-            © ${new Date().getFullYear()} Ditt Företag. Alla rättigheter förbehållna.
+            © ${new Date().getFullYear()} 4ThePeople. Alla rättigheter förbehållna.
           </p>
         </div>
       </body>
@@ -134,24 +176,17 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     const emailData = await emailResponse.json();
-
     console.log("Influencer notification sent:", emailData);
 
     return new Response(JSON.stringify({ success: true, data: emailData }), {
       status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        ...corsHeaders,
-      },
+      headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   } catch (error: any) {
     console.error("Error in notify-influencer function:", error);
     return new Response(
       JSON.stringify({ error: error.message }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
+      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
 };
