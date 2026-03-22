@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
@@ -8,6 +9,8 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+const ALLOWED_ROLES = ['admin', 'founder', 'it', 'manager', 'marketing'];
+
 interface NotifyAffiliateRequest {
   email: string;
   name: string;
@@ -15,29 +18,73 @@ interface NotifyAffiliateRequest {
   commissionPercent: number;
 }
 
+function escapeHtml(str: string): string {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Auth: require service role or valid staff JWT
   const authHeader = req.headers.get("Authorization") || "";
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  if (authHeader !== `Bearer ${serviceRoleKey}`) {
-    const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
-    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+
+  // Allow service role directly
+  if (authHeader === `Bearer ${serviceRoleKey}`) {
+    // OK - service role
+  } else {
+    // Verify JWT and check staff role
+    if (!authHeader.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const userSupabase = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },
     });
-    const { data } = await supabase.auth.getClaims(authHeader.replace("Bearer ", ""));
-    if (!data?.claims?.sub) {
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await userSupabase.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims?.sub) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const userId = claimsData.claims.sub;
+
+    // Check staff role using service role client
+    const adminSupabase = createClient(supabaseUrl, serviceRoleKey);
+    const { data: roles } = await adminSupabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId)
+      .in('role', ALLOWED_ROLES)
+      .limit(1);
+
+    if (!roles?.length) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
   }
 
   try {
-    const { email, name, code, commissionPercent }: NotifyAffiliateRequest = await req.json();
+    const body = await req.json();
+    const { email, name, code, commissionPercent } = body as NotifyAffiliateRequest;
 
-    const subject = `Välkommen som affiliate! Din kod: ${code}`;
+    // Input validation
+    if (!email || !email.includes("@") || !name || !code) {
+      return new Response(JSON.stringify({ error: "Invalid input" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // Sanitize all user inputs
+    const safeName = escapeHtml(name);
+    const safeCode = escapeHtml(code);
+    const safeCommission = Number(commissionPercent) || 10;
+
+    const subject = `Välkommen som affiliate! Din kod: ${safeCode}`;
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -56,7 +103,7 @@ const handler = async (req: Request): Promise<Response> => {
           
           <div style="background: white; padding: 40px 30px; border-radius: 0 0 16px 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
             <p style="font-size: 18px; color: #1e293b; margin-bottom: 24px;">
-              Hej <strong>${name}</strong>! 👋
+              Hej <strong>${safeName}</strong>! 👋
             </p>
             
             <p style="font-size: 16px; color: #64748b; line-height: 1.6; margin-bottom: 24px;">
@@ -65,13 +112,13 @@ const handler = async (req: Request): Promise<Response> => {
             
             <div style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border: 2px solid #f59e0b; border-radius: 12px; padding: 24px; text-align: center; margin-bottom: 24px;">
               <p style="font-size: 14px; color: #64748b; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 1px;">Din affiliate-kod</p>
-              <p style="font-size: 32px; font-weight: bold; color: #ea580c; margin: 0; font-family: monospace; letter-spacing: 2px;">${code}</p>
+              <p style="font-size: 32px; font-weight: bold; color: #ea580c; margin: 0; font-family: monospace; letter-spacing: 2px;">${safeCode}</p>
             </div>
             
             <div style="background: #f8fafc; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
               <h3 style="color: #1e293b; margin: 0 0 12px 0;">Dina förmåner:</h3>
               <ul style="color: #64748b; margin: 0; padding-left: 20px; line-height: 1.8;">
-                <li><strong>${commissionPercent}% provision</strong> på varje försäljning</li>
+                <li><strong>${safeCommission}% provision</strong> på varje försäljning</li>
                 <li><strong>10% rabatt</strong> för dina kunder</li>
                 <li>Utbetalning när du nått <strong>500 kr</strong></li>
                 <li>Realtime tracking av dina intäkter</li>
@@ -81,9 +128,9 @@ const handler = async (req: Request): Promise<Response> => {
             <h3 style="color: #1e293b; font-size: 18px; margin-bottom: 16px;">📋 Så här kommer du igång:</h3>
             
             <ol style="color: #64748b; line-height: 1.8; padding-left: 20px; margin-bottom: 24px;">
-              <li>Dela din kod <strong>${code}</strong> med dina följare</li>
+              <li>Dela din kod <strong>${safeCode}</strong> med dina följare</li>
               <li>De använder koden i kassan och får 10% rabatt</li>
-              <li>Du tjänar ${commissionPercent}% på varje köp</li>
+              <li>Du tjänar ${safeCommission}% på varje köp</li>
               <li>Logga in för att se dina intäkter i realtid</li>
             </ol>
             
