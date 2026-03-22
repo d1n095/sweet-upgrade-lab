@@ -75,6 +75,18 @@ const tables: TableConfig[] = [
     ],
     searchFields: ['product_title', 'comment'],
   },
+  {
+    name: 'analytics_events',
+    label: 'Events',
+    columns: [
+      { key: 'event_type', label: 'Typ', visible: true, sortable: true },
+      { key: 'user_id', label: 'User', visible: true, sortable: true },
+      { key: 'session_id', label: 'Session', visible: false, sortable: false },
+      { key: 'event_data', label: 'Data', visible: true, sortable: false },
+      { key: 'created_at', label: 'Tid', visible: true, sortable: true },
+    ],
+    searchFields: ['event_type', 'user_id'],
+  },
 ];
 
 const PAGE_SIZE = 25;
