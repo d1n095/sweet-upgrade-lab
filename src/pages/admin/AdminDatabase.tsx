@@ -9,7 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Search, RefreshCw, Download, ChevronLeft, ChevronRight, Database, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-type TableName = 'products' | 'orders' | 'profiles' | 'reviews';
+type TableName = 'products' | 'orders' | 'profiles' | 'reviews' | 'analytics_events';
 
 interface TableConfig {
   name: TableName;
