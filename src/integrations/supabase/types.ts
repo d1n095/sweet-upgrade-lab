@@ -2217,6 +2217,39 @@ export type Database = {
         }
         Relationships: []
       }
+      role_module_permissions: {
+        Row: {
+          can_create: boolean
+          can_delete: boolean
+          can_read: boolean
+          can_update: boolean
+          created_at: string
+          id: string
+          module: string
+          role: string
+        }
+        Insert: {
+          can_create?: boolean
+          can_delete?: boolean
+          can_read?: boolean
+          can_update?: boolean
+          created_at?: string
+          id?: string
+          module: string
+          role: string
+        }
+        Update: {
+          can_create?: boolean
+          can_delete?: boolean
+          can_read?: boolean
+          can_update?: boolean
+          created_at?: string
+          id?: string
+          module?: string
+          role?: string
+        }
+        Relationships: []
+      }
       role_templates: {
         Row: {
           created_at: string
@@ -2915,6 +2948,10 @@ export type Database = {
           user_id: string
           username: string
         }[]
+      }
+      has_module_permission: {
+        Args: { _action?: string; _module: string; _user_id: string }
+        Returns: boolean
       }
       has_role: {
         Args: {
