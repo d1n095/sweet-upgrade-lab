@@ -9,7 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Search, RefreshCw, Download, ChevronLeft, ChevronRight, Database, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-type TableName = 'products' | 'orders' | 'profiles' | 'reviews';
+type TableName = 'products' | 'orders' | 'profiles' | 'reviews' | 'analytics_events';
 
 interface TableConfig {
   name: TableName;
@@ -74,6 +74,18 @@ const tables: TableConfig[] = [
       { key: 'created_at', label: 'Skapad', visible: true, sortable: true },
     ],
     searchFields: ['product_title', 'comment'],
+  },
+  {
+    name: 'analytics_events',
+    label: 'Events',
+    columns: [
+      { key: 'event_type', label: 'Typ', visible: true, sortable: true },
+      { key: 'user_id', label: 'User', visible: true, sortable: true },
+      { key: 'session_id', label: 'Session', visible: false, sortable: false },
+      { key: 'event_data', label: 'Data', visible: true, sortable: false },
+      { key: 'created_at', label: 'Tid', visible: true, sortable: true },
+    ],
+    searchFields: ['event_type', 'user_id'],
   },
 ];
 
@@ -192,6 +204,9 @@ const AdminDatabase = () => {
     }
     if (col.key === 'comment') {
       return <span className="text-sm truncate max-w-[200px] block">{String(val).slice(0, 80)}</span>;
+    }
+    if (col.key === 'event_data' && typeof val === 'object') {
+      return <span className="text-xs font-mono truncate max-w-[200px] block">{JSON.stringify(val).slice(0, 80)}</span>;
     }
     return <span className="text-sm">{String(val)}</span>;
   };

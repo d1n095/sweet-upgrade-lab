@@ -152,26 +152,11 @@ serve(async (req) => {
         }
       }
 
-      // Fallback to client-provided price
+      // Reject items not found in database — NEVER trust client-provided prices
       if (!usedDb) {
-        const clientPrice = Number(item?.price);
-        const clientTitle = typeof item?.title === "string" ? item.title : `Item ${idx + 1}`;
-        const clientImage = typeof item?.image === "string" ? item.image : "";
-
-        if (!Number.isFinite(clientPrice) || clientPrice <= 0) {
-          console.warn(`Item ${idx} has invalid price (${item?.price}), skipping`);
-          warnings.push(`skipped_invalid_price:${idx}`);
-          continue;
-        }
-
-        trustedItems.push({
-          id: productId || `client_item_${idx + 1}`,
-          title: clientTitle,
-          price: clientPrice,
-          quantity,
-          image: clientImage,
-        });
-        warnings.push(`client_pricing:${productId || idx}`);
+        console.warn(`Product ${productId || idx} not found in DB — rejecting item`);
+        warnings.push(`unknown_product:${productId || idx}`);
+        continue;
       }
     }
 

@@ -88,6 +88,7 @@ const navGroups: NavGroup[] = [
       { to: '/admin/content', label: 'Innehåll', icon: FileText, role: 'admin' },
       { to: '/admin/legal', label: 'Juridik', icon: Heart, role: 'admin' },
       { to: '/admin/logs', label: 'Logg', icon: Activity, role: 'admin' },
+      { to: '/admin/data', label: 'Data Center', icon: Eye, role: 'admin' },
       { to: '/admin/database', label: 'Databas', icon: Grid, role: 'admin' },
       { to: '/admin/settings', label: 'Inställningar', icon: Settings, role: 'admin' },
     ],

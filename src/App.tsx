@@ -63,6 +63,7 @@ import AdminIncidents from "./pages/admin/AdminIncidents";
 import AdminPayments from "./pages/admin/AdminPayments";
 import AdminInsights from "./pages/admin/AdminInsights";
 import AdminDatabase from "./pages/admin/AdminDatabase";
+import AdminData from "./pages/admin/AdminData";
 import AdminOps from "./pages/admin/AdminOps";
 import AdminGrowth from "./pages/admin/AdminGrowth";
 import ScanPackingMode from "./components/admin/warehouse/ScanPackingMode";
@@ -143,6 +144,7 @@ const App = () => (
                 <Route path="payments" element={<AdminPayments />} />
                 <Route path="staff" element={<AdminStaff />} />
                 <Route path="insights" element={<AdminInsights />} />
+                <Route path="data" element={<AdminData />} />
                 <Route path="database" element={<AdminDatabase />} />
                 <Route path="warehouse" element={<ScanPackingMode />} />
               </Route>
