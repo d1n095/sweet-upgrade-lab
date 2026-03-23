@@ -326,24 +326,24 @@ const AdminOverview = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {focusIncidents.length === 0 && focusTasks.filter(t => t.priority === 'high').length === 0 && stats.lowStockProducts === 0 ? (
+            {focusItems.filter(i => i.status === 'escalated' || i.priority === 'critical').length === 0 && focusItems.filter(t => t.priority === 'high').length === 0 && stats.lowStockProducts === 0 ? (
               <div className="flex flex-col items-center py-4 text-center">
                 <CheckCircle2 className="w-7 h-7 text-green-500/50 mb-1.5" />
                 <p className="text-xs text-muted-foreground">Inga aktiva varningar</p>
               </div>
             ) : (
               <>
-                {focusIncidents.filter(i => i.sla_status === 'overdue').map(inc => (
-                  <button key={inc.id} onClick={() => navigate('/admin/orders')} className="w-full flex items-center gap-2 p-2 rounded-md bg-destructive/5 hover:bg-destructive/10 transition-colors text-left">
+                {focusItems.filter(i => i.status === 'escalated' || i.priority === 'critical').map(item => (
+                  <button key={item.id} onClick={() => navigate('/admin/staff')} className="w-full flex items-center gap-2 p-2 rounded-md bg-destructive/5 hover:bg-destructive/10 transition-colors text-left">
                     <AlertTriangle className="w-3.5 h-3.5 text-destructive shrink-0" />
-                    <span className="text-xs truncate flex-1">{inc.title}</span>
-                    <Badge variant="destructive" className="text-[9px]">SLA</Badge>
+                    <span className="text-xs truncate flex-1">{item.title}</span>
+                    <Badge variant="destructive" className="text-[9px]">{item.item_type === 'incident' ? 'SLA' : 'KRIT'}</Badge>
                   </button>
                 ))}
-                {focusTasks.filter(t => t.priority === 'high').map(task => (
-                  <button key={task.id} onClick={() => navigate('/admin/staff')} className="w-full flex items-center gap-2 p-2 rounded-md bg-orange-500/5 hover:bg-orange-500/10 transition-colors text-left">
+                {focusItems.filter(t => t.priority === 'high' && t.status !== 'escalated').map(item => (
+                  <button key={item.id} onClick={() => navigate('/admin/staff')} className="w-full flex items-center gap-2 p-2 rounded-md bg-orange-500/5 hover:bg-orange-500/10 transition-colors text-left">
                     <Zap className="w-3.5 h-3.5 text-orange-600 shrink-0" />
-                    <span className="text-xs truncate flex-1">{task.title}</span>
+                    <span className="text-xs truncate flex-1">{item.title}</span>
                     <Badge variant="outline" className="text-[9px] border-orange-400 text-orange-600">HÖG</Badge>
                   </button>
                 ))}
