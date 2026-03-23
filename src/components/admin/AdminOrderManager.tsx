@@ -443,8 +443,67 @@ const AdminOrderManager = () => {
       swish: 'Swish',
       apple_pay: 'Apple Pay',
       google_pay: 'Google Pay',
+      on_site: 'På plats',
+      manual: 'Manuell',
     };
     return map[method] || method;
+  };
+
+  const getDeliveryMethodLabel = (method: string | null): string => {
+    if (!method || method === 'shipping') return '';
+    const map: Record<string, string> = {
+      pickup: '📦 Upphämtning',
+      local_delivery: '🏠 Egen leverans',
+    };
+    return map[method] || method;
+  };
+
+  const handleMarkOnSite = async (order: Order) => {
+    try {
+      const existingHistory = Array.isArray(order.status_history) ? order.status_history : [];
+      const newHistory = [...existingHistory, {
+        status: 'delivered',
+        timestamp: new Date().toISOString(),
+        note: 'Köpt och levererad på plats',
+      }];
+
+      const { error } = await supabase.from('orders').update({
+        status: 'delivered',
+        payment_status: 'paid',
+        payment_method: 'on_site',
+        delivery_method: 'pickup',
+        delivery_status: 'delivered',
+        fulfillment_status: 'delivered',
+        delivered_at: new Date().toISOString(),
+        status_history: newHistory,
+      }).eq('id', order.id);
+
+      if (error) throw error;
+
+      setOrders(prev => prev.map(o => o.id === order.id ? {
+        ...o,
+        status: 'delivered',
+        payment_status: 'paid',
+        payment_method: 'on_site',
+        delivery_method: 'pickup',
+        delivery_status: 'delivered',
+        fulfillment_status: 'delivered',
+        status_history: newHistory,
+        updated_at: new Date().toISOString(),
+      } : o));
+
+      logActivity({
+        log_type: 'success',
+        category: 'fulfillment',
+        message: `Order ${getOrderDisplayId(order)} markerad som köpt på plats`,
+        order_id: order.id,
+      });
+
+      toast.success('Order markerad som köpt på plats ✓');
+    } catch (err) {
+      console.error(err);
+      toast.error(content.error);
+    }
   };
 
   const getStatusColor = (status: string) => {
