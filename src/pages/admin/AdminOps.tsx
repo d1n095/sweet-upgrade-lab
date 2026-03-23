@@ -42,6 +42,12 @@ const FULFILLMENT_LABELS: Record<string, string> = {
   delivered: 'Levererad',
 };
 
+const DELIVERY_METHOD_LABELS: Record<string, string> = {
+  shipping: '',
+  pickup: '📦 Upphämtning',
+  local_delivery: '🏠 Egen leverans',
+};
+
 type Tab = 'all' | 'to_pack' | 'to_ship' | 'shipped';
 
 const AdminOps = () => {
