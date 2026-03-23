@@ -1244,7 +1244,7 @@ const AdminOrderManager = () => {
                       <Printer className="w-4 h-4" />
                       {language === 'sv' ? 'Skriv ut' : 'Print'}
                     </Button>
-                    {order.payment_status === 'paid' && !['ready_to_ship', 'packed', 'shipped'].includes(order.fulfillment_status) && !order.tracking_number && (
+                    {order.payment_status === 'paid' && !['ready_to_ship', 'packed', 'shipped', 'delivered'].includes(order.fulfillment_status) && !order.tracking_number && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -1255,7 +1255,7 @@ const AdminOrderManager = () => {
                         {language === 'sv' ? 'Markera packad' : 'Mark packed'}
                       </Button>
                     )}
-                    {order.payment_status === 'paid' && (order.fulfillment_status === 'packed' || order.fulfillment_status === 'ready_to_ship') && (
+                    {order.payment_status === 'paid' && ['packed', 'ready_to_ship'].includes(order.fulfillment_status) && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -1263,7 +1263,7 @@ const AdminOrderManager = () => {
                         className="gap-2"
                       >
                         <Truck className="w-4 h-4" />
-                        {language === 'sv' ? 'Lägg till frakt' : 'Add shipping'}
+                        {language === 'sv' ? 'Leveransmetod' : 'Delivery method'}
                       </Button>
                     )}
                   </div>
