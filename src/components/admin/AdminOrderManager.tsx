@@ -552,14 +552,17 @@ const AdminOrderManager = () => {
     }
   };
 
-  const handleShippingComplete = (orderId: string, data: { carrier: string; tracking_number: string; tracking_url: string | null }) => {
+  const handleShippingComplete = (orderId: string, data: { carrier: string; tracking_number: string; tracking_url: string | null; delivery_method?: string }) => {
+    const isDirectDelivery = data.delivery_method && data.delivery_method !== 'shipping';
     setOrders(prev => prev.map(o => o.id === orderId ? {
       ...o,
-      fulfillment_status: 'shipped',
-      status: 'shipped',
+      fulfillment_status: isDirectDelivery ? 'delivered' : 'shipped',
+      status: isDirectDelivery ? 'delivered' : 'shipped',
       shipped_at: new Date().toISOString(),
-      tracking_number: data.tracking_number,
+      tracking_number: data.tracking_number || o.tracking_number,
       shipping_method: data.carrier,
+      delivery_method: data.delivery_method || 'shipping',
+      delivery_status: isDirectDelivery ? 'delivered' : 'pending',
     } : o));
     setShippingOrder(null);
   };
