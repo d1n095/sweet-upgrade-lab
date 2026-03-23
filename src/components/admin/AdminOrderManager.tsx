@@ -899,11 +899,17 @@ const AdminOrderManager = () => {
                           : order.fulfillment_status === 'packing' ? 'border-orange-300 text-orange-700 dark:border-orange-700 dark:text-orange-400'
                           : 'border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-400'
                         }`}>
-                          {order.fulfillment_status === 'shipped' ? '📦 Skickad'
+                          {order.fulfillment_status === 'delivered' ? '✅ Levererad'
+                          : order.fulfillment_status === 'shipped' ? '📦 Skickad'
                           : order.fulfillment_status === 'ready_to_ship' ? '📮 Väntar postning'
                           : order.fulfillment_status === 'packed' ? '✅ Packad'
                           : order.fulfillment_status === 'packing' ? '🔧 Packas'
                           : '⏳ Att packa'}
+                        </Badge>
+                      )}
+                      {getDeliveryMethodLabel(order.delivery_method) && (
+                        <Badge variant="secondary" className="text-[10px] h-5">
+                          {getDeliveryMethodLabel(order.delivery_method)}
                         </Badge>
                       )}
                       {order.payment_method && (
