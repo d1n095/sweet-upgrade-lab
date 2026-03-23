@@ -54,6 +54,8 @@ interface Order {
   shipped_by: string | null;
   shipped_at: string | null;
   shipping_method: string | null;
+  delivery_method: string;
+  delivery_status: string;
 }
 
 const statusOptions = [
