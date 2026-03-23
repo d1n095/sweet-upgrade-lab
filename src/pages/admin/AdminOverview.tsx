@@ -91,16 +91,14 @@ const AdminOverview = () => {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-      const [products, orders, todayOrders, members, reviews, tasks, incidents, packOrders, analytics] = await Promise.all([
+      const [products, orders, todayOrders, members, reviews, workItems, packOrders, analytics] = await Promise.all([
         supabase.from('products').select('id, title_sv, stock, reserved_stock, allow_overselling'),
         supabase.from('orders').select('id, status, total_amount, payment_status').is('deleted_at', null),
         supabase.from('orders').select('id, total_amount, payment_status').is('deleted_at', null).gte('created_at', todayStart.toISOString()),
         supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('is_member', true),
         supabase.from('reviews').select('id', { count: 'exact', head: true }).eq('is_approved', false),
-        supabase.from('staff_tasks').select('id, title, priority, task_type, status, due_at, related_order_id')
-          .neq('status', 'done').neq('status', 'cancelled').order('created_at', { ascending: false }).limit(5),
-        supabase.from('order_incidents').select('id, title, priority, sla_status, sla_deadline, order_id, status')
-          .neq('status', 'resolved').neq('status', 'closed').order('created_at', { ascending: false }).limit(5),
+        supabase.from('work_items' as any).select('id, title, priority, item_type, status, due_at, related_order_id, source_type')
+          .neq('status', 'done').neq('status', 'cancelled').order('created_at', { ascending: false }).limit(10),
         supabase.from('orders').select('id', { count: 'exact', head: true }).is('deleted_at', null).eq('payment_status', 'paid').in('fulfillment_status', ['pending', 'unfulfilled']),
         supabase.from('analytics_events').select('event_type').in('event_type', ['product_view', 'checkout_start', 'checkout_complete']).gte('created_at', thirtyDaysAgo.toISOString()),
       ]);
