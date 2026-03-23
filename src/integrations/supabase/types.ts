@@ -1279,6 +1279,8 @@ export type Database = {
           currency: string
           deleted_at: string | null
           delivered_at: string | null
+          delivery_method: string
+          delivery_status: string
           estimated_delivery: string | null
           fulfillment_status: string
           id: string
@@ -1314,6 +1316,8 @@ export type Database = {
           currency?: string
           deleted_at?: string | null
           delivered_at?: string | null
+          delivery_method?: string
+          delivery_status?: string
           estimated_delivery?: string | null
           fulfillment_status?: string
           id?: string
@@ -1349,6 +1353,8 @@ export type Database = {
           currency?: string
           deleted_at?: string | null
           delivered_at?: string | null
+          delivery_method?: string
+          delivery_status?: string
           estimated_delivery?: string | null
           fulfillment_status?: string
           id?: string

@@ -54,6 +54,8 @@ interface Order {
   shipped_by: string | null;
   shipped_at: string | null;
   shipping_method: string | null;
+  delivery_method: string;
+  delivery_status: string;
 }
 
 const statusOptions = [
@@ -441,8 +443,67 @@ const AdminOrderManager = () => {
       swish: 'Swish',
       apple_pay: 'Apple Pay',
       google_pay: 'Google Pay',
+      on_site: 'På plats',
+      manual: 'Manuell',
     };
     return map[method] || method;
+  };
+
+  const getDeliveryMethodLabel = (method: string | null): string => {
+    if (!method || method === 'shipping') return '';
+    const map: Record<string, string> = {
+      pickup: '📦 Upphämtning',
+      local_delivery: '🏠 Egen leverans',
+    };
+    return map[method] || method;
+  };
+
+  const handleMarkOnSite = async (order: Order) => {
+    try {
+      const existingHistory = Array.isArray(order.status_history) ? order.status_history : [];
+      const newHistory = [...existingHistory, {
+        status: 'delivered',
+        timestamp: new Date().toISOString(),
+        note: 'Köpt och levererad på plats',
+      }];
+
+      const { error } = await supabase.from('orders').update({
+        status: 'delivered',
+        payment_status: 'paid',
+        payment_method: 'on_site',
+        delivery_method: 'pickup',
+        delivery_status: 'delivered',
+        fulfillment_status: 'delivered',
+        delivered_at: new Date().toISOString(),
+        status_history: newHistory,
+      }).eq('id', order.id);
+
+      if (error) throw error;
+
+      setOrders(prev => prev.map(o => o.id === order.id ? {
+        ...o,
+        status: 'delivered',
+        payment_status: 'paid',
+        payment_method: 'on_site',
+        delivery_method: 'pickup',
+        delivery_status: 'delivered',
+        fulfillment_status: 'delivered',
+        status_history: newHistory,
+        updated_at: new Date().toISOString(),
+      } : o));
+
+      logActivity({
+        log_type: 'success',
+        category: 'fulfillment',
+        message: `Order ${getOrderDisplayId(order)} markerad som köpt på plats`,
+        order_id: order.id,
+      });
+
+      toast.success('Order markerad som köpt på plats ✓');
+    } catch (err) {
+      console.error(err);
+      toast.error(content.error);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -491,14 +552,17 @@ const AdminOrderManager = () => {
     }
   };
 
-  const handleShippingComplete = (orderId: string, data: { carrier: string; tracking_number: string; tracking_url: string | null }) => {
+  const handleShippingComplete = (orderId: string, data: { carrier: string; tracking_number: string; tracking_url: string | null; delivery_method?: string }) => {
+    const isDirectDelivery = data.delivery_method && data.delivery_method !== 'shipping';
     setOrders(prev => prev.map(o => o.id === orderId ? {
       ...o,
-      fulfillment_status: 'shipped',
-      status: 'shipped',
+      fulfillment_status: isDirectDelivery ? 'delivered' : 'shipped',
+      status: isDirectDelivery ? 'delivered' : 'shipped',
       shipped_at: new Date().toISOString(),
-      tracking_number: data.tracking_number,
+      tracking_number: data.tracking_number || o.tracking_number,
       shipping_method: data.carrier,
+      delivery_method: data.delivery_method || 'shipping',
+      delivery_status: isDirectDelivery ? 'delivered' : 'pending',
     } : o));
     setShippingOrder(null);
   };
@@ -835,11 +899,17 @@ const AdminOrderManager = () => {
                           : order.fulfillment_status === 'packing' ? 'border-orange-300 text-orange-700 dark:border-orange-700 dark:text-orange-400'
                           : 'border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-400'
                         }`}>
-                          {order.fulfillment_status === 'shipped' ? '📦 Skickad'
+                          {order.fulfillment_status === 'delivered' ? '✅ Levererad'
+                          : order.fulfillment_status === 'shipped' ? '📦 Skickad'
                           : order.fulfillment_status === 'ready_to_ship' ? '📮 Väntar postning'
                           : order.fulfillment_status === 'packed' ? '✅ Packad'
                           : order.fulfillment_status === 'packing' ? '🔧 Packas'
                           : '⏳ Att packa'}
+                        </Badge>
+                      )}
+                      {getDeliveryMethodLabel(order.delivery_method) && (
+                        <Badge variant="secondary" className="text-[10px] h-5">
+                          {getDeliveryMethodLabel(order.delivery_method)}
                         </Badge>
                       )}
                       {order.payment_method && (
@@ -855,10 +925,21 @@ const AdminOrderManager = () => {
                       {order.order_email} · {formatDate(order.created_at)}
                     </p>
                   </div>
-                   <div className="flex items-center gap-2">
-                    {/* Payment status is controlled by Stripe webhook only — no manual "mark as paid" */}
+                   <div className="flex items-center gap-2 flex-wrap">
+                    {/* "Köpt på plats" – only for unpaid orders */}
+                    {order.payment_status !== 'paid' && order.status !== 'cancelled' && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5 text-xs"
+                        onClick={(e) => { e.stopPropagation(); handleMarkOnSite(order); }}
+                      >
+                        <Package className="w-3.5 h-3.5" />
+                        Köpt på plats
+                      </Button>
+                    )}
                     {/* Fulfillment actions – only for paid orders */}
-                    {order.payment_status === 'paid' && !['packed', 'shipped'].includes(order.fulfillment_status) && !order.tracking_number && (
+                    {order.payment_status === 'paid' && !['packed', 'shipped', 'delivered'].includes(order.fulfillment_status) && !order.tracking_number && (
                       <Button
                         size="sm"
                         variant="outline"
@@ -869,7 +950,7 @@ const AdminOrderManager = () => {
                         {language === 'sv' ? 'Markera packad' : 'Mark packed'}
                       </Button>
                     )}
-                    {order.payment_status === 'paid' && order.fulfillment_status === 'packed' && (
+                    {order.payment_status === 'paid' && ['packed', 'ready_to_ship'].includes(order.fulfillment_status) && (
                       <Button
                         size="sm"
                         variant="outline"
@@ -877,7 +958,7 @@ const AdminOrderManager = () => {
                         onClick={(e) => { e.stopPropagation(); setShippingOrder(order); }}
                       >
                         <Truck className="w-3.5 h-3.5" />
-                        {language === 'sv' ? 'Lägg till frakt' : 'Add shipping'}
+                        {language === 'sv' ? 'Leveransmetod' : 'Delivery method'}
                       </Button>
                     )}
                     {/* Refund requests are handled via the dedicated Återbetalningar tab */}
@@ -1163,7 +1244,7 @@ const AdminOrderManager = () => {
                       <Printer className="w-4 h-4" />
                       {language === 'sv' ? 'Skriv ut' : 'Print'}
                     </Button>
-                    {order.payment_status === 'paid' && !['ready_to_ship', 'packed', 'shipped'].includes(order.fulfillment_status) && !order.tracking_number && (
+                    {order.payment_status === 'paid' && !['ready_to_ship', 'packed', 'shipped', 'delivered'].includes(order.fulfillment_status) && !order.tracking_number && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -1174,7 +1255,7 @@ const AdminOrderManager = () => {
                         {language === 'sv' ? 'Markera packad' : 'Mark packed'}
                       </Button>
                     )}
-                    {order.payment_status === 'paid' && (order.fulfillment_status === 'packed' || order.fulfillment_status === 'ready_to_ship') && (
+                    {order.payment_status === 'paid' && ['packed', 'ready_to_ship'].includes(order.fulfillment_status) && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -1182,7 +1263,7 @@ const AdminOrderManager = () => {
                         className="gap-2"
                       >
                         <Truck className="w-4 h-4" />
-                        {language === 'sv' ? 'Lägg till frakt' : 'Add shipping'}
+                        {language === 'sv' ? 'Leveransmetod' : 'Delivery method'}
                       </Button>
                     )}
                   </div>

@@ -123,7 +123,7 @@ const MiniWorkbench = () => {
         if (task?.related_order_id && ['pack_order', 'packing'].includes(task.task_type)) {
           const { data: order } = await supabase
             .from('orders')
-            .select('payment_status, fulfillment_status, status_history')
+            .select('payment_status, fulfillment_status, status_history, delivery_method')
             .eq('id', task.related_order_id)
             .maybeSingle();
 
@@ -132,14 +132,18 @@ const MiniWorkbench = () => {
             return;
           }
 
-          if (!hasOpenedLabelCheckpoint(order.status_history)) {
-            toast.error('Öppna fraktsedeln innan du markerar klar');
-            return;
-          }
+          // Only enforce tracking/label checkpoint for shipping orders
+          const isShipping = !order.delivery_method || order.delivery_method === 'shipping';
+          if (isShipping) {
+            if (!hasOpenedLabelCheckpoint(order.status_history)) {
+              toast.error('Öppna fraktsedeln innan du markerar klar');
+              return;
+            }
 
-          if (!['ready_to_ship', 'packed', 'shipped'].includes(order.fulfillment_status)) {
-            toast.error('Markera ordern som packad först');
-            return;
+            if (!['ready_to_ship', 'packed', 'shipped'].includes(order.fulfillment_status)) {
+              toast.error('Markera ordern som packad först');
+              return;
+            }
           }
         }
 
