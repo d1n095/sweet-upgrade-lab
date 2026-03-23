@@ -919,10 +919,21 @@ const AdminOrderManager = () => {
                       {order.order_email} · {formatDate(order.created_at)}
                     </p>
                   </div>
-                   <div className="flex items-center gap-2">
-                    {/* Payment status is controlled by Stripe webhook only — no manual "mark as paid" */}
+                   <div className="flex items-center gap-2 flex-wrap">
+                    {/* "Köpt på plats" – only for unpaid orders */}
+                    {order.payment_status !== 'paid' && order.status !== 'cancelled' && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5 text-xs"
+                        onClick={(e) => { e.stopPropagation(); handleMarkOnSite(order); }}
+                      >
+                        <Package className="w-3.5 h-3.5" />
+                        Köpt på plats
+                      </Button>
+                    )}
                     {/* Fulfillment actions – only for paid orders */}
-                    {order.payment_status === 'paid' && !['packed', 'shipped'].includes(order.fulfillment_status) && !order.tracking_number && (
+                    {order.payment_status === 'paid' && !['packed', 'shipped', 'delivered'].includes(order.fulfillment_status) && !order.tracking_number && (
                       <Button
                         size="sm"
                         variant="outline"
@@ -933,7 +944,7 @@ const AdminOrderManager = () => {
                         {language === 'sv' ? 'Markera packad' : 'Mark packed'}
                       </Button>
                     )}
-                    {order.payment_status === 'paid' && order.fulfillment_status === 'packed' && (
+                    {order.payment_status === 'paid' && ['packed', 'ready_to_ship'].includes(order.fulfillment_status) && (
                       <Button
                         size="sm"
                         variant="outline"
@@ -941,7 +952,7 @@ const AdminOrderManager = () => {
                         onClick={(e) => { e.stopPropagation(); setShippingOrder(order); }}
                       >
                         <Truck className="w-3.5 h-3.5" />
-                        {language === 'sv' ? 'Lägg till frakt' : 'Add shipping'}
+                        {language === 'sv' ? 'Leveransmetod' : 'Delivery method'}
                       </Button>
                     )}
                     {/* Refund requests are handled via the dedicated Återbetalningar tab */}
