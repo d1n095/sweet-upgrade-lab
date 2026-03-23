@@ -71,8 +71,7 @@ const AdminOverview = () => {
   });
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
   const [lowStockItems, setLowStockItems] = useState<LowStockProduct[]>([]);
-  const [focusTasks, setFocusTasks] = useState<FocusTask[]>([]);
-  const [focusIncidents, setFocusIncidents] = useState<FocusIncident[]>([]);
+  const [focusItems, setFocusItems] = useState<FocusWorkItem[]>([]);
   const [ordersToPack, setOrdersToPack] = useState(0);
 
   const load = async () => {
