@@ -11,7 +11,6 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // ── AUTH: Only allow calls with service role key or matching cron secret ──
   const authHeader = req.headers.get("Authorization") || "";
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const isServiceRole = authHeader === `Bearer ${serviceRoleKey}`;
@@ -19,7 +18,6 @@ Deno.serve(async (req) => {
   const isCronCall = cronSecret && req.headers.get("x-cron-secret") === cronSecret;
 
   if (!isServiceRole && !isCronCall) {
-    // Also accept anon key if called via scheduled cron (pg_net sends anon key)
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
     const isAnonCron = authHeader === `Bearer ${anonKey}`;
     if (!isAnonCron) {
@@ -35,40 +33,32 @@ Deno.serve(async (req) => {
     serviceRoleKey
   );
 
-  const results = {
-    escalated: 0,
-    reprioritized: 0,
-    reassigned: 0,
-    alerts: 0,
-  };
+  const results = { escalated: 0, reprioritized: 0, reassigned: 0, alerts: 0 };
 
   try {
-    // ─── 1. AUTO-ESCALATE: SLA overdue tasks ───
-    const { data: overdueTasks } = await supabase
-      .from("staff_tasks")
-      .select("id, title, assigned_to, priority, due_at, status, task_type")
+    // ─── 1. AUTO-ESCALATE: SLA overdue work items ───
+    const { data: overdueItems } = await supabase
+      .from("work_items")
+      .select("id, title, assigned_to, priority, due_at, status, item_type")
       .in("status", ["open", "claimed", "in_progress"])
       .not("due_at", "is", null)
       .lt("due_at", new Date().toISOString());
 
-    for (const task of overdueTasks || []) {
-      // Escalate priority
-      const newPriority = task.priority === "low" ? "medium" : "high";
+    for (const item of overdueItems || []) {
+      const newPriority = item.priority === "low" ? "medium" : "high";
       await supabase
-        .from("staff_tasks")
+        .from("work_items")
         .update({ priority: newPriority, updated_at: new Date().toISOString() })
-        .eq("id", task.id);
+        .eq("id", item.id);
 
-      // Log
       await supabase.from("automation_logs").insert({
         action_type: "escalate",
-        target_type: "task",
-        target_id: task.id,
+        target_type: "work_item",
+        target_id: item.id,
         reason: `SLA överskriden. Prioritet höjd till ${newPriority}.`,
-        details: { old_priority: task.priority, new_priority: newPriority },
+        details: { old_priority: item.priority, new_priority: newPriority },
       });
 
-      // Notify admins
       const { data: admins } = await supabase
         .from("user_roles")
         .select("user_id")
@@ -78,15 +68,15 @@ Deno.serve(async (req) => {
         await supabase.from("notifications").insert({
           user_id: a.user_id,
           type: "urgent",
-          message: `⏰ Auto-eskalerad: ${task.title}`,
-          related_id: task.id,
-          related_type: "task",
+          message: `⏰ Auto-eskalerad: ${item.title}`,
+          related_id: item.id,
+          related_type: "work_item",
         });
       }
       results.escalated++;
     }
 
-    // ─── 2. AUTO-ESCALATE: SLA overdue incidents ───
+    // ─── 2. AUTO-ESCALATE: SLA overdue incidents (sync) ───
     const { data: overdueIncidents } = await supabase
       .from("order_incidents")
       .select("id, title, priority, sla_deadline, status, assigned_to")
@@ -105,9 +95,16 @@ Deno.serve(async (req) => {
         })
         .eq("id", inc.id);
 
+      // Also escalate linked work_item
+      await supabase
+        .from("work_items")
+        .update({ priority: "high", status: "escalated", updated_at: new Date().toISOString() })
+        .eq("source_type", "order_incident")
+        .eq("source_id", inc.id);
+
       await supabase.from("automation_logs").insert({
         action_type: "escalate",
-        target_type: "incident",
+        target_type: "work_item",
         target_id: inc.id,
         reason: `SLA-deadline passerad. Eskalerat till hög prioritet.`,
       });
@@ -116,41 +113,37 @@ Deno.serve(async (req) => {
 
     // ─── 3. AUTO-REASSIGN: Claimed but idle > 10min ───
     const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-    const { data: idleClaimedTasks } = await supabase
-      .from("staff_tasks")
-      .select("id, title, assigned_to, claimed_by, claimed_at, task_type")
+    const { data: idleClaimed } = await supabase
+      .from("work_items")
+      .select("id, title, assigned_to, claimed_by, claimed_at, item_type")
       .eq("status", "claimed")
       .not("claimed_at", "is", null)
       .lt("claimed_at", tenMinAgo);
 
-    for (const task of idleClaimedTasks || []) {
-      const { data: newAssignee } = await supabase.rpc("auto_assign_task", {
-        p_task_type: task.task_type,
-      });
-
-      await supabase.from("staff_tasks").update({
+    for (const item of idleClaimed || []) {
+      await supabase.from("work_items").update({
         status: "open",
         assigned_to: null,
         claimed_by: null,
         claimed_at: null,
         updated_at: new Date().toISOString(),
-      }).eq("id", task.id);
+      }).eq("id", item.id);
 
       await supabase.from("automation_logs").insert({
         action_type: "reassign",
-        target_type: "task",
-        target_id: task.id,
+        target_type: "work_item",
+        target_id: item.id,
         reason: `Claimed i >10min utan start. Återställd till öppen.`,
-        details: { old_assignee: task.claimed_by },
+        details: { old_assignee: item.claimed_by },
       });
 
-      if (task.claimed_by) {
+      if (item.claimed_by) {
         await supabase.from("notifications").insert({
-          user_id: task.claimed_by,
+          user_id: item.claimed_by,
           type: "info",
-          message: `🔄 Uppgift timeout: ${task.title}`,
-          related_id: task.id,
-          related_type: "task",
+          message: `🔄 Uppgift timeout: ${item.title}`,
+          related_id: item.id,
+          related_type: "work_item",
         });
       }
       results.reassigned++;
@@ -158,42 +151,42 @@ Deno.serve(async (req) => {
 
     // ─── 3b. AUTO-REASSIGN: in_progress but idle > 60min ───
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-    const { data: idleInProgressTasks } = await supabase
-      .from("staff_tasks")
-      .select("id, title, assigned_to, claimed_by, updated_at, task_type")
+    const { data: idleInProgress } = await supabase
+      .from("work_items")
+      .select("id, title, assigned_to, claimed_by, updated_at, item_type")
       .eq("status", "in_progress")
       .lt("updated_at", oneHourAgo);
 
-    for (const task of idleInProgressTasks || []) {
-      await supabase.from("staff_tasks").update({
+    for (const item of idleInProgress || []) {
+      await supabase.from("work_items").update({
         status: "open",
         assigned_to: null,
         claimed_by: null,
         claimed_at: null,
         updated_at: new Date().toISOString(),
-      }).eq("id", task.id);
+      }).eq("id", item.id);
 
       await supabase.from("automation_logs").insert({
         action_type: "reassign",
-        target_type: "task",
-        target_id: task.id,
+        target_type: "work_item",
+        target_id: item.id,
         reason: `In progress >60min utan aktivitet. Återställd till öppen.`,
-        details: { old_assignee: task.claimed_by },
+        details: { old_assignee: item.claimed_by },
       });
 
-      if (task.claimed_by) {
+      if (item.claimed_by) {
         await supabase.from("notifications").insert({
-          user_id: task.claimed_by,
+          user_id: item.claimed_by,
           type: "info",
-          message: `🔄 Uppgift timeout (inaktiv >1h): ${task.title}`,
-          related_id: task.id,
-          related_type: "task",
+          message: `🔄 Uppgift timeout (inaktiv >1h): ${item.title}`,
+          related_id: item.id,
+          related_type: "work_item",
         });
       }
       results.reassigned++;
     }
 
-    // ─── 4. AUTO-REPRIORITIZE: High value orders with incidents ───
+    // ─── 4. AUTO-REPRIORITIZE: High value orders ───
     const { data: highValueOrders } = await supabase
       .from("orders")
       .select("id, total_amount")
@@ -202,24 +195,23 @@ Deno.serve(async (req) => {
       .gte("total_amount", 500);
 
     for (const order of highValueOrders || []) {
-      // Check if related tasks exist and are not already high
-      const { data: relatedTasks } = await supabase
-        .from("staff_tasks")
+      const { data: relatedItems } = await supabase
+        .from("work_items")
         .select("id, priority")
         .eq("related_order_id", order.id)
         .neq("priority", "high")
         .in("status", ["open", "claimed", "in_progress"]);
 
-      for (const task of relatedTasks || []) {
+      for (const item of relatedItems || []) {
         await supabase
-          .from("staff_tasks")
+          .from("work_items")
           .update({ priority: "high", updated_at: new Date().toISOString() })
-          .eq("id", task.id);
+          .eq("id", item.id);
 
         await supabase.from("automation_logs").insert({
           action_type: "reprioritize",
-          target_type: "task",
-          target_id: task.id,
+          target_type: "work_item",
+          target_id: item.id,
           reason: `Hög ordervärde (${order.total_amount} kr). Prioritet höjd.`,
           details: { order_id: order.id, order_amount: order.total_amount },
         });
@@ -227,32 +219,32 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ─── 5. AUTO-CLEANUP: Cancel orphan tasks (order deleted) ───
-    const { data: orphanTasks } = await supabase
-      .from("staff_tasks")
+    // ─── 5. AUTO-CLEANUP: Cancel orphan work items (order deleted) ───
+    const { data: orphanItems } = await supabase
+      .from("work_items")
       .select("id, related_order_id")
       .not("related_order_id", "is", null)
       .in("status", ["open", "claimed", "in_progress", "escalated"]);
 
     let orphansCancelled = 0;
-    for (const task of orphanTasks || []) {
+    for (const item of orphanItems || []) {
       const { data: order } = await supabase
         .from("orders")
         .select("id, deleted_at")
-        .eq("id", task.related_order_id!)
+        .eq("id", item.related_order_id!)
         .single();
 
       if (!order || order.deleted_at) {
-        await supabase.from("staff_tasks").update({
+        await supabase.from("work_items").update({
           status: "cancelled",
           updated_at: new Date().toISOString(),
-        }).eq("id", task.id);
+        }).eq("id", item.id);
 
         await supabase.from("automation_logs").insert({
           action_type: "cleanup",
-          target_type: "task",
-          target_id: task.id,
-          reason: "Order raderad – task automatiskt avbruten.",
+          target_type: "work_item",
+          target_id: item.id,
+          reason: "Order raderad – uppgift automatiskt avbruten.",
         });
         orphansCancelled++;
       }
@@ -269,7 +261,6 @@ Deno.serve(async (req) => {
       .eq("status", "active");
 
     for (const prod of activeProducts || []) {
-      // Count units sold from orders in last 7/30 days
       const { data: orders7d } = await supabase
         .from("orders")
         .select("items")
@@ -301,7 +292,6 @@ Deno.serve(async (req) => {
         units_sold_30d: sold30d,
       }).eq("id", prod.id);
 
-      // Alert if stock is low
       if (prod.stock <= prod.low_stock_threshold && prod.stock > 0) {
         const { data: admins } = await supabase
           .from("user_roles")
@@ -332,7 +322,6 @@ Deno.serve(async (req) => {
     }
 
     // ─── 6. AUTO-ALERTS: Bottleneck detection ───
-    // Alert if >5 orders stuck in same status for >24h
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const { data: stuckOrders, count: stuckCount } = await supabase
       .from("orders")
@@ -348,7 +337,6 @@ Deno.serve(async (req) => {
         .in("role", ["admin", "founder"]);
 
       for (const a of admins || []) {
-        // Avoid duplicate alerts: check recent
         const { data: recent } = await supabase
           .from("notifications")
           .select("id")

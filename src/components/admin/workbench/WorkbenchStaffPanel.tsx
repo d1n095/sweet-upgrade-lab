@@ -47,16 +47,16 @@ const WorkbenchStaffPanel = () => {
       if (!roles?.length) return [];
 
       const userIds = [...new Set(roles.map(r => r.user_id))];
-      const [profilesRes, tasksRes, templatesRes, perfRes] = await Promise.all([
+      const [profilesRes, itemsRes, templatesRes, perfRes] = await Promise.all([
         supabase.from('profiles').select('user_id, username, avatar_url').in('user_id', userIds),
-        supabase.from('staff_tasks').select('claimed_by, status').neq('status', 'done'),
+        supabase.from('work_items' as any).select('claimed_by, status').neq('status', 'done'),
         supabase.from('role_templates').select('role_key, name_sv'),
         supabase.from('staff_performance').select('*').in('user_id', userIds),
       ]);
 
       const profiles = new Map((profilesRes.data || []).map(p => [p.user_id, p]));
       const templates = new Map((templatesRes.data || []).map(t => [t.role_key, t.name_sv]));
-      const tasks = tasksRes.data || [];
+      const workItems = (itemsRes.data || []) as any[];
       const perfMap = new Map((perfRes.data || []).map((p: any) => [p.user_id, p]));
 
       const roleOrder = ['founder', 'admin', 'it', 'manager', 'moderator', 'support', 'marketing', 'finance', 'warehouse'];
@@ -65,7 +65,7 @@ const WorkbenchStaffPanel = () => {
         const userRoles = roles.filter(r => r.user_id === uid);
         const highestRole = roleOrder.find(ro => userRoles.some(r => r.role === ro)) || 'user';
         const profile = profiles.get(uid);
-        const activeTasks = tasks.filter(t => t.claimed_by === uid).length;
+        const activeTasks = workItems.filter((t: any) => t.claimed_by === uid).length;
         const perf = perfMap.get(uid) || null;
 
         return {
@@ -81,7 +81,6 @@ const WorkbenchStaffPanel = () => {
     },
   });
 
-  // Leaderboard sorted by points
   const leaderboard = useMemo(() =>
     [...staffData].filter(s => s.perf && s.perf.tasks_completed > 0).sort((a, b) => (b.perf?.points ?? 0) - (a.perf?.points ?? 0)),
     [staffData]
@@ -95,7 +94,6 @@ const WorkbenchStaffPanel = () => {
 
   const selected = selectedUser ? staffData.find(s => s.user_id === selectedUser) : null;
 
-  // Detail view
   if (selected) {
     const slaTotal = (selected.perf?.sla_hits ?? 0) + (selected.perf?.sla_misses ?? 0);
     const slaRate = slaTotal > 0 ? Math.round(((selected.perf?.sla_hits ?? 0) / slaTotal) * 100) : 0;
@@ -144,7 +142,6 @@ const WorkbenchStaffPanel = () => {
 
   return (
     <div className="space-y-4">
-      {/* Leaderboard */}
       {leaderboard.length > 0 && (
         <Card>
           <CardContent className="pt-4 pb-4">
@@ -171,7 +168,6 @@ const WorkbenchStaffPanel = () => {
         </Card>
       )}
 
-      {/* Search + grid */}
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Sök personal..." className="pl-9" />

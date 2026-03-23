@@ -32,24 +32,15 @@ interface LowStockProduct {
   reserved_stock: number;
 }
 
-interface FocusTask {
+interface FocusWorkItem {
   id: string;
   title: string;
   priority: string;
-  task_type: string;
+  item_type: string;
   status: string;
   due_at: string | null;
   related_order_id: string | null;
-}
-
-interface FocusIncident {
-  id: string;
-  title: string;
-  priority: string;
-  sla_status: string;
-  sla_deadline: string | null;
-  order_id: string;
-  status: string;
+  source_type: string | null;
 }
 
 const statusColors: Record<string, string> = {
@@ -80,8 +71,7 @@ const AdminOverview = () => {
   });
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
   const [lowStockItems, setLowStockItems] = useState<LowStockProduct[]>([]);
-  const [focusTasks, setFocusTasks] = useState<FocusTask[]>([]);
-  const [focusIncidents, setFocusIncidents] = useState<FocusIncident[]>([]);
+  const [focusItems, setFocusItems] = useState<FocusWorkItem[]>([]);
   const [ordersToPack, setOrdersToPack] = useState(0);
 
   const load = async () => {
@@ -91,16 +81,14 @@ const AdminOverview = () => {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-      const [products, orders, todayOrders, members, reviews, tasks, incidents, packOrders, analytics] = await Promise.all([
+      const [products, orders, todayOrders, members, reviews, workItems, packOrders, analytics] = await Promise.all([
         supabase.from('products').select('id, title_sv, stock, reserved_stock, allow_overselling'),
         supabase.from('orders').select('id, status, total_amount, payment_status').is('deleted_at', null),
         supabase.from('orders').select('id, total_amount, payment_status').is('deleted_at', null).gte('created_at', todayStart.toISOString()),
         supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('is_member', true),
         supabase.from('reviews').select('id', { count: 'exact', head: true }).eq('is_approved', false),
-        supabase.from('staff_tasks').select('id, title, priority, task_type, status, due_at, related_order_id')
-          .neq('status', 'done').neq('status', 'cancelled').order('created_at', { ascending: false }).limit(5),
-        supabase.from('order_incidents').select('id, title, priority, sla_status, sla_deadline, order_id, status')
-          .neq('status', 'resolved').neq('status', 'closed').order('created_at', { ascending: false }).limit(5),
+        supabase.from('work_items' as any).select('id, title, priority, item_type, status, due_at, related_order_id, source_type')
+          .neq('status', 'done').neq('status', 'cancelled').order('created_at', { ascending: false }).limit(10),
         supabase.from('orders').select('id', { count: 'exact', head: true }).is('deleted_at', null).eq('payment_status', 'paid').in('fulfillment_status', ['pending', 'unfulfilled']),
         supabase.from('analytics_events').select('event_type').in('event_type', ['product_view', 'checkout_start', 'checkout_complete']).gte('created_at', thirtyDaysAgo.toISOString()),
       ]);
@@ -132,8 +120,8 @@ const AdminOverview = () => {
       });
 
       setLowStockItems(lowStock.slice(0, 5) as LowStockProduct[]);
-      setFocusTasks((tasks.data || []) as FocusTask[]);
-      setFocusIncidents((incidents.data || []) as FocusIncident[]);
+      const allWorkItems = (workItems.data || []) as unknown as FocusWorkItem[];
+      setFocusItems(allWorkItems);
       setOrdersToPack(packOrders.count || 0);
 
       const { data: recent } = await supabase
@@ -155,7 +143,7 @@ const AdminOverview = () => {
     const channel = supabase
       .channel('dashboard-orders')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => load())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'staff_tasks' }, () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'work_items' }, () => load())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, []);
@@ -174,16 +162,18 @@ const AdminOverview = () => {
 
   const actionItems = useMemo(() => {
     const items: { label: string; desc: string; href: string; icon: any; color: string; bg: string }[] = [];
-    const overdueInc = focusIncidents.filter(i => i.sla_status === 'overdue');
-    if (overdueInc.length > 0) items.push({ label: 'Lös försenat ärende', desc: overdueInc[0].title, href: '/admin/orders', icon: AlertTriangle, color: 'text-destructive', bg: 'bg-destructive/10' });
-    const highTasks = focusTasks.filter(t => t.priority === 'high');
-    if (highTasks.length > 0) items.push({ label: `${highTasks.length} hög prioritet`, desc: highTasks[0].title, href: '/admin/staff', icon: Zap, color: 'text-orange-600', bg: 'bg-orange-500/10' });
+    const escalatedItems = focusItems.filter(i => i.status === 'escalated' || i.priority === 'critical');
+    if (escalatedItems.length > 0) items.push({ label: 'Lös eskalerat ärende', desc: escalatedItems[0].title, href: '/admin/staff', icon: AlertTriangle, color: 'text-destructive', bg: 'bg-destructive/10' });
+    const highItems = focusItems.filter(t => t.priority === 'high');
+    if (highItems.length > 0) items.push({ label: `${highItems.length} hög prioritet`, desc: highItems[0].title, href: '/admin/staff', icon: Zap, color: 'text-orange-600', bg: 'bg-orange-500/10' });
+    const bugItems = focusItems.filter(t => t.item_type === 'bug');
+    if (bugItems.length > 0) items.push({ label: `${bugItems.length} öppna buggar`, desc: bugItems[0].title, href: '/admin/staff', icon: AlertTriangle, color: 'text-red-600', bg: 'bg-red-500/10' });
     if (ordersToPack > 0) items.push({ label: `Packa ${ordersToPack} order`, desc: 'Väntar på packning', href: '/admin/orders', icon: Package, color: 'text-blue-600', bg: 'bg-blue-500/10' });
     if (stats.lowStockProducts > 0) items.push({ label: `${stats.lowStockProducts} lågt lager`, desc: 'Kontrollera lagerstatus', href: '/admin/products', icon: Package, color: 'text-amber-600', bg: 'bg-amber-500/10' });
     if (stats.pendingReviews > 0) items.push({ label: 'Granska recensioner', desc: `${stats.pendingReviews} väntande`, href: '/admin/communication', icon: Star, color: 'text-yellow-600', bg: 'bg-yellow-500/10' });
     if (stats.conversionRate > 0 && stats.conversionRate < 30) items.push({ label: 'Låg konvertering', desc: `${stats.conversionRate}% — kontrollera checkout-flödet`, href: '/admin/stats', icon: TrendingUp, color: 'text-purple-600', bg: 'bg-purple-500/10' });
     return items;
-  }, [focusIncidents, focusTasks, ordersToPack, stats.pendingReviews, stats.lowStockProducts, stats.conversionRate]);
+  }, [focusItems, ordersToPack, stats.pendingReviews, stats.lowStockProducts, stats.conversionRate]);
 
   const recommended = actionItems[0] || { label: 'Allt under kontroll', desc: 'Inga brådskande uppgifter', href: '#', icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-500/10' };
 
@@ -336,24 +326,24 @@ const AdminOverview = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {focusIncidents.length === 0 && focusTasks.filter(t => t.priority === 'high').length === 0 && stats.lowStockProducts === 0 ? (
+            {focusItems.filter(i => i.status === 'escalated' || i.priority === 'critical').length === 0 && focusItems.filter(t => t.priority === 'high').length === 0 && stats.lowStockProducts === 0 ? (
               <div className="flex flex-col items-center py-4 text-center">
                 <CheckCircle2 className="w-7 h-7 text-green-500/50 mb-1.5" />
                 <p className="text-xs text-muted-foreground">Inga aktiva varningar</p>
               </div>
             ) : (
               <>
-                {focusIncidents.filter(i => i.sla_status === 'overdue').map(inc => (
-                  <button key={inc.id} onClick={() => navigate('/admin/orders')} className="w-full flex items-center gap-2 p-2 rounded-md bg-destructive/5 hover:bg-destructive/10 transition-colors text-left">
+                {focusItems.filter(i => i.status === 'escalated' || i.priority === 'critical').map(item => (
+                  <button key={item.id} onClick={() => navigate('/admin/staff')} className="w-full flex items-center gap-2 p-2 rounded-md bg-destructive/5 hover:bg-destructive/10 transition-colors text-left">
                     <AlertTriangle className="w-3.5 h-3.5 text-destructive shrink-0" />
-                    <span className="text-xs truncate flex-1">{inc.title}</span>
-                    <Badge variant="destructive" className="text-[9px]">SLA</Badge>
+                    <span className="text-xs truncate flex-1">{item.title}</span>
+                    <Badge variant="destructive" className="text-[9px]">{item.item_type === 'incident' ? 'SLA' : 'KRIT'}</Badge>
                   </button>
                 ))}
-                {focusTasks.filter(t => t.priority === 'high').map(task => (
-                  <button key={task.id} onClick={() => navigate('/admin/staff')} className="w-full flex items-center gap-2 p-2 rounded-md bg-orange-500/5 hover:bg-orange-500/10 transition-colors text-left">
+                {focusItems.filter(t => t.priority === 'high' && t.status !== 'escalated').map(item => (
+                  <button key={item.id} onClick={() => navigate('/admin/staff')} className="w-full flex items-center gap-2 p-2 rounded-md bg-orange-500/5 hover:bg-orange-500/10 transition-colors text-left">
                     <Zap className="w-3.5 h-3.5 text-orange-600 shrink-0" />
-                    <span className="text-xs truncate flex-1">{task.title}</span>
+                    <span className="text-xs truncate flex-1">{item.title}</span>
                     <Badge variant="outline" className="text-[9px] border-orange-400 text-orange-600">HÖG</Badge>
                   </button>
                 ))}

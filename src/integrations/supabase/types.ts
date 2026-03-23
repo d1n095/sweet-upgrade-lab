@@ -2814,6 +2814,84 @@ export type Database = {
         }
         Relationships: []
       }
+      work_items: {
+        Row: {
+          assigned_to: string | null
+          claimed_at: string | null
+          claimed_by: string | null
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          due_at: string | null
+          id: string
+          item_type: string
+          priority: string
+          related_incident_id: string | null
+          related_order_id: string | null
+          source_id: string | null
+          source_type: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          claimed_at?: string | null
+          claimed_by?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_at?: string | null
+          id?: string
+          item_type?: string
+          priority?: string
+          related_incident_id?: string | null
+          related_order_id?: string | null
+          source_id?: string | null
+          source_type?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          claimed_at?: string | null
+          claimed_by?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_at?: string | null
+          id?: string
+          item_type?: string
+          priority?: string
+          related_incident_id?: string | null
+          related_order_id?: string | null
+          source_id?: string | null
+          source_type?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_items_related_incident_id_fkey"
+            columns: ["related_incident_id"]
+            isOneToOne: false
+            referencedRelation: "order_incidents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_items_related_order_id_fkey"
+            columns: ["related_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       profiles_limited: {
@@ -2906,6 +2984,7 @@ export type Database = {
         }[]
       }
       auto_assign_task: { Args: { p_task_type: string }; Returns: string }
+      auto_assign_work_item: { Args: { p_item_type: string }; Returns: string }
       calculate_level: { Args: { p_xp: number }; Returns: number }
       check_review_eligibility: {
         Args: { p_product_id: string; p_user_id: string }
