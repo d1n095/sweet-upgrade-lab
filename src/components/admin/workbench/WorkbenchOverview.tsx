@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ClipboardList, AlertTriangle, Package, Clock, ArrowRight } from 'lucide-react';
+import { ClipboardList, AlertTriangle, Package, Clock, ArrowRight, Bug, ShieldAlert } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
@@ -12,9 +12,8 @@ const WorkbenchOverview = ({ onNavigate }: Props) => {
   const { data: stats } = useQuery({
     queryKey: ['workbench-stats'],
     queryFn: async () => {
-      const [tasksRes, incidentsRes, ordersRes] = await Promise.all([
-        supabase.from('staff_tasks').select('status', { count: 'exact', head: false }).neq('status', 'cancelled'),
-        supabase.from('order_incidents').select('status, priority, sla_status'),
+      const [itemsRes, ordersRes] = await Promise.all([
+        supabase.from('work_items' as any).select('status, priority, item_type, source_type').neq('status', 'cancelled'),
         supabase
           .from('orders')
           .select('status, payment_status, fulfillment_status')
@@ -23,15 +22,15 @@ const WorkbenchOverview = ({ onNavigate }: Props) => {
           .eq('payment_status', 'paid'),
       ]);
 
-      const tasks = tasksRes.data || [];
-      const incidents = incidentsRes.data || [];
+      const items = (itemsRes.data || []) as any[];
       const orders = ordersRes.data || [];
 
       return {
-        openTasks: tasks.filter(t => t.status !== 'done').length,
-        inProgressTasks: tasks.filter(t => t.status === 'in_progress').length,
-        escalatedTasks: tasks.filter(t => t.status === 'escalated').length,
-        escalatedIncidents: incidents.filter(i => i.sla_status === 'overdue' || i.priority === 'high').length,
+        openItems: items.filter(t => !['done', 'cancelled'].includes(t.status)).length,
+        inProgressItems: items.filter(t => t.status === 'in_progress').length,
+        escalatedItems: items.filter(t => t.status === 'escalated' || t.priority === 'critical').length,
+        bugItems: items.filter(t => t.item_type === 'bug' && t.status !== 'done').length,
+        incidentItems: items.filter(t => t.item_type === 'incident' && t.status !== 'done').length,
         ordersToPack: orders.filter(o => ['pending', 'unfulfilled', 'packing'].includes((o as any).fulfillment_status)).length,
         readyToShip: orders.filter(o => ['ready_to_ship', 'packed'].includes((o as any).fulfillment_status)).length,
       };
@@ -42,17 +41,31 @@ const WorkbenchOverview = ({ onNavigate }: Props) => {
   const cards = [
     {
       label: 'Aktiva uppgifter',
-      value: stats?.openTasks ?? 0,
+      value: stats?.openItems ?? 0,
       icon: ClipboardList,
       color: 'text-blue-600 bg-blue-600/10',
       onClick: () => onNavigate('workboard'),
     },
     {
       label: 'Eskalerade',
-      value: (stats?.escalatedTasks ?? 0) + (stats?.escalatedIncidents ?? 0),
+      value: stats?.escalatedItems ?? 0,
       icon: AlertTriangle,
       color: 'text-destructive bg-destructive/10',
       onClick: () => onNavigate('workboard', 'escalated'),
+    },
+    {
+      label: 'Buggar',
+      value: stats?.bugItems ?? 0,
+      icon: Bug,
+      color: 'text-red-600 bg-red-600/10',
+      onClick: () => onNavigate('workboard', 'bugs'),
+    },
+    {
+      label: 'Incidents',
+      value: stats?.incidentItems ?? 0,
+      icon: ShieldAlert,
+      color: 'text-amber-600 bg-amber-600/10',
+      onClick: () => onNavigate('workboard', 'incidents'),
     },
     {
       label: 'Orders att packa',
@@ -71,7 +84,7 @@ const WorkbenchOverview = ({ onNavigate }: Props) => {
   ];
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
       {cards.map((card) => (
         <Card
           key={card.label}

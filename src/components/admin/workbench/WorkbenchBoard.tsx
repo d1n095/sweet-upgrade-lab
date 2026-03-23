@@ -13,7 +13,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Plus, User, Clock, CheckCircle2, Circle, Play, X, Zap, UserCheck, Bot,
   AlertTriangle, Package, Headphones, RotateCcw, FileText, Wrench, ShieldAlert,
-  FastForward, Pause, ArrowRight, Sparkles, Timer, ToggleRight,
+  FastForward, Pause, ArrowRight, Sparkles, Timer, ToggleRight, Bug, Link2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -22,7 +22,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { getOrderDisplayId } from '@/utils/orderDisplay';
 import { useNavigate } from 'react-router-dom';
 
-interface Task {
+interface WorkItem {
   id: string;
   title: string;
   description: string | null;
@@ -30,13 +30,17 @@ interface Task {
   priority: string;
   assigned_to: string | null;
   claimed_by: string | null;
-  task_type: string;
+  item_type: string;
+  source_type: string | null;
+  source_id: string | null;
   due_at: string | null;
   completed_at: string | null;
   created_by: string | null;
   created_at: string;
+  updated_at: string;
   related_order_id: string | null;
   related_incident_id: string | null;
+  claimed_at: string | null;
 }
 
 const STATUS_COLUMNS = [
@@ -48,12 +52,13 @@ const STATUS_COLUMNS = [
 ];
 
 const PRIORITY_COLORS: Record<string, string> = {
+  critical: 'bg-destructive/20 text-destructive border-destructive/30',
   high: 'bg-destructive/10 text-destructive border-destructive/20',
   medium: 'bg-yellow-500/10 text-yellow-700 border-yellow-500/20',
   low: 'bg-green-500/10 text-green-700 border-green-500/20',
 };
 
-const TASK_TYPE_META: Record<string, { label: string; icon: typeof Package; color: string }> = {
+const ITEM_TYPE_META: Record<string, { label: string; icon: typeof Package; color: string }> = {
   pack_order: { label: 'Packning', icon: Package, color: 'text-orange-600 bg-orange-600/10' },
   packing: { label: 'Packning', icon: Package, color: 'text-orange-600 bg-orange-600/10' },
   shipping: { label: 'Frakt', icon: Package, color: 'text-blue-600 bg-blue-600/10' },
@@ -62,30 +67,33 @@ const TASK_TYPE_META: Record<string, { label: string; icon: typeof Package; colo
   refund_request: { label: 'Återbetalning', icon: RotateCcw, color: 'text-purple-600 bg-purple-600/10' },
   refund: { label: 'Återbetalning', icon: RotateCcw, color: 'text-purple-600 bg-purple-600/10' },
   incident: { label: 'Incident', icon: ShieldAlert, color: 'text-destructive bg-destructive/10' },
+  bug: { label: 'Bugg', icon: Bug, color: 'text-red-600 bg-red-600/10' },
+  sla: { label: 'SLA', icon: Clock, color: 'text-amber-600 bg-amber-600/10' },
   review: { label: 'Recension', icon: FileText, color: 'text-pink-600 bg-pink-600/10' },
+  manual: { label: 'Manuell', icon: Wrench, color: 'text-muted-foreground bg-secondary' },
   manual_task: { label: 'Manuell', icon: Wrench, color: 'text-muted-foreground bg-secondary' },
   general: { label: 'Allmänt', icon: FileText, color: 'text-muted-foreground bg-secondary' },
   other: { label: 'Övrigt', icon: FileText, color: 'text-muted-foreground bg-secondary' },
 };
 
-const TASK_TYPES = [
+const ITEM_TYPES = [
   { key: 'general', label: 'Allmänt' },
   { key: 'pack_order', label: 'Packning' },
   { key: 'shipping', label: 'Frakt' },
   { key: 'support_case', label: 'Support' },
   { key: 'refund_request', label: 'Återbetalning' },
   { key: 'incident', label: 'Incident' },
-  { key: 'manual_task', label: 'Manuell' },
+  { key: 'bug', label: 'Bugg' },
+  { key: 'manual', label: 'Manuell' },
   { key: 'other', label: 'Övrigt' },
 ];
 
-type ViewFilter = 'all' | 'mine' | 'escalated' | 'open' | 'done';
+type ViewFilter = 'all' | 'mine' | 'escalated' | 'open' | 'done' | 'bugs' | 'incidents';
 
 interface Props {
   initialFilter?: string;
 }
 
-// Task Snapshot: shows order info inline
 const TaskSnapshot = ({ orderId }: { orderId: string }) => {
   const { data: order } = useQuery({
     queryKey: ['task-snapshot', orderId],
@@ -156,8 +164,8 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     },
   });
 
-  const getTaskAutomationBadge = (taskId: string) => {
-    const log = automationLogs.find(l => l.target_id === taskId);
+  const getItemAutomationBadge = (itemId: string) => {
+    const log = automationLogs.find(l => l.target_id === itemId);
     if (!log) return null;
     return log.action_type;
   };
@@ -169,7 +177,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
       if (error) throw error;
       const r = data?.results;
       toast.success(`Automation klar: ${r?.escalated || 0} eskalerade, ${r?.reassigned || 0} omfördelade`);
-      queryClient.invalidateQueries({ queryKey: ['staff-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['work-items'] });
       queryClient.invalidateQueries({ queryKey: ['automation-logs-recent'] });
     } catch (e: any) {
       toast.error('Automation misslyckades: ' + e.message);
@@ -201,31 +209,30 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     return p?.username || userId.slice(0, 6);
   };
 
-  const { data: tasks = [], isLoading } = useQuery({
-    queryKey: ['staff-tasks'],
+  const { data: items = [], isLoading } = useQuery({
+    queryKey: ['work-items'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('staff_tasks')
+        .from('work_items' as any)
         .select('*')
         .neq('status', 'cancelled')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return (data || []) as Task[];
+      return (data || []) as unknown as WorkItem[];
     },
   });
 
   useEffect(() => {
     const channel = supabase
-      .channel('staff-tasks-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'staff_tasks' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['staff-tasks'] });
+      .channel('work-items-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'work_items' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['work-items'] });
         queryClient.invalidateQueries({ queryKey: ['workbench-stats'] });
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [queryClient]);
 
-  // Fetch user skills for filtering
   const { data: userSkills = [] } = useQuery({
     queryKey: ['user-skills', user?.id],
     queryFn: async () => {
@@ -240,8 +247,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     enabled: !!user?.id,
   });
 
-  // Filter tasks based on view
-  const filteredTasks = tasks.filter(t => {
+  const filteredItems = items.filter(t => {
     if (viewFilter === 'mine') {
       const isMine = t.assigned_to === user?.id || t.claimed_by === user?.id;
       if (isMine) return t.status !== 'done';
@@ -250,71 +256,63 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     if (viewFilter === 'done') return (t.assigned_to === user?.id || t.claimed_by === user?.id) && t.status === 'done';
     if (viewFilter === 'escalated') return t.status === 'escalated';
     if (viewFilter === 'open') return t.status === 'open';
-    // Default 'all' - exclude done
+    if (viewFilter === 'bugs') return t.item_type === 'bug' && t.status !== 'done';
+    if (viewFilter === 'incidents') return t.item_type === 'incident' && t.status !== 'done';
     return t.status !== 'done';
   });
 
-  // Auto-fallback: if "mine" is empty (no active tasks), show all open
-  const myActiveCount = tasks.filter(t => (t.assigned_to === user?.id || t.claimed_by === user?.id) && t.status !== 'done' && t.status !== 'cancelled').length;
-  const effectiveFilter = viewFilter === 'mine' && myActiveCount === 0 ? 'open' : viewFilter;
+  const myActiveCount = items.filter(t => (t.assigned_to === user?.id || t.claimed_by === user?.id) && t.status !== 'done' && t.status !== 'cancelled').length;
 
-  // Sort: escalated first, then high priority, then oldest
-  const sortedTasks = [...filteredTasks].sort((a, b) => {
+  const sortedItems = [...filteredItems].sort((a, b) => {
     if (a.status === 'escalated' && b.status !== 'escalated') return -1;
     if (b.status === 'escalated' && a.status !== 'escalated') return 1;
-    const pOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
-    const pDiff = (pOrder[a.priority] ?? 1) - (pOrder[b.priority] ?? 1);
+    const pOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+    const pDiff = (pOrder[a.priority] ?? 2) - (pOrder[b.priority] ?? 2);
     if (pDiff !== 0) return pDiff;
     return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
   });
 
-  const escalateTask = async (taskId: string) => {
+  const escalateItem = async (itemId: string) => {
     if (!user) return;
-    setEscalating(taskId);
+    setEscalating(itemId);
     try {
-      // Set task to escalated + high priority
-      await supabase.from('staff_tasks').update({
+      await supabase.from('work_items' as any).update({
         status: 'escalated',
         priority: 'high',
         updated_at: new Date().toISOString(),
-      } as any).eq('id', taskId);
+      }).eq('id', itemId);
 
-      // Auto-assign to admin/founder
-      const { data: adminUser } = await supabase.rpc('auto_assign_task', { p_task_type: 'support' });
+      const { data: adminUser } = await supabase.rpc('auto_assign_work_item', { p_item_type: 'support' });
       if (adminUser) {
-        await supabase.from('staff_tasks').update({
-          assigned_to: adminUser,
-        } as any).eq('id', taskId);
+        await supabase.from('work_items' as any).update({ assigned_to: adminUser }).eq('id', itemId);
       }
 
-      // Notify admins
       const { data: admins } = await supabase
         .from('user_roles')
         .select('user_id')
         .in('role', ['admin', 'founder'] as any[]);
 
-      const task = tasks.find(t => t.id === taskId);
+      const item = items.find(t => t.id === itemId);
       for (const a of admins || []) {
         await supabase.from('notifications').insert({
           user_id: a.user_id,
           type: 'urgent',
-          message: `🚨 Eskalerad: ${task?.title || 'Uppgift'}`,
-          related_id: taskId,
-          related_type: 'task',
+          message: `🚨 Eskalerad: ${item?.title || 'Uppgift'}`,
+          related_id: itemId,
+          related_type: 'work_item',
         });
       }
 
-      // Log
       await supabase.from('automation_logs').insert({
         action_type: 'escalate',
-        target_type: 'task',
-        target_id: taskId,
+        target_type: 'work_item',
+        target_id: itemId,
         reason: `Manuellt eskalerad av ${getStaffName(user.id) || 'personal'}`,
         details: { escalated_by: user.id },
       });
 
       toast.success('Uppgift eskalerad → admins notifierade');
-      queryClient.invalidateQueries({ queryKey: ['staff-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['work-items'] });
       queryClient.invalidateQueries({ queryKey: ['automation-logs-recent'] });
     } catch {
       toast.error('Kunde inte eskalera');
@@ -323,28 +321,28 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     }
   };
 
-  const autoAssignSingle = async (taskId: string, taskType: string) => {
-    const { data, error } = await supabase.rpc('auto_assign_task', { p_task_type: taskType });
+  const autoAssignSingle = async (itemId: string, itemType: string) => {
+    const { data, error } = await supabase.rpc('auto_assign_work_item', { p_item_type: itemType });
     if (error || !data) { toast.error('Ingen tillgänglig personal'); return; }
-    await supabase.from('staff_tasks').update({ assigned_to: data, status: 'claimed', claimed_by: data } as any).eq('id', taskId);
+    await supabase.from('work_items' as any).update({ assigned_to: data, status: 'claimed', claimed_by: data, claimed_at: new Date().toISOString() }).eq('id', itemId);
     toast.success(`Tilldelad till ${getStaffName(data as string) || 'personal'}`);
-    queryClient.invalidateQueries({ queryKey: ['staff-tasks'] });
+    queryClient.invalidateQueries({ queryKey: ['work-items'] });
   };
 
   const autoAssignAll = async () => {
-    const openTasks = tasks.filter(t => t.status === 'open' && !t.assigned_to);
-    if (!openTasks.length) { toast.info('Inga öppna uppgifter'); return; }
+    const openItems = items.filter(t => t.status === 'open' && !t.assigned_to);
+    if (!openItems.length) { toast.info('Inga öppna uppgifter'); return; }
     setAutoAssigning(true);
     let assigned = 0;
-    for (const task of openTasks) {
-      const { data } = await supabase.rpc('auto_assign_task', { p_task_type: task.task_type });
+    for (const item of openItems) {
+      const { data } = await supabase.rpc('auto_assign_work_item', { p_item_type: item.item_type });
       if (data) {
-        await supabase.from('staff_tasks').update({ assigned_to: data, status: 'claimed', claimed_by: data } as any).eq('id', task.id);
+        await supabase.from('work_items' as any).update({ assigned_to: data, status: 'claimed', claimed_by: data, claimed_at: new Date().toISOString() }).eq('id', item.id);
         assigned++;
       }
     }
-    toast.success(`${assigned} av ${openTasks.length} fördelade`);
-    queryClient.invalidateQueries({ queryKey: ['staff-tasks'] });
+    toast.success(`${assigned} av ${openItems.length} fördelade`);
+    queryClient.invalidateQueries({ queryKey: ['work-items'] });
     setAutoAssigning(false);
   };
 
@@ -352,18 +350,19 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     if (!newTitle.trim() || !user) return;
     setCreating(true);
     try {
-      const { data: bestUser } = await supabase.rpc('auto_assign_task', { p_task_type: newType });
-      await supabase.from('staff_tasks').insert({
+      const { data: bestUser } = await supabase.rpc('auto_assign_work_item', { p_item_type: newType });
+      await supabase.from('work_items' as any).insert({
         title: newTitle.trim(),
         description: newDesc.trim() || null,
         priority: newPriority,
-        task_type: newType,
+        item_type: newType,
+        source_type: 'manual',
         created_by: user.id,
-        ...(bestUser ? { assigned_to: bestUser, status: 'claimed', claimed_by: bestUser } : {}),
-      } as any);
+        ...(bestUser ? { assigned_to: bestUser, status: 'claimed', claimed_by: bestUser, claimed_at: new Date().toISOString() } : {}),
+      });
       toast.success(bestUser ? `Skapad → tilldelad ${getStaffName(bestUser as string)}` : 'Skapad (ingen tillgänglig)');
       setNewTitle(''); setNewDesc(''); setShowCreate(false);
-      queryClient.invalidateQueries({ queryKey: ['staff-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['work-items'] });
     } catch (err: any) {
       toast.error(err?.message || 'Fel');
     } finally {
@@ -371,13 +370,13 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     }
   };
 
-  const unclaimTask = async (taskId: string) => {
+  const unclaimItem = async (itemId: string) => {
     if (!user) return;
-    await supabase.from('staff_tasks').update({
+    await supabase.from('work_items' as any).update({
       status: 'open', assigned_to: null, claimed_by: null, claimed_at: null, updated_at: new Date().toISOString(),
-    } as any).eq('id', taskId);
+    }).eq('id', itemId);
     toast.success('Uppdrag släppt');
-    queryClient.invalidateQueries({ queryKey: ['staff-tasks'] });
+    queryClient.invalidateQueries({ queryKey: ['work-items'] });
   };
 
   const hasOpenedLabelCheckpoint = (statusHistory: any): boolean => {
@@ -385,21 +384,21 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     return statusHistory.some((entry: any) => entry?.status === 'label_opened' || entry?.label_opened === true);
   };
 
-  const openOrderFromTask = (task: Task) => {
-    if (!task.related_order_id) return;
-    navigate(`/admin/orders?tab=to_pack&focus=${task.related_order_id}`);
+  const openOrderFromItem = (item: WorkItem) => {
+    if (!item.related_order_id) return;
+    navigate(`/admin/orders?tab=to_pack&focus=${item.related_order_id}`);
   };
 
-  const moveTask = async (taskId: string, newStatus: string) => {
+  const moveItem = async (itemId: string, newStatus: string) => {
     if (!user) return;
 
     if (newStatus === 'done') {
-      const currentTask = tasks.find((t) => t.id === taskId);
-      if (currentTask?.related_order_id && ['pack_order', 'packing'].includes(currentTask.task_type)) {
+      const currentItem = items.find((t) => t.id === itemId);
+      if (currentItem?.related_order_id && ['pack_order', 'packing'].includes(currentItem.item_type)) {
         const { data: order } = await supabase
           .from('orders')
           .select('payment_status, fulfillment_status, status_history')
-          .eq('id', currentTask.related_order_id)
+          .eq('id', currentItem.related_order_id)
           .maybeSingle();
 
         if (!order || order.payment_status !== 'paid') {
@@ -424,23 +423,22 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     if (newStatus === 'claimed') { updates.claimed_by = user.id; updates.claimed_at = now; }
     if (newStatus === 'in_progress') { updates.claimed_by = user.id; if (!updates.claimed_at) updates.claimed_at = now; }
     if (newStatus === 'done') updates.completed_at = now;
-    await supabase.from('staff_tasks').update(updates).eq('id', taskId);
-    queryClient.invalidateQueries({ queryKey: ['staff-tasks'] });
+    await supabase.from('work_items' as any).update(updates).eq('id', itemId);
+    queryClient.invalidateQueries({ queryKey: ['work-items'] });
 
     if (newStatus === 'done') {
       setCompletedCount(prev => prev + 1);
-      setJustCompleted(taskId);
+      setJustCompleted(itemId);
       toast.success('Klar ✓');
       setTimeout(() => {
         setJustCompleted(null);
-        // Auto-advance in work mode
         if (workModeRef.current && autoNext) {
           const next = getNextAction();
           if (next) {
             if (next.status === 'open') {
-              moveTask(next.id, 'claimed');
+              moveItem(next.id, 'claimed');
             } else if (next.status === 'claimed') {
-              moveTask(next.id, 'in_progress');
+              moveItem(next.id, 'in_progress');
             }
           } else {
             setWorkMode(false);
@@ -465,29 +463,23 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     return idx > 0 ? order[idx - 1] : null;
   };
 
-  // Compute "next action" task: escalated > high prio > oldest open/claimed for current user
-  const getNextAction = useCallback((): Task | null => {
-    const activeTasks = tasks.filter(t => 
+  const getNextAction = useCallback((): WorkItem | null => {
+    const activeItems = items.filter(t =>
       t.status !== 'done' && t.status !== 'cancelled' &&
       (t.assigned_to === user?.id || t.claimed_by === user?.id || t.status === 'open')
     );
-    // Escalated first
-    const escalated = activeTasks.filter(t => t.status === 'escalated');
+    const escalated = activeItems.filter(t => t.status === 'escalated');
     if (escalated.length) return escalated[0];
-    // My in_progress
-    const myInProgress = activeTasks.filter(t => t.status === 'in_progress' && (t.claimed_by === user?.id || t.assigned_to === user?.id));
+    const myInProgress = activeItems.filter(t => t.status === 'in_progress' && (t.claimed_by === user?.id || t.assigned_to === user?.id));
     if (myInProgress.length) return myInProgress[0];
-    // My claimed
-    const myClaimed = activeTasks.filter(t => t.status === 'claimed' && (t.claimed_by === user?.id || t.assigned_to === user?.id));
+    const myClaimed = activeItems.filter(t => t.status === 'claimed' && (t.claimed_by === user?.id || t.assigned_to === user?.id));
     if (myClaimed.length) return myClaimed[0];
-    // High prio open
-    const highOpen = activeTasks.filter(t => t.status === 'open' && t.priority === 'high');
+    const highOpen = activeItems.filter(t => t.status === 'open' && (t.priority === 'high' || t.priority === 'critical'));
     if (highOpen.length) return highOpen[0];
-    // Any open
-    const anyOpen = activeTasks.filter(t => t.status === 'open');
+    const anyOpen = activeItems.filter(t => t.status === 'open');
     if (anyOpen.length) return anyOpen[0];
     return null;
-  }, [tasks, user?.id]);
+  }, [items, user?.id]);
 
   const nextAction = getNextAction();
 
@@ -496,9 +488,9 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     const next = getNextAction();
     if (next) {
       if (next.status === 'open') {
-        await moveTask(next.id, 'claimed');
+        await moveItem(next.id, 'claimed');
       } else if (next.status === 'claimed') {
-        await moveTask(next.id, 'in_progress');
+        await moveItem(next.id, 'in_progress');
       }
       toast.success('Arbetsläge aktiverat – kör på!');
     } else {
@@ -507,15 +499,17 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     }
   };
 
-  const escalatedCount = tasks.filter(t => t.status === 'escalated').length;
-  const myCount = tasks.filter(t => (t.assigned_to === user?.id || t.claimed_by === user?.id) && t.status !== 'done').length;
-  const doneCount = tasks.filter(t => (t.assigned_to === user?.id || t.claimed_by === user?.id) && t.status === 'done').length;
-  const openCount = tasks.filter(t => t.status === 'open' && !t.assigned_to).length;
+  const escalatedCount = items.filter(t => t.status === 'escalated').length;
+  const myCount = items.filter(t => (t.assigned_to === user?.id || t.claimed_by === user?.id) && t.status !== 'done').length;
+  const doneCount = items.filter(t => (t.assigned_to === user?.id || t.claimed_by === user?.id) && t.status === 'done').length;
+  const openCount = items.filter(t => t.status === 'open' && !t.assigned_to).length;
+  const bugCount = items.filter(t => t.item_type === 'bug' && t.status !== 'done').length;
+  const incidentCount = items.filter(t => t.item_type === 'incident' && t.status !== 'done').length;
 
-  const toggleBulkSelect = (taskId: string) => {
+  const toggleBulkSelect = (itemId: string) => {
     setBulkSelected(prev => {
       const next = new Set(prev);
-      if (next.has(taskId)) next.delete(taskId); else next.add(taskId);
+      if (next.has(itemId)) next.delete(itemId); else next.add(itemId);
       return next;
     });
   };
@@ -523,34 +517,35 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const bulkClaimAll = async () => {
     if (!user || bulkSelected.size === 0) return;
     const now = new Date().toISOString();
-    for (const taskId of bulkSelected) {
-      await supabase.from('staff_tasks').update({
+    for (const itemId of bulkSelected) {
+      await supabase.from('work_items' as any).update({
         status: 'claimed', claimed_by: user.id, assigned_to: user.id, claimed_at: now, updated_at: now,
-      } as any).eq('id', taskId);
+      }).eq('id', itemId);
     }
     toast.success(`${bulkSelected.size} uppgifter tagna`);
     setBulkSelected(new Set());
     setBulkMode(false);
-    queryClient.invalidateQueries({ queryKey: ['staff-tasks'] });
+    queryClient.invalidateQueries({ queryKey: ['work-items'] });
   };
 
-  const renderTaskCard = (task: Task) => {
-    const typeMeta = TASK_TYPE_META[task.task_type] || TASK_TYPE_META.general;
+  const renderItemCard = (item: WorkItem) => {
+    const typeMeta = ITEM_TYPE_META[item.item_type] || ITEM_TYPE_META.general;
     const TypeIcon = typeMeta.icon;
-    const isEscalated = task.status === 'escalated';
+    const isEscalated = item.status === 'escalated';
+    const hasSource = item.source_type && item.source_type !== 'manual';
 
     return (
-      <Card key={task.id} className={cn(
+      <Card key={item.id} className={cn(
         'border-border hover:shadow-sm transition-shadow',
         isEscalated && 'border-destructive/40 bg-destructive/5',
-        bulkSelected.has(task.id) && 'ring-2 ring-primary/50'
+        bulkSelected.has(item.id) && 'ring-2 ring-primary/50'
       )}>
         <CardContent className="pt-3 pb-3 space-y-2">
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-center gap-1.5 min-w-0 flex-1">
-              {bulkMode && task.status === 'open' && (
-                <button onClick={() => toggleBulkSelect(task.id)} className="shrink-0 mt-0.5">
-                  {bulkSelected.has(task.id)
+              {bulkMode && item.status === 'open' && (
+                <button onClick={() => toggleBulkSelect(item.id)} className="shrink-0 mt-0.5">
+                  {bulkSelected.has(item.id)
                     ? <CheckCircle2 className="w-4 h-4 text-primary" />
                     : <Circle className="w-4 h-4 text-muted-foreground" />}
                 </button>
@@ -558,15 +553,15 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
               <div className={cn('w-5 h-5 rounded flex items-center justify-center shrink-0', typeMeta.color)}>
                 <TypeIcon className="w-3 h-3" />
               </div>
-              <h4 className="text-sm font-medium leading-tight truncate">{task.title}</h4>
+              <h4 className="text-sm font-medium leading-tight truncate">{item.title}</h4>
             </div>
-            <Badge variant="outline" className={cn('text-[9px] shrink-0', PRIORITY_COLORS[task.priority])}>
-              {task.priority === 'high' ? 'HÖG' : task.priority === 'medium' ? 'MED' : 'LÅG'}
+            <Badge variant="outline" className={cn('text-[9px] shrink-0', PRIORITY_COLORS[item.priority])}>
+              {item.priority === 'critical' ? 'KRIT' : item.priority === 'high' ? 'HÖG' : item.priority === 'medium' ? 'MED' : 'LÅG'}
             </Badge>
           </div>
 
-          {task.description && (
-            <p className="text-xs text-muted-foreground line-clamp-2">{task.description}</p>
+          {item.description && (
+            <p className="text-xs text-muted-foreground line-clamp-2">{item.description}</p>
           )}
 
           <div className="flex items-center gap-1.5 flex-wrap">
@@ -574,74 +569,78 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
               <TypeIcon className="w-2.5 h-2.5" />
               {typeMeta.label}
             </Badge>
+            {hasSource && (
+              <Badge variant="outline" className="text-[9px] gap-0.5 bg-blue-50 text-blue-600 border-blue-200">
+                <Link2 className="w-2.5 h-2.5" />
+                {item.source_type === 'bug_report' ? 'Bug' : item.source_type === 'order_incident' ? 'Incident' : item.source_type}
+              </Badge>
+            )}
             {isEscalated && (
               <Badge variant="destructive" className="text-[9px] gap-0.5">
                 <AlertTriangle className="w-2.5 h-2.5" /> Eskalerad
               </Badge>
             )}
-            {getTaskAutomationBadge(task.id) && (
+            {getItemAutomationBadge(item.id) && (
               <Badge variant="outline" className="text-[9px] gap-0.5 bg-purple-100 text-purple-700 border-purple-200">
                 <Bot className="w-2.5 h-2.5" />
-                {getTaskAutomationBadge(task.id) === 'escalate' ? 'Auto-eskalerad' :
-                 getTaskAutomationBadge(task.id) === 'reassign' ? 'Omfördelad' : 'Auto'}
+                {getItemAutomationBadge(item.id) === 'escalate' ? 'Auto-eskalerad' :
+                 getItemAutomationBadge(item.id) === 'reassign' ? 'Omfördelad' : 'Auto'}
               </Badge>
             )}
-            {task.assigned_to && (
+            {item.assigned_to && (
               <Badge variant="outline" className="text-[9px] gap-0.5">
                 <UserCheck className="w-2.5 h-2.5" />
-                {getStaffName(task.assigned_to)}
+                {getStaffName(item.assigned_to)}
               </Badge>
             )}
-            {task.due_at && (
+            {item.due_at && (
               <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
                 <Clock className="w-3 h-3" />
-                {format(new Date(task.due_at), 'dd/MM HH:mm')}
+                {format(new Date(item.due_at), 'dd/MM HH:mm')}
               </span>
             )}
           </div>
 
           <div className="flex gap-1 pt-1 flex-wrap">
-            {task.related_order_id && (
+            {item.related_order_id && (
               <Button
                 variant="ghost"
                 size="sm"
                 className="text-[10px] h-6 px-2"
-                onClick={() => openOrderFromTask(task)}
+                onClick={() => openOrderFromItem(item)}
               >
                 Öppna order
               </Button>
             )}
-            {task.status === 'open' && !task.assigned_to && (
+            {item.status === 'open' && !item.assigned_to && (
               <Button variant="outline" size="sm" className="text-[10px] h-6 px-2 gap-0.5"
-                onClick={() => autoAssignSingle(task.id, task.task_type)}>
+                onClick={() => autoAssignSingle(item.id, item.item_type)}>
                 <Zap className="w-3 h-3" /> Tilldela
               </Button>
             )}
-            {/* Unclaim – release task back to open */}
-            {['claimed', 'in_progress'].includes(task.status) && (task.claimed_by === user?.id || task.assigned_to === user?.id) && (
+            {['claimed', 'in_progress'].includes(item.status) && (item.claimed_by === user?.id || item.assigned_to === user?.id) && (
               <Button variant="ghost" size="sm" className="text-[10px] h-6 px-2 gap-0.5 text-muted-foreground"
-                onClick={() => unclaimTask(task.id)}>
+                onClick={() => unclaimItem(item.id)}>
                 <X className="w-3 h-3" /> Släpp
               </Button>
             )}
-            {/* Escalate button */}
-            {['open', 'claimed', 'in_progress'].includes(task.status) && (
+            {['open', 'claimed', 'in_progress'].includes(item.status) && (
               <Button variant="outline" size="sm"
                 className="text-[10px] h-6 px-2 gap-0.5 text-destructive border-destructive/30 hover:bg-destructive/10"
-                onClick={() => escalateTask(task.id)}
-                disabled={escalating === task.id}>
+                onClick={() => escalateItem(item.id)}
+                disabled={escalating === item.id}>
                 <AlertTriangle className="w-3 h-3" /> Eskalera
               </Button>
             )}
-            {getPrevStatus(task.status) && (
-              <Button variant="ghost" size="sm" className="text-[10px] h-6 px-2" onClick={() => moveTask(task.id, getPrevStatus(task.status)!)}>
+            {getPrevStatus(item.status) && (
+              <Button variant="ghost" size="sm" className="text-[10px] h-6 px-2" onClick={() => moveItem(item.id, getPrevStatus(item.status)!)}>
                 ← Tillbaka
               </Button>
             )}
-            {getNextStatus(task.status) && (
-              <Button variant="default" size="sm" className="text-[10px] h-6 px-2 ml-auto" onClick={() => moveTask(task.id, getNextStatus(task.status)!)}>
-                {getNextStatus(task.status) === 'claimed' ? 'Ta' :
-                 getNextStatus(task.status) === 'in_progress' ? 'Starta' : 'Klar'} →
+            {getNextStatus(item.status) && (
+              <Button variant="default" size="sm" className="text-[10px] h-6 px-2 ml-auto" onClick={() => moveItem(item.id, getNextStatus(item.status)!)}>
+                {getNextStatus(item.status) === 'claimed' ? 'Ta' :
+                 getNextStatus(item.status) === 'in_progress' ? 'Starta' : 'Klar'} →
               </Button>
             )}
           </div>
@@ -671,14 +670,20 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
                   <p className="text-sm font-semibold truncate">{nextAction.title}</p>
                   <div className="flex gap-1.5 mt-1 flex-wrap">
                     <Badge variant="outline" className={cn('text-[9px]', PRIORITY_COLORS[nextAction.priority])}>
-                      {nextAction.priority === 'high' ? 'HÖG' : nextAction.priority === 'medium' ? 'MED' : 'LÅG'}
+                      {nextAction.priority === 'critical' ? 'KRIT' : nextAction.priority === 'high' ? 'HÖG' : nextAction.priority === 'medium' ? 'MED' : 'LÅG'}
                     </Badge>
                     <Badge variant="secondary" className="text-[9px]">
-                      {(TASK_TYPE_META[nextAction.task_type] || TASK_TYPE_META.general).label}
+                      {(ITEM_TYPE_META[nextAction.item_type] || ITEM_TYPE_META.general).label}
                     </Badge>
                     {nextAction.related_order_id && (
                       <Badge variant="outline" className="text-[9px] gap-0.5">
                         <Package className="w-2.5 h-2.5" /> Order
+                      </Badge>
+                    )}
+                    {nextAction.source_type && nextAction.source_type !== 'manual' && (
+                      <Badge variant="outline" className="text-[9px] gap-0.5 bg-blue-50 text-blue-600 border-blue-200">
+                        <Link2 className="w-2.5 h-2.5" />
+                        {nextAction.source_type === 'bug_report' ? 'Bug' : nextAction.source_type === 'order_incident' ? 'Incident' : nextAction.source_type}
                       </Badge>
                     )}
                   </div>
@@ -694,14 +699,14 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
                 {!workMode ? (
                   <>
                     {nextAction.related_order_id && (
-                      <Button size="sm" variant="ghost" className="gap-1.5" onClick={() => openOrderFromTask(nextAction)}>
+                      <Button size="sm" variant="ghost" className="gap-1.5" onClick={() => openOrderFromItem(nextAction)}>
                         Öppna order
                       </Button>
                     )}
                     <Button size="sm" variant="outline" className="gap-1.5" onClick={() => {
-                      if (nextAction.status === 'open') moveTask(nextAction.id, 'claimed');
-                      else if (nextAction.status === 'claimed') moveTask(nextAction.id, 'in_progress');
-                      else if (['in_progress', 'escalated'].includes(nextAction.status)) moveTask(nextAction.id, 'done');
+                      if (nextAction.status === 'open') moveItem(nextAction.id, 'claimed');
+                      else if (nextAction.status === 'claimed') moveItem(nextAction.id, 'in_progress');
+                      else if (['in_progress', 'escalated'].includes(nextAction.status)) moveItem(nextAction.id, 'done');
                     }}>
                       {nextAction.status === 'open' ? 'Ta' : nextAction.status === 'claimed' ? 'Starta' : 'Klar'} <ArrowRight className="w-3 h-3" />
                     </Button>
@@ -711,7 +716,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
                   </>
                 ) : (
                   <>
-                    <Button size="sm" variant="default" className="gap-1.5" onClick={() => moveTask(nextAction.id, 'done')}>
+                    <Button size="sm" variant="default" className="gap-1.5" onClick={() => moveItem(nextAction.id, 'done')}>
                       <CheckCircle2 className="w-4 h-4" /> Klar → Nästa
                     </Button>
                     <Button size="sm" variant="outline" className="gap-1.5" onClick={() => { setWorkMode(false); toast.info('Arbetsläge avslutat'); }}>
@@ -722,7 +727,6 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
               </div>
             </div>
 
-            {/* Task snapshot – order info */}
             {nextAction.related_order_id && (
               <TaskSnapshot orderId={nextAction.related_order_id} />
             )}
@@ -762,30 +766,34 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
 
       {/* Filter tabs */}
       <Tabs value={viewFilter} onValueChange={v => { setViewFilter(v as ViewFilter); setBulkMode(false); setBulkSelected(new Set()); }}>
-        <TabsList>
+        <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="all" className="gap-1.5">
-            Alla <Badge variant="secondary" className="text-[9px] ml-1">{tasks.filter(t => t.status !== 'done').length}</Badge>
+            Alla <Badge variant="secondary" className="text-[9px] ml-1">{items.filter(t => t.status !== 'done').length}</Badge>
           </TabsTrigger>
           <TabsTrigger value="mine" className="gap-1.5">
             Mina {myCount > 0 ? <Badge variant="secondary" className="text-[9px] ml-1">{myCount}</Badge> : <span className="text-[9px] text-muted-foreground ml-1">(visar öppna)</span>}
           </TabsTrigger>
-          <TabsTrigger value="done" className="gap-1.5">
-            Klara {doneCount > 0 && <Badge variant="secondary" className="text-[9px] ml-1">{doneCount}</Badge>}
+          <TabsTrigger value="bugs" className="gap-1.5">
+            <Bug className="w-3.5 h-3.5" /> Buggar
+            {bugCount > 0 && <Badge variant="secondary" className="text-[9px] ml-1">{bugCount}</Badge>}
+          </TabsTrigger>
+          <TabsTrigger value="incidents" className="gap-1.5">
+            <ShieldAlert className="w-3.5 h-3.5" /> Incidents
+            {incidentCount > 0 && <Badge variant="secondary" className="text-[9px] ml-1">{incidentCount}</Badge>}
           </TabsTrigger>
           <TabsTrigger value="escalated" className={cn('gap-1.5', escalatedCount > 0 && 'text-destructive')}>
             <AlertTriangle className="w-3.5 h-3.5" /> Eskalerade
             {escalatedCount > 0 && <Badge variant="destructive" className="text-[9px] ml-1">{escalatedCount}</Badge>}
           </TabsTrigger>
-          <TabsTrigger value="open" className="gap-1.5">
-            Öppna {openCount > 0 && <Badge variant="secondary" className="text-[9px] ml-1">{openCount}</Badge>}
+          <TabsTrigger value="done" className="gap-1.5">
+            Klara {doneCount > 0 && <Badge variant="secondary" className="text-[9px] ml-1">{doneCount}</Badge>}
           </TabsTrigger>
         </TabsList>
       </Tabs>
 
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <p className="text-sm text-muted-foreground">{sortedTasks.length} uppgifter{viewFilter === 'mine' && myActiveCount === 0 ? ' (visar öppna – du har inga aktiva)' : ''}</p>
+        <p className="text-sm text-muted-foreground">{sortedItems.length} uppgifter{viewFilter === 'mine' && myActiveCount === 0 ? ' (visar öppna – du har inga aktiva)' : ''}</p>
         <div className="flex gap-2">
-          {/* Bulk mode toggle */}
           {viewFilter === 'open' && openCount > 0 && (
             <Button size="sm" variant={bulkMode ? 'default' : 'outline'} className="gap-1.5" onClick={() => { setBulkMode(!bulkMode); setBulkSelected(new Set()); }}>
               {bulkMode ? <X className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
@@ -824,12 +832,13 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
                   <SelectItem value="low">Låg</SelectItem>
                   <SelectItem value="medium">Medium</SelectItem>
                   <SelectItem value="high">Hög</SelectItem>
+                  <SelectItem value="critical">Kritisk</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={newType} onValueChange={setNewType}>
                 <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {TASK_TYPES.map(t => <SelectItem key={t.key} value={t.key}>{t.label}</SelectItem>)}
+                  {ITEM_TYPES.map(t => <SelectItem key={t.key} value={t.key}>{t.label}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Button onClick={handleCreate} disabled={creating || !newTitle.trim()}>Skapa</Button>
@@ -841,24 +850,24 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
       {/* Kanban columns */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
         {STATUS_COLUMNS.map(col => {
-          const colTasks = sortedTasks.filter(t => t.status === col.key);
+          const colItems = sortedItems.filter(t => t.status === col.key);
           return (
             <div key={col.key} className="space-y-2">
               <div className="flex items-center gap-2 px-1">
                 <col.icon className={cn('w-4 h-4', col.color)} />
                 <span className="text-sm font-semibold">{col.label}</span>
-                <Badge variant={col.key === 'escalated' && colTasks.length > 0 ? 'destructive' : 'secondary'} className="text-[10px] ml-auto">
-                  {colTasks.length}
+                <Badge variant={col.key === 'escalated' && colItems.length > 0 ? 'destructive' : 'secondary'} className="text-[10px] ml-auto">
+                  {colItems.length}
                 </Badge>
               </div>
               <div className={cn(
                 'space-y-2 min-h-[100px] rounded-lg p-2',
-                col.key === 'escalated' && colTasks.length > 0 ? 'bg-destructive/5' : 'bg-secondary/20'
+                col.key === 'escalated' && colItems.length > 0 ? 'bg-destructive/5' : 'bg-secondary/20'
               )}>
-                {colTasks.length === 0 && (
+                {colItems.length === 0 && (
                   <p className="text-xs text-muted-foreground text-center py-6">Inga uppgifter</p>
                 )}
-                {colTasks.map(renderTaskCard)}
+                {colItems.map(renderItemCard)}
               </div>
             </div>
           );
