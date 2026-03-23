@@ -162,16 +162,18 @@ const AdminOverview = () => {
 
   const actionItems = useMemo(() => {
     const items: { label: string; desc: string; href: string; icon: any; color: string; bg: string }[] = [];
-    const overdueInc = focusIncidents.filter(i => i.sla_status === 'overdue');
-    if (overdueInc.length > 0) items.push({ label: 'Lös försenat ärende', desc: overdueInc[0].title, href: '/admin/orders', icon: AlertTriangle, color: 'text-destructive', bg: 'bg-destructive/10' });
-    const highTasks = focusTasks.filter(t => t.priority === 'high');
-    if (highTasks.length > 0) items.push({ label: `${highTasks.length} hög prioritet`, desc: highTasks[0].title, href: '/admin/staff', icon: Zap, color: 'text-orange-600', bg: 'bg-orange-500/10' });
+    const escalatedItems = focusItems.filter(i => i.status === 'escalated' || i.priority === 'critical');
+    if (escalatedItems.length > 0) items.push({ label: 'Lös eskalerat ärende', desc: escalatedItems[0].title, href: '/admin/staff', icon: AlertTriangle, color: 'text-destructive', bg: 'bg-destructive/10' });
+    const highItems = focusItems.filter(t => t.priority === 'high');
+    if (highItems.length > 0) items.push({ label: `${highItems.length} hög prioritet`, desc: highItems[0].title, href: '/admin/staff', icon: Zap, color: 'text-orange-600', bg: 'bg-orange-500/10' });
+    const bugItems = focusItems.filter(t => t.item_type === 'bug');
+    if (bugItems.length > 0) items.push({ label: `${bugItems.length} öppna buggar`, desc: bugItems[0].title, href: '/admin/staff', icon: AlertTriangle, color: 'text-red-600', bg: 'bg-red-500/10' });
     if (ordersToPack > 0) items.push({ label: `Packa ${ordersToPack} order`, desc: 'Väntar på packning', href: '/admin/orders', icon: Package, color: 'text-blue-600', bg: 'bg-blue-500/10' });
     if (stats.lowStockProducts > 0) items.push({ label: `${stats.lowStockProducts} lågt lager`, desc: 'Kontrollera lagerstatus', href: '/admin/products', icon: Package, color: 'text-amber-600', bg: 'bg-amber-500/10' });
     if (stats.pendingReviews > 0) items.push({ label: 'Granska recensioner', desc: `${stats.pendingReviews} väntande`, href: '/admin/communication', icon: Star, color: 'text-yellow-600', bg: 'bg-yellow-500/10' });
     if (stats.conversionRate > 0 && stats.conversionRate < 30) items.push({ label: 'Låg konvertering', desc: `${stats.conversionRate}% — kontrollera checkout-flödet`, href: '/admin/stats', icon: TrendingUp, color: 'text-purple-600', bg: 'bg-purple-500/10' });
     return items;
-  }, [focusIncidents, focusTasks, ordersToPack, stats.pendingReviews, stats.lowStockProducts, stats.conversionRate]);
+  }, [focusItems, ordersToPack, stats.pendingReviews, stats.lowStockProducts, stats.conversionRate]);
 
   const recommended = actionItems[0] || { label: 'Allt under kontroll', desc: 'Inga brådskande uppgifter', href: '#', icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-500/10' };
 
