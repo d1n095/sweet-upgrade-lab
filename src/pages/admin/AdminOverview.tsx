@@ -120,8 +120,8 @@ const AdminOverview = () => {
       });
 
       setLowStockItems(lowStock.slice(0, 5) as LowStockProduct[]);
-      setFocusTasks((tasks.data || []) as FocusTask[]);
-      setFocusIncidents((incidents.data || []) as FocusIncident[]);
+      const allWorkItems = (workItems.data || []) as unknown as FocusWorkItem[];
+      setFocusItems(allWorkItems);
       setOrdersToPack(packOrders.count || 0);
 
       const { data: recent } = await supabase
