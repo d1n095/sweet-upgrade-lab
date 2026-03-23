@@ -32,24 +32,15 @@ interface LowStockProduct {
   reserved_stock: number;
 }
 
-interface FocusTask {
+interface FocusWorkItem {
   id: string;
   title: string;
   priority: string;
-  task_type: string;
+  item_type: string;
   status: string;
   due_at: string | null;
   related_order_id: string | null;
-}
-
-interface FocusIncident {
-  id: string;
-  title: string;
-  priority: string;
-  sla_status: string;
-  sla_deadline: string | null;
-  order_id: string;
-  status: string;
+  source_type: string | null;
 }
 
 const statusColors: Record<string, string> = {
