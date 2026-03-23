@@ -143,7 +143,7 @@ const AdminOverview = () => {
     const channel = supabase
       .channel('dashboard-orders')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => load())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'staff_tasks' }, () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'work_items' }, () => load())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, []);
