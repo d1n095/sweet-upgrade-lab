@@ -1315,67 +1315,187 @@ export function AdminProductForm({
         />
       </div>
 
-      {/* ── Storytelling Fields (AI output) ── */}
+      {/* ── Standardized Product Content ── */}
       <div className="border-t border-border pt-4 mt-2">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-          {language === 'sv' ? '✨ Storytelling (AI-genererat)' : '✨ Storytelling (AI-generated)'}
+          {language === 'sv' ? '📝 Produktinnehåll (standardiserat)' : '📝 Product Content (standardized)'}
         </p>
 
         <div className="space-y-3">
+          {/* 1. Hook */}
           <div className="space-y-1.5">
-            <Label htmlFor="feeling" className="text-xs">
-              {language === 'sv' ? 'Känsla / Upplevelse' : 'Feeling / Experience'}
-            </Label>
-            <Textarea
-              id="feeling"
-              value={formData.feeling}
-              onChange={(e) => setFormData(prev => ({ ...prev, feeling: e.target.value }))}
-              placeholder={language === 'sv' ? 'Tänk dig att öppna bastudörren...' : 'Imagine opening the sauna door...'}
-              rows={2}
-              className="text-xs"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="effects" className="text-xs">
-              {language === 'sv' ? 'Effekt / Fördelar (en per rad)' : 'Effects / Benefits (one per line)'}
-            </Label>
-            <Textarea
-              id="effects"
-              value={formData.effects}
-              onChange={(e) => setFormData(prev => ({ ...prev, effects: e.target.value }))}
-              placeholder={language === 'sv' ? 'Uppiggande & kylande\nFräsch mentholton' : 'Invigorating & cooling\nFresh menthol tone'}
-              rows={3}
-              className="text-xs"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="usage" className="text-xs">
-              {language === 'sv' ? 'Användning (fritext)' : 'How to use (freeform)'}
+            <Label htmlFor="hook" className="text-xs font-medium">
+              1. {language === 'sv' ? 'Hook (kort säljmening)' : 'Hook (short selling line)'}
             </Label>
             <Input
-              id="usage"
-              value={formData.usage}
-              onChange={(e) => setFormData(prev => ({ ...prev, usage: e.target.value }))}
-              placeholder={language === 'sv' ? '5 droppar per skopa vatten' : '5 drops per scoop of water'}
+              id="hook"
+              value={formData.hook}
+              onChange={(e) => setFormData(prev => ({ ...prev, hook: e.target.value }))}
+              placeholder={language === 'sv' ? 'Öppnar luftvägarna direkt' : 'Opens your airways instantly'}
               className="text-xs"
+              maxLength={60}
             />
+            <p className="text-xs text-muted-foreground">{formData.hook?.length || 0}/60</p>
           </div>
 
+          {/* 2. Short description - already exists above */}
+
+          {/* 3. Extended description */}
           <div className="space-y-1.5">
-            <Label htmlFor="extendedDescription" className="text-xs">
-              {language === 'sv' ? 'Utökad beskrivning' : 'Extended description'}
+            <Label htmlFor="extendedDescription" className="text-xs font-medium">
+              2. {language === 'sv' ? 'Full produktbeskrivning' : 'Full product description'}
             </Label>
             <Textarea
               id="extendedDescription"
               value={formData.extendedDescription}
               onChange={(e) => setFormData(prev => ({ ...prev, extendedDescription: e.target.value }))}
-              placeholder={language === 'sv' ? 'Historia, filosofi, säljargument...' : 'Story, philosophy, selling points...'}
+              placeholder={language === 'sv' ? 'Börja med hook. Förklara vad produkten gör, hur den fungerar, varför den är bättre.' : 'Start with hook. Explain what it does, how it works, why it is better.'}
               rows={4}
               className="text-xs"
             />
           </div>
+
+          {/* 4. Usage */}
+          <div className="space-y-1.5">
+            <Label htmlFor="usage" className="text-xs font-medium">
+              3. {language === 'sv' ? 'Användning (steg-för-steg)' : 'Usage (step by step)'}
+            </Label>
+            <Textarea
+              id="usage"
+              value={formData.usage}
+              onChange={(e) => setFormData(prev => ({ ...prev, usage: e.target.value }))}
+              placeholder={language === 'sv' ? '1. Tillsätt 2-3 kristaller\n2. Häll på varmt vatten\n3. Andas djupt' : '1. Add 2-3 crystals\n2. Pour hot water\n3. Breathe deeply'}
+              rows={3}
+              className="text-xs"
+            />
+          </div>
+
+          {/* 5. Dosage & Reach */}
+          <div className="space-y-1.5">
+            <Label htmlFor="dosage" className="text-xs font-medium">
+              4. {language === 'sv' ? 'Dosering & räckvidd' : 'Dosage & reach'}
+            </Label>
+            <Textarea
+              id="dosage"
+              value={formData.dosage}
+              onChange={(e) => setFormData(prev => ({ ...prev, dosage: e.target.value }))}
+              placeholder={language === 'sv' ? '10ml = ca 200 droppar. 2-3 droppar per användning. Räcker ca 2-3 månader.' : '10ml = ~200 drops. 2-3 drops per use. Lasts ~2-3 months.'}
+              rows={2}
+              className="text-xs"
+            />
+          </div>
+
+          {/* 6. Variants */}
+          <div className="space-y-1.5">
+            <Label htmlFor="variants" className="text-xs font-medium">
+              5. {language === 'sv' ? 'Varianter (en per rad)' : 'Variants (one per line)'}
+            </Label>
+            <Textarea
+              id="variants"
+              value={formData.variants}
+              onChange={(e) => setFormData(prev => ({ ...prev, variants: e.target.value }))}
+              placeholder={language === 'sv' ? '🌿 Eukalyptus – Fräsch och uppfriskande\n🍊 Citrus – Energigivande' : '🌿 Eucalyptus – Fresh\n🍊 Citrus – Energizing'}
+              rows={3}
+              className="text-xs"
+            />
+          </div>
+
+          {/* 7. Specifications */}
+          <div className="space-y-1.5">
+            <Label htmlFor="specifications" className="text-xs font-medium">
+              6. {language === 'sv' ? 'Specifikationer (JSON)' : 'Specifications (JSON)'}
+            </Label>
+            <Textarea
+              id="specifications"
+              value={formData.specifications}
+              onChange={(e) => setFormData(prev => ({ ...prev, specifications: e.target.value }))}
+              placeholder='{"volume": "10ml", "type": "Eterisk olja", "base": "100% ren", "format": "Glasflaska"}'
+              rows={2}
+              className="text-xs font-mono"
+            />
+          </div>
+
+          {/* 8. Effects */}
+          <div className="space-y-1.5">
+            <Label htmlFor="effects" className="text-xs font-medium">
+              7. {language === 'sv' ? 'Fördelar (en per rad)' : 'Benefits (one per line)'}
+            </Label>
+            <Textarea
+              id="effects"
+              value={formData.effects}
+              onChange={(e) => setFormData(prev => ({ ...prev, effects: e.target.value }))}
+              placeholder={language === 'sv' ? '✓ Öppnar luftvägarna direkt\n✓ Renande och antiseptisk' : '✓ Opens airways instantly\n✓ Cleansing and antiseptic'}
+              rows={3}
+              className="text-xs"
+            />
+          </div>
+
+          {/* 9. Feeling */}
+          <div className="space-y-1.5">
+            <Label htmlFor="feeling" className="text-xs font-medium">
+              8. {language === 'sv' ? 'Känsla / Upplevelse' : 'Feeling / Experience'}
+            </Label>
+            <Textarea
+              id="feeling"
+              value={formData.feeling}
+              onChange={(e) => setFormData(prev => ({ ...prev, feeling: e.target.value }))}
+              placeholder={language === 'sv' ? 'En kylande känsla som öppnar sinnet...' : 'A cooling sensation that opens the mind...'}
+              rows={2}
+              className="text-xs"
+            />
+          </div>
+
+          {/* 10. Storage */}
+          <div className="space-y-1.5">
+            <Label htmlFor="storage" className="text-xs font-medium">
+              9. {language === 'sv' ? 'Förvaring' : 'Storage'}
+            </Label>
+            <Input
+              id="storage"
+              value={formData.storage}
+              onChange={(e) => setFormData(prev => ({ ...prev, storage: e.target.value }))}
+              placeholder={language === 'sv' ? 'Förvaras svalt och mörkt. Hållbarhet: 24 månader.' : 'Store cool and dark. Shelf life: 24 months.'}
+              className="text-xs"
+            />
+          </div>
+
+          {/* 11. Safety */}
+          <div className="space-y-1.5">
+            <Label htmlFor="safety" className="text-xs font-medium">
+              10. {language === 'sv' ? 'Säkerhet & varningar' : 'Safety & warnings'}
+            </Label>
+            <Textarea
+              id="safety"
+              value={formData.safety}
+              onChange={(e) => setFormData(prev => ({ ...prev, safety: e.target.value }))}
+              placeholder={language === 'sv' ? 'Endast för utvärtes bruk. Undvik kontakt med ögon. Förvaras utom räckhåll för barn.' : 'External use only. Avoid eye contact. Keep out of reach of children.'}
+              rows={2}
+              className="text-xs"
+            />
+          </div>
+
+          {/* Concentrate toggle */}
+          <div className="flex items-center justify-between p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
+            <div>
+              <p className="text-sm font-medium">{language === 'sv' ? 'Koncentrat' : 'Concentrate'}</p>
+              <p className="text-xs text-muted-foreground">
+                {language === 'sv' ? 'Markera om produkten är ett koncentrat som ska spädas' : 'Mark if product is a concentrate that must be diluted'}
+              </p>
+            </div>
+            <Switch
+              checked={formData.isConcentrate}
+              onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isConcentrate: checked }))}
+            />
+          </div>
+          {formData.isConcentrate && (
+            <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+              <p className="text-xs font-medium text-amber-700">
+                ⚠️ {language === 'sv'
+                  ? 'Detta är ett koncentrat och ska ALLTID blandas med vatten före användning. Denna text läggs till automatiskt i säkerhetsinformationen.'
+                  : 'This is a concentrate and must ALWAYS be mixed with water before use. This text is added automatically to safety info.'}
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
