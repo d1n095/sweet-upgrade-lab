@@ -583,6 +583,15 @@ async function callAI(apiKey: string, messages: any[], tools?: any[], tool_choic
   return { text: data.choices?.[0]?.message?.content || "" };
 }
 
+function chunkArray<T>(arr: T[], size: number): T[][] {
+  if (size <= 0) return [arr];
+  const chunks: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) {
+    chunks.push(arr.slice(i, i + size));
+  }
+  return chunks;
+}
+
 function buildFallbackOrchestration(activeItems: any[]) {
   const priorityScore: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
 
