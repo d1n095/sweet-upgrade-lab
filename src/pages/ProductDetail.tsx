@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { trackProductView } from '@/utils/analyticsTracker';
 import { motion } from 'framer-motion';
-import { ShoppingCart, Check, Loader2, Minus, Plus, Shield, RotateCcw, Truck, Share2, Languages, Sparkles, Droplets, Heart, Users, Star, Eye, Clock, Package } from 'lucide-react';
+import { ShoppingCart, Check, Loader2, Minus, Plus, Shield, RotateCcw, Truck, Share2, Languages, Sparkles, Droplets, Heart, Users, Star, Eye, Clock, Package, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -461,15 +461,9 @@ const ProductDetail = () => {
           </div>
 
           {/* Below the fold — storytelling */}
-          <div className="mt-16 space-y-12">
+          <div className="mt-16 space-y-12 max-w-3xl">
             {feeling && (
-              <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.2 }}
-                transition={{ duration: 0.5 }}
-                className="max-w-2xl"
-              >
+              <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ duration: 0.5 }}>
                 <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
                   <Heart className="w-4 h-4 text-accent" />
                   {lang === 'sv' ? 'Känsla' : 'Feeling'}
@@ -479,13 +473,7 @@ const ProductDetail = () => {
             )}
 
             {usage && (
-              <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.2 }}
-                transition={{ duration: 0.5 }}
-                className="max-w-2xl"
-              >
+              <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ duration: 0.5 }}>
                 <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
                   <Droplets className="w-4 h-4 text-accent" />
                   {lang === 'sv' ? 'Så använder du den' : 'How to use'}
@@ -494,18 +482,96 @@ const ProductDetail = () => {
               </motion.div>
             )}
 
+            {/* DOSAGE & REACH */}
+            {(lang === 'sv' ? product.dosage_sv : (product.dosage_en || product.dosage_sv)) && (
+              <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ duration: 0.5 }}>
+                <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-accent" />
+                  {lang === 'sv' ? 'Dosering & räckvidd' : 'Dosage & duration'}
+                </h3>
+                <p className="text-muted-foreground leading-relaxed whitespace-pre-line">
+                  {lang === 'sv' ? product.dosage_sv : (product.dosage_en || product.dosage_sv)}
+                </p>
+              </motion.div>
+            )}
+
+            {/* VARIANTS */}
+            {(lang === 'sv' ? product.variants_sv : (product.variants_en || product.variants_sv)) && (
+              <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ duration: 0.5 }}>
+                <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                  <Package className="w-4 h-4 text-accent" />
+                  {lang === 'sv' ? 'Varianter' : 'Variants'}
+                </h3>
+                <p className="text-muted-foreground leading-relaxed whitespace-pre-line">
+                  {lang === 'sv' ? product.variants_sv : (product.variants_en || product.variants_sv)}
+                </p>
+              </motion.div>
+            )}
+
+            {/* SPECIFICATIONS */}
+            {product.specifications && typeof product.specifications === 'object' && Object.keys(product.specifications).length > 0 && (
+              <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ duration: 0.5 }}>
+                <h3 className="text-lg font-semibold mb-3">{lang === 'sv' ? 'Specifikationer' : 'Specifications'}</h3>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                  {Object.entries(product.specifications as Record<string, string>).map(([key, value]) => (
+                    <div key={key} className="flex justify-between border-b border-border/50 py-1.5">
+                      <span className="text-sm text-muted-foreground capitalize">{key}</span>
+                      <span className="text-sm font-medium">{value}</span>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
             {extDescription && (
-              <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.2 }}
-                transition={{ duration: 0.5 }}
-                className="max-w-2xl"
-              >
+              <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ duration: 0.5 }}>
                 <h3 className="text-lg font-semibold mb-3">
                   {lang === 'sv' ? 'Mer information' : 'More information'}
                 </h3>
                 <p className="text-muted-foreground leading-relaxed whitespace-pre-line">{extDescription}</p>
+              </motion.div>
+            )}
+
+            {/* RECIPE (for concentrates) */}
+            {product.is_concentrate && (
+              <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ duration: 0.5 }}>
+                <div className="bg-warning/10 border border-warning/30 rounded-xl p-4 mb-4">
+                  <p className="text-sm font-semibold text-warning flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4" />
+                    {lang === 'sv' ? 'Detta är ett koncentrat och ska alltid blandas med vatten före användning' : 'This is a concentrate and must always be diluted with water before use'}
+                  </p>
+                </div>
+                {(lang === 'sv' ? product.recipe_sv : (product.recipe_en || product.recipe_sv)) && (
+                  <>
+                    <h3 className="text-lg font-semibold mb-3">{lang === 'sv' ? 'Recept / blandning' : 'Recipe / mixing'}</h3>
+                    <p className="text-muted-foreground leading-relaxed whitespace-pre-line">
+                      {lang === 'sv' ? product.recipe_sv : (product.recipe_en || product.recipe_sv)}
+                    </p>
+                  </>
+                )}
+              </motion.div>
+            )}
+
+            {/* STORAGE */}
+            {(lang === 'sv' ? product.storage_sv : (product.storage_en || product.storage_sv)) && (
+              <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ duration: 0.5 }}>
+                <h3 className="text-lg font-semibold mb-3">{lang === 'sv' ? 'Förvaring' : 'Storage'}</h3>
+                <p className="text-muted-foreground leading-relaxed whitespace-pre-line">
+                  {lang === 'sv' ? product.storage_sv : (product.storage_en || product.storage_sv)}
+                </p>
+              </motion.div>
+            )}
+
+            {/* SAFETY */}
+            {(lang === 'sv' ? product.safety_sv : (product.safety_en || product.safety_sv)) && (
+              <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ duration: 0.5 }}>
+                <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-destructive" />
+                  {lang === 'sv' ? 'Säkerhet' : 'Safety'}
+                </h3>
+                <p className="text-muted-foreground leading-relaxed whitespace-pre-line">
+                  {lang === 'sv' ? product.safety_sv : (product.safety_en || product.safety_sv)}
+                </p>
               </motion.div>
             )}
           </div>

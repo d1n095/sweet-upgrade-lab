@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { usePurchaseHistory } from '@/hooks/usePurchaseHistory';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Package, Loader2, ArrowUpDown } from 'lucide-react';
+import { Package, Loader2, ArrowUpDown, SlidersHorizontal } from 'lucide-react';
 import { fetchDbProducts, DbProduct } from '@/lib/products';
 import { categories } from '@/data/categories';
 import { useLanguage, getContentLang } from '@/context/LanguageContext';
@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
 import DbProductCard from './DbProductCard';
 import UseCaseFilter from './UseCaseFilter';
 
@@ -31,6 +32,9 @@ const DbProductGrid = () => {
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
   const [tagProductIds, setTagProductIds] = useState<Set<string> | null>(null);
   const [sortOption, setSortOption] = useState<SortOption>('default');
+  const [showFilters, setShowFilters] = useState(false);
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 5000]);
+  const [maxPrice, setMaxPrice] = useState(5000);
   const searchQuery = useSearchStore(state => state.searchQuery);
 
   useEffect(() => {
@@ -40,6 +44,11 @@ const DbProductGrid = () => {
         setError(null);
         const data = await fetchDbProducts(false);
         setProducts(data);
+        if (data.length > 0) {
+          const max = Math.ceil(Math.max(...data.map(p => p.price)) / 100) * 100;
+          setMaxPrice(max);
+          setPriceRange([0, max]);
+        }
       } catch (err) {
         console.error('Failed to load products:', err);
         setError(t('products.error'));
@@ -104,16 +113,21 @@ const DbProductGrid = () => {
   }, [products, activeCategory, tagProductIds]);
 
   const searchFiltered = useMemo(() => {
-    if (!searchQuery.trim()) return categoryFiltered;
+    let filtered = categoryFiltered;
+    // Price filter
+    if (priceRange[0] > 0 || priceRange[1] < maxPrice) {
+      filtered = filtered.filter(p => p.price >= priceRange[0] && p.price <= priceRange[1]);
+    }
+    if (!searchQuery.trim()) return filtered;
     const q = searchQuery.toLowerCase();
-    return categoryFiltered.filter(p =>
+    return filtered.filter(p =>
       p.title_sv.toLowerCase().includes(q) ||
       (p.title_en || '').toLowerCase().includes(q) ||
       (p.description_sv || '').toLowerCase().includes(q) ||
       (p.ingredients_sv || '').toLowerCase().includes(q) ||
       (p.ingredients_en || '').toLowerCase().includes(q)
     );
-  }, [categoryFiltered, searchQuery]);
+  }, [categoryFiltered, searchQuery, priceRange, maxPrice]);
 
   const sortedProducts = useMemo(() => {
     const sorted = [...searchFiltered];
@@ -142,20 +156,64 @@ const DbProductGrid = () => {
           <div>
             <h2 className="text-2xl md:text-3xl font-bold">{t('products.title')}</h2>
           </div>
-          {!isLoading && products.length > 0 && (
-            <Select value={sortOption} onValueChange={(v) => setSortOption(v as SortOption)}>
-              <SelectTrigger className="w-[180px] bg-card border-border rounded-xl h-9 text-xs">
-                <ArrowUpDown className="w-3.5 h-3.5 mr-1.5 text-muted-foreground" />
-                <SelectValue placeholder={t('sort.label')} />
-              </SelectTrigger>
-              <SelectContent className="bg-card border-border rounded-xl">
-                {sortOptions.map(o => (
-                  <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          <div className="flex items-center gap-2">
+            {!isLoading && products.length > 0 && (
+              <>
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 h-9 rounded-xl text-xs font-medium border transition-colors",
+                    showFilters ? "bg-foreground text-background border-foreground" : "bg-card border-border text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5" />
+                  {lang === 'sv' ? 'Filter' : 'Filters'}
+                </button>
+                <Select value={sortOption} onValueChange={(v) => setSortOption(v as SortOption)}>
+                  <SelectTrigger className="w-[180px] bg-card border-border rounded-xl h-9 text-xs">
+                    <ArrowUpDown className="w-3.5 h-3.5 mr-1.5 text-muted-foreground" />
+                    <SelectValue placeholder={t('sort.label')} />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border rounded-xl">
+                    {sortOptions.map(o => (
+                      <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </>
+            )}
+          </div>
         </div>
+
+        {/* Price Filter Panel */}
+        <AnimatePresence>
+          {showFilters && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="overflow-hidden mb-6"
+            >
+              <div className="border border-border rounded-xl p-4 bg-card">
+                <p className="text-xs font-semibold text-muted-foreground mb-3">
+                  {lang === 'sv' ? 'Pris' : 'Price'}: {priceRange[0]} – {priceRange[1]} kr
+                </p>
+                <Slider
+                  value={priceRange}
+                  min={0}
+                  max={maxPrice}
+                  step={10}
+                  onValueChange={(v) => setPriceRange(v as [number, number])}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
+                  <span>0 kr</span>
+                  <span>{maxPrice} kr</span>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Category Filters */}
         <div className="flex flex-wrap gap-2 mb-8">

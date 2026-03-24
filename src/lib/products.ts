@@ -35,6 +35,18 @@ export interface DbProduct {
   usage_en: string | null;
   extended_description_sv: string | null;
   extended_description_en: string | null;
+  hook_sv: string | null;
+  hook_en: string | null;
+  dosage_sv: string | null;
+  dosage_en: string | null;
+  variants_sv: string | null;
+  variants_en: string | null;
+  storage_sv: string | null;
+  storage_en: string | null;
+  safety_sv: string | null;
+  safety_en: string | null;
+  specifications: Record<string, string> | null;
+  is_concentrate: boolean;
   meta_title: string | null;
   meta_description: string | null;
   meta_keywords: string | null;
@@ -50,7 +62,7 @@ export interface DbProduct {
   updated_at: string;
 }
 
-export type DbProductInsert = Omit<DbProduct, 'id' | 'created_at' | 'updated_at' | 'handle' | 'ingredients_sv' | 'ingredients_en' | 'certifications' | 'reserved_stock' | 'currency' | 'recipe_sv' | 'recipe_en' | 'feeling_sv' | 'feeling_en' | 'effects_sv' | 'effects_en' | 'usage_sv' | 'usage_en' | 'extended_description_sv' | 'extended_description_en' | 'meta_title' | 'meta_description' | 'meta_keywords' | 'weight_grams' | 'status' | 'is_sellable' | 'low_stock_threshold' | 'restock_amount' | 'units_sold_7d' | 'units_sold_30d' | 'last_sold_at'> & {
+export type DbProductInsert = Omit<DbProduct, 'id' | 'created_at' | 'updated_at' | 'handle' | 'ingredients_sv' | 'ingredients_en' | 'certifications' | 'reserved_stock' | 'currency' | 'recipe_sv' | 'recipe_en' | 'feeling_sv' | 'feeling_en' | 'effects_sv' | 'effects_en' | 'usage_sv' | 'usage_en' | 'extended_description_sv' | 'extended_description_en' | 'hook_sv' | 'hook_en' | 'dosage_sv' | 'dosage_en' | 'variants_sv' | 'variants_en' | 'storage_sv' | 'storage_en' | 'safety_sv' | 'safety_en' | 'specifications' | 'is_concentrate' | 'meta_title' | 'meta_description' | 'meta_keywords' | 'weight_grams' | 'status' | 'is_sellable' | 'low_stock_threshold' | 'restock_amount' | 'units_sold_7d' | 'units_sold_30d' | 'last_sold_at'> & {
   handle?: string;
   ingredients_sv?: string | null;
   ingredients_en?: string | null;
@@ -67,6 +79,18 @@ export type DbProductInsert = Omit<DbProduct, 'id' | 'created_at' | 'updated_at'
   usage_en?: string | null;
   extended_description_sv?: string | null;
   extended_description_en?: string | null;
+  hook_sv?: string | null;
+  hook_en?: string | null;
+  dosage_sv?: string | null;
+  dosage_en?: string | null;
+  variants_sv?: string | null;
+  variants_en?: string | null;
+  storage_sv?: string | null;
+  storage_en?: string | null;
+  safety_sv?: string | null;
+  safety_en?: string | null;
+  specifications?: Record<string, string> | null;
+  is_concentrate?: boolean;
   meta_title?: string | null;
   meta_description?: string | null;
   meta_keywords?: string | null;
