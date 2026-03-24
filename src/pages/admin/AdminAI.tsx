@@ -2128,6 +2128,10 @@ const AdminAI = () => {
               <BarChart3 className="w-3.5 h-3.5" />
               AI Insights
             </TabsTrigger>
+            <TabsTrigger value="structure" className="gap-1.5 text-xs">
+              <LayoutGrid className="w-3.5 h-3.5" />
+              Struktur
+            </TabsTrigger>
           </TabsList>
         </ScrollableTabs>
 
@@ -2166,6 +2170,9 @@ const AdminAI = () => {
         </TabsContent>
         <TabsContent value="insights" className="mt-4">
           <DataInsightsTab />
+        </TabsContent>
+        <TabsContent value="structure" className="mt-4">
+          <StructureAnalysisTab />
         </TabsContent>
       </Tabs>
     </div>
