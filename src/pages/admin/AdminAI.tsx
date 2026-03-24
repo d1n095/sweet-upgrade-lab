@@ -1938,6 +1938,10 @@ const AdminAI = () => {
               <Monitor className="w-3.5 h-3.5" />
               Visual QA
             </TabsTrigger>
+            <TabsTrigger value="nav-bug" className="gap-1.5 text-xs">
+              <Compass className="w-3.5 h-3.5" />
+              Nav & Buggscan
+            </TabsTrigger>
             <TabsTrigger value="data-health" className="gap-1.5 text-xs">
               <Database className="w-3.5 h-3.5" />
               Data Health
