@@ -56,7 +56,15 @@ serve(async (req) => {
     const action = body.action || "full_cycle";
 
     const results: any = {
-      prioritized: 0, assigned: 0, detected: 0, resolved: 0, flagged: 0, orchestrated: 0,
+      prioritized: 0,
+      assigned: 0,
+      detected: 0,
+      resolved: 0,
+      flagged: 0,
+      orchestrated: 0,
+      orchestrator_scanned: 0,
+      orchestrator_mode: null,
+      orchestrator_error: null,
     };
 
     // ─── 1. AI PRIORITIZATION ───
