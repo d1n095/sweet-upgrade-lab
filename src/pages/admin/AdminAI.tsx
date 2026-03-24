@@ -2197,6 +2197,180 @@ const DevGuardianTab = () => {
   );
 };
 
+// ── AI Autopilot Tab ──
+type AiMode = 'manual' | 'assisted' | 'autonomous';
+
+interface ExecutionAction {
+  action_type: string;
+  target_id: string;
+  target_title?: string;
+  description: string;
+  auto_executable: boolean;
+  new_value?: string;
+  reason?: string;
+}
+
+interface ExecutionResult {
+  summary: string;
+  total_actions: number;
+  auto_executed: number;
+  needs_approval: number;
+  actions: ExecutionAction[];
+  duplicates: { ids: string[]; reason: string; suggested_action: string }[];
+  health_summary: string;
+  mode: string;
+  execution_log: { action: string; target: string; success: boolean; description: string }[];
+  executed_count: number;
+}
+
+const AiAutopilotTab = () => {
+  const [mode, setMode] = useState<AiMode>('assisted');
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<ExecutionResult | null>(null);
+  const queryClient = useQueryClient();
+
+  const runExecution = async () => {
+    setLoading(true);
+    const res = await callAI('ai_execute', { mode });
+    if (res) {
+      setResult(res);
+      if (res.executed_count > 0) {
+        toast.success(`AI utförde ${res.executed_count} åtgärder`);
+        queryClient.invalidateQueries({ queryKey: ['work-items'] });
+      }
+    }
+    setLoading(false);
+  };
+
+  const modeConfig = {
+    manual: { label: 'Manuell', desc: 'AI föreslår — du utför', color: 'border-blue-500 bg-blue-50 text-blue-800' },
+    assisted: { label: 'Assisterad', desc: 'AI utför säkra åtgärder automatiskt', color: 'border-yellow-500 bg-yellow-50 text-yellow-800' },
+    autonomous: { label: 'Autonom', desc: 'AI utför allt utom raderingar', color: 'border-red-500 bg-red-50 text-red-800' },
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Mode selector */}
+      <Card className="border-border">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Settings2 className="w-4 h-4" /> AI-läge
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-3 gap-2">
+            {(Object.entries(modeConfig) as [AiMode, typeof modeConfig.manual][]).map(([key, cfg]) => (
+              <button
+                key={key}
+                onClick={() => setMode(key)}
+                className={cn(
+                  'border-2 rounded-lg p-3 text-left transition-all',
+                  mode === key ? cfg.color : 'border-border bg-background hover:border-muted-foreground/30'
+                )}
+              >
+                <div className="font-semibold text-xs">{cfg.label}</div>
+                <div className="text-[10px] mt-1 opacity-80">{cfg.desc}</div>
+              </button>
+            ))}
+          </div>
+          <Button onClick={runExecution} disabled={loading} className="w-full gap-2">
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+            Kör AI Execution ({modeConfig[mode].label})
+          </Button>
+        </CardContent>
+      </Card>
+
+      {result && (
+        <div className="space-y-4">
+          {/* Summary */}
+          <Card className="border-border">
+            <CardContent className="pt-4 space-y-2">
+              <p className="text-sm font-medium">{result.summary}</p>
+              <div className="flex gap-3 text-xs">
+                <Badge variant="outline">{result.total_actions} åtgärder</Badge>
+                <Badge variant="default" className="bg-green-600">{result.executed_count} utförda</Badge>
+                <Badge variant="secondary">{result.needs_approval} kräver godkännande</Badge>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">{result.health_summary}</p>
+            </CardContent>
+          </Card>
+
+          {/* Execution log */}
+          {result.execution_log.length > 0 && (
+            <Card className="border-border">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-green-600" /> Utförda åtgärder
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-1.5">
+                  {result.execution_log.map((log, i) => (
+                    <div key={i} className="flex items-center gap-2 text-xs p-2 rounded bg-muted/50">
+                      {log.success ? <CheckCircle className="w-3.5 h-3.5 text-green-600 shrink-0" /> : <XCircle className="w-3.5 h-3.5 text-red-600 shrink-0" />}
+                      <span className="font-mono text-[10px] text-muted-foreground">{log.action}</span>
+                      <span className="truncate">{log.description}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Pending actions (need approval) */}
+          {result.actions.filter(a => !a.auto_executable).length > 0 && (
+            <Card className="border-border">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-yellow-600" /> Kräver godkännande
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {result.actions.filter(a => !a.auto_executable).map((action, i) => (
+                    <div key={i} className="border border-border rounded-lg p-3 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-[10px]">{action.action_type}</Badge>
+                        <span className="text-xs font-medium truncate">{action.target_title || action.target_id}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">{action.description}</p>
+                      {action.reason && <p className="text-[10px] text-muted-foreground italic">{action.reason}</p>}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Duplicates */}
+          {result.duplicates.length > 0 && (
+            <Card className="border-border">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <GitMerge className="w-4 h-4" /> Dubbletter
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {result.duplicates.map((dup, i) => (
+                    <div key={i} className="border border-border rounded-lg p-3">
+                      <p className="text-xs">{dup.reason}</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">Förslag: {dup.suggested_action}</p>
+                      <div className="flex gap-1 mt-1">
+                        {dup.ids.map(id => <Badge key={id} variant="outline" className="text-[10px] font-mono">{id.slice(0, 8)}</Badge>)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ── Main Page ──
 const AdminAI = () => {
   return (
