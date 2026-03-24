@@ -23,6 +23,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { getOrderDisplayId } from '@/utils/orderDisplay';
 import WorkItemDetail from './WorkItemDetail';
 import { useNavigate } from 'react-router-dom';
+import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
 
 interface WorkItem {
   id: string;
@@ -489,35 +490,18 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
       setCompletedCount(prev => prev + 1);
       setJustCompleted(itemId);
       toast.success('Klar ✓ — AI granskar...');
-      // Trigger AI review — await and handle result
-      (async () => {
-        try {
-          const { data, error } = await supabase.functions.invoke('ai-review-fix', { body: { work_item_id: itemId } });
-          if (error) {
-            console.error('AI review error:', error);
-            toast.error('AI-granskning misslyckades — manuell granskning krävs');
-            // Set fallback status
-            await supabase.from('work_items' as any).update({
-              ai_review_status: 'needs_review',
-              ai_review_result: { status: 'needs_review', verdict: 'AI-granskning misslyckades', confidence: 0 },
-              ai_review_at: new Date().toISOString(),
-            }).eq('id', itemId);
-          } else if (data?.review) {
-            const reviewStatus = data.review.status;
-            if (reviewStatus === 'verified') {
-              toast.success('AI: ✅ Verifierad');
-            } else if (reviewStatus === 'needs_review') {
-              toast.warning('AI: ⚠️ Behöver granskning');
-            } else {
-              toast.error('AI: ❌ Ofullständig');
-            }
-          }
-          queryClient.invalidateQueries({ queryKey: ['work-items'] });
-        } catch (e) {
-          console.error('AI review failed:', e);
-          toast.error('AI-granskning misslyckades');
-        }
-      })();
+      const reviewResult = await triggerAiReviewForWorkItem(itemId, { context: 'workbench_board_done' });
+      if (!reviewResult.ok) {
+        toast.error('AI-granskning misslyckades — manuell granskning krävs');
+      } else if (reviewResult.status === 'verified') {
+        toast.success('AI: ✅ Verifierad');
+      } else if (reviewResult.status === 'needs_review') {
+        toast.warning('AI: ⚠️ Behöver granskning');
+      } else if (reviewResult.status === 'incomplete') {
+        toast.error('AI: ❌ Ofullständig');
+      }
+      queryClient.invalidateQueries({ queryKey: ['work-items'] });
+
       setTimeout(() => {
         setJustCompleted(null);
         if (workModeRef.current && autoNext) {

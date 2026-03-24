@@ -12,6 +12,7 @@ serve(async (req) => {
   try {
     const { work_item_id } = await req.json();
     if (!work_item_id) throw new Error("work_item_id required");
+    console.log(`[ai-review-fix] trigger work_item_id=${work_item_id}`);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -152,6 +153,8 @@ Svara med JSON:
         work_item_snapshot: item,
       },
     });
+
+    console.log(`[ai-review-fix] complete work_item_id=${work_item_id} status=${reviewResult.status}`);
 
     return new Response(JSON.stringify({ success: true, review: reviewResult }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
