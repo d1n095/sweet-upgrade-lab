@@ -1291,6 +1291,17 @@ export function AdminProductForm({
                     usageStep3: data.usageStep3 || data.step3 || prev.usageStep3,
                     weightGrams: data.weightGrams?.toString() || data.weight?.toString() || prev.weightGrams,
                     certifications: Array.isArray(data.certifications) ? data.certifications.join(', ') : (data.certifications || prev.certifications),
+                    hook: data.hook || prev.hook,
+                    dosage: data.dosage || prev.dosage,
+                    variants: data.variants || prev.variants,
+                    storage: data.storage || prev.storage,
+                    safety: data.safety || prev.safety,
+                    specifications: typeof data.specifications === 'object' ? JSON.stringify(data.specifications) : (data.specifications || prev.specifications),
+                    isConcentrate: data.isConcentrate ?? data.is_concentrate ?? prev.isConcentrate,
+                    usage: data.usage || prev.usage,
+                    effects: data.effects || prev.effects,
+                    feeling: data.feeling || prev.feeling,
+                    extendedDescription: data.extendedDescription || data.extended_description || prev.extendedDescription,
                   }));
                   toast.success(language === 'sv' ? 'Produktdata importerad!' : 'Product data imported!');
                 } catch {
