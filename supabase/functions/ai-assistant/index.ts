@@ -101,6 +101,11 @@ serve(async (req) => {
         break;
       }
 
+      case "action_engine": {
+        result = await handleActionEngine(supabase, lovableKey);
+        break;
+      }
+
       case "create_action": {
         const { title, description, priority, category, source_type: srcType, source_id: srcId } = body;
         if (!title) {
@@ -902,4 +907,143 @@ Du MÅSTE använda system_scan-funktionen.`,
       total: (masterList || []).length,
     },
   };
+}
+
+// ── Action + Revenue Engine ──
+async function handleActionEngine(supabase: any, apiKey: string) {
+  // Gather all relevant data
+  const { summary, metrics } = await gatherSystemSnapshot(supabase);
+
+  // Get open work items with details
+  const { data: workItems } = await supabase
+    .from("work_items")
+    .select("id, title, description, status, priority, item_type, ai_category, ai_type_classification, ai_confidence, source_type, source_id, created_at")
+    .in("status", ["open", "claimed", "in_progress", "escalated"])
+    .order("created_at", { ascending: false })
+    .limit(30);
+
+  // Get product performance
+  const { data: products } = await supabase
+    .from("products")
+    .select("title_sv, price, stock, badge, category, is_visible")
+    .eq("is_visible", true)
+    .limit(100);
+
+  const { data: sales } = await supabase
+    .from("product_sales")
+    .select("product_title, total_quantity_sold")
+    .order("total_quantity_sold", { ascending: false })
+    .limit(30);
+
+  const workItemsSummary = (workItems || []).slice(0, 20).map((w: any) =>
+    `[${w.priority}/${w.item_type}] ${w.title} (${w.ai_category || "uncategorized"})`
+  ).join("\n");
+
+  const productSummary = (products || []).slice(0, 20).map((p: any) =>
+    `${p.title_sv}: ${p.price} kr, lager: ${p.stock}`
+  ).join(", ");
+
+  const salesSummary = (sales || []).slice(0, 10).map((s: any) =>
+    `${s.product_title}: ${s.total_quantity_sold} sålda`
+  ).join(", ");
+
+  const context = `${summary}
+
+AKTIVA UPPGIFTER (${(workItems || []).length}):
+${workItemsSummary}
+
+PRODUKTER: ${productSummary}
+FÖRSÄLJNING: ${salesSummary}`;
+
+  return callAI(apiKey, [
+    {
+      role: "system",
+      content: `Du är en AI-operativ chef för en svensk e-handelsplattform (4thepeople) som säljer giftfria produkter.
+Din uppgift är att generera KONKRETA HANDLINGSPLANER som maximerar intäkter och systemstabilitet.
+För varje åtgärd: ge root cause, fix-strategi, implementation steps och en redo Lovable-prompt.
+Koppla buggar till intäktsförlust. Föreslå kampanjer och bundles baserat på data.
+Rangordna ALLT efter intäktspåverkan. Svara på svenska. Använd action_engine-funktionen.`,
+    },
+    { role: "user", content: `Generera handlingsplan baserat på:\n\n${context}` },
+  ], [{
+    type: "function",
+    function: {
+      name: "action_engine",
+      description: "Generate prioritized action plan with revenue impact",
+      parameters: {
+        type: "object",
+        properties: {
+          actions: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                title: { type: "string" },
+                type: { type: "string", enum: ["fix", "improvement", "revenue", "campaign", "bundle", "upsell"] },
+                priority: { type: "string", enum: ["critical", "high", "medium", "low"] },
+                revenue_impact: { type: "string", enum: ["high", "medium", "low", "none"] },
+                root_cause: { type: "string" },
+                fix_strategy: { type: "string" },
+                implementation_steps: { type: "array", items: { type: "string" } },
+                expected_result: { type: "string" },
+                lovable_prompt: { type: "string" },
+                linked_systems: { type: "array", items: { type: "string" } },
+                estimated_revenue_change: { type: "string" },
+              },
+              required: ["title", "type", "priority", "revenue_impact", "root_cause", "fix_strategy", "implementation_steps", "expected_result", "lovable_prompt", "linked_systems"],
+              additionalProperties: false,
+            },
+          },
+          campaigns: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                name: { type: "string" },
+                description: { type: "string" },
+                discount: { type: "string" },
+                target_audience: { type: "string" },
+                expected_revenue: { type: "string" },
+                timing: { type: "string" },
+              },
+              required: ["name", "description", "discount", "target_audience", "expected_revenue", "timing"],
+              additionalProperties: false,
+            },
+          },
+          bundle_suggestions: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                name: { type: "string" },
+                products: { type: "array", items: { type: "string" } },
+                discount_percent: { type: "number" },
+                reason: { type: "string" },
+                expected_aov_increase: { type: "string" },
+              },
+              required: ["name", "products", "discount_percent", "reason", "expected_aov_increase"],
+              additionalProperties: false,
+            },
+          },
+          cross_system_links: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                issue: { type: "string" },
+                revenue_connection: { type: "string" },
+                impact_description: { type: "string" },
+              },
+              required: ["issue", "revenue_connection", "impact_description"],
+              additionalProperties: false,
+            },
+          },
+          summary: { type: "string" },
+          total_estimated_revenue_opportunity: { type: "string" },
+        },
+        required: ["actions", "campaigns", "bundle_suggestions", "cross_system_links", "summary", "total_estimated_revenue_opportunity"],
+        additionalProperties: false,
+      },
+    },
+  }], { type: "function", function: { name: "action_engine" } });
 }
