@@ -17,6 +17,7 @@ import {
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
 
 interface WorkItemDetailProps {
   item: {
@@ -464,14 +465,14 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                 onClick={async () => {
                   setRunningReview(true);
                   try {
-                    const { data, error } = await supabase.functions.invoke('ai-review-fix', { body: { work_item_id: item.id } });
-                    if (error) {
+                    const reviewResult = await triggerAiReviewForWorkItem(item.id, { context: 'work_item_detail_manual' });
+                    if (!reviewResult.ok) {
                       toast.error('AI-granskning misslyckades');
                     } else {
-                      const s = data?.review?.status;
+                      const s = reviewResult.status;
                       toast.success(s === 'verified' ? 'AI: ✅ Verifierad' : s === 'needs_review' ? 'AI: ⚠️ Behöver granskning' : 'AI: Granskning klar');
-                      onRefresh?.();
                     }
+                    onRefresh?.();
                   } catch { toast.error('Fel vid AI-granskning'); }
                   finally { setRunningReview(false); }
                 }}
