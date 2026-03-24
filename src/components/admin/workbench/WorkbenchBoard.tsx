@@ -250,14 +250,15 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   });
 
   const filteredItems = items.filter(t => {
+    if (viewFilter === 'active') return !['done', 'cancelled'].includes(t.status);
     if (viewFilter === 'mine') {
       const isMine = t.assigned_to === user?.id || t.claimed_by === user?.id;
       if (isMine) return t.status !== 'done';
       return false;
     }
-    if (viewFilter === 'done') return (t.assigned_to === user?.id || t.claimed_by === user?.id) && t.status === 'done';
+    if (viewFilter === 'review') return t.status === 'done' && (t as any).ai_review_status !== 'verified';
+    if (viewFilter === 'done') return t.status === 'done';
     if (viewFilter === 'escalated') return t.status === 'escalated';
-    if (viewFilter === 'open') return t.status === 'open';
     if (viewFilter === 'bugs') return t.item_type === 'bug' && t.status !== 'done';
     if (viewFilter === 'incidents') return t.item_type === 'incident' && t.status !== 'done';
     return t.status !== 'done';
