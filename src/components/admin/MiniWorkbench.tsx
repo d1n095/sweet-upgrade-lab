@@ -4,27 +4,23 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useStaffAccess } from '@/hooks/useStaffAccess';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useLocation } from 'react-router-dom';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import {
-  Sheet, SheetContent, SheetHeader, SheetTitle,
-} from '@/components/ui/sheet';
-import {
-  Drawer, DrawerContent, DrawerHeader, DrawerTitle,
-} from '@/components/ui/drawer';
-import {
-  ClipboardList, ChevronDown, ChevronUp, X, Play, CheckCircle2, Loader2,
-  AlertTriangle, Package, Headphones, RotateCcw, ShieldAlert, FileText, Wrench,
+  ClipboardList, Play, CheckCircle2, Loader2,
+  AlertTriangle, Package, Headphones, RotateCcw, ShieldAlert, FileText, Wrench, Bug,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 const PRIORITY_COLORS: Record<string, string> = {
+  critical: 'bg-destructive/10 text-destructive border-destructive/20',
   high: 'bg-destructive/10 text-destructive border-destructive/20',
   medium: 'bg-warning/10 text-warning border-warning/20',
   low: 'bg-accent/10 text-accent border-accent/20',
@@ -34,8 +30,8 @@ const TYPE_ICONS: Record<string, typeof Package> = {
   pack_order: Package, packing: Package, shipping: Package,
   support_case: Headphones, support: Headphones,
   refund_request: RotateCcw, refund: RotateCcw,
-  incident: ShieldAlert, manual_task: Wrench,
-  general: FileText, other: FileText,
+  incident: ShieldAlert, bug: Bug, manual_task: Wrench,
+  manual: Wrench, general: FileText, other: FileText,
 };
 
 type MiniFilter = 'mine' | 'escalated' | 'all';
@@ -51,18 +47,16 @@ const MiniWorkbench = () => {
   const [acting, setActing] = useState<string | null>(null);
   const [filter, setFilter] = useState<MiniFilter>('mine');
 
-  // Don't show on checkout
   const isCheckout = location.pathname === '/checkout';
 
   const { data: allTasks = [] } = useQuery({
-    queryKey: ['mini-workbench-tasks', user?.id],
+    queryKey: ['mini-workbench-items', user?.id],
     queryFn: async () => {
       if (!user) return [];
       const { data } = await supabase
-        .from('staff_tasks')
-        .select('id, title, status, priority, task_type, related_order_id, created_at, assigned_to, claimed_by')
+        .from('work_items')
+        .select('id, title, status, priority, item_type, source_type, related_order_id, created_at, assigned_to, claimed_by')
         .in('status', ['open', 'claimed', 'in_progress', 'escalated'])
-        .order('priority', { ascending: true })
         .order('created_at', { ascending: true })
         .limit(30);
       return data || [];
@@ -71,13 +65,12 @@ const MiniWorkbench = () => {
     refetchInterval: 15000,
   });
 
-  // Realtime subscription for new tasks
   useEffect(() => {
     if (!user || !hasAccess) return;
     const channel = supabase
       .channel('workbench-live')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'staff_tasks' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['mini-workbench-tasks'] });
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'work_items' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['mini-workbench-items'] });
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -98,29 +91,25 @@ const MiniWorkbench = () => {
     try {
       const task = allTasks.find(t => t.id === taskId);
 
-      const hasOpenedLabelCheckpoint = (statusHistory: any): boolean => {
-        if (!Array.isArray(statusHistory)) return false;
-        return statusHistory.some((entry: any) => entry?.status === 'label_opened' || entry?.label_opened === true);
-      };
-
       if (action === 'claim') {
-        await supabase.from('staff_tasks').update({
+        await supabase.from('work_items').update({
           claimed_by: user.id, claimed_at: new Date().toISOString(), status: 'claimed',
         }).eq('id', taskId);
-        toast.success('Task claimad');
+        toast.success('Uppgift claimad');
       } else if (action === 'unclaim') {
-        await supabase.from('staff_tasks').update({
+        await supabase.from('work_items').update({
           claimed_by: null, assigned_to: null, claimed_at: null, status: 'open',
         } as any).eq('id', taskId);
         toast.success('Uppdrag släppt');
       } else if (action === 'start') {
-        await supabase.from('staff_tasks').update({ status: 'in_progress' }).eq('id', taskId);
-        if (task?.related_order_id && ['pack_order', 'packing'].includes(task.task_type)) {
+        await supabase.from('work_items').update({ status: 'in_progress' }).eq('id', taskId);
+        if (task?.related_order_id && ['pack_order', 'packing'].includes(task.item_type)) {
           navigate(`/admin/orders?tab=to_pack&focus=${task.related_order_id}`);
         }
-        toast.success('Task startad');
+        toast.success('Uppgift startad');
       } else if (action === 'done') {
-        if (task?.related_order_id && ['pack_order', 'packing'].includes(task.task_type)) {
+        // For packing work items, validate order state
+        if (task?.related_order_id && ['pack_order', 'packing'].includes(task.item_type)) {
           const { data: order } = await supabase
             .from('orders')
             .select('payment_status, fulfillment_status, status_history, delivery_method')
@@ -132,14 +121,14 @@ const MiniWorkbench = () => {
             return;
           }
 
-          // Only enforce tracking/label checkpoint for shipping orders
           const isShipping = !order.delivery_method || order.delivery_method === 'shipping';
           if (isShipping) {
-            if (!hasOpenedLabelCheckpoint(order.status_history)) {
+            const history = order.status_history;
+            const hasLabel = Array.isArray(history) && history.some((e: any) => e?.status === 'label_opened' || e?.label_opened === true);
+            if (!hasLabel) {
               toast.error('Öppna fraktsedeln innan du markerar klar');
               return;
             }
-
             if (!['ready_to_ship', 'packed', 'shipped'].includes(order.fulfillment_status)) {
               toast.error('Markera ordern som packad först');
               return;
@@ -147,25 +136,25 @@ const MiniWorkbench = () => {
           }
         }
 
-        await supabase.from('staff_tasks').update({
+        await supabase.from('work_items').update({
           status: 'done', completed_at: new Date().toISOString(),
         }).eq('id', taskId);
-        toast.success('Task klar ✓');
+        toast.success('Uppgift klar ✓');
       } else if (action === 'escalate') {
-        await supabase.from('staff_tasks').update({
-          status: 'escalated', priority: 'high', updated_at: new Date().toISOString(),
-        } as any).eq('id', taskId);
+        await supabase.from('work_items').update({
+          status: 'escalated', priority: 'high',
+        }).eq('id', taskId);
         const { data: admins } = await supabase.from('user_roles').select('user_id').in('role', ['admin', 'founder'] as any[]);
         for (const a of admins || []) {
           await supabase.from('notifications').insert({
             user_id: a.user_id, type: 'urgent',
             message: `🚨 Eskalerad: ${task?.title || 'Uppgift'}`,
-            related_id: taskId, related_type: 'task',
+            related_id: taskId, related_type: 'work_item',
           });
         }
         toast.success('Eskalerad → admins notifierade');
       }
-      queryClient.invalidateQueries({ queryKey: ['mini-workbench-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['mini-workbench-items'] });
     } catch {
       toast.error('Något gick fel');
     } finally {
@@ -173,7 +162,6 @@ const MiniWorkbench = () => {
     }
   };
 
-  // Don't render if no access, loading, or on checkout
   if (accessLoading || !hasAccess || isCheckout) return null;
 
   const totalBadge = allTasks.length;
@@ -197,7 +185,7 @@ const MiniWorkbench = () => {
             <p className="text-sm text-muted-foreground text-center py-8">Inga uppgifter</p>
           ) : (
             displayTasks.map(task => {
-              const TypeIcon = TYPE_ICONS[task.task_type] || FileText;
+              const TypeIcon = TYPE_ICONS[task.item_type] || FileText;
               const isEscalated = task.status === 'escalated';
               return (
                 <div
@@ -212,20 +200,23 @@ const MiniWorkbench = () => {
                       <TypeIcon className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
                       <p className="text-xs font-medium leading-tight truncate">{task.title}</p>
                     </div>
-                    {isEscalated ? (
-                      <Badge variant="destructive" className="text-[8px] shrink-0">ESKALERAD</Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-[9px] shrink-0">{task.status}</Badge>
-                    )}
+                    <div className="flex items-center gap-1 shrink-0">
+                      {task.source_type && (
+                        <Badge variant="outline" className="text-[8px]">
+                          {task.source_type === 'bug_report' ? '🐛' : task.source_type === 'order_incident' ? '⚠️' : '📋'}
+                        </Badge>
+                      )}
+                      {isEscalated ? (
+                        <Badge variant="destructive" className="text-[8px]">ESKALERAD</Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[9px]">{task.status}</Badge>
+                      )}
+                    </div>
                   </div>
                   <div className="flex gap-1.5 flex-wrap">
                     {task.related_order_id && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-6 text-[10px] px-2"
-                        onClick={() => navigate(`/admin/orders?tab=to_pack&focus=${task.related_order_id}`)}
-                      >
+                      <Button size="sm" variant="ghost" className="h-6 text-[10px] px-2"
+                        onClick={() => navigate(`/admin/orders?tab=to_pack&focus=${task.related_order_id}`)}>
                         Öppna order
                       </Button>
                     )}
@@ -264,20 +255,13 @@ const MiniWorkbench = () => {
     </>
   );
 
-  // Mobile: bottom drawer
   if (isMobile) {
     return (
       <>
-        {/* Floating button */}
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
+        <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
           onClick={() => setOpen(true)}
-          className={cn(
-            'fixed bottom-20 right-4 z-40 w-12 h-12 rounded-full shadow-lg flex items-center justify-center transition-colors',
-            escalatedCount > 0 ? 'bg-destructive text-destructive-foreground' : 'bg-primary text-primary-foreground'
-          )}
-        >
+          className={cn('fixed bottom-20 right-4 z-40 w-12 h-12 rounded-full shadow-lg flex items-center justify-center transition-colors',
+            escalatedCount > 0 ? 'bg-destructive text-destructive-foreground' : 'bg-primary text-primary-foreground')}>
           <ClipboardList className="w-5 h-5" />
           {totalBadge > 0 && (
             <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-secondary text-secondary-foreground text-[10px] font-bold flex items-center justify-center">
@@ -290,17 +274,13 @@ const MiniWorkbench = () => {
             </span>
           )}
         </motion.button>
-
         <Drawer open={open} onOpenChange={setOpen}>
           <DrawerContent className="max-h-[85vh]">
             <DrawerHeader className="pb-2">
               <DrawerTitle className="flex items-center gap-2">
-                <ClipboardList className="w-4 h-4 text-primary" />
-                Workbench
+                <ClipboardList className="w-4 h-4 text-primary" /> Workbench
                 {escalatedCount > 0 && (
-                  <Badge variant="destructive" className="text-[9px]">
-                    <AlertTriangle className="w-2.5 h-2.5 mr-0.5" />{escalatedCount}
-                  </Badge>
+                  <Badge variant="destructive" className="text-[9px]"><AlertTriangle className="w-2.5 h-2.5 mr-0.5" />{escalatedCount}</Badge>
                 )}
               </DrawerTitle>
             </DrawerHeader>
@@ -311,18 +291,12 @@ const MiniWorkbench = () => {
     );
   }
 
-  // Desktop: floating button + sheet panel
   return (
     <>
-      <motion.button
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
+      <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
         onClick={() => setOpen(true)}
-        className={cn(
-          'fixed bottom-6 right-6 z-40 flex items-center gap-2 px-4 py-3 rounded-2xl shadow-lg transition-colors',
-          escalatedCount > 0 ? 'bg-destructive text-destructive-foreground' : 'bg-primary text-primary-foreground'
-        )}
-      >
+        className={cn('fixed bottom-6 right-6 z-40 flex items-center gap-2 px-4 py-3 rounded-2xl shadow-lg transition-colors',
+          escalatedCount > 0 ? 'bg-destructive text-destructive-foreground' : 'bg-primary text-primary-foreground')}>
         <ClipboardList className="w-5 h-5" />
         <span className="text-sm font-semibold">Workbench</span>
         {totalBadge > 0 && <Badge variant="secondary" className="ml-1 text-xs">{totalBadge}</Badge>}
@@ -332,17 +306,13 @@ const MiniWorkbench = () => {
           </Badge>
         )}
       </motion.button>
-
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="right" className="w-[380px] sm:w-[400px] p-0 flex flex-col">
           <SheetHeader className="px-4 py-3 border-b border-border">
             <SheetTitle className="flex items-center gap-2">
-              <ClipboardList className="w-4 h-4 text-primary" />
-              Workbench
+              <ClipboardList className="w-4 h-4 text-primary" /> Workbench
               {escalatedCount > 0 && (
-                <Badge variant="destructive" className="text-[9px]">
-                  <AlertTriangle className="w-2.5 h-2.5 mr-0.5" />{escalatedCount}
-                </Badge>
+                <Badge variant="destructive" className="text-[9px]"><AlertTriangle className="w-2.5 h-2.5 mr-0.5" />{escalatedCount}</Badge>
               )}
             </SheetTitle>
           </SheetHeader>
