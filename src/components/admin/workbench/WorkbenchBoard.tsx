@@ -552,8 +552,12 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const reviewCount = items.filter(t => t.status === 'done' && (t as any).ai_review_status !== 'verified').length;
   const activeCount = items.filter(t => !['done', 'cancelled'].includes(t.status)).length;
   const openCount = items.filter(t => t.status === 'open' && !t.assigned_to).length;
-  const bugCount = items.filter(t => t.item_type === 'bug' && t.status !== 'done').length;
-  const incidentCount = items.filter(t => t.item_type === 'incident' && t.status !== 'done').length;
+  const bugCount = items.filter(t => getClassification(t) === 'bug' && t.status !== 'done').length;
+  const improvementCount = items.filter(t => getClassification(t) === 'improvement' && t.status !== 'done').length;
+  const featureCount = items.filter(t => {
+    const c = getClassification(t);
+    return (c === 'feature' || c === 'upgrade') && t.status !== 'done';
+  }).length;
 
   const toggleBulkSelect = (itemId: string) => {
     setBulkSelected(prev => {
