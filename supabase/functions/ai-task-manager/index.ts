@@ -77,21 +77,31 @@ serve(async (req) => {
           const aiResult = await callAI(lovableKey, [
             {
               role: "system",
-              content: `You are a task manager for a Swedish e-commerce platform. Analyze work items and assign priority based on business impact.
-Rules:
+              content: `You are a task manager for a Swedish e-commerce platform. Analyze work items and:
+1. Assign priority based on business impact
+2. Classify the TYPE of each item:
+   - bug: something is broken/not working
+   - improvement: existing feature can be better
+   - feature: new functionality request
+   - upgrade: performance, security, scalability enhancement
+   - task: manual/admin operational task
+
+Priority rules:
 - checkout/payment issues → critical
 - order fulfillment issues → high  
 - bugs affecting users → high
 - UI issues → medium
+- improvements/features → medium or low
 - internal/manual tasks → low
+
 Respond using the prioritize_tasks function.`,
             },
-            { role: "user", content: `Prioritize these work items:\n${itemsSummary}` },
+            { role: "user", content: `Prioritize and classify these work items:\n${itemsSummary}` },
           ], [{
             type: "function",
             function: {
               name: "prioritize_tasks",
-              description: "Assign priorities to work items",
+              description: "Assign priorities and classify work items",
               parameters: {
                 type: "object",
                 properties: {
@@ -105,8 +115,10 @@ Respond using the prioritize_tasks function.`,
                         confidence: { type: "string", enum: ["low", "medium", "high"] },
                         category: { type: "string" },
                         reason: { type: "string" },
+                        classification: { type: "string", enum: ["bug", "improvement", "feature", "upgrade", "task"] },
+                        classification_reason: { type: "string", description: "Short explanation: why this type" },
                       },
-                      required: ["id", "priority", "confidence", "category"],
+                      required: ["id", "priority", "confidence", "category", "classification"],
                       additionalProperties: false,
                     },
                   },
@@ -122,6 +134,8 @@ Respond using the prioritize_tasks function.`,
               priority: task.priority,
               ai_confidence: task.confidence,
               ai_category: task.category,
+              ai_type_classification: task.classification || null,
+              ai_type_reason: task.classification_reason || null,
               updated_at: new Date().toISOString(),
             }).eq("id", task.id);
             results.prioritized++;

@@ -49,6 +49,8 @@ interface WorkItem {
   conflict_flag?: boolean;
   execution_order?: number;
   orchestrator_result?: any;
+  ai_type_classification?: string;
+  ai_type_reason?: string;
 }
 
 const STATUS_COLUMNS = [
@@ -96,7 +98,15 @@ const ITEM_TYPES = [
   { key: 'other', label: 'Övrigt' },
 ];
 
-type ViewFilter = 'active' | 'mine' | 'review' | 'done' | 'escalated' | 'bugs' | 'incidents';
+const AI_CLASSIFICATION_META: Record<string, { label: string; icon: typeof Bug; color: string }> = {
+  bug: { label: 'Bugg', icon: Bug, color: 'text-red-600 bg-red-600/10' },
+  improvement: { label: 'Förbättring', icon: Zap, color: 'text-amber-600 bg-amber-600/10' },
+  feature: { label: 'Feature', icon: Sparkles, color: 'text-blue-600 bg-blue-600/10' },
+  upgrade: { label: 'Upgrade', icon: ShieldAlert, color: 'text-purple-600 bg-purple-600/10' },
+  task: { label: 'Uppgift', icon: Wrench, color: 'text-muted-foreground bg-secondary' },
+};
+
+type ViewFilter = 'active' | 'mine' | 'review' | 'done' | 'escalated' | 'bugs' | 'improvements' | 'features';
 
 interface Props {
   initialFilter?: string;
@@ -272,6 +282,8 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     enabled: !!user?.id,
   });
 
+  const getClassification = (item: WorkItem) => item.ai_type_classification || (item.item_type === 'bug' ? 'bug' : null);
+
   const filteredItems = items.filter(t => {
     if (viewFilter === 'active') return !['done', 'cancelled'].includes(t.status);
     if (viewFilter === 'mine') {
@@ -282,8 +294,12 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     if (viewFilter === 'review') return t.status === 'done' && (t as any).ai_review_status !== 'verified';
     if (viewFilter === 'done') return t.status === 'done';
     if (viewFilter === 'escalated') return t.status === 'escalated';
-    if (viewFilter === 'bugs') return t.item_type === 'bug' && t.status !== 'done';
-    if (viewFilter === 'incidents') return t.item_type === 'incident' && t.status !== 'done';
+    if (viewFilter === 'bugs') return getClassification(t) === 'bug' && t.status !== 'done';
+    if (viewFilter === 'improvements') return getClassification(t) === 'improvement' && t.status !== 'done';
+    if (viewFilter === 'features') {
+      const c = getClassification(t);
+      return (c === 'feature' || c === 'upgrade') && t.status !== 'done';
+    }
     return t.status !== 'done';
   });
 
@@ -292,7 +308,6 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const sortedItems = [...filteredItems].sort((a, b) => {
     if (a.status === 'escalated' && b.status !== 'escalated') return -1;
     if (b.status === 'escalated' && a.status !== 'escalated') return 1;
-    // Use AI execution_order if available
     const aOrder = a.execution_order ?? 999;
     const bOrder = b.execution_order ?? 999;
     if (aOrder !== bOrder) return aOrder - bOrder;
@@ -537,8 +552,12 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const reviewCount = items.filter(t => t.status === 'done' && (t as any).ai_review_status !== 'verified').length;
   const activeCount = items.filter(t => !['done', 'cancelled'].includes(t.status)).length;
   const openCount = items.filter(t => t.status === 'open' && !t.assigned_to).length;
-  const bugCount = items.filter(t => t.item_type === 'bug' && t.status !== 'done').length;
-  const incidentCount = items.filter(t => t.item_type === 'incident' && t.status !== 'done').length;
+  const bugCount = items.filter(t => getClassification(t) === 'bug' && t.status !== 'done').length;
+  const improvementCount = items.filter(t => getClassification(t) === 'improvement' && t.status !== 'done').length;
+  const featureCount = items.filter(t => {
+    const c = getClassification(t);
+    return (c === 'feature' || c === 'upgrade') && t.status !== 'done';
+  }).length;
 
   const toggleBulkSelect = (itemId: string) => {
     setBulkSelected(prev => {
@@ -603,6 +622,16 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
               <TypeIcon className="w-2.5 h-2.5" />
               {typeMeta.label}
             </Badge>
+            {item.ai_type_classification && AI_CLASSIFICATION_META[item.ai_type_classification] && (() => {
+              const cls = AI_CLASSIFICATION_META[item.ai_type_classification!];
+              const ClsIcon = cls.icon;
+              return (
+                <Badge variant="outline" className={cn('text-[9px] gap-0.5', cls.color)}>
+                  <ClsIcon className="w-2.5 h-2.5" />
+                  {cls.label}
+                </Badge>
+              );
+            })()}
             {hasSource && (
               <Badge variant="outline" className="text-[9px] gap-0.5 bg-blue-50 text-blue-600 border-blue-200">
                 <Link2 className="w-2.5 h-2.5" />
@@ -837,7 +866,15 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
           </TabsTrigger>
           <TabsTrigger value="bugs" className="gap-1.5">
             <Bug className="w-3.5 h-3.5" /> Buggar
-            {bugCount > 0 && <Badge variant="secondary" className="text-[9px] ml-1">{bugCount}</Badge>}
+            {bugCount > 0 && <Badge variant="destructive" className="text-[9px] ml-1">{bugCount}</Badge>}
+          </TabsTrigger>
+          <TabsTrigger value="improvements" className="gap-1.5">
+            <Zap className="w-3.5 h-3.5" /> Förbättringar
+            {improvementCount > 0 && <Badge variant="secondary" className="text-[9px] ml-1">{improvementCount}</Badge>}
+          </TabsTrigger>
+          <TabsTrigger value="features" className="gap-1.5">
+            <Sparkles className="w-3.5 h-3.5" /> Features
+            {featureCount > 0 && <Badge variant="secondary" className="text-[9px] ml-1">{featureCount}</Badge>}
           </TabsTrigger>
           <TabsTrigger value="escalated" className={cn('gap-1.5', escalatedCount > 0 && 'text-destructive')}>
             <AlertTriangle className="w-3.5 h-3.5" /> Eskalerade

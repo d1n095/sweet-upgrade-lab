@@ -2956,6 +2956,8 @@ export type Database = {
           ai_review_at: string | null
           ai_review_result: Json | null
           ai_review_status: string | null
+          ai_type_classification: string | null
+          ai_type_reason: string | null
           assigned_to: string | null
           blocks: string[] | null
           claimed_at: string | null
@@ -2991,6 +2993,8 @@ export type Database = {
           ai_review_at?: string | null
           ai_review_result?: Json | null
           ai_review_status?: string | null
+          ai_type_classification?: string | null
+          ai_type_reason?: string | null
           assigned_to?: string | null
           blocks?: string[] | null
           claimed_at?: string | null
@@ -3026,6 +3030,8 @@ export type Database = {
           ai_review_at?: string | null
           ai_review_result?: Json | null
           ai_review_status?: string | null
+          ai_type_classification?: string | null
+          ai_type_reason?: string | null
           assigned_to?: string | null
           blocks?: string[] | null
           claimed_at?: string | null

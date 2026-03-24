@@ -1,0 +1,1 @@
+ALTER TABLE public.work_items ADD COLUMN IF NOT EXISTS ai_type_classification text, ADD COLUMN IF NOT EXISTS ai_type_reason text;
