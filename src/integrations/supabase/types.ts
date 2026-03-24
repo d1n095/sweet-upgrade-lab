@@ -2952,10 +2952,12 @@ export type Database = {
           ai_category: string | null
           ai_confidence: string | null
           ai_detected: boolean | null
+          ai_overrides: Json | null
           ai_resolution_notes: string | null
           ai_review_at: string | null
           ai_review_result: Json | null
           ai_review_status: string | null
+          ai_root_causes: Json | null
           ai_type_classification: string | null
           ai_type_reason: string | null
           assigned_to: string | null
@@ -2971,7 +2973,13 @@ export type Database = {
           due_at: string | null
           duplicate_of: string | null
           execution_order: number | null
+          human_custom_cause: string | null
+          human_custom_fix: string | null
+          human_selected_cause: string | null
           id: string
+          ignored: boolean | null
+          ignored_at: string | null
+          ignored_reason: string | null
           item_type: string
           orchestrator_result: Json | null
           priority: string
@@ -2989,10 +2997,12 @@ export type Database = {
           ai_category?: string | null
           ai_confidence?: string | null
           ai_detected?: boolean | null
+          ai_overrides?: Json | null
           ai_resolution_notes?: string | null
           ai_review_at?: string | null
           ai_review_result?: Json | null
           ai_review_status?: string | null
+          ai_root_causes?: Json | null
           ai_type_classification?: string | null
           ai_type_reason?: string | null
           assigned_to?: string | null
@@ -3008,7 +3018,13 @@ export type Database = {
           due_at?: string | null
           duplicate_of?: string | null
           execution_order?: number | null
+          human_custom_cause?: string | null
+          human_custom_fix?: string | null
+          human_selected_cause?: string | null
           id?: string
+          ignored?: boolean | null
+          ignored_at?: string | null
+          ignored_reason?: string | null
           item_type?: string
           orchestrator_result?: Json | null
           priority?: string
@@ -3026,10 +3042,12 @@ export type Database = {
           ai_category?: string | null
           ai_confidence?: string | null
           ai_detected?: boolean | null
+          ai_overrides?: Json | null
           ai_resolution_notes?: string | null
           ai_review_at?: string | null
           ai_review_result?: Json | null
           ai_review_status?: string | null
+          ai_root_causes?: Json | null
           ai_type_classification?: string | null
           ai_type_reason?: string | null
           assigned_to?: string | null
@@ -3045,7 +3063,13 @@ export type Database = {
           due_at?: string | null
           duplicate_of?: string | null
           execution_order?: number | null
+          human_custom_cause?: string | null
+          human_custom_fix?: string | null
+          human_selected_cause?: string | null
           id?: string
+          ignored?: boolean | null
+          ignored_at?: string | null
+          ignored_reason?: string | null
           item_type?: string
           orchestrator_result?: Json | null
           priority?: string
