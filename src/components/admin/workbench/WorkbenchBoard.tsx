@@ -282,6 +282,8 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     enabled: !!user?.id,
   });
 
+  const getClassification = (item: WorkItem) => item.ai_type_classification || (item.item_type === 'bug' ? 'bug' : null);
+
   const filteredItems = items.filter(t => {
     if (viewFilter === 'active') return !['done', 'cancelled'].includes(t.status);
     if (viewFilter === 'mine') {
@@ -292,24 +294,13 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     if (viewFilter === 'review') return t.status === 'done' && (t as any).ai_review_status !== 'verified';
     if (viewFilter === 'done') return t.status === 'done';
     if (viewFilter === 'escalated') return t.status === 'escalated';
-    if (viewFilter === 'bugs') return t.item_type === 'bug' && t.status !== 'done';
-    if (viewFilter === 'incidents') return t.item_type === 'incident' && t.status !== 'done';
+    if (viewFilter === 'bugs') return getClassification(t) === 'bug' && t.status !== 'done';
+    if (viewFilter === 'improvements') return getClassification(t) === 'improvement' && t.status !== 'done';
+    if (viewFilter === 'features') {
+      const c = getClassification(t);
+      return (c === 'feature' || c === 'upgrade') && t.status !== 'done';
+    }
     return t.status !== 'done';
-  });
-
-  const myActiveCount = items.filter(t => (t.assigned_to === user?.id || t.claimed_by === user?.id) && t.status !== 'done' && t.status !== 'cancelled').length;
-
-  const sortedItems = [...filteredItems].sort((a, b) => {
-    if (a.status === 'escalated' && b.status !== 'escalated') return -1;
-    if (b.status === 'escalated' && a.status !== 'escalated') return 1;
-    // Use AI execution_order if available
-    const aOrder = a.execution_order ?? 999;
-    const bOrder = b.execution_order ?? 999;
-    if (aOrder !== bOrder) return aOrder - bOrder;
-    const pOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
-    const pDiff = (pOrder[a.priority] ?? 2) - (pOrder[b.priority] ?? 2);
-    if (pDiff !== 0) return pDiff;
-    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
   });
 
   const escalateItem = async (itemId: string) => {
