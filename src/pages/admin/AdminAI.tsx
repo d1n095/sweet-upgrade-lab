@@ -2451,6 +2451,9 @@ const AdminAI = () => {
           </TabsList>
         </ScrollableTabs>
 
+        <TabsContent value="autopilot" className="mt-4">
+          <AiAutopilotTab />
+        </TabsContent>
         <TabsContent value="actions" className="mt-4">
           <ActionEngineTab />
         </TabsContent>
