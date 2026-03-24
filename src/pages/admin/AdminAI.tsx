@@ -644,6 +644,24 @@ const BugAITab = () => {
                     <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1 flex-1" onClick={() => copyToClipboard(fixes[bug.id].lovable_prompt)}>
                       <Copy className="w-2.5 h-2.5" /> Kopiera Lovable-prompt
                     </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-6 text-[10px] gap-1 flex-1"
+                      onClick={async () => {
+                        const res = await callAI('create_action', {
+                          title: `Fix: ${bug.ai_summary || bug.description.substring(0, 80)}`,
+                          description: `Orsak: ${fixes[bug.id].possible_cause}\nStrategi: ${fixes[bug.id].fix_strategy}\n\n${fixes[bug.id].lovable_prompt}`,
+                          priority: bug.ai_severity === 'critical' ? 'critical' : bug.ai_severity === 'high' ? 'high' : 'medium',
+                          category: bug.ai_category || 'bug',
+                          source_type: 'bug_fix',
+                          source_id: bug.id,
+                        });
+                        if (res?.created) toast.success('Uppgift skapad i Workbench');
+                      }}
+                    >
+                      <Zap className="w-2.5 h-2.5" /> Skapa uppgift
+                    </Button>
                   </div>
                 </div>
               )}
