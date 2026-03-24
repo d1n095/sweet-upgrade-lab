@@ -798,7 +798,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
       <div className="flex items-center justify-between flex-wrap gap-2">
         <p className="text-sm text-muted-foreground">{sortedItems.length} uppgifter{viewFilter === 'mine' && myActiveCount === 0 ? ' (visar öppna – du har inga aktiva)' : ''}</p>
         <div className="flex gap-2">
-          {viewFilter === 'open' && openCount > 0 && (
+          {viewFilter === 'active' && openCount > 0 && (
             <Button size="sm" variant={bulkMode ? 'default' : 'outline'} className="gap-1.5" onClick={() => { setBulkMode(!bulkMode); setBulkSelected(new Set()); }}>
               {bulkMode ? <X className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
               {bulkMode ? 'Avbryt' : 'Markera'}
