@@ -296,6 +296,15 @@ Respond using the prioritize_tasks function.`,
             ai_confidence: "high",
             updated_at: new Date().toISOString(),
           }).eq("id", item.id);
+
+          await triggerAiReviewFromTaskManager(
+            supabase,
+            supabaseUrl,
+            serviceKey,
+            item.id,
+            "ai_task_manager_resolve"
+          );
+
           results.resolved++;
           continue;
         }
@@ -372,6 +381,14 @@ Respond using the prioritize_tasks function.`,
           completed_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         }).eq("id", item.id);
+
+        await triggerAiReviewFromTaskManager(
+          supabase,
+          supabaseUrl,
+          serviceKey,
+          item.id,
+          "ai_task_manager_auto_close"
+        );
 
         await supabase.from("automation_logs").insert({
           action_type: "ai_auto_close",
@@ -581,6 +598,49 @@ async function callAI(apiKey: string, messages: any[], tools?: any[], tool_choic
   const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
   if (toolCall) return JSON.parse(toolCall.function.arguments);
   return { text: data.choices?.[0]?.message?.content || "" };
+}
+
+async function triggerAiReviewFromTaskManager(
+  supabase: any,
+  supabaseUrl: string,
+  serviceKey: string,
+  workItemId: string,
+  context: string,
+) {
+  console.log(`[ai-review-trigger] start context=${context} work_item_id=${workItemId}`);
+
+  try {
+    const resp = await fetch(`${supabaseUrl}/functions/v1/ai-review-fix`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${serviceKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ work_item_id: workItemId }),
+    });
+
+    const responseText = await resp.text();
+
+    if (!resp.ok) {
+      throw new Error(`ai-review-fix failed (${resp.status}): ${responseText.slice(0, 400)}`);
+    }
+
+    console.log(`[ai-review-trigger] done context=${context} work_item_id=${workItemId}`);
+  } catch (e: any) {
+    const message = e?.message || "unknown ai-review-fix error";
+    console.error(`[ai-review-trigger] failed context=${context} work_item_id=${workItemId}: ${message}`);
+
+    await supabase.from("work_items").update({
+      ai_review_status: "needs_review",
+      ai_review_result: {
+        status: "needs_review",
+        verdict: `AI-granskning misslyckades (${context})`,
+        confidence: 0,
+        error: message,
+      },
+      ai_review_at: new Date().toISOString(),
+    }).eq("id", workItemId);
+  }
 }
 
 function chunkArray<T>(arr: T[], size: number): T[][] {
