@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Sparkles, Bug, BarChart3, Copy, Loader2, Send, AlertTriangle, Lightbulb, Info, RefreshCw, Bot, CheckCircle, XCircle, Shield, Clock, Zap, Activity, TrendingUp, Package, AlertCircle, Database, Wrench } from 'lucide-react';
+import { Sparkles, Bug, BarChart3, Copy, Loader2, Send, AlertTriangle, Lightbulb, Info, RefreshCw, Bot, CheckCircle, XCircle, Shield, Clock, Zap, Activity, TrendingUp, Package, AlertCircle, Database, Wrench, Radar, ArrowRight, Layers } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger, ScrollableTabs } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -959,7 +959,221 @@ const SystemHealthTab = () => {
   );
 };
 
-// ── Data Health Tab ──
+// ── System Scan Tab (MASTER ENGINE) ──
+const SystemScanTab = () => {
+  const [loading, setLoading] = useState(false);
+  const [scanResult, setScanResult] = useState<any>(null);
+  const [expandedIssue, setExpandedIssue] = useState<number | null>(null);
+
+  const runScan = async () => {
+    setLoading(true);
+    const res = await callAI('system_scan');
+    if (res) setScanResult(res);
+    setLoading(false);
+  };
+
+  const typeIcon = (t: string) => {
+    if (t === 'bug') return <Bug className="w-3.5 h-3.5 text-destructive" />;
+    if (t === 'improvement') return <TrendingUp className="w-3.5 h-3.5 text-blue-600" />;
+    if (t === 'feature') return <Sparkles className="w-3.5 h-3.5 text-purple-600" />;
+    if (t === 'upgrade') return <Shield className="w-3.5 h-3.5 text-orange-600" />;
+    return <Wrench className="w-3.5 h-3.5 text-muted-foreground" />;
+  };
+
+  const urgencyStyle = (u: string) => {
+    if (u === 'now') return 'bg-destructive/10 text-destructive border-destructive/20';
+    if (u === 'today') return 'bg-orange-50 text-orange-700 border-orange-200';
+    if (u === 'this_week') return 'bg-blue-50 text-blue-700 border-blue-200';
+    return 'bg-muted text-muted-foreground border-border';
+  };
+
+  const urgencyLabel = (u: string) => {
+    if (u === 'now') return '🔴 NU';
+    if (u === 'today') return '🟠 Idag';
+    if (u === 'this_week') return '🔵 Denna vecka';
+    return '⚪ Backlog';
+  };
+
+  const renderTaskGroup = (title: string, items: any[], color: string) => {
+    if (!items?.length) return null;
+    return (
+      <div className="space-y-2">
+        <h4 className={cn('text-xs font-bold flex items-center gap-1.5', color)}>
+          <Layers className="w-3.5 h-3.5" /> {title} ({items.length})
+        </h4>
+        <div className="space-y-1.5">
+          {items.map((task: any, i: number) => (
+            <div key={task.id || i} className="border rounded-lg p-2.5 flex items-start gap-2">
+              <span className="text-[10px] font-mono text-muted-foreground mt-0.5 w-5 shrink-0">#{task.execution_order || '—'}</span>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium line-clamp-1">{task.title}</p>
+                <div className="flex gap-1 mt-0.5 flex-wrap">
+                  <Badge variant={task.priority === 'critical' || task.priority === 'high' ? 'destructive' : 'secondary'} className="text-[8px]">{task.priority}</Badge>
+                  {task.ai_type_classification && <Badge variant="outline" className="text-[8px]">{task.ai_type_classification}</Badge>}
+                  {task.ai_category && <span className="text-[8px] bg-muted px-1 py-0.5 rounded">{task.ai_category}</span>}
+                  {task.conflict_flag && <span className="text-[8px] text-destructive">⚠️ konflikt</span>}
+                  {task.duplicate_of && <span className="text-[8px] text-muted-foreground">📎 dubblett</span>}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="border rounded-xl p-4 bg-card space-y-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Radar className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold">Full Systemskanning</h3>
+            <p className="text-[10px] text-muted-foreground">Skannar → Detekterar → Skapar uppgifter → Prioriterar → Ordnar</p>
+          </div>
+        </div>
+        <Button onClick={runScan} disabled={loading} className="w-full gap-2" size="lg">
+          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Radar className="w-4 h-4" />}
+          {loading ? 'Skannar hela systemet...' : 'Kör full systemskanning'}
+        </Button>
+        {loading && (
+          <p className="text-[10px] text-center text-muted-foreground animate-pulse">
+            AI analyserar alla datakällor, skapar uppgifter och prioriterar...
+          </p>
+        )}
+      </div>
+
+      {scanResult && (
+        <div className="space-y-4">
+          {/* Score + Summary */}
+          <div className={cn('border rounded-xl p-4 flex items-center gap-4',
+            scanResult.system_score >= 70 ? 'border-green-300 bg-green-50/50' :
+            scanResult.system_score >= 40 ? 'border-yellow-300 bg-yellow-50/50' :
+            'border-red-300 bg-red-50/50'
+          )}>
+            <div className={cn(
+              'w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold border-2',
+              scanResult.system_score >= 70 ? 'border-green-500 text-green-700' :
+              scanResult.system_score >= 40 ? 'border-yellow-500 text-yellow-700' :
+              'border-red-500 text-red-700'
+            )}>
+              {scanResult.system_score}
+            </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="text-sm font-bold">Systemhälsa</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">{scanResult.executive_summary}</p>
+              <div className="flex gap-2 mt-2 text-[10px]">
+                <span>⏱ {Math.round(scanResult.scan_duration_ms / 1000)}s</span>
+                <span>🔍 {scanResult.issues_found} issues</span>
+                <span>✅ {scanResult.tasks_created} skapade</span>
+                <span>📎 {scanResult.tasks_skipped_duplicate} dubbletter</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Risk areas */}
+          {scanResult.risk_areas?.length > 0 && (
+            <div className="flex gap-1.5 flex-wrap">
+              {scanResult.risk_areas.map((r: string, i: number) => (
+                <Badge key={i} variant="destructive" className="text-[9px]">{r}</Badge>
+              ))}
+            </div>
+          )}
+
+          {/* Stats grid */}
+          {scanResult.task_manager && (
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+              {[
+                { key: 'prioritized', label: 'Prioriterade', icon: BarChart3 },
+                { key: 'assigned', label: 'Tilldelade', icon: Send },
+                { key: 'detected', label: 'Detekterade', icon: Shield },
+                { key: 'orchestrated', label: 'Orkestrerade', icon: Layers },
+                { key: 'resolved', label: 'Lösta', icon: CheckCircle },
+              ].map(s => (
+                <Card key={s.key} className="border-border">
+                  <CardContent className="py-2 px-3 flex items-center gap-2">
+                    <s.icon className="w-3.5 h-3.5 text-muted-foreground" />
+                    <div>
+                      <p className="text-lg font-bold leading-none">{scanResult.task_manager[s.key] || 0}</p>
+                      <p className="text-[9px] text-muted-foreground">{s.label}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {/* AI-detected issues */}
+          {scanResult.issues?.length > 0 && (
+            <div className="space-y-2">
+              <h4 className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                <Radar className="w-3.5 h-3.5" /> Detekterade issues ({scanResult.issues.length})
+              </h4>
+              <ScrollArea className="max-h-[40vh]">
+                <div className="space-y-1.5 pr-2">
+                  {scanResult.issues.map((issue: any, i: number) => (
+                    <div key={i} className="border rounded-lg p-2.5 space-y-1.5 cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => setExpandedIssue(expandedIssue === i ? null : i)}>
+                      <div className="flex items-start gap-2">
+                        {typeIcon(issue.type)}
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-medium">{issue.title}</p>
+                          <div className="flex gap-1 mt-0.5 flex-wrap">
+                            <span className={cn('text-[8px] px-1.5 py-0.5 rounded-full border', urgencyStyle(issue.urgency))}>
+                              {urgencyLabel(issue.urgency)}
+                            </span>
+                            <Badge variant={issue.severity === 'critical' || issue.severity === 'high' ? 'destructive' : 'secondary'} className="text-[8px]">{issue.severity}</Badge>
+                            <Badge variant="outline" className="text-[8px]">{issue.category}</Badge>
+                          </div>
+                        </div>
+                        <ArrowRight className={cn('w-3 h-3 text-muted-foreground transition-transform shrink-0', expandedIssue === i && 'rotate-90')} />
+                      </div>
+                      {expandedIssue === i && (
+                        <div className="pt-2 border-t space-y-2 text-xs">
+                          <p className="text-muted-foreground">{issue.description}</p>
+                          <div>
+                            <span className="font-medium text-muted-foreground">🔧 Fix-förslag:</span>
+                            <p>{issue.fix_suggestion}</p>
+                          </div>
+                          {issue.lovable_prompt && (
+                            <div>
+                              <div className="flex items-center justify-between">
+                                <span className="font-medium text-muted-foreground">📋 Lovable-prompt:</span>
+                                <Button size="sm" variant="ghost" className="h-5 text-[9px] gap-0.5" onClick={(e) => { e.stopPropagation(); copyToClipboard(issue.lovable_prompt); }}>
+                                  <Copy className="w-2.5 h-2.5" /> Kopiera
+                                </Button>
+                              </div>
+                              <div className="bg-muted/50 rounded-md p-2 font-mono text-[10px] whitespace-pre-wrap max-h-32 overflow-y-auto mt-1 border">{issue.lovable_prompt}</div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+          )}
+
+          {/* Master Task List */}
+          {scanResult.master_list && (
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                <Layers className="w-4 h-4" /> Master Task List ({scanResult.master_list.total})
+              </h4>
+              {renderTaskGroup('🔴 MÅSTE GÖRAS NU', scanResult.master_list.must_do, 'text-destructive')}
+              {renderTaskGroup('🟡 NÄSTA', scanResult.master_list.next_up, 'text-yellow-700')}
+              {renderTaskGroup('🟢 VALFRITT', scanResult.master_list.optional, 'text-muted-foreground')}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+
 const DataHealthTab = () => {
   const [scanning, setScanning] = useState(false);
   const [repairing, setRepairing] = useState(false);
@@ -1102,9 +1316,13 @@ const AdminAI = () => {
         </div>
       </div>
 
-      <Tabs defaultValue="dashboard" className="w-full">
+      <Tabs defaultValue="scan" className="w-full">
         <ScrollableTabs>
           <TabsList>
+            <TabsTrigger value="scan" className="gap-1.5 text-xs">
+              <Radar className="w-3.5 h-3.5" />
+              System Scan
+            </TabsTrigger>
             <TabsTrigger value="dashboard" className="gap-1.5 text-xs">
               <Activity className="w-3.5 h-3.5" />
               Systemöversikt
@@ -1140,6 +1358,9 @@ const AdminAI = () => {
           </TabsList>
         </ScrollableTabs>
 
+        <TabsContent value="scan" className="mt-4">
+          <SystemScanTab />
+        </TabsContent>
         <TabsContent value="dashboard" className="mt-4">
           <UnifiedDashboardTab />
         </TabsContent>
