@@ -430,6 +430,7 @@ function AiContentGenerator({
             specialEffects: formData.specialEffects,
             usageArea: formData.usageArea,
             usageSteps: [formData.usageStep1, formData.usageStep2, formData.usageStep3].filter(Boolean),
+            isConcentrate: formData.isConcentrate,
           },
           language: sv ? 'sv' : 'en',
         },
