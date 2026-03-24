@@ -504,7 +504,9 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
 
   const escalatedCount = items.filter(t => t.status === 'escalated').length;
   const myCount = items.filter(t => (t.assigned_to === user?.id || t.claimed_by === user?.id) && t.status !== 'done').length;
-  const doneCount = items.filter(t => (t.assigned_to === user?.id || t.claimed_by === user?.id) && t.status === 'done').length;
+  const doneCount = items.filter(t => t.status === 'done').length;
+  const reviewCount = items.filter(t => t.status === 'done' && (t as any).ai_review_status !== 'verified').length;
+  const activeCount = items.filter(t => !['done', 'cancelled'].includes(t.status)).length;
   const openCount = items.filter(t => t.status === 'open' && !t.assigned_to).length;
   const bugCount = items.filter(t => t.item_type === 'bug' && t.status !== 'done').length;
   const incidentCount = items.filter(t => t.item_type === 'incident' && t.status !== 'done').length;
