@@ -139,7 +139,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const [creating, setCreating] = useState(false);
   const [autoAssigning, setAutoAssigning] = useState(false);
   const [runningAutomation, setRunningAutomation] = useState(false);
-  const [viewFilter, setViewFilter] = useState<ViewFilter>('all');
+  const [viewFilter, setViewFilter] = useState<ViewFilter>('active');
   const [escalating, setEscalating] = useState<string | null>(null);
   const [workMode, setWorkMode] = useState(false);
   const [autoNext, setAutoNext] = useState(false);
