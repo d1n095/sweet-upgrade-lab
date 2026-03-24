@@ -67,6 +67,7 @@ import AdminData from "./pages/admin/AdminData";
 import AdminOps from "./pages/admin/AdminOps";
 import AdminGrowth from "./pages/admin/AdminGrowth";
 import AdminAI from "./pages/admin/AdminAI";
+import AdminHistory from "./pages/admin/AdminHistory";
 import ScanPackingMode from "./components/admin/warehouse/ScanPackingMode";
 
 const queryClient = new QueryClient();
