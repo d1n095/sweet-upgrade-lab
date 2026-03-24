@@ -431,12 +431,14 @@ Respond using the prioritize_tasks function.`,
         ).join("\n");
 
         let aiTasks: any[] = [];
+        const useAI = activeItems.length <= 50;
 
-        try {
-          const orchestratorResult = await callAI(lovableKey, [
-            {
-              role: "system",
-              content: `You are a task orchestrator for a Swedish e-commerce platform. Analyze all active work items and determine:
+        if (useAI) {
+          try {
+            const orchestratorResult = await callAI(lovableKey, [
+              {
+                role: "system",
+                content: `You are a task orchestrator for a Swedish e-commerce platform. Analyze all active work items and determine:
 1. Dependencies: which tasks must be completed before others
 2. Duplicates: which tasks are duplicates or very similar
 3. Conflicts: which tasks affect the same system and could conflict
@@ -452,47 +454,52 @@ Rules:
 - Optional tasks get 51+
 
 Return one entry for EACH input ID.`,
-            },
-            { role: "user", content: `Orchestrate these ${activeItems.length} work items:\n${itemList}` },
-          ], [{
-            type: "function",
-            function: {
-              name: "orchestrate_tasks",
-              description: "Set dependencies, duplicates, conflicts and execution order",
-              parameters: {
-                type: "object",
-                properties: {
-                  tasks: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        id: { type: "string" },
-                        depends_on: { type: "array", items: { type: "string" }, description: "IDs of tasks that must be done first" },
-                        blocks: { type: "array", items: { type: "string" }, description: "IDs of tasks blocked by this one" },
-                        duplicate_of: { type: "string", description: "ID of the original task if this is a duplicate" },
-                        conflict_with: { type: "string", description: "ID of conflicting task" },
-                        execution_order: { type: "integer", description: "1=most urgent, higher=less urgent" },
-                        parallel_group: { type: "string", description: "Group name for tasks that can run in parallel" },
-                        reason: { type: "string" },
+              },
+              { role: "user", content: `Orchestrate these ${activeItems.length} work items:\n${itemList}` },
+            ], [{
+              type: "function",
+              function: {
+                name: "orchestrate_tasks",
+                description: "Set dependencies, duplicates, conflicts and execution order",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    tasks: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          depends_on: { type: "array", items: { type: "string" }, description: "IDs of tasks that must be done first" },
+                          blocks: { type: "array", items: { type: "string" }, description: "IDs of tasks blocked by this one" },
+                          duplicate_of: { type: "string", description: "ID of the original task if this is a duplicate" },
+                          conflict_with: { type: "string", description: "ID of conflicting task" },
+                          execution_order: { type: "integer", description: "1=most urgent, higher=less urgent" },
+                          parallel_group: { type: "string", description: "Group name for tasks that can run in parallel" },
+                          reason: { type: "string" },
+                        },
+                        required: ["id", "execution_order"],
+                        additionalProperties: false,
                       },
-                      required: ["id", "execution_order"],
-                      additionalProperties: false,
                     },
                   },
+                  required: ["tasks"],
+                  additionalProperties: false,
                 },
-                required: ["tasks"],
-                additionalProperties: false,
               },
-            },
-          }], { type: "function", function: { name: "orchestrate_tasks" } });
+            }], { type: "function", function: { name: "orchestrate_tasks" } });
 
-          aiTasks = (orchestratorResult?.tasks || []).filter((task: any) =>
-            task?.id && activeItems.some((it: any) => it.id === task.id)
-          );
-        } catch (e: any) {
-          console.error("AI orchestrator error:", e);
-          results.orchestrator_error = e?.message || "AI orchestrator failed";
+            aiTasks = (orchestratorResult?.tasks || []).filter((task: any) =>
+              task?.id && activeItems.some((it: any) => it.id === task.id)
+            );
+          } catch (e: any) {
+            console.error("AI orchestrator error:", e);
+            results.orchestrator_error = e?.message || "AI orchestrator failed";
+          }
+        }
+
+        if (!useAI) {
+          results.orchestrator_mode = "fallback_large_queue";
         }
 
         // Fallback when AI returns nothing/partial: deterministic orchestration
