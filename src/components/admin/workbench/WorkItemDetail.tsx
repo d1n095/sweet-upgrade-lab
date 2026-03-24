@@ -306,6 +306,12 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange }: WorkItemDe
                     ))}
                   </div>
                 )}
+                {(bugData as any).ai_repro_steps && (
+                  <div>
+                    <span className="text-[10px] text-muted-foreground">Reproduktionssteg</span>
+                    <div className="text-xs bg-background rounded-md p-2 whitespace-pre-wrap border mt-0.5">{(bugData as any).ai_repro_steps}</div>
+                  </div>
+                )}
                 {(bugData as any).ai_clean_prompt && (
                   <div>
                     <span className="text-[10px] text-muted-foreground">Strukturerad prompt</span>

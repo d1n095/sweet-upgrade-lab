@@ -168,6 +168,7 @@ Description: ${bug.description}`,
       ai_severity: result.severity,
       ai_tags: result.tags,
       ai_clean_prompt: result.clean_prompt,
+      ai_repro_steps: result.repro_steps || null,
       ai_processed_at: new Date().toISOString(),
     }).eq("id", bug_id);
 
