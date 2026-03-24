@@ -73,6 +73,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange }: WorkItemDe
     if (item) {
       setChecklist({});
       setResolutionNotes('');
+      setFixSuggestion(null);
     }
   }, [item?.id]);
 
