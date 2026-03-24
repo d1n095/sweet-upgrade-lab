@@ -131,6 +131,12 @@ serve(async (req) => {
         break;
       }
 
+      case "ai_execute": {
+        const { mode } = body;  // manual | assisted | autonomous
+        result = await handleAiExecute(supabase, lovableKey, mode || "assisted");
+        break;
+      }
+
       case "create_action": {
         const { title, description, priority, category, source_type: srcType, source_id: srcId } = body;
         if (!title) {
