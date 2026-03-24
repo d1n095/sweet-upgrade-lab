@@ -1755,6 +1755,9 @@ const AdminAI = () => {
         <TabsContent value="dashboard" className="mt-4">
           <UnifiedDashboardTab />
         </TabsContent>
+        <TabsContent value="visual-qa" className="mt-4">
+          <VisualQATab />
+        </TabsContent>
         <TabsContent value="data-health" className="mt-4">
           <DataHealthTab />
         </TabsContent>
