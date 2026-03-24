@@ -875,6 +875,15 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
           );
         })}
       </div>
+
+      <WorkItemDetail
+        item={detailItem}
+        open={!!detailItem}
+        onOpenChange={(open) => { if (!open) setDetailItem(null); }}
+        onStatusChange={async (itemId, newStatus) => {
+          await moveItem(itemId, newStatus);
+        }}
+      />
     </div>
   );
 };
