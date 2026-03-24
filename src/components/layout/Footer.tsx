@@ -2,7 +2,6 @@ import { Link } from 'react-router-dom';
 import { Leaf, Mail, Clock, Instagram, Facebook } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { storeConfig } from '@/config/storeConfig';
-import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import PaymentIcons from '@/components/trust/PaymentIcons';
 import { usePageVisibility } from '@/stores/pageVisibilityStore';
 
