@@ -1985,6 +1985,9 @@ const AdminAI = () => {
         <TabsContent value="visual-qa" className="mt-4">
           <VisualQATab />
         </TabsContent>
+        <TabsContent value="nav-bug" className="mt-4">
+          <NavBugScanTab />
+        </TabsContent>
         <TabsContent value="data-health" className="mt-4">
           <DataHealthTab />
         </TabsContent>
