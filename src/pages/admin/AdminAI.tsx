@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
 
 interface GeneratedPrompt {
   title: string;
@@ -133,6 +134,14 @@ const TaskAITab = () => {
       ...updates,
       updated_at: new Date().toISOString(),
     } as any).eq('id', itemId);
+
+    if (updates.status === 'done') {
+      const reviewResult = await triggerAiReviewForWorkItem(itemId, { context: 'admin_ai_override_done' });
+      if (!reviewResult.ok) {
+        toast.warning('AI-granskning misslyckades — satt till manuell granskning');
+      }
+    }
+
     refetchItems();
     toast.success('Uppgift uppdaterad');
   };
