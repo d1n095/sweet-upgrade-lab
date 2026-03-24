@@ -86,6 +86,16 @@ serve(async (req) => {
         break;
       }
 
+      case "product_suggestions": {
+        result = await handleProductSuggestions(supabase, lovableKey);
+        break;
+      }
+
+      case "system_health": {
+        result = await handleSystemHealth(supabase, lovableKey);
+        break;
+      }
+
       case "create_action": {
         const { title, description, priority, category, source_type: srcType, source_id: srcId } = body;
         if (!title) {
@@ -467,8 +477,7 @@ async function analyzeData(apiKey: string, summary: string) {
   return callAI(apiKey, [
     {
       role: "system",
-      content: `Du är en affärsanalytiker för en svensk e-handelsplattform. Analysera ALL data (ordrar, buggar, incidenter, lager, personal, donationer) och ge handlingsbara insikter.
-Svara på svenska. Använd analyze_data-funktionen.`,
+      content: `Du är en affärsanalytiker för en svensk e-handelsplattform. Analysera ALL data och ge handlingsbara insikter. Svara på svenska.`,
     },
     { role: "user", content: `Analysera denna systemdata och ge insikter:\n\n${summary}` },
   ], [
@@ -503,4 +512,234 @@ Svara på svenska. Använd analyze_data-funktionen.`,
       },
     },
   ], { type: "function", function: { name: "analyze_data" } });
+}
+
+// ── Product Suggestions ──
+async function handleProductSuggestions(supabase: any, apiKey: string) {
+  const [productsRes, salesRes, ordersRes, eventsRes] = await Promise.all([
+    supabase.from("products").select("title_sv, price, stock, badge, category, is_visible").eq("is_visible", true).limit(200),
+    supabase.from("product_sales").select("product_title, total_quantity_sold, last_sale_at").order("total_quantity_sold", { ascending: false }).limit(50),
+    supabase.from("orders").select("total_amount, items, created_at").eq("payment_status", "paid").order("created_at", { ascending: false }).limit(200),
+    supabase.from("analytics_events").select("event_type, event_data").in("event_type", ["product_view", "add_to_cart"]).order("created_at", { ascending: false }).limit(500),
+  ]);
+
+  const products = productsRes.data || [];
+  const sales = salesRes.data || [];
+  const orders = ordersRes.data || [];
+  const events = eventsRes.data || [];
+
+  const aov = orders.length > 0 ? Math.round(orders.reduce((s: number, o: any) => s + (o.total_amount || 0), 0) / orders.length) : 0;
+  const topViewed = events.filter((e: any) => e.event_type === "product_view").slice(0, 20);
+  const cartAdds = events.filter((e: any) => e.event_type === "add_to_cart").length;
+
+  const context = `PRODUKTDATA:
+Antal produkter: ${products.length}
+Produkter: ${products.slice(0, 30).map((p: any) => `${p.title_sv} (${p.price} kr, lager: ${p.stock})`).join(", ")}
+
+FÖRSÄLJNING:
+Topprodukter: ${sales.slice(0, 10).map((s: any) => `${s.product_title}: ${s.total_quantity_sold} sålda`).join(", ")}
+AOV: ${aov} kr
+Antal ordrar (senaste): ${orders.length}
+Kundkorgs-tillägg: ${cartAdds}
+
+KATEGORIER: ${[...new Set(products.map((p: any) => p.category).filter(Boolean))].join(", ")}`;
+
+  return callAI(apiKey, [
+    {
+      role: "system",
+      content: `Du är produktstrateg för en svensk e-handelsplattform (4thepeople) som säljer giftfria kroppsvårdsprodukter och bastutillbehör. Analysera datan och ge konkreta produktförslag. Svara på svenska.`,
+    },
+    { role: "user", content: context },
+  ], [
+    {
+      type: "function",
+      function: {
+        name: "product_suggestions",
+        description: "Generate product and bundle suggestions",
+        parameters: {
+          type: "object",
+          properties: {
+            new_products: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  name: { type: "string" },
+                  reason: { type: "string" },
+                  estimated_price: { type: "string" },
+                  category: { type: "string" },
+                },
+                required: ["name", "reason", "estimated_price", "category"],
+                additionalProperties: false,
+              },
+            },
+            bundles: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  name: { type: "string" },
+                  products: { type: "array", items: { type: "string" } },
+                  discount: { type: "string" },
+                  reason: { type: "string" },
+                },
+                required: ["name", "products", "discount", "reason"],
+                additionalProperties: false,
+              },
+            },
+            pricing_suggestions: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  product: { type: "string" },
+                  current_price: { type: "string" },
+                  suggested_action: { type: "string" },
+                  reason: { type: "string" },
+                },
+                required: ["product", "suggested_action", "reason"],
+                additionalProperties: false,
+              },
+            },
+            campaign_ideas: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  title: { type: "string" },
+                  description: { type: "string" },
+                  target: { type: "string" },
+                },
+                required: ["title", "description", "target"],
+                additionalProperties: false,
+              },
+            },
+            summary: { type: "string" },
+          },
+          required: ["new_products", "bundles", "pricing_suggestions", "campaign_ideas", "summary"],
+          additionalProperties: false,
+        },
+      },
+    },
+  ], { type: "function", function: { name: "product_suggestions" } });
+}
+
+// ── System Health ──
+async function handleSystemHealth(supabase: any, apiKey: string) {
+  const now = new Date();
+  const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const dayStr = dayAgo.toISOString();
+
+  const [bugsRes, workRes, incidentsRes, logsRes, ordersRes] = await Promise.all([
+    supabase.from("bug_reports").select("id, status, ai_severity, ai_category, ai_summary, created_at").eq("status", "open").order("created_at", { ascending: false }).limit(50),
+    supabase.from("work_items").select("id, title, status, priority, item_type, ai_detected, due_at, created_at").not("status", "in", '("done","cancelled")').order("created_at", { ascending: false }).limit(100),
+    supabase.from("order_incidents").select("id, status, priority, type, sla_status, title").not("status", "in", '("resolved","closed")').limit(50),
+    supabase.from("activity_logs").select("log_type, category, message, created_at").gte("created_at", dayStr).eq("log_type", "error").limit(50),
+    supabase.from("orders").select("id, status, payment_status, fulfillment_status, packed_at, shipped_at, created_at").eq("payment_status", "paid").is("deleted_at", null).order("created_at", { ascending: false }).limit(100),
+  ]);
+
+  const bugs = bugsRes.data || [];
+  const work = workRes.data || [];
+  const incidents = incidentsRes.data || [];
+  const errors = logsRes.data || [];
+  const orders = ordersRes.data || [];
+
+  const overdue = work.filter((w: any) => w.due_at && new Date(w.due_at) < now);
+  const unpackedPaid = orders.filter((o: any) => !o.packed_at && o.payment_status === "paid");
+  const criticalBugs = bugs.filter((b: any) => b.ai_severity === "critical" || b.ai_severity === "high");
+  const slaBreaches = incidents.filter((i: any) => i.sla_status === "overdue");
+
+  const context = `SYSTEMSTATUS (senaste 24h):
+
+BUGGAR: ${bugs.length} öppna (${criticalBugs.length} kritiska/höga)
+${bugs.slice(0, 10).map((b: any) => `- [${b.ai_severity || "?"}] ${b.ai_summary || b.id}`).join("\n")}
+
+UPPGIFTER: ${work.length} aktiva, ${overdue.length} försenade
+${overdue.slice(0, 5).map((w: any) => `- FÖRSENAD: ${w.title}`).join("\n")}
+
+INCIDENTER: ${incidents.length} öppna, ${slaBreaches.length} SLA-brott
+${slaBreaches.slice(0, 5).map((i: any) => `- SLA BROTT: ${i.title}`).join("\n")}
+
+FEL (24h): ${errors.length} loggade fel
+${errors.slice(0, 10).map((e: any) => `- ${e.category}: ${e.message}`).join("\n")}
+
+ORDRAR: ${unpackedPaid.length} betalda men ej packade`;
+
+  return callAI(apiKey, [
+    {
+      role: "system",
+      content: `Du är systemövervakare för en svensk e-handelsplattform. Analysera systemets hälsa och identifiera kritiska problem, duplicerade buggar och saknade åtgärder. Svara på svenska.`,
+    },
+    { role: "user", content: context },
+  ], [
+    {
+      type: "function",
+      function: {
+        name: "system_health",
+        description: "Analyze system health and detect issues",
+        parameters: {
+          type: "object",
+          properties: {
+            critical_issues: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  title: { type: "string" },
+                  severity: { type: "string", enum: ["critical", "high", "medium"] },
+                  description: { type: "string" },
+                  suggested_action: { type: "string" },
+                },
+                required: ["title", "severity", "description", "suggested_action"],
+                additionalProperties: false,
+              },
+            },
+            duplicate_bugs: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  bug_ids: { type: "array", items: { type: "string" } },
+                  reason: { type: "string" },
+                  suggested_action: { type: "string" },
+                },
+                required: ["bug_ids", "reason", "suggested_action"],
+                additionalProperties: false,
+              },
+            },
+            missing_fixes: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  area: { type: "string" },
+                  problem: { type: "string" },
+                  suggestion: { type: "string" },
+                },
+                required: ["area", "problem", "suggestion"],
+                additionalProperties: false,
+              },
+            },
+            improvements: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  title: { type: "string" },
+                  description: { type: "string" },
+                  impact: { type: "string", enum: ["high", "medium", "low"] },
+                },
+                required: ["title", "description", "impact"],
+                additionalProperties: false,
+              },
+            },
+            health_score: { type: "number" },
+            summary: { type: "string" },
+          },
+          required: ["critical_issues", "duplicate_bugs", "missing_fixes", "improvements", "health_score", "summary"],
+          additionalProperties: false,
+        },
+      },
+    },
+  ], { type: "function", function: { name: "system_health" } });
 }
