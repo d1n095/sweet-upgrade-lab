@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { usePurchaseHistory } from '@/hooks/usePurchaseHistory';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Package, Loader2, ArrowUpDown } from 'lucide-react';
+import { Package, Loader2, ArrowUpDown, SlidersHorizontal } from 'lucide-react';
 import { fetchDbProducts, DbProduct } from '@/lib/products';
 import { categories } from '@/data/categories';
 import { useLanguage, getContentLang } from '@/context/LanguageContext';
@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
 import DbProductCard from './DbProductCard';
 import UseCaseFilter from './UseCaseFilter';
 
@@ -31,6 +32,9 @@ const DbProductGrid = () => {
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
   const [tagProductIds, setTagProductIds] = useState<Set<string> | null>(null);
   const [sortOption, setSortOption] = useState<SortOption>('default');
+  const [showFilters, setShowFilters] = useState(false);
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 5000]);
+  const [maxPrice, setMaxPrice] = useState(5000);
   const searchQuery = useSearchStore(state => state.searchQuery);
 
   useEffect(() => {
