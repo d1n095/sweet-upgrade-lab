@@ -409,6 +409,13 @@ const AdminDbProductManager = () => {
         meta_description: formData.metaDescription || null,
         meta_keywords: formData.metaKeywords || null,
         weight_grams: formData.weightGrams ? parseInt(formData.weightGrams) : null,
+        hook_sv: formData.hook || null,
+        dosage_sv: formData.dosage || null,
+        variants_sv: formData.variants || null,
+        storage_sv: formData.storage || null,
+        safety_sv: formData.safety || null,
+        specifications: formData.specifications ? JSON.parse(formData.specifications || '{}') : {},
+        is_concentrate: formData.isConcentrate,
       } as any);
       await setProductCategories(selected.id, formData.categoryIds);
       await setProductTags(selected.id, formData.tagIds);
