@@ -84,6 +84,8 @@ export const DEFAULT_PRODUCT_FORM_DATA: ProductFormData = {
   weightGrams: '', ingredientIds: [],
   shelfLife: '', material: '', specialEffects: '', usageArea: '',
   usageStep1: '', usageStep2: '', usageStep3: '', seoMode: 'auto',
+  hook: '', dosage: '', variants: '', storage: '', safety: '',
+  specifications: '', isConcentrate: false,
 };
 export type ProductCategoryOption = {
   value: string;
