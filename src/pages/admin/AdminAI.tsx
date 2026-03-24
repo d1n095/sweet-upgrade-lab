@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Sparkles, Bug, BarChart3, Copy, Loader2, Send, AlertTriangle, Lightbulb, Info, RefreshCw, Bot, CheckCircle, XCircle, Shield, Clock, Zap, Activity, TrendingUp, Package, AlertCircle, Database, Wrench, Radar, ArrowRight, Layers, Monitor, Smartphone, Tablet, Eye, Compass } from 'lucide-react';
+import { Sparkles, Bug, BarChart3, Copy, Loader2, Send, AlertTriangle, Lightbulb, Info, RefreshCw, Bot, CheckCircle, XCircle, Shield, Clock, Zap, Activity, TrendingUp, Package, AlertCircle, Database, Wrench, Radar, ArrowRight, Layers, Monitor, Smartphone, Tablet, Eye, Compass, LayoutGrid, GitMerge, ArrowRightLeft } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger, ScrollableTabs } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
