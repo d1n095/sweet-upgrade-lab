@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Sparkles, Tag } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -274,6 +275,45 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange }: WorkItemDe
             </div>
 
             <Separator />
+
+            {/* AI Analysis for bugs */}
+            {bugData && (bugData as any).ai_processed_at && (
+              <div className="space-y-2 border border-primary/20 rounded-lg p-3 bg-primary/5">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  AI-analys
+                  {(bugData as any).ai_approved && (
+                    <Badge variant="outline" className="text-[9px] ml-1 border-green-300 text-green-700">✓ Godkänd</Badge>
+                  )}
+                </div>
+                {(bugData as any).ai_summary && (
+                  <div><span className="text-[10px] text-muted-foreground">Sammanfattning</span><p className="text-xs font-medium">{(bugData as any).ai_summary}</p></div>
+                )}
+                <div className="flex gap-1.5 flex-wrap">
+                  {(bugData as any).ai_severity && (
+                    <Badge variant="outline" className="text-[10px]">{(bugData as any).ai_severity}</Badge>
+                  )}
+                  {(bugData as any).ai_category && (
+                    <Badge variant="outline" className="text-[10px]">{(bugData as any).ai_category}</Badge>
+                  )}
+                </div>
+                {(bugData as any).ai_tags?.length > 0 && (
+                  <div className="flex gap-1 flex-wrap">
+                    {((bugData as any).ai_tags as string[]).map((tag: string) => (
+                      <span key={tag} className="text-[9px] bg-muted px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                        <Tag className="w-2.5 h-2.5" />{tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {(bugData as any).ai_clean_prompt && (
+                  <div>
+                    <span className="text-[10px] text-muted-foreground">Strukturerad prompt</span>
+                    <div className="text-xs bg-background rounded-md p-2 whitespace-pre-wrap border mt-0.5 font-mono">{(bugData as any).ai_clean_prompt}</div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Description */}
             <div>
