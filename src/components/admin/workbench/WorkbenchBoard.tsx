@@ -196,6 +196,21 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     }
   };
 
+  const runOrchestrator = async () => {
+    setRunningOrchestrator(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-task-manager', { body: { action: 'orchestrate' } });
+      if (error) throw error;
+      const r = data?.results;
+      toast.success(`Orchestrator klar: ${r?.orchestrated || 0} uppgifter analyserade`);
+      queryClient.invalidateQueries({ queryKey: ['work-items'] });
+    } catch (e: any) {
+      toast.error('Orchestrator misslyckades: ' + e.message);
+    } finally {
+      setRunningOrchestrator(false);
+    }
+  };
+
   const { data: staffProfiles = [] } = useQuery({
     queryKey: ['staff-profiles'],
     queryFn: async () => {
