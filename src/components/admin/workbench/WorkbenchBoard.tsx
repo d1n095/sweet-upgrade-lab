@@ -1010,6 +1010,15 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
         onStatusChange={async (itemId, newStatus) => {
           await moveItem(itemId, newStatus);
         }}
+        onRefresh={() => {
+          queryClient.invalidateQueries({ queryKey: ['work-items'] });
+          // Re-fetch the detail item
+          if (detailItem) {
+            supabase.from('work_items' as any).select('*').eq('id', detailItem.id).maybeSingle().then(({ data }) => {
+              if (data) setDetailItem(data as any);
+            });
+          }
+        }}
       />
     </div>
   );
