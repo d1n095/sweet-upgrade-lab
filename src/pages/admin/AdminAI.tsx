@@ -467,10 +467,24 @@ const DataInsightsTab = () => {
 
   return (
     <div className="space-y-4">
-      <Button onClick={analyze} disabled={loading} className="w-full gap-2">
-        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <BarChart3 className="w-4 h-4" />}
-        Analysera data (senaste 7 dagarna)
-      </Button>
+      <div className="flex gap-2 items-end">
+        <Button onClick={analyze} disabled={loading} className="flex-1 gap-2">
+          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <BarChart3 className="w-4 h-4" />}
+          Analysera data (senaste 7 dagarna)
+        </Button>
+        <Button
+          variant={autoAction ? 'default' : 'outline'}
+          size="sm"
+          className="gap-1 text-xs h-9"
+          onClick={() => setAutoAction(!autoAction)}
+        >
+          <Zap className="w-3.5 h-3.5" />
+          {autoAction ? 'Auto-action PÅ' : 'Auto-action AV'}
+        </Button>
+      </div>
+      {autoAction && (
+        <p className="text-[10px] text-muted-foreground">⚡ Varningar skapar automatiskt uppgifter i Workbench</p>
+      )}
 
       {analysis && (
         <div className="space-y-4">
@@ -499,9 +513,19 @@ const DataInsightsTab = () => {
                     <h4 className="text-sm font-semibold">{insight.title}</h4>
                   </div>
                   <p className="text-xs">{insight.description}</p>
-                  <div className="flex items-center gap-1 pt-1">
-                    <Send className="w-3 h-3" />
-                    <span className="text-xs font-medium">{insight.action}</span>
+                  <div className="flex items-center justify-between pt-1">
+                    <div className="flex items-center gap-1">
+                      <Send className="w-3 h-3" />
+                      <span className="text-xs font-medium">{insight.action}</span>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-5 text-[9px] gap-0.5"
+                      onClick={() => createTaskFromInsight(insight)}
+                    >
+                      <Zap className="w-2.5 h-2.5" /> Skapa uppgift
+                    </Button>
                   </div>
                 </div>
               );
