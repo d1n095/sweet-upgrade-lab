@@ -398,6 +398,7 @@ export type Database = {
           ai_category: string | null
           ai_clean_prompt: string | null
           ai_processed_at: string | null
+          ai_repro_steps: string | null
           ai_severity: string | null
           ai_summary: string | null
           ai_tags: string[] | null
@@ -416,6 +417,7 @@ export type Database = {
           ai_category?: string | null
           ai_clean_prompt?: string | null
           ai_processed_at?: string | null
+          ai_repro_steps?: string | null
           ai_severity?: string | null
           ai_summary?: string | null
           ai_tags?: string[] | null
@@ -434,6 +436,7 @@ export type Database = {
           ai_category?: string | null
           ai_clean_prompt?: string | null
           ai_processed_at?: string | null
+          ai_repro_steps?: string | null
           ai_severity?: string | null
           ai_summary?: string | null
           ai_tags?: string[] | null

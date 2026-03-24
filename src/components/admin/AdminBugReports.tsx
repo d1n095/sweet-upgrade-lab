@@ -338,6 +338,12 @@ const AdminBugReports = () => {
                 {r.ai_summary && (
                   <div><span className="text-[10px] text-muted-foreground">Sammanfattning</span><p className="text-xs font-medium">{r.ai_summary}</p></div>
                 )}
+              {(r as any).ai_repro_steps && (
+                  <div>
+                    <span className="text-[10px] text-muted-foreground">Reproduktionssteg</span>
+                    <div className="text-xs bg-background rounded-md p-2 whitespace-pre-wrap border mt-0.5">{(r as any).ai_repro_steps}</div>
+                  </div>
+                )}
                 {r.ai_clean_prompt && (
                   <div>
                     <div className="flex items-center justify-between mb-0.5">
