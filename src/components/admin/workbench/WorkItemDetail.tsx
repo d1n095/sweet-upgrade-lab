@@ -65,13 +65,14 @@ const GENERAL_CHECKLIST = [
   { key: 'verified', label: 'Resultatet har kontrollerats' },
 ];
 
-const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange }: WorkItemDetailProps) => {
+const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }: WorkItemDetailProps) => {
   const { user } = useAuth();
   const [checklist, setChecklist] = useState<Record<string, boolean>>({});
   const [resolutionNotes, setResolutionNotes] = useState('');
   const [resolving, setResolving] = useState(false);
   const [fixSuggestion, setFixSuggestion] = useState<any>(null);
   const [analyzingFix, setAnalyzingFix] = useState(false);
+  const [runningReview, setRunningReview] = useState(false);
 
   // Reset state when item changes
   useEffect(() => {
