@@ -149,6 +149,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const workModeRef = useRef(false);
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
   const [bulkMode, setBulkMode] = useState(false);
+  const [detailItem, setDetailItem] = useState<WorkItem | null>(null);
   workModeRef.current = workMode;
 
   const { data: automationLogs = [] } = useQuery({
