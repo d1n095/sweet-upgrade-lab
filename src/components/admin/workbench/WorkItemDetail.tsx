@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Sparkles, Tag, Copy, Loader2 as Loader2Icon } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Sparkles, Tag, Copy, Loader2 as Loader2Icon, EyeOff, RotateCcw, PenLine, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -10,6 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Progress } from '@/components/ui/progress';
 import {
   Bug, ShieldAlert, Package, Clock, User, MapPin, FileText, AlertCircle,
   CheckCircle2, Loader2, ExternalLink, Wrench, Bot,
@@ -38,6 +39,12 @@ interface WorkItemDetailProps {
     ai_review_result?: any;
     ai_review_at?: string;
     resolution_notes?: string;
+    ignored?: boolean;
+    ignored_reason?: string;
+    ai_root_causes?: any;
+    human_selected_cause?: string;
+    human_custom_cause?: string;
+    human_custom_fix?: string;
   } | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -68,46 +75,48 @@ const GENERAL_CHECKLIST = [
 
 const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }: WorkItemDetailProps) => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [checklist, setChecklist] = useState<Record<string, boolean>>({});
   const [resolutionNotes, setResolutionNotes] = useState('');
   const [resolving, setResolving] = useState(false);
   const [fixSuggestion, setFixSuggestion] = useState<any>(null);
   const [analyzingFix, setAnalyzingFix] = useState(false);
   const [runningReview, setRunningReview] = useState(false);
+  const [expandedCause, setExpandedCause] = useState<number | null>(null);
+  const [showIgnoreForm, setShowIgnoreForm] = useState(false);
+  const [ignoreReason, setIgnoreReason] = useState('');
+  const [ignoreSaving, setIgnoreSaving] = useState(false);
+  const [showCustomCause, setShowCustomCause] = useState(false);
+  const [customCause, setCustomCause] = useState('');
+  const [customFix, setCustomFix] = useState('');
+  const [savingOverride, setSavingOverride] = useState(false);
 
-  // Reset state when item changes
   useEffect(() => {
     if (item) {
       setChecklist({});
       setResolutionNotes('');
       setFixSuggestion(null);
+      setExpandedCause(null);
+      setShowIgnoreForm(false);
+      setIgnoreReason('');
+      setShowCustomCause(false);
+      setCustomCause(item.human_custom_cause || '');
+      setCustomFix(item.human_custom_fix || '');
     }
   }, [item?.id]);
 
-  // Fetch source data (bug_report or incident)
   const { data: sourceData, isLoading: sourceLoading } = useQuery({
     queryKey: ['work-item-source', item?.source_type, item?.source_id],
     queryFn: async () => {
       if (!item?.source_id || !item.source_type) return null;
-
       if (item.source_type === 'bug_report') {
-        const { data } = await supabase
-          .from('bug_reports')
-          .select('*')
-          .eq('id', item.source_id)
-          .maybeSingle();
+        const { data } = await supabase.from('bug_reports').select('*').eq('id', item.source_id).maybeSingle();
         return { type: 'bug' as const, bug: data, incident: null };
       }
-
       if (item.source_type === 'order_incident') {
-        const { data } = await supabase
-          .from('order_incidents')
-          .select('*')
-          .eq('id', item.source_id)
-          .maybeSingle();
+        const { data } = await supabase.from('order_incidents').select('*').eq('id', item.source_id).maybeSingle();
         return { type: 'incident' as const, bug: null, incident: data };
       }
-
       return null;
     },
     enabled: !!item?.source_id && !!item?.source_type,
@@ -116,33 +125,23 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
   const bugData = sourceData?.bug || null;
   const incidentData = sourceData?.incident || null;
 
-  // Fetch reporter profile
   const reporterId = bugData?.user_id || incidentData?.reported_by || item?.created_by;
   const { data: reporterProfile } = useQuery({
     queryKey: ['reporter-profile', reporterId],
     queryFn: async () => {
       if (!reporterId) return null;
-      const { data } = await supabase
-        .from('profiles')
-        .select('user_id, username, first_name, last_name')
-        .eq('user_id', reporterId)
-        .maybeSingle();
+      const { data } = await supabase.from('profiles').select('user_id, username, first_name, last_name').eq('user_id', reporterId).maybeSingle();
       return data;
     },
     enabled: !!reporterId,
   });
 
-  // Fetch assigned staff profile
   const assigneeId = item?.assigned_to || item?.claimed_by;
   const { data: assigneeProfile } = useQuery({
     queryKey: ['assignee-profile', assigneeId],
     queryFn: async () => {
       if (!assigneeId) return null;
-      const { data } = await supabase
-        .from('profiles')
-        .select('user_id, username, first_name, last_name')
-        .eq('user_id', assigneeId)
-        .maybeSingle();
+      const { data } = await supabase.from('profiles').select('user_id, username, first_name, last_name').eq('user_id', assigneeId).maybeSingle();
       return data;
     },
     enabled: !!assigneeId,
@@ -185,34 +184,109 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
   };
 
   const handleResolve = async () => {
-    if (!allChecked) {
-      toast.error('Slutför checklistan först');
-      return;
-    }
+    if (!allChecked) { toast.error('Slutför checklistan först'); return; }
     setResolving(true);
     try {
-      // If bug, update resolution notes on bug_reports
       if (item.source_type === 'bug_report' && item.source_id) {
-        await supabase.from('bug_reports').update({
-          resolution_notes: resolutionNotes.trim() || null,
-        }).eq('id', item.source_id);
+        await supabase.from('bug_reports').update({ resolution_notes: resolutionNotes.trim() || null }).eq('id', item.source_id);
       }
-
       await onStatusChange(item.id, 'done');
       toast.success('Markerad som klar ✓');
       onOpenChange(false);
-    } catch {
-      toast.error('Något gick fel');
-    } finally {
-      setResolving(false);
-    }
+    } catch { toast.error('Något gick fel'); }
+    finally { setResolving(false); }
+  };
+
+  const handleIgnore = async () => {
+    if (!ignoreReason.trim()) { toast.error('Ange en anledning'); return; }
+    setIgnoreSaving(true);
+    try {
+      await supabase.from('work_items').update({
+        ignored: true,
+        ignored_reason: ignoreReason.trim(),
+        ignored_at: new Date().toISOString(),
+        status: 'cancelled',
+      } as any).eq('id', item.id);
+      toast.success('Ignorerad ✓');
+      onRefresh?.();
+      onOpenChange(false);
+    } catch { toast.error('Fel'); }
+    finally { setIgnoreSaving(false); }
+  };
+
+  const handleUnignore = async () => {
+    await supabase.from('work_items').update({
+      ignored: false, ignored_reason: null, ignored_at: null, status: 'open',
+    } as any).eq('id', item.id);
+    toast.success('Återöppnad');
+    onRefresh?.();
+  };
+
+  const handleSelectCause = async (causeText: string) => {
+    setSavingOverride(true);
+    try {
+      const override = { type: 'select_cause', cause: causeText, at: new Date().toISOString(), by: user?.id };
+      await supabase.from('work_items').update({
+        human_selected_cause: causeText,
+        ai_overrides: [...((item as any).ai_overrides || []), override],
+      } as any).eq('id', item.id);
+      toast.success('Orsak vald');
+      onRefresh?.();
+    } catch { toast.error('Fel'); }
+    finally { setSavingOverride(false); }
+  };
+
+  const handleSaveCustomCause = async () => {
+    if (!customCause.trim()) return;
+    setSavingOverride(true);
+    try {
+      const override = { type: 'custom_cause', cause: customCause, fix: customFix, at: new Date().toISOString(), by: user?.id };
+      await supabase.from('work_items').update({
+        human_custom_cause: customCause.trim(),
+        human_custom_fix: customFix.trim() || null,
+        ai_overrides: [...((item as any).ai_overrides || []), override],
+      } as any).eq('id', item.id);
+      toast.success('Egen orsak sparad');
+      setShowCustomCause(false);
+      onRefresh?.();
+    } catch { toast.error('Fel'); }
+    finally { setSavingOverride(false); }
+  };
+
+  const handleRunRootCause = async () => {
+    setAnalyzingFix(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { toast.error('Ej inloggad'); return; }
+      const resp = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ type: 'bug_fix_suggestion', bug_id: item.source_id }),
+        }
+      );
+      if (resp.ok) {
+        const { result } = await resp.json();
+        setFixSuggestion(result);
+        // Save root causes to DB
+        if (result?.root_causes) {
+          await supabase.from('work_items').update({ ai_root_causes: result } as any).eq('id', item.id);
+        }
+      } else {
+        toast.error('AI-analys misslyckades');
+      }
+    } catch { toast.error('Fel'); }
+    finally { setAnalyzingFix(false); }
   };
 
   const dt = fmtFull(item.created_at);
+  const rootCauses = fixSuggestion?.root_causes || (item.ai_root_causes as any)?.root_causes || [];
+  const analysisSummary = fixSuggestion?.summary || (item.ai_root_causes as any)?.summary;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-[440px] sm:w-[500px] p-0 flex flex-col">
+      <SheetContent side="right" className="w-[440px] sm:w-[520px] p-0 flex flex-col">
         <SheetHeader className="px-5 py-4 border-b border-border">
           <SheetTitle className="flex items-center gap-2 text-base">
             {item.item_type === 'bug' && <Bug className="w-4.5 h-4.5 text-destructive" />}
@@ -224,22 +298,36 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
 
         <ScrollArea className="flex-1">
           <div className="p-5 space-y-5">
+            {/* Ignored banner */}
+            {item.ignored && (
+              <div className="bg-muted rounded-lg p-3 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm">
+                  <EyeOff className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Ignorerad: {item.ignored_reason}</span>
+                </div>
+                <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={handleUnignore}>
+                  <RotateCcw className="w-3 h-3" /> Återöppna
+                </Button>
+              </div>
+            )}
+
             {/* Status + Priority */}
             <div className="flex items-center gap-2 flex-wrap">
               <Badge variant={isOpen ? (item.status === 'escalated' ? 'destructive' : 'default') : 'secondary'}>
                 {item.status === 'open' ? 'Öppen' : item.status === 'claimed' ? 'Tagen' :
-                 item.status === 'in_progress' ? 'Pågående' : item.status === 'escalated' ? 'Eskalerad' : 'Klar'}
+                 item.status === 'in_progress' ? 'Pågående' : item.status === 'escalated' ? 'Eskalerad' :
+                 item.status === 'cancelled' ? 'Avbruten' : 'Klar'}
               </Badge>
               <Badge variant="outline" className={cn('text-xs', {
                 'text-destructive border-destructive/30': item.priority === 'critical' || item.priority === 'high',
-                'text-warning border-warning/30': item.priority === 'medium',
+                'text-yellow-600 border-yellow-300': item.priority === 'medium',
                 'text-accent border-accent/30': item.priority === 'low',
               })}>
                 {item.priority === 'critical' ? 'Kritisk' : item.priority === 'high' ? 'Hög' :
                  item.priority === 'medium' ? 'Medium' : 'Låg'} prioritet
               </Badge>
               {item.source_type && item.source_type !== 'manual' && (
-                <Badge variant="outline" className="text-xs bg-blue-50 text-blue-600 border-blue-200">
+                <Badge variant="outline" className="text-xs">
                   {item.source_type === 'bug_report' ? '🐛 Buggrapport' : item.source_type === 'order_incident' ? '⚠️ Incident' : item.source_type}
                 </Badge>
               )}
@@ -286,6 +374,25 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
 
             <Separator />
 
+            {/* Human override display */}
+            {(item.human_selected_cause || item.human_custom_cause) && (
+              <div className="border border-accent/30 rounded-lg p-3 bg-accent/5 space-y-1.5">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-accent">
+                  <PenLine className="w-3.5 h-3.5" />
+                  Manuell bedömning
+                </div>
+                {item.human_selected_cause && (
+                  <div><span className="text-[10px] text-muted-foreground">Vald AI-orsak:</span><p className="text-xs">{item.human_selected_cause}</p></div>
+                )}
+                {item.human_custom_cause && (
+                  <div><span className="text-[10px] text-muted-foreground">Egen orsak:</span><p className="text-xs">{item.human_custom_cause}</p></div>
+                )}
+                {item.human_custom_fix && (
+                  <div><span className="text-[10px] text-muted-foreground">Egen fix:</span><p className="text-xs">{item.human_custom_fix}</p></div>
+                )}
+              </div>
+            )}
+
             {/* AI Analysis for bugs */}
             {bugData && (bugData as any).ai_processed_at && (
               <div className="space-y-2 border border-primary/20 rounded-lg p-3 bg-primary/5">
@@ -293,19 +400,15 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                   <Sparkles className="w-3.5 h-3.5" />
                   AI-analys
                   {(bugData as any).ai_approved && (
-                    <Badge variant="outline" className="text-[9px] ml-1 border-green-300 text-green-700">✓ Godkänd</Badge>
+                    <Badge variant="outline" className="text-[9px] ml-1 border-accent/30 text-accent">✓ Godkänd</Badge>
                   )}
                 </div>
                 {(bugData as any).ai_summary && (
                   <div><span className="text-[10px] text-muted-foreground">Sammanfattning</span><p className="text-xs font-medium">{(bugData as any).ai_summary}</p></div>
                 )}
                 <div className="flex gap-1.5 flex-wrap">
-                  {(bugData as any).ai_severity && (
-                    <Badge variant="outline" className="text-[10px]">{(bugData as any).ai_severity}</Badge>
-                  )}
-                  {(bugData as any).ai_category && (
-                    <Badge variant="outline" className="text-[10px]">{(bugData as any).ai_category}</Badge>
-                  )}
+                  {(bugData as any).ai_severity && <Badge variant="outline" className="text-[10px]">{(bugData as any).ai_severity}</Badge>}
+                  {(bugData as any).ai_category && <Badge variant="outline" className="text-[10px]">{(bugData as any).ai_category}</Badge>}
                 </div>
                 {(bugData as any).ai_tags?.length > 0 && (
                   <div className="flex gap-1 flex-wrap">
@@ -331,68 +434,95 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
               </div>
             )}
 
-            {/* AI Fix Suggestion for bugs */}
+            {/* Root Cause Analysis */}
             {bugData && item.item_type === 'bug' && (
               <div className="space-y-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="w-full gap-1.5"
-                  disabled={analyzingFix}
-                  onClick={async () => {
-                    setAnalyzingFix(true);
-                    try {
-                      const { data: { session } } = await supabase.auth.getSession();
-                      if (!session) { toast.error('Ej inloggad'); return; }
-                      const resp = await fetch(
-                        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`,
-                        {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-                          body: JSON.stringify({ type: 'bug_fix_suggestion', bug_id: item.source_id }),
-                        }
-                      );
-                      if (resp.ok) {
-                        const { result } = await resp.json();
-                        setFixSuggestion(result);
-                      } else {
-                        toast.error('AI-analys misslyckades');
-                      }
-                    } catch { toast.error('Fel'); }
-                    finally { setAnalyzingFix(false); }
-                  }}
-                >
+                <Button size="sm" variant="outline" className="w-full gap-1.5" disabled={analyzingFix} onClick={handleRunRootCause}>
                   {analyzingFix ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                  AI Fix-förslag
+                  {rootCauses.length > 0 ? 'Kör ny AI-analys' : 'AI Root Cause-analys'}
                 </Button>
 
-                {fixSuggestion && (
-                  <div className="border border-primary/20 rounded-lg p-3 bg-primary/5 space-y-2">
-                    <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
-                      <Sparkles className="w-3.5 h-3.5" />
-                      AI Fix-förslag
-                      <Badge variant="outline" className="text-[9px] ml-auto">Risk: {fixSuggestion.risk_level}</Badge>
-                    </div>
-                    <div className="space-y-1.5 text-xs">
-                      <div><span className="text-muted-foreground font-medium">Orsak:</span><p>{fixSuggestion.possible_cause}</p></div>
-                      <div><span className="text-muted-foreground font-medium">Strategi:</span><p>{fixSuggestion.fix_strategy}</p></div>
-                      {fixSuggestion.code_suggestion && (
-                        <div><span className="text-muted-foreground font-medium">Kod:</span>
-                          <pre className="text-[11px] bg-background rounded-md p-2 mt-0.5 whitespace-pre-wrap font-mono border">{fixSuggestion.code_suggestion}</pre>
-                        </div>
-                      )}
-                      <div className="flex gap-1 flex-wrap">
-                        {fixSuggestion.affected_areas?.map((a: string) => (
-                          <span key={a} className="text-[9px] bg-muted px-1.5 py-0.5 rounded-full">{a}</span>
-                        ))}
+                {rootCauses.length > 0 && (
+                  <div className="border border-primary/20 rounded-lg p-3 bg-primary/5 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
+                        <Sparkles className="w-3.5 h-3.5" />
+                        Möjliga grundorsaker ({rootCauses.length})
                       </div>
+                      {fixSuggestion?.overall_risk && (
+                        <Badge variant="outline" className="text-[9px]">Risk: {fixSuggestion.overall_risk}</Badge>
+                      )}
                     </div>
-                    <Button size="sm" variant="outline" className="w-full h-6 text-[10px] gap-1" onClick={() => {
-                      navigator.clipboard.writeText(fixSuggestion.lovable_prompt);
-                      toast.success('Lovable-prompt kopierad');
-                    }}>
-                      <Copy className="w-2.5 h-2.5" /> Kopiera Lovable-prompt
+
+                    {analysisSummary && <p className="text-xs text-muted-foreground">{analysisSummary}</p>}
+
+                    {rootCauses.map((rc: any, i: number) => (
+                      <div key={i} className={cn('rounded-lg border p-2.5 space-y-2 transition-colors',
+                        item.human_selected_cause === rc.cause ? 'border-accent bg-accent/5' : 'border-border/50 bg-background'
+                      )}>
+                        <button className="flex items-start justify-between w-full text-left gap-2" onClick={() => setExpandedCause(expandedCause === i ? null : i)}>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-semibold">#{i + 1}</span>
+                              <span className="text-xs font-medium truncate">{rc.cause}</span>
+                            </div>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Progress value={rc.confidence} className="h-1 w-16" />
+                              <span className="text-[10px] text-muted-foreground">{rc.confidence}%</span>
+                              <Badge variant="outline" className="text-[9px]">{rc.risk_level}</Badge>
+                            </div>
+                          </div>
+                          {expandedCause === i ? <ChevronUp className="w-3.5 h-3.5 shrink-0 mt-0.5" /> : <ChevronDown className="w-3.5 h-3.5 shrink-0 mt-0.5" />}
+                        </button>
+
+                        {expandedCause === i && (
+                          <div className="space-y-2 pt-1">
+                            <div className="text-xs"><span className="text-muted-foreground font-medium">Fix-strategi:</span><p className="mt-0.5">{rc.fix_strategy}</p></div>
+                            {rc.code_suggestion && (
+                              <div className="text-xs"><span className="text-muted-foreground font-medium">Kod:</span>
+                                <pre className="text-[11px] bg-muted rounded-md p-2 mt-0.5 whitespace-pre-wrap font-mono">{rc.code_suggestion}</pre>
+                              </div>
+                            )}
+                            {rc.affected_areas?.length > 0 && (
+                              <div className="flex gap-1 flex-wrap">
+                                {rc.affected_areas.map((a: string) => <span key={a} className="text-[9px] bg-muted px-1.5 py-0.5 rounded-full">{a}</span>)}
+                              </div>
+                            )}
+                            <div className="flex gap-1.5">
+                              <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1 flex-1" disabled={savingOverride}
+                                onClick={() => handleSelectCause(rc.cause)}>
+                                <CheckCircle2 className="w-2.5 h-2.5" />
+                                {item.human_selected_cause === rc.cause ? 'Vald ✓' : 'Välj denna orsak'}
+                              </Button>
+                              <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1" onClick={() => {
+                                navigator.clipboard.writeText(rc.lovable_prompt);
+                                toast.success('Prompt kopierad');
+                              }}>
+                                <Copy className="w-2.5 h-2.5" /> Prompt
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Custom cause / fix */}
+                {isOpen && (
+                  <div className="space-y-2">
+                    <Button size="sm" variant="ghost" className="w-full h-7 text-xs gap-1.5" onClick={() => setShowCustomCause(!showCustomCause)}>
+                      <PenLine className="w-3 h-3" /> {showCustomCause ? 'Dölj egen orsak' : 'Skriv egen orsak / fix'}
                     </Button>
+                    {showCustomCause && (
+                      <div className="space-y-2 border rounded-lg p-3">
+                        <Textarea placeholder="Beskriv grundorsaken..." value={customCause} onChange={e => setCustomCause(e.target.value)} rows={2} className="text-xs" />
+                        <Textarea placeholder="Beskriv fix (valfritt)..." value={customFix} onChange={e => setCustomFix(e.target.value)} rows={2} className="text-xs" />
+                        <Button size="sm" className="w-full h-7 text-xs" disabled={savingOverride || !customCause.trim()} onClick={handleSaveCustomCause}>
+                          {savingOverride ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Spara'}
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -411,25 +541,23 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
             {/* AI Review Results */}
             {item.ai_review_status && (
               <div className={cn('rounded-lg p-3 space-y-2 border', {
-                'bg-green-50 border-green-200': item.ai_review_status === 'verified',
+                'bg-accent/5 border-accent/20': item.ai_review_status === 'verified',
                 'bg-yellow-50 border-yellow-200': item.ai_review_status === 'needs_review',
-                'bg-red-50 border-red-200': item.ai_review_status === 'incomplete',
+                'bg-destructive/5 border-destructive/20': item.ai_review_status === 'incomplete',
               })}>
                 <div className="flex items-center gap-1.5 text-xs font-semibold">
                   <Bot className="w-3.5 h-3.5" />
                   AI-granskning
                   <Badge variant="outline" className={cn('text-[9px] ml-auto', {
-                    'border-green-300 text-green-700': item.ai_review_status === 'verified',
+                    'border-accent/30 text-accent': item.ai_review_status === 'verified',
                     'border-yellow-300 text-yellow-700': item.ai_review_status === 'needs_review',
-                    'border-red-300 text-red-700': item.ai_review_status === 'incomplete',
+                    'border-destructive/30 text-destructive': item.ai_review_status === 'incomplete',
                   })}>
                     {item.ai_review_status === 'verified' ? '✅ Verifierad' :
                      item.ai_review_status === 'needs_review' ? '⚠️ Behöver granskning' : '❌ Ofullständig'}
                   </Badge>
                 </div>
-                {item.ai_review_result?.verdict && (
-                  <p className="text-xs">{item.ai_review_result.verdict}</p>
-                )}
+                {item.ai_review_result?.verdict && <p className="text-xs">{item.ai_review_result.verdict}</p>}
                 {item.ai_review_result?.confidence != null && (
                   <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
                     <span>Konfidens: {item.ai_review_result.confidence}%</span>
@@ -457,18 +585,13 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
 
             {/* Manual AI Review button */}
             {item.status === 'done' && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="w-full gap-1.5"
-                disabled={runningReview}
+              <Button size="sm" variant="outline" className="w-full gap-1.5" disabled={runningReview}
                 onClick={async () => {
                   setRunningReview(true);
                   try {
                     const reviewResult = await triggerAiReviewForWorkItem(item.id, { context: 'work_item_detail_manual' });
-                    if (!reviewResult.ok) {
-                      toast.error('AI-granskning misslyckades');
-                    } else {
+                    if (!reviewResult.ok) toast.error('AI-granskning misslyckades');
+                    else {
                       const s = reviewResult.status;
                       toast.success(s === 'verified' ? 'AI: ✅ Verifierad' : s === 'needs_review' ? 'AI: ⚠️ Behöver granskning' : 'AI: Granskning klar');
                     }
@@ -482,7 +605,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
               </Button>
             )}
 
-            {/* Resolution info if resolved */}
+            {/* Resolution info */}
             {bugData?.status === 'resolved' && bugData.resolution_notes && (
               <div className="bg-accent/10 rounded-lg p-3 space-y-1">
                 <div className="flex items-center gap-1.5 text-xs font-medium text-accent">
@@ -492,7 +615,6 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                 <p className="text-sm text-muted-foreground">{bugData.resolution_notes}</p>
               </div>
             )}
-
             {incidentData?.resolution && (
               <div className="bg-accent/10 rounded-lg p-3 space-y-1">
                 <div className="flex items-center gap-1.5 text-xs font-medium text-accent">
@@ -502,36 +624,25 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
               </div>
             )}
 
-            {/* Source loading */}
             {sourceLoading && (
-              <div className="flex items-center justify-center py-4">
-                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-              </div>
+              <div className="flex items-center justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
             )}
 
             {/* Resolve flow */}
-            {isOpen && (
+            {isOpen && !item.ignored && (
               <>
                 <Separator />
                 <div className="space-y-4">
                   <div>
                     <div className="flex items-center gap-1.5 mb-3">
-                      <AlertCircle className="w-4 h-4 text-warning" />
+                      <AlertCircle className="w-4 h-4 text-yellow-500" />
                       <h3 className="text-sm font-semibold">Checklista innan avslut</h3>
                     </div>
                     <div className="space-y-2">
                       {checklist_items.map(c => (
-                        <label
-                          key={c.key}
-                          className="flex items-center gap-2.5 text-sm cursor-pointer hover:bg-muted/30 rounded-md px-2 py-1.5 transition-colors"
-                        >
-                          <Checkbox
-                            checked={!!checklist[c.key]}
-                            onCheckedChange={(v) => setChecklist(prev => ({ ...prev, [c.key]: !!v }))}
-                          />
-                          <span className={cn(checklist[c.key] && 'text-muted-foreground line-through')}>
-                            {c.label}
-                          </span>
+                        <label key={c.key} className="flex items-center gap-2.5 text-sm cursor-pointer hover:bg-muted/30 rounded-md px-2 py-1.5 transition-colors">
+                          <Checkbox checked={!!checklist[c.key]} onCheckedChange={(v) => setChecklist(prev => ({ ...prev, [c.key]: !!v }))} />
+                          <span className={cn(checklist[c.key] && 'text-muted-foreground line-through')}>{c.label}</span>
                         </label>
                       ))}
                     </div>
@@ -539,32 +650,32 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
 
                   <div>
                     <span className="text-xs text-muted-foreground block mb-1.5">Anteckningar (valfritt)</span>
-                    <Textarea
-                      placeholder="Beskriv vad som gjordes / fixades..."
-                      value={resolutionNotes}
-                      onChange={e => setResolutionNotes(e.target.value)}
-                      rows={3}
-                      className="text-sm"
-                    />
+                    <Textarea placeholder="Beskriv vad som gjordes / fixades..." value={resolutionNotes} onChange={e => setResolutionNotes(e.target.value)} rows={3} className="text-sm" />
                   </div>
 
-                  <Button
-                    className="w-full gap-2"
-                    disabled={!allChecked || resolving}
-                    onClick={handleResolve}
-                  >
-                    {resolving ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <CheckCircle2 className="w-4 h-4" />
-                    )}
-                    Markera som klar
-                  </Button>
-                  {!allChecked && (
-                    <p className="text-[11px] text-muted-foreground text-center">
-                      Alla checklistepunkter måste vara klara
-                    </p>
+                  <div className="flex gap-2">
+                    <Button className="flex-1 gap-2" disabled={!allChecked || resolving} onClick={handleResolve}>
+                      {resolving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                      Markera som klar
+                    </Button>
+                    <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground" onClick={() => setShowIgnoreForm(!showIgnoreForm)} title="Ignorera">
+                      <EyeOff className="w-4 h-4" />
+                    </Button>
+                  </div>
+
+                  {showIgnoreForm && (
+                    <div className="border rounded-lg p-3 space-y-2 bg-muted/30">
+                      <p className="text-xs font-medium">Ignorera detta ärende</p>
+                      <p className="text-[10px] text-muted-foreground">AI kommer inte att ta upp detta problem igen.</p>
+                      <Textarea placeholder="Anledning till ignorering..." value={ignoreReason} onChange={e => setIgnoreReason(e.target.value)} rows={2} className="text-xs" />
+                      <Button size="sm" variant="destructive" className="w-full h-7 text-xs gap-1" disabled={ignoreSaving || !ignoreReason.trim()} onClick={handleIgnore}>
+                        {ignoreSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <EyeOff className="w-3 h-3" />}
+                        Ignorera permanent
+                      </Button>
+                    </div>
                   )}
+
+                  {!allChecked && <p className="text-[11px] text-muted-foreground text-center">Alla checklistepunkter måste vara klara</p>}
                 </div>
               </>
             )}
