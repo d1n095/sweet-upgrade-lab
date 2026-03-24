@@ -121,6 +121,11 @@ serve(async (req) => {
         break;
       }
 
+      case "structure_analysis": {
+        result = await handleStructureAnalysis(supabase, lovableKey);
+        break;
+      }
+
       case "create_action": {
         const { title, description, priority, category, source_type: srcType, source_id: srcId } = body;
         if (!title) {
@@ -1547,4 +1552,136 @@ Rangordna ALLT efter intäktspåverkan. Svara på svenska. Använd action_engine
       },
     },
   }], { type: "function", function: { name: "action_engine" } });
+}
+
+// ── Structure Analysis ──
+async function handleStructureAnalysis(supabase: any, apiKey: string) {
+  // Gather admin routes, page sections, work items with structure issues, and existing bug reports about UI/nav
+  const [{ data: pages }, { data: workItems }, { data: bugs }, { data: products }] = await Promise.all([
+    supabase.from("page_sections").select("page, section_key, title_sv, is_visible, display_order").order("page").order("display_order"),
+    supabase.from("work_items").select("id, title, item_type, status, ai_category").in("status", ["open", "claimed", "in_progress", "escalated"]).limit(50),
+    supabase.from("bug_reports").select("id, description, ai_category, ai_summary, page_url, status").in("status", ["open", "in_progress"]).limit(30),
+    supabase.from("products").select("id, title_sv, category, is_visible, meta_title, meta_description").limit(100),
+  ]);
+
+  // Build admin route map from known pages
+  const adminRoutes = [
+    { path: "/admin", label: "Overview" },
+    { path: "/admin/orders", label: "Orders" },
+    { path: "/admin/products", label: "Products" },
+    { path: "/admin/members", label: "Members" },
+    { path: "/admin/ai", label: "AI Center" },
+    { path: "/admin/content", label: "Content" },
+    { path: "/admin/seo", label: "SEO" },
+    { path: "/admin/categories", label: "Categories" },
+    { path: "/admin/campaigns", label: "Campaigns" },
+    { path: "/admin/shipping", label: "Shipping" },
+    { path: "/admin/finance", label: "Finance" },
+    { path: "/admin/payments", label: "Payments" },
+    { path: "/admin/reviews", label: "Reviews" },
+    { path: "/admin/growth", label: "Growth" },
+    { path: "/admin/insights", label: "Insights" },
+    { path: "/admin/stats", label: "Stats" },
+    { path: "/admin/staff", label: "Staff" },
+    { path: "/admin/partners", label: "Partners" },
+    { path: "/admin/ops", label: "Operations" },
+    { path: "/admin/incidents", label: "Incidents" },
+    { path: "/admin/history", label: "History" },
+    { path: "/admin/logs", label: "Logs" },
+    { path: "/admin/legal", label: "Legal" },
+    { path: "/admin/updates", label: "Updates" },
+    { path: "/admin/visibility", label: "Visibility" },
+    { path: "/admin/settings", label: "Settings" },
+    { path: "/admin/data", label: "Data" },
+    { path: "/admin/database", label: "Database" },
+    { path: "/admin/communication", label: "Communication" },
+  ];
+
+  const prompt = `You are a software architecture analyst for an e-commerce admin system.
+
+ADMIN ROUTES:
+${JSON.stringify(adminRoutes, null, 1)}
+
+PAGE SECTIONS (CMS):
+${JSON.stringify((pages || []).slice(0, 40), null, 1)}
+
+OPEN WORK ITEMS (${(workItems || []).length}):
+${JSON.stringify((workItems || []).slice(0, 20).map((w: any) => ({ id: w.id, title: w.title, type: w.item_type, category: w.ai_category })), null, 1)}
+
+OPEN BUGS (${(bugs || []).length}):
+${JSON.stringify((bugs || []).slice(0, 15).map((b: any) => ({ id: b.id, summary: b.ai_summary || b.description?.substring(0, 80), category: b.ai_category, page: b.page_url })), null, 1)}
+
+PRODUCTS (${(products || []).length} total, sample):
+${JSON.stringify((products || []).slice(0, 10).map((p: any) => ({ title: p.title_sv, category: p.category, has_seo: !!(p.meta_title && p.meta_description) })), null, 1)}
+
+Analyze the STRUCTURE and ORGANIZATION of this admin system. Find:
+1. Misplaced features (e.g. SEO in wrong location)
+2. Duplicated sections or overlapping modules
+3. Fragmented functionality (related things split across too many places)
+4. Inconsistent navigation groupings
+5. Modules that should be merged
+6. Missing logical groupings
+
+For each issue, provide a concrete suggestion and a ready-to-use Lovable prompt to fix it.`;
+
+  return callAIWithTools(apiKey, prompt, "You are an expert UX architect and software structure analyst. Be specific and actionable. Return Swedish text for all user-facing strings.", [{
+    type: "function",
+    function: {
+      name: "structure_analysis",
+      description: "Structural analysis of admin system",
+      parameters: {
+        type: "object",
+        properties: {
+          overall_score: { type: "number", description: "Structure health 0-100" },
+          issues: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                title: { type: "string" },
+                issue_type: { type: "string", enum: ["misplaced", "duplicated", "fragmented", "inconsistent", "merge_candidate", "missing_group"] },
+                severity: { type: "string", enum: ["critical", "high", "medium", "low"] },
+                current_location: { type: "string" },
+                suggested_location: { type: "string" },
+                explanation: { type: "string" },
+                affected_routes: { type: "array", items: { type: "string" } },
+                lovable_prompt: { type: "string" },
+              },
+              required: ["title", "issue_type", "severity", "current_location", "suggested_location", "explanation", "affected_routes", "lovable_prompt"],
+              additionalProperties: false,
+            },
+          },
+          merge_suggestions: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                modules: { type: "array", items: { type: "string" } },
+                merged_name: { type: "string" },
+                reason: { type: "string" },
+                lovable_prompt: { type: "string" },
+              },
+              required: ["modules", "merged_name", "reason", "lovable_prompt"],
+              additionalProperties: false,
+            },
+          },
+          ideal_structure: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                group: { type: "string" },
+                modules: { type: "array", items: { type: "string" } },
+              },
+              required: ["group", "modules"],
+              additionalProperties: false,
+            },
+          },
+          summary: { type: "string" },
+        },
+        required: ["overall_score", "issues", "merge_suggestions", "ideal_structure", "summary"],
+        additionalProperties: false,
+      },
+    },
+  }], { type: "function", function: { name: "structure_analysis" } });
 }
