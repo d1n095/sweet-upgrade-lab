@@ -748,3 +748,158 @@ ORDRAR: ${unpackedPaid.length} betalda men ej packade`;
     },
   ], { type: "function", function: { name: "system_health" } });
 }
+
+// ── Full System Scan Engine ──
+async function handleSystemScan(supabase: any, apiKey: string, supabaseUrl: string, serviceKey: string) {
+  const scanStart = Date.now();
+
+  // 1. Gather full snapshot
+  const { summary, metrics } = await gatherSystemSnapshot(supabase);
+
+  // 2. Deep AI analysis – detect ALL issues (bugs, improvements, features, upgrades)
+  const analysis = await callAI(apiKey, [
+    {
+      role: "system",
+      content: `Du är en AI-systemanalytiker för en svensk e-handelsplattform (4thepeople).
+Skanna ALL systemdata och identifiera ALLA problem, förbättringsmöjligheter och saknade funktioner.
+Klassificera varje issue korrekt. Var specifik och handlingsbar. Svara på svenska.
+Du MÅSTE använda system_scan-funktionen.`,
+    },
+    { role: "user", content: `Genomför en fullständig systemskanning:\n\n${summary}` },
+  ], [{
+    type: "function",
+    function: {
+      name: "system_scan",
+      description: "Full system scan with issue detection and fix suggestions",
+      parameters: {
+        type: "object",
+        properties: {
+          issues: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                title: { type: "string", description: "Short clear issue title" },
+                description: { type: "string", description: "What the issue is" },
+                type: { type: "string", enum: ["bug", "improvement", "feature", "upgrade", "task"] },
+                severity: { type: "string", enum: ["critical", "high", "medium", "low"] },
+                category: { type: "string", enum: ["payment", "checkout", "orders", "products", "UI", "auth", "performance", "data", "security", "system"] },
+                fix_suggestion: { type: "string", description: "How to fix or implement" },
+                lovable_prompt: { type: "string", description: "Ready-to-use Lovable prompt" },
+                urgency: { type: "string", enum: ["now", "today", "this_week", "backlog"] },
+              },
+              required: ["title", "description", "type", "severity", "category", "fix_suggestion", "urgency"],
+              additionalProperties: false,
+            },
+          },
+          system_score: { type: "number", description: "Overall system health 0-100" },
+          executive_summary: { type: "string", description: "2-3 sentence summary" },
+          risk_areas: {
+            type: "array",
+            items: { type: "string" },
+            description: "Top risk areas in the system",
+          },
+        },
+        required: ["issues", "system_score", "executive_summary", "risk_areas"],
+        additionalProperties: false,
+      },
+    },
+  }], { type: "function", function: { name: "system_scan" } });
+
+  // 3. Auto-create work_items for detected issues (with dedup)
+  let created = 0;
+  let skipped = 0;
+  const createdIds: string[] = [];
+
+  for (const issue of analysis?.issues || []) {
+    // Dedup: check if similar task already exists
+    const searchTitle = issue.title.substring(0, 40);
+    const { data: existing } = await supabase
+      .from("work_items")
+      .select("id")
+      .ilike("title", `%${searchTitle}%`)
+      .in("status", ["open", "claimed", "in_progress", "escalated"])
+      .limit(1);
+
+    if (existing?.length) {
+      skipped++;
+      continue;
+    }
+
+    const priorityMap: Record<string, string> = {
+      critical: "critical",
+      high: "high",
+      medium: "medium",
+      low: "low",
+    };
+
+    const { data: newItem } = await supabase.from("work_items").insert({
+      title: `AI Scan: ${issue.title}`.substring(0, 200),
+      description: `${issue.description}\n\n🔧 Fix-förslag: ${issue.fix_suggestion}${issue.lovable_prompt ? `\n\n📋 Lovable-prompt:\n${issue.lovable_prompt}` : ""}`,
+      status: "open",
+      priority: priorityMap[issue.severity] || "medium",
+      item_type: issue.type === "bug" ? "bug" : issue.type === "task" ? "manual" : "insight",
+      source_type: "ai_detection",
+      ai_detected: true,
+      ai_confidence: issue.severity === "critical" || issue.severity === "high" ? "high" : "medium",
+      ai_category: issue.category,
+      ai_type_classification: issue.type,
+      ai_type_reason: `AI System Scan: ${issue.urgency}`,
+    }).select("id").single();
+
+    if (newItem) {
+      createdIds.push(newItem.id);
+      created++;
+    }
+  }
+
+  // 4. Trigger task manager for prioritization + orchestration
+  let taskManagerResult: any = null;
+  try {
+    const tmResp = await fetch(`${supabaseUrl}/functions/v1/ai-task-manager`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${serviceKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ action: "full_cycle" }),
+    });
+    if (tmResp.ok) {
+      const tmData = await tmResp.json();
+      taskManagerResult = tmData.results;
+    }
+  } catch (e) {
+    console.error("Task manager trigger failed:", e);
+  }
+
+  // 5. Fetch final master task list (ordered)
+  const { data: masterList } = await supabase
+    .from("work_items")
+    .select("id, title, status, priority, item_type, ai_detected, ai_category, ai_type_classification, ai_confidence, execution_order, depends_on, blocks, conflict_flag, duplicate_of, created_at, ai_type_reason")
+    .in("status", ["open", "claimed", "in_progress", "escalated"])
+    .order("execution_order", { ascending: true, nullsFirst: false })
+    .limit(100);
+
+  // Group by urgency
+  const mustDo = (masterList || []).filter((t: any) => t.priority === "critical" || t.execution_order <= 5);
+  const nextUp = (masterList || []).filter((t: any) => !mustDo.includes(t) && (t.priority === "high" || (t.execution_order > 5 && t.execution_order <= 20)));
+  const optional = (masterList || []).filter((t: any) => !mustDo.includes(t) && !nextUp.includes(t));
+
+  return {
+    scan_duration_ms: Date.now() - scanStart,
+    system_score: analysis?.system_score || 0,
+    executive_summary: analysis?.executive_summary || "",
+    risk_areas: analysis?.risk_areas || [],
+    issues_found: analysis?.issues?.length || 0,
+    issues: analysis?.issues || [],
+    tasks_created: created,
+    tasks_skipped_duplicate: skipped,
+    task_manager: taskManagerResult,
+    master_list: {
+      must_do: mustDo,
+      next_up: nextUp,
+      optional: optional,
+      total: (masterList || []).length,
+    },
+  };
+}
