@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Sparkles, Bug, BarChart3, Copy, Loader2, Send, AlertTriangle, Lightbulb, Info, RefreshCw, Bot, CheckCircle, XCircle, Shield, Clock, Zap, Activity, TrendingUp, Package, AlertCircle, Database, Wrench, Radar, ArrowRight, Layers } from 'lucide-react';
+import { Sparkles, Bug, BarChart3, Copy, Loader2, Send, AlertTriangle, Lightbulb, Info, RefreshCw, Bot, CheckCircle, XCircle, Shield, Clock, Zap, Activity, TrendingUp, Package, AlertCircle, Database, Wrench, Radar, ArrowRight, Layers, Monitor, Smartphone, Tablet, Eye } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger, ScrollableTabs } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -1537,6 +1537,151 @@ const DataHealthTab = () => {
   );
 };
 
+// ── Visual QA Tab ──
+interface QAIssue { title: string; page: string; severity: string; category: string; breakpoint: string; description: string; fix_suggestion: string; lovable_prompt: string }
+interface FlowTest { flow_name: string; status: string; issues: string[] }
+interface PageScore { page: string; score: number; status: string; notes: string }
+interface VisualQAResult {
+  overall_ui_score: number; mobile_score: number; desktop_score: number; usability_score: number; accessibility_score: number;
+  executive_summary: string; issues: QAIssue[]; flow_tests: FlowTest[]; page_scores: PageScore[]; tasks_created: number;
+}
+
+const VisualQATab = () => {
+  const [result, setResult] = useState<VisualQAResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [filter, setFilter] = useState<string>('all');
+
+  const run = async () => {
+    setLoading(true);
+    const r = await callAI('visual_qa');
+    if (r) { setResult(r); toast.success(`QA klar – ${r.issues?.length || 0} problem, ${r.tasks_created || 0} uppgifter skapade`); }
+    setLoading(false);
+  };
+
+  const sevColor = (s: string) => s === 'critical' ? 'text-destructive' : s === 'high' ? 'text-orange-500' : s === 'medium' ? 'text-yellow-500' : 'text-muted-foreground';
+  const scoreColor = (s: number) => s >= 80 ? 'text-accent' : s >= 50 ? 'text-yellow-500' : 'text-destructive';
+  const flowIcon = (s: string) => s === 'pass' ? <CheckCircle className="w-4 h-4 text-accent" /> : s === 'warning' ? <AlertTriangle className="w-4 h-4 text-yellow-500" /> : <XCircle className="w-4 h-4 text-destructive" />;
+  const breakpointIcon = (bp: string) => bp === 'mobile' ? <Smartphone className="w-3.5 h-3.5" /> : bp === 'tablet' ? <Tablet className="w-3.5 h-3.5" /> : bp === 'desktop' ? <Monitor className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />;
+
+  const filteredIssues = result?.issues?.filter(i => filter === 'all' || i.severity === filter || i.breakpoint === filter || i.category === filter) || [];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-bold flex items-center gap-2"><Monitor className="w-5 h-5 text-primary" /> Visual QA & Responsive Testing</h2>
+          <p className="text-sm text-muted-foreground">AI analyserar alla sidor, flöden och breakpoints</p>
+        </div>
+        <Button onClick={run} disabled={loading} className="gap-2">
+          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Radar className="w-4 h-4" />}
+          {loading ? 'Analyserar...' : 'Kör Visual QA'}
+        </Button>
+      </div>
+
+      {result && (
+        <>
+          {/* Score cards */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            {[
+              { label: 'UI Total', score: result.overall_ui_score, icon: <Eye className="w-4 h-4" /> },
+              { label: 'Mobil', score: result.mobile_score, icon: <Smartphone className="w-4 h-4" /> },
+              { label: 'Desktop', score: result.desktop_score, icon: <Monitor className="w-4 h-4" /> },
+              { label: 'Användbarhet', score: result.usability_score, icon: <Zap className="w-4 h-4" /> },
+              { label: 'Tillgänglighet', score: result.accessibility_score, icon: <Shield className="w-4 h-4" /> },
+            ].map(s => (
+              <Card key={s.label} className="p-3">
+                <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">{s.icon}{s.label}</div>
+                <div className={cn('text-2xl font-bold', scoreColor(s.score))}>{s.score}</div>
+                <Progress value={s.score} className="h-1.5 mt-1" />
+              </Card>
+            ))}
+          </div>
+
+          {/* Summary */}
+          <Card className="p-4">
+            <p className="text-sm">{result.executive_summary}</p>
+            {result.tasks_created > 0 && (
+              <Badge variant="secondary" className="mt-2">{result.tasks_created} uppgifter skapade i Workbench</Badge>
+            )}
+          </Card>
+
+          {/* Flow tests */}
+          <Card className="p-4">
+            <h3 className="font-semibold text-sm mb-3">Flödestester</h3>
+            <div className="space-y-2">
+              {result.flow_tests?.map((ft, i) => (
+                <div key={i} className="flex items-start gap-3 p-2 rounded-lg bg-secondary/30">
+                  {flowIcon(ft.status)}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">{ft.flow_name}</p>
+                    {ft.issues.length > 0 && <ul className="text-xs text-muted-foreground mt-1 space-y-0.5">{ft.issues.map((iss, j) => <li key={j}>• {iss}</li>)}</ul>}
+                  </div>
+                  <Badge variant={ft.status === 'pass' ? 'secondary' : ft.status === 'warning' ? 'outline' : 'destructive'} className="text-[10px] shrink-0">{ft.status}</Badge>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          {/* Page scores */}
+          <Card className="p-4">
+            <h3 className="font-semibold text-sm mb-3">Sidbetyg</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {result.page_scores?.map((ps, i) => (
+                <div key={i} className="flex items-center gap-3 p-2 rounded-lg bg-secondary/20">
+                  <span className={cn('text-lg font-bold w-10 text-center', scoreColor(ps.score))}>{ps.score}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{ps.page}</p>
+                    <p className="text-xs text-muted-foreground truncate">{ps.notes}</p>
+                  </div>
+                  <Badge variant={ps.status === 'good' ? 'secondary' : ps.status === 'warning' ? 'outline' : 'destructive'} className="text-[10px]">{ps.status}</Badge>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          {/* Issues */}
+          <Card className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-sm">Problem ({filteredIssues.length})</h3>
+              <div className="flex gap-1 flex-wrap">
+                {['all', 'critical', 'high', 'mobile', 'responsive', 'broken_flow'].map(f => (
+                  <Badge key={f} variant={filter === f ? 'default' : 'outline'} className="text-[10px] cursor-pointer" onClick={() => setFilter(f)}>
+                    {f === 'all' ? 'Alla' : f}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+            <ScrollArea className="max-h-[500px]">
+              <div className="space-y-3">
+                {filteredIssues.map((issue, i) => (
+                  <div key={i} className="p-3 rounded-lg border border-border/50 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        {breakpointIcon(issue.breakpoint)}
+                        <span className="text-sm font-medium">{issue.title}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <Badge variant="outline" className="text-[10px]">{issue.category}</Badge>
+                        <Badge variant={issue.severity === 'critical' ? 'destructive' : 'outline'} className={cn('text-[10px]', sevColor(issue.severity))}>{issue.severity}</Badge>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{issue.description}</p>
+                    <div className="text-xs"><span className="font-medium">Sida:</span> {issue.page} · <span className="font-medium">Breakpoint:</span> {issue.breakpoint}</div>
+                    <div className="text-xs text-accent"><span className="font-medium">Fix:</span> {issue.fix_suggestion}</div>
+                    <Button variant="ghost" size="sm" className="text-xs gap-1.5 h-7" onClick={() => { navigator.clipboard.writeText(issue.lovable_prompt); toast.success('Prompt kopierad'); }}>
+                      <Copy className="w-3 h-3" /> Kopiera prompt
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </Card>
+        </>
+      )}
+    </div>
+  );
+};
+
 // ── Main Page ──
 const AdminAI = () => {
   return (
@@ -1565,6 +1710,10 @@ const AdminAI = () => {
             <TabsTrigger value="dashboard" className="gap-1.5 text-xs">
               <Activity className="w-3.5 h-3.5" />
               Systemöversikt
+            </TabsTrigger>
+            <TabsTrigger value="visual-qa" className="gap-1.5 text-xs">
+              <Monitor className="w-3.5 h-3.5" />
+              Visual QA
             </TabsTrigger>
             <TabsTrigger value="data-health" className="gap-1.5 text-xs">
               <Database className="w-3.5 h-3.5" />
@@ -1605,6 +1754,9 @@ const AdminAI = () => {
         </TabsContent>
         <TabsContent value="dashboard" className="mt-4">
           <UnifiedDashboardTab />
+        </TabsContent>
+        <TabsContent value="visual-qa" className="mt-4">
+          <VisualQATab />
         </TabsContent>
         <TabsContent value="data-health" className="mt-4">
           <DataHealthTab />

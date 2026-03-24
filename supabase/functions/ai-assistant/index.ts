@@ -106,6 +106,11 @@ serve(async (req) => {
         break;
       }
 
+      case "visual_qa": {
+        result = await handleVisualQA(supabase, lovableKey);
+        break;
+      }
+
       case "create_action": {
         const { title, description, priority, category, source_type: srcType, source_id: srcId } = body;
         if (!title) {
@@ -907,6 +912,169 @@ Du MÅSTE använda system_scan-funktionen.`,
       total: (masterList || []).length,
     },
   };
+}
+
+// ── Visual QA Engine ──
+async function handleVisualQA(supabase: any, apiKey: string) {
+  // Gather all relevant data for UI analysis
+  const [bugsRes, workItemsRes, eventsRes, productsRes, pagesRes] = await Promise.all([
+    supabase.from("bug_reports").select("description, page_url, ai_category, ai_severity, status, ai_summary").limit(50),
+    supabase.from("work_items").select("title, description, item_type, ai_category, status, priority").in("status", ["open", "claimed", "in_progress", "escalated"]).limit(100),
+    supabase.from("analytics_events").select("event_type, event_data, created_at").in("event_type", ["page_error", "checkout_abandon", "checkout_start", "product_view", "add_to_cart"]).order("created_at", { ascending: false }).limit(500),
+    supabase.from("products").select("title_sv, handle, image_urls, is_visible, description_sv, price, stock").eq("is_visible", true).limit(100),
+    supabase.from("page_sections").select("page, section_key, is_visible, title_sv, content_sv").limit(200),
+  ]);
+
+  const bugs = bugsRes.data || [];
+  const workItems = workItemsRes.data || [];
+  const events = eventsRes.data || [];
+  const products = productsRes.data || [];
+  const pages = pagesRes.data || [];
+
+  const uiBugs = bugs.filter((b: any) => ["ui", "frontend", "layout", "design", "navigation", "responsive"].some(k => (b.ai_category || "").toLowerCase().includes(k) || (b.description || "").toLowerCase().includes(k)));
+  const abandonRate = (() => {
+    const starts = events.filter((e: any) => e.event_type === "checkout_start").length;
+    const abandons = events.filter((e: any) => e.event_type === "checkout_abandon").length;
+    return starts > 0 ? Math.round((abandons / starts) * 100) : 0;
+  })();
+  const productsMissingImages = products.filter((p: any) => !p.image_urls?.length);
+  const productsMissingDesc = products.filter((p: any) => !p.description_sv);
+  const emptyPages = pages.filter((p: any) => p.is_visible && (!p.content_sv || p.content_sv.trim().length < 10));
+
+  const routes = [
+    "/", "/produkter", "/product/:handle", "/about", "/contact",
+    "/checkout", "/profile", "/track-order", "/affiliate",
+    "/business", "/donations", "/whats-new", "/policies/privacy",
+    "/policies/returns", "/policies/shipping", "/policies/terms",
+  ];
+
+  const context = `=== VISUAL QA CONTEXT ===
+
+ROUTES: ${routes.join(", ")}
+
+UI BUGS (${uiBugs.length}):
+${uiBugs.slice(0, 15).map((b: any) => `- [${b.ai_severity || "?"}] ${b.page_url}: ${b.ai_summary || b.description?.substring(0, 100)}`).join("\n")}
+
+OPEN UI WORK ITEMS:
+${workItems.filter((w: any) => ["ui", "frontend", "ux"].some(k => (w.ai_category || w.item_type || "").includes(k))).slice(0, 10).map((w: any) => `- [${w.priority}] ${w.title}`).join("\n")}
+
+CHECKOUT ABANDON RATE: ${abandonRate}%
+
+PRODUCTS MISSING IMAGES: ${productsMissingImages.length} (${productsMissingImages.slice(0, 5).map((p: any) => p.title_sv).join(", ")})
+PRODUCTS MISSING DESCRIPTION: ${productsMissingDesc.length}
+
+EMPTY/THIN PAGE SECTIONS: ${emptyPages.length}
+${emptyPages.slice(0, 10).map((p: any) => `- ${p.page}/${p.section_key}`).join("\n")}
+
+PAGE SECTIONS CONFIGURED: ${pages.length}
+VISIBLE PRODUCTS: ${products.length}
+OUT OF STOCK: ${products.filter((p: any) => p.stock !== null && p.stock <= 0).length}`;
+
+  const analysis = await callAI(apiKey, [
+    {
+      role: "system",
+      content: `Du är en senior UX/UI-expert och QA-ingenjör som analyserar en svensk e-handelsplattform (4thepeople).
+Analysera all tillgänglig data och identifiera UI-problem, responsivitetsproblem, UX-friktionspunkter och förbättringsmöjligheter.
+Bedöm VARJE sida/flöde. Testa mentalt varje breakpoint (mobil 375px, tablet 768px, desktop 1280px).
+Var SPECIFIK med vilka sidor och element som har problem. Svara på svenska.`,
+    },
+    { role: "user", content: `Kör full Visual QA-analys:\n\n${context}` },
+  ], [{
+    type: "function",
+    function: {
+      name: "visual_qa",
+      description: "Generate Visual QA report",
+      parameters: {
+        type: "object",
+        properties: {
+          overall_ui_score: { type: "number", description: "0-100 overall UI quality" },
+          mobile_score: { type: "number", description: "0-100 mobile experience" },
+          desktop_score: { type: "number", description: "0-100 desktop experience" },
+          usability_score: { type: "number", description: "0-100 usability" },
+          accessibility_score: { type: "number", description: "0-100 accessibility estimate" },
+          executive_summary: { type: "string" },
+          issues: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                title: { type: "string" },
+                page: { type: "string" },
+                severity: { type: "string", enum: ["critical", "high", "medium", "low"] },
+                category: { type: "string", enum: ["responsive", "layout", "navigation", "content", "accessibility", "performance", "ux_friction", "missing_element", "broken_flow"] },
+                breakpoint: { type: "string", enum: ["mobile", "tablet", "desktop", "all"] },
+                description: { type: "string" },
+                fix_suggestion: { type: "string" },
+                lovable_prompt: { type: "string" },
+              },
+              required: ["title", "page", "severity", "category", "breakpoint", "description", "fix_suggestion", "lovable_prompt"],
+              additionalProperties: false,
+            },
+          },
+          flow_tests: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                flow_name: { type: "string" },
+                status: { type: "string", enum: ["pass", "warning", "fail"] },
+                issues: { type: "array", items: { type: "string" } },
+              },
+              required: ["flow_name", "status", "issues"],
+              additionalProperties: false,
+            },
+          },
+          page_scores: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                page: { type: "string" },
+                score: { type: "number" },
+                status: { type: "string", enum: ["good", "warning", "critical"] },
+                notes: { type: "string" },
+              },
+              required: ["page", "score", "status", "notes"],
+              additionalProperties: false,
+            },
+          },
+        },
+        required: ["overall_ui_score", "mobile_score", "desktop_score", "usability_score", "accessibility_score", "executive_summary", "issues", "flow_tests", "page_scores"],
+        additionalProperties: false,
+      },
+    },
+  }], { type: "function", function: { name: "visual_qa" } });
+
+  // Auto-create work items for critical/high issues
+  let tasksCreated = 0;
+  if (analysis?.issues) {
+    for (const issue of analysis.issues) {
+      if (!["critical", "high"].includes(issue.severity)) continue;
+      const { data: existing } = await supabase
+        .from("work_items")
+        .select("id")
+        .ilike("title", `%${issue.title.substring(0, 30)}%`)
+        .in("status", ["open", "claimed", "in_progress"])
+        .limit(1);
+      if (!existing?.length) {
+        await supabase.from("work_items").insert({
+          title: `UI QA: ${issue.title}`.substring(0, 200),
+          description: `Sida: ${issue.page}\nBreakpoint: ${issue.breakpoint}\nKategori: ${issue.category}\n\n${issue.description}\n\nFix: ${issue.fix_suggestion}`,
+          status: "open",
+          priority: issue.severity === "critical" ? "critical" : "high",
+          item_type: issue.category === "broken_flow" ? "bug" : "improvement",
+          source_type: "ai_detection",
+          ai_detected: true,
+          ai_confidence: "medium",
+          ai_category: "frontend",
+          ai_type_classification: issue.category,
+        });
+        tasksCreated++;
+      }
+    }
+  }
+
+  return { ...analysis, tasks_created: tasksCreated };
 }
 
 // ── Action + Revenue Engine ──
