@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Sparkles, Tag } from 'lucide-react';
+import { Sparkles, Tag, Copy, Loader2 as Loader2Icon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -65,12 +65,15 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange }: WorkItemDe
   const [checklist, setChecklist] = useState<Record<string, boolean>>({});
   const [resolutionNotes, setResolutionNotes] = useState('');
   const [resolving, setResolving] = useState(false);
+  const [fixSuggestion, setFixSuggestion] = useState<any>(null);
+  const [analyzingFix, setAnalyzingFix] = useState(false);
 
   // Reset state when item changes
   useEffect(() => {
     if (item) {
       setChecklist({});
       setResolutionNotes('');
+      setFixSuggestion(null);
     }
   }, [item?.id]);
 
@@ -316,6 +319,73 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange }: WorkItemDe
                   <div>
                     <span className="text-[10px] text-muted-foreground">Strukturerad prompt</span>
                     <div className="text-xs bg-background rounded-md p-2 whitespace-pre-wrap border mt-0.5 font-mono">{(bugData as any).ai_clean_prompt}</div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* AI Fix Suggestion for bugs */}
+            {bugData && item.item_type === 'bug' && (
+              <div className="space-y-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full gap-1.5"
+                  disabled={analyzingFix}
+                  onClick={async () => {
+                    setAnalyzingFix(true);
+                    try {
+                      const { data: { session } } = await supabase.auth.getSession();
+                      if (!session) { toast.error('Ej inloggad'); return; }
+                      const resp = await fetch(
+                        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`,
+                        {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+                          body: JSON.stringify({ type: 'bug_fix_suggestion', bug_id: item.source_id }),
+                        }
+                      );
+                      if (resp.ok) {
+                        const { result } = await resp.json();
+                        setFixSuggestion(result);
+                      } else {
+                        toast.error('AI-analys misslyckades');
+                      }
+                    } catch { toast.error('Fel'); }
+                    finally { setAnalyzingFix(false); }
+                  }}
+                >
+                  {analyzingFix ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                  AI Fix-förslag
+                </Button>
+
+                {fixSuggestion && (
+                  <div className="border border-primary/20 rounded-lg p-3 bg-primary/5 space-y-2">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      AI Fix-förslag
+                      <Badge variant="outline" className="text-[9px] ml-auto">Risk: {fixSuggestion.risk_level}</Badge>
+                    </div>
+                    <div className="space-y-1.5 text-xs">
+                      <div><span className="text-muted-foreground font-medium">Orsak:</span><p>{fixSuggestion.possible_cause}</p></div>
+                      <div><span className="text-muted-foreground font-medium">Strategi:</span><p>{fixSuggestion.fix_strategy}</p></div>
+                      {fixSuggestion.code_suggestion && (
+                        <div><span className="text-muted-foreground font-medium">Kod:</span>
+                          <pre className="text-[11px] bg-background rounded-md p-2 mt-0.5 whitespace-pre-wrap font-mono border">{fixSuggestion.code_suggestion}</pre>
+                        </div>
+                      )}
+                      <div className="flex gap-1 flex-wrap">
+                        {fixSuggestion.affected_areas?.map((a: string) => (
+                          <span key={a} className="text-[9px] bg-muted px-1.5 py-0.5 rounded-full">{a}</span>
+                        ))}
+                      </div>
+                    </div>
+                    <Button size="sm" variant="outline" className="w-full h-6 text-[10px] gap-1" onClick={() => {
+                      navigator.clipboard.writeText(fixSuggestion.lovable_prompt);
+                      toast.success('Lovable-prompt kopierad');
+                    }}>
+                      <Copy className="w-2.5 h-2.5" /> Kopiera Lovable-prompt
+                    </Button>
                   </div>
                 )}
               </div>
