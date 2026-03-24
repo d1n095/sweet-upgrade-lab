@@ -56,6 +56,14 @@ export interface ProductFormData {
   usageStep2: string;
   usageStep3: string;
   seoMode: 'auto' | 'manual';
+  // Standardized product fields
+  hook: string;
+  dosage: string;
+  variants: string;
+  storage: string;
+  safety: string;
+  specifications: string;
+  isConcentrate: boolean;
 }
 
 const CURRENCY_OPTIONS = [
