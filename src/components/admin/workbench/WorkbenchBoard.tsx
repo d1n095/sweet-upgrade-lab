@@ -303,6 +303,20 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     return t.status !== 'done';
   });
 
+  const myActiveCount = items.filter(t => (t.assigned_to === user?.id || t.claimed_by === user?.id) && t.status !== 'done' && t.status !== 'cancelled').length;
+
+  const sortedItems = [...filteredItems].sort((a, b) => {
+    if (a.status === 'escalated' && b.status !== 'escalated') return -1;
+    if (b.status === 'escalated' && a.status !== 'escalated') return 1;
+    const aOrder = a.execution_order ?? 999;
+    const bOrder = b.execution_order ?? 999;
+    if (aOrder !== bOrder) return aOrder - bOrder;
+    const pOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+    const pDiff = (pOrder[a.priority] ?? 2) - (pOrder[b.priority] ?? 2);
+    if (pDiff !== 0) return pDiff;
+    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+  });
+
   const escalateItem = async (itemId: string) => {
     if (!user) return;
     setEscalating(itemId);
