@@ -198,8 +198,6 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange }: WorkItemDe
   };
 
   const dt = fmtFull(item.created_at);
-  const bugData = sourceData?.type === 'bug' ? sourceData.data : null;
-  const incidentData = sourceData?.type === 'incident' ? sourceData.data : null;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
