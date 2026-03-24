@@ -1847,3 +1847,183 @@ For each issue generate a ready-to-use Lovable prompt.`;
 
   return analysis;
 }
+
+// ── AI Execute Engine ──
+async function handleAiExecute(supabase: any, lovableKey: string, mode: string) {
+  // Gather all actionable data
+  const [
+    { data: openItems },
+    { data: openBugs },
+    { data: recentHistory },
+  ] = await Promise.all([
+    supabase.from("work_items").select("*").in("status", ["open", "claimed", "in_progress", "review"]).order("created_at", { ascending: false }).limit(100),
+    supabase.from("bug_reports").select("*").in("status", ["open", "in_progress"]).order("created_at", { ascending: false }).limit(50),
+    supabase.from("system_history").select("*").order("created_at", { ascending: false }).limit(20),
+  ]);
+
+  const systemContext = {
+    work_items: (openItems || []).map((w: any) => ({
+      id: w.id, title: w.title, status: w.status, priority: w.priority,
+      item_type: w.item_type, created_at: w.created_at, assigned_to: w.assigned_to,
+      ai_review_status: w.ai_review_status, depends_on: w.depends_on,
+    })),
+    bugs: (openBugs || []).map((b: any) => ({
+      id: b.id, description: b.description?.substring(0, 200), status: b.status,
+      ai_severity: b.ai_severity, ai_category: b.ai_category,
+    })),
+    recent_changes: (recentHistory || []).length,
+  };
+
+  const safeActions = [
+    "update_status", "assign_priority", "merge_duplicates",
+    "close_resolved", "link_related", "create_missing_task",
+  ];
+  const approvalRequired = ["delete_task", "restructure", "bulk_close"];
+
+  const analysis = await callLovableAI(lovableKey, `You are an AI execution engine for a platform operations system.
+
+Mode: ${mode}
+- manual: only suggest, never act
+- assisted: auto-execute safe actions, suggest critical ones
+- autonomous: execute everything except deletions
+
+System state:
+${JSON.stringify(systemContext, null, 1)}
+
+Analyze and decide what actions to take. For each action provide:
+- action_type (one of: ${[...safeActions, ...approvalRequired].join(", ")})
+- target_id (work_item or bug id)
+- description (what and why)
+- auto_executable (boolean - true if safe to auto-execute in current mode)
+- new_value (the new status/priority/etc)
+
+Also detect:
+- Duplicate work_items (same title/description)
+- Tasks that should be closed (linked bug resolved)
+- Tasks with wrong priority
+- Missing tasks for open bugs
+- Tasks stuck too long
+
+Return a structured execution plan.`, [{
+    type: "function" as const,
+    function: {
+      name: "ai_execute",
+      description: "AI execution plan",
+      parameters: {
+        type: "object",
+        properties: {
+          summary: { type: "string" },
+          total_actions: { type: "number" },
+          auto_executed: { type: "number" },
+          needs_approval: { type: "number" },
+          actions: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                action_type: { type: "string" },
+                target_id: { type: "string" },
+                target_title: { type: "string" },
+                description: { type: "string" },
+                auto_executable: { type: "boolean" },
+                new_value: { type: "string" },
+                reason: { type: "string" },
+              },
+              required: ["action_type", "target_id", "description", "auto_executable"],
+              additionalProperties: false,
+            },
+          },
+          duplicates: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                ids: { type: "array", items: { type: "string" } },
+                reason: { type: "string" },
+                suggested_action: { type: "string" },
+              },
+              required: ["ids", "reason", "suggested_action"],
+              additionalProperties: false,
+            },
+          },
+          health_summary: { type: "string" },
+        },
+        required: ["summary", "total_actions", "auto_executed", "needs_approval", "actions", "duplicates", "health_summary"],
+        additionalProperties: false,
+      },
+    },
+  }], { type: "function", function: { name: "ai_execute" } });
+
+  // Auto-execute safe actions in assisted/autonomous mode
+  const executionLog: any[] = [];
+
+  if (mode !== "manual" && analysis?.actions) {
+    for (const action of analysis.actions) {
+      if (!action.auto_executable) continue;
+      if (!action.target_id || action.target_id === "none") continue;
+
+      try {
+        let success = false;
+
+        if (action.action_type === "update_status" && action.new_value) {
+          const { error } = await supabase.from("work_items")
+            .update({ status: action.new_value })
+            .eq("id", action.target_id);
+          success = !error;
+        } else if (action.action_type === "assign_priority" && action.new_value) {
+          const { error } = await supabase.from("work_items")
+            .update({ priority: action.new_value })
+            .eq("id", action.target_id);
+          success = !error;
+        } else if (action.action_type === "close_resolved") {
+          const { error } = await supabase.from("work_items")
+            .update({ status: "done" })
+            .eq("id", action.target_id);
+          success = !error;
+        } else if (action.action_type === "create_missing_task") {
+          const { error } = await supabase.from("work_items").insert({
+            title: action.description.substring(0, 200),
+            description: action.reason || action.description,
+            status: "open",
+            priority: "medium",
+            item_type: "bug",
+            source_type: "ai_execute",
+            ai_detected: true,
+            ai_confidence: "high",
+          });
+          success = !error;
+        }
+
+        executionLog.push({
+          action: action.action_type,
+          target: action.target_id,
+          success,
+          description: action.description,
+        });
+
+        // Log to system_history
+        if (success) {
+          await supabase.from("system_history").insert({
+            event_type: "ai_auto_action",
+            title: `AI ${action.action_type}: ${action.description}`.substring(0, 200),
+            details: { action_type: action.action_type, target_id: action.target_id, new_value: action.new_value, mode },
+          }).catch(() => {});
+        }
+      } catch (err) {
+        executionLog.push({
+          action: action.action_type,
+          target: action.target_id,
+          success: false,
+          error: String(err),
+        });
+      }
+    }
+  }
+
+  return {
+    ...analysis,
+    mode,
+    execution_log: executionLog,
+    executed_count: executionLog.filter(l => l.success).length,
+  };
+}
