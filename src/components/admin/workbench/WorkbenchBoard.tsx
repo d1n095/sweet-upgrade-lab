@@ -144,6 +144,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const [newPriority, setNewPriority] = useState('medium');
   const [newType, setNewType] = useState('general');
   const [creating, setCreating] = useState(false);
+  const [autoAssigning, setAutoAssigning] = useState(false);
   const [runningOrchestrator, setRunningOrchestrator] = useState(false);
   const [runningAutomation, setRunningAutomation] = useState(false);
   const [viewFilter, setViewFilter] = useState<ViewFilter>('active');
