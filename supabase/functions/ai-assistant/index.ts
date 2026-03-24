@@ -460,32 +460,47 @@ AI Repro Steps: ${bug.ai_repro_steps || "N/A"}`;
   return callAI(apiKey, [
     {
       role: "system",
-      content: `You are a senior developer analyzing bugs in a Swedish e-commerce platform built with React, TypeScript, Supabase, and Tailwind.
-Analyze the bug and suggest fixes. Respond in Swedish. Use the suggest_fix function.`,
+      content: `Du är en senior utvecklare som analyserar buggar i en svensk e-handelsplattform byggd med React, TypeScript, Supabase och Tailwind.
+Analysera buggen och ge FLERA möjliga grundorsaker med konfidensnivå. För varje orsak, ge en fix-strategi och Lovable-prompt.
+Rangordna efter sannolikhet. Svara på svenska. Använd suggest_fix_v2-funktionen.`,
     },
     { role: "user", content: context },
   ], [
     {
       type: "function",
       function: {
-        name: "suggest_fix",
-        description: "Suggest a fix for a bug",
+        name: "suggest_fix_v2",
+        description: "Suggest multiple root causes and fixes for a bug",
         parameters: {
           type: "object",
           properties: {
-            possible_cause: { type: "string" },
-            fix_strategy: { type: "string" },
-            code_suggestion: { type: "string" },
-            affected_areas: { type: "array", items: { type: "string" } },
-            risk_level: { type: "string", enum: ["low", "medium", "high"] },
-            lovable_prompt: { type: "string" },
+            root_causes: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  cause: { type: "string", description: "Description of the root cause" },
+                  confidence: { type: "number", description: "0-100 confidence score" },
+                  fix_strategy: { type: "string" },
+                  code_suggestion: { type: "string" },
+                  affected_areas: { type: "array", items: { type: "string" } },
+                  risk_level: { type: "string", enum: ["low", "medium", "high"] },
+                  lovable_prompt: { type: "string" },
+                },
+                required: ["cause", "confidence", "fix_strategy", "affected_areas", "risk_level", "lovable_prompt"],
+                additionalProperties: false,
+              },
+              description: "2-5 possible root causes ranked by confidence",
+            },
+            summary: { type: "string", description: "Executive summary of the analysis" },
+            overall_risk: { type: "string", enum: ["low", "medium", "high", "critical"] },
           },
-          required: ["possible_cause", "fix_strategy", "affected_areas", "risk_level", "lovable_prompt"],
+          required: ["root_causes", "summary", "overall_risk"],
           additionalProperties: false,
         },
       },
     },
-  ], { type: "function", function: { name: "suggest_fix" } });
+  ], { type: "function", function: { name: "suggest_fix_v2" } });
 }
 
 async function analyzeData(apiKey: string, summary: string) {
