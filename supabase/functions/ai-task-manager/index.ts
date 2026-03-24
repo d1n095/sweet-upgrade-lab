@@ -391,7 +391,7 @@ Respond using the prioritize_tasks function.`,
         .neq("status", "done")
         .neq("status", "cancelled")
         .order("created_at", { ascending: true })
-        .limit(80);
+        .limit(1000);
 
       if (activeItemsError) {
         results.orchestrator_error = activeItemsError.message;
