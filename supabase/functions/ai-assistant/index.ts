@@ -126,6 +126,11 @@ serve(async (req) => {
         break;
       }
 
+      case "dev_guardian": {
+        result = await handleDevGuardian(supabase, lovableKey);
+        break;
+      }
+
       case "create_action": {
         const { title, description, priority, category, source_type: srcType, source_id: srcId } = body;
         if (!title) {
