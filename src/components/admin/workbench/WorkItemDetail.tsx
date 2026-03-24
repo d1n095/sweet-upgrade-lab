@@ -85,7 +85,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange }: WorkItemDe
           .select('*')
           .eq('id', item.source_id)
           .maybeSingle();
-        return { type: 'bug', data };
+        return { type: 'bug' as const, bug: data, incident: null };
       }
 
       if (item.source_type === 'order_incident') {
@@ -94,7 +94,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange }: WorkItemDe
           .select('*')
           .eq('id', item.source_id)
           .maybeSingle();
-        return { type: 'incident', data };
+        return { type: 'incident' as const, bug: null, incident: data };
       }
 
       return null;
@@ -102,8 +102,11 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange }: WorkItemDe
     enabled: !!item?.source_id && !!item?.source_type,
   });
 
+  const bugData = sourceData?.bug || null;
+  const incidentData = sourceData?.incident || null;
+
   // Fetch reporter profile
-  const reporterId = sourceData?.data?.user_id || sourceData?.data?.reported_by || item?.created_by;
+  const reporterId = bugData?.user_id || incidentData?.reported_by || item?.created_by;
   const { data: reporterProfile } = useQuery({
     queryKey: ['reporter-profile', reporterId],
     queryFn: async () => {
