@@ -772,26 +772,25 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
       {/* Filter tabs */}
       <Tabs value={viewFilter} onValueChange={v => { setViewFilter(v as ViewFilter); setBulkMode(false); setBulkSelected(new Set()); }}>
         <TabsList className="flex-wrap h-auto">
-          <TabsTrigger value="all" className="gap-1.5">
-            Alla <Badge variant="secondary" className="text-[9px] ml-1">{items.filter(t => t.status !== 'done').length}</Badge>
+          <TabsTrigger value="active" className="gap-1.5">
+            Aktiva <Badge variant="secondary" className="text-[9px] ml-1">{activeCount}</Badge>
           </TabsTrigger>
           <TabsTrigger value="mine" className="gap-1.5">
             Mina {myCount > 0 ? <Badge variant="secondary" className="text-[9px] ml-1">{myCount}</Badge> : <span className="text-[9px] text-muted-foreground ml-1">(visar öppna)</span>}
           </TabsTrigger>
+          <TabsTrigger value="review" className="gap-1.5">
+            Granskning {reviewCount > 0 && <Badge variant="outline" className="text-[9px] ml-1 bg-amber-100 text-amber-700 border-amber-200">{reviewCount}</Badge>}
+          </TabsTrigger>
           <TabsTrigger value="bugs" className="gap-1.5">
             <Bug className="w-3.5 h-3.5" /> Buggar
             {bugCount > 0 && <Badge variant="secondary" className="text-[9px] ml-1">{bugCount}</Badge>}
-          </TabsTrigger>
-          <TabsTrigger value="incidents" className="gap-1.5">
-            <ShieldAlert className="w-3.5 h-3.5" /> Incidents
-            {incidentCount > 0 && <Badge variant="secondary" className="text-[9px] ml-1">{incidentCount}</Badge>}
           </TabsTrigger>
           <TabsTrigger value="escalated" className={cn('gap-1.5', escalatedCount > 0 && 'text-destructive')}>
             <AlertTriangle className="w-3.5 h-3.5" /> Eskalerade
             {escalatedCount > 0 && <Badge variant="destructive" className="text-[9px] ml-1">{escalatedCount}</Badge>}
           </TabsTrigger>
           <TabsTrigger value="done" className="gap-1.5">
-            Klara {doneCount > 0 && <Badge variant="secondary" className="text-[9px] ml-1">{doneCount}</Badge>}
+            Historik {doneCount > 0 && <Badge variant="secondary" className="text-[9px] ml-1">{doneCount}</Badge>}
           </TabsTrigger>
         </TabsList>
       </Tabs>
