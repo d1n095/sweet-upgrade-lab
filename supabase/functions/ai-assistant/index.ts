@@ -111,6 +111,16 @@ serve(async (req) => {
         break;
       }
 
+      case "nav_scan": {
+        result = await handleNavScan(supabase, lovableKey);
+        break;
+      }
+
+      case "bug_rescan": {
+        result = await handleBugRescan(supabase, lovableKey);
+        break;
+      }
+
       case "create_action": {
         const { title, description, priority, category, source_type: srcType, source_id: srcId } = body;
         if (!title) {
@@ -1090,6 +1100,314 @@ Var SPECIFIK med vilka sidor och element som har problem. Svara på svenska.`,
   }
 
   return { ...analysis, tasks_created: tasksCreated };
+}
+
+// ── Navigation Scanner ──
+async function handleNavScan(supabase: any, apiKey: string) {
+  const routes = [
+    { path: "/", name: "Startsida" },
+    { path: "/produkter", name: "Produkter" },
+    { path: "/product/:handle", name: "Produktdetalj" },
+    { path: "/about", name: "Om oss" },
+    { path: "/contact", name: "Kontakt" },
+    { path: "/checkout", name: "Checkout" },
+    { path: "/profile", name: "Profil" },
+    { path: "/track-order", name: "Orderspårning" },
+    { path: "/affiliate", name: "Affiliate" },
+    { path: "/business", name: "Företag" },
+    { path: "/whats-new", name: "Nyheter" },
+    { path: "/suggest-product", name: "Önska produkt" },
+    { path: "/balance", name: "Saldo" },
+    { path: "/cbd", name: "CBD" },
+    { path: "/policies/privacy", name: "Integritetspolicy" },
+    { path: "/policies/returns", name: "Returpolicy" },
+    { path: "/policies/shipping", name: "Fraktpolicy" },
+    { path: "/policies/terms", name: "Villkor" },
+    { path: "/reset-password", name: "Återställ lösenord" },
+    { path: "/order-confirmation", name: "Orderbekräftelse" },
+    { path: "/admin", name: "Admin" },
+  ];
+
+  // Get existing nav-related bugs/work_items
+  const [bugsRes, workRes, pagesRes] = await Promise.all([
+    supabase.from("bug_reports").select("description, page_url, ai_category, ai_severity, status, ai_summary").limit(100),
+    supabase.from("work_items").select("title, status, ai_category, item_type").in("status", ["open", "claimed", "in_progress", "escalated"]).limit(200),
+    supabase.from("page_sections").select("page, section_key, is_visible, title_sv").limit(200),
+  ]);
+
+  const bugs = bugsRes.data || [];
+  const workItems = workRes.data || [];
+  const pages = pagesRes.data || [];
+  const navBugs = bugs.filter((b: any) => ["navigation", "routing", "link", "button"].some(k => (b.description || "").toLowerCase().includes(k) || (b.ai_category || "").toLowerCase().includes(k)));
+
+  const context = `=== NAVIGATION SCAN ===
+DEFINED ROUTES: ${routes.map(r => `${r.path} (${r.name})`).join(", ")}
+
+NAV-RELATED BUGS (${navBugs.length}):
+${navBugs.slice(0, 20).map((b: any) => `- [${b.status}/${b.ai_severity}] ${b.page_url}: ${b.ai_summary || b.description?.substring(0, 100)}`).join("\n")}
+
+OPEN WORK ITEMS (${workItems.length}):
+${workItems.slice(0, 20).map((w: any) => `- [${w.status}] ${w.title}`).join("\n")}
+
+PAGE SECTIONS: ${pages.length} configured
+HIDDEN SECTIONS: ${pages.filter((p: any) => !p.is_visible).length}`;
+
+  const analysis = await callAI(apiKey, [
+    {
+      role: "system",
+      content: `Du är en QA-expert som analyserar navigation och routing i en React-applikation (4thepeople e-handel).
+Analysera alla routes, identifiera potentiella problem med navigation, brutna länkar, saknade sidor och felaktiga flöden.
+Ge SPECIFIKA och handlingsbara resultat. Svara på svenska.`,
+    },
+    { role: "user", content: context },
+  ], [{
+    type: "function",
+    function: {
+      name: "nav_scan",
+      description: "Navigation scan results",
+      parameters: {
+        type: "object",
+        properties: {
+          nav_score: { type: "number", description: "0-100 navigation health" },
+          issues: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                title: { type: "string" },
+                page: { type: "string" },
+                severity: { type: "string", enum: ["critical", "high", "medium", "low"] },
+                issue_type: { type: "string", enum: ["broken_link", "wrong_route", "missing_page", "dead_button", "nav_inconsistency", "flow_break"] },
+                description: { type: "string" },
+                fix_suggestion: { type: "string" },
+                lovable_prompt: { type: "string" },
+              },
+              required: ["title", "page", "severity", "issue_type", "description", "fix_suggestion", "lovable_prompt"],
+              additionalProperties: false,
+            },
+          },
+          route_status: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                path: { type: "string" },
+                name: { type: "string" },
+                status: { type: "string", enum: ["ok", "warning", "broken", "missing"] },
+                notes: { type: "string" },
+              },
+              required: ["path", "name", "status", "notes"],
+              additionalProperties: false,
+            },
+          },
+          summary: { type: "string" },
+        },
+        required: ["nav_score", "issues", "route_status", "summary"],
+        additionalProperties: false,
+      },
+    },
+  }], { type: "function", function: { name: "nav_scan" } });
+
+  // Auto-create work items for critical/high nav issues
+  let tasksCreated = 0;
+  for (const issue of analysis?.issues || []) {
+    if (!["critical", "high"].includes(issue.severity)) continue;
+    const { data: existing } = await supabase
+      .from("work_items")
+      .select("id")
+      .ilike("title", `%${issue.title.substring(0, 30)}%`)
+      .in("status", ["open", "claimed", "in_progress"])
+      .limit(1);
+    if (!existing?.length) {
+      await supabase.from("work_items").insert({
+        title: `Nav: ${issue.title}`.substring(0, 200),
+        description: `Sida: ${issue.page}\nTyp: ${issue.issue_type}\n\n${issue.description}\n\nFix: ${issue.fix_suggestion}`,
+        status: "open",
+        priority: issue.severity === "critical" ? "critical" : "high",
+        item_type: "bug",
+        source_type: "ai_detection",
+        ai_detected: true,
+        ai_confidence: "medium",
+        ai_category: "navigation",
+        ai_type_classification: "navigation_bug",
+      });
+      tasksCreated++;
+    }
+  }
+
+  return { ...analysis, tasks_created: tasksCreated };
+}
+
+// ── Bug Re-scan & Status Engine ──
+async function handleBugRescan(supabase: any, apiKey: string) {
+  // Get ALL bugs and their linked work items
+  const [bugsRes, workItemsRes] = await Promise.all([
+    supabase.from("bug_reports").select("id, description, page_url, status, ai_summary, ai_severity, ai_category, ai_tags, created_at, resolved_at").order("created_at", { ascending: false }).limit(100),
+    supabase.from("work_items").select("id, title, status, priority, item_type, source_id, source_type, ai_detected, ai_review_status, created_at, completed_at, ignored").limit(300),
+  ]);
+
+  const bugs = bugsRes.data || [];
+  const workItems = workItemsRes.data || [];
+
+  const bugSummaries = bugs.map((b: any) => ({
+    id: b.id,
+    status: b.status,
+    severity: b.ai_severity,
+    category: b.ai_category,
+    summary: b.ai_summary || b.description?.substring(0, 150),
+    page: b.page_url,
+    created: b.created_at,
+    resolved: b.resolved_at,
+    has_work_item: workItems.some((w: any) => w.source_id === b.id),
+    work_item_status: workItems.find((w: any) => w.source_id === b.id)?.status || null,
+  }));
+
+  const context = `=== BUG RE-SCAN ===
+TOTAL BUGS: ${bugs.length}
+OPEN: ${bugs.filter((b: any) => b.status === "open").length}
+RESOLVED: ${bugs.filter((b: any) => b.status === "resolved").length}
+
+ALL BUGS:
+${bugSummaries.map((b: any) => `[${b.id.slice(0,8)}] status=${b.status} sev=${b.severity} cat=${b.category} work_item=${b.work_item_status || "none"} | ${b.summary}`).join("\n")}
+
+WORK ITEMS (${workItems.length}):
+${workItems.slice(0, 30).map((w: any) => `[${w.id.slice(0,8)}] status=${w.status} type=${w.item_type} source=${w.source_type}/${w.source_id?.slice(0,8) || "?"} ignored=${w.ignored}`).join("\n")}`;
+
+  const analysis = await callAI(apiKey, [
+    {
+      role: "system",
+      content: `Du är en senior QA-chef som utvärderar ALLA buggar i ett system.
+För varje bugg: bedöm om den fortfarande är relevant, om den redan är fixad, om den är en dubblett, eller om den bör omprioriteras.
+Ge tydliga statusändringar. Svara på svenska.`,
+    },
+    { role: "user", content: context },
+  ], [{
+    type: "function",
+    function: {
+      name: "bug_rescan",
+      description: "Re-evaluate all bugs and suggest status changes",
+      parameters: {
+        type: "object",
+        properties: {
+          summary: { type: "string" },
+          total_evaluated: { type: "number" },
+          status_changes: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                bug_id: { type: "string" },
+                current_status: { type: "string" },
+                recommended_status: { type: "string", enum: ["open", "in_progress", "resolved", "ignored", "duplicate"] },
+                reason: { type: "string" },
+                confidence: { type: "number", description: "0-100" },
+              },
+              required: ["bug_id", "current_status", "recommended_status", "reason", "confidence"],
+              additionalProperties: false,
+            },
+          },
+          duplicates: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                bug_ids: { type: "array", items: { type: "string" } },
+                reason: { type: "string" },
+              },
+              required: ["bug_ids", "reason"],
+              additionalProperties: false,
+            },
+          },
+          work_item_updates: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                work_item_id: { type: "string" },
+                recommended_status: { type: "string", enum: ["open", "in_progress", "review", "done", "ignored"] },
+                reason: { type: "string" },
+              },
+              required: ["work_item_id", "recommended_status", "reason"],
+              additionalProperties: false,
+            },
+          },
+          missing_work_items: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                bug_id: { type: "string" },
+                title: { type: "string" },
+                priority: { type: "string", enum: ["critical", "high", "medium", "low"] },
+              },
+              required: ["bug_id", "title", "priority"],
+              additionalProperties: false,
+            },
+          },
+          health_score: { type: "number" },
+        },
+        required: ["summary", "total_evaluated", "status_changes", "duplicates", "work_item_updates", "missing_work_items", "health_score"],
+        additionalProperties: false,
+      },
+    },
+  }], { type: "function", function: { name: "bug_rescan" } });
+
+  // Auto-apply high-confidence status changes
+  let bugsUpdated = 0;
+  let workItemsUpdated = 0;
+  let tasksCreated = 0;
+
+  // Apply bug status changes (only high confidence)
+  for (const change of analysis?.status_changes || []) {
+    if (change.confidence < 80) continue;
+    if (change.recommended_status === change.current_status) continue;
+    
+    const updateData: any = { status: change.recommended_status };
+    if (change.recommended_status === "resolved") {
+      updateData.resolved_at = new Date().toISOString();
+      updateData.resolution_notes = `AI re-scan: ${change.reason}`;
+    }
+    
+    const { error } = await supabase.from("bug_reports").update(updateData).eq("id", change.bug_id);
+    if (!error) bugsUpdated++;
+  }
+
+  // Apply work item updates (only high confidence)
+  for (const update of analysis?.work_item_updates || []) {
+    const updateData: any = { status: update.recommended_status, updated_at: new Date().toISOString() };
+    if (update.recommended_status === "done") updateData.completed_at = new Date().toISOString();
+    if (update.recommended_status === "ignored") { updateData.ignored = true; updateData.ignored_reason = update.reason; }
+    
+    await supabase.from("work_items").update(updateData).eq("id", update.work_item_id);
+    workItemsUpdated++;
+  }
+
+  // Create missing work items
+  for (const missing of analysis?.missing_work_items || []) {
+    const { data: existing } = await supabase
+      .from("work_items")
+      .select("id")
+      .eq("source_id", missing.bug_id)
+      .limit(1);
+    if (!existing?.length) {
+      await supabase.from("work_items").insert({
+        title: missing.title.substring(0, 200),
+        status: "open",
+        priority: missing.priority,
+        item_type: "bug",
+        source_type: "bug_report",
+        source_id: missing.bug_id,
+        ai_detected: true,
+        ai_confidence: "medium",
+      });
+      tasksCreated++;
+    }
+  }
+
+  return {
+    ...analysis,
+    applied: { bugs_updated: bugsUpdated, work_items_updated: workItemsUpdated, tasks_created: tasksCreated },
+  };
 }
 
 // ── Action + Revenue Engine ──
