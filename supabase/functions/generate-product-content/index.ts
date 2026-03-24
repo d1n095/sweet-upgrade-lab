@@ -42,42 +42,53 @@ serve(async (req) => {
     const existingInfo = existingData
       ? `\nExisting product data for context: ${JSON.stringify(existingData)}`
       : "";
+    const isConcentrate = existingData?.isConcentrate === true;
 
-    const systemPrompt = `You are an elite conversion copywriter for a Swedish natural/organic products brand called 4ThePeople. Write in ${lang}. Your ONLY goal is to make people BUY. Use psychological triggers: simplicity, instant results, safety, sensory language. Short punchy sentences. No fluff. No long paragraphs. The brand values sustainability, quality, and Nordic craftsmanship.
+    const systemPrompt = `You are an elite conversion copywriter for a Swedish natural/organic products brand called 4ThePeople. Write in ${lang}. Your ONLY goal is to make people BUY while following a STRICT product content structure.
+
+MANDATORY STRUCTURE — every product MUST follow this exact section order:
 
 Return a JSON object with these exact keys:
 
-- hook: A powerful one-liner that immediately communicates the product's #1 benefit. Max 60 chars. Think: "Opens your airways in seconds" or "Pure calm in every drop". This is the FIRST thing the customer sees.
+1. "hook": A powerful one-liner that immediately communicates the product's #1 benefit. Max 60 chars. This is the FIRST thing the customer sees. Examples: "Öppnar luftvägarna direkt" or "Ren lugn i varje droppe".
 
-- description: A short sales-focused description (2-3 sentences, max 200 chars). Create desire and urgency. Focus on what the customer GETS, not what the product IS.
+2. "description": Short sales-focused description (2-3 sentences, max 200 chars). Focus on EFFECT + WHY it's good. Create desire.
 
-- extended_description: A storytelling description (3-5 sentences). Paint the experience. How does the customer's life improve? What ritual does this create? Make them FEEL it.
+3. "extended_description": Full product description (3-5 sentences). Start with the hook concept. Explain: what the product does, how it works, why it's better. Storytelling that sells.
 
-- effects: Benefits as newline-separated bullet points (4-5 points). Each bullet should be scannable, concrete, and start with an action/result. Example: "✓ Öppnar luftvägarna direkt", NOT "Kan hjälpa med andning".
+4. "usage": Step-by-step usage instructions. Simple, numbered. ALWAYS include clear dosage. Example: "1. Tillsätt 2-3 kristaller i bastun. 2. Andas djupt. 3. Känn effekten direkt." Max 3-4 steps.
 
-- feeling: A sensory/emotional description (1-2 sentences). What does it smell/feel/taste like? What emotion does it trigger? Use vivid sensory language.
+5. "dosage": Dosage & reach info. Include conversions (ml → drops etc.), how long the product lasts, recommended amounts. Example: "10ml = ca 200 droppar. 2-3 droppar per användning. Räcker ca 2-3 månader vid daglig användning."
 
-- usage: Step-by-step usage instructions. Simple, numbered. Example: "1. Tillsätt 2-3 kristaller i bastun. 2. Andas djupt. 3. Känn effekten direkt." Max 3 steps.
+6. "variants": If applicable, list scent/product variants with a short description per variant. Newline-separated. Example: "🌿 Eukalyptus – Fräsch och uppfriskande\\n🍊 Citrus – Energigivande och upplyftande". Leave empty string if not applicable.
 
-- trust_badges: A comma-separated list of 3-4 trust signals. Examples: "100% Naturlig", "Handgjord i Sverige", "Snabb leverans", "Säker att använda".
+7. "specifications": Product specifications as a JSON string with keys like "volume", "type", "base", "format". Example: {"volume": "10ml", "type": "Eterisk olja", "base": "100% ren", "format": "Glasflaska med droppkork"}
 
-- upsell_text: A short suggestion for complementary products (1 sentence). Example: "Kombinera med vår bastudoft för en komplett upplevelse."
+8. "effects": Benefits as newline-separated bullet points (4-5 points). Each must be scannable, concrete, start with result. Example: "✓ Öppnar luftvägarna direkt\\n✓ Renande och antiseptisk".
 
-- seo_title: SEO-optimized page title (max 60 chars). Format: "Product Name + benefit keyword | 4thepeople"
-- meta_description: SEO meta description (max 155 chars). Compelling, includes main keyword and call-to-action.
-- meta_keywords: 6-8 relevant SEO keywords, comma-separated. Include product name, category, key ingredients, and intent words like "köp" or "bästa".
+9. "storage": Storage instructions. Short and clear. Example: "Förvaras svalt och mörkt. Undvik direkt solljus. Hållbarhet: 24 månader efter öppning."
+
+10. "safety": Safety warnings. MUST include correct usage warnings. Example: "Endast för utvärtes bruk. Undvik kontakt med ögon. ${isConcentrate ? 'VIKTIGT: Detta är ett koncentrat och ska ALLTID blandas med vatten före användning. ' : ''}Förvaras utom räckhåll för barn."
+
+11. "feeling": Sensory/emotional description (1-2 sentences). What does it smell/feel like? What emotion does it trigger?
+
+12. "seo_title": SEO page title (max 60 chars). Format: "Product Name + benefit | 4thepeople"
+13. "meta_description": SEO meta description (max 155 chars). Compelling, includes keyword and CTA.
+14. "meta_keywords": 6-8 relevant SEO keywords, comma-separated.
 
 RULES:
 - Every sentence must earn its place. If it doesn't sell, cut it.
-- Use "du/din" (you/your) to speak directly to the customer.
-- Include at least one psychological trigger per section (simplicity, speed, safety, social proof).
-- All text in ${lang}. Premium but approachable tone.`;
+- Use "du/din" to speak directly to the customer.
+- No fluff. No filler paragraphs.
+- Same structure EVERY time. No exceptions.
+- Adapt text to product type but KEEP the structure.
+- All text in ${lang}. Premium but approachable tone.
+${isConcentrate ? '- CRITICAL: This product is a CONCENTRATE. You MUST clearly state in safety and usage that it must ALWAYS be diluted with water before use.' : ''}`;
 
-    const userPrompt = `Generate conversion-optimized product content for:
+    const userPrompt = `Generate standardized product content for:
 Product name: ${productName}${categoryInfo}${ingredientInfo}${existingInfo}
 
-Remember: The goal is SALES. Make the customer feel they NEED this product.
-Return ONLY valid JSON, no markdown fences.`;
+Follow the EXACT structure. Return ONLY valid JSON, no markdown fences.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",

@@ -1679,6 +1679,8 @@ export type Database = {
           description_en: string | null
           description_sv: string | null
           display_order: number | null
+          dosage_en: string | null
+          dosage_sv: string | null
           effects_en: string | null
           effects_sv: string | null
           extended_description_en: string | null
@@ -1686,10 +1688,13 @@ export type Database = {
           feeling_en: string | null
           feeling_sv: string | null
           handle: string | null
+          hook_en: string | null
+          hook_sv: string | null
           id: string
           image_urls: string[] | null
           ingredients_en: string | null
           ingredients_sv: string | null
+          is_concentrate: boolean
           is_sellable: boolean
           is_visible: boolean
           last_sold_at: string | null
@@ -1703,8 +1708,13 @@ export type Database = {
           recipe_sv: string | null
           reserved_stock: number
           restock_amount: number
+          safety_en: string | null
+          safety_sv: string | null
+          specifications: Json | null
           status: string
           stock: number
+          storage_en: string | null
+          storage_sv: string | null
           tags: string[] | null
           title_en: string | null
           title_sv: string
@@ -1713,6 +1723,8 @@ export type Database = {
           updated_at: string
           usage_en: string | null
           usage_sv: string | null
+          variants_en: string | null
+          variants_sv: string | null
           vendor: string | null
           weight_grams: number | null
         }
@@ -1726,6 +1738,8 @@ export type Database = {
           description_en?: string | null
           description_sv?: string | null
           display_order?: number | null
+          dosage_en?: string | null
+          dosage_sv?: string | null
           effects_en?: string | null
           effects_sv?: string | null
           extended_description_en?: string | null
@@ -1733,10 +1747,13 @@ export type Database = {
           feeling_en?: string | null
           feeling_sv?: string | null
           handle?: string | null
+          hook_en?: string | null
+          hook_sv?: string | null
           id?: string
           image_urls?: string[] | null
           ingredients_en?: string | null
           ingredients_sv?: string | null
+          is_concentrate?: boolean
           is_sellable?: boolean
           is_visible?: boolean
           last_sold_at?: string | null
@@ -1750,8 +1767,13 @@ export type Database = {
           recipe_sv?: string | null
           reserved_stock?: number
           restock_amount?: number
+          safety_en?: string | null
+          safety_sv?: string | null
+          specifications?: Json | null
           status?: string
           stock?: number
+          storage_en?: string | null
+          storage_sv?: string | null
           tags?: string[] | null
           title_en?: string | null
           title_sv: string
@@ -1760,6 +1782,8 @@ export type Database = {
           updated_at?: string
           usage_en?: string | null
           usage_sv?: string | null
+          variants_en?: string | null
+          variants_sv?: string | null
           vendor?: string | null
           weight_grams?: number | null
         }
@@ -1773,6 +1797,8 @@ export type Database = {
           description_en?: string | null
           description_sv?: string | null
           display_order?: number | null
+          dosage_en?: string | null
+          dosage_sv?: string | null
           effects_en?: string | null
           effects_sv?: string | null
           extended_description_en?: string | null
@@ -1780,10 +1806,13 @@ export type Database = {
           feeling_en?: string | null
           feeling_sv?: string | null
           handle?: string | null
+          hook_en?: string | null
+          hook_sv?: string | null
           id?: string
           image_urls?: string[] | null
           ingredients_en?: string | null
           ingredients_sv?: string | null
+          is_concentrate?: boolean
           is_sellable?: boolean
           is_visible?: boolean
           last_sold_at?: string | null
@@ -1797,8 +1826,13 @@ export type Database = {
           recipe_sv?: string | null
           reserved_stock?: number
           restock_amount?: number
+          safety_en?: string | null
+          safety_sv?: string | null
+          specifications?: Json | null
           status?: string
           stock?: number
+          storage_en?: string | null
+          storage_sv?: string | null
           tags?: string[] | null
           title_en?: string | null
           title_sv?: string
@@ -1807,6 +1841,8 @@ export type Database = {
           updated_at?: string
           usage_en?: string | null
           usage_sv?: string | null
+          variants_en?: string | null
+          variants_sv?: string | null
           vendor?: string | null
           weight_grams?: number | null
         }

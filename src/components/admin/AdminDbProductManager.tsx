@@ -244,6 +244,13 @@ const AdminDbProductManager = () => {
       metaDescription: (product as any).meta_description || '',
       metaKeywords: (product as any).meta_keywords || '',
       weightGrams: (product as any).weight_grams?.toString() || '',
+      hook: (product as any).hook_sv || '',
+      dosage: (product as any).dosage_sv || '',
+      variants: (product as any).variants_sv || '',
+      storage: (product as any).storage_sv || '',
+      safety: (product as any).safety_sv || '',
+      specifications: (product as any).specifications ? JSON.stringify((product as any).specifications) : '',
+      isConcentrate: (product as any).is_concentrate || false,
     });
     import('@/lib/categories').then(({ fetchProductCategoryIds }) => {
       fetchProductCategoryIds(product.id).then(ids => setFormData(prev => ({ ...prev, categoryIds: ids })));
@@ -351,6 +358,13 @@ const AdminDbProductManager = () => {
         meta_description: formData.metaDescription || null,
         meta_keywords: formData.metaKeywords || null,
         weight_grams: formData.weightGrams ? parseInt(formData.weightGrams) : null,
+        hook_sv: formData.hook || null,
+        dosage_sv: formData.dosage || null,
+        variants_sv: formData.variants || null,
+        storage_sv: formData.storage || null,
+        safety_sv: formData.safety || null,
+        specifications: formData.specifications ? JSON.parse(formData.specifications || '{}') : {},
+        is_concentrate: formData.isConcentrate,
         status: 'active',
       } as any);
       if (formData.categoryIds.length > 0) await setProductCategories(newProduct.id, formData.categoryIds);
@@ -395,6 +409,13 @@ const AdminDbProductManager = () => {
         meta_description: formData.metaDescription || null,
         meta_keywords: formData.metaKeywords || null,
         weight_grams: formData.weightGrams ? parseInt(formData.weightGrams) : null,
+        hook_sv: formData.hook || null,
+        dosage_sv: formData.dosage || null,
+        variants_sv: formData.variants || null,
+        storage_sv: formData.storage || null,
+        safety_sv: formData.safety || null,
+        specifications: formData.specifications ? JSON.parse(formData.specifications || '{}') : {},
+        is_concentrate: formData.isConcentrate,
       } as any);
       await setProductCategories(selected.id, formData.categoryIds);
       await setProductTags(selected.id, formData.tagIds);
