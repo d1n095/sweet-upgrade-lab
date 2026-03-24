@@ -292,6 +292,10 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const sortedItems = [...filteredItems].sort((a, b) => {
     if (a.status === 'escalated' && b.status !== 'escalated') return -1;
     if (b.status === 'escalated' && a.status !== 'escalated') return 1;
+    // Use AI execution_order if available
+    const aOrder = a.execution_order ?? 999;
+    const bOrder = b.execution_order ?? 999;
+    if (aOrder !== bOrder) return aOrder - bOrder;
     const pOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
     const pDiff = (pOrder[a.priority] ?? 2) - (pOrder[b.priority] ?? 2);
     if (pDiff !== 0) return pDiff;
