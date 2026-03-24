@@ -126,6 +126,11 @@ serve(async (req) => {
         break;
       }
 
+      case "dev_guardian": {
+        result = await handleDevGuardian(supabase, lovableKey);
+        break;
+      }
+
       case "create_action": {
         const { title, description, priority, category, source_type: srcType, source_id: srcId } = body;
         if (!title) {
@@ -1684,4 +1689,155 @@ For each issue, provide a concrete suggestion and a ready-to-use Lovable prompt 
       },
     },
   }], { type: "function", function: { name: "structure_analysis" } });
+}
+
+// ── Development Guardian ──
+async function handleDevGuardian(supabase: any, apiKey: string) {
+  const [{ data: workItems }, { data: bugs }, { data: recentHistory }, { data: products }, { data: pages }, { data: orders }, { data: events }] = await Promise.all([
+    supabase.from("work_items").select("id, title, description, item_type, status, priority, ai_category, ai_review_status, source_type, source_id, created_at").in("status", ["open", "claimed", "in_progress", "escalated", "done"]).order("created_at", { ascending: false }).limit(60),
+    supabase.from("bug_reports").select("id, description, ai_summary, ai_category, ai_severity, page_url, status, created_at").order("created_at", { ascending: false }).limit(40),
+    supabase.from("system_history").select("id, entity_type, action, description, created_at").order("created_at", { ascending: false }).limit(30),
+    supabase.from("products").select("id, title_sv, is_visible, is_sellable, description_sv, image_urls, meta_title, category, handle").limit(100),
+    supabase.from("page_sections").select("page, section_key, title_sv, is_visible").order("page"),
+    supabase.from("orders").select("id, status, payment_status, fulfillment_status, created_at").order("created_at", { ascending: false }).limit(20),
+    supabase.from("analytics_events").select("event_type, event_data, created_at").in("event_type", ["page_error", "checkout_abandon", "button_click_fail"]).order("created_at", { ascending: false }).limit(30),
+  ]);
+
+  const openBugs = (bugs || []).filter((b: any) => b.status === 'open' || b.status === 'in_progress');
+  const doneTasks = (workItems || []).filter((w: any) => w.status === 'done');
+  const openTasks = (workItems || []).filter((w: any) => w.status !== 'done');
+  const productsWithoutImages = (products || []).filter((p: any) => !p.image_urls?.length && p.is_visible);
+  const productsWithoutDesc = (products || []).filter((p: any) => !p.description_sv && p.is_visible);
+  const productsWithoutSEO = (products || []).filter((p: any) => !p.meta_title && p.is_visible);
+
+  const prompt = `You are a Development Guardian AI for an e-commerce platform (4thepeople).
+Your job is to audit the ENTIRE system and find issues that need fixing.
+
+SYSTEM STATE:
+- Open tasks: ${openTasks.length}
+- Done tasks (recent): ${doneTasks.length}
+- Open bugs: ${openBugs.length}
+- Products: ${(products || []).length} total, ${productsWithoutImages.length} without images, ${productsWithoutDesc.length} without description, ${productsWithoutSEO.length} without SEO
+- Recent changes: ${(recentHistory || []).length}
+- Error events: ${(events || []).length}
+- Recent orders: ${(orders || []).length}
+
+OPEN BUGS:
+${JSON.stringify(openBugs.slice(0, 15).map((b: any) => ({ id: b.id, summary: b.ai_summary || b.description?.substring(0, 80), severity: b.ai_severity, page: b.page_url })), null, 1)}
+
+OPEN TASKS:
+${JSON.stringify(openTasks.slice(0, 20).map((w: any) => ({ id: w.id, title: w.title, type: w.item_type, priority: w.priority, review: w.ai_review_status })), null, 1)}
+
+RECENT DONE TASKS (verify completeness):
+${JSON.stringify(doneTasks.slice(0, 10).map((w: any) => ({ id: w.id, title: w.title, review: w.ai_review_status })), null, 1)}
+
+PRODUCTS MISSING DATA:
+- Without images: ${JSON.stringify(productsWithoutImages.slice(0, 5).map((p: any) => p.title_sv))}
+- Without description: ${JSON.stringify(productsWithoutDesc.slice(0, 5).map((p: any) => p.title_sv))}
+- Without SEO: ${JSON.stringify(productsWithoutSEO.slice(0, 5).map((p: any) => p.title_sv))}
+
+ERROR EVENTS:
+${JSON.stringify((events || []).slice(0, 10).map((e: any) => ({ type: e.event_type, data: e.event_data })), null, 1)}
+
+RECENT CHANGES:
+${JSON.stringify((recentHistory || []).slice(0, 10).map((h: any) => ({ type: h.entity_type, action: h.action, desc: h.description })), null, 1)}
+
+Perform a FULL development audit. Find:
+1. COMPLETENESS: Missing features, incomplete flows, buttons without actions
+2. BROKEN: Features that exist but don't work correctly based on bug data
+3. GAPS: Missing integrations, disconnected systems
+4. STRUCTURE: Misplaced or duplicated functionality
+5. DATA: Products or content missing required fields
+6. VERIFICATION: Done tasks that might not be fully resolved
+7. PRIORITY: What must be fixed first based on business impact
+
+For each issue generate a ready-to-use Lovable prompt.`;
+
+  const analysis = await callAIWithTools(apiKey, prompt, "You are a senior development guardian. Be thorough, specific and actionable. Return Swedish descriptions.", [{
+    type: "function",
+    function: {
+      name: "dev_guardian",
+      description: "Full development audit results",
+      parameters: {
+        type: "object",
+        properties: {
+          health_score: { type: "number", description: "Overall dev health 0-100" },
+          summary: { type: "string" },
+          issues: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                title: { type: "string" },
+                category: { type: "string", enum: ["broken", "incomplete", "missing_feature", "structure_issue", "data_gap", "unverified_fix", "performance", "security"] },
+                severity: { type: "string", enum: ["critical", "high", "medium", "low"] },
+                description: { type: "string" },
+                affected_area: { type: "string" },
+                evidence: { type: "string" },
+                fix_suggestion: { type: "string" },
+                lovable_prompt: { type: "string" },
+              },
+              required: ["title", "category", "severity", "description", "affected_area", "evidence", "fix_suggestion", "lovable_prompt"],
+              additionalProperties: false,
+            },
+          },
+          category_counts: {
+            type: "object",
+            properties: {
+              broken: { type: "number" },
+              incomplete: { type: "number" },
+              missing_feature: { type: "number" },
+              structure_issue: { type: "number" },
+              data_gap: { type: "number" },
+              unverified_fix: { type: "number" },
+            },
+            required: ["broken", "incomplete", "missing_feature", "structure_issue", "data_gap", "unverified_fix"],
+            additionalProperties: false,
+          },
+          top_priorities: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                title: { type: "string" },
+                reason: { type: "string" },
+                urgency: { type: "string", enum: ["immediate", "today", "this_week"] },
+              },
+              required: ["title", "reason", "urgency"],
+              additionalProperties: false,
+            },
+          },
+        },
+        required: ["health_score", "summary", "issues", "category_counts", "top_priorities"],
+        additionalProperties: false,
+      },
+    },
+  }], { type: "function", function: { name: "dev_guardian" } });
+
+  // Auto-create work items for critical/high issues
+  if (analysis?.issues) {
+    let created = 0;
+    for (const issue of analysis.issues) {
+      if (issue.severity !== "critical" && issue.severity !== "high") continue;
+      // Check duplicate
+      const { data: existing } = await supabase.from("work_items").select("id").ilike("title", `%${issue.title.substring(0, 40)}%`).in("status", ["open", "claimed", "in_progress"]).limit(1);
+      if (existing?.length) continue;
+
+      await supabase.from("work_items").insert({
+        title: `Guardian: ${issue.title}`.substring(0, 200),
+        description: `${issue.description}\n\nBevis: ${issue.evidence}\n\nFöreslagen fix: ${issue.fix_suggestion}`,
+        status: "open",
+        priority: issue.severity === "critical" ? "critical" : "high",
+        item_type: issue.category === "broken" ? "bug" : issue.category === "missing_feature" ? "feature" : "improvement",
+        source_type: "ai_guardian",
+        ai_detected: true,
+        ai_confidence: "high",
+        ai_category: issue.category,
+      });
+      created++;
+    }
+    analysis.work_items_created = created;
+  }
+
+  return analysis;
 }
