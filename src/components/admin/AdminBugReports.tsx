@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Bug, CheckCircle2, Loader2, Clock, MapPin, User, ChevronDown, ChevronUp, ExternalLink, AlertCircle } from 'lucide-react';
+import { Bug, CheckCircle2, Loader2, Clock, MapPin, User, ChevronDown, ChevronUp, AlertCircle, Sparkles, Tag, Search, RefreshCw, BookOpen, Copy, Filter } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -21,6 +23,13 @@ interface BugReport {
   resolution_notes: string | null;
   resolved_at: string | null;
   resolved_by: string | null;
+  ai_summary: string | null;
+  ai_category: string | null;
+  ai_severity: string | null;
+  ai_tags: string[] | null;
+  ai_clean_prompt: string | null;
+  ai_processed_at: string | null;
+  ai_approved: boolean;
   work_item_status?: string;
   reporter_name?: string;
 }
@@ -33,6 +42,23 @@ const RESOLVE_CHECKLIST = [
   { key: 'no_regression', label: 'Ingen regression upptäckt' },
 ];
 
+const SEVERITY_COLORS: Record<string, string> = {
+  critical: 'bg-red-500/15 text-red-700 border-red-300',
+  high: 'bg-orange-500/15 text-orange-700 border-orange-300',
+  medium: 'bg-yellow-500/15 text-yellow-700 border-yellow-300',
+  low: 'bg-blue-500/15 text-blue-700 border-blue-300',
+};
+
+const CATEGORY_COLORS: Record<string, string> = {
+  UI: 'bg-purple-500/15 text-purple-700',
+  payment: 'bg-green-500/15 text-green-700',
+  auth: 'bg-red-500/15 text-red-700',
+  system: 'bg-gray-500/15 text-gray-700',
+  performance: 'bg-amber-500/15 text-amber-700',
+  data: 'bg-cyan-500/15 text-cyan-700',
+  unclear: 'bg-muted text-muted-foreground',
+};
+
 const AdminBugReports = () => {
   const { user } = useAuth();
   const [reports, setReports] = useState<BugReport[]>([]);
@@ -41,55 +67,47 @@ const AdminBugReports = () => {
   const [checklist, setChecklist] = useState<Record<string, boolean>>({});
   const [resolutionNotes, setResolutionNotes] = useState('');
   const [resolving, setResolving] = useState<string | null>(null);
+  const [processingAI, setProcessingAI] = useState<string | null>(null);
+  const [promptSearch, setPromptSearch] = useState('');
+  const [promptTagFilter, setPromptTagFilter] = useState<string | null>(null);
 
-  useEffect(() => {
-    const load = async () => {
-      const { data: bugs } = await supabase
-        .from('bug_reports')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(50);
+  const load = async () => {
+    setLoading(true);
+    const { data: bugs } = await supabase
+      .from('bug_reports')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(100);
 
-      if (bugs) {
-        const bugIds = bugs.map(b => b.id);
-        const userIds = [...new Set(bugs.map(b => b.user_id))];
+    if (bugs) {
+      const bugIds = bugs.map(b => b.id);
+      const userIds = [...new Set(bugs.map(b => b.user_id))];
 
-        const [{ data: workItems }, { data: profiles }] = await Promise.all([
-          supabase
-            .from('work_items')
-            .select('source_id, status')
-            .eq('source_type', 'bug_report')
-            .in('source_id', bugIds),
-          supabase
-            .from('profiles')
-            .select('user_id, username, first_name, last_name')
-            .in('user_id', userIds),
-        ]);
+      const [{ data: workItems }, { data: profiles }] = await Promise.all([
+        supabase.from('work_items').select('source_id, status').eq('source_type', 'bug_report').in('source_id', bugIds),
+        supabase.from('profiles').select('user_id, username, first_name, last_name').in('user_id', userIds),
+      ]);
 
-        const wiMap = new Map(workItems?.map(wi => [wi.source_id, wi.status]) || []);
-        const profileMap = new Map(
-          profiles?.map(p => [
-            p.user_id,
-            p.first_name ? `${p.first_name} ${p.last_name || ''}`.trim() : (p.username || 'Okänd'),
-          ]) || []
-        );
+      const wiMap = new Map(workItems?.map(wi => [wi.source_id, wi.status]) || []);
+      const profileMap = new Map(
+        profiles?.map(p => [p.user_id, p.first_name ? `${p.first_name} ${p.last_name || ''}`.trim() : (p.username || 'Okänd')]) || []
+      );
 
-        setReports(bugs.map(b => ({
-          ...b,
-          work_item_status: wiMap.get(b.id) || null,
-          reporter_name: profileMap.get(b.user_id) || 'Okänd',
-        })) as BugReport[]);
-      }
-      setLoading(false);
-    };
-    load();
-  }, []);
+      setReports(bugs.map(b => ({
+        ...b,
+        ai_tags: (b as any).ai_tags || [],
+        ai_approved: (b as any).ai_approved || false,
+        work_item_status: wiMap.get(b.id) || null,
+        reporter_name: profileMap.get(b.user_id) || 'Okänd',
+      })) as BugReport[]);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
 
   const openBug = (id: string) => {
-    if (expandedId === id) {
-      setExpandedId(null);
-      return;
-    }
+    if (expandedId === id) { setExpandedId(null); return; }
     setExpandedId(id);
     setChecklist({});
     setResolutionNotes('');
@@ -97,47 +115,77 @@ const AdminBugReports = () => {
 
   const allChecked = RESOLVE_CHECKLIST.every(c => checklist[c.key]);
 
-  const resolve = async (id: string) => {
-    if (!allChecked) {
-      toast.error('Slutför checklistan innan du markerar som löst');
-      return;
+  const processWithAI = async (bugId: string) => {
+    setProcessingAI(bugId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { toast.error('Ej inloggad'); return; }
+
+      const resp = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-bug-report`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ bug_id: bugId }),
+        }
+      );
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        toast.error(err.error || 'AI-bearbetning misslyckades');
+        return;
+      }
+
+      const { result } = await resp.json();
+      setReports(prev => prev.map(r =>
+        r.id === bugId
+          ? {
+              ...r,
+              ai_summary: result.summary,
+              ai_category: result.category,
+              ai_severity: result.severity,
+              ai_tags: result.tags,
+              ai_clean_prompt: result.clean_prompt,
+              ai_processed_at: new Date().toISOString(),
+            }
+          : r
+      ));
+      toast.success('AI-analys klar ✓');
+    } catch {
+      toast.error('Något gick fel');
+    } finally {
+      setProcessingAI(null);
     }
+  };
+
+  const approveAI = async (bugId: string) => {
+    await supabase.from('bug_reports').update({ ai_approved: true } as any).eq('id', bugId);
+    setReports(prev => prev.map(r => r.id === bugId ? { ...r, ai_approved: true } : r));
+    toast.success('AI-analys godkänd');
+  };
+
+  const resolve = async (id: string) => {
+    if (!allChecked) { toast.error('Slutför checklistan'); return; }
     setResolving(id);
     try {
-      const { data: wi } = await supabase
-        .from('work_items')
-        .select('id')
-        .eq('source_type', 'bug_report')
-        .eq('source_id', id)
-        .maybeSingle();
-
-      // Update bug_reports with resolution notes
+      const { data: wi } = await supabase.from('work_items').select('id').eq('source_type', 'bug_report').eq('source_id', id).maybeSingle();
       await supabase.from('bug_reports').update({
         status: 'resolved',
         resolved_at: new Date().toISOString(),
         resolved_by: user?.id,
         resolution_notes: resolutionNotes.trim() || null,
       }).eq('id', id);
-
       if (wi) {
-        await supabase.from('work_items').update({
-          status: 'done',
-          completed_at: new Date().toISOString(),
-        }).eq('id', wi.id);
+        await supabase.from('work_items').update({ status: 'done', completed_at: new Date().toISOString() }).eq('id', wi.id);
       }
-
-      setReports(prev => prev.map(r =>
-        r.id === id
-          ? { ...r, status: 'resolved', work_item_status: 'done', resolved_at: new Date().toISOString(), resolution_notes: resolutionNotes.trim() || null }
-          : r
-      ));
+      setReports(prev => prev.map(r => r.id === id ? { ...r, status: 'resolved', work_item_status: 'done', resolved_at: new Date().toISOString(), resolution_notes: resolutionNotes.trim() || null } : r));
       setExpandedId(null);
       toast.success('Bugg markerad som löst ✓');
-    } catch {
-      toast.error('Något gick fel');
-    } finally {
-      setResolving(null);
-    }
+    } catch { toast.error('Något gick fel'); }
+    finally { setResolving(null); }
   };
 
   const fmtDateTime = (d: string) => {
@@ -161,185 +209,335 @@ const AdminBugReports = () => {
     return `${diffDays}d sedan`;
   };
 
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success('Kopierat till urklipp');
+  };
+
   if (loading) return <div className="flex justify-center p-8"><Loader2 className="w-6 h-6 animate-spin" /></div>;
+
+  const inbox = reports.filter(r => !r.ai_processed_at);
+  const processed = reports.filter(r => !!r.ai_processed_at);
+  const promptLibrary = processed.filter(r => r.ai_clean_prompt);
+
+  // Collect all unique tags for filter
+  const allTags = [...new Set(promptLibrary.flatMap(r => r.ai_tags || []))].sort();
+
+  const filteredPrompts = promptLibrary.filter(r => {
+    const matchSearch = !promptSearch || 
+      r.ai_clean_prompt?.toLowerCase().includes(promptSearch.toLowerCase()) ||
+      r.ai_summary?.toLowerCase().includes(promptSearch.toLowerCase());
+    const matchTag = !promptTagFilter || r.ai_tags?.includes(promptTagFilter);
+    return matchSearch && matchTag;
+  });
 
   const openCount = reports.filter(r => r.status === 'open').length;
 
+  const renderBugCard = (r: BugReport, showAI = false) => {
+    const dt = fmtDateTime(r.created_at);
+    const isExpanded = expandedId === r.id;
+    const isOpen = r.status === 'open';
+    const isProcessing = processingAI === r.id;
+
+    return (
+      <div
+        key={r.id}
+        className={cn(
+          'border rounded-lg transition-colors',
+          isOpen ? 'border-destructive/30 bg-destructive/5' : 'border-border',
+          isExpanded && 'ring-1 ring-primary/30'
+        )}
+      >
+        <button
+          onClick={() => openBug(r.id)}
+          className="w-full text-left p-3 flex items-start justify-between gap-2 hover:bg-muted/30 transition-colors rounded-lg"
+        >
+          <div className="flex-1 min-w-0 space-y-1">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <Badge variant={isOpen ? 'destructive' : 'secondary'} className="text-[10px]">
+                {isOpen ? 'Öppen' : 'Löst'}
+              </Badge>
+              {showAI && r.ai_severity && (
+                <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full border font-medium', SEVERITY_COLORS[r.ai_severity])}>
+                  {r.ai_severity}
+                </span>
+              )}
+              {showAI && r.ai_category && (
+                <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full font-medium', CATEGORY_COLORS[r.ai_category])}>
+                  {r.ai_category}
+                </span>
+              )}
+              {r.ai_approved && (
+                <Badge variant="outline" className="text-[9px] border-green-300 text-green-700">✓ Godkänd</Badge>
+              )}
+            </div>
+            <p className="text-sm font-medium leading-snug line-clamp-2">
+              {showAI && r.ai_summary ? r.ai_summary : r.description}
+            </p>
+            <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+              <span className="flex items-center gap-1"><User className="w-3 h-3" />{r.reporter_name}</span>
+              <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{r.page_url}</span>
+              <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{dt.relative}</span>
+            </div>
+            {showAI && r.ai_tags && r.ai_tags.length > 0 && (
+              <div className="flex gap-1 flex-wrap mt-0.5">
+                {r.ai_tags.map(tag => (
+                  <span key={tag} className="text-[9px] bg-muted px-1.5 py-0.5 rounded-full">{tag}</span>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="shrink-0 pt-1">
+            {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+          </div>
+        </button>
+
+        {isExpanded && (
+          <div className="px-3 pb-3 space-y-3 border-t border-border/50">
+            <Separator className="my-0" />
+
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div>
+                <span className="text-muted-foreground block mb-0.5">Rapporterad</span>
+                <span className="font-medium">{dt.date} kl {dt.time}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground block mb-0.5">Rapportör</span>
+                <span className="font-medium">{r.reporter_name}</span>
+              </div>
+              <div className="col-span-2">
+                <span className="text-muted-foreground block mb-0.5">Sida</span>
+                <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">{r.page_url}</code>
+              </div>
+            </div>
+
+            <div>
+              <span className="text-xs text-muted-foreground block mb-1">Originalbeskrivning</span>
+              <div className="text-sm bg-muted/50 rounded-md p-2.5 whitespace-pre-wrap leading-relaxed">{r.description}</div>
+            </div>
+
+            {/* AI Section */}
+            {r.ai_processed_at ? (
+              <div className="space-y-2 border border-primary/20 rounded-lg p-3 bg-primary/5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    AI-analys
+                  </div>
+                  <div className="flex gap-1">
+                    {!r.ai_approved && (
+                      <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1" onClick={() => approveAI(r.id)}>
+                        <CheckCircle2 className="w-3 h-3" /> Godkänn
+                      </Button>
+                    )}
+                    <Button size="sm" variant="ghost" className="h-6 text-[10px] gap-1" onClick={() => processWithAI(r.id)}>
+                      <RefreshCw className={cn("w-3 h-3", isProcessing && "animate-spin")} /> Kör igen
+                    </Button>
+                  </div>
+                </div>
+                {r.ai_summary && (
+                  <div><span className="text-[10px] text-muted-foreground">Sammanfattning</span><p className="text-xs font-medium">{r.ai_summary}</p></div>
+                )}
+                {r.ai_clean_prompt && (
+                  <div>
+                    <div className="flex items-center justify-between mb-0.5">
+                      <span className="text-[10px] text-muted-foreground">Strukturerad prompt</span>
+                      <Button size="sm" variant="ghost" className="h-5 text-[9px] gap-0.5 px-1" onClick={() => copyToClipboard(r.ai_clean_prompt!)}>
+                        <Copy className="w-2.5 h-2.5" /> Kopiera
+                      </Button>
+                    </div>
+                    <div className="text-xs bg-background rounded-md p-2 whitespace-pre-wrap border">{r.ai_clean_prompt}</div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full gap-1.5"
+                disabled={isProcessing}
+                onClick={() => processWithAI(r.id)}
+              >
+                {isProcessing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                Bearbeta med AI
+              </Button>
+            )}
+
+            {r.status === 'resolved' && (
+              <div className="bg-accent/10 rounded-md p-2.5 space-y-1">
+                <div className="flex items-center gap-1.5 text-xs font-medium text-accent">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  Löst {r.resolved_at && fmtDateTime(r.resolved_at).relative}
+                </div>
+                {r.resolution_notes && <p className="text-xs text-muted-foreground">{r.resolution_notes}</p>}
+              </div>
+            )}
+
+            {isOpen && (
+              <div className="space-y-3">
+                <Separator />
+                <div>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <AlertCircle className="w-3.5 h-3.5 text-yellow-600" />
+                    <span className="text-xs font-semibold">Checklista innan lösning</span>
+                  </div>
+                  <div className="space-y-2">
+                    {RESOLVE_CHECKLIST.map(item => (
+                      <label key={item.key} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-muted/30 rounded px-1.5 py-1 transition-colors">
+                        <Checkbox checked={!!checklist[item.key]} onCheckedChange={(v) => setChecklist(prev => ({ ...prev, [item.key]: !!v }))} />
+                        <span className={cn(checklist[item.key] && 'text-muted-foreground line-through')}>{item.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground block mb-1">Anteckningar (valfritt)</span>
+                  <Textarea placeholder="Beskriv vad som fixades..." value={resolutionNotes} onChange={e => setResolutionNotes(e.target.value)} rows={2} className="text-xs" />
+                </div>
+                <Button size="sm" className="w-full gap-1.5" disabled={!allChecked || resolving === r.id} onClick={() => resolve(r.id)}>
+                  {resolving === r.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                  Markera som löst
+                </Button>
+                {!allChecked && <p className="text-[10px] text-muted-foreground text-center">Slutför alla steg i checklistan först</p>}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <Bug className="w-5 h-5 text-destructive" />
-        <h2 className="font-semibold">Buggrapporter</h2>
-        <Badge variant={openCount > 0 ? 'destructive' : 'secondary'} className="text-xs">
-          {openCount} öppna
-        </Badge>
-        <Badge variant="outline" className="text-xs">{reports.length} totalt</Badge>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Bug className="w-5 h-5 text-destructive" />
+          <h2 className="font-semibold">Buggrapporter</h2>
+          <Badge variant={openCount > 0 ? 'destructive' : 'secondary'} className="text-xs">{openCount} öppna</Badge>
+          <Badge variant="outline" className="text-xs">{reports.length} totalt</Badge>
+        </div>
+        <Button size="sm" variant="ghost" className="gap-1.5 h-7 text-xs" onClick={load}>
+          <RefreshCw className="w-3 h-3" /> Uppdatera
+        </Button>
       </div>
 
-      {reports.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-8">Inga rapporter</p>
-      ) : (
-        <ScrollArea className="max-h-[70vh]">
-          <div className="space-y-2 pr-2">
-            {reports.map(r => {
-              const dt = fmtDateTime(r.created_at);
-              const isExpanded = expandedId === r.id;
-              const isOpen = r.status === 'open';
+      <Tabs defaultValue="inbox" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="inbox" className="gap-1.5 text-xs">
+            <Bug className="w-3.5 h-3.5" />
+            Inkorg
+            {inbox.length > 0 && <Badge variant="destructive" className="text-[9px] h-4 px-1">{inbox.length}</Badge>}
+          </TabsTrigger>
+          <TabsTrigger value="processed" className="gap-1.5 text-xs">
+            <Sparkles className="w-3.5 h-3.5" />
+            Bearbetade
+            <Badge variant="outline" className="text-[9px] h-4 px-1">{processed.length}</Badge>
+          </TabsTrigger>
+          <TabsTrigger value="prompts" className="gap-1.5 text-xs">
+            <BookOpen className="w-3.5 h-3.5" />
+            Promptbibliotek
+          </TabsTrigger>
+        </TabsList>
 
-              return (
-                <div
-                  key={r.id}
+        <TabsContent value="inbox" className="mt-3">
+          {inbox.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">Alla buggar är bearbetade 🎉</p>
+          ) : (
+            <ScrollArea className="max-h-[65vh]">
+              <div className="space-y-2 pr-2">{inbox.map(r => renderBugCard(r, false))}</div>
+            </ScrollArea>
+          )}
+        </TabsContent>
+
+        <TabsContent value="processed" className="mt-3">
+          {processed.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">Inga bearbetade buggar ännu</p>
+          ) : (
+            <ScrollArea className="max-h-[65vh]">
+              <div className="space-y-2 pr-2">{processed.map(r => renderBugCard(r, true))}</div>
+            </ScrollArea>
+          )}
+        </TabsContent>
+
+        <TabsContent value="prompts" className="mt-3 space-y-3">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Sök i promptbiblioteket..."
+                value={promptSearch}
+                onChange={e => setPromptSearch(e.target.value)}
+                className="pl-8 h-8 text-xs"
+              />
+            </div>
+            {promptTagFilter && (
+              <Button size="sm" variant="ghost" className="h-8 text-xs gap-1" onClick={() => setPromptTagFilter(null)}>
+                <Filter className="w-3 h-3" /> Rensa
+              </Button>
+            )}
+          </div>
+
+          {allTags.length > 0 && (
+            <div className="flex gap-1 flex-wrap">
+              {allTags.map(tag => (
+                <button
+                  key={tag}
+                  onClick={() => setPromptTagFilter(promptTagFilter === tag ? null : tag)}
                   className={cn(
-                    'border rounded-lg transition-colors',
-                    isOpen ? 'border-destructive/30 bg-destructive/5' : 'border-border',
-                    isExpanded && 'ring-1 ring-primary/30'
+                    'text-[10px] px-2 py-0.5 rounded-full border transition-colors',
+                    promptTagFilter === tag ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted hover:bg-muted/80 border-border'
                   )}
                 >
-                  {/* Header row - always visible */}
-                  <button
-                    onClick={() => openBug(r.id)}
-                    className="w-full text-left p-3 flex items-start justify-between gap-2 hover:bg-muted/30 transition-colors rounded-lg"
-                  >
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <Badge variant={isOpen ? 'destructive' : 'secondary'} className="text-[10px]">
-                          {isOpen ? 'Öppen' : 'Löst'}
-                        </Badge>
-                        {r.work_item_status && !['done', 'open'].includes(r.work_item_status) && (
-                          <Badge variant="outline" className="text-[9px]">
-                            WB: {r.work_item_status}
+                  {tag}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {filteredPrompts.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">Inga promptar hittade</p>
+          ) : (
+            <ScrollArea className="max-h-[60vh]">
+              <div className="space-y-2 pr-2">
+                {filteredPrompts.map(r => (
+                  <div key={r.id} className="border rounded-lg p-3 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                          {r.ai_severity && (
+                            <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full border font-medium', SEVERITY_COLORS[r.ai_severity])}>{r.ai_severity}</span>
+                          )}
+                          {r.ai_category && (
+                            <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full font-medium', CATEGORY_COLORS[r.ai_category])}>{r.ai_category}</span>
+                          )}
+                          <Badge variant={r.status === 'open' ? 'destructive' : 'secondary'} className="text-[9px]">
+                            {r.status === 'open' ? 'Öppen' : 'Löst'}
                           </Badge>
-                        )}
+                        </div>
+                        <p className="text-xs font-medium mb-1">{r.ai_summary}</p>
                       </div>
-                      <p className="text-sm font-medium leading-snug line-clamp-2">{r.description}</p>
-                      <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <User className="w-3 h-3" />
-                          {r.reporter_name}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <MapPin className="w-3 h-3" />
-                          {r.page_url}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {dt.relative}
-                        </span>
-                      </div>
+                      <Button size="sm" variant="outline" className="h-6 text-[10px] gap-0.5 shrink-0" onClick={() => copyToClipboard(r.ai_clean_prompt!)}>
+                        <Copy className="w-2.5 h-2.5" /> Kopiera
+                      </Button>
                     </div>
-                    <div className="shrink-0 pt-1">
-                      {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
-                    </div>
-                  </button>
-
-                  {/* Expanded detail view */}
-                  {isExpanded && (
-                    <div className="px-3 pb-3 space-y-3 border-t border-border/50">
-                      <Separator className="my-0" />
-
-                      {/* Full details */}
-                      <div className="grid grid-cols-2 gap-3 text-xs">
-                        <div>
-                          <span className="text-muted-foreground block mb-0.5">Rapporterad</span>
-                          <span className="font-medium">{dt.date} kl {dt.time}</span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground block mb-0.5">Rapportör</span>
-                          <span className="font-medium">{r.reporter_name}</span>
-                        </div>
-                        <div className="col-span-2">
-                          <span className="text-muted-foreground block mb-0.5">Sida</span>
-                          <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">{r.page_url}</code>
-                        </div>
+                    <div className="text-xs bg-muted/50 rounded-md p-2 whitespace-pre-wrap border font-mono leading-relaxed">{r.ai_clean_prompt}</div>
+                    {r.ai_tags && r.ai_tags.length > 0 && (
+                      <div className="flex gap-1 flex-wrap">
+                        {r.ai_tags.map(tag => (
+                          <span key={tag} className="text-[9px] bg-muted px-1.5 py-0.5 rounded-full">{tag}</span>
+                        ))}
                       </div>
-
-                      {/* Full description */}
-                      <div>
-                        <span className="text-xs text-muted-foreground block mb-1">Beskrivning</span>
-                        <div className="text-sm bg-muted/50 rounded-md p-2.5 whitespace-pre-wrap leading-relaxed">
-                          {r.description}
-                        </div>
-                      </div>
-
-                      {/* Resolution info if resolved */}
-                      {r.status === 'resolved' && (
-                        <div className="bg-accent/10 rounded-md p-2.5 space-y-1">
-                          <div className="flex items-center gap-1.5 text-xs font-medium text-accent">
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            Löst {r.resolved_at && fmtDateTime(r.resolved_at).relative}
-                          </div>
-                          {r.resolution_notes && (
-                            <p className="text-xs text-muted-foreground">{r.resolution_notes}</p>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Resolve flow for open bugs */}
-                      {isOpen && (
-                        <div className="space-y-3">
-                          <Separator />
-                          <div>
-                            <div className="flex items-center gap-1.5 mb-2">
-                              <AlertCircle className="w-3.5 h-3.5 text-warning" />
-                              <span className="text-xs font-semibold">Checklista innan lösning</span>
-                            </div>
-                            <div className="space-y-2">
-                              {RESOLVE_CHECKLIST.map(item => (
-                                <label
-                                  key={item.key}
-                                  className="flex items-center gap-2 text-xs cursor-pointer hover:bg-muted/30 rounded px-1.5 py-1 transition-colors"
-                                >
-                                  <Checkbox
-                                    checked={!!checklist[item.key]}
-                                    onCheckedChange={(v) => setChecklist(prev => ({ ...prev, [item.key]: !!v }))}
-                                  />
-                                  <span className={cn(checklist[item.key] && 'text-muted-foreground line-through')}>
-                                    {item.label}
-                                  </span>
-                                </label>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div>
-                            <span className="text-xs text-muted-foreground block mb-1">Anteckningar (valfritt)</span>
-                            <Textarea
-                              placeholder="Beskriv vad som fixades..."
-                              value={resolutionNotes}
-                              onChange={e => setResolutionNotes(e.target.value)}
-                              rows={2}
-                              className="text-xs"
-                            />
-                          </div>
-
-                          <Button
-                            size="sm"
-                            className="w-full gap-1.5"
-                            disabled={!allChecked || resolving === r.id}
-                            onClick={() => resolve(r.id)}
-                          >
-                            {resolving === r.id ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <CheckCircle2 className="w-3.5 h-3.5" />
-                            )}
-                            Markera som löst
-                          </Button>
-                          {!allChecked && (
-                            <p className="text-[10px] text-muted-foreground text-center">
-                              Slutför alla steg i checklistan först
-                            </p>
-                          )}
-                        </div>
-                      )}
+                    )}
+                    <div className="text-[10px] text-muted-foreground">
+                      {r.page_url} · {fmtDateTime(r.created_at).relative}
                     </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </ScrollArea>
-      )}
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
