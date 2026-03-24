@@ -2388,6 +2388,10 @@ const AdminAI = () => {
       <Tabs defaultValue="autopilot" className="w-full">
         <ScrollableTabs>
           <TabsList>
+            <TabsTrigger value="autopilot" className="gap-1.5 text-xs">
+              <Play className="w-3.5 h-3.5" />
+              AI Autopilot
+            </TabsTrigger>
             <TabsTrigger value="actions" className="gap-1.5 text-xs">
               <TrendingUp className="w-3.5 h-3.5" />
               AI Actions
