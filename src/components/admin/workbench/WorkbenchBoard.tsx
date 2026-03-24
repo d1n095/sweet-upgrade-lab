@@ -89,7 +89,7 @@ const ITEM_TYPES = [
   { key: 'other', label: 'Övrigt' },
 ];
 
-type ViewFilter = 'all' | 'mine' | 'escalated' | 'open' | 'done' | 'bugs' | 'incidents';
+type ViewFilter = 'active' | 'mine' | 'review' | 'done' | 'escalated' | 'bugs' | 'incidents';
 
 interface Props {
   initialFilter?: string;
