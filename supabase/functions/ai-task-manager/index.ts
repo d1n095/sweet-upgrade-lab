@@ -399,6 +399,7 @@ Respond using the prioritize_tasks function.`,
       }
 
       results.orchestrator_scanned = activeItems?.length || 0;
+      console.log(`[orchestrator] scanned=${results.orchestrator_scanned}`);
 
       // No work
       if (!activeItems?.length) {
