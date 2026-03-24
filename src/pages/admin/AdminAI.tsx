@@ -1711,6 +1711,10 @@ const AdminAI = () => {
               <Activity className="w-3.5 h-3.5" />
               Systemöversikt
             </TabsTrigger>
+            <TabsTrigger value="visual-qa" className="gap-1.5 text-xs">
+              <Monitor className="w-3.5 h-3.5" />
+              Visual QA
+            </TabsTrigger>
             <TabsTrigger value="data-health" className="gap-1.5 text-xs">
               <Database className="w-3.5 h-3.5" />
               Data Health
