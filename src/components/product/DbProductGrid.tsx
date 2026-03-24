@@ -156,20 +156,64 @@ const DbProductGrid = () => {
           <div>
             <h2 className="text-2xl md:text-3xl font-bold">{t('products.title')}</h2>
           </div>
-          {!isLoading && products.length > 0 && (
-            <Select value={sortOption} onValueChange={(v) => setSortOption(v as SortOption)}>
-              <SelectTrigger className="w-[180px] bg-card border-border rounded-xl h-9 text-xs">
-                <ArrowUpDown className="w-3.5 h-3.5 mr-1.5 text-muted-foreground" />
-                <SelectValue placeholder={t('sort.label')} />
-              </SelectTrigger>
-              <SelectContent className="bg-card border-border rounded-xl">
-                {sortOptions.map(o => (
-                  <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          <div className="flex items-center gap-2">
+            {!isLoading && products.length > 0 && (
+              <>
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 h-9 rounded-xl text-xs font-medium border transition-colors",
+                    showFilters ? "bg-foreground text-background border-foreground" : "bg-card border-border text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5" />
+                  {lang === 'sv' ? 'Filter' : 'Filters'}
+                </button>
+                <Select value={sortOption} onValueChange={(v) => setSortOption(v as SortOption)}>
+                  <SelectTrigger className="w-[180px] bg-card border-border rounded-xl h-9 text-xs">
+                    <ArrowUpDown className="w-3.5 h-3.5 mr-1.5 text-muted-foreground" />
+                    <SelectValue placeholder={t('sort.label')} />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border rounded-xl">
+                    {sortOptions.map(o => (
+                      <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </>
+            )}
+          </div>
         </div>
+
+        {/* Price Filter Panel */}
+        <AnimatePresence>
+          {showFilters && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="overflow-hidden mb-6"
+            >
+              <div className="border border-border rounded-xl p-4 bg-card">
+                <p className="text-xs font-semibold text-muted-foreground mb-3">
+                  {lang === 'sv' ? 'Pris' : 'Price'}: {priceRange[0]} – {priceRange[1]} kr
+                </p>
+                <Slider
+                  value={priceRange}
+                  min={0}
+                  max={maxPrice}
+                  step={10}
+                  onValueChange={(v) => setPriceRange(v as [number, number])}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
+                  <span>0 kr</span>
+                  <span>{maxPrice} kr</span>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Category Filters */}
         <div className="flex flex-wrap gap-2 mb-8">
