@@ -49,6 +49,8 @@ interface WorkItem {
   conflict_flag?: boolean;
   execution_order?: number;
   orchestrator_result?: any;
+  ai_type_classification?: string;
+  ai_type_reason?: string;
 }
 
 const STATUS_COLUMNS = [
