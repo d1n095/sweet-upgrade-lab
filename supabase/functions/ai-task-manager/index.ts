@@ -385,17 +385,51 @@ Respond using the prioritize_tasks function.`,
 
     // ─── 6. AI ORCHESTRATOR (DEPENDENCIES, DUPLICATES, CONFLICTS) ───
     if (action === "full_cycle" || action === "orchestrate") {
-      const { data: activeItems } = await supabase
+      const { data: activeItems, error: activeItemsError } = await supabase
         .from("work_items")
-        .select("id, title, description, item_type, source_type, ai_category, priority, status, ai_summary, depends_on, blocks")
-        .in("status", ["open", "claimed", "in_progress", "escalated"])
+        .select("id, title, description, item_type, source_type, ai_category, priority, status, ai_type_classification, depends_on, blocks, created_at")
+        .neq("status", "done")
+        .neq("status", "cancelled")
         .order("created_at", { ascending: true })
-        .limit(40);
+        .limit(120);
 
-      if (activeItems?.length && activeItems.length > 1) {
+      if (activeItemsError) {
+        results.orchestrator_error = activeItemsError.message;
+        throw new Error(`Orchestrator query failed: ${activeItemsError.message}`);
+      }
+
+      results.orchestrator_scanned = activeItems?.length || 0;
+
+      // No work
+      if (!activeItems?.length) {
+        results.orchestrator_mode = "no_items";
+      }
+      // Single item -> still orchestrate to avoid "0 tasks"
+      else if (activeItems.length === 1) {
+        await supabase.from("work_items").update({
+          execution_order: 1,
+          depends_on: [],
+          blocks: [],
+          conflict_flag: false,
+          duplicate_of: null,
+          orchestrator_result: {
+            reason: "Endast en aktiv uppgift i kön",
+            parallel_group: "solo",
+            conflict_with: null,
+            updated_at: new Date().toISOString(),
+            mode: "single_item",
+          },
+          updated_at: new Date().toISOString(),
+        }).eq("id", activeItems[0].id);
+
+        results.orchestrated = 1;
+        results.orchestrator_mode = "single_item";
+      } else {
         const itemList = activeItems.map((it: any) =>
-          `ID:${it.id} Type:${it.item_type} Cat:${it.ai_category || "unknown"} Pri:${it.priority} Title:${it.title} Desc:${(it.description || it.ai_summary || "").substring(0, 150)}`
+          `ID:${it.id} Type:${it.item_type} Class:${it.ai_type_classification || "unknown"} Cat:${it.ai_category || "unknown"} Pri:${it.priority} Title:${it.title} Desc:${(it.description || "").substring(0, 150)}`
         ).join("\n");
+
+        let aiTasks: any[] = [];
 
         try {
           const orchestratorResult = await callAI(lovableKey, [
@@ -416,7 +450,7 @@ Rules:
 - Regular tasks get 11-50
 - Optional tasks get 51+
 
-Respond using the orchestrate_tasks function.`,
+Return one entry for EACH input ID.`,
             },
             { role: "user", content: `Orchestrate these ${activeItems.length} work items:\n${itemList}` },
           ], [{
@@ -452,27 +486,45 @@ Respond using the orchestrate_tasks function.`,
             },
           }], { type: "function", function: { name: "orchestrate_tasks" } });
 
-          for (const task of orchestratorResult?.tasks || []) {
-            const updates: any = {
-              execution_order: task.execution_order,
-              orchestrator_result: {
-                reason: task.reason || null,
-                parallel_group: task.parallel_group || null,
-                conflict_with: task.conflict_with || null,
-                updated_at: new Date().toISOString(),
-              },
-              updated_at: new Date().toISOString(),
-            };
-            if (task.depends_on?.length) updates.depends_on = task.depends_on;
-            if (task.blocks?.length) updates.blocks = task.blocks;
-            if (task.duplicate_of) updates.duplicate_of = task.duplicate_of;
-            if (task.conflict_with) updates.conflict_flag = true;
-
-            await supabase.from("work_items").update(updates).eq("id", task.id);
-            results.orchestrated++;
-          }
-        } catch (e) {
+          aiTasks = (orchestratorResult?.tasks || []).filter((task: any) =>
+            task?.id && activeItems.some((it: any) => it.id === task.id)
+          );
+        } catch (e: any) {
           console.error("AI orchestrator error:", e);
+          results.orchestrator_error = e?.message || "AI orchestrator failed";
+        }
+
+        // Fallback when AI returns nothing/partial: deterministic orchestration
+        if (!aiTasks.length || aiTasks.length < activeItems.length) {
+          const fallback = buildFallbackOrchestration(activeItems);
+          const mergedById = new Map<string, any>();
+          for (const t of fallback) mergedById.set(t.id, t);
+          for (const t of aiTasks) mergedById.set(t.id, { ...mergedById.get(t.id), ...t });
+          aiTasks = Array.from(mergedById.values());
+          results.orchestrator_mode = "fallback_merge";
+        } else {
+          results.orchestrator_mode = "ai";
+        }
+
+        for (const task of aiTasks) {
+          const updates: any = {
+            execution_order: task.execution_order,
+            orchestrator_result: {
+              reason: task.reason || null,
+              parallel_group: task.parallel_group || null,
+              conflict_with: task.conflict_with || null,
+              updated_at: new Date().toISOString(),
+              mode: results.orchestrator_mode,
+            },
+            updated_at: new Date().toISOString(),
+          };
+          updates.depends_on = Array.isArray(task.depends_on) ? task.depends_on : [];
+          updates.blocks = Array.isArray(task.blocks) ? task.blocks : [];
+          updates.duplicate_of = task.duplicate_of || null;
+          updates.conflict_flag = !!task.conflict_with;
+
+          await supabase.from("work_items").update(updates).eq("id", task.id);
+          results.orchestrated++;
         }
       }
     }
