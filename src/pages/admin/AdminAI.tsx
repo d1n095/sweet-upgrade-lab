@@ -1551,9 +1551,13 @@ const AdminAI = () => {
         </div>
       </div>
 
-      <Tabs defaultValue="scan" className="w-full">
+      <Tabs defaultValue="actions" className="w-full">
         <ScrollableTabs>
           <TabsList>
+            <TabsTrigger value="actions" className="gap-1.5 text-xs">
+              <TrendingUp className="w-3.5 h-3.5" />
+              AI Actions
+            </TabsTrigger>
             <TabsTrigger value="scan" className="gap-1.5 text-xs">
               <Radar className="w-3.5 h-3.5" />
               System Scan
@@ -1593,6 +1597,9 @@ const AdminAI = () => {
           </TabsList>
         </ScrollableTabs>
 
+        <TabsContent value="actions" className="mt-4">
+          <ActionEngineTab />
+        </TabsContent>
         <TabsContent value="scan" className="mt-4">
           <SystemScanTab />
         </TabsContent>
