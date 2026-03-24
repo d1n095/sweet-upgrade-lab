@@ -216,7 +216,17 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
       const { data, error } = await supabase.functions.invoke('ai-task-manager', { body: { action: 'orchestrate' } });
       if (error) throw error;
       const r = data?.results;
-      toast.success(`Orchestrator klar: ${r?.orchestrated || 0} uppgifter analyserade`);
+      const scanned = r?.orchestrator_scanned || 0;
+      const orchestrated = r?.orchestrated || 0;
+
+      if (scanned === 0) {
+        toast.info('Orchestrator: inga aktiva uppgifter hittades');
+      } else if (orchestrated === 0) {
+        toast.warning(`Orchestrator skannade ${scanned} uppgifter men kunde inte ordna dem automatiskt`);
+      } else {
+        toast.success(`Orchestrator klar: ${orchestrated}/${scanned} uppgifter ordnade (${r?.orchestrator_mode || 'ai'})`);
+      }
+
       queryClient.invalidateQueries({ queryKey: ['work-items'] });
     } catch (e: any) {
       toast.error('Orchestrator misslyckades: ' + e.message);

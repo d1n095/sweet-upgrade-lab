@@ -56,7 +56,15 @@ serve(async (req) => {
     const action = body.action || "full_cycle";
 
     const results: any = {
-      prioritized: 0, assigned: 0, detected: 0, resolved: 0, flagged: 0, orchestrated: 0,
+      prioritized: 0,
+      assigned: 0,
+      detected: 0,
+      resolved: 0,
+      flagged: 0,
+      orchestrated: 0,
+      orchestrator_scanned: 0,
+      orchestrator_mode: null,
+      orchestrator_error: null,
     };
 
     // ─── 1. AI PRIORITIZATION ───
@@ -377,23 +385,60 @@ Respond using the prioritize_tasks function.`,
 
     // ─── 6. AI ORCHESTRATOR (DEPENDENCIES, DUPLICATES, CONFLICTS) ───
     if (action === "full_cycle" || action === "orchestrate") {
-      const { data: activeItems } = await supabase
+      const { data: activeItems, error: activeItemsError } = await supabase
         .from("work_items")
-        .select("id, title, description, item_type, source_type, ai_category, priority, status, ai_summary, depends_on, blocks")
-        .in("status", ["open", "claimed", "in_progress", "escalated"])
+        .select("id, title, description, item_type, source_type, ai_category, priority, status, ai_type_classification, depends_on, blocks, created_at")
+        .neq("status", "done")
+        .neq("status", "cancelled")
         .order("created_at", { ascending: true })
-        .limit(40);
+        .limit(1000);
 
-      if (activeItems?.length && activeItems.length > 1) {
+      if (activeItemsError) {
+        results.orchestrator_error = activeItemsError.message;
+        throw new Error(`Orchestrator query failed: ${activeItemsError.message}`);
+      }
+
+      results.orchestrator_scanned = activeItems?.length || 0;
+      console.log(`[orchestrator] scanned=${results.orchestrator_scanned}`);
+
+      // No work
+      if (!activeItems?.length) {
+        results.orchestrator_mode = "no_items";
+      }
+      // Single item -> still orchestrate to avoid "0 tasks"
+      else if (activeItems.length === 1) {
+        await supabase.from("work_items").update({
+          execution_order: 1,
+          depends_on: [],
+          blocks: [],
+          conflict_flag: false,
+          duplicate_of: null,
+          orchestrator_result: {
+            reason: "Endast en aktiv uppgift i kön",
+            parallel_group: "solo",
+            conflict_with: null,
+            updated_at: new Date().toISOString(),
+            mode: "single_item",
+          },
+          updated_at: new Date().toISOString(),
+        }).eq("id", activeItems[0].id);
+
+        results.orchestrated = 1;
+        results.orchestrator_mode = "single_item";
+      } else {
         const itemList = activeItems.map((it: any) =>
-          `ID:${it.id} Type:${it.item_type} Cat:${it.ai_category || "unknown"} Pri:${it.priority} Title:${it.title} Desc:${(it.description || it.ai_summary || "").substring(0, 150)}`
+          `ID:${it.id} Type:${it.item_type} Class:${it.ai_type_classification || "unknown"} Cat:${it.ai_category || "unknown"} Pri:${it.priority} Title:${it.title} Desc:${(it.description || "").substring(0, 150)}`
         ).join("\n");
 
-        try {
-          const orchestratorResult = await callAI(lovableKey, [
-            {
-              role: "system",
-              content: `You are a task orchestrator for a Swedish e-commerce platform. Analyze all active work items and determine:
+        let aiTasks: any[] = [];
+        const useAI = activeItems.length <= 50;
+
+        if (useAI) {
+          try {
+            const orchestratorResult = await callAI(lovableKey, [
+              {
+                role: "system",
+                content: `You are a task orchestrator for a Swedish e-commerce platform. Analyze all active work items and determine:
 1. Dependencies: which tasks must be completed before others
 2. Duplicates: which tasks are duplicates or very similar
 3. Conflicts: which tasks affect the same system and could conflict
@@ -408,43 +453,73 @@ Rules:
 - Regular tasks get 11-50
 - Optional tasks get 51+
 
-Respond using the orchestrate_tasks function.`,
-            },
-            { role: "user", content: `Orchestrate these ${activeItems.length} work items:\n${itemList}` },
-          ], [{
-            type: "function",
-            function: {
-              name: "orchestrate_tasks",
-              description: "Set dependencies, duplicates, conflicts and execution order",
-              parameters: {
-                type: "object",
-                properties: {
-                  tasks: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        id: { type: "string" },
-                        depends_on: { type: "array", items: { type: "string" }, description: "IDs of tasks that must be done first" },
-                        blocks: { type: "array", items: { type: "string" }, description: "IDs of tasks blocked by this one" },
-                        duplicate_of: { type: "string", description: "ID of the original task if this is a duplicate" },
-                        conflict_with: { type: "string", description: "ID of conflicting task" },
-                        execution_order: { type: "integer", description: "1=most urgent, higher=less urgent" },
-                        parallel_group: { type: "string", description: "Group name for tasks that can run in parallel" },
-                        reason: { type: "string" },
+Return one entry for EACH input ID.`,
+              },
+              { role: "user", content: `Orchestrate these ${activeItems.length} work items:\n${itemList}` },
+            ], [{
+              type: "function",
+              function: {
+                name: "orchestrate_tasks",
+                description: "Set dependencies, duplicates, conflicts and execution order",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    tasks: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          depends_on: { type: "array", items: { type: "string" }, description: "IDs of tasks that must be done first" },
+                          blocks: { type: "array", items: { type: "string" }, description: "IDs of tasks blocked by this one" },
+                          duplicate_of: { type: "string", description: "ID of the original task if this is a duplicate" },
+                          conflict_with: { type: "string", description: "ID of conflicting task" },
+                          execution_order: { type: "integer", description: "1=most urgent, higher=less urgent" },
+                          parallel_group: { type: "string", description: "Group name for tasks that can run in parallel" },
+                          reason: { type: "string" },
+                        },
+                        required: ["id", "execution_order"],
+                        additionalProperties: false,
                       },
-                      required: ["id", "execution_order"],
-                      additionalProperties: false,
                     },
                   },
+                  required: ["tasks"],
+                  additionalProperties: false,
                 },
-                required: ["tasks"],
-                additionalProperties: false,
               },
-            },
-          }], { type: "function", function: { name: "orchestrate_tasks" } });
+            }], { type: "function", function: { name: "orchestrate_tasks" } });
 
-          for (const task of orchestratorResult?.tasks || []) {
+            aiTasks = (orchestratorResult?.tasks || []).filter((task: any) =>
+              task?.id && activeItems.some((it: any) => it.id === task.id)
+            );
+          } catch (e: any) {
+            console.error("AI orchestrator error:", e);
+            results.orchestrator_error = e?.message || "AI orchestrator failed";
+          }
+        }
+
+        if (!useAI) {
+          results.orchestrator_mode = "fallback_large_queue";
+        }
+
+        // Fallback when AI is disabled for large queues OR returns nothing/partial
+        if (!aiTasks.length || aiTasks.length < activeItems.length) {
+          const fallback = buildFallbackOrchestration(activeItems);
+          const mergedById = new Map<string, any>();
+          for (const t of fallback) mergedById.set(t.id, t);
+          for (const t of aiTasks) mergedById.set(t.id, { ...mergedById.get(t.id), ...t });
+          aiTasks = Array.from(mergedById.values());
+          if (!results.orchestrator_mode) {
+            results.orchestrator_mode = useAI ? "fallback_merge" : "fallback_large_queue";
+          }
+        } else {
+          results.orchestrator_mode = "ai";
+        }
+
+        console.log(`[orchestrator] mode=${results.orchestrator_mode} tasks=${aiTasks.length}`);
+
+        for (const batch of chunkArray(aiTasks, 25)) {
+          await Promise.all(batch.map(async (task: any) => {
             const updates: any = {
               execution_order: task.execution_order,
               orchestrator_result: {
@@ -452,19 +527,19 @@ Respond using the orchestrate_tasks function.`,
                 parallel_group: task.parallel_group || null,
                 conflict_with: task.conflict_with || null,
                 updated_at: new Date().toISOString(),
+                mode: results.orchestrator_mode,
               },
               updated_at: new Date().toISOString(),
             };
-            if (task.depends_on?.length) updates.depends_on = task.depends_on;
-            if (task.blocks?.length) updates.blocks = task.blocks;
-            if (task.duplicate_of) updates.duplicate_of = task.duplicate_of;
-            if (task.conflict_with) updates.conflict_flag = true;
+            updates.depends_on = Array.isArray(task.depends_on) ? task.depends_on : [];
+            updates.blocks = Array.isArray(task.blocks) ? task.blocks : [];
+            updates.duplicate_of = task.duplicate_of || null;
+            updates.conflict_flag = !!task.conflict_with;
 
             await supabase.from("work_items").update(updates).eq("id", task.id);
-            results.orchestrated++;
-          }
-        } catch (e) {
-          console.error("AI orchestrator error:", e);
+          }));
+
+          results.orchestrated += batch.length;
         }
       }
     }
@@ -506,6 +581,67 @@ async function callAI(apiKey: string, messages: any[], tools?: any[], tool_choic
   const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
   if (toolCall) return JSON.parse(toolCall.function.arguments);
   return { text: data.choices?.[0]?.message?.content || "" };
+}
+
+function chunkArray<T>(arr: T[], size: number): T[][] {
+  if (size <= 0) return [arr];
+  const chunks: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) {
+    chunks.push(arr.slice(i, i + size));
+  }
+  return chunks;
+}
+
+function buildFallbackOrchestration(activeItems: any[]) {
+  const priorityScore: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+
+  const sorted = [...activeItems].sort((a, b) => {
+    const pa = priorityScore[a.priority] ?? 2;
+    const pb = priorityScore[b.priority] ?? 2;
+    if (pa !== pb) return pa - pb;
+
+    const aBug = a.item_type === "bug" ? 0 : 1;
+    const bBug = b.item_type === "bug" ? 0 : 1;
+    if (aBug !== bBug) return aBug - bBug;
+
+    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+  });
+
+  const blockers = sorted.filter((it) => {
+    const text = `${it.title || ""} ${it.description || ""}`.toLowerCase();
+    return text.includes("payment") || text.includes("checkout") || text.includes("auth") || text.includes("login");
+  });
+
+  return sorted.map((item, index) => {
+    const text = `${item.title || ""} ${item.description || ""}`.toLowerCase();
+    const isFeatureLike = ["feature", "improvement", "upgrade"].includes(item.ai_type_classification || "");
+
+    const depends_on = blockers
+      .filter((b) => b.id !== item.id)
+      .filter((b) => {
+        if (isFeatureLike) return true;
+        if (text.includes("order") || text.includes("shipping") || text.includes("warehouse")) {
+          const bText = `${b.title || ""} ${b.description || ""}`.toLowerCase();
+          return bText.includes("payment") || bText.includes("checkout");
+        }
+        return false;
+      })
+      .slice(0, 3)
+      .map((b) => b.id);
+
+    return {
+      id: item.id,
+      execution_order: index + 1,
+      depends_on,
+      blocks: [],
+      duplicate_of: null,
+      conflict_with: null,
+      parallel_group: depends_on.length ? null : `lane_${(index % 3) + 1}`,
+      reason: depends_on.length
+        ? "Fallback: beroende upptäckta mot blockerande uppgifter"
+        : "Fallback: prioriterad efter severity + ålder",
+    };
+  });
 }
 
 async function autoAssign(supabase: any, item: any): Promise<string | null> {
