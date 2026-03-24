@@ -12,7 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Bug, ShieldAlert, Package, Clock, User, MapPin, FileText, AlertCircle,
-  CheckCircle2, Loader2, ExternalLink, Wrench,
+  CheckCircle2, Loader2, ExternalLink, Wrench, Bot,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -33,10 +33,15 @@ interface WorkItemDetailProps {
     assigned_to: string | null;
     claimed_by: string | null;
     created_by: string | null;
+    ai_review_status?: string;
+    ai_review_result?: any;
+    ai_review_at?: string;
+    resolution_notes?: string;
   } | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onStatusChange: (itemId: string, newStatus: string) => Promise<void>;
+  onRefresh?: () => void;
 }
 
 const BUG_CHECKLIST = [
@@ -60,13 +65,14 @@ const GENERAL_CHECKLIST = [
   { key: 'verified', label: 'Resultatet har kontrollerats' },
 ];
 
-const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange }: WorkItemDetailProps) => {
+const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }: WorkItemDetailProps) => {
   const { user } = useAuth();
   const [checklist, setChecklist] = useState<Record<string, boolean>>({});
   const [resolutionNotes, setResolutionNotes] = useState('');
   const [resolving, setResolving] = useState(false);
   const [fixSuggestion, setFixSuggestion] = useState<any>(null);
   const [analyzingFix, setAnalyzingFix] = useState(false);
+  const [runningReview, setRunningReview] = useState(false);
 
   // Reset state when item changes
   useEffect(() => {
@@ -400,6 +406,80 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange }: WorkItemDe
                 {bugData?.description || incidentData?.description || item.description || 'Ingen beskrivning'}
               </div>
             </div>
+
+            {/* AI Review Results */}
+            {item.ai_review_status && (
+              <div className={cn('rounded-lg p-3 space-y-2 border', {
+                'bg-green-50 border-green-200': item.ai_review_status === 'verified',
+                'bg-yellow-50 border-yellow-200': item.ai_review_status === 'needs_review',
+                'bg-red-50 border-red-200': item.ai_review_status === 'incomplete',
+              })}>
+                <div className="flex items-center gap-1.5 text-xs font-semibold">
+                  <Bot className="w-3.5 h-3.5" />
+                  AI-granskning
+                  <Badge variant="outline" className={cn('text-[9px] ml-auto', {
+                    'border-green-300 text-green-700': item.ai_review_status === 'verified',
+                    'border-yellow-300 text-yellow-700': item.ai_review_status === 'needs_review',
+                    'border-red-300 text-red-700': item.ai_review_status === 'incomplete',
+                  })}>
+                    {item.ai_review_status === 'verified' ? '✅ Verifierad' :
+                     item.ai_review_status === 'needs_review' ? '⚠️ Behöver granskning' : '❌ Ofullständig'}
+                  </Badge>
+                </div>
+                {item.ai_review_result?.verdict && (
+                  <p className="text-xs">{item.ai_review_result.verdict}</p>
+                )}
+                {item.ai_review_result?.confidence != null && (
+                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                    <span>Konfidens: {item.ai_review_result.confidence}%</span>
+                    {item.ai_review_at && <span>• {fmtFull(item.ai_review_at).relative}</span>}
+                  </div>
+                )}
+                {item.ai_review_result?.risks?.length > 0 && (
+                  <div className="text-xs">
+                    <span className="font-medium text-destructive">Risker:</span>
+                    <ul className="list-disc pl-4 mt-0.5 space-y-0.5">
+                      {item.ai_review_result.risks.map((r: string, i: number) => <li key={i}>{r}</li>)}
+                    </ul>
+                  </div>
+                )}
+                {item.ai_review_result?.edge_cases?.length > 0 && (
+                  <div className="text-xs">
+                    <span className="font-medium text-yellow-700">Edge cases:</span>
+                    <ul className="list-disc pl-4 mt-0.5 space-y-0.5">
+                      {item.ai_review_result.edge_cases.map((e: string, i: number) => <li key={i}>{e}</li>)}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Manual AI Review button */}
+            {item.status === 'done' && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full gap-1.5"
+                disabled={runningReview}
+                onClick={async () => {
+                  setRunningReview(true);
+                  try {
+                    const { data, error } = await supabase.functions.invoke('ai-review-fix', { body: { work_item_id: item.id } });
+                    if (error) {
+                      toast.error('AI-granskning misslyckades');
+                    } else {
+                      const s = data?.review?.status;
+                      toast.success(s === 'verified' ? 'AI: ✅ Verifierad' : s === 'needs_review' ? 'AI: ⚠️ Behöver granskning' : 'AI: Granskning klar');
+                      onRefresh?.();
+                    }
+                  } catch { toast.error('Fel vid AI-granskning'); }
+                  finally { setRunningReview(false); }
+                }}
+              >
+                {runningReview ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Bot className="w-3.5 h-3.5" />}
+                {item.ai_review_status ? 'Kör AI-granskning igen' : 'Kör AI-granskning'}
+              </Button>
+            )}
 
             {/* Resolution info if resolved */}
             {bugData?.status === 'resolved' && bugData.resolution_notes && (
