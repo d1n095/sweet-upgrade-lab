@@ -44,6 +44,11 @@ const DbProductGrid = () => {
         setError(null);
         const data = await fetchDbProducts(false);
         setProducts(data);
+        if (data.length > 0) {
+          const max = Math.ceil(Math.max(...data.map(p => p.price)) / 100) * 100;
+          setMaxPrice(max);
+          setPriceRange([0, max]);
+        }
       } catch (err) {
         console.error('Failed to load products:', err);
         setError(t('products.error'));
