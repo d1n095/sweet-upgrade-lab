@@ -568,6 +568,58 @@ async function callAI(apiKey: string, messages: any[], tools?: any[], tool_choic
   return { text: data.choices?.[0]?.message?.content || "" };
 }
 
+function buildFallbackOrchestration(activeItems: any[]) {
+  const priorityScore: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+
+  const sorted = [...activeItems].sort((a, b) => {
+    const pa = priorityScore[a.priority] ?? 2;
+    const pb = priorityScore[b.priority] ?? 2;
+    if (pa !== pb) return pa - pb;
+
+    const aBug = a.item_type === "bug" ? 0 : 1;
+    const bBug = b.item_type === "bug" ? 0 : 1;
+    if (aBug !== bBug) return aBug - bBug;
+
+    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+  });
+
+  const blockers = sorted.filter((it) => {
+    const text = `${it.title || ""} ${it.description || ""}`.toLowerCase();
+    return text.includes("payment") || text.includes("checkout") || text.includes("auth") || text.includes("login");
+  });
+
+  return sorted.map((item, index) => {
+    const text = `${item.title || ""} ${item.description || ""}`.toLowerCase();
+    const isFeatureLike = ["feature", "improvement", "upgrade"].includes(item.ai_type_classification || "");
+
+    const depends_on = blockers
+      .filter((b) => b.id !== item.id)
+      .filter((b) => {
+        if (isFeatureLike) return true;
+        if (text.includes("order") || text.includes("shipping") || text.includes("warehouse")) {
+          const bText = `${b.title || ""} ${b.description || ""}`.toLowerCase();
+          return bText.includes("payment") || bText.includes("checkout");
+        }
+        return false;
+      })
+      .slice(0, 3)
+      .map((b) => b.id);
+
+    return {
+      id: item.id,
+      execution_order: index + 1,
+      depends_on,
+      blocks: [],
+      duplicate_of: null,
+      conflict_with: null,
+      parallel_group: depends_on.length ? null : `lane_${(index % 3) + 1}`,
+      reason: depends_on.length
+        ? "Fallback: beroende upptäckta mot blockerande uppgifter"
+        : "Fallback: prioriterad efter severity + ålder",
+    };
+  });
+}
+
 async function autoAssign(supabase: any, item: any): Promise<string | null> {
   const categoryRoleMap: Record<string, string[]> = {
     payment: ["finance", "admin", "founder"],
