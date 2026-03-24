@@ -394,6 +394,13 @@ export type Database = {
       }
       bug_reports: {
         Row: {
+          ai_approved: boolean | null
+          ai_category: string | null
+          ai_clean_prompt: string | null
+          ai_processed_at: string | null
+          ai_severity: string | null
+          ai_summary: string | null
+          ai_tags: string[] | null
           created_at: string
           description: string
           id: string
@@ -405,6 +412,13 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          ai_approved?: boolean | null
+          ai_category?: string | null
+          ai_clean_prompt?: string | null
+          ai_processed_at?: string | null
+          ai_severity?: string | null
+          ai_summary?: string | null
+          ai_tags?: string[] | null
           created_at?: string
           description: string
           id?: string
@@ -416,6 +430,13 @@ export type Database = {
           user_id: string
         }
         Update: {
+          ai_approved?: boolean | null
+          ai_category?: string | null
+          ai_clean_prompt?: string | null
+          ai_processed_at?: string | null
+          ai_severity?: string | null
+          ai_summary?: string | null
+          ai_tags?: string[] | null
           created_at?: string
           description?: string
           id?: string
