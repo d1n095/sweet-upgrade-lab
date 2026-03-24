@@ -856,7 +856,15 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
           </TabsTrigger>
           <TabsTrigger value="bugs" className="gap-1.5">
             <Bug className="w-3.5 h-3.5" /> Buggar
-            {bugCount > 0 && <Badge variant="secondary" className="text-[9px] ml-1">{bugCount}</Badge>}
+            {bugCount > 0 && <Badge variant="destructive" className="text-[9px] ml-1">{bugCount}</Badge>}
+          </TabsTrigger>
+          <TabsTrigger value="improvements" className="gap-1.5">
+            <Zap className="w-3.5 h-3.5" /> Förbättringar
+            {improvementCount > 0 && <Badge variant="secondary" className="text-[9px] ml-1">{improvementCount}</Badge>}
+          </TabsTrigger>
+          <TabsTrigger value="features" className="gap-1.5">
+            <Sparkles className="w-3.5 h-3.5" /> Features
+            {featureCount > 0 && <Badge variant="secondary" className="text-[9px] ml-1">{featureCount}</Badge>}
           </TabsTrigger>
           <TabsTrigger value="escalated" className={cn('gap-1.5', escalatedCount > 0 && 'text-destructive')}>
             <AlertTriangle className="w-3.5 h-3.5" /> Eskalerade
