@@ -2957,15 +2957,21 @@ export type Database = {
           ai_review_result: Json | null
           ai_review_status: string | null
           assigned_to: string | null
+          blocks: string[] | null
           claimed_at: string | null
           claimed_by: string | null
           completed_at: string | null
+          conflict_flag: boolean | null
           created_at: string
           created_by: string | null
+          depends_on: string[] | null
           description: string | null
           due_at: string | null
+          duplicate_of: string | null
+          execution_order: number | null
           id: string
           item_type: string
+          orchestrator_result: Json | null
           priority: string
           related_incident_id: string | null
           related_order_id: string | null
@@ -2986,15 +2992,21 @@ export type Database = {
           ai_review_result?: Json | null
           ai_review_status?: string | null
           assigned_to?: string | null
+          blocks?: string[] | null
           claimed_at?: string | null
           claimed_by?: string | null
           completed_at?: string | null
+          conflict_flag?: boolean | null
           created_at?: string
           created_by?: string | null
+          depends_on?: string[] | null
           description?: string | null
           due_at?: string | null
+          duplicate_of?: string | null
+          execution_order?: number | null
           id?: string
           item_type?: string
+          orchestrator_result?: Json | null
           priority?: string
           related_incident_id?: string | null
           related_order_id?: string | null
@@ -3015,15 +3027,21 @@ export type Database = {
           ai_review_result?: Json | null
           ai_review_status?: string | null
           assigned_to?: string | null
+          blocks?: string[] | null
           claimed_at?: string | null
           claimed_by?: string | null
           completed_at?: string | null
+          conflict_flag?: boolean | null
           created_at?: string
           created_by?: string | null
+          depends_on?: string[] | null
           description?: string | null
           due_at?: string | null
+          duplicate_of?: string | null
+          execution_order?: number | null
           id?: string
           item_type?: string
+          orchestrator_result?: Json | null
           priority?: string
           related_incident_id?: string | null
           related_order_id?: string | null

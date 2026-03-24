@@ -29,9 +29,7 @@ serve(async (req) => {
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
     const isAnonCron = authHeader === `Bearer ${anonKey}`;
 
-    let isStaffCall = false;
     if (!isServiceRole && !isCron && !isAnonCron) {
-      // Verify staff
       const anonClient = createClient(supabaseUrl, anonKey, {
         global: { headers: { Authorization: authHeader } },
       });
@@ -49,7 +47,6 @@ serve(async (req) => {
           status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      isStaffCall = true;
     }
 
     const supabase = createClient(supabaseUrl, serviceKey);
@@ -59,11 +56,7 @@ serve(async (req) => {
     const action = body.action || "full_cycle";
 
     const results: any = {
-      prioritized: 0,
-      assigned: 0,
-      detected: 0,
-      resolved: 0,
-      flagged: 0,
+      prioritized: 0, assigned: 0, detected: 0, resolved: 0, flagged: 0, orchestrated: 0,
     };
 
     // ─── 1. AI PRIORITIZATION ───
@@ -174,7 +167,6 @@ Respond using the prioritize_tasks function.`,
     if (action === "full_cycle" || action === "detect") {
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
 
-      // Check for error patterns in analytics
       const { data: recentErrors } = await supabase
         .from("analytics_events")
         .select("event_type, event_data, created_at")
@@ -184,15 +176,12 @@ Respond using the prioritize_tasks function.`,
 
       const errorCounts: Record<string, number> = {};
       for (const evt of recentErrors || []) {
-        const key = evt.event_type;
-        errorCounts[key] = (errorCounts[key] || 0) + 1;
+        errorCounts[evt.event_type] = (errorCounts[evt.event_type] || 0) + 1;
       }
 
-      // Auto-create work items for anomalies
       for (const [eventType, count] of Object.entries(errorCounts)) {
-        if (count < 3) continue; // Threshold
+        if (count < 3) continue;
 
-        // Check if we already have an open AI-detected item for this
         const { data: existing } = await supabase
           .from("work_items")
           .select("id")
@@ -208,7 +197,7 @@ Respond using the prioritize_tasks function.`,
 
           await supabase.from("work_items").insert({
             title: `AI: ${count}x ${eventType} senaste timmen`,
-            description: `Automatiskt detekterat: ${count} ${eventType}-händelser under senaste timmen. Undersök möjlig bugg eller UX-problem.`,
+            description: `Automatiskt detekterat: ${count} ${eventType}-händelser under senaste timmen.`,
             status: "open",
             priority,
             item_type: "anomaly",
@@ -221,7 +210,7 @@ Respond using the prioritize_tasks function.`,
         }
       }
 
-      // Check for stuck orders (paid but not packed > 24h)
+      // Stuck orders
       const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const { data: stuckOrders } = await supabase
         .from("orders")
@@ -244,7 +233,7 @@ Respond using the prioritize_tasks function.`,
         if (!existingItem?.length) {
           await supabase.from("work_items").insert({
             title: `AI: Order ${order.order_number || order.id.slice(0, 8)} väntar >24h`,
-            description: `Order betald ${order.created_at} (${order.total_amount} kr) men inte packad. Behöver uppmärksamhet.`,
+            description: `Order betald ${order.created_at} (${order.total_amount} kr) men inte packad.`,
             status: "open",
             priority: order.total_amount >= 500 ? "critical" : "high",
             item_type: "order_action",
@@ -261,7 +250,6 @@ Respond using the prioritize_tasks function.`,
 
     // ─── 4. AI RESOLUTION DETECTION ───
     if (action === "full_cycle" || action === "resolve") {
-      // Check bugs that have been open with fixes applied
       const { data: bugItems } = await supabase
         .from("work_items")
         .select("id, source_id, source_type, title, created_at, ai_confidence")
@@ -279,7 +267,6 @@ Respond using the prioritize_tasks function.`,
           .single();
 
         if (bug?.status === "resolved") {
-          // Source already resolved but work_item still open → auto-close
           await supabase.from("work_items").update({
             status: "done",
             completed_at: new Date().toISOString(),
@@ -291,7 +278,6 @@ Respond using the prioritize_tasks function.`,
           continue;
         }
 
-        // Check if the same page_url has had recent errors
         if (bug?.page_url) {
           const recentWindow = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
           const { data: recentBugs } = await supabase
@@ -302,15 +288,12 @@ Respond using the prioritize_tasks function.`,
             .gte("created_at", recentWindow)
             .limit(1);
 
-          // No new reports for same page → flag for review
           if (!recentBugs?.length) {
             const itemAge = Date.now() - new Date(item.created_at).getTime();
-            const hoursSinceCreated = itemAge / (1000 * 60 * 60);
-
-            if (hoursSinceCreated > 48) {
+            if (itemAge / (1000 * 60 * 60) > 48) {
               await supabase.from("work_items").update({
                 ai_confidence: "medium",
-                ai_resolution_notes: "Inga nya rapporter för samma sida på 24h. Kan vara löst – verifiera manuellt.",
+                ai_resolution_notes: "Inga nya rapporter för samma sida på 24h. Kan vara löst.",
                 updated_at: new Date().toISOString(),
               }).eq("id", item.id);
               results.flagged++;
@@ -319,7 +302,7 @@ Respond using the prioritize_tasks function.`,
         }
       }
 
-      // Check AI-detected anomalies: if error count dropped, suggest resolution
+      // Anomaly resolution
       const { data: anomalyItems } = await supabase
         .from("work_items")
         .select("id, title, ai_category, created_at")
@@ -328,21 +311,18 @@ Respond using the prioritize_tasks function.`,
         .in("status", ["open", "claimed", "in_progress"])
         .limit(10);
 
-      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const oneHourAgo2 = new Date(Date.now() - 60 * 60 * 1000).toISOString();
       for (const item of anomalyItems || []) {
-        // Extract event type from title
         const match = item.title.match(/AI: \d+x (\S+)/);
         if (!match) continue;
-        const eventType = match[1];
 
         const { count } = await supabase
           .from("analytics_events")
           .select("id", { count: "exact", head: true })
-          .eq("event_type", eventType)
-          .gte("created_at", oneHourAgo);
+          .eq("event_type", match[1])
+          .gte("created_at", oneHourAgo2);
 
         if ((count || 0) < 2) {
-          // Error rate dropped significantly
           await supabase.from("work_items").update({
             ai_confidence: "medium",
             ai_resolution_notes: `Felfrekvens sjunkit till ${count || 0} senaste timmen. Troligen löst.`,
@@ -361,7 +341,7 @@ Respond using the prioritize_tasks function.`,
         .eq("ai_confidence", "high")
         .not("ai_resolution_notes", "is", null)
         .in("status", ["open", "claimed"])
-        .eq("ai_detected", true) // Only auto-close AI-detected items
+        .eq("ai_detected", true)
         .limit(10);
 
       for (const item of highConfItems || []) {
@@ -378,6 +358,100 @@ Respond using the prioritize_tasks function.`,
           reason: `AI auto-stängd (hög konfidens): ${item.ai_resolution_notes}`,
         });
         results.resolved++;
+      }
+    }
+
+    // ─── 6. AI ORCHESTRATOR (DEPENDENCIES, DUPLICATES, CONFLICTS) ───
+    if (action === "full_cycle" || action === "orchestrate") {
+      const { data: activeItems } = await supabase
+        .from("work_items")
+        .select("id, title, description, item_type, source_type, ai_category, priority, status, ai_summary, depends_on, blocks")
+        .in("status", ["open", "claimed", "in_progress", "escalated"])
+        .order("created_at", { ascending: true })
+        .limit(40);
+
+      if (activeItems?.length && activeItems.length > 1) {
+        const itemList = activeItems.map((it: any) =>
+          `ID:${it.id} Type:${it.item_type} Cat:${it.ai_category || "unknown"} Pri:${it.priority} Title:${it.title} Desc:${(it.description || it.ai_summary || "").substring(0, 150)}`
+        ).join("\n");
+
+        try {
+          const orchestratorResult = await callAI(lovableKey, [
+            {
+              role: "system",
+              content: `You are a task orchestrator for a Swedish e-commerce platform. Analyze all active work items and determine:
+1. Dependencies: which tasks must be completed before others
+2. Duplicates: which tasks are duplicates or very similar
+3. Conflicts: which tasks affect the same system and could conflict
+4. Execution order: optimal order to complete tasks
+
+Rules:
+- Payment/checkout fixes block order-related tasks
+- Auth fixes block everything user-facing
+- Bug fixes for same page/system are potential duplicates
+- Two fixes to the same component = potential conflict
+- Critical/blocking tasks get execution_order 1-10
+- Regular tasks get 11-50
+- Optional tasks get 51+
+
+Respond using the orchestrate_tasks function.`,
+            },
+            { role: "user", content: `Orchestrate these ${activeItems.length} work items:\n${itemList}` },
+          ], [{
+            type: "function",
+            function: {
+              name: "orchestrate_tasks",
+              description: "Set dependencies, duplicates, conflicts and execution order",
+              parameters: {
+                type: "object",
+                properties: {
+                  tasks: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        id: { type: "string" },
+                        depends_on: { type: "array", items: { type: "string" }, description: "IDs of tasks that must be done first" },
+                        blocks: { type: "array", items: { type: "string" }, description: "IDs of tasks blocked by this one" },
+                        duplicate_of: { type: "string", description: "ID of the original task if this is a duplicate" },
+                        conflict_with: { type: "string", description: "ID of conflicting task" },
+                        execution_order: { type: "integer", description: "1=most urgent, higher=less urgent" },
+                        parallel_group: { type: "string", description: "Group name for tasks that can run in parallel" },
+                        reason: { type: "string" },
+                      },
+                      required: ["id", "execution_order"],
+                      additionalProperties: false,
+                    },
+                  },
+                },
+                required: ["tasks"],
+                additionalProperties: false,
+              },
+            },
+          }], { type: "function", function: { name: "orchestrate_tasks" } });
+
+          for (const task of orchestratorResult?.tasks || []) {
+            const updates: any = {
+              execution_order: task.execution_order,
+              orchestrator_result: {
+                reason: task.reason || null,
+                parallel_group: task.parallel_group || null,
+                conflict_with: task.conflict_with || null,
+                updated_at: new Date().toISOString(),
+              },
+              updated_at: new Date().toISOString(),
+            };
+            if (task.depends_on?.length) updates.depends_on = task.depends_on;
+            if (task.blocks?.length) updates.blocks = task.blocks;
+            if (task.duplicate_of) updates.duplicate_of = task.duplicate_of;
+            if (task.conflict_with) updates.conflict_flag = true;
+
+            await supabase.from("work_items").update(updates).eq("id", task.id);
+            results.orchestrated++;
+          }
+        } catch (e) {
+          console.error("AI orchestrator error:", e);
+        }
       }
     }
 
@@ -448,7 +522,6 @@ async function autoAssign(supabase: any, item: any): Promise<string | null> {
 
   if (!candidates?.length) return null;
 
-  // Pick user with fewest active tasks
   let bestUser: string | null = null;
   let minTasks = Infinity;
 

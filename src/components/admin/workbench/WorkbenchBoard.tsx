@@ -14,6 +14,7 @@ import {
   Plus, User, Clock, CheckCircle2, Circle, Play, X, Zap, UserCheck, Bot,
   AlertTriangle, Package, Headphones, RotateCcw, FileText, Wrench, ShieldAlert,
   FastForward, Pause, ArrowRight, Sparkles, Timer, ToggleRight, Bug, Link2,
+  GitBranch, Copy, Layers,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -42,6 +43,12 @@ interface WorkItem {
   related_order_id: string | null;
   related_incident_id: string | null;
   claimed_at: string | null;
+  depends_on?: string[];
+  blocks?: string[];
+  duplicate_of?: string;
+  conflict_flag?: boolean;
+  execution_order?: number;
+  orchestrator_result?: any;
 }
 
 const STATUS_COLUMNS = [
@@ -138,6 +145,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const [newType, setNewType] = useState('general');
   const [creating, setCreating] = useState(false);
   const [autoAssigning, setAutoAssigning] = useState(false);
+  const [runningOrchestrator, setRunningOrchestrator] = useState(false);
   const [runningAutomation, setRunningAutomation] = useState(false);
   const [viewFilter, setViewFilter] = useState<ViewFilter>('active');
   const [escalating, setEscalating] = useState<string | null>(null);
@@ -185,6 +193,21 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
       toast.error('Automation misslyckades: ' + e.message);
     } finally {
       setRunningAutomation(false);
+    }
+  };
+
+  const runOrchestrator = async () => {
+    setRunningOrchestrator(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-task-manager', { body: { action: 'orchestrate' } });
+      if (error) throw error;
+      const r = data?.results;
+      toast.success(`Orchestrator klar: ${r?.orchestrated || 0} uppgifter analyserade`);
+      queryClient.invalidateQueries({ queryKey: ['work-items'] });
+    } catch (e: any) {
+      toast.error('Orchestrator misslyckades: ' + e.message);
+    } finally {
+      setRunningOrchestrator(false);
     }
   };
 
@@ -269,6 +292,10 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const sortedItems = [...filteredItems].sort((a, b) => {
     if (a.status === 'escalated' && b.status !== 'escalated') return -1;
     if (b.status === 'escalated' && a.status !== 'escalated') return 1;
+    // Use AI execution_order if available
+    const aOrder = a.execution_order ?? 999;
+    const bOrder = b.execution_order ?? 999;
+    if (aOrder !== bOrder) return aOrder - bOrder;
     const pOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
     const pDiff = (pOrder[a.priority] ?? 2) - (pOrder[b.priority] ?? 2);
     if (pDiff !== 0) return pDiff;
@@ -594,6 +621,31 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
                  getItemAutomationBadge(item.id) === 'reassign' ? 'Omfördelad' : 'Auto'}
               </Badge>
             )}
+            {item.depends_on && item.depends_on.length > 0 && (
+              <Badge variant="outline" className="text-[9px] gap-0.5 bg-amber-50 text-amber-700 border-amber-200">
+                <GitBranch className="w-2.5 h-2.5" /> Blockerad av {item.depends_on.length}
+              </Badge>
+            )}
+            {item.blocks && item.blocks.length > 0 && (
+              <Badge variant="outline" className="text-[9px] gap-0.5 bg-red-50 text-red-600 border-red-200">
+                <GitBranch className="w-2.5 h-2.5" /> Blockerar {item.blocks.length}
+              </Badge>
+            )}
+            {item.duplicate_of && (
+              <Badge variant="outline" className="text-[9px] gap-0.5 bg-gray-100 text-gray-600 border-gray-300">
+                <Copy className="w-2.5 h-2.5" /> Duplikat
+              </Badge>
+            )}
+            {item.conflict_flag && (
+              <Badge variant="outline" className="text-[9px] gap-0.5 bg-destructive/10 text-destructive border-destructive/30">
+                <AlertTriangle className="w-2.5 h-2.5" /> Konflikt
+              </Badge>
+            )}
+            {item.execution_order != null && item.execution_order < 10 && (
+              <Badge variant="outline" className="text-[9px] gap-0.5 bg-primary/10 text-primary border-primary/30">
+                <Layers className="w-2.5 h-2.5" /> #{item.execution_order}
+              </Badge>
+            )}
             {item.assigned_to && (
               <Badge variant="outline" className="text-[9px] gap-0.5">
                 <UserCheck className="w-2.5 h-2.5" />
@@ -818,6 +870,9 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
           )}
           <Button size="sm" variant="outline" className="gap-1.5" onClick={runAutomation} disabled={runningAutomation}>
             <Bot className="w-4 h-4" /> {runningAutomation ? 'Kör...' : 'Automation'}
+          </Button>
+          <Button size="sm" variant="outline" className="gap-1.5" onClick={runOrchestrator} disabled={runningOrchestrator}>
+            <Layers className="w-4 h-4" /> {runningOrchestrator ? 'Analyserar...' : 'AI Orchestrator'}
           </Button>
           <Button size="sm" className="gap-1.5" onClick={() => setShowCreate(!showCreate)}>
             {showCreate ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
