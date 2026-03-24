@@ -12,7 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Bug, ShieldAlert, Package, Clock, User, MapPin, FileText, AlertCircle,
-  CheckCircle2, Loader2, ExternalLink, Wrench,
+  CheckCircle2, Loader2, ExternalLink, Wrench, Bot,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
