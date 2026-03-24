@@ -113,16 +113,21 @@ const DbProductGrid = () => {
   }, [products, activeCategory, tagProductIds]);
 
   const searchFiltered = useMemo(() => {
-    if (!searchQuery.trim()) return categoryFiltered;
+    let filtered = categoryFiltered;
+    // Price filter
+    if (priceRange[0] > 0 || priceRange[1] < maxPrice) {
+      filtered = filtered.filter(p => p.price >= priceRange[0] && p.price <= priceRange[1]);
+    }
+    if (!searchQuery.trim()) return filtered;
     const q = searchQuery.toLowerCase();
-    return categoryFiltered.filter(p =>
+    return filtered.filter(p =>
       p.title_sv.toLowerCase().includes(q) ||
       (p.title_en || '').toLowerCase().includes(q) ||
       (p.description_sv || '').toLowerCase().includes(q) ||
       (p.ingredients_sv || '').toLowerCase().includes(q) ||
       (p.ingredients_en || '').toLowerCase().includes(q)
     );
-  }, [categoryFiltered, searchQuery]);
+  }, [categoryFiltered, searchQuery, priceRange, maxPrice]);
 
   const sortedProducts = useMemo(() => {
     const sorted = [...searchFiltered];
