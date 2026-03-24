@@ -23,7 +23,6 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "AI not configured" }), { status: 500, headers: corsHeaders });
     }
 
-    // Verify caller is staff
     const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -69,11 +68,7 @@ serve(async (req) => {
         if (!bug_id) {
           return new Response(JSON.stringify({ error: "bug_id required" }), { status: 400, headers: corsHeaders });
         }
-        const { data: bug } = await supabase
-          .from("bug_reports")
-          .select("*")
-          .eq("id", bug_id)
-          .single();
+        const { data: bug } = await supabase.from("bug_reports").select("*").eq("id", bug_id).single();
         if (!bug) {
           return new Response(JSON.stringify({ error: "Bug not found" }), { status: 404, headers: corsHeaders });
         }
@@ -82,74 +77,16 @@ serve(async (req) => {
       }
 
       case "data_insights": {
-        // Fetch recent stats
-        const now = new Date();
-        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        result = await handleDataInsights(supabase, lovableKey, body);
+        break;
+      }
 
-        const [ordersRes, eventsRes, bugsRes] = await Promise.all([
-          supabase.from("orders").select("total_amount, payment_status, created_at, status").gte("created_at", weekAgo.toISOString()).limit(500),
-          supabase.from("analytics_events").select("event_type, created_at").gte("created_at", weekAgo.toISOString()).limit(1000),
-          supabase.from("bug_reports").select("status, ai_severity, created_at").gte("created_at", weekAgo.toISOString()).limit(100),
-        ]);
-
-        const orders = ordersRes.data || [];
-        const events = eventsRes.data || [];
-        const bugs = bugsRes.data || [];
-
-        const paidOrders = orders.filter((o: any) => o.payment_status === "paid");
-        const revenue = paidOrders.reduce((s: number, o: any) => s + (o.total_amount || 0), 0);
-        const views = events.filter((e: any) => e.event_type === "product_view").length;
-        const carts = events.filter((e: any) => e.event_type === "add_to_cart").length;
-        const checkouts = events.filter((e: any) => e.event_type === "checkout_start").length;
-        const purchases = events.filter((e: any) => e.event_type === "checkout_complete").length;
-
-        const summary = `Last 7 days:
-Revenue: ${revenue} SEK (${paidOrders.length} orders)
-AOV: ${paidOrders.length > 0 ? Math.round(revenue / paidOrders.length) : 0} SEK
-Funnel: ${views} views → ${carts} carts → ${checkouts} checkouts → ${purchases} purchases
-Conversion: ${views > 0 ? ((purchases / views) * 100).toFixed(1) : 0}%
-Cart→Checkout: ${carts > 0 ? ((checkouts / carts) * 100).toFixed(1) : 0}%
-Open bugs: ${bugs.filter((b: any) => b.status === "open").length}
-Critical bugs: ${bugs.filter((b: any) => b.ai_severity === "critical").length}`;
-
-        result = await analyzeData(lovableKey, summary);
-
-        // AI → ACTION BRIDGE: auto-create work_items from warning insights
-        if (body.auto_action && result?.insights) {
-          let created = 0;
-          for (const insight of result.insights) {
-            if (insight.type !== "warning") continue;
-            // Check if similar work_item already exists
-            const { data: existing } = await supabase
-              .from("work_items")
-              .select("id")
-              .eq("ai_detected", true)
-              .eq("item_type", "insight")
-              .ilike("title", `%${insight.title.substring(0, 30)}%`)
-              .in("status", ["open", "claimed", "in_progress"])
-              .limit(1);
-            if (!existing?.length) {
-              await supabase.from("work_items").insert({
-                title: `AI Insight: ${insight.title}`,
-                description: `${insight.description}\n\nRekommenderad åtgärd: ${insight.action}`,
-                status: "open",
-                priority: "high",
-                item_type: "insight",
-                source_type: "ai_detection",
-                ai_detected: true,
-                ai_confidence: "medium",
-                ai_category: "business",
-              });
-              created++;
-            }
-          }
-          result.work_items_created = created;
-        }
+      case "unified_report": {
+        result = await handleUnifiedReport(supabase, lovableKey);
         break;
       }
 
       case "create_action": {
-        // Create a work_item from any AI output (bug fix, insight, prompt)
         const { title, description, priority, category, source_type: srcType, source_id: srcId } = body;
         if (!title) {
           return new Response(JSON.stringify({ error: "title required" }), { status: 400, headers: corsHeaders });
@@ -188,20 +125,254 @@ Critical bugs: ${bugs.filter((b: any) => b.ai_severity === "critical").length}`;
   }
 });
 
-async function callAI(apiKey: string, messages: any[], tools?: any[], tool_choice?: any) {
-  const body: any = {
-    model: "google/gemini-3-flash-preview",
-    messages,
+// ── Gather all system data ──
+async function gatherSystemSnapshot(supabase: any) {
+  const now = new Date();
+  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const weekStr = weekAgo.toISOString();
+  const monthStr = monthAgo.toISOString();
+
+  const [
+    ordersRes, eventsRes, bugsRes, workItemsRes,
+    incidentsRes, refundsRes, donationsRes,
+    productsRes, staffPerfRes, activityRes,
+  ] = await Promise.all([
+    supabase.from("orders").select("total_amount, payment_status, created_at, status, refund_amount, fulfillment_status, packed_at, shipped_at, delivered_at, deleted_at").gte("created_at", weekStr).is("deleted_at", null).limit(500),
+    supabase.from("analytics_events").select("event_type, created_at").gte("created_at", weekStr).limit(2000),
+    supabase.from("bug_reports").select("status, ai_severity, ai_category, created_at").limit(100),
+    supabase.from("work_items").select("status, priority, item_type, ai_detected, created_at, completed_at, due_at").limit(500),
+    supabase.from("order_incidents").select("status, priority, type, sla_status, created_at").gte("created_at", monthStr).limit(200),
+    supabase.from("refund_requests").select("status, refund_amount, reason, created_at").gte("created_at", monthStr).limit(100),
+    supabase.from("donations").select("amount, source, created_at").gte("created_at", monthStr).limit(200),
+    supabase.from("products").select("title_sv, stock, low_stock_threshold, is_visible, price").eq("is_visible", true).limit(200),
+    supabase.from("staff_performance").select("tasks_completed, sla_hits, sla_misses, points, avg_completion_seconds").limit(50),
+    supabase.from("activity_logs").select("log_type, category, created_at").gte("created_at", weekStr).order("created_at", { ascending: false }).limit(200),
+  ]);
+
+  const orders = ordersRes.data || [];
+  const events = eventsRes.data || [];
+  const bugs = bugsRes.data || [];
+  const workItems = workItemsRes.data || [];
+  const incidents = incidentsRes.data || [];
+  const refunds = refundsRes.data || [];
+  const donations = donationsRes.data || [];
+  const products = productsRes.data || [];
+  const staffPerf = staffPerfRes.data || [];
+  const activities = activityRes.data || [];
+
+  // ── Derived metrics ──
+  const paidOrders = orders.filter((o: any) => o.payment_status === "paid");
+  const revenue = paidOrders.reduce((s: number, o: any) => s + (o.total_amount || 0), 0);
+  const totalRefunds = paidOrders.reduce((s: number, o: any) => s + (o.refund_amount || 0), 0);
+  const aov = paidOrders.length > 0 ? Math.round(revenue / paidOrders.length) : 0;
+
+  const views = events.filter((e: any) => e.event_type === "product_view").length;
+  const carts = events.filter((e: any) => e.event_type === "add_to_cart").length;
+  const checkouts = events.filter((e: any) => e.event_type === "checkout_start").length;
+  const purchases = events.filter((e: any) => e.event_type === "checkout_complete").length;
+  const abandons = events.filter((e: any) => e.event_type === "checkout_abandon").length;
+  const conversion = views > 0 ? ((purchases / views) * 100).toFixed(1) : "0";
+  const cartToCheckout = carts > 0 ? ((checkouts / carts) * 100).toFixed(1) : "0";
+  const checkoutToOrder = checkouts > 0 ? ((purchases / checkouts) * 100).toFixed(1) : "0";
+
+  const openBugs = bugs.filter((b: any) => b.status === "open").length;
+  const criticalBugs = bugs.filter((b: any) => b.ai_severity === "critical").length;
+  const highBugs = bugs.filter((b: any) => b.ai_severity === "high").length;
+
+  const openItems = workItems.filter((w: any) => !["done", "cancelled"].includes(w.status)).length;
+  const aiDetected = workItems.filter((w: any) => w.ai_detected).length;
+  const overdue = workItems.filter((w: any) => w.due_at && !["done", "cancelled"].includes(w.status) && new Date(w.due_at) < now).length;
+
+  const unresolvedIncidents = incidents.filter((i: any) => !["resolved", "closed"].includes(i.status)).length;
+  const highIncidents = incidents.filter((i: any) => i.priority === "high").length;
+  const slaOverdue = incidents.filter((i: any) => i.sla_status === "overdue").length;
+
+  const pendingRefunds = refunds.filter((r: any) => r.status === "pending").length;
+  const refundTotal = refunds.filter((r: any) => r.status === "approved").reduce((s: number, r: any) => s + (r.refund_amount || 0), 0);
+
+  const totalDonations = donations.reduce((s: number, d: any) => s + (d.amount || 0), 0);
+
+  const lowStockProducts = products.filter((p: any) => p.stock !== null && p.stock <= (p.low_stock_threshold || 5));
+  const outOfStock = products.filter((p: any) => p.stock !== null && p.stock <= 0);
+
+  const totalSlaHits = staffPerf.reduce((s: number, p: any) => s + (p.sla_hits || 0), 0);
+  const totalSlaMisses = staffPerf.reduce((s: number, p: any) => s + (p.sla_misses || 0), 0);
+  const slaRate = (totalSlaHits + totalSlaMisses) > 0 ? Math.round((totalSlaHits / (totalSlaHits + totalSlaMisses)) * 100) : 100;
+
+  const errorLogs = activities.filter((a: any) => a.log_type === "error").length;
+  const warningLogs = activities.filter((a: any) => a.log_type === "warning").length;
+
+  return {
+    summary: `=== SYSTEM SNAPSHOT (Last 7 days) ===
+
+📦 ORDERS
+Revenue: ${revenue} SEK (${paidOrders.length} paid orders)
+AOV: ${aov} SEK
+Refunded: ${totalRefunds} SEK
+Unfulfilled: ${orders.filter((o: any) => o.fulfillment_status === "unfulfilled" && o.payment_status === "paid").length}
+Not packed: ${paidOrders.filter((o: any) => !o.packed_at).length}
+Not shipped: ${paidOrders.filter((o: any) => o.packed_at && !o.shipped_at).length}
+
+📊 FUNNEL
+Views: ${views} → Cart: ${carts} → Checkout: ${checkouts} → Purchase: ${purchases}
+Conversion: ${conversion}%
+Cart→Checkout: ${cartToCheckout}%
+Checkout→Order: ${checkoutToOrder}%
+Abandoned checkouts: ${abandons}
+
+🐛 BUGS
+Open: ${openBugs} | Critical: ${criticalBugs} | High: ${highBugs}
+Total reports: ${bugs.length}
+
+📋 WORK ITEMS
+Open: ${openItems} | AI-detected: ${aiDetected} | Overdue: ${overdue}
+Total: ${workItems.length}
+
+🚨 INCIDENTS (30d)
+Total: ${incidents.length} | Unresolved: ${unresolvedIncidents} | High priority: ${highIncidents}
+SLA overdue: ${slaOverdue}
+
+💰 REFUNDS (30d)
+Pending: ${pendingRefunds} | Approved total: ${Math.round(refundTotal)} SEK
+
+🎁 DONATIONS (30d)
+Total: ${Math.round(totalDonations)} SEK from ${donations.length} donations
+
+🏪 PRODUCTS
+Visible: ${products.length} | Low stock: ${lowStockProducts.length} | Out of stock: ${outOfStock.length}
+${lowStockProducts.slice(0, 5).map((p: any) => `  ⚠️ ${p.title_sv}: ${p.stock} kvar`).join("\n")}
+
+👥 STAFF PERFORMANCE
+SLA hit rate: ${slaRate}%
+Total tasks completed: ${staffPerf.reduce((s: number, p: any) => s + (p.tasks_completed || 0), 0)}
+
+📝 ACTIVITY LOGS (7d)
+Errors: ${errorLogs} | Warnings: ${warningLogs}`,
+
+    metrics: {
+      revenue, orders: paidOrders.length, aov, refunds: totalRefunds,
+      conversion: parseFloat(conversion as string), views, purchases, abandons,
+      openBugs, criticalBugs, openItems, overdue, aiDetected,
+      unresolvedIncidents, slaOverdue, pendingRefunds,
+      lowStock: lowStockProducts.length, outOfStock: outOfStock.length,
+      slaRate, errorLogs, warningLogs, totalDonations,
+    },
   };
+}
+
+// ── Handle data_insights ──
+async function handleDataInsights(supabase: any, lovableKey: string, body: any) {
+  const { summary, metrics } = await gatherSystemSnapshot(supabase);
+  const result = await analyzeData(lovableKey, summary);
+
+  if (body.auto_action && result?.insights) {
+    let created = 0;
+    for (const insight of result.insights) {
+      if (insight.type !== "warning") continue;
+      const { data: existing } = await supabase
+        .from("work_items")
+        .select("id")
+        .eq("ai_detected", true)
+        .eq("item_type", "insight")
+        .ilike("title", `%${insight.title.substring(0, 30)}%`)
+        .in("status", ["open", "claimed", "in_progress"])
+        .limit(1);
+      if (!existing?.length) {
+        await supabase.from("work_items").insert({
+          title: `AI Insight: ${insight.title}`,
+          description: `${insight.description}\n\nRekommenderad åtgärd: ${insight.action}`,
+          status: "open",
+          priority: "high",
+          item_type: "insight",
+          source_type: "ai_detection",
+          ai_detected: true,
+          ai_confidence: "medium",
+          ai_category: "business",
+        });
+        created++;
+      }
+    }
+    result.work_items_created = created;
+  }
+
+  result.raw_metrics = metrics;
+  return result;
+}
+
+// ── Handle unified_report ──
+async function handleUnifiedReport(supabase: any, lovableKey: string) {
+  const { summary, metrics } = await gatherSystemSnapshot(supabase);
+
+  const result = await callAI(lovableKey, [
+    {
+      role: "system",
+      content: `Du är en AI-operatör för en svensk e-handelsplattform (4thepeople). 
+Analysera systemets tillstånd och ge en tydlig, kortfattad rapport med betyg och åtgärder.
+Svara ALLTID på svenska. Använd unified_report-funktionen.`,
+    },
+    { role: "user", content: `Ge en komplett systemrapport baserad på denna data:\n\n${summary}` },
+  ], [
+    {
+      type: "function",
+      function: {
+        name: "unified_report",
+        description: "Generate a unified system report",
+        parameters: {
+          type: "object",
+          properties: {
+            overall_score: { type: "number", description: "Overall system health 0-100" },
+            overall_status: { type: "string", enum: ["healthy", "warning", "critical"], description: "Overall status" },
+            executive_summary: { type: "string", description: "2-3 sentence executive summary in Swedish" },
+            areas: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  name: { type: "string", description: "Area name (e.g. Orders, Bugs, Performance)" },
+                  score: { type: "number", description: "Score 0-100" },
+                  status: { type: "string", enum: ["healthy", "warning", "critical"] },
+                  summary: { type: "string", description: "One line summary in Swedish" },
+                  actions: { type: "array", items: { type: "string" }, description: "Recommended actions in Swedish" },
+                },
+                required: ["name", "score", "status", "summary", "actions"],
+                additionalProperties: false,
+              },
+            },
+            top_priorities: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  title: { type: "string" },
+                  urgency: { type: "string", enum: ["now", "today", "this_week"] },
+                  reason: { type: "string" },
+                },
+                required: ["title", "urgency", "reason"],
+                additionalProperties: false,
+              },
+              description: "Top 5 priorities right now",
+            },
+          },
+          required: ["overall_score", "overall_status", "executive_summary", "areas", "top_priorities"],
+          additionalProperties: false,
+        },
+      },
+    },
+  ], { type: "function", function: { name: "unified_report" } });
+
+  return { ...result, raw_metrics: metrics };
+}
+
+// ── AI call helper ──
+async function callAI(apiKey: string, messages: any[], tools?: any[], tool_choice?: any) {
+  const body: any = { model: "google/gemini-3-flash-preview", messages };
   if (tools) body.tools = tools;
   if (tool_choice) body.tool_choice = tool_choice;
 
   const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
 
@@ -234,15 +405,15 @@ Always respond in Swedish. Use the generate_prompt function.`,
         parameters: {
           type: "object",
           properties: {
-            title: { type: "string", description: "Short title for the prompt, in Swedish" },
-            goal: { type: "string", description: "MÅL section - what should be achieved" },
-            problem: { type: "string", description: "PROBLEM section - what is wrong or needed" },
-            steps: { type: "array", items: { type: "string" }, description: "IMPLEMENTATION STEPS" },
-            expected_result: { type: "string", description: "FÖRVÄNTAT RESULTAT" },
-            tags: { type: "array", items: { type: "string" }, description: "Tags in Swedish" },
+            title: { type: "string" },
+            goal: { type: "string" },
+            problem: { type: "string" },
+            steps: { type: "array", items: { type: "string" } },
+            expected_result: { type: "string" },
+            tags: { type: "array", items: { type: "string" } },
             category: { type: "string", enum: ["UI", "backend", "security", "performance", "feature", "bug", "data"] },
             priority: { type: "string", enum: ["low", "medium", "high", "critical"] },
-            full_prompt: { type: "string", description: "The complete formatted prompt ready to paste into Lovable" },
+            full_prompt: { type: "string" },
           },
           required: ["title", "goal", "steps", "expected_result", "tags", "category", "priority", "full_prompt"],
           additionalProperties: false,
@@ -259,8 +430,7 @@ Page: ${bug.page_url}
 AI Summary: ${bug.ai_summary || "N/A"}
 AI Category: ${bug.ai_category || "N/A"}
 AI Severity: ${bug.ai_severity || "N/A"}
-AI Repro Steps: ${bug.ai_repro_steps || "N/A"}
-AI Clean Prompt: ${bug.ai_clean_prompt || "N/A"}`;
+AI Repro Steps: ${bug.ai_repro_steps || "N/A"}`;
 
   return callAI(apiKey, [
     {
@@ -278,12 +448,12 @@ Analyze the bug and suggest fixes. Respond in Swedish. Use the suggest_fix funct
         parameters: {
           type: "object",
           properties: {
-            possible_cause: { type: "string", description: "Most likely root cause in Swedish" },
-            fix_strategy: { type: "string", description: "High-level fix strategy in Swedish" },
-            code_suggestion: { type: "string", description: "Code-level suggestion or pseudo-code if applicable" },
-            affected_areas: { type: "array", items: { type: "string" }, description: "Files or areas likely affected" },
-            risk_level: { type: "string", enum: ["low", "medium", "high"], description: "Risk of the fix" },
-            lovable_prompt: { type: "string", description: "Ready-to-use Lovable prompt to fix this bug, in Swedish" },
+            possible_cause: { type: "string" },
+            fix_strategy: { type: "string" },
+            code_suggestion: { type: "string" },
+            affected_areas: { type: "array", items: { type: "string" } },
+            risk_level: { type: "string", enum: ["low", "medium", "high"] },
+            lovable_prompt: { type: "string" },
           },
           required: ["possible_cause", "fix_strategy", "affected_areas", "risk_level", "lovable_prompt"],
           additionalProperties: false,
@@ -297,10 +467,10 @@ async function analyzeData(apiKey: string, summary: string) {
   return callAI(apiKey, [
     {
       role: "system",
-      content: `You are a business analyst for a Swedish e-commerce platform. Analyze data and provide actionable insights.
-Respond in Swedish. Use the analyze_data function.`,
+      content: `Du är en affärsanalytiker för en svensk e-handelsplattform. Analysera ALL data (ordrar, buggar, incidenter, lager, personal, donationer) och ge handlingsbara insikter.
+Svara på svenska. Använd analyze_data-funktionen.`,
     },
-    { role: "user", content: `Analyze this data and provide insights:\n\n${summary}` },
+    { role: "user", content: `Analysera denna systemdata och ge insikter:\n\n${summary}` },
   ], [
     {
       type: "function",
@@ -318,14 +488,14 @@ Respond in Swedish. Use the analyze_data function.`,
                   type: { type: "string", enum: ["warning", "opportunity", "info"] },
                   title: { type: "string" },
                   description: { type: "string" },
-                  action: { type: "string", description: "Recommended action" },
+                  action: { type: "string" },
                 },
                 required: ["type", "title", "description", "action"],
                 additionalProperties: false,
               },
             },
-            summary: { type: "string", description: "Executive summary in Swedish" },
-            health_score: { type: "number", description: "Overall health score 0-100" },
+            summary: { type: "string" },
+            health_score: { type: "number" },
           },
           required: ["insights", "summary", "health_score"],
           additionalProperties: false,
