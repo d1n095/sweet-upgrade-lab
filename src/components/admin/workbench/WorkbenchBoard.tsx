@@ -98,7 +98,15 @@ const ITEM_TYPES = [
   { key: 'other', label: 'Övrigt' },
 ];
 
-type ViewFilter = 'active' | 'mine' | 'review' | 'done' | 'escalated' | 'bugs' | 'incidents';
+const AI_CLASSIFICATION_META: Record<string, { label: string; icon: typeof Bug; color: string }> = {
+  bug: { label: 'Bugg', icon: Bug, color: 'text-red-600 bg-red-600/10' },
+  improvement: { label: 'Förbättring', icon: Zap, color: 'text-amber-600 bg-amber-600/10' },
+  feature: { label: 'Feature', icon: Sparkles, color: 'text-blue-600 bg-blue-600/10' },
+  upgrade: { label: 'Upgrade', icon: ShieldAlert, color: 'text-purple-600 bg-purple-600/10' },
+  task: { label: 'Uppgift', icon: Wrench, color: 'text-muted-foreground bg-secondary' },
+};
+
+type ViewFilter = 'active' | 'mine' | 'review' | 'done' | 'escalated' | 'bugs' | 'improvements' | 'features';
 
 interface Props {
   initialFilter?: string;
