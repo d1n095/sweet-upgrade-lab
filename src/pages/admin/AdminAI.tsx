@@ -428,12 +428,29 @@ const PromptGeneratorTab = () => {
 const DataInsightsTab = () => {
   const [loading, setLoading] = useState(false);
   const [analysis, setAnalysis] = useState<DataAnalysis | null>(null);
+  const [autoAction, setAutoAction] = useState(false);
 
   const analyze = async () => {
     setLoading(true);
-    const res = await callAI('data_insights');
-    if (res) setAnalysis(res);
+    const res = await callAI('data_insights', { auto_action: autoAction });
+    if (res) {
+      setAnalysis(res);
+      if (res.work_items_created > 0) {
+        toast.success(`${res.work_items_created} uppgifter skapade från varningar`);
+      }
+    }
     setLoading(false);
+  };
+
+  const createTaskFromInsight = async (insight: DataInsight) => {
+    const res = await callAI('create_action', {
+      title: insight.title,
+      description: `${insight.description}\n\nRekommenderad åtgärd: ${insight.action}`,
+      priority: insight.type === 'warning' ? 'high' : 'medium',
+      category: 'business',
+      source_type: 'insight',
+    });
+    if (res?.created) toast.success('Uppgift skapad i Workbench');
   };
 
   const INSIGHT_ICONS: Record<string, any> = {

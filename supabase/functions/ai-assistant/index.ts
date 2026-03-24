@@ -113,6 +113,61 @@ Open bugs: ${bugs.filter((b: any) => b.status === "open").length}
 Critical bugs: ${bugs.filter((b: any) => b.ai_severity === "critical").length}`;
 
         result = await analyzeData(lovableKey, summary);
+
+        // AI → ACTION BRIDGE: auto-create work_items from warning insights
+        if (body.auto_action && result?.insights) {
+          let created = 0;
+          for (const insight of result.insights) {
+            if (insight.type !== "warning") continue;
+            // Check if similar work_item already exists
+            const { data: existing } = await supabase
+              .from("work_items")
+              .select("id")
+              .eq("ai_detected", true)
+              .eq("item_type", "insight")
+              .ilike("title", `%${insight.title.substring(0, 30)}%`)
+              .in("status", ["open", "claimed", "in_progress"])
+              .limit(1);
+            if (!existing?.length) {
+              await supabase.from("work_items").insert({
+                title: `AI Insight: ${insight.title}`,
+                description: `${insight.description}\n\nRekommenderad åtgärd: ${insight.action}`,
+                status: "open",
+                priority: "high",
+                item_type: "insight",
+                source_type: "ai_detection",
+                ai_detected: true,
+                ai_confidence: "medium",
+                ai_category: "business",
+              });
+              created++;
+            }
+          }
+          result.work_items_created = created;
+        }
+        break;
+      }
+
+      case "create_action": {
+        // Create a work_item from any AI output (bug fix, insight, prompt)
+        const { title, description, priority, category, source_type: srcType, source_id: srcId } = body;
+        if (!title) {
+          return new Response(JSON.stringify({ error: "title required" }), { status: 400, headers: corsHeaders });
+        }
+        const { data: newItem, error: insertErr } = await supabase.from("work_items").insert({
+          title: title.substring(0, 200),
+          description: description || "",
+          status: "open",
+          priority: priority || "medium",
+          item_type: srcType === "bug_fix" ? "bug" : "manual",
+          source_type: srcType || "manual",
+          source_id: srcId || null,
+          ai_detected: false,
+          ai_confidence: "none",
+          ai_category: category || null,
+        }).select("id").single();
+        if (insertErr) throw new Error(insertErr.message);
+        result = { work_item_id: newItem.id, created: true };
         break;
       }
 
