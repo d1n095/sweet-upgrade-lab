@@ -51,6 +51,10 @@ interface WorkItem {
   orchestrator_result?: any;
   ai_type_classification?: string;
   ai_type_reason?: string;
+  ai_review_status?: string;
+  ai_review_result?: any;
+  ai_review_at?: string;
+  resolution_notes?: string;
 }
 
 const STATUS_COLUMNS = [
