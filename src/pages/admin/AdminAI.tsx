@@ -2385,7 +2385,7 @@ const AdminAI = () => {
         </div>
       </div>
 
-      <Tabs defaultValue="actions" className="w-full">
+      <Tabs defaultValue="autopilot" className="w-full">
         <ScrollableTabs>
           <TabsList>
             <TabsTrigger value="actions" className="gap-1.5 text-xs">
