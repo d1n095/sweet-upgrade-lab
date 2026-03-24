@@ -96,6 +96,11 @@ serve(async (req) => {
         break;
       }
 
+      case "system_scan": {
+        result = await handleSystemScan(supabase, lovableKey, supabaseUrl, serviceKey);
+        break;
+      }
+
       case "create_action": {
         const { title, description, priority, category, source_type: srcType, source_id: srcId } = body;
         if (!title) {
