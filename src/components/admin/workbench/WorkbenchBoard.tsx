@@ -603,7 +603,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
             )}
           </div>
 
-          <div className="flex gap-1 pt-1 flex-wrap">
+          <div className="flex gap-1 pt-1 flex-wrap" onClick={e => e.stopPropagation()}>
             {item.related_order_id && (
               <Button
                 variant="ghost"
