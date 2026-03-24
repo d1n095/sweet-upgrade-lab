@@ -622,6 +622,16 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
               <TypeIcon className="w-2.5 h-2.5" />
               {typeMeta.label}
             </Badge>
+            {item.ai_type_classification && AI_CLASSIFICATION_META[item.ai_type_classification] && (() => {
+              const cls = AI_CLASSIFICATION_META[item.ai_type_classification!];
+              const ClsIcon = cls.icon;
+              return (
+                <Badge variant="outline" className={cn('text-[9px] gap-0.5', cls.color)}>
+                  <ClsIcon className="w-2.5 h-2.5" />
+                  {cls.label}
+                </Badge>
+              );
+            })()}
             {hasSource && (
               <Badge variant="outline" className="text-[9px] gap-0.5 bg-blue-50 text-blue-600 border-blue-200">
                 <Link2 className="w-2.5 h-2.5" />
