@@ -33,10 +33,15 @@ interface WorkItemDetailProps {
     assigned_to: string | null;
     claimed_by: string | null;
     created_by: string | null;
+    ai_review_status?: string;
+    ai_review_result?: any;
+    ai_review_at?: string;
+    resolution_notes?: string;
   } | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onStatusChange: (itemId: string, newStatus: string) => Promise<void>;
+  onRefresh?: () => void;
 }
 
 const BUG_CHECKLIST = [
