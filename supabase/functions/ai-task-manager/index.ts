@@ -502,17 +502,21 @@ Return one entry for EACH input ID.`,
           results.orchestrator_mode = "fallback_large_queue";
         }
 
-        // Fallback when AI returns nothing/partial: deterministic orchestration
+        // Fallback when AI is disabled for large queues OR returns nothing/partial
         if (!aiTasks.length || aiTasks.length < activeItems.length) {
           const fallback = buildFallbackOrchestration(activeItems);
           const mergedById = new Map<string, any>();
           for (const t of fallback) mergedById.set(t.id, t);
           for (const t of aiTasks) mergedById.set(t.id, { ...mergedById.get(t.id), ...t });
           aiTasks = Array.from(mergedById.values());
-          results.orchestrator_mode = "fallback_merge";
+          if (!results.orchestrator_mode) {
+            results.orchestrator_mode = useAI ? "fallback_merge" : "fallback_large_queue";
+          }
         } else {
           results.orchestrator_mode = "ai";
         }
+
+        console.log(`[orchestrator] mode=${results.orchestrator_mode} tasks=${aiTasks.length}`);
 
         for (const task of aiTasks) {
           const updates: any = {
