@@ -2,7 +2,6 @@ import { Link } from 'react-router-dom';
 import { Leaf, Mail, Clock, Instagram, Facebook } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { storeConfig } from '@/config/storeConfig';
-import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import PaymentIcons from '@/components/trust/PaymentIcons';
 import { usePageVisibility } from '@/stores/pageVisibilityStore';
 
@@ -103,11 +102,6 @@ const Footer = () => {
         
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-[10px] text-muted-foreground/60">
           <p>© {new Date().getFullYear()} {storeConfig.company.name}. All rights reserved.</p>
-          <div className="flex items-center gap-5">
-            <Link to="/policies/privacy" className="hover:text-foreground transition-colors">{t('footer.privacypolicy')}</Link>
-            <Link to="/policies/terms" className="hover:text-foreground transition-colors">{t('footer.terms')}</Link>
-            <LanguageSwitcher />
-          </div>
         </div>
       </div>
     </footer>
