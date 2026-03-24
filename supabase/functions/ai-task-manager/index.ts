@@ -518,25 +518,28 @@ Return one entry for EACH input ID.`,
 
         console.log(`[orchestrator] mode=${results.orchestrator_mode} tasks=${aiTasks.length}`);
 
-        for (const task of aiTasks) {
-          const updates: any = {
-            execution_order: task.execution_order,
-            orchestrator_result: {
-              reason: task.reason || null,
-              parallel_group: task.parallel_group || null,
-              conflict_with: task.conflict_with || null,
+        for (const batch of chunkArray(aiTasks, 25)) {
+          await Promise.all(batch.map(async (task: any) => {
+            const updates: any = {
+              execution_order: task.execution_order,
+              orchestrator_result: {
+                reason: task.reason || null,
+                parallel_group: task.parallel_group || null,
+                conflict_with: task.conflict_with || null,
+                updated_at: new Date().toISOString(),
+                mode: results.orchestrator_mode,
+              },
               updated_at: new Date().toISOString(),
-              mode: results.orchestrator_mode,
-            },
-            updated_at: new Date().toISOString(),
-          };
-          updates.depends_on = Array.isArray(task.depends_on) ? task.depends_on : [];
-          updates.blocks = Array.isArray(task.blocks) ? task.blocks : [];
-          updates.duplicate_of = task.duplicate_of || null;
-          updates.conflict_flag = !!task.conflict_with;
+            };
+            updates.depends_on = Array.isArray(task.depends_on) ? task.depends_on : [];
+            updates.blocks = Array.isArray(task.blocks) ? task.blocks : [];
+            updates.duplicate_of = task.duplicate_of || null;
+            updates.conflict_flag = !!task.conflict_with;
 
-          await supabase.from("work_items").update(updates).eq("id", task.id);
-          results.orchestrated++;
+            await supabase.from("work_items").update(updates).eq("id", task.id);
+          }));
+
+          results.orchestrated += batch.length;
         }
       }
     }
