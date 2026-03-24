@@ -244,6 +244,13 @@ const AdminDbProductManager = () => {
       metaDescription: (product as any).meta_description || '',
       metaKeywords: (product as any).meta_keywords || '',
       weightGrams: (product as any).weight_grams?.toString() || '',
+      hook: (product as any).hook_sv || '',
+      dosage: (product as any).dosage_sv || '',
+      variants: (product as any).variants_sv || '',
+      storage: (product as any).storage_sv || '',
+      safety: (product as any).safety_sv || '',
+      specifications: (product as any).specifications ? JSON.stringify((product as any).specifications) : '',
+      isConcentrate: (product as any).is_concentrate || false,
     });
     import('@/lib/categories').then(({ fetchProductCategoryIds }) => {
       fetchProductCategoryIds(product.id).then(ids => setFormData(prev => ({ ...prev, categoryIds: ids })));
