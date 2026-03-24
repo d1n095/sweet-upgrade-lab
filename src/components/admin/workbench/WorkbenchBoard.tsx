@@ -42,6 +42,12 @@ interface WorkItem {
   related_order_id: string | null;
   related_incident_id: string | null;
   claimed_at: string | null;
+  depends_on?: string[];
+  blocks?: string[];
+  duplicate_of?: string;
+  conflict_flag?: boolean;
+  execution_order?: number;
+  orchestrator_result?: any;
 }
 
 const STATUS_COLUMNS = [
