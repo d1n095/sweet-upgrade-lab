@@ -428,12 +428,29 @@ const PromptGeneratorTab = () => {
 const DataInsightsTab = () => {
   const [loading, setLoading] = useState(false);
   const [analysis, setAnalysis] = useState<DataAnalysis | null>(null);
+  const [autoAction, setAutoAction] = useState(false);
 
   const analyze = async () => {
     setLoading(true);
-    const res = await callAI('data_insights');
-    if (res) setAnalysis(res);
+    const res = await callAI('data_insights', { auto_action: autoAction });
+    if (res) {
+      setAnalysis(res);
+      if (res.work_items_created > 0) {
+        toast.success(`${res.work_items_created} uppgifter skapade från varningar`);
+      }
+    }
     setLoading(false);
+  };
+
+  const createTaskFromInsight = async (insight: DataInsight) => {
+    const res = await callAI('create_action', {
+      title: insight.title,
+      description: `${insight.description}\n\nRekommenderad åtgärd: ${insight.action}`,
+      priority: insight.type === 'warning' ? 'high' : 'medium',
+      category: 'business',
+      source_type: 'insight',
+    });
+    if (res?.created) toast.success('Uppgift skapad i Workbench');
   };
 
   const INSIGHT_ICONS: Record<string, any> = {
@@ -450,10 +467,24 @@ const DataInsightsTab = () => {
 
   return (
     <div className="space-y-4">
-      <Button onClick={analyze} disabled={loading} className="w-full gap-2">
-        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <BarChart3 className="w-4 h-4" />}
-        Analysera data (senaste 7 dagarna)
-      </Button>
+      <div className="flex gap-2 items-end">
+        <Button onClick={analyze} disabled={loading} className="flex-1 gap-2">
+          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <BarChart3 className="w-4 h-4" />}
+          Analysera data (senaste 7 dagarna)
+        </Button>
+        <Button
+          variant={autoAction ? 'default' : 'outline'}
+          size="sm"
+          className="gap-1 text-xs h-9"
+          onClick={() => setAutoAction(!autoAction)}
+        >
+          <Zap className="w-3.5 h-3.5" />
+          {autoAction ? 'Auto-action PÅ' : 'Auto-action AV'}
+        </Button>
+      </div>
+      {autoAction && (
+        <p className="text-[10px] text-muted-foreground">⚡ Varningar skapar automatiskt uppgifter i Workbench</p>
+      )}
 
       {analysis && (
         <div className="space-y-4">
@@ -482,9 +513,19 @@ const DataInsightsTab = () => {
                     <h4 className="text-sm font-semibold">{insight.title}</h4>
                   </div>
                   <p className="text-xs">{insight.description}</p>
-                  <div className="flex items-center gap-1 pt-1">
-                    <Send className="w-3 h-3" />
-                    <span className="text-xs font-medium">{insight.action}</span>
+                  <div className="flex items-center justify-between pt-1">
+                    <div className="flex items-center gap-1">
+                      <Send className="w-3 h-3" />
+                      <span className="text-xs font-medium">{insight.action}</span>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-5 text-[9px] gap-0.5"
+                      onClick={() => createTaskFromInsight(insight)}
+                    >
+                      <Zap className="w-2.5 h-2.5" /> Skapa uppgift
+                    </Button>
                   </div>
                 </div>
               );
@@ -602,6 +643,24 @@ const BugAITab = () => {
                   <div className="flex gap-1.5 pt-1">
                     <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1 flex-1" onClick={() => copyToClipboard(fixes[bug.id].lovable_prompt)}>
                       <Copy className="w-2.5 h-2.5" /> Kopiera Lovable-prompt
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-6 text-[10px] gap-1 flex-1"
+                      onClick={async () => {
+                        const res = await callAI('create_action', {
+                          title: `Fix: ${bug.ai_summary || bug.description.substring(0, 80)}`,
+                          description: `Orsak: ${fixes[bug.id].possible_cause}\nStrategi: ${fixes[bug.id].fix_strategy}\n\n${fixes[bug.id].lovable_prompt}`,
+                          priority: bug.ai_severity === 'critical' ? 'critical' : bug.ai_severity === 'high' ? 'high' : 'medium',
+                          category: bug.ai_category || 'bug',
+                          source_type: 'bug_fix',
+                          source_id: bug.id,
+                        });
+                        if (res?.created) toast.success('Uppgift skapad i Workbench');
+                      }}
+                    >
+                      <Zap className="w-2.5 h-2.5" /> Skapa uppgift
                     </Button>
                   </div>
                 </div>
