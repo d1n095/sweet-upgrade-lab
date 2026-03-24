@@ -14,6 +14,7 @@ import {
   Plus, User, Clock, CheckCircle2, Circle, Play, X, Zap, UserCheck, Bot,
   AlertTriangle, Package, Headphones, RotateCcw, FileText, Wrench, ShieldAlert,
   FastForward, Pause, ArrowRight, Sparkles, Timer, ToggleRight, Bug, Link2,
+  GitBranch, Copy, Layers,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
