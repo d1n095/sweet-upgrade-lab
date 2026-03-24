@@ -67,6 +67,7 @@ import AdminData from "./pages/admin/AdminData";
 import AdminOps from "./pages/admin/AdminOps";
 import AdminGrowth from "./pages/admin/AdminGrowth";
 import AdminAI from "./pages/admin/AdminAI";
+import AdminHistory from "./pages/admin/AdminHistory";
 import ScanPackingMode from "./components/admin/warehouse/ScanPackingMode";
 
 const queryClient = new QueryClient();
@@ -147,6 +148,7 @@ const App = () => (
                 <Route path="insights" element={<AdminInsights />} />
                 <Route path="data" element={<AdminData />} />
                 <Route path="ai" element={<AdminAI />} />
+                <Route path="history" element={<AdminHistory />} />
                 <Route path="database" element={<AdminDatabase />} />
                 <Route path="warehouse" element={<ScanPackingMode />} />
               </Route>

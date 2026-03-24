@@ -2736,6 +2736,78 @@ export type Database = {
         }
         Relationships: []
       }
+      system_history: {
+        Row: {
+          ai_review_at: string | null
+          ai_review_result: Json | null
+          ai_review_status: string | null
+          archived_at: string | null
+          assigned_to: string | null
+          claimed_by: string | null
+          completed_at: string | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          item_type: string
+          priority: string
+          related_order_id: string | null
+          resolution_notes: string | null
+          snapshot_data: Json | null
+          source_id: string | null
+          source_type: string | null
+          title: string
+          work_item_created_at: string | null
+          work_item_id: string
+        }
+        Insert: {
+          ai_review_at?: string | null
+          ai_review_result?: Json | null
+          ai_review_status?: string | null
+          archived_at?: string | null
+          assigned_to?: string | null
+          claimed_by?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          item_type?: string
+          priority?: string
+          related_order_id?: string | null
+          resolution_notes?: string | null
+          snapshot_data?: Json | null
+          source_id?: string | null
+          source_type?: string | null
+          title: string
+          work_item_created_at?: string | null
+          work_item_id: string
+        }
+        Update: {
+          ai_review_at?: string | null
+          ai_review_result?: Json | null
+          ai_review_status?: string | null
+          archived_at?: string | null
+          assigned_to?: string | null
+          claimed_by?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          item_type?: string
+          priority?: string
+          related_order_id?: string | null
+          resolution_notes?: string | null
+          snapshot_data?: Json | null
+          source_id?: string | null
+          source_type?: string | null
+          title?: string
+          work_item_created_at?: string | null
+          work_item_id?: string
+        }
+        Relationships: []
+      }
       timeline_entries: {
         Row: {
           created_at: string
@@ -2881,6 +2953,9 @@ export type Database = {
           ai_confidence: string | null
           ai_detected: boolean | null
           ai_resolution_notes: string | null
+          ai_review_at: string | null
+          ai_review_result: Json | null
+          ai_review_status: string | null
           assigned_to: string | null
           claimed_at: string | null
           claimed_by: string | null
@@ -2894,6 +2969,7 @@ export type Database = {
           priority: string
           related_incident_id: string | null
           related_order_id: string | null
+          resolution_notes: string | null
           source_id: string | null
           source_type: string | null
           status: string
@@ -2906,6 +2982,9 @@ export type Database = {
           ai_confidence?: string | null
           ai_detected?: boolean | null
           ai_resolution_notes?: string | null
+          ai_review_at?: string | null
+          ai_review_result?: Json | null
+          ai_review_status?: string | null
           assigned_to?: string | null
           claimed_at?: string | null
           claimed_by?: string | null
@@ -2919,6 +2998,7 @@ export type Database = {
           priority?: string
           related_incident_id?: string | null
           related_order_id?: string | null
+          resolution_notes?: string | null
           source_id?: string | null
           source_type?: string | null
           status?: string
@@ -2931,6 +3011,9 @@ export type Database = {
           ai_confidence?: string | null
           ai_detected?: boolean | null
           ai_resolution_notes?: string | null
+          ai_review_at?: string | null
+          ai_review_result?: Json | null
+          ai_review_status?: string | null
           assigned_to?: string | null
           claimed_at?: string | null
           claimed_by?: string | null
@@ -2944,6 +3027,7 @@ export type Database = {
           priority?: string
           related_incident_id?: string | null
           related_order_id?: string | null
+          resolution_notes?: string | null
           source_id?: string | null
           source_type?: string | null
           status?: string

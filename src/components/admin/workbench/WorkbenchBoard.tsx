@@ -89,7 +89,7 @@ const ITEM_TYPES = [
   { key: 'other', label: 'Övrigt' },
 ];
 
-type ViewFilter = 'all' | 'mine' | 'escalated' | 'open' | 'done' | 'bugs' | 'incidents';
+type ViewFilter = 'active' | 'mine' | 'review' | 'done' | 'escalated' | 'bugs' | 'incidents';
 
 interface Props {
   initialFilter?: string;
@@ -139,7 +139,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const [creating, setCreating] = useState(false);
   const [autoAssigning, setAutoAssigning] = useState(false);
   const [runningAutomation, setRunningAutomation] = useState(false);
-  const [viewFilter, setViewFilter] = useState<ViewFilter>('all');
+  const [viewFilter, setViewFilter] = useState<ViewFilter>('active');
   const [escalating, setEscalating] = useState<string | null>(null);
   const [workMode, setWorkMode] = useState(false);
   const [autoNext, setAutoNext] = useState(false);
@@ -250,14 +250,15 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   });
 
   const filteredItems = items.filter(t => {
+    if (viewFilter === 'active') return !['done', 'cancelled'].includes(t.status);
     if (viewFilter === 'mine') {
       const isMine = t.assigned_to === user?.id || t.claimed_by === user?.id;
       if (isMine) return t.status !== 'done';
       return false;
     }
-    if (viewFilter === 'done') return (t.assigned_to === user?.id || t.claimed_by === user?.id) && t.status === 'done';
+    if (viewFilter === 'review') return t.status === 'done' && (t as any).ai_review_status !== 'verified';
+    if (viewFilter === 'done') return t.status === 'done';
     if (viewFilter === 'escalated') return t.status === 'escalated';
-    if (viewFilter === 'open') return t.status === 'open';
     if (viewFilter === 'bugs') return t.item_type === 'bug' && t.status !== 'done';
     if (viewFilter === 'incidents') return t.item_type === 'incident' && t.status !== 'done';
     return t.status !== 'done';
@@ -431,7 +432,9 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     if (newStatus === 'done') {
       setCompletedCount(prev => prev + 1);
       setJustCompleted(itemId);
-      toast.success('Klar ✓');
+      toast.success('Klar ✓ — AI granskar...');
+      // Trigger AI review in background
+      supabase.functions.invoke('ai-review-fix', { body: { work_item_id: itemId } }).catch(console.error);
       setTimeout(() => {
         setJustCompleted(null);
         if (workModeRef.current && autoNext) {
@@ -503,7 +506,9 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
 
   const escalatedCount = items.filter(t => t.status === 'escalated').length;
   const myCount = items.filter(t => (t.assigned_to === user?.id || t.claimed_by === user?.id) && t.status !== 'done').length;
-  const doneCount = items.filter(t => (t.assigned_to === user?.id || t.claimed_by === user?.id) && t.status === 'done').length;
+  const doneCount = items.filter(t => t.status === 'done').length;
+  const reviewCount = items.filter(t => t.status === 'done' && (t as any).ai_review_status !== 'verified').length;
+  const activeCount = items.filter(t => !['done', 'cancelled'].includes(t.status)).length;
   const openCount = items.filter(t => t.status === 'open' && !t.assigned_to).length;
   const bugCount = items.filter(t => t.item_type === 'bug' && t.status !== 'done').length;
   const incidentCount = items.filter(t => t.item_type === 'incident' && t.status !== 'done').length;
@@ -769,26 +774,25 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
       {/* Filter tabs */}
       <Tabs value={viewFilter} onValueChange={v => { setViewFilter(v as ViewFilter); setBulkMode(false); setBulkSelected(new Set()); }}>
         <TabsList className="flex-wrap h-auto">
-          <TabsTrigger value="all" className="gap-1.5">
-            Alla <Badge variant="secondary" className="text-[9px] ml-1">{items.filter(t => t.status !== 'done').length}</Badge>
+          <TabsTrigger value="active" className="gap-1.5">
+            Aktiva <Badge variant="secondary" className="text-[9px] ml-1">{activeCount}</Badge>
           </TabsTrigger>
           <TabsTrigger value="mine" className="gap-1.5">
             Mina {myCount > 0 ? <Badge variant="secondary" className="text-[9px] ml-1">{myCount}</Badge> : <span className="text-[9px] text-muted-foreground ml-1">(visar öppna)</span>}
           </TabsTrigger>
+          <TabsTrigger value="review" className="gap-1.5">
+            Granskning {reviewCount > 0 && <Badge variant="outline" className="text-[9px] ml-1 bg-amber-100 text-amber-700 border-amber-200">{reviewCount}</Badge>}
+          </TabsTrigger>
           <TabsTrigger value="bugs" className="gap-1.5">
             <Bug className="w-3.5 h-3.5" /> Buggar
             {bugCount > 0 && <Badge variant="secondary" className="text-[9px] ml-1">{bugCount}</Badge>}
-          </TabsTrigger>
-          <TabsTrigger value="incidents" className="gap-1.5">
-            <ShieldAlert className="w-3.5 h-3.5" /> Incidents
-            {incidentCount > 0 && <Badge variant="secondary" className="text-[9px] ml-1">{incidentCount}</Badge>}
           </TabsTrigger>
           <TabsTrigger value="escalated" className={cn('gap-1.5', escalatedCount > 0 && 'text-destructive')}>
             <AlertTriangle className="w-3.5 h-3.5" /> Eskalerade
             {escalatedCount > 0 && <Badge variant="destructive" className="text-[9px] ml-1">{escalatedCount}</Badge>}
           </TabsTrigger>
           <TabsTrigger value="done" className="gap-1.5">
-            Klara {doneCount > 0 && <Badge variant="secondary" className="text-[9px] ml-1">{doneCount}</Badge>}
+            Historik {doneCount > 0 && <Badge variant="secondary" className="text-[9px] ml-1">{doneCount}</Badge>}
           </TabsTrigger>
         </TabsList>
       </Tabs>
@@ -796,7 +800,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
       <div className="flex items-center justify-between flex-wrap gap-2">
         <p className="text-sm text-muted-foreground">{sortedItems.length} uppgifter{viewFilter === 'mine' && myActiveCount === 0 ? ' (visar öppna – du har inga aktiva)' : ''}</p>
         <div className="flex gap-2">
-          {viewFilter === 'open' && openCount > 0 && (
+          {viewFilter === 'active' && openCount > 0 && (
             <Button size="sm" variant={bulkMode ? 'default' : 'outline'} className="gap-1.5" onClick={() => { setBulkMode(!bulkMode); setBulkSelected(new Set()); }}>
               {bulkMode ? <X className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
               {bulkMode ? 'Avbryt' : 'Markera'}
