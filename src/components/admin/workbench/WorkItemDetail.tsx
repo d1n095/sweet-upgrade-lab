@@ -65,6 +65,8 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange }: WorkItemDe
   const [checklist, setChecklist] = useState<Record<string, boolean>>({});
   const [resolutionNotes, setResolutionNotes] = useState('');
   const [resolving, setResolving] = useState(false);
+  const [fixSuggestion, setFixSuggestion] = useState<any>(null);
+  const [analyzingFix, setAnalyzingFix] = useState(false);
 
   // Reset state when item changes
   useEffect(() => {
