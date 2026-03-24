@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getOrderDisplayId } from '@/utils/orderDisplay';
+import WorkItemDetail from './WorkItemDetail';
 import { useNavigate } from 'react-router-dom';
 
 interface WorkItem {
