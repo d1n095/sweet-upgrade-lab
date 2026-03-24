@@ -2876,6 +2876,11 @@ export type Database = {
       }
       work_items: {
         Row: {
+          ai_assigned: boolean | null
+          ai_category: string | null
+          ai_confidence: string | null
+          ai_detected: boolean | null
+          ai_resolution_notes: string | null
           assigned_to: string | null
           claimed_at: string | null
           claimed_by: string | null
@@ -2896,6 +2901,11 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          ai_assigned?: boolean | null
+          ai_category?: string | null
+          ai_confidence?: string | null
+          ai_detected?: boolean | null
+          ai_resolution_notes?: string | null
           assigned_to?: string | null
           claimed_at?: string | null
           claimed_by?: string | null
@@ -2916,6 +2926,11 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          ai_assigned?: boolean | null
+          ai_category?: string | null
+          ai_confidence?: string | null
+          ai_detected?: boolean | null
+          ai_resolution_notes?: string | null
           assigned_to?: string | null
           claimed_at?: string | null
           claimed_by?: string | null
