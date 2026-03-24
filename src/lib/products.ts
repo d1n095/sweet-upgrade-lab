@@ -35,6 +35,18 @@ export interface DbProduct {
   usage_en: string | null;
   extended_description_sv: string | null;
   extended_description_en: string | null;
+  hook_sv: string | null;
+  hook_en: string | null;
+  dosage_sv: string | null;
+  dosage_en: string | null;
+  variants_sv: string | null;
+  variants_en: string | null;
+  storage_sv: string | null;
+  storage_en: string | null;
+  safety_sv: string | null;
+  safety_en: string | null;
+  specifications: Record<string, string> | null;
+  is_concentrate: boolean;
   meta_title: string | null;
   meta_description: string | null;
   meta_keywords: string | null;
