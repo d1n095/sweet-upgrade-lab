@@ -617,6 +617,31 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
                  getItemAutomationBadge(item.id) === 'reassign' ? 'Omfördelad' : 'Auto'}
               </Badge>
             )}
+            {item.depends_on && item.depends_on.length > 0 && (
+              <Badge variant="outline" className="text-[9px] gap-0.5 bg-amber-50 text-amber-700 border-amber-200">
+                <GitBranch className="w-2.5 h-2.5" /> Blockerad av {item.depends_on.length}
+              </Badge>
+            )}
+            {item.blocks && item.blocks.length > 0 && (
+              <Badge variant="outline" className="text-[9px] gap-0.5 bg-red-50 text-red-600 border-red-200">
+                <GitBranch className="w-2.5 h-2.5" /> Blockerar {item.blocks.length}
+              </Badge>
+            )}
+            {item.duplicate_of && (
+              <Badge variant="outline" className="text-[9px] gap-0.5 bg-gray-100 text-gray-600 border-gray-300">
+                <Copy className="w-2.5 h-2.5" /> Duplikat
+              </Badge>
+            )}
+            {item.conflict_flag && (
+              <Badge variant="outline" className="text-[9px] gap-0.5 bg-destructive/10 text-destructive border-destructive/30">
+                <AlertTriangle className="w-2.5 h-2.5" /> Konflikt
+              </Badge>
+            )}
+            {item.execution_order != null && item.execution_order < 10 && (
+              <Badge variant="outline" className="text-[9px] gap-0.5 bg-primary/10 text-primary border-primary/30">
+                <Layers className="w-2.5 h-2.5" /> #{item.execution_order}
+              </Badge>
+            )}
             {item.assigned_to && (
               <Badge variant="outline" className="text-[9px] gap-0.5">
                 <UserCheck className="w-2.5 h-2.5" />
