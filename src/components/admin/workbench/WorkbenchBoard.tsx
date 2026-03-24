@@ -432,7 +432,9 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     if (newStatus === 'done') {
       setCompletedCount(prev => prev + 1);
       setJustCompleted(itemId);
-      toast.success('Klar ✓');
+      toast.success('Klar ✓ — AI granskar...');
+      // Trigger AI review in background
+      supabase.functions.invoke('ai-review-fix', { body: { work_item_id: itemId } }).catch(console.error);
       setTimeout(() => {
         setJustCompleted(null);
         if (workModeRef.current && autoNext) {
