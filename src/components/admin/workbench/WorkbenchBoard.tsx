@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getOrderDisplayId } from '@/utils/orderDisplay';
+import WorkItemDetail from './WorkItemDetail';
 import { useNavigate } from 'react-router-dom';
 
 interface WorkItem {
@@ -148,6 +149,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const workModeRef = useRef(false);
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
   const [bulkMode, setBulkMode] = useState(false);
+  const [detailItem, setDetailItem] = useState<WorkItem | null>(null);
   workModeRef.current = workMode;
 
   const { data: automationLogs = [] } = useQuery({
@@ -536,10 +538,10 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
 
     return (
       <Card key={item.id} className={cn(
-        'border-border hover:shadow-sm transition-shadow',
+        'border-border hover:shadow-sm transition-shadow cursor-pointer',
         isEscalated && 'border-destructive/40 bg-destructive/5',
         bulkSelected.has(item.id) && 'ring-2 ring-primary/50'
-      )}>
+      )} onClick={() => setDetailItem(item)}>
         <CardContent className="pt-3 pb-3 space-y-2">
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-center gap-1.5 min-w-0 flex-1">
@@ -601,7 +603,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
             )}
           </div>
 
-          <div className="flex gap-1 pt-1 flex-wrap">
+          <div className="flex gap-1 pt-1 flex-wrap" onClick={e => e.stopPropagation()}>
             {item.related_order_id && (
               <Button
                 variant="ghost"
@@ -873,6 +875,15 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
           );
         })}
       </div>
+
+      <WorkItemDetail
+        item={detailItem}
+        open={!!detailItem}
+        onOpenChange={(open) => { if (!open) setDetailItem(null); }}
+        onStatusChange={async (itemId, newStatus) => {
+          await moveItem(itemId, newStatus);
+        }}
+      />
     </div>
   );
 };
