@@ -538,11 +538,11 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
 
     return (
       <Card key={item.id} className={cn(
-        'border-border hover:shadow-sm transition-shadow',
+        'border-border hover:shadow-sm transition-shadow cursor-pointer',
         isEscalated && 'border-destructive/40 bg-destructive/5',
         bulkSelected.has(item.id) && 'ring-2 ring-primary/50'
-      )}>
-        <CardContent className="pt-3 pb-3 space-y-2">
+      )} onClick={() => setDetailItem(item)}>
+        <CardContent className="pt-3 pb-3 space-y-2" onClick={(e) => e.stopPropagation()}>
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-center gap-1.5 min-w-0 flex-1">
               {bulkMode && item.status === 'open' && (
