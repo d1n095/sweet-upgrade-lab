@@ -1918,6 +1918,7 @@ const SystemScanTab = () => {
         tasks_created: res.tasks_created || 0,
         scanned_by: session?.user?.id || null,
       } as any);
+      logChange({ change_type: 'scan', description: `Systemskanning klar — poäng: ${res.system_score || '?'}, ${res.issues_found || 0} problem`, source: 'ai', affected_components: ['system_scan'] });
       queryClient.invalidateQueries({ queryKey: ['last-scan-result'] });
       queryClient.invalidateQueries({ queryKey: ['scan-history'] });
     }
