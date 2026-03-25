@@ -51,7 +51,7 @@ const AdminGrowth = () => {
       }
       orders.forEach(o => {
         const key = o.created_at.slice(0, 10);
-        if (buckets[key] && o.payment_status === 'paid') {
+        if (buckets[key] && o.payment_status === PAID_STATUS) {
           buckets[key].revenue += o.total_amount || 0;
           buckets[key].completes += 1;
         }
