@@ -2874,6 +2874,135 @@ const DataCleanupTab = () => {
   );
 };
 
+// ── Auto-Fix Engine Tab ──
+const AutoFixTab = () => {
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<any>(null);
+  const { openDetail } = useDetailContext();
+
+  const run = async () => {
+    setLoading(true);
+    const r = await callAI('auto_fix');
+    if (r) {
+      setResult(r);
+      toast.success(`Auto-fix klar – ${r.total_fixed || 0} åtgärdade, ${r.total_flagged || 0} flaggade`);
+    }
+    setLoading(false);
+  };
+
+  const confColor = (c: number) => c >= 80 ? 'text-green-700' : c >= 50 ? 'text-yellow-700' : 'text-red-700';
+  const confBg = (c: number) => c >= 80 ? 'bg-green-100' : c >= 50 ? 'bg-yellow-100' : 'bg-red-100';
+
+  return (
+    <div className="space-y-4">
+      <Card className="p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <Wrench className="w-5 h-5 text-primary" />
+          <h3 className="font-semibold">AI Auto-Fix Engine</h3>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Åtgärdar automatiskt säkra problem: dubbletter, föräldralösa tasks, felaktig status. 
+          Kräver ≥80% confidence för auto-fix, annars skapas uppgift istället.
+        </p>
+        <Button onClick={run} disabled={loading} className="gap-2">
+          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+          Kör Auto-Fix
+        </Button>
+      </Card>
+
+      {result && (
+        <div className="space-y-4">
+          {/* Summary stats */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <Card className="p-3 text-center">
+              <p className="text-2xl font-bold text-green-700">{result.total_fixed || 0}</p>
+              <p className="text-[10px] text-muted-foreground">Åtgärdade</p>
+            </Card>
+            <Card className="p-3 text-center">
+              <p className="text-2xl font-bold text-yellow-700">{result.total_flagged || 0}</p>
+              <p className="text-[10px] text-muted-foreground">Flaggade</p>
+            </Card>
+            <Card className="p-3 text-center">
+              <p className="text-2xl font-bold text-primary">{result.duplicates_merged || 0}</p>
+              <p className="text-[10px] text-muted-foreground">Dubbletter</p>
+            </Card>
+            <Card className="p-3 text-center">
+              <p className="text-2xl font-bold">{result.status_fixed || 0}</p>
+              <p className="text-[10px] text-muted-foreground">Statussynk</p>
+            </Card>
+          </div>
+
+          {/* Data sync info */}
+          {result.data_sync && (
+            <Card className="p-3">
+              <div className="flex items-center gap-2 text-sm">
+                <Database className="w-4 h-4 text-muted-foreground" />
+                <span className="font-medium">Data Sync:</span>
+                <span>{result.data_sync.issues} problem hittade, {result.data_sync.fixed} åtgärdade</span>
+              </div>
+            </Card>
+          )}
+
+          {/* Fix log */}
+          {result.fixes?.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Activity className="w-4 h-4" /> Åtgärdslogg ({result.fixes.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="max-h-[400px]">
+                  <div className="space-y-2">
+                    {result.fixes.map((fix: any, i: number) => (
+                      <div
+                        key={i}
+                        className={cn(
+                          'flex items-start gap-2 p-2 rounded text-sm border',
+                          fix.fixed ? 'border-green-200 bg-green-50/50' : 'border-yellow-200 bg-yellow-50/50',
+                          fix.target_id && 'cursor-pointer hover:bg-muted/40'
+                        )}
+                        onClick={() => fix.target_id && openDetail(fix.target_id)}
+                      >
+                        {fix.fixed ? <CheckCircle className="w-4 h-4 text-green-600 mt-0.5 shrink-0" /> : <AlertTriangle className="w-4 h-4 text-yellow-600 mt-0.5 shrink-0" />}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs truncate">{fix.action}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge variant="outline" className="text-[9px]">{fix.type}</Badge>
+                            <span className={cn('text-[10px] font-medium px-1.5 py-0.5 rounded', confBg(fix.confidence), confColor(fix.confidence))}>
+                              {fix.confidence}% confidence
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Fallback tasks */}
+          {result.fallback_tasks?.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-yellow-600" /> Kräver manuell granskning ({result.fallback_tasks.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1">
+                {result.fallback_tasks.map((t: string, i: number) => (
+                  <p key={i} className="text-sm text-muted-foreground">• {t}</p>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const AdminAI = () => {
   const [detailItem, setDetailItem] = useState<any>(null);
   const queryClient = useQueryClient();
