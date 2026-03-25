@@ -162,7 +162,7 @@ function renderOrderConfirmationEmail(order: any, items: OrderItem[], shipping: 
     <!-- Footer -->
     <div style="background:${BRAND.cardBg};padding:20px 24px;text-align:center;border-top:1px solid ${BRAND.border};">
       <p style="margin:0;font-size:12px;color:${BRAND.muted};font-family:${BRAND.font};">
-        4ThePeople · team@4thepeople.se · Giftfria produkter för hela Europa
+        4ThePeople · support@4thepeople.se · Giftfria produkter för hela Europa
       </p>
     </div>
   </div>
@@ -249,7 +249,7 @@ function renderStatusUpdateEmail(order: any, newStatus: string): string {
 
     <div style="background:${BRAND.cardBg};padding:20px 24px;text-align:center;border-top:1px solid ${BRAND.border};">
       <p style="margin:0;font-size:12px;color:${BRAND.muted};font-family:${BRAND.font};">
-        4ThePeople · team@4thepeople.se
+        4ThePeople · support@4thepeople.se
       </p>
     </div>
   </div>
