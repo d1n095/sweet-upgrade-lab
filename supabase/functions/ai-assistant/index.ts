@@ -4591,3 +4591,142 @@ Ge konkreta CSS/Tailwind-fixar. Svara på svenska.`,
 
   return { ...analysis, tasks_created: tasksCreated };
 }
+
+// ── UX Scanner ──
+async function handleUxScan(supabase: any, lovableKey: string) {
+  // Gather context about the site
+  const { data: pages } = await supabase.from("page_sections").select("page, section_key, is_visible").limit(200);
+  const { data: categories } = await supabase.from("categories").select("name_sv, slug, is_visible, parent_id").limit(100);
+  const { data: products } = await supabase.from("products").select("title_sv, is_visible, is_sellable, stock, handle, image_urls").limit(50);
+  const { data: recentBugs } = await supabase.from("bug_reports").select("description, page_url, ai_category, status").order("created_at", { ascending: false }).limit(20);
+  const { data: recentWorkItems } = await supabase.from("work_items").select("title, item_type, ai_type_classification, status").order("created_at", { ascending: false }).limit(30);
+
+  const routes = [
+    { path: "/", name: "Startsida", type: "public" },
+    { path: "/shop", name: "Butik", type: "public" },
+    { path: "/produkter", name: "Produkter", type: "public" },
+    { path: "/om-oss", name: "Om oss", type: "public" },
+    { path: "/kontakt", name: "Kontakt", type: "public" },
+    { path: "/checkout", name: "Kassa", type: "checkout" },
+    { path: "/donationer", name: "Donationer", type: "public" },
+    { path: "/profil", name: "Profil", type: "auth" },
+    { path: "/admin", name: "Admin", type: "admin" },
+    { path: "/admin/pos", name: "Admin POS", type: "admin" },
+    { path: "/admin/ai", name: "Admin AI", type: "admin" },
+  ];
+
+  const context = JSON.stringify({
+    routes,
+    page_sections: pages?.slice(0, 50),
+    categories: categories?.slice(0, 30),
+    products_sample: products?.slice(0, 10)?.map((p: any) => ({
+      title: p.title_sv,
+      visible: p.is_visible,
+      sellable: p.is_sellable,
+      has_images: (p.image_urls?.length || 0) > 0,
+      stock: p.stock,
+      handle: p.handle,
+    })),
+    recent_bugs: recentBugs?.slice(0, 10),
+    recent_tasks: recentWorkItems?.filter((w: any) => ["bug", "ux_issue"].includes(w.item_type))?.slice(0, 10),
+  });
+
+  const prompt = `Du är en UX-expert som analyserar en svensk e-handelswebbplats.
+
+KONTEXT (rutter, sidor, produkter, kända buggar):
+${context}
+
+Utför en fullständig UX-skanning. Identifiera verkliga användbarhetsproblem. Analysera:
+
+1. NAVIGERING: Finns döda länkar, brutna rutter, saknade breadcrumbs?
+2. KLICKBARHET: Finns element som ser klickbara ut men inte är det? Knappar utan funktion?
+3. SCROLL: Saknas scroll i listor? Gömt innehåll?
+4. MOBIL UX: Touch targets för små? Överflöde på mobil?
+5. FORMULÄR: Saknade labels, felhantering, inputtyper?
+6. LADDNING: Saknade loading states, empty states?
+7. KONVERTERING: Är köpflödet optimalt? Finns friktion?
+8. TILLGÄNGLIGHET: Kontrast, aria-labels, tangentbordsnavigering?
+
+Basera analysen på verklig data — inte spekulationer.`;
+
+  const analysis = await callAIWithTools(lovableKey, prompt, [{
+    type: "function",
+    function: {
+      name: "ux_scan_results",
+      description: "Return UX scan findings",
+      parameters: {
+        type: "object",
+        properties: {
+          ux_score: { type: "number", description: "Overall UX score 0-100" },
+          executive_summary: { type: "string" },
+          issues: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                title: { type: "string" },
+                category: { type: "string", enum: ["navigation", "clickability", "scroll", "mobile", "forms", "loading", "conversion", "accessibility"] },
+                severity: { type: "string", enum: ["critical", "high", "medium", "low"] },
+                page: { type: "string" },
+                description: { type: "string" },
+                user_impact: { type: "string" },
+                fix_suggestion: { type: "string" },
+                can_auto_fix: { type: "boolean" },
+              },
+              required: ["title", "category", "severity", "page", "description", "user_impact", "fix_suggestion", "can_auto_fix"],
+            },
+          },
+          positive_findings: {
+            type: "array",
+            items: { type: "string" },
+          },
+          issues_found: { type: "number" },
+        },
+        required: ["ux_score", "executive_summary", "issues", "positive_findings", "issues_found"],
+        additionalProperties: false,
+      },
+    },
+  }], { type: "function", function: { name: "ux_scan_results" } });
+
+  // Create work items for critical/high issues
+  let tasksCreated = 0;
+  if (analysis?.issues) {
+    for (const issue of analysis.issues) {
+      if (!["critical", "high"].includes(issue.severity)) continue;
+      const { data: existing } = await supabase
+        .from("work_items")
+        .select("id")
+        .ilike("title", `%${issue.title.substring(0, 25)}%`)
+        .in("status", ["open", "claimed", "in_progress"])
+        .limit(1);
+      if (!existing?.length) {
+        await supabase.from("work_items").insert({
+          title: `UX: ${issue.title}`.substring(0, 200),
+          description: `Kategori: ${issue.category}\nSida: ${issue.page}\nPåverkan: ${issue.user_impact}\n\nBeskrivning: ${issue.description}\n\nFöreslagen fix: ${issue.fix_suggestion}`,
+          status: "open",
+          priority: issue.severity === "critical" ? "critical" : "high",
+          item_type: "bug",
+          source_type: "ai_detection",
+          ai_detected: true,
+          ai_confidence: "high",
+          ai_category: "frontend",
+          ai_type_classification: "ux_issue",
+        });
+        tasksCreated++;
+      }
+    }
+  }
+
+  // Store scan result
+  await supabase.from("ai_scan_results").insert({
+    scan_type: "ux_scan",
+    overall_score: analysis?.ux_score || 0,
+    overall_status: (analysis?.ux_score || 0) >= 80 ? "healthy" : (analysis?.ux_score || 0) >= 50 ? "warning" : "critical",
+    executive_summary: analysis?.executive_summary || "",
+    results: analysis || {},
+    issues_count: analysis?.issues_found || 0,
+    tasks_created: tasksCreated,
+  });
+
+  return { ...analysis, tasks_created: tasksCreated };
+}
