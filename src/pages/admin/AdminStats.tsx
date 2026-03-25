@@ -186,7 +186,76 @@ const AdminStats = () => {
         p_from: from,
         p_to: to,
       });
-      if (error) throw error;
+      if (error) {
+        console.error('RPC get_dashboard_stats failed, using fallback:', error);
+        // Fallback: query orders directly
+        const { data: orders } = await supabase
+          .from('orders')
+          .select('total_amount, payment_status, status, refund_amount, refund_status, created_at')
+          .is('deleted_at', null)
+          .neq('status', 'cancelled')
+          .gte('created_at', from)
+          .lte('created_at', to);
+
+        const { data: events } = await supabase
+          .from('analytics_events')
+          .select('event_type')
+          .gte('created_at', from)
+          .lte('created_at', to);
+
+        const { data: searches } = await supabase
+          .from('search_logs')
+          .select('results_count')
+          .gte('created_at', from)
+          .lte('created_at', to);
+
+        const paidOrders = (orders || []).filter((o: any) => o.payment_status === 'paid');
+        const totalRevenue = paidOrders.reduce((s: number, o: any) => s + (o.total_amount || 0) - (o.refund_amount || 0), 0);
+        const grossRevenue = paidOrders.reduce((s: number, o: any) => s + (o.total_amount || 0), 0);
+        const totalRefunds = paidOrders.reduce((s: number, o: any) => s + (o.refund_amount || 0), 0);
+        const avgOrder = paidOrders.length > 0 ? grossRevenue / paidOrders.length : 0;
+        const amounts = paidOrders.map((o: any) => o.total_amount || 0).sort((a: number, b: number) => a - b);
+        const medianOrder = amounts.length > 0 ? amounts[Math.floor(amounts.length / 2)] : 0;
+
+        const evts = events || [];
+        const srch = searches || [];
+
+        setStats({
+          orders: {
+            total_revenue: totalRevenue,
+            gross_revenue: grossRevenue,
+            total_refunds: totalRefunds,
+            paid_count: paidOrders.length,
+            failed_count: (orders || []).filter((o: any) => o.payment_status === 'failed').length,
+            pending_count: (orders || []).filter((o: any) => o.payment_status === 'unpaid' && o.status === 'pending').length,
+            refunded_count: (orders || []).filter((o: any) => o.refund_status === 'refunded').length,
+            total_orders: (orders || []).length,
+            avg_order: Math.round(avgOrder),
+            median_order: medianOrder,
+            ranges: [
+              { label: '0–99 kr', count: paidOrders.filter((o: any) => o.total_amount < 100).length },
+              { label: '100–249 kr', count: paidOrders.filter((o: any) => o.total_amount >= 100 && o.total_amount < 250).length },
+              { label: '250–499 kr', count: paidOrders.filter((o: any) => o.total_amount >= 250 && o.total_amount < 500).length },
+              { label: '500–999 kr', count: paidOrders.filter((o: any) => o.total_amount >= 500 && o.total_amount < 1000).length },
+              { label: '1 000+ kr', count: paidOrders.filter((o: any) => o.total_amount >= 1000).length },
+            ],
+          },
+          analytics: {
+            product_views: evts.filter((e: any) => e.event_type === 'product_view').length,
+            cart_adds: evts.filter((e: any) => e.event_type === 'add_to_cart').length,
+            cart_removes: evts.filter((e: any) => e.event_type === 'remove_from_cart').length,
+            checkout_starts: evts.filter((e: any) => e.event_type === 'checkout_start').length,
+            checkout_completes: evts.filter((e: any) => e.event_type === 'checkout_complete').length,
+            checkout_abandons: evts.filter((e: any) => e.event_type === 'checkout_abandon').length,
+          },
+          searches: {
+            total_searches: srch.length,
+            with_results: srch.filter((s: any) => (s.results_count || 0) > 0).length,
+            without_results: srch.filter((s: any) => (s.results_count || 0) === 0).length,
+          },
+        });
+        return;
+      }
       if (data) {
         setStats(data as unknown as DashboardStats);
       }
