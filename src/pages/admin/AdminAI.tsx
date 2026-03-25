@@ -6661,6 +6661,7 @@ const PromptQueueTab = () => {
 
 // ── Change Log Tab ──
 const ChangeLogTab = () => {
+  const { openDetail } = useDetailContext();
   const [entries, setEntries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [sourceFilter, setSourceFilter] = useState<string>('all');
