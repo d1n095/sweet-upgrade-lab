@@ -339,6 +339,7 @@ export type Database = {
         Row: {
           action_type: string
           affected_components: string[] | null
+          ai_suggestion: string | null
           created_at: string
           endpoints: string[] | null
           file_paths: string[] | null
@@ -352,10 +353,15 @@ export type Database = {
           target_ids: string[] | null
           target_type: string
           triggered_by: string | null
+          verified_at: string | null
+          verified_by: string | null
+          verify_note: string | null
+          verify_status: string | null
         }
         Insert: {
           action_type?: string
           affected_components?: string[] | null
+          ai_suggestion?: string | null
           created_at?: string
           endpoints?: string[] | null
           file_paths?: string[] | null
@@ -369,10 +375,15 @@ export type Database = {
           target_ids?: string[] | null
           target_type: string
           triggered_by?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
+          verify_note?: string | null
+          verify_status?: string | null
         }
         Update: {
           action_type?: string
           affected_components?: string[] | null
+          ai_suggestion?: string | null
           created_at?: string
           endpoints?: string[] | null
           file_paths?: string[] | null
@@ -386,6 +397,10 @@ export type Database = {
           target_ids?: string[] | null
           target_type?: string
           triggered_by?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
+          verify_note?: string | null
+          verify_status?: string | null
         }
         Relationships: []
       }
