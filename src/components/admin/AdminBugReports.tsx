@@ -309,8 +309,17 @@ const AdminBugReports = () => {
     return `${diffDays}d sedan`;
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
+  const copyToClipboard = (text: string, buttonId?: string) => {
+    const clean = text.replace(/[#*`_~>]/g, '').replace(/\n{3,}/g, '\n\n').trim();
+    navigator.clipboard.writeText(clean);
+    if (buttonId) {
+      const el = document.getElementById(buttonId);
+      if (el) {
+        el.textContent = '✓ Kopierad';
+        el.classList.add('text-green-600');
+        setTimeout(() => { el.textContent = '📋 Copy Fix'; el.classList.remove('text-green-600'); }, 2000);
+      }
+    }
     toast.success('Kopierat till urklipp');
   };
 
@@ -500,9 +509,10 @@ const AdminBugReports = () => {
                         size="sm"
                         variant="default"
                         className="h-6 text-[10px] gap-1"
-                        onClick={() => copyToClipboard(r.ai_actionable_fix?.copy_prompt || r.ai_clean_prompt!)}
+                        id={`copy-fix-bug-${r.id}`}
+                        onClick={() => copyToClipboard(r.ai_actionable_fix?.copy_prompt || r.ai_clean_prompt!, `copy-fix-bug-${r.id}`)}
                       >
-                        <Copy className="w-2.5 h-2.5" /> Kopiera Fix
+                        📋 Copy Fix
                       </Button>
                     </div>
                     <div className="text-xs bg-muted rounded-md p-2.5 whitespace-pre-wrap font-mono leading-relaxed border max-h-48 overflow-y-auto">
