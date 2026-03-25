@@ -26,6 +26,7 @@ import DataFlowValidator from '@/components/admin/DataFlowValidator';
 import UiRealityCheck from '@/components/admin/UiRealityCheck';
 import SystemTrustScore from '@/components/admin/SystemTrustScore';
 import SafeModePanel, { SafeModeBanner } from '@/components/admin/SafeModePanel';
+import UnifiedPipelineDashboard from '@/components/admin/UnifiedPipelineDashboard';
 
 // Context to allow any tab to open a work item detail view
 const DetailContext = createContext<{
@@ -7086,6 +7087,7 @@ const OrchestrationTab = () => {
       <AiCenterTabs defaultValue="ai-dashboard">
 
         <div data-value="lova-chat"><LovaChatTab /></div>
+        <div data-value="unified-pipeline"><UnifiedPipelineDashboard /></div>
         <div data-value="autopilot"><AiAutopilotTab /></div>
         <div data-value="actions"><ActionEngineTab /></div>
         <div data-value="tasks"><TaskAITab /></div>
