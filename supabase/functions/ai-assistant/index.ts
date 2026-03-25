@@ -5190,23 +5190,59 @@ Returnera JSON:
   let refinerResult: any;
   try { refinerResult = JSON.parse(pass1Refiner); } catch { refinerResult = { improvements: [], refined_actions: [], optimization_notes: pass1Refiner }; }
 
-  // ── PASS 2: Refine + Final Review ──
-  const pass2Generator = await callAI(apiKey, "google/gemini-2.5-flash", [
-    { role: "system", content: `Du är systemarkitekten igen (Generator Pass 2). Förbättra lösningen baserat på feedback. BYGG VIDARE — starta inte om.
+  // ── Smart Stop Condition: Check if Pass 2 is needed ──
+  const pass1Score = validatorResult.approval_score || 0;
+  const pass1IssueCount = validatorResult.issues_found?.length || 0;
+  const pass1Risk = validatorResult.risk_assessment || "medium";
+  const pass1Confidence = generatorResult.confidence || 0;
+
+  const SKIP_THRESHOLD_SCORE = 85;
+  const SKIP_THRESHOLD_CONFIDENCE = 80;
+
+  const pass1Stable = pass1Score >= SKIP_THRESHOLD_SCORE && pass1Confidence >= SKIP_THRESHOLD_CONFIDENCE;
+  const noSignificantIssues = pass1IssueCount === 0 || (pass1IssueCount <= 2 && pass1Risk === "low");
+  const skipPass2 = pass1Stable && noSignificantIssues;
+
+  let pass2GenResult: any = null;
+  let pass2ValResult: any = null;
+  let stopReason = "";
+
+  if (skipPass2) {
+    stopReason = `Pass 2 hoppades över: Pass 1 score ${pass1Score}/100, confidence ${pass1Confidence}/100, ${pass1IssueCount} problem (risk: ${pass1Risk}). Lösningen är redan stabil.`;
+  } else {
+    // ── PASS 2: Refine + Final Review ──
+    const pass2Generator = await callAI(apiKey, "google/gemini-2.5-flash", [
+      { role: "system", content: `Du är systemarkitekten igen (Generator Pass 2). Förbättra lösningen baserat på feedback. BYGG VIDARE — starta inte om.
 Returnera JSON:
 {
   "solution_v2": { "title": "string", "final_analysis": "string", "final_recommendations": ["string"], "final_actions": [{"action": "string", "priority": "high|medium|low", "type": "auto_fix|assist|lovable_required", "confidence": 0-100}] },
   "improvement_delta": "string",
   "pass2_confidence": 0-100
 }` },
-    { role: "user", content: `Pass 1 lösning:\n${JSON.stringify(generatorResult.solution_v1)}\n\nValideringsproblem:\n${JSON.stringify(validatorResult.issues_found)}\n\nFörfiningar:\n${JSON.stringify(refinerResult)}\n\nFörbättra lösningen.` }
-  ]);
+      { role: "user", content: `Pass 1 lösning:\n${JSON.stringify(generatorResult.solution_v1)}\n\nValideringsproblem:\n${JSON.stringify(validatorResult.issues_found)}\n\nFörfiningar:\n${JSON.stringify(refinerResult)}\n\nFörbättra lösningen.` }
+    ]);
 
-  let pass2GenResult: any;
-  try { pass2GenResult = JSON.parse(pass2Generator); } catch { pass2GenResult = { solution_v2: { title: "Förbättrad analys", final_analysis: pass2Generator, final_recommendations: [], final_actions: [] }, improvement_delta: "N/A", pass2_confidence: 60 }; }
+    try { pass2GenResult = JSON.parse(pass2Generator); } catch { pass2GenResult = { solution_v2: { title: "Förbättrad analys", final_analysis: pass2Generator, final_recommendations: [], final_actions: [] }, improvement_delta: "N/A", pass2_confidence: 60 }; }
 
-  const pass2Validator = await callAI(apiKey, "openai/gpt-5", [
-    { role: "system", content: `Du är en KRITISK säkerhetsgranskare (Critical Validator Pass 2). Din uppgift är att STRESS-TESTA lösningen. Var aggressivt kritisk.
+    // Check improvement delta before running expensive critical validator
+    const pass2Confidence = pass2GenResult.pass2_confidence || 0;
+    const improvementDelta = pass2Confidence - pass1Confidence;
+    const newActionsCount = pass2GenResult.solution_v2?.final_actions?.length || 0;
+    const pass1ActionsCount = generatorResult.solution_v1?.priority_actions?.length || 0;
+    const solutionUnchanged = improvementDelta < 5 && Math.abs(newActionsCount - pass1ActionsCount) <= 1;
+
+    if (solutionUnchanged && pass1Score >= 70) {
+      stopReason = `Pass 2 Generator visade minimal förbättring (delta: ${improvementDelta}). Critical Validator hoppades över för att spara resurser.`;
+      pass2ValResult = {
+        final_approval_score: Math.max(pass1Score, pass2Confidence),
+        remaining_issues: validatorResult.issues_found || [],
+        ready_for_execution: pass1Score >= 60,
+        final_verdict: `Lösningen var stabil redan efter Pass 1. Minimal förbättring i Pass 2 (delta: ${improvementDelta}).`,
+        skipped_critical_review: true,
+      };
+    } else {
+      const pass2Validator = await callAI(apiKey, "openai/gpt-5", [
+        { role: "system", content: `Du är en KRITISK säkerhetsgranskare (Critical Validator Pass 2). Din uppgift är att STRESS-TESTA lösningen. Var aggressivt kritisk.
 
 Du MÅSTE:
 1. EDGE CASES — Hitta extremfall som kan krascha systemet (tom data, stora volymer, samtidiga anrop, ogiltiga inputs, unicode, SQL injection, XSS)
@@ -5227,24 +5263,33 @@ Returnera JSON:
   "final_verdict": "string",
   "must_fix_before_deploy": ["string"]
 }` },
-    { role: "user", content: `Slutgiltig lösning att STRESS-TESTA:\n${JSON.stringify(pass2GenResult.solution_v2)}\n\nUrsprungliga problem (Pass 1):\n${JSON.stringify(validatorResult.issues_found)}\n\nPass 1 Validator Score: ${validatorResult.approval_score}/100\nPass 1 Risk: ${validatorResult.risk_assessment}\n\nGör DJUPGÅENDE kritisk granskning. Var hård.` }
-  ]);
+        { role: "user", content: `Slutgiltig lösning att STRESS-TESTA:\n${JSON.stringify(pass2GenResult.solution_v2)}\n\nUrsprungliga problem (Pass 1):\n${JSON.stringify(validatorResult.issues_found)}\n\nPass 1 Validator Score: ${validatorResult.approval_score}/100\nPass 1 Risk: ${validatorResult.risk_assessment}\n\nGör DJUPGÅENDE kritisk granskning. Var hård.` }
+      ]);
 
-  let pass2ValResult: any;
-  try { pass2ValResult = JSON.parse(pass2Validator); } catch { pass2ValResult = { final_approval_score: 65, remaining_issues: [], ready_for_execution: true, final_verdict: pass2Validator }; }
+      try { pass2ValResult = JSON.parse(pass2Validator); } catch { pass2ValResult = { final_approval_score: 65, remaining_issues: [], ready_for_execution: true, final_verdict: pass2Validator }; }
+    }
+  }
 
   // ── Governor Decision ──
-  const significantImprovement = (pass2GenResult.pass2_confidence || 0) > (generatorResult.confidence || 0);
+  const passesRun = skipPass2 ? 1 : 2;
+  const finalScore = skipPass2
+    ? pass1Score
+    : (pass2ValResult?.final_approval_score || 0);
+  const significantImprovement = !skipPass2 && (pass2GenResult?.pass2_confidence || 0) > pass1Confidence;
+
   const governorDecision = {
-    use_pass: significantImprovement ? 2 : 1,
-    reason: significantImprovement ? "Pass 2 visade signifikant förbättring" : "Pass 1 var redan tillräckligt bra",
-    final_score: pass2ValResult.final_approval_score || 0,
-    ready: pass2ValResult.ready_for_execution ?? true,
+    use_pass: skipPass2 ? 1 : (significantImprovement ? 2 : 1),
+    reason: stopReason || (significantImprovement ? "Pass 2 visade signifikant förbättring" : "Pass 1 var redan tillräckligt bra"),
+    final_score: finalScore,
+    ready: skipPass2 ? true : (pass2ValResult?.ready_for_execution ?? true),
+    passes_run: passesRun,
+    early_stop: skipPass2 || !!stopReason,
+    stop_reason: stopReason || null,
   };
 
   // Save prompt_queue entries for lovable_required actions
   const finalActions = governorDecision.use_pass === 2
-    ? (pass2GenResult.solution_v2?.final_actions || [])
+    ? (pass2GenResult?.solution_v2?.final_actions || [])
     : (refinerResult.refined_actions || generatorResult.solution_v1?.priority_actions || []);
 
   const lovableActions = finalActions.filter((a: any) => a.type === "lovable_required");
@@ -5261,8 +5306,8 @@ Returnera JSON:
   await supabase.from("activity_logs").insert({
     log_type: "ai_orchestration",
     category: "ai",
-    message: `Double-Pass Orchestration slutförd. Score: ${governorDecision.final_score}/100. Använde Pass ${governorDecision.use_pass}.`,
-    details: { governor_decision: governorDecision, pass1_confidence: generatorResult.confidence, pass2_confidence: pass2GenResult.pass2_confidence },
+    message: `Double-Pass Orchestration slutförd. Score: ${governorDecision.final_score}/100. Pass: ${passesRun}. ${governorDecision.early_stop ? 'Early stop.' : ''}`,
+    details: { governor_decision: governorDecision, pass1_confidence: generatorResult.confidence, pass2_confidence: pass2GenResult?.pass2_confidence },
   });
 
   return {
@@ -5271,7 +5316,7 @@ Returnera JSON:
       validator: validatorResult,
       refiner: refinerResult,
     },
-    pass2: {
+    pass2: skipPass2 ? null : {
       generator: pass2GenResult,
       validator: pass2ValResult,
     },
