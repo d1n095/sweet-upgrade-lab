@@ -7,13 +7,14 @@ import { Progress } from '@/components/ui/progress';
 import {
   Activity, AlertTriangle, CheckCircle, XCircle, Loader2,
   Play, Trash2, MousePointer, Database, Layers, ScrollText,
-  ChevronDown, ChevronUp, Eye, Ghost,
+  ChevronDown, ChevronUp, Eye, Ghost, Wrench,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
-type CheckVerdict = 'working' | 'fake_done' | 'partially_working' | 'broken';
+type CheckVerdict = 'working' | 'fake_done' | 'partially_working' | 'broken' | 'auto_fixed';
 type CheckCategory = 'buttons' | 'data' | 'modals' | 'scroll' | 'forms' | 'navigation' | 'layout';
+type LayoutFixType = 'no_scroll' | 'content_cut' | 'overflow_hidden_horiz' | 'modal_overflow' | 'modal_blocked_scroll' | null;
 
 interface UICheck {
   id: string;
@@ -23,12 +24,15 @@ interface UICheck {
   verdict: CheckVerdict;
   detail: string;
   checkedAt: string;
+  fixType?: LayoutFixType;
+  fixTarget?: HTMLElement;
 }
 
 type ScanStatus = 'idle' | 'running' | 'done';
 
 const verdictConfig: Record<CheckVerdict, { label: string; color: string; icon: React.ElementType }> = {
   working: { label: 'Fungerar', color: 'text-green-500', icon: CheckCircle },
+  auto_fixed: { label: 'Auto-fixad', color: 'text-blue-500', icon: Wrench },
   fake_done: { label: 'Fejkad', color: 'text-purple-500', icon: Ghost },
   partially_working: { label: 'Delvis', color: 'text-orange-500', icon: AlertTriangle },
   broken: { label: 'Trasig', color: 'text-destructive', icon: XCircle },
@@ -44,16 +48,18 @@ const categoryConfig: Record<CheckCategory, { label: string; icon: React.Element
   layout: { label: 'Layout', icon: Layers },
 };
 
-const CheckCard = ({ check }: { check: UICheck }) => {
+const CheckCard = ({ check, onFix }: { check: UICheck; onFix?: (check: UICheck) => void }) => {
   const [expanded, setExpanded] = useState(false);
   const v = verdictConfig[check.verdict];
   const c = categoryConfig[check.category];
   const VIcon = v.icon;
+  const canFix = check.fixType && check.fixTarget && check.verdict !== 'auto_fixed' && check.verdict !== 'working';
 
   return (
     <div className={cn(
       'border rounded-lg p-3 space-y-1',
       check.verdict === 'working' ? 'border-green-500/20 bg-green-500/5' :
+      check.verdict === 'auto_fixed' ? 'border-blue-500/20 bg-blue-500/5' :
       check.verdict === 'fake_done' ? 'border-purple-500/30 bg-purple-500/5' :
       check.verdict === 'partially_working' ? 'border-orange-500/30 bg-orange-500/5' :
       'border-destructive/30 bg-destructive/5'
@@ -65,6 +71,16 @@ const CheckCard = ({ check }: { check: UICheck }) => {
             <span className="text-sm font-medium truncate">{check.element}</span>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
+            {canFix && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-5 px-1.5 text-[10px] gap-0.5"
+                onClick={(e) => { e.stopPropagation(); onFix?.(check); }}
+              >
+                <Wrench className="w-2.5 h-2.5" />Fixa
+              </Button>
+            )}
             <Badge variant="outline" className="text-[10px]">
               <c.icon className="w-2.5 h-2.5 mr-0.5" />{c.label}
             </Badge>
@@ -366,13 +382,16 @@ const UiRealityCheck = () => {
         // Skip if parent is a known scroll container
         const parentScrollable = htmlEl.closest('[data-radix-scroll-area-viewport], [class*="overflow-y-auto"], [class*="overflow-auto"]');
         if (!parentScrollable) {
-          results.push(makeCheck(
+          const check = makeCheck(
             'layout',
             `no_scroll: ${buildSelector(htmlEl).slice(0, 50)}`,
             buildSelector(htmlEl),
             'broken',
             `Innehåll (${contentH}px) överstiger container (${containerH}px) med ${overflow}px men overflow-y:hidden blockerar scroll. Fix: ändra till overflow-y:auto och lägg till min-height:0 på flex-förälder.`
-          ));
+          );
+          check.fixType = 'no_scroll';
+          check.fixTarget = htmlEl;
+          results.push(check);
         }
       }
 
@@ -381,13 +400,16 @@ const UiRealityCheck = () => {
       if (hasFixedH && overflow > 50 && (overflowY === 'hidden' || overflowY === 'visible') && containerH > 40) {
         const isInsideScrollArea = !!htmlEl.closest('[data-radix-scroll-area-viewport]');
         if (!isInsideScrollArea) {
-          results.push(makeCheck(
+          const check = makeCheck(
             'layout',
             `content_cut: ${buildSelector(htmlEl).slice(0, 50)}`,
             buildSelector(htmlEl),
             'broken',
             `Container har fast höjd (${containerH}px) men innehållet är ${contentH}px — ${overflow}px klipps bort. Fix: ta bort fixed height eller lägg till overflow-y:auto.`
-          ));
+          );
+          check.fixType = 'content_cut';
+          check.fixTarget = htmlEl;
+          results.push(check);
         }
       }
 
@@ -395,13 +417,16 @@ const UiRealityCheck = () => {
       if (overflowHoriz > 30 && overflowX === 'hidden' && containerW > 50) {
         const isTable = !!htmlEl.closest('table') || htmlEl.querySelector('table');
         if (!isTable) {
-          results.push(makeCheck(
+          const check = makeCheck(
             'layout',
             `overflow_hidden_issue (horiz): ${buildSelector(htmlEl).slice(0, 50)}`,
             buildSelector(htmlEl),
             'partially_working',
             `Horisontellt innehåll (${contentW}px) klipps i container (${containerW}px). ${overflowHoriz}px dolt. Fix: overflow-x:auto eller bredda containern.`
-          ));
+          );
+          check.fixType = 'overflow_hidden_horiz';
+          check.fixTarget = htmlEl;
+          results.push(check);
         }
       }
     });
@@ -416,24 +441,30 @@ const UiRealityCheck = () => {
         const mContentH = htmlModal.scrollHeight;
         const mContainerH = htmlModal.clientHeight;
         if (mContentH > mContainerH + 30) {
-          results.push(makeCheck(
+          const check = makeCheck(
             'layout',
             `modal_overflow_bug: ${buildSelector(htmlModal).slice(0, 50)}`,
             buildSelector(htmlModal),
             'broken',
             `Öppen modal har ${mContentH}px innehåll i ${mContainerH}px container utan scroll-wrapper. Fix: wrappa innehållet i ScrollArea eller lägg till overflow-y:auto med flex-1 min-h-0.`
-          ));
+          );
+          check.fixType = 'modal_overflow';
+          check.fixTarget = htmlModal;
+          results.push(check);
         }
       } else {
         const scrollEl = innerScrollable as HTMLElement;
         if (scrollEl.scrollHeight > scrollEl.clientHeight + 20 && getComputedStyle(scrollEl).overflowY === 'hidden') {
-          results.push(makeCheck(
+          const check = makeCheck(
             'layout',
             `modal_overflow_bug (blocked scroll): ${buildSelector(htmlModal).slice(0, 50)}`,
             buildSelector(htmlModal),
             'broken',
             `Modal har ScrollArea men overflow-y:hidden blockerar scroll. Fix: kontrollera flex-chain — säkerställ min-height:0 på alla flex-föräldrar.`
-          ));
+          );
+          check.fixType = 'modal_blocked_scroll';
+          check.fixTarget = htmlModal;
+          results.push(check);
         }
       }
     });
@@ -441,7 +472,7 @@ const UiRealityCheck = () => {
     setProgress(100);
 
     // Sort: issues first
-    const order: Record<CheckVerdict, number> = { broken: 0, fake_done: 1, partially_working: 2, working: 3 };
+    const order: Record<CheckVerdict, number> = { broken: 0, fake_done: 1, partially_working: 2, auto_fixed: 3, working: 4 };
     results.sort((a, b) => order[a.verdict] - order[b.verdict]);
 
     setChecks(results);
@@ -455,16 +486,134 @@ const UiRealityCheck = () => {
     }
   }, []);
 
+  const applyFix = useCallback((check: UICheck) => {
+    const el = check.fixTarget;
+    if (!el || !check.fixType) return false;
+
+    try {
+      switch (check.fixType) {
+        case 'no_scroll': {
+          el.style.overflowY = 'auto';
+          // Fix flex parent chain
+          let parent = el.parentElement;
+          let depth = 0;
+          while (parent && depth < 5) {
+            const ps = getComputedStyle(parent);
+            if (ps.display === 'flex' || ps.display === 'inline-flex') {
+              if (ps.minHeight !== '0px' && ps.minHeight !== '0') {
+                parent.style.minHeight = '0';
+              }
+            }
+            parent = parent.parentElement;
+            depth++;
+          }
+          return true;
+        }
+        case 'content_cut': {
+          el.style.overflowY = 'auto';
+          // If parent is flex, ensure min-height:0
+          const flexParent = el.parentElement;
+          if (flexParent) {
+            const fps = getComputedStyle(flexParent);
+            if (fps.display === 'flex' || fps.display === 'inline-flex') {
+              el.style.minHeight = '0';
+            }
+          }
+          return true;
+        }
+        case 'overflow_hidden_horiz': {
+          el.style.overflowX = 'auto';
+          return true;
+        }
+        case 'modal_overflow': {
+          el.style.display = 'flex';
+          el.style.flexDirection = 'column';
+          el.style.minHeight = '0';
+          // Find the main content child (skip close buttons etc)
+          const children = Array.from(el.children) as HTMLElement[];
+          const contentChild = children.find(c => c.scrollHeight > 100) || children[children.length - 1];
+          if (contentChild) {
+            contentChild.style.overflowY = 'auto';
+            contentChild.style.flex = '1';
+            contentChild.style.minHeight = '0';
+          }
+          return true;
+        }
+        case 'modal_blocked_scroll': {
+          const scrollViewport = el.querySelector('[data-radix-scroll-area-viewport], [class*="overflow-y-auto"], [class*="overflow-auto"]') as HTMLElement;
+          if (scrollViewport) {
+            scrollViewport.style.overflowY = 'auto';
+          }
+          // Fix flex chain inside modal
+          let node = scrollViewport?.parentElement || el;
+          let d = 0;
+          while (node && node !== el && d < 5) {
+            const ns = getComputedStyle(node);
+            if (ns.display === 'flex' || ns.display === 'inline-flex') {
+              node.style.minHeight = '0';
+            }
+            node = node.parentElement!;
+            d++;
+          }
+          return true;
+        }
+        default:
+          return false;
+      }
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const handleFixOne = useCallback((check: UICheck) => {
+    const success = applyFix(check);
+    if (success) {
+      setChecks(prev => prev.map(c =>
+        c.id === check.id
+          ? { ...c, verdict: 'auto_fixed' as CheckVerdict, detail: `✅ Auto-fixad: ${c.detail}` }
+          : c
+      ));
+      toast.success(`Layout-fix applicerad: ${check.element.slice(0, 40)}`);
+    } else {
+      toast.error('Kunde inte applicera fix');
+    }
+  }, [applyFix]);
+
+  const handleFixAll = useCallback(() => {
+    const fixable = checks.filter(c => c.fixType && c.fixTarget && c.verdict !== 'auto_fixed' && c.verdict !== 'working');
+    let fixed = 0;
+    const updated = checks.map(c => {
+      if (c.fixType && c.fixTarget && c.verdict !== 'auto_fixed' && c.verdict !== 'working') {
+        const success = applyFix(c);
+        if (success) {
+          fixed++;
+          return { ...c, verdict: 'auto_fixed' as CheckVerdict, detail: `✅ Auto-fixad: ${c.detail}` };
+        }
+      }
+      return c;
+    });
+    setChecks(updated);
+    if (fixed > 0) {
+      toast.success(`${fixed}/${fixable.length} layout-problem auto-fixade`);
+    } else {
+      toast.info('Inga fixbara layout-problem hittades');
+    }
+  }, [checks, applyFix]);
+
+  const fixableCount = checks.filter(c => c.fixType && c.fixTarget && c.verdict !== 'auto_fixed' && c.verdict !== 'working').length;
+  const autoFixedCount = checks.filter(c => c.verdict === 'auto_fixed').length;
+
   const stats = {
     total: checks.length,
     working: checks.filter(c => c.verdict === 'working').length,
+    auto_fixed: autoFixedCount,
     fake_done: checks.filter(c => c.verdict === 'fake_done').length,
     partially_working: checks.filter(c => c.verdict === 'partially_working').length,
     broken: checks.filter(c => c.verdict === 'broken').length,
   };
 
-  const issues = checks.filter(c => c.verdict !== 'working');
-  const okChecks = checks.filter(c => c.verdict === 'working');
+  const issues = checks.filter(c => c.verdict !== 'working' && c.verdict !== 'auto_fixed');
+  const okChecks = checks.filter(c => c.verdict === 'working' || c.verdict === 'auto_fixed');
 
   return (
     <div className="space-y-4">
@@ -474,6 +623,7 @@ const UiRealityCheck = () => {
           {([
             { key: 'total', label: 'Totalt', count: stats.total, color: 'text-foreground', icon: Activity },
             { key: 'working', label: 'Fungerar', count: stats.working, color: 'text-green-500', icon: CheckCircle },
+            { key: 'auto_fixed', label: 'Auto-fixade', count: stats.auto_fixed, color: 'text-blue-500', icon: Wrench },
             { key: 'fake_done', label: 'Fejkade', count: stats.fake_done, color: 'text-purple-500', icon: Ghost },
             { key: 'partial', label: 'Delvis', count: stats.partially_working, color: 'text-orange-500', icon: AlertTriangle },
             { key: 'broken', label: 'Trasiga', count: stats.broken, color: 'text-destructive', icon: XCircle },
@@ -523,6 +673,12 @@ const UiRealityCheck = () => {
             Rensa
           </Button>
         )}
+        {fixableCount > 0 && (
+          <Button size="sm" variant="default" onClick={handleFixAll} className="gap-1.5 text-xs">
+            <Wrench className="w-3.5 h-3.5" />
+            Auto-fixa alla ({fixableCount})
+          </Button>
+        )}
         <div className="ml-auto text-[10px] text-muted-foreground">
           Kontrollerar: knappar · data · modaler · scroll · formulär · navigation · layout
         </div>
@@ -540,7 +696,7 @@ const UiRealityCheck = () => {
           <CardContent className="px-4 pb-3">
             <ScrollArea className="max-h-[45vh]">
               <div className="space-y-2 pr-2">
-                {issues.map(c => <CheckCard key={c.id} check={c} />)}
+                {issues.map(c => <CheckCard key={c.id} check={c} onFix={handleFixOne} />)}
               </div>
             </ScrollArea>
           </CardContent>
