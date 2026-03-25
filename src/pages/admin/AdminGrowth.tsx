@@ -36,7 +36,7 @@ const AdminGrowth = () => {
       const views = events.filter(e => e.event_type === 'product_view').length;
       const carts = events.filter(e => e.event_type === 'add_to_cart').length;
       const checkouts = events.filter(e => e.event_type === 'checkout_start').length;
-      const purchases = orders.filter(o => o.payment_status === 'paid').length;
+      const purchases = orders.filter(o => o.payment_status === PAID_STATUS).length;
       setFunnelData({ views, carts, checkouts, purchases });
 
       // Top products
