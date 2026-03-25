@@ -902,6 +902,9 @@ serve(async (req) => {
       // Load updated focus memory to include in result
       const updatedFocusMemory = await loadFocusMemory(supabase);
 
+      // ── Predictive Issue Detection ──
+      const predictions = generatePredictions(unified, patternDiscoveries, systemicIssues, updatedFocusMemory, finalRootCause || []);
+
       // Enrich unified result with adaptive scan metadata
       const adaptiveResult = {
         ...unified,
@@ -922,6 +925,7 @@ serve(async (req) => {
             severity: m.severity,
             last_seen_at: m.last_seen_at,
           })),
+          predictions,
         },
       };
 
