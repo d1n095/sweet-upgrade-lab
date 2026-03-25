@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Bug, CheckCircle2, Loader2, Clock, MapPin, User, ChevronDown, ChevronUp, AlertCircle, Sparkles, Tag, Search, RefreshCw, BookOpen, Copy, Filter } from 'lucide-react';
+import { Bug, CheckCircle2, Loader2, Clock, MapPin, User, ChevronDown, ChevronUp, AlertCircle, Sparkles, Tag, Search, RefreshCw, BookOpen, Copy, Filter, Crosshair, Wrench, FileCode, ClipboardCopy } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -14,6 +14,19 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
+
+interface ActionableFix {
+  blocker_statement?: string;
+  root_cause_exact?: string;
+  location?: { file_path: string; function_name: string; system_area: string };
+  fix_steps?: string[];
+  copy_prompt?: string;
+  root_causes?: { cause: string; confidence: number; affected_area: string }[];
+  is_reproducible?: boolean;
+  reproducibility_reasoning?: string;
+  fix_suggestions?: { suggestion: string; effort: string; risk: string }[];
+  affected_components?: string[];
+}
 
 interface BugReport {
   id: string;
@@ -32,6 +45,7 @@ interface BugReport {
   ai_clean_prompt: string | null;
   ai_processed_at: string | null;
   ai_approved: boolean;
+  ai_actionable_fix: ActionableFix | null;
   work_item_status?: string;
   reporter_name?: string;
 }
