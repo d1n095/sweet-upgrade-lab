@@ -172,7 +172,7 @@ export const runUnifiedPipeline = async (
         await logChange({
           change_type: 'fix',
           description: `Slutförd: ${item.title}`,
-          source: 'pipeline',
+          source: 'system',
           work_item_id: item.id,
           bug_report_id: item.source_type === 'bug_report' ? item.source_id : undefined,
           affected_components: ['auto_pipeline'],
