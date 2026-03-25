@@ -150,8 +150,58 @@ const AdminCategoryManager = () => {
     });
     setEditingCat(cat);
   };
+  const runAiSync = async () => {
+    setAiSyncing(true);
+    setAiResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-assistant', {
+        body: { type: 'category_sync' },
+      });
+      if (error) throw error;
+      setAiResult(data?.result || data);
+      queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
+      const created = data?.result?.created?.length || 0;
+      if (created > 0) toast.success(`${created} kategorier skapade av AI`);
+      else if (data?.result?.no_changes_needed) toast.info('Alla produkter är korrekt kategoriserade');
+      else toast.info('AI-analys klar');
+    } catch (err: any) {
+      toast.error('AI-synk misslyckades: ' + (err?.message || ''));
+    } finally {
+      setAiSyncing(false);
+    }
+  };
 
-  const renderCategoryRow = (cat: DbCategory, depth = 0) => {
+  const acceptPendingSuggestion = async (suggestion: any) => {
+    try {
+      const categories_list = categories;
+      let parentId = null;
+      if (suggestion.parent_slug && suggestion.parent_slug !== 'root') {
+        const parent = categories_list.find(c => c.slug === suggestion.parent_slug);
+        if (parent) parentId = parent.id;
+      }
+      const maxOrder = Math.max(0, ...categories_list.map(c => c.display_order || 0));
+      await createCategory({
+        name_sv: suggestion.name_sv,
+        name_en: suggestion.name_en,
+        slug: suggestion.slug,
+        icon: suggestion.icon,
+        parent_id: parentId,
+        display_order: maxOrder + 1,
+        is_visible: true,
+      });
+      toast.success(`"${suggestion.name_sv}" skapad!`);
+      queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
+      // Remove from pending
+      setAiResult((prev: any) => prev ? {
+        ...prev,
+        pending_review: (prev.pending_review || []).filter((s: any) => s.slug !== suggestion.slug),
+      } : prev);
+    } catch (err: any) {
+      toast.error('Kunde inte skapa: ' + (err?.message || ''));
+    }
+  };
+
+
     const Icon = getIcon(cat.icon);
     const hasChildren = cat.children && cat.children.length > 0;
     const isExpanded = expandedIds.has(cat.id);
