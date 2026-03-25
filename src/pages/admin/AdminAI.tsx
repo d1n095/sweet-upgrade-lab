@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, createContext, useContext, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Sparkles, Bug, BarChart3, Copy, Loader2, Send, AlertTriangle, Lightbulb, Info, RefreshCw, Bot, CheckCircle, XCircle, Shield, Clock, Zap, Activity, TrendingUp, Package, AlertCircle, Database, Wrench, Radar, ArrowRight, Layers, Monitor, Smartphone, Tablet, Eye, Compass, LayoutGrid, GitMerge, ArrowRightLeft, ShieldCheck, Play, Settings2, ToggleRight, Maximize2, Gavel, ChevronDown, History } from 'lucide-react';
+import { Sparkles, Bug, BarChart3, Copy, Loader2, Send, AlertTriangle, Lightbulb, Info, RefreshCw, Bot, CheckCircle, XCircle, Shield, Clock, Zap, Activity, TrendingUp, Package, AlertCircle, Database, Wrench, Radar, ArrowRight, Layers, Monitor, Smartphone, Tablet, Eye, Compass, LayoutGrid, GitMerge, ArrowRightLeft, ShieldCheck, Play, Settings2, ToggleRight, Maximize2, Gavel, ChevronDown, History, User } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger, ScrollableTabs } from '@/components/ui/tabs';
 import AiCenterTabs from '@/components/admin/AiCenterTabs';
 import { Button } from '@/components/ui/button';
@@ -4606,6 +4606,7 @@ const SCAN_STEP_ICONS: Record<string, any> = {
   visual_qa: Monitor,
   nav_scan: Compass,
   ux_scan: Eye,
+  human_test: User,
   action_governor: Gavel,
 };
 
@@ -4826,7 +4827,67 @@ const AiAutopilotTab = () => {
                           <p className="text-muted-foreground">{typeof step.result.summary === 'string' ? step.result.summary : ''}</p>
                         )}
 
-                        {/* Issues list */}
+                        {/* Human Test: Areas status grid */}
+                        {step.type === 'human_test' && step.result.areas?.length > 0 && (
+                          <div className="space-y-1">
+                            <p className="font-semibold text-[11px]">Systemområden</p>
+                            <div className="grid grid-cols-2 gap-1">
+                              {step.result.areas.map((area: any, j: number) => (
+                                <div key={area.name || j} className={cn(
+                                  'p-1.5 rounded border text-[10px]',
+                                  area.status === 'working' ? 'border-green-500/30 bg-green-50 dark:bg-green-950/20' :
+                                  area.status === 'unstable' ? 'border-yellow-500/30 bg-yellow-50 dark:bg-yellow-950/20' :
+                                  'border-red-500/30 bg-red-50 dark:bg-red-950/20'
+                                )}>
+                                  <div className="flex items-center gap-1">
+                                    <span>{area.status === 'working' ? '✅' : area.status === 'unstable' ? '⚠️' : '❌'}</span>
+                                    <span className="font-medium truncate">{area.name}</span>
+                                    {area.score != null && <span className="ml-auto font-bold">{area.score}</span>}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Human Test: Pipeline status */}
+                        {step.type === 'human_test' && step.result.pipeline_status && (
+                          <div className="space-y-1">
+                            <p className="font-semibold text-[11px]">Pipeline-status</p>
+                            <div className="flex gap-1 flex-wrap">
+                              {Object.entries(step.result.pipeline_status).map(([key, val]: [string, any]) => (
+                                <Badge key={key} variant="outline" className={cn(
+                                  'text-[8px]',
+                                  val === 'working' ? 'border-green-500 text-green-700' :
+                                  val === 'unstable' ? 'border-yellow-500 text-yellow-700' :
+                                  'border-red-500 text-red-700'
+                                )}>
+                                  {val === 'working' ? '✅' : val === 'unstable' ? '⚠️' : '❌'} {key.replace(/_/g, ' → ')}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Human Test: Broken interactions */}
+                        {step.type === 'human_test' && step.result.broken_interactions?.length > 0 && (
+                          <div className="space-y-1">
+                            <p className="font-semibold text-[11px]">Trasiga interaktioner</p>
+                            {step.result.broken_interactions.slice(0, 5).map((bi: any, j: number) => (
+                              <div key={j} className="flex items-start gap-2 p-1.5 rounded bg-destructive/5 border border-destructive/20">
+                                <AlertTriangle className="w-3 h-3 text-destructive shrink-0 mt-0.5" />
+                                <div className="min-w-0">
+                                  <p className="text-[11px] font-medium">{bi.flow}: {bi.step}</p>
+                                  <p className="text-[10px] text-muted-foreground">Förväntat: {bi.expected}</p>
+                                  <p className="text-[10px] text-destructive">Faktiskt: {bi.actual}</p>
+                                </div>
+                                <Badge variant="destructive" className="text-[8px] shrink-0">{bi.severity}</Badge>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Generic issues list */}
                         {(step.result.issues || step.result.dead_elements || step.result.mismatches || step.result.critical_issues)?.slice(0, 5).map((issue: any, j: number) => (
                           <div key={j} className="flex items-start gap-2 p-1.5 rounded bg-muted/30">
                             <AlertTriangle className="w-3 h-3 text-destructive shrink-0 mt-0.5" />
@@ -4836,6 +4897,16 @@ const AiAutopilotTab = () => {
                             </div>
                           </div>
                         ))}
+
+                        {/* Positive findings */}
+                        {step.result.positive_findings?.length > 0 && step.type === 'human_test' && (
+                          <div className="space-y-1">
+                            <p className="font-semibold text-[11px] text-green-700">Positivt</p>
+                            {step.result.positive_findings.slice(0, 3).map((p: string, j: number) => (
+                              <p key={j} className="text-[10px] text-muted-foreground">✅ {p}</p>
+                            ))}
+                          </div>
+                        )}
 
                         {step.result.tasks_created > 0 && (
                           <Badge variant="default" className="bg-green-600 text-[9px]">{step.result.tasks_created} uppgifter skapade</Badge>
