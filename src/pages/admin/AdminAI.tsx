@@ -3772,7 +3772,96 @@ Förslag: ${issue.fix_suggestion}`,
         </div>
       </div>
 
-      {!result && !loading && (
+      {/* Scan History Panel */}
+      {showHistory && scanHistory.length > 0 && (
+        <Card className="p-4">
+          <h3 className="font-semibold text-sm mb-3 flex items-center gap-2"><History className="w-4 h-4" /> Skanningshistorik</h3>
+          <div className="max-h-[300px] overflow-y-auto space-y-1.5">
+            {scanHistory.map((scan, i) => {
+              const isCurrent = scanMeta?.id === scan.id;
+              const isComparing = compareScanId === scan.id;
+              return (
+                <div key={scan.id} className={cn(
+                  'flex items-center gap-3 p-2.5 rounded-lg border text-xs transition-colors',
+                  isCurrent && 'border-primary/40 bg-primary/5',
+                  isComparing && 'border-accent bg-accent/10',
+                  !isCurrent && !isComparing && 'hover:bg-secondary/30',
+                )}>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{new Date(scan.created_at).toLocaleString('sv-SE')}</span>
+                      {isCurrent && <Badge variant="default" className="text-[9px]">Aktiv</Badge>}
+                      {i === 0 && !isCurrent && <Badge variant="outline" className="text-[9px]">Senaste</Badge>}
+                    </div>
+                    <div className="flex items-center gap-3 mt-0.5 text-muted-foreground">
+                      <span className={cn('font-bold', scan.overall_ui_score >= 80 ? 'text-green-600' : scan.overall_ui_score >= 50 ? 'text-yellow-500' : 'text-destructive')}>
+                        {scan.overall_ui_score}/100
+                      </span>
+                      <span>{scan.issues_count} problem</span>
+                      {scan.executive_summary && <span className="truncate max-w-[200px]">{scan.executive_summary}</span>}
+                    </div>
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    {!isCurrent && (
+                      <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => loadScan(scan.id)}>
+                        Visa
+                      </Button>
+                    )}
+                    {result && !isCurrent && (
+                      <Button variant={isComparing ? 'default' : 'outline'} size="sm" className="h-6 text-[10px] px-2" onClick={() => loadCompare(scan.id)}>
+                        {isComparing ? '✓ Jämför' : 'Jämför'}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+
+      {/* Comparison view */}
+      {compareResult && result && (
+        <Card className="p-4 border-accent">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-sm flex items-center gap-2">
+              <GitMerge className="w-4 h-4 text-accent-foreground" /> Jämförelse
+            </h3>
+            <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => { setCompareScanId(null); setCompareResult(null); }}>
+              <XCircle className="w-3 h-3 mr-1" /> Stäng
+            </Button>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            {([
+              { label: 'UI Total', current: result.overall_ui_score, prev: compareResult.overall_ui_score },
+              { label: 'Mobil', current: result.mobile_score, prev: compareResult.mobile_score },
+              { label: 'Desktop', current: result.desktop_score, prev: compareResult.desktop_score },
+              { label: 'Användbarhet', current: result.usability_score, prev: compareResult.usability_score },
+              { label: 'Problem', current: result.issues?.length || 0, prev: compareResult.issues?.length || 0 },
+            ]).map(c => {
+              const diff = c.current - c.prev;
+              const isIssueCount = c.label === 'Problem';
+              const improved = isIssueCount ? diff < 0 : diff > 0;
+              return (
+                <div key={c.label} className="rounded-lg border p-2 text-center">
+                  <p className="text-[10px] text-muted-foreground mb-1">{c.label}</p>
+                  <div className="flex items-center justify-center gap-1.5">
+                    <span className="text-muted-foreground text-sm">{c.prev}</span>
+                    <ArrowRight className="w-3 h-3 text-muted-foreground" />
+                    <span className="text-sm font-bold">{c.current}</span>
+                  </div>
+                  {diff !== 0 && (
+                    <span className={cn('text-[10px] font-medium', improved ? 'text-green-600' : 'text-destructive')}>
+                      {improved ? '▲' : '▼'} {Math.abs(diff)}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+
         <Card className="p-8 flex flex-col items-center justify-center text-center gap-3">
           <Monitor className="w-10 h-10 text-muted-foreground/40" />
           <h3 className="font-semibold text-muted-foreground">Ingen skanning har körts ännu</h3>
