@@ -1102,6 +1102,8 @@ const BugAITab = () => {
   const [fixes, setFixes] = useState<Record<string, any>>({});
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<'open' | 'resolved' | 'all'>('open');
+  const [matching, setMatching] = useState(false);
+  const [matchResult, setMatchResult] = useState<any>(null);
 
   const loadBugs = useCallback(async () => {
     setLoading(true);
@@ -1164,8 +1166,61 @@ const BugAITab = () => {
           {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
           Uppdatera
         </Button>
+        <Button
+          onClick={async () => {
+            setMatching(true);
+            setMatchResult(null);
+            const res = await callAI('bug_fix_match');
+            if (res) {
+              setMatchResult(res);
+              if (res.matched > 0) loadBugs();
+            }
+            setMatching(false);
+          }}
+          disabled={matching}
+          variant="outline"
+          size="sm"
+          className="h-7 gap-1 text-xs"
+        >
+          {matching ? <Loader2 className="w-3 h-3 animate-spin" /> : <GitMerge className="w-3 h-3" />}
+          Auto-matcha
+        </Button>
         <Badge variant="secondary" className="text-xs">{bugs.length} buggar</Badge>
       </div>
+
+      {/* Match result banner */}
+      {matchResult && (
+        <Card className={cn("border", matchResult.matched > 0 ? "border-green-500/30 bg-green-50/30" : "border-border")}>
+          <CardContent className="p-3 space-y-2">
+            <div className="flex items-center gap-2">
+              <GitMerge className="w-4 h-4 text-primary" />
+              <span className="text-sm font-medium">{matchResult.message}</span>
+              <Badge variant="secondary" className="text-[10px] ml-auto">
+                {matchResult.checked} kontrollerade · {matchResult.changes_compared || 0} ändringar
+              </Badge>
+            </div>
+            {matchResult.bugs?.length > 0 && (
+              <ScrollArea className="max-h-[200px]">
+                <div className="space-y-1">
+                  {matchResult.bugs.map((m: any) => (
+                    <div key={m.bug_id} className="flex items-center gap-2 text-xs p-1.5 rounded bg-card border">
+                      {m.verdict === 'fixed' ? <CheckCircle className="w-3 h-3 text-green-600 shrink-0" /> :
+                       m.verdict === 'likely_fixed' ? <AlertCircle className="w-3 h-3 text-yellow-600 shrink-0" /> :
+                       m.verdict === 'duplicate' ? <Copy className="w-3 h-3 text-blue-600 shrink-0" /> :
+                       <XCircle className="w-3 h-3 text-muted-foreground shrink-0" />}
+                      <span className="truncate flex-1">{m.reason}</span>
+                      <Badge variant="outline" className="text-[9px] shrink-0">{m.confidence}%</Badge>
+                      <Badge variant={m.verdict === 'fixed' ? 'default' : m.verdict === 'duplicate' ? 'secondary' : 'outline'} className="text-[9px] shrink-0">
+                        {m.verdict === 'fixed' ? 'Fixad' : m.verdict === 'likely_fixed' ? 'Troligen fixad' : m.verdict === 'duplicate' ? 'Dubblett' : 'Ej fixad'}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {bugs.length === 0 && !loading && (
         <p className="text-sm text-muted-foreground text-center py-6">Inga buggar hittade 🎉</p>

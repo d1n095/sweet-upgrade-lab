@@ -5912,6 +5912,151 @@ Return ONLY valid JSON.`,
       }
     }
 
+    case "bug_fix_match": {
+      // Fetch open bugs
+      const { data: openBugs } = await supabase
+        .from("bug_reports")
+        .select("id, description, page_url, ai_summary, ai_category, ai_tags, ai_severity, status")
+        .eq("status", "open")
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if (!openBugs || openBugs.length === 0) {
+        result = { matched: 0, checked: 0, bugs: [], message: "Inga öppna buggar att matcha." };
+        break;
+      }
+
+      // Fetch recent changes (last 7 days)
+      const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+      const { data: recentChanges } = await supabase
+        .from("change_log")
+        .select("id, change_type, description, affected_components, source, created_at, metadata")
+        .gte("created_at", sevenDaysAgo)
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+      if (!recentChanges || recentChanges.length === 0) {
+        result = { matched: 0, checked: openBugs.length, bugs: openBugs.map((b: any) => ({ id: b.id, summary: b.ai_summary, verdict: "no_changes", reason: "Inga senaste ändringar att jämföra mot." })), message: "Inga ändringar att matcha mot." };
+        break;
+      }
+
+      const bugsPayload = openBugs.map((b: any) => ({
+        id: b.id,
+        summary: b.ai_summary || b.description?.substring(0, 200),
+        category: b.ai_category,
+        severity: b.ai_severity,
+        page_url: b.page_url,
+        tags: b.ai_tags,
+      }));
+
+      const changesPayload = recentChanges.map((c: any) => ({
+        id: c.id,
+        type: c.change_type,
+        description: c.description,
+        components: c.affected_components,
+        source: c.source,
+        date: c.created_at,
+      }));
+
+      const matchPrompt = `Du är en senior QA-ingenjör. Analysera dessa ÖPPNA buggar mot SENASTE ÄNDRINGAR och avgör vilka buggar som troligen har fixats.
+
+ÖPPNA BUGGAR:
+${JSON.stringify(bugsPayload, null, 2)}
+
+SENASTE ÄNDRINGAR (7 dagar):
+${JSON.stringify(changesPayload, null, 2)}
+
+För varje bugg, returnera ett verdict:
+- "fixed" = buggen har med hög sannolikhet fixats av en specifik ändring
+- "likely_fixed" = troligen fixad men behöver verifiering
+- "not_fixed" = ingen matchande ändring hittades
+- "duplicate" = buggen är en dubblett av en annan bugg i listan
+
+Svara BARA med JSON:
+{
+  "matches": [
+    {
+      "bug_id": "uuid",
+      "verdict": "fixed|likely_fixed|not_fixed|duplicate",
+      "confidence": 0-100,
+      "matched_change_id": "uuid or null",
+      "reason": "kort förklaring",
+      "duplicate_of_bug_id": "uuid or null"
+    }
+  ]
+}`;
+
+      const matchResp = await fetch("https://api.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${lovableKey}` },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [{ role: "user", content: matchPrompt }],
+          temperature: 0.2,
+        }),
+      });
+
+      if (!matchResp.ok) {
+        result = { error: "AI matching failed", status: matchResp.status };
+        break;
+      }
+
+      const matchData = await matchResp.json();
+      let matchResult: any;
+      try {
+        const raw = matchData.choices?.[0]?.message?.content || "{}";
+        const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+        matchResult = JSON.parse(cleaned);
+      } catch {
+        result = { error: "Could not parse AI response" };
+        break;
+      }
+
+      const matches = matchResult.matches || [];
+      let autoResolved = 0;
+
+      for (const m of matches) {
+        if ((m.verdict === "fixed" && m.confidence >= 75) || m.verdict === "duplicate") {
+          // Auto-close the bug
+          const updateData: any = {
+            status: "resolved",
+            resolved_at: new Date().toISOString(),
+            resolution_notes: m.verdict === "duplicate"
+              ? `Auto-stängd: Dubblett av bugg ${m.duplicate_of_bug_id}. ${m.reason}`
+              : `Auto-stängd: Fixad av ändring. ${m.reason}`,
+          };
+          if (m.matched_change_id) {
+            updateData.resolved_by_change_id = m.matched_change_id;
+          }
+          await supabase.from("bug_reports").update(updateData).eq("id", m.bug_id);
+
+          // Log the auto-close in change_log
+          await supabase.from("change_log").insert({
+            change_type: "fix",
+            description: `Bug auto-stängd: ${bugsPayload.find((b: any) => b.id === m.bug_id)?.summary || m.bug_id}`,
+            affected_components: ["bug_reports"],
+            source: "ai",
+            bug_report_id: m.bug_id,
+            metadata: { verdict: m.verdict, confidence: m.confidence, matched_change_id: m.matched_change_id, reason: m.reason },
+            created_by: user.id,
+          });
+
+          autoResolved++;
+        }
+      }
+
+      result = {
+        matched: autoResolved,
+        checked: openBugs.length,
+        changes_compared: recentChanges.length,
+        bugs: matches,
+        message: autoResolved > 0
+          ? `${autoResolved} bugg(ar) auto-stängda av ${matches.filter((m: any) => m.verdict === "fixed" || m.verdict === "duplicate").length} matchningar.`
+          : "Inga buggar kunde matchas mot senaste ändringar.",
+      };
+      break;
+    }
+
     default:
       return { error: "Okänd åtgärdstyp" };
   }
