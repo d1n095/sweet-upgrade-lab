@@ -4896,6 +4896,10 @@ const AdminAI = () => {
               <Gavel className="w-3.5 h-3.5" />
               Governor
             </TabsTrigger>
+            <TabsTrigger value="prompt-queue" className="gap-1.5 text-xs">
+              <Layers className="w-3.5 h-3.5" />
+              Prompt-kö
+            </TabsTrigger>
           </TabsList>
         </ScrollableTabs>
 
@@ -4979,6 +4983,9 @@ const AdminAI = () => {
         </TabsContent>
         <TabsContent value="governor" className="mt-4">
           <ActionGovernorTab />
+        </TabsContent>
+        <TabsContent value="prompt-queue" className="mt-4">
+          <PromptQueueTab />
         </TabsContent>
       </Tabs>
 
