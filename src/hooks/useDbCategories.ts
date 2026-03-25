@@ -57,15 +57,26 @@ export const useDbCategories = (adminView = false) => {
         return;
       }
 
-      // Fetch product counts per category to hide empty ones on frontend
+      // Fetch product counts per category — only count visible+sellable products
       let productCountMap: Record<string, number> = {};
       if (!adminView) {
+        // Get IDs of visible, sellable products
+        const { data: visibleProducts } = await supabase
+          .from('products')
+          .select('id')
+          .eq('is_visible', true)
+          .eq('is_sellable', true);
+        const visibleIds = new Set((visibleProducts || []).map((p: any) => p.id));
+
+        // Get category links and only count those pointing to visible products
         const { data: pcData } = await supabase
           .from('product_categories')
-          .select('category_id');
+          .select('category_id, product_id');
         if (pcData) {
           pcData.forEach((r: any) => {
-            productCountMap[r.category_id] = (productCountMap[r.category_id] || 0) + 1;
+            if (visibleIds.has(r.product_id)) {
+              productCountMap[r.category_id] = (productCountMap[r.category_id] || 0) + 1;
+            }
           });
         }
       }
