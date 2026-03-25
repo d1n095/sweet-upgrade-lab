@@ -1,0 +1,1 @@
+UPDATE page_sections SET is_visible = true WHERE page = 'home' AND section_key = 'new_products' AND is_visible = false
