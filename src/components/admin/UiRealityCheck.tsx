@@ -600,16 +600,20 @@ const UiRealityCheck = () => {
     }
   }, [checks, applyFix]);
 
+  const fixableCount = checks.filter(c => c.fixType && c.fixTarget && c.verdict !== 'auto_fixed' && c.verdict !== 'working').length;
+  const autoFixedCount = checks.filter(c => c.verdict === 'auto_fixed').length;
+
   const stats = {
     total: checks.length,
     working: checks.filter(c => c.verdict === 'working').length,
+    auto_fixed: autoFixedCount,
     fake_done: checks.filter(c => c.verdict === 'fake_done').length,
     partially_working: checks.filter(c => c.verdict === 'partially_working').length,
     broken: checks.filter(c => c.verdict === 'broken').length,
   };
 
-  const issues = checks.filter(c => c.verdict !== 'working');
-  const okChecks = checks.filter(c => c.verdict === 'working');
+  const issues = checks.filter(c => c.verdict !== 'working' && c.verdict !== 'auto_fixed');
+  const okChecks = checks.filter(c => c.verdict === 'working' || c.verdict === 'auto_fixed');
 
   return (
     <div className="space-y-4">
@@ -619,6 +623,7 @@ const UiRealityCheck = () => {
           {([
             { key: 'total', label: 'Totalt', count: stats.total, color: 'text-foreground', icon: Activity },
             { key: 'working', label: 'Fungerar', count: stats.working, color: 'text-green-500', icon: CheckCircle },
+            { key: 'auto_fixed', label: 'Auto-fixade', count: stats.auto_fixed, color: 'text-blue-500', icon: Wrench },
             { key: 'fake_done', label: 'Fejkade', count: stats.fake_done, color: 'text-purple-500', icon: Ghost },
             { key: 'partial', label: 'Delvis', count: stats.partially_working, color: 'text-orange-500', icon: AlertTriangle },
             { key: 'broken', label: 'Trasiga', count: stats.broken, color: 'text-destructive', icon: XCircle },
@@ -668,6 +673,12 @@ const UiRealityCheck = () => {
             Rensa
           </Button>
         )}
+        {fixableCount > 0 && (
+          <Button size="sm" variant="default" onClick={handleFixAll} className="gap-1.5 text-xs">
+            <Wrench className="w-3.5 h-3.5" />
+            Auto-fixa alla ({fixableCount})
+          </Button>
+        )}
         <div className="ml-auto text-[10px] text-muted-foreground">
           Kontrollerar: knappar · data · modaler · scroll · formulär · navigation · layout
         </div>
@@ -685,7 +696,7 @@ const UiRealityCheck = () => {
           <CardContent className="px-4 pb-3">
             <ScrollArea className="max-h-[45vh]">
               <div className="space-y-2 pr-2">
-                {issues.map(c => <CheckCard key={c.id} check={c} />)}
+                {issues.map(c => <CheckCard key={c.id} check={c} onFix={handleFixOne} />)}
               </div>
             </ScrollArea>
           </CardContent>
