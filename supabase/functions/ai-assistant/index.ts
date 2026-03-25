@@ -5502,12 +5502,12 @@ VIKTIGT: Om användaren markerat prompts som klara, identifiera PROAKTIVT nästa
               properties: {
                 action_type: {
                   type: "string",
-                  enum: ["run_scan", "create_work_item", "update_work_item", "run_double_pass", "generate_lovable_prompt", "run_cleanup", "run_data_integrity", "query_data"],
-                  description: "Type of action to execute",
+                  enum: ["run_scan", "create_work_item", "update_work_item", "run_double_pass", "generate_lovable_prompt", "run_cleanup", "run_data_integrity", "query_data", "triage_bugs", "close_bug", "batch_update_bugs"],
+                  description: "Type of action to execute. triage_bugs: autonomously sort/prioritize/group all open bugs. close_bug: close a specific bug by id. batch_update_bugs: update multiple bugs at once.",
                 },
                 params: {
                   type: "object",
-                  description: "Parameters for the action. For generate_lovable_prompt: { title: string, prompt: string (full detailed prompt, min 100 chars), goal: string }. For create_work_item: { title, description, priority }.",
+                  description: "Parameters for the action. For triage_bugs: {} (no params needed, analyzes all open bugs). For close_bug: { bug_id, resolution_notes }. For batch_update_bugs: { bug_ids: string[], status, resolution_notes }. For generate_lovable_prompt: { title, prompt (min 100 chars), goal }. For create_work_item: { title, description, priority }.",
                 },
               },
               required: ["action_type", "params"],
