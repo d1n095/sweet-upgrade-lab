@@ -131,6 +131,119 @@ function prioritizeSteps(steps: typeof STEPS, focusMemory: any[]): typeof STEPS 
   return scored.map(s => s.step);
 }
 
+// ── Prediction rules: map issue categories to predicted future problems ──
+const PREDICTION_RULES: {
+  trigger: (ctx: PredictionContext) => boolean;
+  predict: (ctx: PredictionContext) => { problem: string; area: string; reason: string };
+}[] = [
+  {
+    trigger: (ctx) => countByCategory(ctx.issues, "scroll") >= 2,
+    predict: () => ({ problem: "Fler layout-/overflow-problem", area: "Scroll-containers, modaler, listor", reason: "Flera scroll-buggar tyder på globalt overflow-problem" }),
+  },
+  {
+    trigger: (ctx) => countByCategory(ctx.issues, "modal") >= 2 || countByCategory(ctx.issues, "dialog") >= 2,
+    predict: () => ({ problem: "Interaktionsfel i overlay-komponenter", area: "Modaler, drawers, popovers", reason: "Upprepade modal-problem tyder på z-index eller fokushanteringsfel" }),
+  },
+  {
+    trigger: (ctx) => countByCategory(ctx.issues, "form") >= 2 || countByCategory(ctx.issues, "input") >= 2,
+    predict: () => ({ problem: "Formulärvalidering misslyckas", area: "Formulär, checkout, profilinställningar", reason: "Upprepade formulärproblem pekar på bristande valideringslogik" }),
+  },
+  {
+    trigger: (ctx) => ctx.unified.data_issues.length >= 3,
+    predict: () => ({ problem: "Synkroniseringsfel mellan UI och databas", area: "Datatabeller, realtidsuppdateringar", reason: "Flera dataproblem tyder på inkonsistent state-hantering" }),
+  },
+  {
+    trigger: (ctx) => countByCategory(ctx.issues, "nav") >= 2 || countByCategory(ctx.issues, "route") >= 2,
+    predict: () => ({ problem: "Navigeringsfel och döda länkar", area: "Routing, breadcrumbs, sidlänkar", reason: "Upprepade navigeringsproblem tyder på trasiga routes" }),
+  },
+  {
+    trigger: (ctx) => ctx.focusMemory.filter(m => m.scan_count >= 3).length >= 2,
+    predict: (ctx) => {
+      const chronic = ctx.focusMemory.filter(m => m.scan_count >= 3).map(m => m.label).slice(0, 3);
+      return { problem: "Kroniska problemområden som inte åtgärdats", area: chronic.join(", "), reason: `${chronic.length} komponenter har haft problem i 3+ skanningar` };
+    },
+  },
+  {
+    trigger: (ctx) => ctx.rootCause.filter(r => r.recurrence_count >= 3).length >= 1,
+    predict: (ctx) => {
+      const recurring = ctx.rootCause.filter(r => r.recurrence_count >= 3)[0];
+      return { problem: `Återkommande grundorsak: ${recurring.root_cause}`, area: recurring.affected_system || "Systemövergripande", reason: `Mönstret "${recurring.pattern_key}" har upprepats ${recurring.recurrence_count} gånger` };
+    },
+  },
+  {
+    trigger: (ctx) => ctx.systemicIssues.filter(s => s.severity === "critical").length >= 1,
+    predict: () => ({ problem: "Kaskadfel från systemiskt problem", area: "Hela systemet", reason: "Kritiska systemiska problem sprider sig ofta till relaterade komponenter" }),
+  },
+  {
+    trigger: (ctx) => ctx.unified.fake_features.length >= 3,
+    predict: () => ({ problem: "Fler icke-funktionella UI-element", area: "Knappar, formulär, interaktiva element", reason: "Många fake features tyder på inkomplett implementation i flera områden" }),
+  },
+  {
+    trigger: (ctx) => ctx.unified.interaction_failures.length >= 4,
+    predict: () => ({ problem: "Event-hanteringsfel i komplexa vyer", area: "Interaktiva komponenter, admin-paneler", reason: "Hög frekvens interaktionsfel indikerar djupare event-bindningsproblem" }),
+  },
+];
+
+interface PredictionContext {
+  unified: any;
+  patterns: any[];
+  systemicIssues: any[];
+  focusMemory: any[];
+  rootCause: any[];
+  issues: string[];
+}
+
+function countByCategory(issues: string[], keyword: string): number {
+  return issues.filter(i => i.includes(keyword)).length;
+}
+
+function generatePredictions(unified: any, patterns: any[], systemicIssues: any[], focusMemory: any[], rootCause: any[]): any[] {
+  // Flatten all issue text for keyword matching
+  const allIssueTexts: string[] = [
+    ...(unified.broken_flows || []).map((f: any) => `${f.description || ""} ${f.route || ""} ${f.component || ""} ${f.element || ""}`.toLowerCase()),
+    ...(unified.interaction_failures || []).map((f: any) => `${f.title || ""} ${f.element || ""} ${f.component || ""} ${f.description || ""}`.toLowerCase()),
+    ...(unified.data_issues || []).map((f: any) => `${f.title || ""} ${f.field || ""} ${f.component || ""} ${f.description || ""}`.toLowerCase()),
+    ...(unified.fake_features || []).map((f: any) => `${f.name || ""} ${f.component || ""} ${f.description || ""}`.toLowerCase()),
+    ...focusMemory.map((m: any) => `${m.label || ""} ${m.focus_key || ""}`.toLowerCase()),
+  ];
+
+  const ctx: PredictionContext = { unified, patterns, systemicIssues, focusMemory, rootCause, issues: allIssueTexts };
+  const predictions: any[] = [];
+
+  for (const rule of PREDICTION_RULES) {
+    try {
+      if (rule.trigger(ctx)) {
+        const pred = rule.predict(ctx);
+        // Calculate confidence: more data = higher confidence
+        const issueCount = allIssueTexts.length;
+        const focusHits = focusMemory.filter(m => m.scan_count >= 2).length;
+        const baseConfidence = 0.55;
+        const issueBoost = Math.min(0.2, issueCount * 0.02);
+        const focusBoost = Math.min(0.15, focusHits * 0.05);
+        const confidence = Math.min(0.95, baseConfidence + issueBoost + focusBoost);
+
+        // Only include high-confidence predictions (>= 0.6)
+        if (confidence >= 0.6) {
+          predictions.push({
+            ...pred,
+            confidence: Math.round(confidence * 100),
+            type: "prediction",
+          });
+        }
+      }
+    } catch (_) { /* skip broken rules */ }
+  }
+
+  // Deduplicate by problem text
+  const seen = new Set<string>();
+  return predictions.filter(p => {
+    const key = p.problem.substring(0, 40).toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, 8);
+}
+
 // ── Helper: Build unified result from step results ──
 function buildUnifiedResult(stepResults: Record<string, any>, totalDuration: number) {
   const blocker = stepResults.blocker_detection?.primary_blocker || stepResults.blocker_detection?.detected_blockers?.[0] || null;
