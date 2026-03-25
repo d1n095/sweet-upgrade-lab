@@ -3652,3 +3652,137 @@ Total: ${workStats.total} | Done: ${workStats.done} | Open: ${workStats.open} | 
 
   return { ...result, trend_available: true, scan_count: scanTimeline.length, scan_timeline: scanTimeline, bug_stats: bugStats, work_stats: workStats };
 }
+
+// ── AI Category Sync ──
+async function handleCategorySync(supabase: any, lovableKey: string) {
+  // Load existing categories and products
+  const [catRes, prodRes] = await Promise.all([
+    supabase.from("categories").select("id, name_sv, name_en, slug, parent_id, icon, display_order, is_visible").order("display_order"),
+    supabase.from("products").select("id, title_sv, category, status").in("status", ["active", "coming_soon", "info"]).limit(500),
+  ]);
+
+  const existingCats = catRes.data || [];
+  const products = prodRes.data || [];
+
+  // Gather unique product categories/types
+  const productTypes = [...new Set(products.map((p: any) => p.category).filter(Boolean))];
+  const existingSlugs = new Set(existingCats.map((c: any) => c.slug));
+  const existingNames = new Set(existingCats.map((c: any) => c.name_sv.toLowerCase()));
+
+  const catList = existingCats.map((c: any) => `${c.slug}|${c.name_sv}|parent:${c.parent_id || 'root'}`).join("\n");
+  const typeList = productTypes.join(", ");
+  const productSample = products.slice(0, 50).map((p: any) => `${p.title_sv} [${p.category || 'no-category'}]`).join("\n");
+
+  const result = await callAI(lovableKey, [
+    {
+      role: "system",
+      content: `Du är en kategoriexpert för en svensk e-handelsplattform. Analysera produkter och befintliga kategorier. Föreslå nya kategorier som saknas. Svara ALLTID på svenska. Använd category_suggestions-funktionen.`,
+    },
+    {
+      role: "user",
+      content: `Analysera dessa produkter och identifiera kategorier som saknas.
+
+Befintliga kategorier:
+${catList}
+
+Produkttyper i bruk: ${typeList}
+
+Produktexempel:
+${productSample}
+
+Regler:
+- Föreslå BARA kategorier som verkligen saknas
+- Matcha mot produkttyper som inte har en kategori
+- Föreslå hierarki (parent) om relevant
+- Slug ska vara URL-vänlig (lowercase, bindestreck)
+- Icon ska vara en av: Cpu, Shirt, Droplets, Flame, Sparkles, Gem, Bed, Leaf, Grid, Tag`,
+    },
+  ], [
+    {
+      type: "function",
+      function: {
+        name: "category_suggestions",
+        description: "Suggest missing categories based on product analysis",
+        parameters: {
+          type: "object",
+          properties: {
+            analysis_summary: { type: "string", description: "Brief summary of findings in Swedish" },
+            suggestions: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  name_sv: { type: "string", description: "Swedish category name" },
+                  name_en: { type: "string", description: "English category name" },
+                  slug: { type: "string", description: "URL-friendly slug" },
+                  icon: { type: "string", description: "Lucide icon name" },
+                  parent_slug: { type: "string", description: "Parent category slug or 'root'" },
+                  reason: { type: "string", description: "Why this category is needed, in Swedish" },
+                  product_count: { type: "number", description: "Approx number of products that would belong" },
+                  confidence: { type: "string", enum: ["high", "medium", "low"] },
+                },
+                required: ["name_sv", "name_en", "slug", "icon", "parent_slug", "reason", "product_count", "confidence"],
+                additionalProperties: false,
+              },
+            },
+            no_changes_needed: { type: "boolean", description: "True if all products are well-categorized" },
+          },
+          required: ["analysis_summary", "suggestions", "no_changes_needed"],
+          additionalProperties: false,
+        },
+      },
+    },
+  ], { type: "function", function: { name: "category_suggestions" } });
+
+  // Auto-create high-confidence categories
+  const created: any[] = [];
+  const skipped: any[] = [];
+  const maxOrder = Math.max(0, ...existingCats.map((c: any) => c.display_order || 0));
+
+  for (const suggestion of (result?.suggestions || [])) {
+    // Skip if slug or name already exists
+    if (existingSlugs.has(suggestion.slug) || existingNames.has(suggestion.name_sv.toLowerCase())) {
+      skipped.push({ ...suggestion, skip_reason: "already_exists" });
+      continue;
+    }
+
+    if (suggestion.confidence === "high") {
+      // Find parent_id
+      let parentId = null;
+      if (suggestion.parent_slug && suggestion.parent_slug !== "root") {
+        const parent = existingCats.find((c: any) => c.slug === suggestion.parent_slug);
+        if (parent) parentId = parent.id;
+      }
+
+      const { data: newCat, error: insertErr } = await supabase.from("categories").insert({
+        name_sv: suggestion.name_sv,
+        name_en: suggestion.name_en,
+        slug: suggestion.slug,
+        icon: suggestion.icon,
+        parent_id: parentId,
+        display_order: maxOrder + created.length + 1,
+        is_visible: true,
+      }).select("id, slug, name_sv").single();
+
+      if (!insertErr && newCat) {
+        created.push({ ...newCat, reason: suggestion.reason });
+        existingSlugs.add(suggestion.slug);
+        existingNames.add(suggestion.name_sv.toLowerCase());
+      } else {
+        skipped.push({ ...suggestion, skip_reason: insertErr?.message || "insert_failed" });
+      }
+    } else {
+      skipped.push({ ...suggestion, skip_reason: "low_confidence" });
+    }
+  }
+
+  return {
+    analysis: result?.analysis_summary || "",
+    no_changes_needed: result?.no_changes_needed || false,
+    created,
+    pending_review: skipped.filter((s: any) => s.skip_reason === "low_confidence"),
+    already_exists: skipped.filter((s: any) => s.skip_reason === "already_exists"),
+    total_products_analyzed: products.length,
+    total_categories: existingCats.length,
+  };
+}
