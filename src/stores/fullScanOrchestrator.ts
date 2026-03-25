@@ -5,6 +5,7 @@ import { useFeedbackLoopStore } from './feedbackLoopStore';
 import { toast } from 'sonner';
 import { QueryClient } from '@tanstack/react-query';
 import { runUnifiedPipeline } from '@/lib/unifiedPipeline';
+import { runCriticalPathCheck } from '@/lib/criticalPathProtection';
 
 export type OrchestratorStepStatus = 'pending' | 'running' | 'done' | 'error' | 'skipped';
 
@@ -316,6 +317,16 @@ export const useFullScanOrchestrator = create<FullScanOrchestratorState>((set, g
       await runUnifiedPipeline();
     } catch (e) {
       console.warn('Post-scan pipeline failed:', e);
+    }
+
+    // ── POST-SCAN: Critical Path Protection check ──
+    try {
+      const pathReport = await runCriticalPathCheck();
+      if (!pathReport.healthy) {
+        console.warn(`[CriticalPath] ${pathReport.brokenStages.length} broken stages detected`);
+      }
+    } catch (e) {
+      console.warn('Critical path check failed:', e);
     }
 
     if (queryClient) {
