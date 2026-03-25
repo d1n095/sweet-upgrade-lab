@@ -220,23 +220,25 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
     if (!ignoreReason.trim()) { toast.error('Ange en anledning'); return; }
     setIgnoreSaving(true);
     try {
-      await supabase.from('work_items').update({
+      const { error } = await supabase.from('work_items').update({
         ignored: true,
         ignored_reason: ignoreReason.trim(),
         ignored_at: new Date().toISOString(),
         status: 'cancelled',
       } as any).eq('id', item.id);
+      if (error) throw error;
       toast.success('Ignorerad ✓');
       onRefresh?.();
       onOpenChange(false);
-    } catch { toast.error('Fel'); }
+    } catch (e) { toast.error('Fel vid ignorering'); console.error(e); }
     finally { setIgnoreSaving(false); }
   };
 
   const handleUnignore = async () => {
-    await supabase.from('work_items').update({
+    const { error } = await supabase.from('work_items').update({
       ignored: false, ignored_reason: null, ignored_at: null, status: 'open',
     } as any).eq('id', item.id);
+    if (error) { toast.error('Fel vid återöppning'); console.error(error); return; }
     toast.success('Återöppnad');
     onRefresh?.();
   };

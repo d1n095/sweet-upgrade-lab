@@ -70,6 +70,8 @@ export interface QueueTask {
 }
 
 const MAX_CONCURRENT = 2;
+/** If _isProcessing is stuck longer than this, force-release it */
+const PROCESSING_TIMEOUT_MS = 60_000;
 
 interface AiQueueState {
   tasks: QueueTask[];
@@ -85,6 +87,7 @@ interface AiQueueState {
   retryTask: (id: string) => void;
   cancelTask: (id: string) => void;
   _isProcessing: boolean;
+  _processingStartedAt: number | null;
 }
 
 const generateId = () => `qt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -436,6 +439,7 @@ export const useAiQueueStore = create<AiQueueState>((set, get) => ({
   failureLog: [],
   regressionLog: [],
   _isProcessing: false,
+  _processingStartedAt: null as number | null,
 
   addTask: (input) => {
     const id = input.id || generateId();
@@ -471,8 +475,21 @@ export const useAiQueueStore = create<AiQueueState>((set, get) => ({
 
   processQueue: async () => {
     const state = get();
-    if (state._isProcessing) return;
-    set({ _isProcessing: true });
+
+    // Deadlock protection: if _isProcessing has been stuck for too long, force-release
+    if (state._isProcessing) {
+      if (state._processingStartedAt && Date.now() - state._processingStartedAt > PROCESSING_TIMEOUT_MS) {
+        console.warn('[AiQueue] Processing lock stuck for >60s, force-releasing');
+        set({ _isProcessing: false, _processingStartedAt: null });
+      } else {
+        return;
+      }
+    }
+
+    // Auto-release stale locks before processing to prevent deadlocks
+    useExecutionLockStore.getState().releaseStale();
+
+    set({ _isProcessing: true, _processingStartedAt: Date.now() });
 
     try {
       // eslint-disable-next-line no-constant-condition
@@ -584,7 +601,7 @@ export const useAiQueueStore = create<AiQueueState>((set, get) => ({
 
               // Release lock after post-checks (success or failure handled inside runPostChecks)
               useExecutionLockStore.getState().release(nextTask.id);
-              set({ _isProcessing: false });
+              set({ _isProcessing: false, _processingStartedAt: null });
               get().processQueue();
             })
             .catch((err) => {
@@ -611,7 +628,7 @@ export const useAiQueueStore = create<AiQueueState>((set, get) => ({
 
               // Release lock on failure
               useExecutionLockStore.getState().release(nextTask.id);
-              set({ _isProcessing: false });
+              set({ _isProcessing: false, _processingStartedAt: null });
               get().processQueue();
             });
         } else {
@@ -627,7 +644,7 @@ export const useAiQueueStore = create<AiQueueState>((set, get) => ({
         if (running.length + 1 >= current.maxConcurrent) break;
       }
     } finally {
-      set({ _isProcessing: false });
+      set({ _isProcessing: false, _processingStartedAt: null });
     }
   },
 }));

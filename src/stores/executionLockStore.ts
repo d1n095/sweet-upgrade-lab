@@ -29,6 +29,9 @@ export function resolveArea(hint?: string): LockArea | null {
   return null;
 }
 
+/** Maximum lock age in milliseconds before auto-release (5 minutes) */
+const LOCK_TIMEOUT_MS = 5 * 60 * 1000;
+
 interface ExecutionLockState {
   locks: AreaLock[];
   conflicts: LockConflict[];
@@ -42,7 +45,7 @@ interface ExecutionLockState {
   /** Release all locks for a specific area. */
   releaseArea: (area: LockArea) => void;
 
-  /** Check if an area is currently locked. */
+  /** Check if an area is currently locked (auto-releases stale locks). */
   isLocked: (area: LockArea) => boolean;
 
   /** Get the lock holder for an area. */
@@ -56,6 +59,13 @@ interface ExecutionLockState {
 
   /** Get all active locks. */
   getActiveLocks: () => AreaLock[];
+
+  /** Force-release all stale locks (older than timeout). Returns count released. */
+  releaseStale: () => number;
+}
+
+function isStale(lock: AreaLock): boolean {
+  return Date.now() - new Date(lock.lockedAt).getTime() > LOCK_TIMEOUT_MS;
 }
 
 export const useExecutionLockStore = create<ExecutionLockState>((set, get) => ({
@@ -63,18 +73,29 @@ export const useExecutionLockStore = create<ExecutionLockState>((set, get) => ({
   conflicts: [],
 
   acquire: (area, taskId, description) => {
-    const existing = get().locks.find(l => l.area === area);
+    // Auto-release stale locks first
+    const now = Date.now();
+    const freshLocks = get().locks.filter(l => {
+      if (isStale(l)) {
+        console.warn(`[ExecutionLock] Auto-released stale lock: area=${l.area} task=${l.lockedBy} age=${Math.round((now - new Date(l.lockedAt).getTime()) / 1000)}s`);
+        return false;
+      }
+      return true;
+    });
+
+    const existing = freshLocks.find(l => l.area === area);
     if (existing && existing.lockedBy !== taskId) {
       // Conflict — area is locked by another task
+      set({ locks: freshLocks });
       return false;
     }
     if (existing && existing.lockedBy === taskId) {
-      // Already holds the lock
+      set({ locks: freshLocks });
       return true;
     }
-    set(s => ({
-      locks: [...s.locks, { area, lockedBy: taskId, lockedAt: new Date().toISOString(), description }],
-    }));
+    set({
+      locks: [...freshLocks, { area, lockedBy: taskId, lockedAt: new Date().toISOString(), description }],
+    });
     return true;
   },
 
@@ -96,9 +117,24 @@ export const useExecutionLockStore = create<ExecutionLockState>((set, get) => ({
     }));
   },
 
-  isLocked: (area) => !!get().locks.find(l => l.area === area),
+  isLocked: (area) => {
+    // Clean stale locks on check
+    const locks = get().locks.filter(l => !isStale(l));
+    if (locks.length !== get().locks.length) {
+      set({ locks });
+    }
+    return !!locks.find(l => l.area === area);
+  },
 
-  getHolder: (area) => get().locks.find(l => l.area === area),
+  getHolder: (area) => {
+    const lock = get().locks.find(l => l.area === area);
+    if (lock && isStale(lock)) {
+      console.warn(`[ExecutionLock] Stale lock detected for area=${area}, auto-releasing`);
+      set(s => ({ locks: s.locks.filter(l => l.area !== area) }));
+      return undefined;
+    }
+    return lock;
+  },
 
   logConflict: (taskId, taskTitle, area, blockedBy) => {
     set(s => ({
@@ -111,5 +147,19 @@ export const useExecutionLockStore = create<ExecutionLockState>((set, get) => ({
 
   clearConflicts: () => set(s => ({ conflicts: s.conflicts.filter(c => !c.resolved) })),
 
-  getActiveLocks: () => get().locks,
+  getActiveLocks: () => get().locks.filter(l => !isStale(l)),
+
+  releaseStale: () => {
+    const stale = get().locks.filter(isStale);
+    if (stale.length > 0) {
+      console.warn(`[ExecutionLock] Releasing ${stale.length} stale lock(s):`, stale.map(l => `${l.area}:${l.lockedBy}`));
+      set(s => ({
+        locks: s.locks.filter(l => !isStale(l)),
+        conflicts: s.conflicts.map(c =>
+          stale.some(sl => sl.lockedBy === c.blockedBy) ? { ...c, resolved: true } : c
+        ),
+      }));
+    }
+    return stale.length;
+  },
 }));
