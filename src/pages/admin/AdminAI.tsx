@@ -2342,7 +2342,7 @@ const AiAutopilotTab = () => {
               <CardContent>
                 <div className="space-y-2">
                   {result.actions.filter(a => !a.auto_executable).map((action, i) => (
-                    <div key={i} className="border border-border rounded-lg p-3 space-y-1">
+                    <div key={i} className="border border-border rounded-lg p-3 space-y-1 cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => action.target_id && openDetail(action.target_id)}>
                       <div className="flex items-center gap-2">
                         <Badge variant="outline" className="text-[10px]">{action.action_type}</Badge>
                         <span className="text-xs font-medium truncate">{action.target_title || action.target_id}</span>
