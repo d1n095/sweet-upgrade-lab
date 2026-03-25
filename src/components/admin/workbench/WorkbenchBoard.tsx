@@ -25,6 +25,7 @@ import WorkItemDetail from './WorkItemDetail';
 import { useNavigate } from 'react-router-dom';
 import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
 import { createAndVerify } from '@/utils/createVerifyLoop';
+import { trace, newTraceId, traceUIFetch } from '@/utils/deepDebugTrace';
 
 interface WorkItem {
   id: string;
@@ -300,6 +301,8 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['work-items'],
     queryFn: async () => {
+      const fetchTraceId = newTraceId('fetch');
+      traceUIFetch('WorkbenchBoard', fetchTraceId, 'start');
       const { data, error } = await supabase
         .from('work_items' as any)
         .select('*')
@@ -307,6 +310,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
         .order('created_at', { ascending: false });
       if (error) throw error;
       const allItems = (data || []) as unknown as WorkItem[];
+      traceUIFetch('WorkbenchBoard', fetchTraceId, 'complete', allItems.length);
       console.log('[WorkbenchBoard] DB ITEMS:', allItems.length, 'fetched from database');
 
       // ── Source validation: filter out ghost tasks ──
@@ -351,7 +355,10 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
         if (item.related_order_id) {
           const order = validOrders.get(item.related_order_id);
           if (!order || order.deleted_at) {
-            if (['open', 'claimed', 'in_progress'].includes(item.status)) orphanIds.push(item.id);
+            if (['open', 'claimed', 'in_progress'].includes(item.status)) {
+              trace('filter_removed', 'WorkbenchBoard', `Orphan order task filtered: ${item.title}`, { traceId: fetchTraceId, entityId: item.id, details: { reason: 'order_deleted', orderId: item.related_order_id } });
+              orphanIds.push(item.id);
+            }
             return false;
           }
           if (['delivered', 'completed'].includes(order.status) &&
@@ -527,6 +534,8 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const handleCreate = async () => {
     if (!newTitle.trim() || !user) return;
     setCreating(true);
+    const createTraceId = newTraceId('create');
+    trace('work_item_creating', 'WorkbenchBoard', `Creating: ${newTitle.trim()}`, { traceId: createTraceId, details: { type: newType, priority: newPriority } });
     try {
       const { data: bestUser } = await supabase.rpc('auto_assign_work_item', { p_item_type: newType });
       const insertPayload = {
@@ -538,6 +547,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
         created_by: user.id,
         ...(bestUser ? { assigned_to: bestUser, status: 'claimed', claimed_by: bestUser, claimed_at: new Date().toISOString() } : {}),
       };
+      trace('db_insert_sent', 'WorkbenchBoard', 'Sending INSERT to work_items', { traceId: createTraceId });
       const result = await createAndVerify({
         table: 'work_items',
         payload: insertPayload,
@@ -547,19 +557,24 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
       });
 
       if (!result.success) {
+        trace('db_insert_failed', 'WorkbenchBoard', `CREATE-VERIFY FAILED: ${result.error}`, { traceId: createTraceId, details: { attempts: result.attempts } });
         console.error('[WorkbenchBoard] CREATE-VERIFY FAILED:', result.error);
         toast.error(`Kunde inte skapa: ${result.error}`);
         return;
       }
 
+      const entityId = (result.data as any)?.id;
+      trace('db_verify_confirmed', 'WorkbenchBoard', `Verified in DB: ${entityId}`, { traceId: createTraceId, entityId });
       console.log('[WorkbenchBoard] CREATED & VERIFIED:', result.data);
       toast.success(bestUser ? `Skapad & verifierad → tilldelad ${getStaffName(bestUser as string)}` : 'Skapad & verifierad ✓');
       setNewTitle(''); setNewDesc(''); setShowCreate(false);
 
+      trace('cache_invalidated', 'WorkbenchBoard', 'Invalidating work-items cache', { traceId: createTraceId, entityId });
       // Force refetch from DB — don't rely on cache
       await queryClient.invalidateQueries({ queryKey: ['work-items'] });
       await queryClient.invalidateQueries({ queryKey: ['admin-work-items'] });
     } catch (err: any) {
+      trace('db_insert_failed', 'WorkbenchBoard', `CREATE ERROR: ${err?.message}`, { traceId: createTraceId });
       console.error('[WorkbenchBoard] CREATE ERROR:', err);
       toast.error(err?.message || 'Fel');
     } finally {

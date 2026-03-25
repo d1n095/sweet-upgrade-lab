@@ -4,6 +4,7 @@ import { Sparkles, Bug, BarChart3, Copy, Loader2, Send, AlertTriangle, Lightbulb
 import { Tabs, TabsContent, TabsList, TabsTrigger, ScrollableTabs } from '@/components/ui/tabs';
 import AiCenterTabs from '@/components/admin/AiCenterTabs';
 import { createAndVerify } from '@/utils/createVerifyLoop';
+import { trace, newTraceId } from '@/utils/deepDebugTrace';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
@@ -1947,6 +1948,10 @@ const SystemScanTab = () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
 
+    const createTraceId = newTraceId('scan-wi');
+    trace('issue_detected', 'AdminAI', `Creating WI from scan issue: ${issue.title}`, { traceId: createTraceId, details: { severity: issue.severity, category: issue.category } });
+    trace('db_insert_sent', 'AdminAI', 'Sending INSERT via createAndVerify', { traceId: createTraceId });
+
     const result = await createAndVerify({
       table: 'work_items',
       payload: {
@@ -1964,6 +1969,7 @@ const SystemScanTab = () => {
     });
 
     if (!result.success) {
+      trace('db_insert_failed', 'AdminAI', `CREATE-VERIFY FAILED: ${result.error}`, { traceId: createTraceId, details: { attempts: result.attempts } });
       console.error('[AdminAI] CREATE-VERIFY FAILED:', result.error);
       toast.error(`Kunde inte skapa ärende: ${result.error}`);
       return;
@@ -1971,6 +1977,7 @@ const SystemScanTab = () => {
 
     const newItem = result.data as any;
     const wiId = newItem?.id || null;
+    trace('db_verify_confirmed', 'AdminAI', `Work item verified: ${wiId}`, { traceId: createTraceId, entityId: wiId });
     console.log('[AdminAI] CREATED & VERIFIED:', newItem);
     logChange({ change_type: 'task_created', description: `Work item skapat från scan: ${issue.title}`, source: 'ai', affected_components: ['work_items', 'scan'], scan_id: currentScanId || lastScan?.id || null, work_item_id: wiId });
 

@@ -5,6 +5,7 @@ import { useExecutionLockStore } from './executionLockStore';
 import { useFeedbackLoopStore } from './feedbackLoopStore';
 import { QueryClient } from '@tanstack/react-query';
 import { createTraceId, observeScanStep, observeError, observeAction, flushObservabilityBuffer } from '@/utils/observabilityLogger';
+import { trace, newTraceId as newDebugTraceId } from '@/utils/deepDebugTrace';
 
 export type ScanStepStatus = 'pending' | 'running' | 'done' | 'error';
 
@@ -127,6 +128,8 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
 
     // Run all scans in parallel for speed
     const traceId = createTraceId('quick-scan');
+    const debugTraceId = newDebugTraceId('scan');
+    trace('issue_detected', 'ScannerStore', `Starting scan (${toRun.length} steps)`, { traceId: debugTraceId, details: { steps: toRun.map(s => s.type) } });
     observeAction(`Startar snabbskanning (${toRun.length} steg)`, { trace_id: traceId, source: 'scanner' });
 
     await Promise.allSettled(
@@ -140,6 +143,7 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
 
           if (res) {
             const duration_ms = Date.now() - start;
+            trace('scan_update', 'ScannerStore', `Step done: ${step.label} (${duration_ms}ms)`, { traceId: debugTraceId, details: { stepType: step.type, duration_ms } });
             observeScanStep(`Steg klart: ${step.label}`, { trace_id: traceId, component: step.type, duration_ms });
             set(state => ({
               steps: state.steps.map((s, idx) => idx === i ? { ...s, status: 'done' as const, result: res, duration_ms } : s),
