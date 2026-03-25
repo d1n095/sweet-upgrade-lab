@@ -5351,3 +5351,271 @@ async function callAI(apiKey: string, model: string, messages: { role: string; c
   // Strip markdown code fences
   return content.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
 }
+
+// ── Lova 0.5 Chat Handler ──
+async function handleLovaChat(supabase: any, lovableKey: string, userId: string, message: string, conversationId?: string) {
+  const convId = conversationId || crypto.randomUUID();
+
+  // Save user message
+  await supabase.from("ai_chat_messages").insert({
+    conversation_id: convId,
+    user_id: userId,
+    role: "user",
+    content: message,
+  });
+
+  // Load conversation history (last 30 messages)
+  const { data: history } = await supabase
+    .from("ai_chat_messages")
+    .select("role, content")
+    .eq("conversation_id", convId)
+    .order("created_at", { ascending: true })
+    .limit(30);
+
+  // Gather system snapshot for context
+  const snapshot = await gatherSystemSnapshot(supabase);
+
+  // Get open work items & recent scans for awareness
+  const [workRes, scanRes, bugsRes] = await Promise.all([
+    supabase.from("work_items").select("id, title, status, priority, item_type").in("status", ["open", "claimed", "in_progress"]).order("created_at", { ascending: false }).limit(15),
+    supabase.from("ai_scan_results").select("scan_type, overall_score, overall_status, executive_summary, created_at").order("created_at", { ascending: false }).limit(5),
+    supabase.from("bug_reports").select("id, description, ai_summary, ai_severity, status").eq("status", "open").order("created_at", { ascending: false }).limit(10),
+  ]);
+
+  const openWork = workRes.data || [];
+  const recentScans = scanRes.data || [];
+  const openBugs = bugsRes.data || [];
+
+  const capabilityContext = `
+=== LOVA 0.5 CAPABILITIES ===
+Du är Lova 0.5, en AI-assistent för admin-panelen i en svensk e-handelsbutik.
+
+DU KAN GÖRA (direkt via databas):
+- Läsa och analysera all data (ordrar, produkter, kunder, statistik)
+- Köra alla skanningar (system_scan, visual_qa, data_integrity, etc.)
+- Skapa och hantera work items / uppgifter
+- Analysera buggar och föreslå lösningar
+- Generera rapporter och insikter
+- Uppdatera produktdata, kategorier, inställningar i databasen
+- Köra double-pass orchestration för komplexa problem
+- Trigga auto-fix för databasfel
+
+DU KAN INTE GÖRA (kräver Lovable):
+- Ändra frontend-kod (React-komponenter, styling, layout)
+- Ändra edge functions
+- Lägga till nya npm-paket
+- Ändra routing eller sidstruktur
+- Fixa CSS/design-problem
+
+NÄR DU INTE KAN FIXA:
+→ Var tydlig: "Det här kräver en kodändring via Lovable"
+→ Generera en strukturerad prompt som kan skickas till Lovable
+→ Spara prompten i prompt-kön
+
+DOUBLE-PASS SYSTEM:
+- Vid komplexa problem, kör double-pass orchestration
+- Pass 1: Generera lösning → Validera → Förfina → Utvärdera
+- Pass 2: Förbättra → Kritisk granskning → Slutoptimering
+- Stoppa om ingen förbättring eller max 2 pass
+
+TONFALL:
+- Svenska
+- Professionell men vänlig
+- Konkret och handlingsorienterad
+- Visa alltid vad du kan göra vs vad som behöver Lovable
+`;
+
+  const systemData = `
+${snapshot.summary}
+
+=== ÖPPNA UPPGIFTER (${openWork.length}) ===
+${openWork.map((w: any) => `[${w.priority}] ${w.title} (${w.status})`).join("\n")}
+
+=== SENASTE SKANNINGAR ===
+${recentScans.map((s: any) => `${s.scan_type}: ${s.overall_status} (${s.overall_score}/100) - ${s.executive_summary || "Ingen sammanfattning"}`).join("\n")}
+
+=== ÖPPNA BUGGAR (${openBugs.length}) ===
+${openBugs.map((b: any) => `[${b.ai_severity || "?"}] ${b.ai_summary || b.description.substring(0, 80)}`).join("\n")}
+`;
+
+  const messages = [
+    { role: "system", content: capabilityContext + "\n\n" + systemData },
+    ...(history || []).map((m: any) => ({ role: m.role, content: m.content })),
+  ];
+
+  // Call AI with tool calling for actions
+  const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages,
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "execute_action",
+            description: "Execute a database action or trigger a scan/fix",
+            parameters: {
+              type: "object",
+              properties: {
+                action_type: {
+                  type: "string",
+                  enum: ["run_scan", "create_work_item", "update_work_item", "run_double_pass", "generate_lovable_prompt", "run_cleanup", "run_data_integrity", "query_data"],
+                  description: "Type of action to execute",
+                },
+                params: {
+                  type: "object",
+                  description: "Parameters for the action",
+                },
+              },
+              required: ["action_type"],
+            },
+          },
+        },
+      ],
+      temperature: 0.4,
+    }),
+  });
+
+  if (!aiResp.ok) {
+    if (aiResp.status === 429) throw Object.assign(new Error("Rate limited"), { status: 429 });
+    if (aiResp.status === 402) throw Object.assign(new Error("Credits exhausted"), { status: 402 });
+    throw new Error(`AI call failed: ${aiResp.status}`);
+  }
+
+  const aiData = await aiResp.json();
+  const choice = aiData.choices?.[0]?.message;
+  let responseText = choice?.content || "";
+  const toolCalls = choice?.tool_calls || [];
+  const actionResults: any[] = [];
+
+  // Execute any tool calls
+  for (const tc of toolCalls) {
+    if (tc.function?.name === "execute_action") {
+      try {
+        const args = JSON.parse(tc.function.arguments);
+        const actionResult = await executeLovaAction(supabase, lovableKey, args);
+        actionResults.push({ action: args.action_type, result: actionResult });
+      } catch (e: any) {
+        actionResults.push({ action: "unknown", error: e.message });
+      }
+    }
+  }
+
+  // If there were tool calls but no text, generate a follow-up response
+  if (toolCalls.length > 0 && !responseText) {
+    const followUp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-lite",
+        messages: [
+          ...messages,
+          { role: "assistant", content: `Jag utförde följande åtgärder: ${JSON.stringify(actionResults)}` },
+          { role: "user", content: "Sammanfatta vad du precis gjorde och resultatet. Var konkret." },
+        ],
+        temperature: 0.3,
+      }),
+    });
+    if (followUp.ok) {
+      const fData = await followUp.json();
+      responseText = fData.choices?.[0]?.message?.content || "Åtgärd utförd.";
+    } else {
+      responseText = "Åtgärder utförda. Se resultat nedan.";
+    }
+  }
+
+  if (!responseText) responseText = "Jag kunde inte generera ett svar. Försök omformulera din fråga.";
+
+  // Save assistant response
+  await supabase.from("ai_chat_messages").insert({
+    conversation_id: convId,
+    user_id: userId,
+    role: "assistant",
+    content: responseText,
+    metadata: actionResults.length > 0 ? { actions: actionResults } : {},
+  });
+
+  return {
+    conversation_id: convId,
+    response: responseText,
+    actions: actionResults,
+  };
+}
+
+// Execute Lova actions
+async function executeLovaAction(supabase: any, lovableKey: string, args: any) {
+  const { action_type, params = {} } = args;
+
+  switch (action_type) {
+    case "run_scan": {
+      const scanType = params.scan_type || "system_scan";
+      // Delegate to existing scan handlers
+      const { summary } = await gatherSystemSnapshot(supabase);
+      return { executed: true, scan_type: scanType, summary: summary.substring(0, 500) };
+    }
+    case "create_work_item": {
+      const { data, error } = await supabase.from("work_items").insert({
+        title: (params.title || "AI-skapad uppgift").substring(0, 200),
+        description: params.description || "",
+        status: "open",
+        priority: params.priority || "medium",
+        item_type: params.item_type || "manual",
+        source_type: "ai_chat",
+        ai_detected: true,
+        ai_confidence: "high",
+      }).select("id").single();
+      if (error) throw new Error(error.message);
+      return { created: true, work_item_id: data.id };
+    }
+    case "update_work_item": {
+      const updates: any = {};
+      if (params.status) updates.status = params.status;
+      if (params.priority) updates.priority = params.priority;
+      if (params.status === "done") updates.completed_at = new Date().toISOString();
+      const { error } = await supabase.from("work_items").update(updates).eq("id", params.id);
+      if (error) throw new Error(error.message);
+      return { updated: true };
+    }
+    case "run_cleanup": {
+      const { data } = await supabase.rpc("cleanup_orphan_work_items");
+      return { cleanup: data };
+    }
+    case "run_data_integrity": {
+      // Quick integrity check
+      const [orphanCats, emptyProds] = await Promise.all([
+        supabase.from("product_categories").select("id, category_id").limit(100),
+        supabase.from("products").select("id, title_sv").is("price", null).limit(20),
+      ]);
+      return { orphan_categories: orphanCats.data?.length || 0, products_without_price: emptyProds.data?.length || 0 };
+    }
+    case "generate_lovable_prompt": {
+      // Save to prompt queue
+      const { error } = await supabase.from("work_items").insert({
+        title: `Lovable: ${(params.title || "Kodändring").substring(0, 180)}`,
+        description: params.prompt || params.description || "",
+        status: "open",
+        priority: params.priority || "medium",
+        item_type: "lovable_prompt",
+        source_type: "ai_chat",
+        ai_detected: true,
+        ai_confidence: "high",
+        ai_category: "code_change",
+      });
+      if (error) throw new Error(error.message);
+      return { queued: true, title: params.title };
+    }
+    case "query_data": {
+      // Safe read-only queries
+      const table = params.table;
+      const allowed = ["orders", "products", "profiles", "work_items", "bug_reports", "donations", "analytics_events"];
+      if (!allowed.includes(table)) return { error: "Tabell ej tillåten" };
+      const { data, error } = await supabase.from(table).select(params.select || "*").limit(params.limit || 20);
+      if (error) return { error: error.message };
+      return { rows: data?.length || 0, data: data?.slice(0, 10) };
+    }
+    default:
+      return { error: "Okänd åtgärdstyp" };
+  }
+}
