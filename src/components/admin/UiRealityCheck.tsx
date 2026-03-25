@@ -1,0 +1,502 @@
+import { useState, useCallback } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Progress } from '@/components/ui/progress';
+import {
+  Activity, AlertTriangle, CheckCircle, XCircle, Loader2,
+  Play, Trash2, MousePointer, Database, Layers, ScrollText,
+  ChevronDown, ChevronUp, Eye, Ghost,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+
+type CheckVerdict = 'working' | 'fake_done' | 'partially_working' | 'broken';
+type CheckCategory = 'buttons' | 'data' | 'modals' | 'scroll' | 'forms' | 'navigation';
+
+interface UICheck {
+  id: string;
+  category: CheckCategory;
+  element: string;
+  selector: string;
+  verdict: CheckVerdict;
+  detail: string;
+  checkedAt: string;
+}
+
+type ScanStatus = 'idle' | 'running' | 'done';
+
+const verdictConfig: Record<CheckVerdict, { label: string; color: string; icon: React.ElementType }> = {
+  working: { label: 'Fungerar', color: 'text-green-500', icon: CheckCircle },
+  fake_done: { label: 'Fejkad', color: 'text-purple-500', icon: Ghost },
+  partially_working: { label: 'Delvis', color: 'text-orange-500', icon: AlertTriangle },
+  broken: { label: 'Trasig', color: 'text-destructive', icon: XCircle },
+};
+
+const categoryConfig: Record<CheckCategory, { label: string; icon: React.ElementType }> = {
+  buttons: { label: 'Knappar', icon: MousePointer },
+  data: { label: 'Data', icon: Database },
+  modals: { label: 'Modaler', icon: Layers },
+  scroll: { label: 'Scroll', icon: ScrollText },
+  forms: { label: 'Formulär', icon: Activity },
+  navigation: { label: 'Navigation', icon: Eye },
+};
+
+const CheckCard = ({ check }: { check: UICheck }) => {
+  const [expanded, setExpanded] = useState(false);
+  const v = verdictConfig[check.verdict];
+  const c = categoryConfig[check.category];
+  const VIcon = v.icon;
+
+  return (
+    <div className={cn(
+      'border rounded-lg p-3 space-y-1',
+      check.verdict === 'working' ? 'border-green-500/20 bg-green-500/5' :
+      check.verdict === 'fake_done' ? 'border-purple-500/30 bg-purple-500/5' :
+      check.verdict === 'partially_working' ? 'border-orange-500/30 bg-orange-500/5' :
+      'border-destructive/30 bg-destructive/5'
+    )}>
+      <button onClick={() => setExpanded(!expanded)} className="w-full text-left">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <VIcon className={cn('w-4 h-4 shrink-0', v.color)} />
+            <span className="text-sm font-medium truncate">{check.element}</span>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Badge variant="outline" className="text-[10px]">
+              <c.icon className="w-2.5 h-2.5 mr-0.5" />{c.label}
+            </Badge>
+            <Badge variant="outline" className={cn('text-[10px]', v.color)}>
+              {v.label}
+            </Badge>
+            {expanded ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
+          </div>
+        </div>
+      </button>
+      {expanded && (
+        <div className="pt-2 border-t border-border/50 mt-1 space-y-1">
+          <p className="text-xs text-foreground">{check.detail}</p>
+          <p className="text-[10px] text-muted-foreground font-mono">{check.selector}</p>
+          <p className="text-[10px] text-muted-foreground/60">{new Date(check.checkedAt).toLocaleString('sv-SE')}</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const UiRealityCheck = () => {
+  const [status, setStatus] = useState<ScanStatus>('idle');
+  const [checks, setChecks] = useState<UICheck[]>([]);
+  const [progress, setProgress] = useState(0);
+
+  const makeCheck = (
+    category: CheckCategory,
+    element: string,
+    selector: string,
+    verdict: CheckVerdict,
+    detail: string
+  ): UICheck => ({
+    id: `${category}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    category, element, selector, verdict, detail,
+    checkedAt: new Date().toISOString(),
+  });
+
+  const runScan = useCallback(async () => {
+    setStatus('running');
+    setChecks([]);
+    setProgress(0);
+    const results: UICheck[] = [];
+
+    await new Promise(r => setTimeout(r, 100));
+
+    // ─── 1. BUTTONS ───
+    setProgress(10);
+    const buttons = document.querySelectorAll('button, [role="button"], a[href]');
+    let deadButtons = 0;
+    let totalButtons = 0;
+
+    buttons.forEach((btn) => {
+      const el = btn as HTMLElement;
+      // Skip tiny/invisible/icon-only buttons
+      if (el.offsetWidth < 5 || el.offsetHeight < 5) return;
+      if (getComputedStyle(el).display === 'none' || getComputedStyle(el).visibility === 'hidden') return;
+      totalButtons++;
+
+      const hasClick = !!(el as any)._reactEvents || !!(el as any).__reactEvents$ || !!(el as any).__reactProps$;
+      const hasHref = el.tagName === 'A' && el.getAttribute('href');
+      const isDisabled = el.hasAttribute('disabled') || el.getAttribute('aria-disabled') === 'true';
+      const hasOnClick = el.getAttribute('onclick') !== null;
+
+      // Check React internal event handlers
+      const reactPropsKey = Object.keys(el).find(k => k.startsWith('__reactProps$') || k.startsWith('__reactEvents$'));
+      const reactProps = reactPropsKey ? (el as any)[reactPropsKey] : null;
+      const hasReactClick = reactProps?.onClick || reactProps?.onPointerDown || reactProps?.onMouseDown;
+
+      if (!hasClick && !hasHref && !hasOnClick && !hasReactClick && !isDisabled) {
+        const text = el.textContent?.trim().slice(0, 40) || el.getAttribute('aria-label') || 'Unnamed';
+        if (text.length > 1) {
+          deadButtons++;
+          results.push(makeCheck(
+            'buttons', `Knapp: "${text}"`,
+            buildSelector(el),
+            'fake_done',
+            'Knappen har ingen click-handler registrerad — den gör ingenting vid klick.'
+          ));
+        }
+      }
+    });
+
+    if (deadButtons === 0 && totalButtons > 0) {
+      results.push(makeCheck('buttons', 'Alla knappar', `${totalButtons} knappar`, 'working', `${totalButtons} knappar har registrerade handlers.`));
+    }
+
+    // ─── 2. DATA LOADING ───
+    setProgress(30);
+    const dataContainers = document.querySelectorAll('[data-loading], [data-empty], .animate-pulse, [class*="skeleton"]');
+    let skeletonCount = 0;
+
+    dataContainers.forEach((el) => {
+      const htmlEl = el as HTMLElement;
+      if (htmlEl.offsetWidth < 5) return;
+      if (getComputedStyle(htmlEl).display === 'none') return;
+
+      const isVisible = htmlEl.getBoundingClientRect().top < window.innerHeight + 200;
+      if (!isVisible) return;
+
+      // Check if skeleton is "stuck" (visible > timeout)
+      if (htmlEl.classList.contains('animate-pulse') || htmlEl.className.includes('skeleton')) {
+        skeletonCount++;
+      }
+    });
+
+    if (skeletonCount > 3) {
+      results.push(makeCheck(
+        'data', `${skeletonCount} skeleton-laddare`,
+        '.animate-pulse, [class*="skeleton"]',
+        'partially_working',
+        `${skeletonCount} skeleton/laddnings-element synliga. Data kan ha fastnat i laddningsläge.`
+      ));
+    } else if (skeletonCount > 0) {
+      results.push(makeCheck('data', `${skeletonCount} skeleton-element`, '.animate-pulse', 'working', 'Normalt antal laddningsindikatorer.'));
+    }
+
+    // Check for "empty state" patterns that might indicate missing data
+    const emptyIndicators = document.querySelectorAll('[data-empty], .empty-state');
+    const emptyTexts = ['inga resultat', 'no data', 'tom', 'empty', 'ingenting att visa', 'nothing to show'];
+    let emptyStateCount = 0;
+
+    document.querySelectorAll('p, span, div').forEach((el) => {
+      const text = (el as HTMLElement).textContent?.toLowerCase().trim() || '';
+      if (text.length < 50 && emptyTexts.some(et => text.includes(et))) {
+        const parent = el.parentElement;
+        if (parent && parent.children.length <= 3) {
+          emptyStateCount++;
+        }
+      }
+    });
+
+    if (emptyStateCount > 2) {
+      results.push(makeCheck(
+        'data', `${emptyStateCount} tomma sektioner`,
+        'text-match',
+        'partially_working',
+        'Flera sektioner visar "tom"-meddelanden. Data kanske inte laddas korrekt.'
+      ));
+    }
+
+    // ─── 3. MODALS / DIALOGS ───
+    setProgress(50);
+    const dialogTriggers = document.querySelectorAll('[data-state], [aria-haspopup="dialog"], [aria-haspopup="true"]');
+    let modalTriggersFound = 0;
+
+    dialogTriggers.forEach((el) => {
+      const htmlEl = el as HTMLElement;
+      if (htmlEl.offsetWidth < 5) return;
+      modalTriggersFound++;
+    });
+
+    // Check for orphan overlay/backdrop elements stuck open
+    const openOverlays = document.querySelectorAll('[data-state="open"][role="dialog"], [data-state="open"][role="alertdialog"]');
+    if (openOverlays.length > 0) {
+      results.push(makeCheck(
+        'modals', `${openOverlays.length} öppna dialoger`,
+        '[data-state="open"][role="dialog"]',
+        'partially_working',
+        'Dialoger som är öppna utan tydlig användarinteraktion kan indikera fastkört tillstånd.'
+      ));
+    }
+
+    // Check for backdrop/overlay elements that might block interaction
+    const backdrops = document.querySelectorAll('[data-state="open"][data-overlay], [class*="overlay"][style*="pointer-events"]');
+    if (backdrops.length > 0) {
+      results.push(makeCheck(
+        'modals', 'Blockerade overlays',
+        '[data-state="open"]',
+        'broken',
+        'Overlay-element blockerar möjligen interaktion med sidan.'
+      ));
+    }
+
+    if (modalTriggersFound > 0 && openOverlays.length === 0 && backdrops.length === 0) {
+      results.push(makeCheck('modals', `${modalTriggersFound} dialog-triggers`, '[aria-haspopup]', 'working', 'Dialog-triggers registrerade utan fastkörda tillstånd.'));
+    }
+
+    // ─── 4. SCROLL ───
+    setProgress(65);
+    const scrollContainers = document.querySelectorAll('[data-radix-scroll-area-viewport], [class*="overflow-y-auto"], [class*="overflow-auto"], [style*="overflow"]');
+    let brokenScrollCount = 0;
+
+    scrollContainers.forEach((el) => {
+      const htmlEl = el as HTMLElement;
+      if (htmlEl.offsetWidth < 20 || htmlEl.offsetHeight < 20) return;
+      const isScrollable = htmlEl.scrollHeight > htmlEl.clientHeight + 5;
+      const hasOverflowHidden = getComputedStyle(htmlEl).overflow === 'hidden' || getComputedStyle(htmlEl).overflowY === 'hidden';
+
+      if (isScrollable && hasOverflowHidden) {
+        brokenScrollCount++;
+        results.push(makeCheck(
+          'scroll', 'Dold scroll',
+          buildSelector(htmlEl),
+          'broken',
+          `Elementet har mer innehåll (${htmlEl.scrollHeight}px) än sin höjd (${htmlEl.clientHeight}px) men overflow:hidden döljer det.`
+        ));
+      }
+
+      // Content clipping: scrollable container where last child is cut off
+      if (isScrollable && !hasOverflowHidden) {
+        const lastChild = htmlEl.lastElementChild as HTMLElement;
+        if (lastChild) {
+          const containerRect = htmlEl.getBoundingClientRect();
+          const childRect = lastChild.getBoundingClientRect();
+          const isCutOff = childRect.bottom > containerRect.bottom + 100 && htmlEl.scrollTop === 0;
+          // Only flag if a LOT is hidden and not scrolled
+          if (isCutOff && (childRect.bottom - containerRect.bottom) > containerRect.height) {
+            // This is normal for long lists, skip
+          }
+        }
+      }
+    });
+
+    if (brokenScrollCount === 0 && scrollContainers.length > 0) {
+      results.push(makeCheck('scroll', `${scrollContainers.length} scrollbara containrar`, 'overflow-auto', 'working', 'Alla scrollbara containrar fungerar korrekt.'));
+    }
+
+    // ─── 5. FORMS ───
+    setProgress(80);
+    const inputs = document.querySelectorAll('input:not([type="hidden"]), textarea, select');
+    let disabledInputCount = 0;
+    let readonlyCount = 0;
+
+    inputs.forEach((el) => {
+      const htmlEl = el as HTMLInputElement;
+      if (htmlEl.offsetWidth < 5) return;
+      if (htmlEl.disabled) disabledInputCount++;
+      if (htmlEl.readOnly) readonlyCount++;
+    });
+
+    if (inputs.length > 0) {
+      const totalVisible = Array.from(inputs).filter(el => (el as HTMLElement).offsetWidth > 5).length;
+      if (disabledInputCount > totalVisible * 0.5 && totalVisible > 3) {
+        results.push(makeCheck(
+          'forms', `${disabledInputCount}/${totalVisible} inaktiva fält`,
+          'input:disabled',
+          'partially_working',
+          'Mer än hälften av synliga formulärfält är inaktiverade. Formuläret kan vara delvis icke-funktionellt.'
+        ));
+      } else {
+        results.push(makeCheck('forms', `${totalVisible} formulärfält`, 'input, textarea, select', 'working', `${totalVisible} fält aktiva, ${disabledInputCount} inaktiverade.`));
+      }
+    }
+
+    // ─── 6. NAVIGATION / LINKS ───
+    setProgress(90);
+    const links = document.querySelectorAll('a[href]');
+    let deadLinks = 0;
+
+    links.forEach((el) => {
+      const href = el.getAttribute('href');
+      const htmlEl = el as HTMLElement;
+      if (htmlEl.offsetWidth < 5) return;
+      if (!href || href === '#' || href === 'javascript:void(0)' || href === 'javascript:;') {
+        const text = htmlEl.textContent?.trim().slice(0, 30) || '';
+        if (text.length > 1) {
+          deadLinks++;
+        }
+      }
+    });
+
+    if (deadLinks > 0) {
+      results.push(makeCheck(
+        'navigation', `${deadLinks} döda länkar`,
+        'a[href="#"]',
+        'fake_done',
+        `${deadLinks} länkar pekar på "#" eller void — de navigerar ingenstans.`
+      ));
+    }
+
+    const allLinks = Array.from(links).filter(el => (el as HTMLElement).offsetWidth > 5);
+    if (deadLinks === 0 && allLinks.length > 0) {
+      results.push(makeCheck('navigation', `${allLinks.length} länkar`, 'a[href]', 'working', 'Alla synliga länkar har giltiga destinationer.'));
+    }
+
+    setProgress(100);
+
+    // Sort: issues first
+    const order: Record<CheckVerdict, number> = { broken: 0, fake_done: 1, partially_working: 2, working: 3 };
+    results.sort((a, b) => order[a.verdict] - order[b.verdict]);
+
+    setChecks(results);
+    setStatus('done');
+
+    const issues = results.filter(c => c.verdict !== 'working');
+    if (issues.length > 0) {
+      toast.warning(`UI Reality Check: ${issues.length} problem hittade`);
+    } else {
+      toast.success('UI Reality Check: Allt fungerar!');
+    }
+  }, []);
+
+  const stats = {
+    total: checks.length,
+    working: checks.filter(c => c.verdict === 'working').length,
+    fake_done: checks.filter(c => c.verdict === 'fake_done').length,
+    partially_working: checks.filter(c => c.verdict === 'partially_working').length,
+    broken: checks.filter(c => c.verdict === 'broken').length,
+  };
+
+  const issues = checks.filter(c => c.verdict !== 'working');
+  const okChecks = checks.filter(c => c.verdict === 'working');
+
+  return (
+    <div className="space-y-4">
+      {/* Stats */}
+      {status === 'done' && (
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+          {([
+            { key: 'total', label: 'Totalt', count: stats.total, color: 'text-foreground', icon: Activity },
+            { key: 'working', label: 'Fungerar', count: stats.working, color: 'text-green-500', icon: CheckCircle },
+            { key: 'fake_done', label: 'Fejkade', count: stats.fake_done, color: 'text-purple-500', icon: Ghost },
+            { key: 'partial', label: 'Delvis', count: stats.partially_working, color: 'text-orange-500', icon: AlertTriangle },
+            { key: 'broken', label: 'Trasiga', count: stats.broken, color: 'text-destructive', icon: XCircle },
+          ] as const).map(s => (
+            <Card key={s.key}>
+              <CardContent className="p-3 flex items-center gap-2">
+                <s.icon className={cn('w-4 h-4', s.color)} />
+                <div>
+                  <p className="text-lg font-bold leading-none">{s.count}</p>
+                  <p className="text-[10px] text-muted-foreground">{s.label}</p>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Progress */}
+      {status === 'running' && (
+        <div className="space-y-1">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              Skannar UI-element…
+            </span>
+            <span>{progress}%</span>
+          </div>
+          <Progress value={progress} className="h-2" />
+        </div>
+      )}
+
+      {/* Controls */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <Button
+          size="sm"
+          variant={status === 'idle' ? 'default' : 'outline'}
+          onClick={runScan}
+          disabled={status === 'running'}
+          className="gap-1.5 text-xs"
+        >
+          {status === 'running' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
+          {status === 'idle' ? 'Kör Reality Check' : 'Kör igen'}
+        </Button>
+        {checks.length > 0 && (
+          <Button size="sm" variant="ghost" onClick={() => { setChecks([]); setStatus('idle'); }} className="gap-1.5 text-xs">
+            <Trash2 className="w-3.5 h-3.5" />
+            Rensa
+          </Button>
+        )}
+        <div className="ml-auto text-[10px] text-muted-foreground">
+          Kontrollerar: knappar · data · modaler · scroll · formulär · navigation
+        </div>
+      </div>
+
+      {/* Issues */}
+      {issues.length > 0 && (
+        <Card className="border-destructive/30">
+          <CardHeader className="pb-2 pt-3 px-4">
+            <CardTitle className="text-sm flex items-center gap-2 text-destructive">
+              <Ghost className="w-4 h-4" />
+              Problem ({issues.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-3">
+            <ScrollArea className="max-h-[45vh]">
+              <div className="space-y-2 pr-2">
+                {issues.map(c => <CheckCard key={c.id} check={c} />)}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* OK checks */}
+      {okChecks.length > 0 && (
+        <Card className="border-green-500/20">
+          <CardHeader className="pb-2 pt-3 px-4">
+            <CardTitle className="text-sm flex items-center gap-2 text-green-600">
+              <CheckCircle className="w-4 h-4" />
+              Fungerar ({okChecks.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-3">
+            <ScrollArea className="max-h-[30vh]">
+              <div className="space-y-2 pr-2">
+                {okChecks.map(c => <CheckCard key={c.id} check={c} />)}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Empty state */}
+      {status === 'idle' && checks.length === 0 && (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Ghost className="w-10 h-10 mx-auto text-muted-foreground/40 mb-3" />
+            <p className="text-sm font-medium text-muted-foreground">UI Reality Check</p>
+            <p className="text-xs text-muted-foreground/70 mt-1 max-w-md mx-auto">
+              Skannar alla synliga UI-element i realtid. Hittar döda knappar, fejkade funktioner,
+              fastkörda laddare, brutna scroll-containrar och tomma formulär.
+            </p>
+            <Button size="sm" onClick={runScan} className="mt-4 gap-1.5 text-xs">
+              <Play className="w-3.5 h-3.5" />
+              Starta Reality Check
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+};
+
+function buildSelector(el: HTMLElement): string {
+  const tag = el.tagName.toLowerCase();
+  const id = el.id ? `#${el.id}` : '';
+  const cls = el.className && typeof el.className === 'string'
+    ? '.' + el.className.split(' ').filter(c => c && !c.startsWith('__') && c.length < 30).slice(0, 2).join('.')
+    : '';
+  const text = el.textContent?.trim().slice(0, 20) || '';
+  return `${tag}${id}${cls}${text ? ` "${text}"` : ''}`;
+}
+
+export default UiRealityCheck;
