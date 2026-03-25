@@ -476,6 +476,78 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
 
                     {analysisSummary && <p className="text-xs text-muted-foreground">{analysisSummary}</p>}
 
+                    {/* Re-analysis after rejection */}
+                    {reanalysis && (
+                      <div className="space-y-2 border border-primary/20 bg-primary/5 rounded-lg p-2.5">
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
+                          <RotateCcw className="w-3 h-3" />
+                          Fördjupad re-analys (efter avvisning)
+                        </div>
+                        {reanalysis.refined_diagnosis?.why_previous_was_wrong && (
+                          <p className="text-[10px] text-destructive">
+                            <span className="font-medium">Varför förra var fel:</span> {reanalysis.refined_diagnosis.why_previous_was_wrong}
+                          </p>
+                        )}
+                        {reanalysis.refined_diagnosis?.likely_cause && (
+                          <p className="text-xs"><span className="font-medium">Trolig orsak:</span> {reanalysis.refined_diagnosis.likely_cause}</p>
+                        )}
+                        {reanalysis.refined_diagnosis?.evidence?.length > 0 && (
+                          <div className="text-[10px]">
+                            <span className="font-medium">Bevis:</span>
+                            <ul className="list-disc pl-3 mt-0.5 space-y-0.5">
+                              {reanalysis.refined_diagnosis.evidence.map((e: string, i: number) => <li key={i}>{e}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                        {reanalysis.component_analysis?.length > 0 && (
+                          <div className="text-[10px]">
+                            <span className="font-medium">Komponentanalys:</span>
+                            <div className="mt-0.5 space-y-0.5">
+                              {reanalysis.component_analysis.map((c: any, i: number) => (
+                                <div key={i} className="flex items-center gap-1">
+                                  <Badge variant="outline" className={cn('text-[8px] py-0', {
+                                    'text-accent': c.status === 'healthy',
+                                    'text-primary': c.status === 'suspicious',
+                                    'text-destructive': c.status === 'broken',
+                                  })}>{c.status}</Badge>
+                                  <span className="font-medium">{c.component}:</span> {c.findings}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {reanalysis.new_fix_suggestions?.length > 0 && (
+                          <div className="space-y-1 pt-1 border-t border-border">
+                            <span className="text-[10px] font-medium">Nya fixförslag:</span>
+                            {reanalysis.new_fix_suggestions.map((f: any, i: number) => (
+                              <div key={i} className="bg-background rounded p-2 text-[10px] space-y-0.5">
+                                <div className="font-medium flex items-center gap-1">
+                                  <Wrench className="w-3 h-3" /> {f.title}
+                                  <Badge variant="outline" className="text-[8px] py-0 ml-auto">{f.effort} effort</Badge>
+                                </div>
+                                <p className="text-muted-foreground">{f.description}</p>
+                                {f.lovable_prompt && (
+                                  <Button size="sm" variant="ghost" className="h-5 text-[9px] gap-1 p-0 px-1"
+                                    onClick={() => { navigator.clipboard.writeText(f.lovable_prompt); toast.success('Prompt kopierad'); }}>
+                                    <Copy className="w-2.5 h-2.5" /> Kopiera prompt
+                                  </Button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {reanalysis.severity_assessment && (
+                          <Badge variant="outline" className={cn('text-[9px]', {
+                            'text-muted-foreground': reanalysis.severity_assessment === 'low',
+                            'text-primary': reanalysis.severity_assessment === 'medium',
+                            'text-destructive': reanalysis.severity_assessment === 'high' || reanalysis.severity_assessment === 'critical',
+                          })}>
+                            Allvarlighetsgrad: {reanalysis.severity_assessment}
+                          </Badge>
+                        )}
+                      </div>
+                    )}
+
                     {rootCauses.map((rc: any, i: number) => (
                       <div key={i} className={cn('rounded-lg border p-2.5 space-y-2 transition-colors',
                         item.human_selected_cause === rc.cause ? 'border-accent bg-accent/5' : 'border-border/50 bg-background'
