@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, createContext, useContext, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Sparkles, Bug, BarChart3, Copy, Loader2, Send, AlertTriangle, Lightbulb, Info, RefreshCw, Bot, CheckCircle, XCircle, Shield, Clock, Zap, Activity, TrendingUp, Package, AlertCircle, Database, Wrench, Radar, ArrowRight, Layers, Monitor, Smartphone, Tablet, Eye, Compass, LayoutGrid, GitMerge, ArrowRightLeft, ShieldCheck, Play, Settings2, ToggleRight } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger, ScrollableTabs } from '@/components/ui/tabs';
@@ -13,6 +13,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
+import WorkItemDetail from '@/components/admin/workbench/WorkItemDetail';
+import { useNavigate } from 'react-router-dom';
+
+// Context to allow any tab to open a work item detail view
+const DetailContext = createContext<{
+  openDetail: (itemId: string) => void;
+}>({ openDetail: () => {} });
+
+const useDetailContext = () => useContext(DetailContext);
 
 interface GeneratedPrompt {
   title: string;
@@ -278,6 +287,7 @@ const TaskAITab = () => {
   const [running, setRunning] = useState<string | null>(null);
   const [lastResults, setLastResults] = useState<any>(null);
   const queryClient = useQueryClient();
+  const { openDetail } = useDetailContext();
 
   const { data: aiItems, isLoading: loadingItems, refetch: refetchItems } = useQuery({
     queryKey: ['ai-managed-items'],
@@ -396,7 +406,7 @@ const TaskAITab = () => {
               <p className="text-sm text-muted-foreground py-4 text-center">Inga aktiva AI-uppgifter</p>
             )}
             {activeItems.map(item => (
-              <div key={item.id} className="border rounded-lg p-3 space-y-2">
+              <div key={item.id} className="border rounded-lg p-3 space-y-2 cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => openDetail(item.id)}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
@@ -426,7 +436,7 @@ const TaskAITab = () => {
                   </div>
                 )}
 
-                <div className="flex gap-1.5 pt-1">
+                <div className="flex gap-1.5 pt-1" onClick={e => e.stopPropagation()}>
                   {item.status !== 'done' && (
                     <>
                       <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1" onClick={() => overrideItem(item.id, { status: 'done', completed_at: new Date().toISOString() })}>
@@ -452,12 +462,12 @@ const TaskAITab = () => {
           <h4 className="text-xs font-semibold text-muted-foreground">Nyligen AI-lösta ({resolvedItems.length})</h4>
           <div className="space-y-1">
             {resolvedItems.slice(0, 5).map(item => (
-              <div key={item.id} className="border rounded-md p-2 flex items-center justify-between gap-2 opacity-60">
+              <div key={item.id} className="border rounded-md p-2 flex items-center justify-between gap-2 opacity-60 cursor-pointer hover:opacity-80" onClick={() => openDetail(item.id)}>
                 <div className="min-w-0">
                   <p className="text-xs truncate">{item.title}</p>
                   <p className="text-[9px] text-muted-foreground">{item.ai_resolution_notes?.substring(0, 80)}</p>
                 </div>
-                <Button size="sm" variant="ghost" className="h-5 text-[9px] shrink-0" onClick={() => overrideItem(item.id, { status: 'open', completed_at: null })}>
+                <Button size="sm" variant="ghost" className="h-5 text-[9px] shrink-0" onClick={(e) => { e.stopPropagation(); overrideItem(item.id, { status: 'open', completed_at: null }); }}>
                   Återöppna
                 </Button>
               </div>
@@ -2231,6 +2241,7 @@ const AiAutopilotTab = () => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ExecutionResult | null>(null);
   const queryClient = useQueryClient();
+  const { openDetail } = useDetailContext();
 
   const runExecution = async () => {
     setLoading(true);
@@ -2331,7 +2342,7 @@ const AiAutopilotTab = () => {
               <CardContent>
                 <div className="space-y-2">
                   {result.actions.filter(a => !a.auto_executable).map((action, i) => (
-                    <div key={i} className="border border-border rounded-lg p-3 space-y-1">
+                    <div key={i} className="border border-border rounded-lg p-3 space-y-1 cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => action.target_id && openDetail(action.target_id)}>
                       <div className="flex items-center gap-2">
                         <Badge variant="outline" className="text-[10px]">{action.action_type}</Badge>
                         <span className="text-xs font-medium truncate">{action.target_title || action.target_id}</span>
@@ -2864,7 +2875,29 @@ const DataCleanupTab = () => {
 };
 
 const AdminAI = () => {
+  const [detailItem, setDetailItem] = useState<any>(null);
+  const queryClient = useQueryClient();
+
+  const openDetail = useCallback(async (itemId: string) => {
+    const { data } = await supabase.from('work_items' as any).select('*').eq('id', itemId).maybeSingle();
+    if (data) setDetailItem(data);
+    else toast.error('Uppgiften hittades inte');
+  }, []);
+
+  const handleStatusChange = async (itemId: string, newStatus: string) => {
+    const now = new Date().toISOString();
+    const updates: Record<string, any> = { status: newStatus, updated_at: now };
+    if (newStatus === 'done') updates.completed_at = now;
+    await supabase.from('work_items' as any).update(updates).eq('id', itemId);
+    queryClient.invalidateQueries({ queryKey: ['work-items'] });
+    queryClient.invalidateQueries({ queryKey: ['ai-managed-items'] });
+    if (newStatus === 'done') {
+      triggerAiReviewForWorkItem(itemId, { context: 'admin_ai_detail' });
+    }
+  };
+
   return (
+    <DetailContext.Provider value={{ openDetail }}>
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -3009,7 +3042,24 @@ const AdminAI = () => {
           <DataCleanupTab />
         </TabsContent>
       </Tabs>
+
+      <WorkItemDetail
+        item={detailItem}
+        open={!!detailItem}
+        onOpenChange={(open) => { if (!open) setDetailItem(null); }}
+        onStatusChange={handleStatusChange}
+        onRefresh={() => {
+          queryClient.invalidateQueries({ queryKey: ['work-items'] });
+          queryClient.invalidateQueries({ queryKey: ['ai-managed-items'] });
+          if (detailItem) {
+            supabase.from('work_items' as any).select('*').eq('id', detailItem.id).maybeSingle().then(({ data }) => {
+              if (data) setDetailItem(data);
+            });
+          }
+        }}
+      />
     </div>
+    </DetailContext.Provider>
   );
 };
 
