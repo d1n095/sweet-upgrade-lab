@@ -52,11 +52,17 @@ export const useDbCategories = (adminView = false) => {
     const load = async () => {
       setLoading(true);
 
-      const { data, error } = await supabase
+      let categoryQuery = supabase
         .from('categories')
         .select('*')
         .eq('is_visible', true)
         .order('display_order', { ascending: true });
+
+      if (!adminView) {
+        categoryQuery = categoryQuery.is('parent_id', null);
+      }
+
+      const { data, error } = await categoryQuery;
 
       if (error || cancelled) {
         if (error) console.error('Failed to load categories:', error);
