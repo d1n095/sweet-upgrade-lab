@@ -85,10 +85,11 @@ function groupSimilarIssues(issues: any[]): any[] {
   return result;
 }
 
-// ── Context-aware filtering: suppress false positives in dev mode ──
+// ── Context-aware filtering: suppress false positives based on stage ──
 function filterDevFalsePositives(issues: any[], stage: SystemStage): any[] {
   if (stage === "production") return issues;
   
+  // Patterns always suppressed in development
   const devIgnorePatterns = [
     /0\s*(produkter|intäkter|ordrar|recensioner|donationer)/i,
     /tom(ma|t)?\s*(data|tabell|lista)/i,
@@ -96,11 +97,18 @@ function filterDevFalsePositives(issues: any[], stage: SystemStage): any[] {
     /inga\s*(produkter|ordrar|recensioner)/i,
     /row_count.*0/i,
     /0\s*st\b/i,
+    /saknar\s*test\s*data/i,
+    /dummy|placeholder|lorem/i,
+    /ingen\s*(betalning|leverans|transaktion)/i,
   ];
+
+  // In staging: only suppress empty-data warnings, keep structural issues
+  const stagingIgnorePatterns = stage === "staging" ? devIgnorePatterns.slice(0, 6) : devIgnorePatterns;
+  const activePatterns = stage === "staging" ? stagingIgnorePatterns : devIgnorePatterns;
   
   return issues.map(issue => {
     const text = `${issue.title || ""} ${issue.description || ""}`;
-    const isDevExpected = devIgnorePatterns.some(p => p.test(text));
+    const isDevExpected = activePatterns.some(p => p.test(text));
     if (isDevExpected) {
       return { ...issue, _dev_expected: true, severity: "info", _original_severity: issue.severity };
     }
