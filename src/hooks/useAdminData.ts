@@ -142,7 +142,7 @@ export const useAdminWorkItems = (options?: { enabled?: boolean }) =>
       console.log('[useAdminWorkItems] DB ITEMS:', (data || []).length, 'items fetched');
       return (data || []) as any[];
     },
-    staleTime: 0, // Always fresh — no stale cached tasks
+    staleTime: 5_000,
     enabled: options?.enabled ?? true,
   });
 
