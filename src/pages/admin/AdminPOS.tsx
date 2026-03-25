@@ -177,11 +177,11 @@ const AdminPOS = () => {
 
       {/* Success banner */}
       {lastOrder && (
-        <Card className="border-green-500/30 bg-green-500/5">
+        <Card className="border-primary/30 bg-primary/5">
           <CardContent className="flex items-center gap-4 py-4">
-            <CheckCircle2 className="w-8 h-8 text-green-500 shrink-0" />
+            <CheckCircle2 className="w-8 h-8 text-primary shrink-0" />
             <div>
-              <p className="font-semibold text-green-700 dark:text-green-400">
+              <p className="font-semibold text-primary">
                 Order #{lastOrder.number} skapad — {lastOrder.total} kr
               </p>
               <p className="text-xs text-muted-foreground">Ordern syns nu i statistik och orderlistan</p>
