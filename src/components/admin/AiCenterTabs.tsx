@@ -273,7 +273,7 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
   );
 
   return (
-    <div className="-mx-4 md:-mx-8">
+    <div className="-mx-4 md:-mx-8 overflow-x-hidden">
       {/* Top navigation (no permanent sidebar) */}
       <div className="border-b border-border bg-card/50">
         <div className="md:hidden px-2 py-1.5 flex items-center gap-2 safe-area-inset-bottom">
