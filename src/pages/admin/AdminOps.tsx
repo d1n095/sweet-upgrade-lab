@@ -1,28 +1,15 @@
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useMemo } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import {
-  Package, Truck, CheckCircle2, Clock, AlertTriangle, Search,
+  Package, Truck, CheckCircle2, Search,
   ArrowRight, Eye, ScanLine,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-
-interface Order {
-  id: string;
-  order_email: string;
-  order_number: string | null;
-  total_amount: number;
-  status: string;
-  payment_status: string;
-  fulfillment_status: string;
-  created_at: string;
-  tracking_number: string | null;
-  payment_intent_id: string | null;
-}
+import { useAdminOrders, computeOpsMetrics, PAID_STATUS } from '@/hooks/useAdminData';
 
 const STATUS_COLORS: Record<string, string> = {
   pending: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
@@ -42,57 +29,33 @@ const FULFILLMENT_LABELS: Record<string, string> = {
   delivered: 'Levererad',
 };
 
-const DELIVERY_METHOD_LABELS: Record<string, string> = {
-  shipping: '',
-  pickup: '📦 Upphämtning',
-  local_delivery: '🏠 Egen leverans',
-};
-
 type Tab = 'all' | 'to_pack' | 'to_ship' | 'shipped';
 
 const AdminOps = () => {
   const navigate = useNavigate();
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: orders = [], isLoading: loading } = useAdminOrders();
   const [tab, setTab] = useState<Tab>('all');
   const [search, setSearch] = useState('');
-  const [counts, setCounts] = useState({ all: 0, toPack: 0, toShip: 0, shipped: 0 });
 
-  const load = async () => {
-    setLoading(true);
-    const { data } = await supabase
-      .from('orders')
-      .select('id, order_email, order_number, total_amount, status, payment_status, fulfillment_status, created_at, tracking_number, payment_intent_id')
-      .is('deleted_at', null)
-      .order('created_at', { ascending: false })
-      .limit(200);
+  const counts = useMemo(() => computeOpsMetrics(orders), [orders]);
 
-    const all = (data || []) as Order[];
-    setOrders(all);
-    setCounts({
-      all: all.length,
-      toPack: all.filter(o => o.payment_status === 'paid' && ['pending', 'unfulfilled'].includes(o.fulfillment_status)).length,
-      toShip: all.filter(o => o.fulfillment_status === 'ready_to_ship').length,
-      shipped: all.filter(o => o.fulfillment_status === 'shipped').length,
-    });
-    setLoading(false);
-  };
+  const filtered = useMemo(() => {
+    let list = orders;
+    if (tab === 'to_pack') list = list.filter(o => o.payment_status === PAID_STATUS && ['pending', 'unfulfilled'].includes(o.fulfillment_status));
+    else if (tab === 'to_ship') list = list.filter(o => o.fulfillment_status === 'ready_to_ship');
+    else if (tab === 'shipped') list = list.filter(o => o.fulfillment_status === 'shipped');
 
-  useEffect(() => { load(); }, []);
-
-  const filtered = orders.filter(o => {
-    if (tab === 'to_pack') return o.payment_status === 'paid' && ['pending', 'unfulfilled'].includes(o.fulfillment_status);
-    if (tab === 'to_ship') return o.fulfillment_status === 'ready_to_ship';
-    if (tab === 'shipped') return o.fulfillment_status === 'shipped';
-    return true;
-  }).filter(o => {
-    if (!search) return true;
-    const s = search.toLowerCase();
-    return (o.order_email?.toLowerCase().includes(s)) ||
-      (o.order_number?.toLowerCase().includes(s)) ||
-      (o.payment_intent_id?.toLowerCase().includes(s)) ||
-      (o.tracking_number?.toLowerCase().includes(s));
-  });
+    if (search) {
+      const s = search.toLowerCase();
+      list = list.filter(o =>
+        o.order_email?.toLowerCase().includes(s) ||
+        o.order_number?.toLowerCase().includes(s) ||
+        o.payment_intent_id?.toLowerCase().includes(s) ||
+        o.tracking_number?.toLowerCase().includes(s)
+      );
+    }
+    return list;
+  }, [orders, tab, search]);
 
   const formatCurrency = (n: number) => new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK', minimumFractionDigits: 0 }).format(n);
   const formatTime = (d: string) => {

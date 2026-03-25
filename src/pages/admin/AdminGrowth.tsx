@@ -1,91 +1,85 @@
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/client';
 import { TrendingUp, ShoppingCart, Eye, ArrowDown, BarChart3, Package } from 'lucide-react';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { PAID_STATUS } from '@/hooks/useAdminData';
+import {
+  useAdminOrders, useAdminAnalytics, useAdminProductSales,
+  PAID_STATUS, computeFunnelMetrics,
+} from '@/hooks/useAdminData';
 
 type Period = '7d' | '30d' | '90d';
 
 const AdminGrowth = () => {
   const [period, setPeriod] = useState<Period>('30d');
-  const [loading, setLoading] = useState(true);
-  const [funnelData, setFunnelData] = useState({ views: 0, carts: 0, checkouts: 0, purchases: 0 });
-  const [topProducts, setTopProducts] = useState<{ title: string; sold: number }[]>([]);
-  const [conversionData, setConversionData] = useState<{ date: string; rate: number }[]>([]);
-  const [revenueData, setRevenueData] = useState<{ date: string; revenue: number }[]>([]);
+  const days = period === '7d' ? 7 : period === '30d' ? 30 : 90;
 
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      const days = period === '7d' ? 7 : period === '30d' ? 30 : 90;
-      const since = new Date(Date.now() - days * 86400000).toISOString();
+  const { data: orders = [], isLoading: ordersLoading } = useAdminOrders();
+  const { data: events = [], isLoading: eventsLoading } = useAdminAnalytics(days);
+  const { data: productSales = [], isLoading: salesLoading } = useAdminProductSales();
 
-      const [eventsRes, ordersRes, salesRes] = await Promise.all([
-        supabase.from('analytics_events').select('event_type, created_at').gte('created_at', since),
-        supabase.from('orders').select('id, total_amount, payment_status, created_at').is('deleted_at', null).gte('created_at', since),
-        supabase.from('product_sales').select('product_title, total_quantity_sold').order('total_quantity_sold', { ascending: false }).limit(10),
-      ]);
+  const loading = ordersLoading || eventsLoading || salesLoading;
 
-      const events = eventsRes.data || [];
-      const orders = ordersRes.data || [];
+  const since = useMemo(() => new Date(Date.now() - days * 86400000).toISOString(), [days]);
 
-      // Funnel
-      const views = events.filter(e => e.event_type === 'product_view').length;
-      const carts = events.filter(e => e.event_type === 'add_to_cart').length;
-      const checkouts = events.filter(e => e.event_type === 'checkout_start').length;
-      const purchases = orders.filter(o => o.payment_status === PAID_STATUS).length;
-      setFunnelData({ views, carts, checkouts, purchases });
+  const periodOrders = useMemo(() =>
+    orders.filter((o: any) => o.created_at >= since),
+    [orders, since]
+  );
 
-      // Top products
-      setTopProducts((salesRes.data || []).map(s => ({ title: s.product_title, sold: s.total_quantity_sold })));
+  const funnel = useMemo(() => computeFunnelMetrics(events), [events]);
+  const purchases = useMemo(() =>
+    periodOrders.filter((o: any) => o.payment_status === PAID_STATUS).length,
+    [periodOrders]
+  );
 
-      // Revenue + conversion by day
-      const buckets: Record<string, { revenue: number; starts: number; completes: number }> = {};
-      for (let i = 0; i < days; i++) {
-        const d = new Date(Date.now() - i * 86400000);
-        const key = d.toISOString().slice(0, 10);
-        buckets[key] = { revenue: 0, starts: 0, completes: 0 };
+  const topProducts = useMemo(() =>
+    productSales.slice(0, 10).map((s: any) => ({ title: s.product_title, sold: s.total_quantity_sold })),
+    [productSales]
+  );
+
+  const { revenueData, conversionData } = useMemo(() => {
+    const buckets: Record<string, { revenue: number; starts: number; completes: number }> = {};
+    for (let i = 0; i < days; i++) {
+      const d = new Date(Date.now() - i * 86400000);
+      const key = d.toISOString().slice(0, 10);
+      buckets[key] = { revenue: 0, starts: 0, completes: 0 };
+    }
+    periodOrders.forEach((o: any) => {
+      const key = o.created_at.slice(0, 10);
+      if (buckets[key] && o.payment_status === PAID_STATUS) {
+        buckets[key].revenue += o.total_amount || 0;
+        buckets[key].completes += 1;
       }
-      orders.forEach(o => {
-        const key = o.created_at.slice(0, 10);
-        if (buckets[key] && o.payment_status === PAID_STATUS) {
-          buckets[key].revenue += o.total_amount || 0;
-          buckets[key].completes += 1;
-        }
-      });
-      events.forEach(e => {
-        const key = e.created_at.slice(0, 10);
-        if (buckets[key]) {
-          if (e.event_type === 'checkout_start') buckets[key].starts += 1;
-          if (e.event_type === 'checkout_complete') buckets[key].completes += 1;
-        }
-      });
-
-      const sorted = Object.entries(buckets).sort(([a], [b]) => a.localeCompare(b));
-      setRevenueData(sorted.map(([date, v]) => ({ date: date.slice(5), revenue: v.revenue })));
-      setConversionData(sorted.map(([date, v]) => ({
+    });
+    events.forEach((e: any) => {
+      const key = e.created_at.slice(0, 10);
+      if (buckets[key]) {
+        if (e.event_type === 'checkout_start') buckets[key].starts += 1;
+        if (e.event_type === 'checkout_complete') buckets[key].completes += 1;
+      }
+    });
+    const sorted = Object.entries(buckets).sort(([a], [b]) => a.localeCompare(b));
+    return {
+      revenueData: sorted.map(([date, v]) => ({ date: date.slice(5), revenue: v.revenue })),
+      conversionData: sorted.map(([date, v]) => ({
         date: date.slice(5),
         rate: v.starts > 0 ? Math.round((v.completes / v.starts) * 100) : 0,
-      })));
-
-      setLoading(false);
+      })),
     };
-    load();
-  }, [period]);
+  }, [periodOrders, events, days]);
 
   const funnelSteps = [
-    { label: 'Besök', value: funnelData.views, icon: Eye, color: 'text-blue-600', bg: 'bg-blue-500/10' },
-    { label: 'Kundvagn', value: funnelData.carts, icon: ShoppingCart, color: 'text-purple-600', bg: 'bg-purple-500/10' },
-    { label: 'Checkout', value: funnelData.checkouts, icon: BarChart3, color: 'text-orange-600', bg: 'bg-orange-500/10' },
-    { label: 'Köp', value: funnelData.purchases, icon: TrendingUp, color: 'text-green-600', bg: 'bg-green-500/10' },
+    { label: 'Besök', value: funnel.views, icon: Eye, color: 'text-blue-600', bg: 'bg-blue-500/10' },
+    { label: 'Kundvagn', value: funnel.carts, icon: ShoppingCart, color: 'text-purple-600', bg: 'bg-purple-500/10' },
+    { label: 'Checkout', value: funnel.checkoutStarts, icon: BarChart3, color: 'text-orange-600', bg: 'bg-orange-500/10' },
+    { label: 'Köp', value: purchases, icon: TrendingUp, color: 'text-green-600', bg: 'bg-green-500/10' },
   ];
 
-  const overallConversion = funnelData.views > 0 ? ((funnelData.purchases / funnelData.views) * 100).toFixed(1) : '0';
-  const cartToCheckout = funnelData.carts > 0 ? ((funnelData.checkouts / funnelData.carts) * 100).toFixed(0) : '0';
-  const checkoutToPurchase = funnelData.checkouts > 0 ? ((funnelData.purchases / funnelData.checkouts) * 100).toFixed(0) : '0';
+  const overallConversion = funnel.views > 0 ? ((purchases / funnel.views) * 100).toFixed(1) : '0';
+  const cartToCheckout = funnel.carts > 0 ? ((funnel.checkoutStarts / funnel.carts) * 100).toFixed(0) : '0';
+  const checkoutToPurchase = funnel.checkoutStarts > 0 ? ((purchases / funnel.checkoutStarts) * 100).toFixed(0) : '0';
 
   return (
     <div className="space-y-6">
@@ -103,7 +97,6 @@ const AdminGrowth = () => {
         </div>
       </div>
 
-      {/* Funnel */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-semibold">Konverteringstratt</CardTitle>
@@ -140,7 +133,6 @@ const AdminGrowth = () => {
         </CardContent>
       </Card>
 
-      {/* Charts */}
       <div className="grid lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader className="pb-2">
@@ -181,7 +173,6 @@ const AdminGrowth = () => {
         </Card>
       </div>
 
-      {/* Top Products */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -193,7 +184,7 @@ const AdminGrowth = () => {
             <p className="text-sm text-muted-foreground py-4 text-center">Ingen försäljningsdata ännu</p>
           ) : (
             <div className="space-y-2">
-              {topProducts.map((p, i) => (
+              {topProducts.map((p: any, i: number) => (
                 <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-secondary/30">
                   <div className="flex items-center gap-3">
                     <span className="text-xs font-bold text-muted-foreground w-5">#{i + 1}</span>
