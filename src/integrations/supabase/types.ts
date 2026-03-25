@@ -1163,6 +1163,63 @@ export type Database = {
           },
         ]
       }
+      functional_failure_memory: {
+        Row: {
+          action_type: string
+          component: string
+          created_at: string
+          entity_type: string
+          fail_reason: string | null
+          failed_step: string
+          first_seen_at: string
+          id: string
+          is_resolved: boolean
+          last_retest_passed: boolean | null
+          last_scan_retest_at: string | null
+          last_seen_at: string
+          occurrence_count: number
+          pattern_key: string
+          resolved_at: string | null
+          severity: string
+        }
+        Insert: {
+          action_type: string
+          component: string
+          created_at?: string
+          entity_type: string
+          fail_reason?: string | null
+          failed_step: string
+          first_seen_at?: string
+          id?: string
+          is_resolved?: boolean
+          last_retest_passed?: boolean | null
+          last_scan_retest_at?: string | null
+          last_seen_at?: string
+          occurrence_count?: number
+          pattern_key: string
+          resolved_at?: string | null
+          severity?: string
+        }
+        Update: {
+          action_type?: string
+          component?: string
+          created_at?: string
+          entity_type?: string
+          fail_reason?: string | null
+          failed_step?: string
+          first_seen_at?: string
+          id?: string
+          is_resolved?: boolean
+          last_retest_passed?: boolean | null
+          last_scan_retest_at?: string | null
+          last_seen_at?: string
+          occurrence_count?: number
+          pattern_key?: string
+          resolved_at?: string | null
+          severity?: string
+        }
+        Relationships: []
+      }
       influencer_products: {
         Row: {
           id: string

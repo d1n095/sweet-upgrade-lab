@@ -32,6 +32,7 @@ import SystemTrustScore from '@/components/admin/SystemTrustScore';
 import SafeModePanel, { SafeModeBanner } from '@/components/admin/SafeModePanel';
 import UnifiedPipelineDashboard from '@/components/admin/UnifiedPipelineDashboard';
 import SystemStateDashboard from '@/components/admin/SystemStateDashboard';
+import FailureMemoryPanel from '@/components/admin/FailureMemoryPanel';
 
 // Context to allow any tab to open a work item detail view
 const DetailContext = createContext<{
@@ -5485,6 +5486,8 @@ const InteractionQATab = () => {
             </Card>
           )}
 
+          {/* Failure Memory — Known Hotspots */}
+          <FailureMemoryPanel />
 
           {result.route_issues?.length > 0 && (
             <Card className="border-border">

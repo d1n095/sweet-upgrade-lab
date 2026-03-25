@@ -1178,13 +1178,84 @@ async function runFunctionalBehaviorScan(supabase: any, scanRunId: string): Prom
     stale_state: failures.filter(f => f.failure_type === "stale_state").length,
   };
 
+  // ── FAILURE MEMORY: Record failures and retest known patterns ──
+  const retestResults: any[] = [];
+  try {
+    // Record new failures to memory
+    for (const f of failures) {
+      const patternKey = `${(f.chain || "").toLowerCase()}::${(f.action || "").toLowerCase().replace(/[^a-z0-9]/g, "_").slice(0, 60)}::${(f.step || "").toLowerCase().replace(/[^a-z0-9]/g, "_").slice(0, 60)}`;
+      const { data: existing } = await supabase
+        .from("functional_failure_memory")
+        .select("id, occurrence_count")
+        .eq("pattern_key", patternKey)
+        .limit(1);
+
+      if (existing?.length) {
+        await supabase.from("functional_failure_memory").update({
+          occurrence_count: (existing[0].occurrence_count || 1) + 1,
+          last_seen_at: new Date().toISOString(),
+          fail_reason: f.actual?.slice(0, 500),
+          is_resolved: false,
+          resolved_at: null,
+          last_scan_retest_at: new Date().toISOString(),
+          last_retest_passed: false,
+        }).eq("id", existing[0].id);
+      } else {
+        await supabase.from("functional_failure_memory").insert({
+          action_type: f.chain || f.action || "unknown",
+          component: f.chain || "behavior_scan",
+          entity_type: f.chain || "system",
+          failed_step: f.step || "unknown",
+          fail_reason: f.actual?.slice(0, 500),
+          pattern_key: patternKey,
+          severity: f.severity || "medium",
+          occurrence_count: 1,
+          last_scan_retest_at: new Date().toISOString(),
+          last_retest_passed: false,
+        });
+      }
+    }
+
+    // Mark previously-failing patterns that passed this scan as resolved
+    const { data: knownFailures } = await supabase
+      .from("functional_failure_memory")
+      .select("id, pattern_key, action_type, failed_step, occurrence_count")
+      .eq("is_resolved", false)
+      .order("occurrence_count", { ascending: false })
+      .limit(100);
+
+    const failureKeys = new Set(failures.map(f =>
+      `${(f.chain || "").toLowerCase()}::${(f.action || "").toLowerCase().replace(/[^a-z0-9]/g, "_").slice(0, 60)}::${(f.step || "").toLowerCase().replace(/[^a-z0-9]/g, "_").slice(0, 60)}`
+    ));
+
+    for (const kf of knownFailures || []) {
+      if (!failureKeys.has(kf.pattern_key)) {
+        // This pattern was NOT found in current failures — it passed!
+        await supabase.from("functional_failure_memory").update({
+          last_scan_retest_at: new Date().toISOString(),
+          last_retest_passed: true,
+          is_resolved: true,
+          resolved_at: new Date().toISOString(),
+        }).eq("id", kf.id);
+        retestResults.push({
+          pattern_key: kf.pattern_key,
+          action_type: kf.action_type,
+          result: "passed",
+          was_occurrence_count: kf.occurrence_count,
+        });
+      }
+    }
+  } catch (memErr: any) {
+    console.warn("Failure memory recording error:", memErr.message);
+  }
+
   // Log to observability
   await supabase.from("system_observability_log").insert({
     event_type: "scan_step",
     severity: failures.filter(f => f.severity === "critical").length > 0 ? "warning" : "info",
     source: "scanner",
-    message: `Functional behavior scan: ${failures.length} failures detected`,
-    details: { total_failures: failures.length, by_type: byType },
+    message: `Functional behavior scan: ${failures.length} failures, ${retestResults.length} retests passed`,
+    details: { total_failures: failures.length, by_type: byType, retests_passed: retestResults.length },
     scan_id: scanRunId,
     trace_id: traceId,
     component: "functional_behavior_scan",
@@ -1195,6 +1266,7 @@ async function runFunctionalBehaviorScan(supabase: any, scanRunId: string): Prom
     failures,
     total_failures: failures.length,
     by_type: byType,
+    retests_passed: retestResults,
     duration_ms: durationMs,
     scanned_at: new Date().toISOString(),
   };
