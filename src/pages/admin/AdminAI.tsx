@@ -3862,10 +3862,11 @@ Förslag: ${issue.fix_suggestion}`,
         </Card>
       )}
 
+      {!result && !loading && (
         <Card className="p-8 flex flex-col items-center justify-center text-center gap-3">
           <Monitor className="w-10 h-10 text-muted-foreground/40" />
           <h3 className="font-semibold text-muted-foreground">Ingen skanning har körts ännu</h3>
-          <p className="text-sm text-muted-foreground/70 max-w-md">Klicka på "Kör Visual QA" för att analysera alla sidor.</p>
+          <p className="text-sm text-muted-foreground/70 max-w-md">Klicka på &quot;Kör Visual QA&quot; för att analysera alla sidor.</p>
         </Card>
       )}
 
