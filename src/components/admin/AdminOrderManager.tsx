@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import {
   ClipboardList, Package, Truck, Check, Clock, Loader2,
   Eye, ChevronDown, ChevronUp, Save, X, CreditCard, MapPin, User, History, CheckCircle, AlertTriangle,
-  Printer, FileText, Download, RotateCcw, Trash2
+  Printer, FileText, Download, RotateCcw, Trash2, Mail, Receipt
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
