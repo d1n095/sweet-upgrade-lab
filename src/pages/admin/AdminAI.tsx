@@ -3362,68 +3362,8 @@ const AiAutopilotTab = () => {
     },
   });
 
-  const toggleStep = (type: string) => {
-    setSelectedSteps(prev => {
-      const next = new Set(prev);
-      if (next.has(type)) next.delete(type); else next.add(type);
-      return next;
-    });
-  };
+  const toggleStep = storeToggleStep;
 
-  const selectAll = () => setSelectedSteps(new Set(SCAN_STEPS.map(s => s.type)));
-  const selectNone = () => setSelectedSteps(new Set());
-
-  const runAllScans = async () => {
-    const toRun = SCAN_STEPS.filter(s => selectedSteps.has(s.type));
-    if (toRun.length === 0) { toast.error('Välj minst en skanning'); return; }
-
-    setScanning(true);
-    const initialSteps: ScanStepResult[] = toRun.map(s => ({ type: s.type, label: s.label, status: 'pending' }));
-    setSteps(initialSteps);
-
-    for (let i = 0; i < toRun.length; i++) {
-      const step = toRun[i];
-      setSteps(prev => prev.map((s, idx) => idx === i ? { ...s, status: 'running' } : s));
-      const start = Date.now();
-
-      try {
-        const res = await callAI(step.type, step.type === 'content_validation' ? { auto_fix: false } : {});
-        const duration_ms = Date.now() - start;
-
-        if (res) {
-          // Persist to ai_scan_results
-          const { data: { session } } = await supabase.auth.getSession();
-          const score = res.system_score || res.score || res.interaction_score || res.overall_score || null;
-          const issueCount = res.issues_found || res.issues?.length || res.dead_elements?.length || res.mismatches?.length || 0;
-          const tasksCreated = res.tasks_created || 0;
-          const summary = res.executive_summary || res.summary || res.overall_summary || `${step.label} slutförd`;
-
-          await supabase.from('ai_scan_results' as any).insert({
-            scan_type: step.type,
-            results: res,
-            overall_score: score,
-            overall_status: score !== null ? (score >= 70 ? 'healthy' : score >= 40 ? 'warning' : 'critical') : null,
-            executive_summary: typeof summary === 'string' ? summary.substring(0, 500) : null,
-            issues_count: issueCount,
-            tasks_created: tasksCreated,
-            scanned_by: session?.user?.id || null,
-          } as any);
-
-          setSteps(prev => prev.map((s, idx) => idx === i ? { ...s, status: 'done', result: res, duration_ms } : s));
-        } else {
-          setSteps(prev => prev.map((s, idx) => idx === i ? { ...s, status: 'error', error: 'Inget resultat', duration_ms: Date.now() - start } : s));
-        }
-      } catch (err: any) {
-        setSteps(prev => prev.map((s, idx) => idx === i ? { ...s, status: 'error', error: err?.message || 'Fel', duration_ms: Date.now() - start } : s));
-      }
-    }
-
-    queryClient.invalidateQueries({ queryKey: ['autopilot-scan-runs'] });
-    queryClient.invalidateQueries({ queryKey: ['last-scan-result'] });
-    queryClient.invalidateQueries({ queryKey: ['scan-history'] });
-    toast.success(`Alla skanningar klara (${toRun.length} st)`);
-    setScanning(false);
-  };
 
   const runExecution = async () => {
     setExecutionLoading(true);
