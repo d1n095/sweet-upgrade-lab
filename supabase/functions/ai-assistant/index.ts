@@ -4920,3 +4920,167 @@ Analysera synkroniseringsproblem mellan frontend och backend. Klassificera varje
 
   return { ...analysis, tasks_created: tasksCreated, auto_fixed_count: autoFixCount };
 }
+
+// ── Action Governor (Lovable 0.5) ──
+async function handleActionGovernor(supabase: any, apiKey: string) {
+  // Gather pending issues from multiple sources
+  const [workItems, bugs, scanResults] = await Promise.all([
+    supabase.from("work_items").select("id, title, description, status, priority, item_type, ai_category, ai_confidence, source_type").in("status", ["open", "claimed"]).order("created_at", { ascending: false }).limit(50),
+    supabase.from("bug_reports").select("id, description, page_url, status, ai_severity, ai_category, ai_summary").eq("status", "open").limit(30),
+    supabase.from("ai_scan_results").select("id, scan_type, overall_score, overall_status, executive_summary, results, created_at").order("created_at", { ascending: false }).limit(5),
+  ]);
+
+  const pendingWork = workItems.data || [];
+  const openBugs = bugs.data || [];
+  const recentScans = scanResults.data || [];
+
+  const prompt = `You are the AI Action Governor (Lovable 0.5 mode). Analyze all pending system issues and classify each into an action tier.
+
+ACTION TIERS:
+🟢 AUTO_FIX — Safe to execute directly. Examples: hide UI elements, update status, remove invalid data, fix broken links, cleanup orphan records.
+🟡 ASSIST — Needs human approval. Examples: merge categories, reassign orders, change business logic, modify pricing.
+🔴 LOVABLE_REQUIRED — Requires code changes via Lovable. Examples: new features, UI redesign, complex bug fixes, architecture changes.
+
+PENDING WORK ITEMS (${pendingWork.length}):
+${JSON.stringify(pendingWork.slice(0, 30), null, 1)}
+
+OPEN BUGS (${openBugs.length}):
+${JSON.stringify(openBugs.slice(0, 20), null, 1)}
+
+RECENT SCAN RESULTS (${recentScans.length}):
+${recentScans.map((s: any) => `${s.scan_type}: score=${s.overall_score}, status=${s.overall_status}`).join("\n")}
+
+For each issue, return a JSON object with:
+{
+  "actions": [
+    {
+      "id": "<source_id>",
+      "source": "work_item" | "bug" | "scan",
+      "title": "<short title>",
+      "classification": "auto_fix" | "assist" | "lovable_required",
+      "confidence": 0-100,
+      "reason": "<why this classification>",
+      "fix_description": "<what to do>",
+      "conflict_risk": "none" | "low" | "medium" | "high",
+      "conflict_detail": "<potential conflicts>",
+      "lovable_prompt": "<structured prompt if lovable_required, null otherwise>"
+    }
+  ],
+  "summary": {
+    "total": <number>,
+    "auto_fix_count": <number>,
+    "assist_count": <number>,
+    "lovable_required_count": <number>,
+    "blocked_count": <number>,
+    "system_risk_level": "low" | "medium" | "high"
+  },
+  "prompt_queue": [
+    {
+      "title": "<prompt title>",
+      "prompt": "<full structured Lovable prompt>",
+      "priority": "critical" | "high" | "medium" | "low",
+      "related_ids": ["<id1>"]
+    }
+  ]
+}
+
+SAFETY RULES:
+- Never classify destructive data operations as auto_fix
+- If an action could break existing features, mark conflict_risk as high and classify as assist or lovable_required
+- Generate clean, structured Lovable prompts for lovable_required items
+- Block any action with high conflict risk (set classification to "assist" with explanation)`;
+
+  const resp = await fetch("https://api.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" },
+    }),
+  });
+
+  if (!resp.ok) {
+    const status = resp.status;
+    if (status === 429) throw Object.assign(new Error("Rate limited"), { status: 429 });
+    if (status === 402) throw Object.assign(new Error("Credits exhausted"), { status: 402 });
+    throw new Error(`AI error: ${status}`);
+  }
+
+  const data = await resp.json();
+  const content = data.choices?.[0]?.message?.content || "{}";
+  let analysis: any;
+  try {
+    analysis = JSON.parse(content);
+  } catch {
+    analysis = { actions: [], summary: { total: 0, auto_fix_count: 0, assist_count: 0, lovable_required_count: 0, blocked_count: 0, system_risk_level: "low" }, prompt_queue: [] };
+  }
+
+  // Store governor scan result
+  await supabase.from("ai_scan_results").insert({
+    scan_type: "action_governor",
+    overall_score: analysis.summary?.auto_fix_count || 0,
+    overall_status: analysis.summary?.system_risk_level === "high" ? "critical" : analysis.summary?.system_risk_level === "medium" ? "warning" : "healthy",
+    executive_summary: `Governor: ${analysis.summary?.auto_fix_count || 0} auto-fix, ${analysis.summary?.assist_count || 0} assist, ${analysis.summary?.lovable_required_count || 0} lovable-required`,
+    results: analysis,
+    issues_count: analysis.summary?.total || 0,
+    tasks_created: 0,
+  });
+
+  // Log all classified actions
+  for (const action of (analysis.actions || []).slice(0, 20)) {
+    await supabase.from("activity_logs").insert({
+      log_type: "ai_governor",
+      category: "ai",
+      message: `Governor classified "${action.title}" as ${action.classification} (confidence: ${action.confidence}%, conflict: ${action.conflict_risk})`,
+      details: { action_id: action.id, classification: action.classification, confidence: action.confidence, conflict_risk: action.conflict_risk },
+    });
+  }
+
+  return analysis;
+}
+
+// ── Governor Execute (run an auto_fix action) ──
+async function handleGovernorExecute(supabase: any, apiKey: string, actionId: string, classification: string) {
+  if (classification !== "auto_fix") {
+    return { executed: false, reason: "Only auto_fix actions can be directly executed" };
+  }
+
+  // Try to find and execute the action on work_items
+  const { data: item } = await supabase.from("work_items").select("*").eq("id", actionId).maybeSingle();
+  
+  let executed = false;
+  let action_taken = "";
+
+  if (item) {
+    // Safe auto-fix actions for work items
+    if (item.status === "open" && item.item_type === "bug" && item.ai_detected) {
+      // Mark AI-detected low-priority items as acknowledged
+      if (["low", "medium"].includes(item.priority)) {
+        await supabase.from("work_items").update({ status: "in_progress", ai_confidence: "high" }).eq("id", actionId);
+        action_taken = `Moved work item "${item.title}" to in_progress`;
+        executed = true;
+      }
+    }
+  }
+
+  // Try bug reports
+  if (!executed) {
+    const { data: bug } = await supabase.from("bug_reports").select("*").eq("id", actionId).maybeSingle();
+    if (bug && bug.status === "open" && bug.ai_severity === "low") {
+      await supabase.from("bug_reports").update({ status: "acknowledged" }).eq("id", actionId);
+      action_taken = `Acknowledged low-severity bug "${bug.ai_summary || bug.description?.substring(0, 50)}"`;
+      executed = true;
+    }
+  }
+
+  // Log the execution
+  await supabase.from("activity_logs").insert({
+    log_type: executed ? "ai_governor_execute" : "ai_governor_blocked",
+    category: "ai",
+    message: executed ? `Governor executed: ${action_taken}` : `Governor blocked execution for ${actionId} — no safe action found`,
+    details: { action_id: actionId, classification, executed, action_taken },
+  });
+
+  return { executed, action_taken: action_taken || "No safe action available for this item" };
+}
