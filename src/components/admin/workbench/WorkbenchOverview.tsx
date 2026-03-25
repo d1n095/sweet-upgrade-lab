@@ -22,7 +22,7 @@ const WorkbenchOverview = ({ onNavigate }: Props) => {
           .eq('payment_status', 'paid'),
       ]);
 
-      const items = (itemsRes.data || []) as any[];
+      const items = ((itemsRes.data || []) as any[]).filter(t => !t.ignored);
       const orders = ordersRes.data || [];
 
       return {
