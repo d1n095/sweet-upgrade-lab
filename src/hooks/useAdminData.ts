@@ -112,6 +112,9 @@ export const useAdminWorkItems = (options?: { enabled?: boolean }) =>
   useQuery({
     queryKey: ['admin-work-items'],
     queryFn: async () => {
+      // Run cleanup first to remove orphan/stale tasks
+      await supabase.rpc('cleanup_orphan_work_items');
+
       const { data, error } = await supabase
         .from('work_items' as any)
         .select('id, title, description, status, priority, item_type, source_type, source_id, related_order_id, assigned_to, claimed_by, claimed_at, created_at, due_at, ai_detected, ai_review_status, ai_confidence, completed_at')
@@ -121,7 +124,7 @@ export const useAdminWorkItems = (options?: { enabled?: boolean }) =>
       if (error) throw error;
       return (data || []) as any[];
     },
-    staleTime: 15_000,
+    staleTime: 0, // Always fresh — no stale cached tasks
     enabled: options?.enabled ?? true,
   });
 

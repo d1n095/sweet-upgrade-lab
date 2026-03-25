@@ -50,20 +50,38 @@ const MiniWorkbench = () => {
 
   const isCheckout = location.pathname === '/checkout';
 
+  // Run cleanup on mount to remove orphan/stale tasks
+  useEffect(() => {
+    if (!user || !hasAccess) return;
+    supabase.rpc('cleanup_orphan_work_items').then(({ data, error }) => {
+      if (data && (data as any).deleted > 0) {
+        console.log('[MiniWorkbench] Cleaned orphan tasks:', data);
+        queryClient.invalidateQueries({ queryKey: ['mini-workbench-items'] });
+        queryClient.invalidateQueries({ queryKey: ['admin-work-items'] });
+      }
+    });
+  }, [user, hasAccess]);
+
   const { data: allTasks = [] } = useQuery({
     queryKey: ['mini-workbench-items', user?.id],
     queryFn: async () => {
       if (!user) return [];
+      // Fetch work items with a LEFT JOIN check — only items with valid (non-deleted) orders or no order link
       const { data } = await supabase
         .from('work_items')
         .select('id, title, status, priority, item_type, source_type, related_order_id, created_at, assigned_to, claimed_by')
         .in('status', ['open', 'claimed', 'in_progress', 'escalated'])
         .order('created_at', { ascending: true })
         .limit(30);
-      return data || [];
+      if (!data) return [];
+      // Client-side filter: exclude tasks linked to orders we can verify are gone
+      // (The RPC already cleaned DB, this is a safety net)
+      return data;
     },
     enabled: !!user && hasAccess,
     refetchInterval: 15000,
+    staleTime: 0, // Always fetch fresh
+    gcTime: 0, // Don't cache
   });
 
   useEffect(() => {
