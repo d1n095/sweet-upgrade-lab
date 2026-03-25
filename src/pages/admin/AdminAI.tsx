@@ -3333,14 +3333,21 @@ type ScanStepResult = {
 
 const AiAutopilotTab = () => {
   const [mode, setMode] = useState<AiMode>('assisted');
-  const [scanning, setScanning] = useState(false);
+  const { scanning, steps, selectedSteps, toggleStep: storeToggleStep, selectAll, selectNone, runAllScans } = useScannerStore();
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
   const [executionLoading, setExecutionLoading] = useState(false);
-  const [steps, setSteps] = useState<ScanStepResult[]>([]);
-  const [selectedSteps, setSelectedSteps] = useState<Set<string>>(new Set(SCAN_STEPS.map(s => s.type)));
   const [showResults, setShowResults] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { openDetail } = useDetailContext();
+
+  // Invalidate queries when scanning finishes
+  useEffect(() => {
+    if (!scanning && steps.length > 0 && steps.every(s => s.status === 'done' || s.status === 'error')) {
+      queryClient.invalidateQueries({ queryKey: ['autopilot-scan-runs'] });
+      queryClient.invalidateQueries({ queryKey: ['last-scan-result'] });
+      queryClient.invalidateQueries({ queryKey: ['scan-history'] });
+    }
+  }, [scanning, steps]);
 
   // Load past full-scan runs
   const { data: scanRuns = [] } = useQuery({
