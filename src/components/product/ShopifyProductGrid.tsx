@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Package, Loader2, ArrowUpDown } from 'lucide-react';
 import ShopifyProductCard from '@/components/product/ShopifyProductCard';
 import { fetchProducts, ShopifyProduct } from '@/lib/shopify';
-import { categories, Category } from '@/data/categories';
+import { useDbCategories, type FrontendCategory } from '@/hooks/useDbCategories';
 import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import { cn } from '@/lib/utils';
 import { useSearchStore } from '@/stores/searchStore';
