@@ -4642,6 +4642,9 @@ const AdminAI = () => {
         <TabsContent value="overflow-scan" className="mt-4">
           <OverflowScanTab />
         </TabsContent>
+        <TabsContent value="ux-scanner" className="mt-4">
+          <UxScannerTab />
+        </TabsContent>
       </Tabs>
 
       <WorkItemDetail
