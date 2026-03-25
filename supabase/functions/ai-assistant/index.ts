@@ -157,6 +157,11 @@ serve(async (req) => {
         break;
       }
 
+      case "data_integrity": {
+        result = await handleDataIntegrity(supabase);
+        break;
+      }
+
       case "create_action": {
         const { title, description, priority, category, source_type: srcType, source_id: srcId } = body;
         if (!title) {
