@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { ACTIVE_WORK_ITEM_STATUSES } from '@/hooks/useAdminData';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -307,7 +308,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
       const { data, error } = await supabase
         .from('work_items' as any)
         .select('*')
-        .neq('status', 'cancelled')
+        .in('status', [...ACTIVE_WORK_ITEM_STATUSES])
         .order('created_at', { ascending: false });
       if (error) throw error;
       const allItems = (data || []) as unknown as WorkItem[];
