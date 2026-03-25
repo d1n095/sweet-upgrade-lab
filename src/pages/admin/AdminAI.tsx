@@ -3701,10 +3701,18 @@ Förslag: ${issue.fix_suggestion}`,
             {scanMeta && <span className="ml-2 text-[10px] text-muted-foreground/60">Senast: {new Date(scanMeta.created_at).toLocaleString('sv-SE')}</span>}
           </p>
         </div>
-        <Button onClick={run} disabled={loading} className="gap-2">
-          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Radar className="w-4 h-4" />}
-          {loading ? 'Analyserar...' : 'Kör Visual QA'}
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={run} disabled={loading || triaging} className="gap-2">
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Radar className="w-4 h-4" />}
+            {loading ? 'Analyserar...' : 'Kör Visual QA'}
+          </Button>
+          {result && (result.issues?.length || 0) > 0 && (
+            <Button onClick={smartTriageAll} disabled={loading || triaging} variant="outline" className="gap-2">
+              {triaging ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bot className="w-4 h-4" />}
+              {triaging ? 'Triagerar...' : 'Smart Triage'}
+            </Button>
+          )}
+        </div>
       </div>
 
       {!result && !loading && (
