@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger, ScrollableTabs } from '@/comp
 import AiCenterTabs from '@/components/admin/AiCenterTabs';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -3477,69 +3478,146 @@ interface PageScore { page: string; score: number; status: string; notes: string
 interface VisualQAResult {
   overall_ui_score: number; mobile_score: number; desktop_score: number; usability_score: number; accessibility_score: number;
   executive_summary: string; issues: QAIssue[]; flow_tests: FlowTest[]; page_scores: PageScore[]; tasks_created: number;
+  scan_id?: string;
+}
+
+type IssueStatus = 'open' | 'done' | 'ignored';
+interface IssueState {
+  status: IssueStatus;
+  note?: string;
+  updatedAt: string;
+  aiAnalysis?: { root_cause: string; auto_fixable: boolean; fix_steps: string[]; impact: string; confidence: string };
 }
 
 const VisualQATab = () => {
   const [result, setResult] = useState<VisualQAResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<IssueStatus | 'all'>('all');
+  const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
+  const [issueStates, setIssueStates] = useState<Record<number, IssueState>>({});
+  const [analyzingIdx, setAnalyzingIdx] = useState<number | null>(null);
+  const [ignoreNote, setIgnoreNote] = useState('');
+  const [scanMeta, setScanMeta] = useState<{ id: string; created_at: string } | null>(null);
 
   // Load last scan on mount
   useEffect(() => {
     (supabase.from('ai_scan_results') as any)
-      .select('results, created_at')
+      .select('id, results, created_at')
       .eq('scan_type', 'visual_qa')
       .order('created_at', { ascending: false })
       .limit(1)
-      .then(({ data }: any) => { if (data?.[0]) setResult(data[0].results); });
+      .then(({ data }: any) => {
+        if (data?.[0]) {
+          setResult(data[0].results);
+          setScanMeta({ id: data[0].id, created_at: data[0].created_at });
+        }
+      });
   }, []);
 
   const run = async () => {
     setLoading(true);
+    setIssueStates({});
+    setExpandedIdx(null);
     const r = await callAI('visual_qa');
-    if (r) { setResult(r); toast.success(`QA klar – ${r.issues?.length || 0} problem, ${r.tasks_created || 0} uppgifter skapade`); }
+    if (r) {
+      setResult(r);
+      toast.success(`QA klar – ${r.issues?.length || 0} problem`);
+      // Reload scan meta
+      const { data } = await (supabase.from('ai_scan_results') as any)
+        .select('id, created_at')
+        .eq('scan_type', 'visual_qa')
+        .order('created_at', { ascending: false })
+        .limit(1);
+      if (data?.[0]) setScanMeta({ id: data[0].id, created_at: data[0].created_at });
+    }
     setLoading(false);
   };
 
-  const sevColor = (s: string) => s === 'critical' ? 'text-destructive' : s === 'high' ? 'text-orange-500' : s === 'medium' ? 'text-yellow-500' : 'text-muted-foreground';
-  const scoreColor = (s: number) => s >= 80 ? 'text-accent' : s >= 50 ? 'text-yellow-500' : 'text-destructive';
-  const flowIcon = (s: string) => s === 'pass' ? <CheckCircle className="w-4 h-4 text-accent" /> : s === 'warning' ? <AlertTriangle className="w-4 h-4 text-yellow-500" /> : <XCircle className="w-4 h-4 text-destructive" />;
-  const breakpointIcon = (bp: string) => bp === 'mobile' ? <Smartphone className="w-3.5 h-3.5" /> : bp === 'tablet' ? <Tablet className="w-3.5 h-3.5" /> : bp === 'desktop' ? <Monitor className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />;
+  const getState = (idx: number): IssueState => issueStates[idx] || { status: 'open', updatedAt: '' };
 
-  const filteredIssues = result?.issues?.filter(i => filter === 'all' || i.severity === filter || i.breakpoint === filter || i.category === filter) || [];
+  const setIssueStatus = (idx: number, status: IssueStatus, note?: string) => {
+    setIssueStates(prev => ({
+      ...prev,
+      [idx]: { ...prev[idx], status, note: note || prev[idx]?.note, updatedAt: new Date().toISOString(), aiAnalysis: prev[idx]?.aiAnalysis }
+    }));
+    toast.success(status === 'done' ? 'Markerad som klar' : status === 'ignored' ? 'Ignorerad' : 'Återöppnad');
+  };
 
-  const createTaskFromIssue = async (issue: QAIssue) => {
+  const analyzeIssue = async (issue: QAIssue, idx: number) => {
+    setAnalyzingIdx(idx);
+    const res = await callAI('lova_chat', {
+      message: `Analysera detta Visual QA-problem i detalj och ge mig: 1) root cause, 2) om det kan auto-fixas, 3) steg för att fixa, 4) impact-bedömning, 5) confidence-nivå (high/medium/low). Svara i JSON-format med fälten: root_cause, auto_fixable (boolean), fix_steps (array), impact, confidence.\n\nProblem: ${issue.title}\nSida: ${issue.page}\nBreakpoint: ${issue.breakpoint}\nKategori: ${issue.category}\nSeverity: ${issue.severity}\nBeskrivning: ${issue.description}\nFörslag: ${issue.fix_suggestion}`,
+      conversation_id: null,
+    });
+    if (res?.response) {
+      try {
+        const jsonMatch = res.response.match(/\{[\s\S]*\}/);
+        const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+        if (parsed) {
+          setIssueStates(prev => ({
+            ...prev,
+            [idx]: { ...prev[idx] || { status: 'open', updatedAt: new Date().toISOString() }, aiAnalysis: parsed }
+          }));
+        }
+      } catch {
+        // If AI didn't return JSON, store the text as root_cause
+        setIssueStates(prev => ({
+          ...prev,
+          [idx]: { ...prev[idx] || { status: 'open', updatedAt: new Date().toISOString() }, aiAnalysis: { root_cause: res.response, auto_fixable: false, fix_steps: [], impact: 'Okänd', confidence: 'low' } }
+        }));
+      }
+    }
+    setAnalyzingIdx(null);
+  };
+
+  const createTaskFromIssue = async (issue: QAIssue, idx: number) => {
+    const state = getState(idx);
     try {
       const { error } = await supabase.from('work_items' as any).insert({
         title: `[Visual QA] ${issue.title}`,
-        description: `${issue.description}\n\nSida: ${issue.page}\nBreakpoint: ${issue.breakpoint}\nFix: ${issue.fix_suggestion}`,
-        type: 'visual_qa_issue',
-        priority: issue.severity === 'critical' ? 'urgent' : issue.severity === 'high' ? 'high' : 'medium',
-        status: 'todo',
-        source: 'ai_visual_qa',
-        ai_review_status: 'needs_review',
-        ai_review_result: { lovable_prompt: issue.lovable_prompt, category: issue.category, breakpoint: issue.breakpoint },
+        description: `${issue.description}\n\nSida: ${issue.page}\nBreakpoint: ${issue.breakpoint}\nFix: ${issue.fix_suggestion}${state.aiAnalysis ? `\n\nAI Root Cause: ${state.aiAnalysis.root_cause}\nAuto-fixable: ${state.aiAnalysis.auto_fixable ? 'Ja' : 'Nej'}\nSteg:\n${state.aiAnalysis.fix_steps.map((s, i) => `${i + 1}. ${s}`).join('\n')}` : ''}`,
+        item_type: 'bug',
+        priority: issue.severity === 'critical' ? 'critical' : issue.severity === 'high' ? 'high' : 'medium',
+        status: 'open',
+        source_type: 'ai_visual_qa',
+        source_id: scanMeta?.id || null,
       } as any);
       if (error) throw error;
+      setIssueStatus(idx, 'done');
       toast.success(`Uppgift skapad: ${issue.title}`);
-    } catch (err: any) {
+    } catch {
       toast.error('Kunde inte skapa uppgift');
     }
   };
 
-  const impactText = (sev: string) => {
-    if (sev === 'critical') return 'Blockerar användare eller skapar förlorad konvertering';
-    if (sev === 'high') return 'Påverkar användarupplevelsen negativt';
-    if (sev === 'medium') return 'Märkbart men inte kritiskt';
-    return 'Mindre förbättringsmöjlighet';
-  };
+  const sevColor = (s: string) => s === 'critical' ? 'text-destructive' : s === 'high' ? 'text-orange-500' : s === 'medium' ? 'text-yellow-500' : 'text-muted-foreground';
+  const scoreColor = (s: number) => s >= 80 ? 'text-green-600' : s >= 50 ? 'text-yellow-500' : 'text-destructive';
+  const flowIcon = (s: string) => s === 'pass' ? <CheckCircle className="w-4 h-4 text-green-600" /> : s === 'warning' ? <AlertTriangle className="w-4 h-4 text-yellow-500" /> : <XCircle className="w-4 h-4 text-destructive" />;
+  const breakpointIcon = (bp: string) => bp === 'mobile' ? <Smartphone className="w-3.5 h-3.5" /> : bp === 'tablet' ? <Tablet className="w-3.5 h-3.5" /> : bp === 'desktop' ? <Monitor className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />;
+
+  const filteredIssues = (result?.issues || [])
+    .map((issue, idx) => ({ issue, idx }))
+    .filter(({ issue, idx }) => {
+      const state = getState(idx);
+      if (statusFilter !== 'all' && state.status !== statusFilter) return false;
+      if (filter !== 'all' && issue.severity !== filter && issue.breakpoint !== filter && issue.category !== filter) return false;
+      return true;
+    });
+
+  const openCount = (result?.issues || []).filter((_, i) => getState(i).status === 'open').length;
+  const doneCount = (result?.issues || []).filter((_, i) => getState(i).status === 'done').length;
+  const ignoredCount = (result?.issues || []).filter((_, i) => getState(i).status === 'ignored').length;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-lg font-bold flex items-center gap-2"><Monitor className="w-5 h-5 text-primary" /> Visual QA & Responsive Testing</h2>
-          <p className="text-sm text-muted-foreground">AI analyserar alla sidor, flöden och breakpoints</p>
+          <h2 className="text-lg font-bold flex items-center gap-2"><Monitor className="w-5 h-5 text-primary" /> Visual QA</h2>
+          <p className="text-sm text-muted-foreground">
+            AI analyserar sidor, flöden och breakpoints
+            {scanMeta && <span className="ml-2 text-[10px] text-muted-foreground/60">Senast: {new Date(scanMeta.created_at).toLocaleString('sv-SE')}</span>}
+          </p>
         </div>
         <Button onClick={run} disabled={loading} className="gap-2">
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Radar className="w-4 h-4" />}
@@ -3551,7 +3629,7 @@ const VisualQATab = () => {
         <Card className="p-8 flex flex-col items-center justify-center text-center gap-3">
           <Monitor className="w-10 h-10 text-muted-foreground/40" />
           <h3 className="font-semibold text-muted-foreground">Ingen skanning har körts ännu</h3>
-          <p className="text-sm text-muted-foreground/70 max-w-md">Klicka på "Kör Visual QA" för att analysera alla sidor, responsivitet, tillgänglighet och användarflöden.</p>
+          <p className="text-sm text-muted-foreground/70 max-w-md">Klicka på "Kör Visual QA" för att analysera alla sidor.</p>
         </Card>
       )}
 
@@ -3584,9 +3662,6 @@ const VisualQATab = () => {
           {/* Summary */}
           <Card className="p-4">
             <p className="text-sm">{result.executive_summary}</p>
-            {result.tasks_created > 0 && (
-              <Badge variant="secondary" className="mt-2">{result.tasks_created} uppgifter skapade i Workbench</Badge>
-            )}
           </Card>
 
           {/* Flow tests */}
@@ -3594,7 +3669,7 @@ const VisualQATab = () => {
             <Card className="p-4">
               <h3 className="font-semibold text-sm mb-3">Flödestester</h3>
               <div className="space-y-2">
-                {result.flow_tests.map((ft: FlowTest, i: number) => (
+                {result.flow_tests.map((ft, i) => (
                   <div key={i} className="flex items-start gap-3 p-2 rounded-lg bg-secondary/30">
                     {flowIcon(ft.status)}
                     <div className="flex-1 min-w-0">
@@ -3613,7 +3688,7 @@ const VisualQATab = () => {
             <Card className="p-4">
               <h3 className="font-semibold text-sm mb-3">Sidbetyg</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {result.page_scores.map((ps: PageScore, i: number) => (
+                {result.page_scores.map((ps, i) => (
                   <div key={i} className="flex items-center gap-3 p-2 rounded-lg bg-secondary/20">
                     <span className={cn('text-lg font-bold w-10 text-center', scoreColor(ps.score))}>{ps.score}</span>
                     <div className="flex-1 min-w-0">
@@ -3627,56 +3702,199 @@ const VisualQATab = () => {
             </Card>
           )}
 
-          {/* Issues */}
+          {/* Issues with status controls */}
           <Card className="p-4">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
               <h3 className="font-semibold text-sm">Problem ({filteredIssues.length})</h3>
-              <div className="flex gap-1 flex-wrap">
-                {['all', 'critical', 'high', 'mobile', 'responsive', 'broken_flow'].map(f => (
-                  <Badge key={f} variant={filter === f ? 'default' : 'outline'} className="text-[10px] cursor-pointer" onClick={() => setFilter(f)}>
-                    {f === 'all' ? 'Alla' : f}
-                  </Badge>
-                ))}
+              <div className="flex gap-3 items-center flex-wrap">
+                {/* Status filter */}
+                <div className="flex gap-1">
+                  {([['all', `Alla (${result.issues?.length || 0})`], ['open', `Öppna (${openCount})`], ['done', `Klara (${doneCount})`], ['ignored', `Ignorerade (${ignoredCount})`]] as [IssueStatus | 'all', string][]).map(([key, label]) => (
+                    <Badge key={key} variant={statusFilter === key ? 'default' : 'outline'} className="text-[10px] cursor-pointer" onClick={() => setStatusFilter(key)}>
+                      {label}
+                    </Badge>
+                  ))}
+                </div>
+                {/* Severity/type filter */}
+                <div className="flex gap-1">
+                  {['all', 'critical', 'high', 'mobile'].map(f => (
+                    <Badge key={f} variant={filter === f ? 'default' : 'outline'} className="text-[10px] cursor-pointer" onClick={() => setFilter(f)}>
+                      {f === 'all' ? 'Alla typer' : f}
+                    </Badge>
+                  ))}
+                </div>
               </div>
             </div>
 
             {filteredIssues.length === 0 ? (
               <div className="flex flex-col items-center py-8 gap-2 text-center">
-                <CheckCircle className="w-8 h-8 text-accent" />
-                <p className="font-medium text-sm">Inga problem hittades!</p>
-                <p className="text-xs text-muted-foreground">Alla sidor och flöden ser bra ut med vald filtrering.</p>
+                <CheckCircle className="w-8 h-8 text-green-600" />
+                <p className="font-medium text-sm">Inga problem med vald filtrering</p>
               </div>
             ) : (
-              <ScrollArea className="max-h-[500px]">
-                <div className="space-y-3">
-                  {filteredIssues.map((issue, i) => (
-                    <div key={i} className="p-3 rounded-lg border border-border/50 space-y-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          {breakpointIcon(issue.breakpoint)}
-                          <span className="text-sm font-medium">{issue.title}</span>
+              <div className="max-h-[60vh] overflow-y-auto space-y-2 pr-1">
+                {filteredIssues.map(({ issue, idx }) => {
+                  const state = getState(idx);
+                  const isExpanded = expandedIdx === idx;
+                  const isAnalyzing = analyzingIdx === idx;
+
+                  return (
+                    <div
+                      key={idx}
+                      className={cn(
+                        'border rounded-lg overflow-hidden transition-colors',
+                        state.status === 'done' && 'opacity-50 border-green-500/30',
+                        state.status === 'ignored' && 'opacity-40 border-muted',
+                        state.status === 'open' && 'border-border hover:border-primary/30',
+                      )}
+                    >
+                      {/* Clickable header */}
+                      <button
+                        className="w-full text-left p-3 flex items-start justify-between gap-2"
+                        onClick={() => setExpandedIdx(isExpanded ? null : idx)}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          {state.status === 'done' ? <CheckCircle className="w-4 h-4 text-green-600 shrink-0" /> :
+                           state.status === 'ignored' ? <XCircle className="w-4 h-4 text-muted-foreground shrink-0" /> :
+                           breakpointIcon(issue.breakpoint)}
+                          <span className={cn('text-sm font-medium truncate', state.status !== 'open' && 'line-through')}>{issue.title}</span>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
-                          <Badge variant="outline" className="text-[10px]">{issue.category}</Badge>
+                          <Badge variant="outline" className="text-[10px]">{issue.page}</Badge>
                           <Badge variant={issue.severity === 'critical' ? 'destructive' : 'outline'} className={cn('text-[10px]', sevColor(issue.severity))}>{issue.severity}</Badge>
+                          <ChevronDown className={cn('w-4 h-4 text-muted-foreground transition-transform', isExpanded && 'rotate-180')} />
                         </div>
-                      </div>
-                      <p className="text-xs text-muted-foreground">{issue.description}</p>
-                      <div className="text-xs"><span className="font-medium">Sida:</span> {issue.page} · <span className="font-medium">Breakpoint:</span> {issue.breakpoint}</div>
-                      <div className="text-xs text-muted-foreground italic flex items-center gap-1"><AlertTriangle className="w-3 h-3 shrink-0" /> {impactText(issue.severity)}</div>
-                      <div className="text-xs text-accent"><span className="font-medium">Fix:</span> {issue.fix_suggestion}</div>
-                      <div className="flex items-center gap-2 pt-1">
-                        <Button variant="outline" size="sm" className="text-xs gap-1.5 h-7" onClick={() => createTaskFromIssue(issue)}>
-                          <Wrench className="w-3 h-3" /> Skapa uppgift
-                        </Button>
-                        <Button variant="ghost" size="sm" className="text-xs gap-1.5 h-7" onClick={() => { navigator.clipboard.writeText(issue.lovable_prompt); toast.success('Prompt kopierad'); }}>
-                          <Copy className="w-3 h-3" /> Kopiera prompt
-                        </Button>
-                      </div>
+                      </button>
+
+                      {/* Expanded detail panel */}
+                      {isExpanded && (
+                        <div className="border-t px-4 pb-4 pt-3 space-y-4 bg-muted/20">
+                          {/* Description & meta */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <div>
+                                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Beskrivning</p>
+                                <p className="text-xs">{issue.description}</p>
+                              </div>
+                              <div>
+                                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Impact</p>
+                                <p className="text-xs">{issue.severity === 'critical' ? 'Blockerar användare eller skapar förlorad konvertering' : issue.severity === 'high' ? 'Påverkar användarupplevelsen negativt' : issue.severity === 'medium' ? 'Märkbart men inte kritiskt' : 'Mindre förbättringsmöjlighet'}</p>
+                              </div>
+                              <div>
+                                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Föreslagen fix</p>
+                                <p className="text-xs text-green-700 dark:text-green-400">{issue.fix_suggestion}</p>
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <div className="flex gap-2 text-xs">
+                                <span className="text-muted-foreground">Sida:</span><span className="font-medium">{issue.page}</span>
+                              </div>
+                              <div className="flex gap-2 text-xs">
+                                <span className="text-muted-foreground">Breakpoint:</span><span className="font-medium flex items-center gap-1">{breakpointIcon(issue.breakpoint)} {issue.breakpoint}</span>
+                              </div>
+                              <div className="flex gap-2 text-xs">
+                                <span className="text-muted-foreground">Kategori:</span><Badge variant="outline" className="text-[10px]">{issue.category}</Badge>
+                              </div>
+                              <div className="flex gap-2 text-xs">
+                                <span className="text-muted-foreground">Status:</span>
+                                <Badge variant={state.status === 'done' ? 'secondary' : state.status === 'ignored' ? 'outline' : 'default'} className="text-[10px]">
+                                  {state.status === 'done' ? '✅ Klar' : state.status === 'ignored' ? '⏭️ Ignorerad' : '🔴 Öppen'}
+                                </Badge>
+                              </div>
+                              {state.note && (
+                                <div className="flex gap-2 text-xs">
+                                  <span className="text-muted-foreground">Anteckning:</span><span className="italic">{state.note}</span>
+                                </div>
+                              )}
+                              {scanMeta && (
+                                <div className="flex gap-2 text-xs">
+                                  <span className="text-muted-foreground">Scan:</span><span className="font-mono text-[10px]">{scanMeta.id.slice(0, 8)}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* AI Analysis section */}
+                          {state.aiAnalysis && (
+                            <div className="border rounded-lg p-3 bg-card space-y-2">
+                              <p className="text-[10px] font-semibold text-primary uppercase tracking-wider flex items-center gap-1"><Bot className="w-3 h-3" /> AI-analys</p>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                                <div>
+                                  <p className="font-medium text-muted-foreground mb-0.5">Grundorsak</p>
+                                  <p>{state.aiAnalysis.root_cause}</p>
+                                </div>
+                                <div>
+                                  <p className="font-medium text-muted-foreground mb-0.5">Impact</p>
+                                  <p>{state.aiAnalysis.impact}</p>
+                                </div>
+                              </div>
+                              <div className="flex gap-2 items-center">
+                                <Badge variant={state.aiAnalysis.auto_fixable ? 'default' : 'outline'} className="text-[10px]">
+                                  {state.aiAnalysis.auto_fixable ? '🟢 Auto-fixbar' : '🔴 Manuell fix krävs'}
+                                </Badge>
+                                <Badge variant="outline" className="text-[10px]">Konfidens: {state.aiAnalysis.confidence}</Badge>
+                              </div>
+                              {state.aiAnalysis.fix_steps?.length > 0 && (
+                                <div>
+                                  <p className="font-medium text-muted-foreground text-xs mb-1">Fixsteg</p>
+                                  <ol className="text-xs space-y-0.5 list-decimal list-inside">
+                                    {state.aiAnalysis.fix_steps.map((step, si) => <li key={si}>{step}</li>)}
+                                  </ol>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Action buttons */}
+                          <div className="flex items-center gap-2 flex-wrap pt-1">
+                            {state.status === 'open' && (
+                              <>
+                                <Button variant="default" size="sm" className="text-xs gap-1.5 h-7" onClick={() => analyzeIssue(issue, idx)} disabled={isAnalyzing}>
+                                  {isAnalyzing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Bot className="w-3 h-3" />}
+                                  {state.aiAnalysis ? 'Analysera igen' : 'AI-analys'}
+                                </Button>
+                                <Button variant="outline" size="sm" className="text-xs gap-1.5 h-7" onClick={() => setIssueStatus(idx, 'done')}>
+                                  <CheckCircle className="w-3 h-3" /> Markera klar
+                                </Button>
+                                <Button variant="outline" size="sm" className="text-xs gap-1.5 h-7" onClick={() => {
+                                  const note = ignoreNote || undefined;
+                                  setIssueStatus(idx, 'ignored', note);
+                                  setIgnoreNote('');
+                                }}>
+                                  <XCircle className="w-3 h-3" /> Ignorera
+                                </Button>
+                                <Button variant="outline" size="sm" className="text-xs gap-1.5 h-7" onClick={() => createTaskFromIssue(issue, idx)}>
+                                  <Wrench className="w-3 h-3" /> Skapa uppgift
+                                </Button>
+                                <Button variant="ghost" size="sm" className="text-xs gap-1.5 h-7" onClick={() => { navigator.clipboard.writeText(issue.lovable_prompt); toast.success('Prompt kopierad'); }}>
+                                  <Copy className="w-3 h-3" /> Kopiera prompt
+                                </Button>
+                              </>
+                            )}
+                            {state.status !== 'open' && (
+                              <Button variant="ghost" size="sm" className="text-xs gap-1.5 h-7" onClick={() => setIssueStatus(idx, 'open')}>
+                                <RefreshCw className="w-3 h-3" /> Återöppna
+                              </Button>
+                            )}
+                          </div>
+
+                          {/* Ignore note input (shown when open) */}
+                          {state.status === 'open' && (
+                            <div className="flex gap-2 items-center">
+                              <Input
+                                placeholder="Anteckning vid ignorering (valfritt)..."
+                                value={ignoreNote}
+                                onChange={(e) => setIgnoreNote(e.target.value)}
+                                className="h-7 text-xs flex-1"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
-                  ))}
-                </div>
-              </ScrollArea>
+                  );
+                })}
+              </div>
             )}
           </Card>
         </>
