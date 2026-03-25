@@ -210,6 +210,11 @@ serve(async (req) => {
         break;
       }
 
+      case "focused_scan": {
+        result = await handleFocusedScan(supabase, lovableKey);
+        break;
+      }
+
       default:
         return new Response(JSON.stringify({ error: "Unknown type" }), { status: 400, headers: corsHeaders });
     }
@@ -3905,4 +3910,212 @@ async function handleCategoryValidate(supabase: any, _lovableKey: string) {
     auto_fixed: autoFixed,
     tasks_created: tasksCreated,
   };
+}
+
+// ── Focused Scan (Adaptive Scan Zones) ──
+async function handleFocusedScan(supabase: any, apiKey: string) {
+  const now = new Date();
+  const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+  // 1. Gather recent signals: bugs, work items, incidents, activity logs
+  const [bugsRes, workItemsRes, incidentsRes, activityRes, scansRes] = await Promise.all([
+    supabase.from("bug_reports").select("id, description, page_url, ai_category, ai_severity, status, created_at").gte("created_at", monthAgo.toISOString()).order("created_at", { ascending: false }).limit(200),
+    supabase.from("work_items").select("id, title, ai_category, priority, status, item_type, created_at").gte("created_at", monthAgo.toISOString()).order("created_at", { ascending: false }).limit(300),
+    supabase.from("order_incidents").select("id, title, type, priority, status, created_at").gte("created_at", monthAgo.toISOString()).limit(100),
+    supabase.from("activity_logs").select("log_type, category, message, created_at").eq("log_type", "error").gte("created_at", weekAgo.toISOString()).order("created_at", { ascending: false }).limit(200),
+    supabase.from("ai_scan_results").select("results, created_at, scan_type").eq("scan_type", "focused_scan").order("created_at", { ascending: false }).limit(3),
+  ]);
+
+  const bugs = bugsRes.data || [];
+  const workItems = workItemsRes.data || [];
+  const incidents = incidentsRes.data || [];
+  const errorLogs = activityRes.data || [];
+  const previousScans = scansRes.data || [];
+
+  // 2. Build hot zone heatmap by counting issues per area
+  const areaMap: Record<string, { recent: number; total: number; severity_score: number; sources: string[] }> = {};
+  const severityWeight: Record<string, number> = { critical: 10, high: 5, medium: 2, low: 1 };
+
+  const addToArea = (area: string, isRecent: boolean, severity: string, source: string) => {
+    if (!area || area === "unknown") return;
+    const key = area.toLowerCase();
+    if (!areaMap[key]) areaMap[key] = { recent: 0, total: 0, severity_score: 0, sources: [] };
+    areaMap[key].total++;
+    if (isRecent) areaMap[key].recent++;
+    areaMap[key].severity_score += severityWeight[severity] || 1;
+    if (!areaMap[key].sources.includes(source)) areaMap[key].sources.push(source);
+  };
+
+  // From bugs
+  for (const b of bugs) {
+    const isRecent = new Date(b.created_at) > dayAgo;
+    const area = b.ai_category || inferAreaFromUrl(b.page_url);
+    addToArea(area, isRecent, b.ai_severity || "medium", "bug");
+  }
+
+  // From work items
+  for (const w of workItems) {
+    const isRecent = new Date(w.created_at) > dayAgo;
+    addToArea(w.ai_category || "system", isRecent, w.priority || "medium", "work_item");
+  }
+
+  // From incidents
+  for (const i of incidents) {
+    const isRecent = new Date(i.created_at) > dayAgo;
+    addToArea(i.type || "orders", isRecent, i.priority || "medium", "incident");
+  }
+
+  // From error logs
+  for (const e of errorLogs) {
+    addToArea(e.category || "system", true, "medium", "error_log");
+  }
+
+  // 3. Rank zones by heat score with decay (recent issues weighted 3x)
+  const zones = Object.entries(areaMap).map(([area, data]) => ({
+    area,
+    heat_score: data.severity_score + (data.recent * 3),
+    recent_issues: data.recent,
+    total_issues: data.total,
+    sources: data.sources,
+  })).sort((a, b) => b.heat_score - a.heat_score);
+
+  const hotZones = zones.filter(z => z.heat_score >= 5).slice(0, 6);
+  const coldZones = zones.filter(z => z.heat_score < 5);
+
+  // 4. Deep AI analysis on hot zones
+  const hotZoneSummary = hotZones.map(z =>
+    `[${z.area}] heat=${z.heat_score}, recent=${z.recent_issues}, total=${z.total_issues}, sources=${z.sources.join(",")}`
+  ).join("\n");
+
+  const recentBugsSummary = bugs.slice(0, 20).map((b: any) =>
+    `- [${b.ai_category || "?"}/${b.ai_severity || "?"}] ${b.description?.substring(0, 100)}`
+  ).join("\n");
+
+  const previousContext = previousScans.length > 0
+    ? `Previous focused scan (${previousScans[0].created_at}): ${JSON.stringify(previousScans[0].results?.hot_zones?.slice?.(0, 3) || [])}`
+    : "No previous focused scan available.";
+
+  const analysis = await callAI(apiKey, [
+    {
+      role: "system",
+      content: `Du är en adaptiv AI-scanner för en svensk e-handelsplattform. Du analyserar "hot zones" — systemområden med hög koncentration av problem. Du ska:
+1. Djupanalysera varje hot zone
+2. Identifiera mönster och rotorsaker
+3. Jämföra med tidigare skanningar (förbättring/försämring)
+4. Ge prioriterade åtgärdsförslag
+Svara på svenska. Använd focused_scan-funktionen.`,
+    },
+    {
+      role: "user",
+      content: `Hot Zones (ranked by heat score):\n${hotZoneSummary || "Inga hot zones detekterade."}\n\nSenaste buggar:\n${recentBugsSummary || "Inga."}\n\nTidigare skanning:\n${previousContext}\n\nKalla zoner: ${coldZones.map(z => z.area).join(", ") || "inga"}`,
+    },
+  ], [{
+    type: "function",
+    function: {
+      name: "focused_scan",
+      description: "Adaptive focused scan with hot zone analysis",
+      parameters: {
+        type: "object",
+        properties: {
+          hot_zones: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                area: { type: "string" },
+                status: { type: "string", enum: ["critical", "warning", "improving", "stable"] },
+                diagnosis: { type: "string", description: "Root cause analysis in Swedish" },
+                trend: { type: "string", enum: ["worsening", "stable", "improving", "new"] },
+                actions: { type: "array", items: { type: "string" }, description: "Recommended actions in Swedish" },
+                related_areas: { type: "array", items: { type: "string" } },
+              },
+              required: ["area", "status", "diagnosis", "trend", "actions"],
+            },
+          },
+          cold_zones: {
+            type: "array",
+            items: { type: "string" },
+            description: "Areas with no/few issues (healthy)",
+          },
+          summary: { type: "string", description: "Executive summary in Swedish" },
+          overall_risk: { type: "string", enum: ["low", "medium", "high", "critical"] },
+          recommended_next_scan_areas: {
+            type: "array",
+            items: { type: "string" },
+            description: "Which areas to scan deeper next time",
+          },
+        },
+        required: ["hot_zones", "cold_zones", "summary", "overall_risk", "recommended_next_scan_areas"],
+        additionalProperties: false,
+      },
+    },
+  }], { type: "function", function: { name: "focused_scan" } });
+
+  // 5. Store scan result
+  const scanResult = {
+    hot_zones: (analysis?.hot_zones || []).map((hz: any, i: number) => ({
+      ...hz,
+      heat_score: hotZones[i]?.heat_score || 0,
+      recent_issues: hotZones[i]?.recent_issues || 0,
+      total_issues: hotZones[i]?.total_issues || 0,
+    })),
+    cold_zones: analysis?.cold_zones || coldZones.map(z => z.area),
+    raw_zones: zones,
+    summary: analysis?.summary || "",
+    overall_risk: analysis?.overall_risk || "medium",
+    recommended_next_scan_areas: analysis?.recommended_next_scan_areas || [],
+  };
+
+  await supabase.from("ai_scan_results").insert({
+    scan_type: "focused_scan",
+    results: scanResult,
+    overall_status: analysis?.overall_risk || "medium",
+    executive_summary: analysis?.summary || "",
+    issues_count: hotZones.length,
+    overall_score: Math.max(0, 100 - hotZones.reduce((s, z) => s + z.heat_score, 0)),
+  });
+
+  // 6. Auto-create work items for critical hot zones
+  let tasksCreated = 0;
+  for (const hz of analysis?.hot_zones || []) {
+    if (hz.status !== "critical" && hz.status !== "warning") continue;
+
+    const title = `🔥 Hot Zone: ${hz.area} — ${hz.status}`;
+    const { data: existing } = await supabase
+      .from("work_items")
+      .select("id")
+      .ilike("title", `%Hot Zone: ${hz.area}%`)
+      .in("status", ["open", "claimed", "in_progress"])
+      .limit(1);
+
+    if (existing?.length) continue;
+
+    await supabase.from("work_items").insert({
+      title: title.substring(0, 200),
+      description: `${hz.diagnosis}\n\nÅtgärder:\n${(hz.actions || []).map((a: string) => `• ${a}`).join("\n")}`,
+      status: "open",
+      priority: hz.status === "critical" ? "critical" : "high",
+      item_type: "insight",
+      source_type: "ai_focused_scan",
+      ai_detected: true,
+      ai_confidence: "high",
+      ai_category: hz.area,
+    });
+    tasksCreated++;
+  }
+
+  return { ...scanResult, tasks_created: tasksCreated };
+}
+
+function inferAreaFromUrl(url: string): string {
+  if (!url) return "unknown";
+  if (url.includes("/admin")) return "admin";
+  if (url.includes("/checkout")) return "checkout";
+  if (url.includes("/product")) return "products";
+  if (url.includes("/cart")) return "cart";
+  if (url.includes("/order")) return "orders";
+  if (url.includes("/profil") || url.includes("/profile")) return "auth";
+  return "UI";
 }
