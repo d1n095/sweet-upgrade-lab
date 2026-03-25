@@ -3904,10 +3904,25 @@ Förslag: ${issue.fix_suggestion}`,
                             </div>
                           </div>
 
-                          {/* AI Analysis section */}
+                          {/* AI Analysis & Decision section */}
                           {state.aiAnalysis && (
-                            <div className="border rounded-lg p-3 bg-card space-y-2">
-                              <p className="text-[10px] font-semibold text-primary uppercase tracking-wider flex items-center gap-1"><Bot className="w-3 h-3" /> AI-analys</p>
+                            <div className="border rounded-lg p-3 bg-card space-y-3">
+                              <div className="flex items-center justify-between">
+                                <p className="text-[10px] font-semibold text-primary uppercase tracking-wider flex items-center gap-1"><Bot className="w-3 h-3" /> AI-analys & beslut</p>
+                                {state.aiDecision && (
+                                  <Badge variant={state.aiDecision === 'auto_fix' ? 'default' : state.aiDecision === 'ignore' ? 'outline' : 'secondary'} className="text-[10px]">
+                                    {state.aiDecision === 'auto_fix' ? '⚡ Auto-fix' : state.aiDecision === 'ignore' ? '⏭️ Ignorera' : '📝 Kräver prompt'}
+                                  </Badge>
+                                )}
+                              </div>
+
+                              {/* Decision reason */}
+                              {state.aiDecisionReason && (
+                                <div className="bg-muted/40 rounded-md p-2 text-xs">
+                                  <span className="font-medium text-muted-foreground">AI-motivering: </span>{state.aiDecisionReason}
+                                </div>
+                              )}
+
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                                 <div>
                                   <p className="font-medium text-muted-foreground mb-0.5">Grundorsak</p>
@@ -3918,7 +3933,7 @@ Förslag: ${issue.fix_suggestion}`,
                                   <p>{state.aiAnalysis.impact}</p>
                                 </div>
                               </div>
-                              <div className="flex gap-2 items-center">
+                              <div className="flex gap-2 items-center flex-wrap">
                                 <Badge variant={state.aiAnalysis.auto_fixable ? 'default' : 'outline'} className="text-[10px]">
                                   {state.aiAnalysis.auto_fixable ? '🟢 Auto-fixbar' : '🔴 Manuell fix krävs'}
                                 </Badge>
@@ -3932,6 +3947,19 @@ Förslag: ${issue.fix_suggestion}`,
                                   </ol>
                                 </div>
                               )}
+
+                              {/* Generated Lovable prompt for needs_prompt */}
+                              {state.aiDecision === 'needs_prompt' && state.generatedPrompt && (
+                                <div className="border border-primary/20 rounded-md p-3 bg-primary/5 space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <p className="text-[10px] font-semibold text-primary uppercase tracking-wider">Genererad Lovable-prompt</p>
+                                    <Button variant="ghost" size="sm" className="text-xs gap-1 h-6" onClick={() => { navigator.clipboard.writeText(state.generatedPrompt!); toast.success('Prompt kopierad'); }}>
+                                      <Copy className="w-3 h-3" /> Kopiera
+                                    </Button>
+                                  </div>
+                                  <p className="text-xs whitespace-pre-wrap font-mono bg-muted/30 rounded p-2 max-h-40 overflow-y-auto">{state.generatedPrompt}</p>
+                                </div>
+                              )}
                             </div>
                           )}
 
@@ -3939,9 +3967,9 @@ Förslag: ${issue.fix_suggestion}`,
                           <div className="flex items-center gap-2 flex-wrap pt-1">
                             {state.status === 'open' && (
                               <>
-                                <Button variant="default" size="sm" className="text-xs gap-1.5 h-7" onClick={() => analyzeIssue(issue, idx)} disabled={isAnalyzing}>
+                                <Button variant="default" size="sm" className="text-xs gap-1.5 h-7" onClick={() => analyzeIssue(issue, idx)} disabled={isAnalyzing || triaging}>
                                   {isAnalyzing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Bot className="w-3 h-3" />}
-                                  {state.aiAnalysis ? 'Analysera igen' : 'AI-analys'}
+                                  {state.aiAnalysis ? 'Analysera igen' : 'AI-beslut'}
                                 </Button>
                                 <Button variant="outline" size="sm" className="text-xs gap-1.5 h-7" onClick={() => setIssueStatus(idx, 'done')}>
                                   <CheckCircle className="w-3 h-3" /> Markera klar
@@ -3956,7 +3984,7 @@ Förslag: ${issue.fix_suggestion}`,
                                 <Button variant="outline" size="sm" className="text-xs gap-1.5 h-7" onClick={() => createTaskFromIssue(issue, idx)}>
                                   <Wrench className="w-3 h-3" /> Skapa uppgift
                                 </Button>
-                                <Button variant="ghost" size="sm" className="text-xs gap-1.5 h-7" onClick={() => { navigator.clipboard.writeText(issue.lovable_prompt); toast.success('Prompt kopierad'); }}>
+                                <Button variant="ghost" size="sm" className="text-xs gap-1.5 h-7" onClick={() => { navigator.clipboard.writeText(state.generatedPrompt || issue.lovable_prompt); toast.success('Prompt kopierad'); }}>
                                   <Copy className="w-3 h-3" /> Kopiera prompt
                                 </Button>
                               </>
