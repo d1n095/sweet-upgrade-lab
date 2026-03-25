@@ -296,6 +296,8 @@ async function pollScanRun(
       set({
         steps,
         currentStepIndex: scanRun.current_step || 0,
+        currentIteration: scanRun.iteration || 1,
+        currentStepLabel: scanRun.current_step_label || '',
       });
     }
   } catch (e) {
