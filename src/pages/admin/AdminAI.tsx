@@ -3989,6 +3989,9 @@ const AdminAI = () => {
         <TabsContent value="patterns" className="mt-4">
           <PatternDetectionTab />
         </TabsContent>
+        <TabsContent value="focused-scan" className="mt-4">
+          <FocusedScanTab />
+        </TabsContent>
       </Tabs>
 
       <WorkItemDetail
