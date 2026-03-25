@@ -4329,7 +4329,7 @@ const UxScannerTab = () => {
       </div>
 
       {lastScan && !result && (
-        <p className="text-xs text-muted-foreground">Senaste skanning: {new Date(lastScan.created_at).toLocaleString('sv-SE')}</p>
+        <p className="text-xs text-muted-foreground">Senaste skanning: {new Date((lastScan as any).created_at).toLocaleString('sv-SE')}</p>
       )}
 
       {result && (
