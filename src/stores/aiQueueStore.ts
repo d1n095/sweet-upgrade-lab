@@ -87,6 +87,7 @@ interface AiQueueState {
   retryTask: (id: string) => void;
   cancelTask: (id: string) => void;
   _isProcessing: boolean;
+  _processingStartedAt: number | null;
 }
 
 const generateId = () => `qt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
