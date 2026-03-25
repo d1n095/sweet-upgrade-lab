@@ -75,6 +75,7 @@ serve(async (req) => {
         if (!bug) {
           return new Response(JSON.stringify({ error: "Bug not found" }), { status: 404, headers: corsHeaders });
         }
+        await logAiRead(supabase, { action_type: "analyze", target_type: "bug_report", target_ids: [bug_id], result: "inspected", summary: `AI analyzed bug: ${bug.ai_summary || bug.description?.substring(0, 80)}`, triggered_by: user.id });
         result = await suggestBugFixEnhanced(supabase, lovableKey, bug);
         break;
       }
@@ -88,6 +89,7 @@ serve(async (req) => {
         if (!deepBug) {
           return new Response(JSON.stringify({ error: "Bug not found" }), { status: 404, headers: corsHeaders });
         }
+        await logAiRead(supabase, { action_type: "deep_analysis", target_type: "bug_report", target_ids: [deepBugId], result: "inspected", summary: `Deep analysis of bug: ${deepBug.ai_summary || deepBug.description?.substring(0, 80)}`, triggered_by: user.id });
         result = await handleBugDeepAnalysis(supabase, lovableKey, deepBug);
         break;
       }
