@@ -1787,6 +1787,7 @@ const SystemScanTab = () => {
         status: 'open',
         item_type: 'bug',
         source_type: 'scan',
+        ai_detected: true,
         source_id: currentScanId || lastScan?.id || null,
         created_by: session.user.id,
       },
