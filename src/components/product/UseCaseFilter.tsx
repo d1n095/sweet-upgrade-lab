@@ -10,6 +10,7 @@ interface Tag {
   name_en: string | null;
   slug: string;
   color: string | null;
+  display_order?: number | null;
 }
 
 interface Props {
@@ -24,11 +25,37 @@ const UseCaseFilter = ({ selectedTagId, onSelect }: Props) => {
 
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase
+      // Show only tags that are actually connected to visible + sellable products
+      const { data: visibleProducts } = await supabase
+        .from('products')
+        .select('id')
+        .eq('is_visible', true)
+        .eq('is_sellable', true);
+
+      const visibleProductIds = (visibleProducts || []).map((p: { id: string }) => p.id);
+      if (visibleProductIds.length === 0) {
+        setTags([]);
+        return;
+      }
+
+      const { data: relations } = await supabase
+        .from('product_tag_relations')
+        .select('tag_id')
+        .in('product_id', visibleProductIds);
+
+      const tagIds = [...new Set((relations || []).map((r: { tag_id: string }) => r.tag_id))];
+      if (tagIds.length === 0) {
+        setTags([]);
+        return;
+      }
+
+      const { data: tagRows } = await supabase
         .from('product_tags')
-        .select('id, name_sv, name_en, slug, color')
+        .select('id, name_sv, name_en, slug, color, display_order')
+        .in('id', tagIds)
         .order('display_order');
-      setTags((data || []) as Tag[]);
+
+      setTags((tagRows || []) as Tag[]);
     };
     load();
   }, []);
