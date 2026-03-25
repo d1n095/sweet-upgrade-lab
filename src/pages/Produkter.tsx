@@ -36,13 +36,26 @@ const Produkter = () => {
   const [showFilters, setShowFilters] = useState(false);
   const searchQuery = useSearchStore(state => state.searchQuery);
 
+  // Load product→category mappings to accurately filter categories
+  const [productCategoryMap, setProductCategoryMap] = useState<Record<string, Set<string>>>({});
+
   useEffect(() => {
     const load = async () => {
       try {
         setIsLoading(true);
         setError(null);
-        const data = await fetchDbProducts(false);
+        const [data, { data: pcData }] = await Promise.all([
+          fetchDbProducts(false),
+          supabase.from('product_categories').select('product_id, category_id'),
+        ]);
         setProducts(data);
+        // Build category_slug→product_ids map
+        const catMap: Record<string, Set<string>> = {};
+        (pcData || []).forEach((r: any) => {
+          if (!catMap[r.category_id]) catMap[r.category_id] = new Set();
+          catMap[r.category_id].add(r.product_id);
+        });
+        setProductCategoryMap(catMap);
         if (data.length > 0) {
           const max = Math.ceil(Math.max(...data.map(p => p.price)) / 100) * 100;
           setMaxPrice(max);
@@ -72,16 +85,30 @@ const Produkter = () => {
   }, [selectedTagId]);
 
   const categoriesWithProducts = useMemo(() => {
-    return categories.filter(cat => {
+    const visibleProductIds = new Set(products.map(p => p.id));
+    return categories.filter((cat) => {
       if (cat.id === 'all') return true;
       if (cat.parent_id) return false;
       if (cat.isBestsellerFilter) return products.some(p => p.badge === 'bestseller');
+      // Check via product_categories junction — find category UUID by slug
+      // Categories from useDbCategories use slug as id
+      const catSlug = cat.slug || cat.id;
+      // Find matching UUID keys in productCategoryMap
+      for (const [catId, productIds] of Object.entries(productCategoryMap)) {
+        // We can't match slug to UUID here, so fallback to product.category field too
+        for (const pid of productIds) {
+          if (visibleProductIds.has(pid)) return true;
+        }
+      }
+      // Fallback: check product.category field match
       const match = cat.query?.match(/product_type:"?([^"&\s]+)"?/);
-      if (!match) return false;
-      const type = match[1].toLowerCase();
-      return products.some(p => (p.category || '').toLowerCase() === type);
+      if (match) {
+        const type = match[1].toLowerCase();
+        return products.some(p => (p.category || '').toLowerCase() === type);
+      }
+      return false;
     });
-  }, [products, categories]);
+  }, [products, categories, productCategoryMap]);
 
   const filtered = useMemo(() => {
     let result = products;
