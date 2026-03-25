@@ -3503,6 +3503,7 @@ const VisualQATab = () => {
   const [analyzingIdx, setAnalyzingIdx] = useState<number | null>(null);
   const [ignoreNote, setIgnoreNote] = useState('');
   const [scanMeta, setScanMeta] = useState<{ id: string; created_at: string } | null>(null);
+  const [triaging, setTriaging] = useState(false);
 
   // Load last scan on mount
   useEffect(() => {
