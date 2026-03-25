@@ -5056,7 +5056,7 @@ SAFETY RULES:
 - Block any action with high conflict risk (set classification to "assist" with explanation)
 - ALWAYS fill in the capability object — be honest about what you can and cannot do`;
 
-  const resp = await fetch("https://api.lovable.dev/v1/chat/completions", {
+  const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
