@@ -191,7 +191,22 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
         await supabase.from('bug_reports').update({ resolution_notes: resolutionNotes.trim() || null }).eq('id', item.source_id);
       }
       await onStatusChange(item.id, 'done');
-      toast.success('Markerad som klar ✓');
+      toast.success('Markerad som klar — AI verifierar...');
+
+      // Auto-trigger AI verification after marking as done
+      triggerAiReviewForWorkItem(item.id, { context: 'auto_verify_on_resolve' }).then(reviewResult => {
+        if (reviewResult.ok) {
+          if (reviewResult.status === 'incomplete') {
+            toast.error('⚠️ AI: Fixens verifiering misslyckades — uppgiften återöppnad', { duration: 6000 });
+          } else if (reviewResult.status === 'needs_review') {
+            toast.warning('AI: Behöver manuell granskning', { duration: 4000 });
+          } else {
+            toast.success('✅ AI: Verifierad!', { duration: 3000 });
+          }
+          onRefresh?.();
+        }
+      }).catch(() => { /* non-blocking */ });
+
       onOpenChange(false);
     } catch { toast.error('Något gick fel'); }
     finally { setResolving(false); }

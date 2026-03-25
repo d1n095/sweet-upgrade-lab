@@ -6057,6 +6057,60 @@ Svara BARA med JSON:
       break;
     }
 
+    case "verify_completed_work": {
+      // Batch verify all recently completed work items that haven't been AI-verified
+      const { data: unverified } = await supabase
+        .from("work_items")
+        .select("id, title, item_type, status, completed_at")
+        .eq("status", "done")
+        .is("ai_review_status", null)
+        .order("completed_at", { ascending: false })
+        .limit(20);
+
+      if (!unverified || unverified.length === 0) {
+        result = { verified: 0, reopened: 0, needs_review: 0, message: "Inga overifierade uppgifter." };
+        break;
+      }
+
+      let verified = 0, reopened = 0, needsReview = 0;
+      const details: any[] = [];
+
+      for (const wi of unverified) {
+        try {
+          const reviewResp = await fetch(`${supabaseUrl}/functions/v1/ai-review-fix`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${serviceKey}`,
+            },
+            body: JSON.stringify({ work_item_id: wi.id }),
+          });
+
+          if (reviewResp.ok) {
+            const reviewData = await reviewResp.json();
+            const status = reviewData.review?.status;
+            if (status === "verified") verified++;
+            else if (status === "incomplete") reopened++;
+            else needsReview++;
+            details.push({ id: wi.id, title: wi.title, status, confidence: reviewData.review?.confidence, verdict: reviewData.review?.verdict });
+          }
+        } catch (e: any) {
+          console.warn(`[verify_completed_work] Failed for ${wi.id}:`, e.message);
+          details.push({ id: wi.id, title: wi.title, status: "error", error: e.message });
+        }
+      }
+
+      result = {
+        total: unverified.length,
+        verified,
+        reopened,
+        needs_review: needsReview,
+        details,
+        message: `${verified} verifierade, ${reopened} återöppnade, ${needsReview} behöver granskning.`,
+      };
+      break;
+    }
+
     default:
       return { error: "Okänd åtgärdstyp" };
   }
