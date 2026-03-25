@@ -6,6 +6,36 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+/** Persist scan result first and return its ID for linking to work items */
+async function persistScanResult(supabase: any, opts: {
+  scan_type: string;
+  results: any;
+  overall_score: number;
+  overall_status: string;
+  issues_count: number;
+  executive_summary: string;
+  tasks_created?: number;
+  scanned_by?: string;
+}): Promise<string | null> {
+  const { data, error } = await supabase.from("ai_scan_results").insert({
+    scan_type: opts.scan_type,
+    results: opts.results || {},
+    overall_score: opts.overall_score,
+    overall_status: opts.overall_status,
+    issues_count: opts.issues_count,
+    tasks_created: opts.tasks_created || 0,
+    executive_summary: opts.executive_summary,
+    scanned_by: opts.scanned_by || null,
+  }).select("id").single();
+  if (error) { console.error("persistScanResult error:", error); return null; }
+  return data?.id || null;
+}
+
+/** Update tasks_created count on an existing scan result */
+async function updateScanTaskCount(supabase: any, scanId: string, tasksCreated: number) {
+  await supabase.from("ai_scan_results").update({ tasks_created: tasksCreated }).eq("id", scanId);
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -1510,7 +1540,18 @@ Var SPECIFIK med vilka sidor och element som har problem. Svara på svenska.`,
     },
   }], { type: "function", function: { name: "visual_qa" } });
 
-  // Auto-create work items for critical/high issues
+  // Persist scan result FIRST to get ID for linking
+  const scanScore = analysis?.overall_ui_score || 0;
+  const scanId = await persistScanResult(supabase, {
+    scan_type: "visual_qa",
+    results: analysis || {},
+    overall_score: scanScore,
+    overall_status: scanScore >= 80 ? "good" : scanScore >= 50 ? "warning" : "critical",
+    issues_count: analysis?.issues?.length || 0,
+    executive_summary: analysis?.executive_summary || "",
+  });
+
+  // Auto-create work items for critical/high issues, linked to scan
   let tasksCreated = 0;
   if (analysis?.issues) {
     for (const issue of analysis.issues) {
@@ -1528,7 +1569,8 @@ Var SPECIFIK med vilka sidor och element som har problem. Svara på svenska.`,
           status: "open",
           priority: issue.severity === "critical" ? "critical" : "high",
           item_type: issue.category === "broken_flow" ? "bug" : "improvement",
-          source_type: "ai_detection",
+          source_type: "ai_scan",
+          source_id: scanId || undefined,
           ai_detected: true,
           ai_confidence: "medium",
           ai_category: "frontend",
@@ -1539,18 +1581,8 @@ Var SPECIFIK med vilka sidor och element som har problem. Svara på svenska.`,
     }
   }
 
-  // Persist scan result to ai_scan_results
-  await supabase.from("ai_scan_results").insert({
-    scan_type: "visual_qa",
-    results: analysis || {},
-    overall_score: analysis?.overall_ui_score || 0,
-    overall_status: (analysis?.overall_ui_score || 0) >= 80 ? "good" : (analysis?.overall_ui_score || 0) >= 50 ? "warning" : "critical",
-    issues_count: analysis?.issues?.length || 0,
-    tasks_created: tasksCreated,
-    executive_summary: analysis?.executive_summary || "",
-  });
-
-  return { ...analysis, tasks_created: tasksCreated };
+  if (scanId && tasksCreated > 0) await updateScanTaskCount(supabase, scanId, tasksCreated);
+  return { ...analysis, tasks_created: tasksCreated, scan_id: scanId };
 }
 
 // ── Navigation Scanner ──
@@ -1659,7 +1691,18 @@ Ge SPECIFIKA och handlingsbara resultat. Svara på svenska.`,
     },
   }], { type: "function", function: { name: "nav_scan" } });
 
-  // Auto-create work items for critical/high nav issues
+  // Persist scan result FIRST
+  const navScore = analysis?.overall_score || 0;
+  const scanId = await persistScanResult(supabase, {
+    scan_type: "nav_scan",
+    results: analysis || {},
+    overall_score: navScore,
+    overall_status: navScore >= 80 ? "good" : navScore >= 50 ? "warning" : "critical",
+    issues_count: analysis?.issues?.length || 0,
+    executive_summary: analysis?.executive_summary || "",
+  });
+
+  // Auto-create work items for critical/high nav issues, linked to scan
   let tasksCreated = 0;
   for (const issue of analysis?.issues || []) {
     if (!["critical", "high"].includes(issue.severity)) continue;
@@ -1676,7 +1719,8 @@ Ge SPECIFIKA och handlingsbara resultat. Svara på svenska.`,
         status: "open",
         priority: issue.severity === "critical" ? "critical" : "high",
         item_type: "bug",
-        source_type: "ai_detection",
+        source_type: "ai_scan",
+        source_id: scanId || undefined,
         ai_detected: true,
         ai_confidence: "medium",
         ai_category: "navigation",
@@ -1686,21 +1730,9 @@ Ge SPECIFIKA och handlingsbara resultat. Svara på svenska.`,
     }
   }
 
-  // Persist scan result
-  await supabase.from("ai_scan_results").insert({
-    scan_type: "nav_scan",
-    results: analysis || {},
-    overall_score: analysis?.overall_score || 0,
-    overall_status: (analysis?.overall_score || 0) >= 80 ? "good" : (analysis?.overall_score || 0) >= 50 ? "warning" : "critical",
-    issues_count: analysis?.issues?.length || 0,
-    tasks_created: tasksCreated,
-    executive_summary: analysis?.executive_summary || "",
-  });
-
-  return { ...analysis, tasks_created: tasksCreated };
+  if (scanId && tasksCreated > 0) await updateScanTaskCount(supabase, scanId, tasksCreated);
+  return { ...analysis, tasks_created: tasksCreated, scan_id: scanId };
 }
-
-// ── Bug Re-scan & Status Engine ──
 async function handleBugRescan(supabase: any, apiKey: string) {
   // Get ALL bugs and their linked work items
   const [bugsRes, workItemsRes] = await Promise.all([
@@ -2477,7 +2509,14 @@ Return a structured execution plan.`, [{
     }
 }
 
-// ── Interaction QA Engine ──
+  return {
+    ...analysis,
+    mode,
+    execution_log: executionLog,
+    executed_count: executionLog.filter(l => l.success).length,
+  };
+}
+
 async function handleInteractionQA(supabase: any, apiKey: string) {
   // Gather comprehensive data about UI interactions, routes, and state
   const [workItemsRes, bugsRes, eventsRes, productsRes, ordersRes, pagesRes, incidentsRes] = await Promise.all([
@@ -2678,7 +2717,18 @@ Var EXTREMT SPECIFIK. Ge exakta komponent-/sidnamn. Prioritera efter användarim
     },
   }], { type: "function", function: { name: "interaction_qa" } });
 
-  // Auto-create work items for critical/high issues
+  // Persist scan result FIRST
+  const interScore = analysis?.interaction_score || 0;
+  const scanId = await persistScanResult(supabase, {
+    scan_type: "interaction_qa",
+    results: analysis || {},
+    overall_score: interScore,
+    overall_status: interScore >= 80 ? "good" : interScore >= 50 ? "warning" : "critical",
+    issues_count: (analysis?.dead_elements?.length || 0) + (analysis?.broken_flows?.length || 0),
+    executive_summary: analysis?.executive_summary || analysis?.summary || "",
+  });
+
+  // Auto-create work items for critical/high issues, linked to scan
   let tasksCreated = 0;
 
   if (analysis?.dead_elements) {
@@ -2697,7 +2747,8 @@ Var EXTREMT SPECIFIK. Ge exakta komponent-/sidnamn. Prioritera efter användarim
           status: "open",
           priority: el.severity === "critical" ? "critical" : "high",
           item_type: "bug",
-          source_type: "ai_detection",
+          source_type: "ai_scan",
+          source_id: scanId || undefined,
           ai_detected: true,
           ai_confidence: "medium",
           ai_category: "interaction",
@@ -2724,7 +2775,8 @@ Var EXTREMT SPECIFIK. Ge exakta komponent-/sidnamn. Prioritera efter användarim
           status: "open",
           priority: flow.severity === "critical" ? "critical" : "high",
           item_type: "bug",
-          source_type: "ai_detection",
+          source_type: "ai_scan",
+          source_id: scanId || undefined,
           ai_detected: true,
           ai_confidence: "medium",
           ai_category: "interaction",
@@ -2735,15 +2787,8 @@ Var EXTREMT SPECIFIK. Ge exakta komponent-/sidnamn. Prioritera efter användarim
     }
   }
 
-  return { ...analysis, tasks_created: tasksCreated };
-}
-
-  return {
-    ...analysis,
-    mode,
-    execution_log: executionLog,
-    executed_count: executionLog.filter(l => l.success).length,
-  };
+  if (scanId && tasksCreated > 0) await updateScanTaskCount(supabase, scanId, tasksCreated);
+  return { ...analysis, tasks_created: tasksCreated, scan_id: scanId };
 }
 
 // ── Verification & Completion Engine ──
@@ -4720,7 +4765,17 @@ Ge konkreta CSS/Tailwind-fixar. Svara på svenska.`,
     },
   }], { type: "function", function: { name: "ui_overflow_scan" } });
 
-  // Auto-create work items for critical/high overflow issues
+  // Persist scan result FIRST
+  const overflowScore = analysis?.overflow_score || 0;
+  const scanId = await persistScanResult(supabase, {
+    scan_type: "ui_overflow_scan",
+    results: analysis || {},
+    overall_score: overflowScore,
+    overall_status: overflowScore >= 80 ? "healthy" : overflowScore >= 50 ? "warning" : "critical",
+    issues_count: analysis?.issues_found || 0,
+    executive_summary: analysis?.executive_summary || "",
+  });
+
   let tasksCreated = 0;
   if (analysis?.issues) {
     for (const issue of analysis.issues) {
@@ -4738,7 +4793,8 @@ Ge konkreta CSS/Tailwind-fixar. Svara på svenska.`,
           status: "open",
           priority: issue.severity === "critical" ? "critical" : "high",
           item_type: "bug",
-          source_type: "ai_detection",
+          source_type: "ai_scan",
+          source_id: scanId || undefined,
           ai_detected: true,
           ai_confidence: "high",
           ai_category: "frontend",
@@ -4749,18 +4805,8 @@ Ge konkreta CSS/Tailwind-fixar. Svara på svenska.`,
     }
   }
 
-  // Store scan result
-  await supabase.from("ai_scan_results").insert({
-    scan_type: "ui_overflow_scan",
-    overall_score: analysis?.overflow_score || 0,
-    overall_status: (analysis?.overflow_score || 0) >= 80 ? "healthy" : (analysis?.overflow_score || 0) >= 50 ? "warning" : "critical",
-    executive_summary: analysis?.executive_summary || "",
-    results: analysis || {},
-    issues_count: analysis?.issues_found || 0,
-    tasks_created: tasksCreated,
-  });
-
-  return { ...analysis, tasks_created: tasksCreated };
+  if (scanId && tasksCreated > 0) await updateScanTaskCount(supabase, scanId, tasksCreated);
+  return { ...analysis, tasks_created: tasksCreated, scan_id: scanId };
 }
 
 // ── UX Scanner ──
@@ -4859,7 +4905,17 @@ Basera analysen på verklig data — inte spekulationer.`;
     },
   }], { type: "function", function: { name: "ux_scan_results" } });
 
-  // Create work items for critical/high issues
+  // Persist scan result FIRST
+  const uxScore = analysis?.ux_score || 0;
+  const scanId = await persistScanResult(supabase, {
+    scan_type: "ux_scan",
+    results: analysis || {},
+    overall_score: uxScore,
+    overall_status: uxScore >= 80 ? "healthy" : uxScore >= 50 ? "warning" : "critical",
+    issues_count: analysis?.issues_found || 0,
+    executive_summary: analysis?.executive_summary || "",
+  });
+
   let tasksCreated = 0;
   if (analysis?.issues) {
     for (const issue of analysis.issues) {
@@ -4877,7 +4933,8 @@ Basera analysen på verklig data — inte spekulationer.`;
           status: "open",
           priority: issue.severity === "critical" ? "critical" : "high",
           item_type: "bug",
-          source_type: "ai_detection",
+          source_type: "ai_scan",
+          source_id: scanId || undefined,
           ai_detected: true,
           ai_confidence: "high",
           ai_category: "frontend",
@@ -4888,18 +4945,8 @@ Basera analysen på verklig data — inte spekulationer.`;
     }
   }
 
-  // Store scan result
-  await supabase.from("ai_scan_results").insert({
-    scan_type: "ux_scan",
-    overall_score: analysis?.ux_score || 0,
-    overall_status: (analysis?.ux_score || 0) >= 80 ? "healthy" : (analysis?.ux_score || 0) >= 50 ? "warning" : "critical",
-    executive_summary: analysis?.executive_summary || "",
-    results: analysis || {},
-    issues_count: analysis?.issues_found || 0,
-    tasks_created: tasksCreated,
-  });
-
-  return { ...analysis, tasks_created: tasksCreated };
+  if (scanId && tasksCreated > 0) await updateScanTaskCount(supabase, scanId, tasksCreated);
+  return { ...analysis, tasks_created: tasksCreated, scan_id: scanId };
 }
 
 // ── Sync Scanner ──
@@ -5030,7 +5077,17 @@ Analysera synkroniseringsproblem mellan frontend och backend. Klassificera varje
     }
   }
 
-  // Create work items for issues that can't be auto-fixed
+  // Persist scan result FIRST
+  const syncScore = analysis?.sync_score || 0;
+  const scanId = await persistScanResult(supabase, {
+    scan_type: "sync_scan",
+    results: { ...analysis, auto_fixed_count: autoFixCount },
+    overall_score: syncScore,
+    overall_status: syncScore >= 80 ? "healthy" : syncScore >= 50 ? "warning" : "critical",
+    issues_count: analysis?.issues_found || 0,
+    executive_summary: analysis?.executive_summary || "",
+  });
+
   let tasksCreated = 0;
   if (analysis?.issues) {
     for (const issue of analysis.issues) {
@@ -5048,7 +5105,8 @@ Analysera synkroniseringsproblem mellan frontend och backend. Klassificera varje
           status: "open",
           priority: issue.severity === "critical" ? "critical" : "high",
           item_type: "bug",
-          source_type: "ai_detection",
+          source_type: "ai_scan",
+          source_id: scanId || undefined,
           ai_detected: true,
           ai_confidence: "high",
           ai_category: "data_integrity",
@@ -5059,18 +5117,8 @@ Analysera synkroniseringsproblem mellan frontend och backend. Klassificera varje
     }
   }
 
-  // Store scan result
-  await supabase.from("ai_scan_results").insert({
-    scan_type: "sync_scan",
-    overall_score: analysis?.sync_score || 0,
-    overall_status: (analysis?.sync_score || 0) >= 80 ? "healthy" : (analysis?.sync_score || 0) >= 50 ? "warning" : "critical",
-    executive_summary: analysis?.executive_summary || "",
-    results: { ...analysis, auto_fixed_count: autoFixCount },
-    issues_count: analysis?.issues_found || 0,
-    tasks_created: tasksCreated,
-  });
-
-  return { ...analysis, tasks_created: tasksCreated, auto_fixed_count: autoFixCount };
+  if (scanId && tasksCreated > 0) await updateScanTaskCount(supabase, scanId, tasksCreated);
+  return { ...analysis, tasks_created: tasksCreated, auto_fixed_count: autoFixCount, scan_id: scanId };
 }
 
 // ── Action Governor (Lovable 0.5) ──

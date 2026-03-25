@@ -93,7 +93,7 @@ export const runUnifiedPipeline = async (
       const { data: linkedItems } = await supabase
         .from('work_items' as any)
         .select('id')
-        .eq('source_type', 'ai_scan')
+        .in('source_type', ['ai_scan', 'ai_detection'])
         .eq('source_id', scan.id)
         .limit(5);
 
