@@ -1271,7 +1271,7 @@ const BugAITab = () => {
 
               {/* Expanded content */}
               {isExpanded && (
-                <div className="border-t px-3 pb-3 space-y-3">
+                <div key={selectedBugId} className="border-t px-3 pb-3 space-y-3">
                   {/* Action buttons */}
                   <div className="flex gap-1.5 pt-2 flex-wrap">
                     <Button size="sm" variant="outline" className="gap-1 h-7 text-xs" disabled={analyzing === bug.id} onClick={(e) => { e.stopPropagation(); analyzeBug(bug.id); }}>
