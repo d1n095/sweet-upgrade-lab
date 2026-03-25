@@ -533,7 +533,7 @@ Svara ALLTID på svenska. Använd unified_report-funktionen.`,
 
 // ── AI call helper ──
 async function callAI(apiKey: string, messages: any[], tools?: any[], tool_choice?: any) {
-  const body: any = { model: "google/gemini-3-flash-preview", messages };
+  const body: any = { model: "google/gemini-2.5-flash", messages };
   if (tools) body.tools = tools;
   if (tool_choice) body.tool_choice = tool_choice;
 
