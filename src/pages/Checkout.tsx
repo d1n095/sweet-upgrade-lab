@@ -15,7 +15,7 @@ import { useStoreSettings } from '@/stores/storeSettingsStore';
 import { logActivity } from '@/utils/activityLogger';
 import { trackCheckoutStart, trackCheckoutAbandon, trackEvent } from '@/utils/analyticsTracker';
 import { useAuth } from '@/hooks/useAuth';
-import { storeConfig } from '@/config/storeConfig';
+
 
 // Swedish postal code → city lookup
 const ZIP_CITY_MAP: Record<string, string> = {
