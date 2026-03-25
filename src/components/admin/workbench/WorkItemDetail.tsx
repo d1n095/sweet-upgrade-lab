@@ -587,26 +587,93 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                 )}
                 <div className="flex gap-2 pt-1">
                   <Button size="sm" variant="default" className="flex-1 gap-1 h-7 text-xs"
+                    disabled={runningPreVerify}
                     onClick={async () => {
-                      await onStatusChange(item.id, 'done');
-                      toast.success('Bekräftad som fixad');
-                      onRefresh?.();
-                      onOpenChange(false);
+                      setRunningPreVerify(true);
+                      try {
+                        // 1. Mark as done
+                        await onStatusChange(item.id, 'done');
+                        // 2. Log human confirmation
+                        await supabase.from('work_items').update({
+                          ai_pre_verify_status: 'confirmed',
+                          ai_pre_verify_result: {
+                            ...item.ai_pre_verify_result,
+                            human_confirmed: true,
+                            confirmed_at: new Date().toISOString(),
+                            confirmed_by: user?.id,
+                          },
+                          resolution_notes: `✅ Bekräftad via AI-förslag (${item.ai_pre_verify_result?.confidence || '?'}% konfidens)`,
+                        } as any).eq('id', item.id);
+                        // 3. Log to change_log
+                        await supabase.from('change_log').insert({
+                          change_type: 'verification',
+                          description: `Användare bekräftade AI-förslag: ${item.title}`,
+                          affected_components: [item.item_type, 'ai_pre_verify'],
+                          source: 'human_confirmation',
+                          work_item_id: item.id,
+                          bug_report_id: item.source_type === 'bug_report' ? item.source_id : null,
+                          metadata: { ai_confidence: item.ai_pre_verify_result?.confidence, action: 'confirm' },
+                        });
+                        // 4. Trigger post-verify review
+                        triggerAiReviewForWorkItem(item.id, { context: 'human_confirmed_pre_verify' });
+                        toast.success('✅ Bekräftad och verifierad');
+                        onRefresh?.();
+                        onOpenChange(false);
+                      } catch { toast.error('Fel'); }
+                      finally { setRunningPreVerify(false); }
                     }}
                   >
-                    <CheckCircle2 className="w-3 h-3" /> Bekräfta fixad
+                    {runningPreVerify ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+                    Bekräfta fixad
                   </Button>
-                  <Button size="sm" variant="outline" className="flex-1 gap-1 h-7 text-xs"
+                  <Button size="sm" variant="outline" className="flex-1 gap-1 h-7 text-xs text-destructive border-destructive/30"
+                    disabled={runningPreVerify}
                     onClick={async () => {
-                      await supabase.from('work_items').update({
-                        ai_pre_verify_status: 'dismissed',
-                        ai_pre_verify_result: { ...item.ai_pre_verify_result, dismissed: true, dismissed_at: new Date().toISOString() },
-                      } as any).eq('id', item.id);
-                      toast.info('Markerad som ej fixad');
-                      onRefresh?.();
+                      setRunningPreVerify(true);
+                      try {
+                        // 1. Escalate priority
+                        const newPriority = item.priority === 'low' ? 'medium' : item.priority === 'medium' ? 'high' : 'high';
+                        await supabase.from('work_items').update({
+                          ai_pre_verify_status: 'rejected',
+                          ai_pre_verify_result: {
+                            ...item.ai_pre_verify_result,
+                            human_rejected: true,
+                            rejected_at: new Date().toISOString(),
+                            rejected_by: user?.id,
+                          },
+                          priority: newPriority,
+                          status: 'open',
+                        } as any).eq('id', item.id);
+                        // 2. Log rejection
+                        await supabase.from('change_log').insert({
+                          change_type: 'rejection',
+                          description: `Användare avvisade AI-förslag: ${item.title} — prioritet eskalerad till ${newPriority}`,
+                          affected_components: [item.item_type, 'ai_pre_verify'],
+                          source: 'human_rejection',
+                          work_item_id: item.id,
+                          bug_report_id: item.source_type === 'bug_report' ? item.source_id : null,
+                          metadata: { ai_confidence: item.ai_pre_verify_result?.confidence, action: 'reject', escalated_to: newPriority },
+                        });
+                        toast.info('🔍 Avvisad — AI kör djupare analys...', { duration: 4000 });
+                        // 3. Trigger deeper scan in background
+                        const { data: { session } } = await supabase.auth.getSession();
+                        if (session && item.source_type === 'bug_report' && item.source_id) {
+                          fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+                            body: JSON.stringify({ type: 'deep_analysis', bug_id: item.source_id }),
+                          }).then(() => {
+                            toast.success('AI djupanalys slutförd');
+                            onRefresh?.();
+                          }).catch(() => {});
+                        }
+                        onRefresh?.();
+                      } catch { toast.error('Fel'); }
+                      finally { setRunningPreVerify(false); }
                     }}
                   >
-                    <AlertCircle className="w-3 h-3" /> Inte fixad
+                    {runningPreVerify ? <Loader2 className="w-3 h-3 animate-spin" /> : <AlertCircle className="w-3 h-3" />}
+                    Inte fixad
                   </Button>
                 </div>
               </div>
