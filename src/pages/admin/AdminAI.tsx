@@ -5002,11 +5002,22 @@ const OrchestrationTab = () => {
                 <span className="text-xs text-muted-foreground">
                   Använde Pass {result.governor_decision?.use_pass} — Score: {result.governor_decision?.final_score}/100
                 </span>
+                {result.governor_decision?.early_stop && (
+                  <Badge className="bg-blue-500/10 text-blue-600 text-[10px]">⚡ Early Stop</Badge>
+                )}
+                <Badge variant="outline" className="text-[10px]">
+                  {result.governor_decision?.passes_run || 2} pass(es) körda
+                </Badge>
                 {result.prompts_queued > 0 && (
                   <Badge variant="outline" className="text-xs">{result.prompts_queued} prompts köade</Badge>
                 )}
               </div>
               <p className="text-xs text-muted-foreground">{result.governor_decision?.reason}</p>
+              {result.governor_decision?.stop_reason && (
+                <div className="p-2 rounded border border-blue-500/20 bg-blue-500/5 text-xs text-blue-700">
+                  <span className="font-medium">Stop-villkor:</span> {result.governor_decision.stop_reason}
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -5061,7 +5072,8 @@ const OrchestrationTab = () => {
           </Card>
 
           {/* Pass 2 */}
-          <Card>
+          {result.pass2 ? (
+           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
                 <ArrowRight className="w-4 h-4 text-green-500" />
@@ -5079,7 +5091,12 @@ const OrchestrationTab = () => {
                   </div>
                   <Separator />
                   <div>
-                    <p className="text-xs font-semibold mb-1">🔴 Critical Validator — Score: {result.pass2?.validator?.final_approval_score}/100</p>
+                    <p className="text-xs font-semibold mb-1">
+                      {result.pass2?.validator?.skipped_critical_review ? '🟡' : '🔴'} Critical Validator — Score: {result.pass2?.validator?.final_approval_score}/100
+                    </p>
+                    {result.pass2?.validator?.skipped_critical_review && (
+                      <Badge className="bg-yellow-500/10 text-yellow-600 text-[10px] mb-1">Förenklad granskning (minimal förbättring)</Badge>
+                    )}
                     <p className="text-xs text-muted-foreground">{result.pass2?.validator?.final_verdict}</p>
                     {result.pass2?.validator?.must_fix_before_deploy?.length > 0 && (
                       <div className="mt-2 p-2 rounded border border-destructive/30 bg-destructive/5">
@@ -5095,7 +5112,7 @@ const OrchestrationTab = () => {
                           issue.severity === 'critical' ? 'border-red-500 text-red-600' :
                           issue.severity === 'high' ? 'border-orange-500 text-orange-600' : ''
                         )}>{issue.severity}</Badge>
-                        <Badge variant="outline" className="text-[10px]">{issue.category}</Badge>
+                        {issue.category && <Badge variant="outline" className="text-[10px]">{issue.category}</Badge>}
                         <span className="text-[10px] text-muted-foreground">{issue.issue}</span>
                       </div>
                     ))}
@@ -5143,7 +5160,18 @@ const OrchestrationTab = () => {
                 </div>
               </ScrollArea>
             </CardContent>
-          </Card>
+           </Card>
+          ) : (
+           <Card className="border-blue-500/20 bg-blue-500/5">
+            <CardContent className="py-4">
+              <div className="flex items-center gap-2">
+                <Zap className="w-4 h-4 text-blue-500" />
+                <p className="text-xs font-medium">Pass 2 hoppades över — lösningen var redan stabil</p>
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1">{result.governor_decision?.stop_reason}</p>
+            </CardContent>
+           </Card>
+          )}
 
           {/* Final Actions */}
           <Card>
