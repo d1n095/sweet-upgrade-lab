@@ -4268,6 +4268,7 @@ const OverflowScanTab = () => {
   );
 };
 
+const AdminAI = () => {
   const [detailItem, setDetailItem] = useState<any>(null);
   const queryClient = useQueryClient();
 
