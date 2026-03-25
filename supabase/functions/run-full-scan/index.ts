@@ -898,7 +898,309 @@ async function runDataIntegrityScan(supabase: any, scanRunId: string): Promise<a
   };
 }
 
-// ── Helper: Create work items from unified findings ──
+// ── FUNCTIONAL BEHAVIOR SCAN: Detect action chains that don't produce expected results ──
+async function runFunctionalBehaviorScan(supabase: any, scanRunId: string): Promise<any> {
+  const failures: any[] = [];
+  const startMs = Date.now();
+  const traceId = `behavior-${scanRunId.slice(0, 8)}`;
+
+  try {
+    // ── ACTION CHAIN 1: Create work item → save to DB → verify existence ──
+    // Test: insert a probe row, verify it exists, then delete it
+    const probeTitle = `__behavior_probe_${Date.now()}`;
+    const { data: probeInsert, error: insertErr } = await supabase
+      .from("work_items")
+      .insert({
+        title: probeTitle,
+        status: "cancelled",
+        priority: "low",
+        item_type: "general",
+        source_type: "behavior_scan",
+        description: "Temporary probe for functional behavior scan — will be auto-deleted",
+      })
+      .select("id, title, status")
+      .single();
+
+    if (insertErr || !probeInsert) {
+      failures.push({
+        chain: "create_work_item",
+        action: "INSERT work_item",
+        expected: "Row created and returned with ID",
+        actual: insertErr ? `Error: ${insertErr.message}` : "No data returned",
+        failure_type: "action_failed",
+        step: "action → backend → database",
+        severity: "critical",
+      });
+    } else {
+      // Verify fetch-back
+      const { data: fetched, error: fetchErr } = await supabase
+        .from("work_items")
+        .select("id, title, status")
+        .eq("id", probeInsert.id)
+        .maybeSingle();
+
+      if (fetchErr || !fetched) {
+        failures.push({
+          chain: "create_work_item",
+          action: "VERIFY work_item after INSERT",
+          expected: `Row ${probeInsert.id} retrievable from DB`,
+          actual: fetchErr ? `Fetch error: ${fetchErr.message}` : "Row not found — lost_state",
+          failure_type: "lost_state",
+          step: "database → fetch",
+          severity: "critical",
+          entity_id: probeInsert.id,
+        });
+      } else if (fetched.title !== probeTitle) {
+        failures.push({
+          chain: "create_work_item",
+          action: "COMPARE work_item title",
+          expected: probeTitle,
+          actual: fetched.title,
+          failure_type: "silent_failure",
+          step: "database → fetch → compare",
+          severity: "high",
+          entity_id: probeInsert.id,
+        });
+      }
+      // Cleanup probe
+      await supabase.from("work_items").delete().eq("id", probeInsert.id);
+    }
+
+    // ── ACTION CHAIN 2: Bug report → work_item trigger → verify linked task ──
+    // Check: for recent bugs, does a corresponding work_item exist?
+    const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    const { data: recentBugs } = await supabase
+      .from("bug_reports")
+      .select("id, description, created_at")
+      .gte("created_at", fiveMinAgo)
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    for (const bug of recentBugs || []) {
+      const { data: linkedWi } = await supabase
+        .from("work_items")
+        .select("id")
+        .eq("source_type", "bug_report")
+        .eq("source_id", bug.id)
+        .limit(1);
+
+      if (!linkedWi?.length) {
+        failures.push({
+          chain: "bug_to_work_item",
+          action: "Bug trigger → create work_item",
+          expected: `Work item created for bug ${bug.id.slice(0, 8)}`,
+          actual: "No work_item found — trigger may have failed",
+          failure_type: "action_failed",
+          step: "database trigger → work_items",
+          severity: "high",
+          entity_id: bug.id,
+        });
+      }
+    }
+
+    // ── ACTION CHAIN 3: Incident → work_item creation → verify linked task ──
+    const { data: recentIncidents } = await supabase
+      .from("order_incidents")
+      .select("id, title, created_at")
+      .gte("created_at", fiveMinAgo)
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    for (const inc of recentIncidents || []) {
+      const { data: linkedWi } = await supabase
+        .from("work_items")
+        .select("id")
+        .eq("source_type", "order_incident")
+        .eq("source_id", inc.id)
+        .limit(1);
+
+      if (!linkedWi?.length) {
+        failures.push({
+          chain: "incident_to_work_item",
+          action: "Incident trigger → create work_item",
+          expected: `Work item created for incident ${inc.id.slice(0, 8)}`,
+          actual: "No work_item found — trigger may have failed",
+          failure_type: "action_failed",
+          step: "database trigger → work_items",
+          severity: "high",
+          entity_id: inc.id,
+        });
+      }
+    }
+
+    // ── ACTION CHAIN 4: Work item status change → source sync ──
+    // Check: done work_items with source_type bug_report → is bug resolved?
+    const { data: doneWiFromBugs } = await supabase
+      .from("work_items")
+      .select("id, title, source_id")
+      .eq("status", "done")
+      .eq("source_type", "bug_report")
+      .not("source_id", "is", null)
+      .order("completed_at", { ascending: false })
+      .limit(20);
+
+    for (const wi of doneWiFromBugs || []) {
+      const { data: bug } = await supabase
+        .from("bug_reports")
+        .select("id, status")
+        .eq("id", wi.source_id)
+        .maybeSingle();
+
+      if (bug && bug.status !== "resolved") {
+        failures.push({
+          chain: "status_sync",
+          action: "Work item done → bug resolved",
+          expected: `Bug ${wi.source_id.slice(0, 8)} status = resolved`,
+          actual: `Bug status = ${bug.status}`,
+          failure_type: "partial_execution",
+          step: "work_item status → sync trigger → bug_reports",
+          severity: "high",
+          entity_id: wi.id,
+        });
+      }
+    }
+
+    // ── ACTION CHAIN 5: Scan dismissal → item does not reappear incorrectly ──
+    const { data: dismissals } = await supabase
+      .from("scan_dismissals")
+      .select("issue_key, scan_type, dismissed_at")
+      .order("dismissed_at", { ascending: false })
+      .limit(50);
+
+    const { data: activeWorkItems } = await supabase
+      .from("work_items")
+      .select("id, title, source_type")
+      .in("status", ["open", "claimed", "in_progress"])
+      .eq("source_type", "scan")
+      .limit(200);
+
+    for (const d of dismissals || []) {
+      const reappeared = (activeWorkItems || []).find(
+        (wi: any) => wi.title?.includes(d.issue_key)
+      );
+      if (reappeared) {
+        failures.push({
+          chain: "dismiss_reappear",
+          action: "Dismiss issue → should not reappear",
+          expected: `Issue "${d.issue_key}" stays dismissed`,
+          actual: `Reappeared as work_item ${reappeared.id.slice(0, 8)}: "${reappeared.title}"`,
+          failure_type: "silent_failure",
+          step: "scan_dismissals → scan → work_items",
+          severity: "medium",
+          entity_id: reappeared.id,
+        });
+      }
+    }
+
+    // ── ACTION CHAIN 6: Order → payment status → work item lifecycle ──
+    const { data: paidOrders } = await supabase
+      .from("orders")
+      .select("id, status, payment_status, fulfillment_status")
+      .eq("payment_status", "paid")
+      .in("fulfillment_status", ["shipped", "delivered"])
+      .is("deleted_at", null)
+      .limit(50);
+
+    for (const order of paidOrders || []) {
+      const { data: activeWi } = await supabase
+        .from("work_items")
+        .select("id, title, item_type")
+        .eq("related_order_id", order.id)
+        .in("status", ["open", "claimed", "in_progress"])
+        .in("item_type", ["pack_order", "packing", "shipping"])
+        .limit(1);
+
+      if (activeWi?.length) {
+        failures.push({
+          chain: "order_lifecycle",
+          action: "Order shipped/delivered → close packing tasks",
+          expected: `No active packing/shipping tasks for order ${order.id.slice(0, 8)}`,
+          actual: `Active task: "${activeWi[0].title}" (${activeWi[0].item_type})`,
+          failure_type: "stale_state",
+          step: "order status → cleanup → work_items",
+          severity: "medium",
+          entity_id: activeWi[0].id,
+        });
+      }
+    }
+
+    // ── ACTION CHAIN 7: Notification creation on incident ──
+    const { data: recentNotifIncidents } = await supabase
+      .from("order_incidents")
+      .select("id, title, created_at")
+      .gte("created_at", new Date(Date.now() - 60 * 60 * 1000).toISOString())
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    for (const inc of recentNotifIncidents || []) {
+      const { data: notifs } = await supabase
+        .from("notifications")
+        .select("id")
+        .eq("related_id", inc.id)
+        .eq("related_type", "incident")
+        .limit(1);
+
+      if (!notifs?.length) {
+        failures.push({
+          chain: "incident_notification",
+          action: "Incident created → notification sent to admins",
+          expected: `Notification for incident ${inc.id.slice(0, 8)}`,
+          actual: "No notification found",
+          failure_type: "action_failed",
+          step: "incident trigger → notifications",
+          severity: "medium",
+          entity_id: inc.id,
+        });
+      }
+    }
+
+  } catch (e: any) {
+    console.error("Functional behavior scan error:", e);
+    failures.push({
+      chain: "scan_error",
+      action: "Run functional behavior scan",
+      expected: "Scan completes without error",
+      actual: `Error: ${e.message}`,
+      failure_type: "action_failed",
+      step: "scan execution",
+      severity: "critical",
+    });
+  }
+
+  const durationMs = Date.now() - startMs;
+
+  // Classify
+  const byType = {
+    action_failed: failures.filter(f => f.failure_type === "action_failed").length,
+    partial_execution: failures.filter(f => f.failure_type === "partial_execution").length,
+    silent_failure: failures.filter(f => f.failure_type === "silent_failure").length,
+    lost_state: failures.filter(f => f.failure_type === "lost_state").length,
+    stale_state: failures.filter(f => f.failure_type === "stale_state").length,
+  };
+
+  // Log to observability
+  await supabase.from("system_observability_log").insert({
+    event_type: "scan_step",
+    severity: failures.filter(f => f.severity === "critical").length > 0 ? "warning" : "info",
+    source: "scanner",
+    message: `Functional behavior scan: ${failures.length} failures detected`,
+    details: { total_failures: failures.length, by_type: byType },
+    scan_id: scanRunId,
+    trace_id: traceId,
+    component: "functional_behavior_scan",
+    duration_ms: durationMs,
+  }).catch(() => {});
+
+  return {
+    failures,
+    total_failures: failures.length,
+    by_type: byType,
+    duration_ms: durationMs,
+    scanned_at: new Date().toISOString(),
+  };
+}
+
+
 async function createWorkItems(supabase: any, unified: any, startedBy: string): Promise<number> {
   let workItemsCreated = 0;
   const allWorkIssues: { title: string; priority: string; item_type: string; description?: string }[] = [];
@@ -1409,11 +1711,19 @@ serve(async (req) => {
       const integrityResult = await runDataIntegrityScan(supabase, scan_run_id);
 
       await supabase.from("scan_runs").update({
+        current_step_label: "Kör funktionell beteendeskanning...",
+      }).eq("id", scan_run_id);
+
+      // ── Run Functional Behavior Scan ──
+      const behaviorResult = await runFunctionalBehaviorScan(supabase, scan_run_id);
+
+      await supabase.from("scan_runs").update({
         current_step_label: "Sammanställer resultat...",
       }).eq("id", scan_run_id);
 
       const updatedResults = scanRun.steps_results || {};
       updatedResults._data_integrity = integrityResult;
+      updatedResults._functional_behavior = behaviorResult;
 
       const totalDuration = Object.values(updatedResults).reduce(
         (sum: number, r: any) => sum + (r?._duration_ms || 0), 0
@@ -1437,6 +1747,23 @@ serve(async (req) => {
       // Add integrity_issues as dedicated field
       unified.integrity_issues = integrityResult.issues || [];
       unified.integrity_summary = integrityResult.by_type || {};
+      // Add behavior failures as dedicated field
+      unified.behavior_failures = behaviorResult.failures || [];
+      unified.behavior_summary = behaviorResult.by_type || {};
+
+      // Merge critical/high behavior failures into interaction_failures for scoring
+      for (const f of behaviorResult.failures || []) {
+        if (f.severity === "critical" || f.severity === "high") {
+          unified.interaction_failures.push({
+            title: `[Behavior] ${f.chain}: ${f.action}`,
+            description: `Expected: ${f.expected}\nActual: ${f.actual}`,
+            severity: f.severity,
+            type: f.failure_type,
+            step: f.step,
+            source: "behavior_scan",
+          });
+        }
+      }
 
       const issuesCount = unified.broken_flows.length + unified.fake_features.length +
         unified.interaction_failures.length + unified.data_issues.length;
