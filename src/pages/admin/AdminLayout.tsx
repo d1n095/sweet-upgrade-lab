@@ -8,7 +8,7 @@ import {
   Loader2, Package, ClipboardList, BarChart3, Settings, Grid, Users,
   Handshake, Heart, Eye, LogOut, Home, Shield, Crown,
   Activity, User, Menu, X, Star, FileText, Percent, Truck, Wallet, Globe,
-  AlertTriangle, ScanLine, Sparkles, History,
+  AlertTriangle, ScanLine, Sparkles, History, ShoppingCart,
 } from 'lucide-react';
 import { useEmployeeRole } from '@/hooks/useEmployeeRole';
 import { useFounderRole } from '@/hooks/useFounderRole';
@@ -51,6 +51,7 @@ const navGroups: NavGroup[] = [
     items: [
       { to: '/admin/ops', label: 'Operations', icon: ClipboardList, role: 'all' },
       { to: '/admin/orders', label: 'Ordrar', icon: ClipboardList, role: 'all' },
+      { to: '/admin/pos', label: 'Kassa (POS)', icon: ShoppingCart, role: 'all' },
       { to: '/admin/incidents', label: 'Ärenden', icon: AlertTriangle, role: 'all' },
       { to: '/admin/warehouse', label: 'Warehouse', icon: ScanLine, role: 'all' },
       { to: '/admin/shipping', label: 'Frakt', icon: Truck, role: 'admin' },
