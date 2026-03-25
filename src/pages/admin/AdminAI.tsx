@@ -2402,7 +2402,7 @@ const SystemScanTab = () => {
                     </div>
                   ))}
                 </div>
-              </ScrollArea>
+              </div>
             </div>
           )}
 
