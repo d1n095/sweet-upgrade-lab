@@ -188,7 +188,74 @@ function detectRegressions(task: QueueTask, postSnapshot: Record<string, any>): 
   return regressions;
 }
 
-async function runPostChecks(
+/** Create change_log entry for a completed task (with dedup check) */
+async function createChangeLogForTask(task: QueueTask) {
+  // Dedup: check if change_log already exists for this work_item_id
+  const { data: existing } = await supabase
+    .from('change_log')
+    .select('id')
+    .eq('work_item_id', task.id)
+    .limit(1);
+
+  if (existing && existing.length > 0) return;
+
+  await logChange({
+    change_type: 'fix',
+    description: task.title,
+    affected_components: [],
+    source: 'ai',
+    work_item_id: task.id,
+    metadata: {
+      priority: task.priority,
+      completedAt: new Date().toISOString(),
+      auto_generated: true,
+    },
+  });
+}
+
+/** Retroactive fix: create change_log for all completed work_items missing entries */
+export async function backfillChangeLog() {
+  const { data: workItems } = await supabase
+    .from('work_items' as any)
+    .select('id, title, source_type, source_id, completed_at')
+    .eq('status', 'done');
+
+  if (!workItems || workItems.length === 0) return { created: 0, skipped: 0 };
+
+  let created = 0;
+  let skipped = 0;
+
+  for (const wi of workItems) {
+    const { data: existing } = await supabase
+      .from('change_log')
+      .select('id')
+      .eq('work_item_id', wi.id)
+      .limit(1);
+
+    if (existing && existing.length > 0) {
+      skipped++;
+      continue;
+    }
+
+    await logChange({
+      change_type: 'fix',
+      description: (wi as any).title || 'Retroaktiv change_log',
+      source: 'system',
+      work_item_id: wi.id,
+      bug_report_id: (wi as any).source_type === 'bug' ? (wi as any).source_id : undefined,
+      metadata: {
+        auto_generated: true,
+        retroactive: true,
+        original_completed_at: (wi as any).completed_at,
+      },
+    });
+    created++;
+  }
+
+  return { created, skipped };
+}
+
+
   task: QueueTask,
   result: any,
   set: (fn: (s: AiQueueState) => Partial<AiQueueState>) => void,
