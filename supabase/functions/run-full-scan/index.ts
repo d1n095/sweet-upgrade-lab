@@ -589,19 +589,23 @@ serve(async (req) => {
         }
       }
 
+      // Load focus memory to prioritize scan steps
+      const focusMemory = await loadFocusMemory(supabase);
+      const prioritizedSteps = prioritizeSteps(STEPS, focusMemory);
+
       // Create scan run
       const { data: scanRun, error: insertError } = await supabase.from("scan_runs").insert({
         status: "running",
         started_by: userId,
         current_step: 0,
-        total_steps: STEPS.length,
-        current_step_label: STEPS[0].label,
+        total_steps: prioritizedSteps.length,
+        current_step_label: prioritizedSteps[0].label,
         steps_results: {},
         iteration: 1,
         max_iterations: MAX_ITERATIONS,
         iteration_results: [],
         pattern_discoveries: [],
-        high_risk_areas: [],
+        high_risk_areas: focusMemory.slice(0, 10).map((m: any) => ({ component: m.label, issue_count: m.issue_count, risk_level: m.severity, source: "focus_memory" })),
         coverage_score: 0,
         total_new_issues: 0,
       }).select("id").single();
