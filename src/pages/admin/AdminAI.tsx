@@ -3482,11 +3482,15 @@ interface VisualQAResult {
 }
 
 type IssueStatus = 'open' | 'done' | 'ignored';
+type AiDecision = 'auto_fix' | 'needs_prompt' | 'ignore';
 interface IssueState {
   status: IssueStatus;
   note?: string;
   updatedAt: string;
-  aiAnalysis?: { root_cause: string; auto_fixable: boolean; fix_steps: string[]; impact: string; confidence: string };
+  aiDecision?: AiDecision;
+  aiDecisionReason?: string;
+  generatedPrompt?: string;
+  aiAnalysis?: { root_cause: string; auto_fixable: boolean; fix_steps: string[]; impact: string; confidence: string; decision: AiDecision; decision_reason: string; lovable_prompt?: string };
 }
 
 const VisualQATab = () => {
@@ -3499,6 +3503,7 @@ const VisualQATab = () => {
   const [analyzingIdx, setAnalyzingIdx] = useState<number | null>(null);
   const [ignoreNote, setIgnoreNote] = useState('');
   const [scanMeta, setScanMeta] = useState<{ id: string; created_at: string } | null>(null);
+  const [triaging, setTriaging] = useState(false);
 
   // Load last scan on mount
   useEffect(() => {
@@ -3547,7 +3552,23 @@ const VisualQATab = () => {
   const analyzeIssue = async (issue: QAIssue, idx: number) => {
     setAnalyzingIdx(idx);
     const res = await callAI('lova_chat', {
-      message: `Analysera detta Visual QA-problem i detalj och ge mig: 1) root cause, 2) om det kan auto-fixas, 3) steg för att fixa, 4) impact-bedömning, 5) confidence-nivå (high/medium/low). Svara i JSON-format med fälten: root_cause, auto_fixable (boolean), fix_steps (array), impact, confidence.\n\nProblem: ${issue.title}\nSida: ${issue.page}\nBreakpoint: ${issue.breakpoint}\nKategori: ${issue.category}\nSeverity: ${issue.severity}\nBeskrivning: ${issue.description}\nFörslag: ${issue.fix_suggestion}`,
+      message: `Analysera detta Visual QA-problem och bestäm hur det ska hanteras. Svara i JSON-format med fälten:
+- root_cause (string): grundorsak
+- auto_fixable (boolean): kan fixas automatiskt utan kodändring?
+- fix_steps (array of strings): steg för att fixa
+- impact (string): impact-bedömning
+- confidence (string: high/medium/low)
+- decision (string: "auto_fix" om du bedömer att det kan fixas direkt utan mänsklig hjälp, "needs_prompt" om det kräver en Lovable-prompt/kodändring, "ignore" om det är en falsk positiv eller inte värt att åtgärda)
+- decision_reason (string): kort motivering till beslutet
+- lovable_prompt (string, valfritt): om decision är "needs_prompt", generera en tydlig och komplett Lovable-prompt för att fixa problemet
+
+Problem: ${issue.title}
+Sida: ${issue.page}
+Breakpoint: ${issue.breakpoint}
+Kategori: ${issue.category}
+Severity: ${issue.severity}
+Beskrivning: ${issue.description}
+Förslag: ${issue.fix_suggestion}`,
       conversation_id: null,
     });
     if (res?.response) {
@@ -3555,20 +3576,81 @@ const VisualQATab = () => {
         const jsonMatch = res.response.match(/\{[\s\S]*\}/);
         const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
         if (parsed) {
+          const decision: AiDecision = ['auto_fix', 'needs_prompt', 'ignore'].includes(parsed.decision) ? parsed.decision : 'needs_prompt';
           setIssueStates(prev => ({
             ...prev,
-            [idx]: { ...prev[idx] || { status: 'open', updatedAt: new Date().toISOString() }, aiAnalysis: parsed }
+            [idx]: {
+              ...prev[idx] || { status: 'open', updatedAt: new Date().toISOString() },
+              aiAnalysis: { ...parsed, decision, decision_reason: parsed.decision_reason || '' },
+              aiDecision: decision,
+              aiDecisionReason: parsed.decision_reason || '',
+              generatedPrompt: parsed.lovable_prompt || issue.lovable_prompt,
+            }
           }));
+          // Auto-handle based on decision
+          await handleAiDecision(issue, idx, decision, parsed);
         }
       } catch {
-        // If AI didn't return JSON, store the text as root_cause
         setIssueStates(prev => ({
           ...prev,
-          [idx]: { ...prev[idx] || { status: 'open', updatedAt: new Date().toISOString() }, aiAnalysis: { root_cause: res.response, auto_fixable: false, fix_steps: [], impact: 'Okänd', confidence: 'low' } }
+          [idx]: {
+            ...prev[idx] || { status: 'open', updatedAt: new Date().toISOString() },
+            aiAnalysis: { root_cause: res.response, auto_fixable: false, fix_steps: [], impact: 'Okänd', confidence: 'low', decision: 'needs_prompt' as AiDecision, decision_reason: 'Kunde inte tolka AI-svar' },
+            aiDecision: 'needs_prompt' as AiDecision,
+          }
         }));
       }
     }
     setAnalyzingIdx(null);
+  };
+
+  const handleAiDecision = async (issue: QAIssue, idx: number, decision: AiDecision, analysis: any) => {
+    if (decision === 'auto_fix') {
+      // Create work item marked as auto-fixable and mark issue done
+      try {
+        await supabase.from('work_items' as any).insert({
+          title: `[Auto-fix] ${issue.title}`,
+          description: `AI-beslut: Auto-fix\n\n${issue.description}\n\nGrundorsak: ${analysis.root_cause}\nFixsteg:\n${(analysis.fix_steps || []).map((s: string, i: number) => `${i + 1}. ${s}`).join('\n')}`,
+          item_type: 'bug',
+          priority: issue.severity === 'critical' ? 'critical' : issue.severity === 'high' ? 'high' : 'medium',
+          status: 'open',
+          source_type: 'ai_visual_qa',
+          source_id: scanMeta?.id || null,
+        } as any);
+        setIssueStatus(idx, 'done', 'AI auto-fix: uppgift skapad');
+        toast.success(`🤖 Auto-fix: ${issue.title}`);
+      } catch {
+        toast.error('Kunde inte skapa auto-fix uppgift');
+      }
+    } else if (decision === 'ignore') {
+      setIssueStatus(idx, 'ignored', analysis.decision_reason || 'AI bedömde som ej åtgärdskrävande');
+      toast.info(`⏭️ AI ignorerade: ${issue.title}`);
+    }
+    // needs_prompt: stays open with generated prompt visible
+  };
+
+  const smartTriageAll = async () => {
+    const openIssues = (result?.issues || [])
+      .map((issue, idx) => ({ issue, idx }))
+      .filter(({ idx }) => getState(idx).status === 'open' && !getState(idx).aiDecision);
+
+    if (openIssues.length === 0) { toast.info('Inga öppna problem utan AI-beslut'); return; }
+    setTriaging(true);
+    toast.info(`Triagerar ${openIssues.length} problem...`);
+
+    for (const { issue, idx } of openIssues) {
+      await analyzeIssue(issue, idx);
+      // Small delay between calls to avoid rate limiting
+      await new Promise(r => setTimeout(r, 500));
+    }
+
+    setTriaging(false);
+    const states = { auto_fix: 0, needs_prompt: 0, ignore: 0 };
+    openIssues.forEach(({ idx }) => {
+      const d = getState(idx).aiDecision;
+      if (d) states[d]++;
+    });
+    toast.success(`Triage klar: ${states.auto_fix} auto-fix, ${states.needs_prompt} prompt, ${states.ignore} ignorerade`);
   };
 
   const createTaskFromIssue = async (issue: QAIssue, idx: number) => {
@@ -3619,10 +3701,18 @@ const VisualQATab = () => {
             {scanMeta && <span className="ml-2 text-[10px] text-muted-foreground/60">Senast: {new Date(scanMeta.created_at).toLocaleString('sv-SE')}</span>}
           </p>
         </div>
-        <Button onClick={run} disabled={loading} className="gap-2">
-          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Radar className="w-4 h-4" />}
-          {loading ? 'Analyserar...' : 'Kör Visual QA'}
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={run} disabled={loading || triaging} className="gap-2">
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Radar className="w-4 h-4" />}
+            {loading ? 'Analyserar...' : 'Kör Visual QA'}
+          </Button>
+          {result && (result.issues?.length || 0) > 0 && (
+            <Button onClick={smartTriageAll} disabled={loading || triaging} variant="outline" className="gap-2">
+              {triaging ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bot className="w-4 h-4" />}
+              {triaging ? 'Triagerar...' : 'Smart Triage'}
+            </Button>
+          )}
+        </div>
       </div>
 
       {!result && !loading && (
@@ -3760,6 +3850,11 @@ const VisualQATab = () => {
                           <span className={cn('text-sm font-medium truncate', state.status !== 'open' && 'line-through')}>{issue.title}</span>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
+                          {state.aiDecision && (
+                            <Badge variant={state.aiDecision === 'auto_fix' ? 'default' : state.aiDecision === 'ignore' ? 'outline' : 'secondary'} className="text-[10px]">
+                              {state.aiDecision === 'auto_fix' ? '⚡' : state.aiDecision === 'ignore' ? '⏭️' : '📝'}
+                            </Badge>
+                          )}
                           <Badge variant="outline" className="text-[10px]">{issue.page}</Badge>
                           <Badge variant={issue.severity === 'critical' ? 'destructive' : 'outline'} className={cn('text-[10px]', sevColor(issue.severity))}>{issue.severity}</Badge>
                           <ChevronDown className={cn('w-4 h-4 text-muted-foreground transition-transform', isExpanded && 'rotate-180')} />
@@ -3814,10 +3909,25 @@ const VisualQATab = () => {
                             </div>
                           </div>
 
-                          {/* AI Analysis section */}
+                          {/* AI Analysis & Decision section */}
                           {state.aiAnalysis && (
-                            <div className="border rounded-lg p-3 bg-card space-y-2">
-                              <p className="text-[10px] font-semibold text-primary uppercase tracking-wider flex items-center gap-1"><Bot className="w-3 h-3" /> AI-analys</p>
+                            <div className="border rounded-lg p-3 bg-card space-y-3">
+                              <div className="flex items-center justify-between">
+                                <p className="text-[10px] font-semibold text-primary uppercase tracking-wider flex items-center gap-1"><Bot className="w-3 h-3" /> AI-analys & beslut</p>
+                                {state.aiDecision && (
+                                  <Badge variant={state.aiDecision === 'auto_fix' ? 'default' : state.aiDecision === 'ignore' ? 'outline' : 'secondary'} className="text-[10px]">
+                                    {state.aiDecision === 'auto_fix' ? '⚡ Auto-fix' : state.aiDecision === 'ignore' ? '⏭️ Ignorera' : '📝 Kräver prompt'}
+                                  </Badge>
+                                )}
+                              </div>
+
+                              {/* Decision reason */}
+                              {state.aiDecisionReason && (
+                                <div className="bg-muted/40 rounded-md p-2 text-xs">
+                                  <span className="font-medium text-muted-foreground">AI-motivering: </span>{state.aiDecisionReason}
+                                </div>
+                              )}
+
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                                 <div>
                                   <p className="font-medium text-muted-foreground mb-0.5">Grundorsak</p>
@@ -3828,7 +3938,7 @@ const VisualQATab = () => {
                                   <p>{state.aiAnalysis.impact}</p>
                                 </div>
                               </div>
-                              <div className="flex gap-2 items-center">
+                              <div className="flex gap-2 items-center flex-wrap">
                                 <Badge variant={state.aiAnalysis.auto_fixable ? 'default' : 'outline'} className="text-[10px]">
                                   {state.aiAnalysis.auto_fixable ? '🟢 Auto-fixbar' : '🔴 Manuell fix krävs'}
                                 </Badge>
@@ -3842,6 +3952,19 @@ const VisualQATab = () => {
                                   </ol>
                                 </div>
                               )}
+
+                              {/* Generated Lovable prompt for needs_prompt */}
+                              {state.aiDecision === 'needs_prompt' && state.generatedPrompt && (
+                                <div className="border border-primary/20 rounded-md p-3 bg-primary/5 space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <p className="text-[10px] font-semibold text-primary uppercase tracking-wider">Genererad Lovable-prompt</p>
+                                    <Button variant="ghost" size="sm" className="text-xs gap-1 h-6" onClick={() => { navigator.clipboard.writeText(state.generatedPrompt!); toast.success('Prompt kopierad'); }}>
+                                      <Copy className="w-3 h-3" /> Kopiera
+                                    </Button>
+                                  </div>
+                                  <p className="text-xs whitespace-pre-wrap font-mono bg-muted/30 rounded p-2 max-h-40 overflow-y-auto">{state.generatedPrompt}</p>
+                                </div>
+                              )}
                             </div>
                           )}
 
@@ -3849,9 +3972,9 @@ const VisualQATab = () => {
                           <div className="flex items-center gap-2 flex-wrap pt-1">
                             {state.status === 'open' && (
                               <>
-                                <Button variant="default" size="sm" className="text-xs gap-1.5 h-7" onClick={() => analyzeIssue(issue, idx)} disabled={isAnalyzing}>
+                                <Button variant="default" size="sm" className="text-xs gap-1.5 h-7" onClick={() => analyzeIssue(issue, idx)} disabled={isAnalyzing || triaging}>
                                   {isAnalyzing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Bot className="w-3 h-3" />}
-                                  {state.aiAnalysis ? 'Analysera igen' : 'AI-analys'}
+                                  {state.aiAnalysis ? 'Analysera igen' : 'AI-beslut'}
                                 </Button>
                                 <Button variant="outline" size="sm" className="text-xs gap-1.5 h-7" onClick={() => setIssueStatus(idx, 'done')}>
                                   <CheckCircle className="w-3 h-3" /> Markera klar
@@ -3866,7 +3989,7 @@ const VisualQATab = () => {
                                 <Button variant="outline" size="sm" className="text-xs gap-1.5 h-7" onClick={() => createTaskFromIssue(issue, idx)}>
                                   <Wrench className="w-3 h-3" /> Skapa uppgift
                                 </Button>
-                                <Button variant="ghost" size="sm" className="text-xs gap-1.5 h-7" onClick={() => { navigator.clipboard.writeText(issue.lovable_prompt); toast.success('Prompt kopierad'); }}>
+                                <Button variant="ghost" size="sm" className="text-xs gap-1.5 h-7" onClick={() => { navigator.clipboard.writeText(state.generatedPrompt || issue.lovable_prompt); toast.success('Prompt kopierad'); }}>
                                   <Copy className="w-3 h-3" /> Kopiera prompt
                                 </Button>
                               </>
