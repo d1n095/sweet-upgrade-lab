@@ -385,7 +385,7 @@ const Checkout = () => {
       <header className="fixed top-0 left-0 right-0 z-50 bg-background border-b border-border">
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
           <Link to="/" className="font-display text-lg font-bold tracking-tight">
-            {storeConfig.name || '4thepeople'}
+            4thepeople
           </Link>
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Lock className="w-3.5 h-3.5 text-primary" />
