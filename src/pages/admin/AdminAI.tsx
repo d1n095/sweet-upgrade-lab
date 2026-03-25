@@ -1709,8 +1709,63 @@ const SystemScanTab = () => {
   const [showHistory, setShowHistory] = useState(false);
   const [compareId, setCompareId] = useState<string | null>(null);
   const [compareData, setCompareData] = useState<any>(null);
+  const [dismissingIssue, setDismissingIssue] = useState<number | null>(null);
+  const [dismissNote, setDismissNote] = useState('');
+  const [showDismissed, setShowDismissed] = useState(false);
   const { openDetail } = useDetailContext();
   const queryClient = useQueryClient();
+
+  // Load dismissed issues
+  const { data: dismissals, refetch: refetchDismissals } = useQuery({
+    queryKey: ['scan-dismissals'],
+    queryFn: async () => {
+      const { data } = await supabase.from('scan_dismissals' as any).select('*').eq('scan_type', 'system_scan');
+      return (data || []) as { id: string; issue_key: string; issue_title: string; reason: string; dismissed_by: string; created_at: string }[];
+    },
+  });
+
+  const isDismissed = (issue: any) => {
+    const key = (issue.title || '').toLowerCase().trim();
+    return dismissals?.some(d => d.issue_key === key);
+  };
+
+  const handleDismiss = async (issue: any, index: number) => {
+    const key = (issue.title || '').toLowerCase().trim();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    await supabase.from('scan_dismissals' as any).upsert({
+      issue_key: key,
+      issue_title: issue.title,
+      reason: dismissNote || 'Ignorerad utan kommentar',
+      dismissed_by: session.user.id,
+      scan_type: 'system_scan',
+    } as any, { onConflict: 'issue_key,scan_type' });
+    setDismissingIssue(null);
+    setDismissNote('');
+    refetchDismissals();
+    toast.success('Issue ignorerad');
+  };
+
+  const handleUndismiss = async (issueKey: string) => {
+    await supabase.from('scan_dismissals' as any).delete().eq('issue_key', issueKey).eq('scan_type', 'system_scan');
+    refetchDismissals();
+    toast.success('Issue återaktiverad');
+  };
+
+  const handleCreateWorkItem = async (issue: any) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    await supabase.from('work_items' as any).insert({
+      title: `[Scan] ${issue.title}`,
+      description: `${issue.description}\n\nFix-förslag: ${issue.fix_suggestion || 'Ingen'}\n\nSeverity: ${issue.severity}\nCategory: ${issue.category}`,
+      priority: issue.severity === 'critical' ? 'critical' : issue.severity === 'high' ? 'high' : 'medium',
+      status: 'open',
+      item_type: 'bug',
+      source_type: 'scan',
+      created_by: session.user.id,
+    } as any);
+    toast.success('Ärende skapat i Workbench');
+  };
 
   // Load last scan on mount
   const { data: lastScan } = useQuery({
