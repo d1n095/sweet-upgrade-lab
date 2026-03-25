@@ -1691,7 +1691,18 @@ Ge SPECIFIKA och handlingsbara resultat. Svara på svenska.`,
     },
   }], { type: "function", function: { name: "nav_scan" } });
 
-  // Auto-create work items for critical/high nav issues
+  // Persist scan result FIRST
+  const navScore = analysis?.overall_score || 0;
+  const scanId = await persistScanResult(supabase, {
+    scan_type: "nav_scan",
+    results: analysis || {},
+    overall_score: navScore,
+    overall_status: navScore >= 80 ? "good" : navScore >= 50 ? "warning" : "critical",
+    issues_count: analysis?.issues?.length || 0,
+    executive_summary: analysis?.executive_summary || "",
+  });
+
+  // Auto-create work items for critical/high nav issues, linked to scan
   let tasksCreated = 0;
   for (const issue of analysis?.issues || []) {
     if (!["critical", "high"].includes(issue.severity)) continue;
@@ -1708,7 +1719,8 @@ Ge SPECIFIKA och handlingsbara resultat. Svara på svenska.`,
         status: "open",
         priority: issue.severity === "critical" ? "critical" : "high",
         item_type: "bug",
-        source_type: "ai_detection",
+        source_type: "ai_scan",
+        source_id: scanId || undefined,
         ai_detected: true,
         ai_confidence: "medium",
         ai_category: "navigation",
@@ -1718,21 +1730,9 @@ Ge SPECIFIKA och handlingsbara resultat. Svara på svenska.`,
     }
   }
 
-  // Persist scan result
-  await supabase.from("ai_scan_results").insert({
-    scan_type: "nav_scan",
-    results: analysis || {},
-    overall_score: analysis?.overall_score || 0,
-    overall_status: (analysis?.overall_score || 0) >= 80 ? "good" : (analysis?.overall_score || 0) >= 50 ? "warning" : "critical",
-    issues_count: analysis?.issues?.length || 0,
-    tasks_created: tasksCreated,
-    executive_summary: analysis?.executive_summary || "",
-  });
-
-  return { ...analysis, tasks_created: tasksCreated };
+  if (scanId && tasksCreated > 0) await updateScanTaskCount(supabase, scanId, tasksCreated);
+  return { ...analysis, tasks_created: tasksCreated, scan_id: scanId };
 }
-
-// ── Bug Re-scan & Status Engine ──
 async function handleBugRescan(supabase: any, apiKey: string) {
   // Get ALL bugs and their linked work items
   const [bugsRes, workItemsRes] = await Promise.all([
@@ -2710,7 +2710,18 @@ Var EXTREMT SPECIFIK. Ge exakta komponent-/sidnamn. Prioritera efter användarim
     },
   }], { type: "function", function: { name: "interaction_qa" } });
 
-  // Auto-create work items for critical/high issues
+  // Persist scan result FIRST
+  const interScore = analysis?.interaction_score || 0;
+  const scanId = await persistScanResult(supabase, {
+    scan_type: "interaction_qa",
+    results: analysis || {},
+    overall_score: interScore,
+    overall_status: interScore >= 80 ? "good" : interScore >= 50 ? "warning" : "critical",
+    issues_count: (analysis?.dead_elements?.length || 0) + (analysis?.broken_flows?.length || 0),
+    executive_summary: analysis?.executive_summary || analysis?.summary || "",
+  });
+
+  // Auto-create work items for critical/high issues, linked to scan
   let tasksCreated = 0;
 
   if (analysis?.dead_elements) {
@@ -2729,7 +2740,8 @@ Var EXTREMT SPECIFIK. Ge exakta komponent-/sidnamn. Prioritera efter användarim
           status: "open",
           priority: el.severity === "critical" ? "critical" : "high",
           item_type: "bug",
-          source_type: "ai_detection",
+          source_type: "ai_scan",
+          source_id: scanId || undefined,
           ai_detected: true,
           ai_confidence: "medium",
           ai_category: "interaction",
@@ -2756,7 +2768,8 @@ Var EXTREMT SPECIFIK. Ge exakta komponent-/sidnamn. Prioritera efter användarim
           status: "open",
           priority: flow.severity === "critical" ? "critical" : "high",
           item_type: "bug",
-          source_type: "ai_detection",
+          source_type: "ai_scan",
+          source_id: scanId || undefined,
           ai_detected: true,
           ai_confidence: "medium",
           ai_category: "interaction",
@@ -2767,8 +2780,8 @@ Var EXTREMT SPECIFIK. Ge exakta komponent-/sidnamn. Prioritera efter användarim
     }
   }
 
-  return { ...analysis, tasks_created: tasksCreated };
-}
+  if (scanId && tasksCreated > 0) await updateScanTaskCount(supabase, scanId, tasksCreated);
+  return { ...analysis, tasks_created: tasksCreated, scan_id: scanId };
 
   return {
     ...analysis,
