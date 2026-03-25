@@ -182,17 +182,6 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const [validationResult, setValidationResult] = useState<any>(null);
   workModeRef.current = workMode;
 
-  // ── UI State Sync: validate UI matches DB ──
-  useUiStateSync({
-    selectedItem: detailItem,
-    clearSelection: () => setDetailItem(null),
-    updateSelection: (item) => setDetailItem(item as WorkItem),
-    listItems: rawItems as any[],
-    queryKey: ['admin-work-items'],
-    table: 'work_items',
-    intervalMs: 15_000,
-    enabled: true,
-  });
 
   const { data: automationLogs = [] } = useQuery({
     queryKey: ['automation-logs-recent'],
