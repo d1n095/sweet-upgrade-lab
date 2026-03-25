@@ -38,6 +38,9 @@ interface WorkItemDetailProps {
     ai_review_status?: string;
     ai_review_result?: any;
     ai_review_at?: string;
+    ai_pre_verify_status?: string;
+    ai_pre_verify_result?: any;
+    ai_pre_verify_at?: string;
     resolution_notes?: string;
     ignored?: boolean;
     ignored_reason?: string;
@@ -82,6 +85,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
   const [fixSuggestion, setFixSuggestion] = useState<any>(null);
   const [analyzingFix, setAnalyzingFix] = useState(false);
   const [runningReview, setRunningReview] = useState(false);
+  const [runningPreVerify, setRunningPreVerify] = useState(false);
   const [expandedCause, setExpandedCause] = useState<number | null>(null);
   const [showIgnoreForm, setShowIgnoreForm] = useState(false);
   const [ignoreReason, setIgnoreReason] = useState('');
@@ -552,6 +556,94 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                 {bugData?.description || incidentData?.description || item.description || 'Ingen beskrivning'}
               </div>
             </div>
+
+            {/* AI Pre-Verification Suggestion */}
+            {item.ai_pre_verify_status && item.ai_pre_verify_status !== 'not_fixed' && isOpen && (
+              <div className={cn('rounded-lg p-3 space-y-2.5 border', {
+                'bg-accent/10 border-accent/30': item.ai_pre_verify_status === 'appears_fixed',
+                'bg-primary/5 border-primary/20': item.ai_pre_verify_status === 'possibly_fixed',
+              })}>
+                <div className="flex items-center gap-1.5 text-xs font-semibold">
+                  <Sparkles className="w-3.5 h-3.5 text-primary" />
+                  AI förslag: Verkar löst
+                  <Badge variant="outline" className={cn('text-[9px] ml-auto', {
+                    'border-accent/40 text-accent': item.ai_pre_verify_status === 'appears_fixed',
+                    'border-primary/30 text-primary': item.ai_pre_verify_status === 'possibly_fixed',
+                  })}>
+                    {item.ai_pre_verify_status === 'appears_fixed' ? '✅ Verkar fixat' : '🔍 Möjligen fixat'}
+                    {item.ai_pre_verify_result?.confidence != null && ` (${item.ai_pre_verify_result.confidence}%)`}
+                  </Badge>
+                </div>
+                {item.ai_pre_verify_result?.reasoning && (
+                  <p className="text-xs text-muted-foreground">{item.ai_pre_verify_result.reasoning}</p>
+                )}
+                {item.ai_pre_verify_result?.related_change && (
+                  <p className="text-[10px] text-muted-foreground">
+                    <span className="font-medium">Relaterad ändring:</span> {item.ai_pre_verify_result.related_change}
+                  </p>
+                )}
+                {item.ai_pre_verify_at && (
+                  <p className="text-[10px] text-muted-foreground">{fmtFull(item.ai_pre_verify_at).relative}</p>
+                )}
+                <div className="flex gap-2 pt-1">
+                  <Button size="sm" variant="default" className="flex-1 gap-1 h-7 text-xs"
+                    onClick={async () => {
+                      await onStatusChange(item.id, 'done');
+                      toast.success('Bekräftad som fixad');
+                      onRefresh?.();
+                      onOpenChange(false);
+                    }}
+                  >
+                    <CheckCircle2 className="w-3 h-3" /> Bekräfta fixad
+                  </Button>
+                  <Button size="sm" variant="outline" className="flex-1 gap-1 h-7 text-xs"
+                    onClick={async () => {
+                      await supabase.from('work_items').update({
+                        ai_pre_verify_status: 'dismissed',
+                        ai_pre_verify_result: { ...item.ai_pre_verify_result, dismissed: true, dismissed_at: new Date().toISOString() },
+                      } as any).eq('id', item.id);
+                      toast.info('Markerad som ej fixad');
+                      onRefresh?.();
+                    }}
+                  >
+                    <AlertCircle className="w-3 h-3" /> Inte fixad
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Pre-Verify Button for open items */}
+            {isOpen && (
+              <Button size="sm" variant="outline" className="w-full gap-1.5" disabled={runningPreVerify}
+                onClick={async () => {
+                  setRunningPreVerify(true);
+                  try {
+                    const { data: { session } } = await supabase.auth.getSession();
+                    if (!session) { toast.error('Ej inloggad'); return; }
+                    const resp = await fetch(
+                      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`,
+                      {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+                        body: JSON.stringify({ type: 'pre_verify', work_item_id: item.id }),
+                      }
+                    );
+                    if (resp.ok) {
+                      const { result } = await resp.json();
+                      const s = result?.pre_verify?.status;
+                      if (s === 'appears_fixed') toast.success(`AI: Verkar fixat (${result.pre_verify.confidence}%)`);
+                      else if (s === 'possibly_fixed') toast.info(`AI: Möjligen fixat (${result.pre_verify.confidence}%)`);
+                      else toast.info('AI: Inget tyder på att det är löst');
+                      onRefresh?.();
+                    } else toast.error('AI-analys misslyckades');
+                  } catch { toast.error('Fel'); }
+                  finally { setRunningPreVerify(false); }
+                }}
+              >
+                {runningPreVerify ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                AI: Kontrollera om löst
+              </Button>
+            )}
 
             {/* AI Review Results */}
             {item.ai_review_status && (

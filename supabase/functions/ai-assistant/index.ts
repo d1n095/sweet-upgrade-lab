@@ -174,6 +174,16 @@ serve(async (req) => {
         break;
       }
 
+      case "pre_verify": {
+        const { work_item_id } = body;
+        if (!work_item_id) {
+          result = { error: "work_item_id required" };
+          break;
+        }
+        result = await handlePreVerify(supabase, lovableKey, work_item_id, user.id);
+        break;
+      }
+
       case "auto_fix": {
         result = await handleAutoFix(supabase, lovableKey, supabaseUrl, serviceKey, authHeader);
         break;
@@ -6190,7 +6200,114 @@ Svara BARA med JSON:
         message: `${verified} verifierade, ${reopened} återöppnade, ${needsReview} behöver granskning.`,
       };
       break;
+}
+
+// ── Pre-Verification: AI checks if an open issue appears resolved ──
+async function handlePreVerify(supabase: any, apiKey: string, workItemId: string, triggeredBy: string) {
+  const { data: item } = await supabase.from("work_items").select("*").eq("id", workItemId).maybeSingle();
+  if (!item) throw new Error("Work item not found");
+
+  // Gather source info
+  let sourceInfo = "";
+  let filePaths: string[] = [];
+  if (item.source_type === "bug_report" && item.source_id) {
+    const { data: bug } = await supabase.from("bug_reports").select("*").eq("id", item.source_id).maybeSingle();
+    if (bug) {
+      sourceInfo = `\nBUGGRAPPORT:\nBeskrivning: ${bug.description}\nSida: ${bug.page_url}\nAI-sammanfattning: ${bug.ai_summary || "Ingen"}\nAI-kategori: ${bug.ai_category || "Okänd"}\nAI-reproduktionssteg: ${bug.ai_repro_steps || "Inga"}\nStatus: ${bug.status}`;
+      filePaths = bug.ai_tags || [];
     }
+  }
+  if (item.source_type === "order_incident" && item.source_id) {
+    const { data: inc } = await supabase.from("order_incidents").select("*").eq("id", item.source_id).maybeSingle();
+    if (inc) {
+      sourceInfo = `\nINCIDENT:\nTitel: ${inc.title}\nBeskrivning: ${inc.description}\nTyp: ${inc.type}\nStatus: ${inc.status}\nPrioritet: ${inc.priority}`;
+    }
+  }
+
+  // Get recent related changes
+  const { data: changes } = await supabase.from("change_log")
+    .select("description, change_type, affected_components, created_at")
+    .order("created_at", { ascending: false }).limit(30);
+
+  const prompt = `Du är en QA-ingenjör. Analysera om detta problem verkar vara LÖST baserat på senaste systemändringar.
+
+UPPGIFT (${item.item_type}):
+Titel: ${item.title}
+Beskrivning: ${item.description || "Ingen"}
+Status: ${item.status}
+Skapad: ${item.created_at}
+${sourceInfo}
+
+SENASTE SYSTEMÄNDRINGAR:
+${(changes || []).map((c: any) => `- [${c.change_type}] ${c.description} (${c.affected_components?.join(", ") || "?"})`).join("\n")}
+
+REGLER:
+1. Om en ändring tydligt adresserar problemet → "appears_fixed" med hög konfidens
+2. Om relaterade ändringar gjorts men osäkert → "possibly_fixed" med medel konfidens  
+3. Om inget tyder på fix → "not_fixed"
+4. Var ÄRLIG — hellre "not_fixed" än falsk positiv`;
+
+  const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        { role: "system", content: "Du analyserar om buggar/problem verkar lösta. Svara via tool call." },
+        { role: "user", content: prompt },
+      ],
+      tools: [{
+        type: "function",
+        function: {
+          name: "pre_verify_result",
+          description: "Return pre-verification assessment",
+          parameters: {
+            type: "object",
+            properties: {
+              status: { type: "string", enum: ["appears_fixed", "possibly_fixed", "not_fixed"] },
+              confidence: { type: "number", description: "0-100" },
+              reasoning: { type: "string", description: "Kort förklaring" },
+              related_change: { type: "string", description: "Vilken ändring som troligen fixade problemet, om någon" },
+            },
+            required: ["status", "confidence", "reasoning"],
+          },
+        },
+      }],
+      tool_choice: { type: "function", function: { name: "pre_verify_result" } },
+    }),
+  });
+
+  let preVerify = { status: "not_fixed", confidence: 0, reasoning: "AI kunde inte analysera", related_change: null };
+  if (aiResp.ok) {
+    const aiData = await aiResp.json();
+    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+    if (toolCall?.function?.arguments) {
+      preVerify = JSON.parse(toolCall.function.arguments);
+    }
+  }
+
+  const now = new Date().toISOString();
+  await supabase.from("work_items").update({
+    ai_pre_verify_status: preVerify.status,
+    ai_pre_verify_result: preVerify,
+    ai_pre_verify_at: now,
+  }).eq("id", workItemId);
+
+  await logAiRead(supabase, {
+    action_type: "pre_verify",
+    target_type: "work_item",
+    target_ids: [workItemId],
+    result: preVerify.status === "not_fixed" ? "no_issues" : "possible_issue",
+    summary: `Pre-verify: ${item.title} → ${preVerify.status} (${preVerify.confidence}%)`,
+    triggered_by: triggeredBy,
+    linked_work_item_id: workItemId,
+    linked_bug_id: item.source_type === "bug_report" ? item.source_id : null,
+    file_paths: filePaths,
+    affected_components: [item.item_type, item.source_type || "unknown"],
+  });
+
+  return { pre_verify: preVerify };
+}
 
     default:
       return { error: "Okänd åtgärdstyp" };
