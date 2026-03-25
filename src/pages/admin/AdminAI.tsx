@@ -1014,7 +1014,14 @@ const SystemScanTab = () => {
         </h4>
         <div className="space-y-1.5">
           {items.map((task: any, i: number) => (
-            <div key={task.id || i} className="border rounded-lg p-2.5 flex items-start gap-2">
+            <div
+              key={task.id || i}
+              className={cn(
+                "border rounded-lg p-2.5 flex items-start gap-2 transition-colors",
+                task.id && "cursor-pointer hover:bg-muted/40"
+              )}
+              onClick={() => task.id && openDetail(task.id)}
+            >
               <span className="text-[10px] font-mono text-muted-foreground mt-0.5 w-5 shrink-0">#{task.execution_order || '—'}</span>
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-medium line-clamp-1">{task.title}</p>
@@ -1026,6 +1033,7 @@ const SystemScanTab = () => {
                   {task.duplicate_of && <span className="text-[8px] text-muted-foreground">📎 dubblett</span>}
                 </div>
               </div>
+              {task.id && <ArrowRight className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />}
             </div>
           ))}
         </div>
