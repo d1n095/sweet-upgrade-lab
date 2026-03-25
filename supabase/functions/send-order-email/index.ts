@@ -378,7 +378,7 @@ serve(async (req) => {
       metadata: { order_id: order.id, order_number: order.order_number, email_type },
     });
 
-    console.log(`[send-order-email] Enqueued ${email_type} for order ${order.order_number} to ${order.order_email}`);
+    console.log(`[send-order-email] Enqueued ${email_type} for order ${order.order_number}`);
 
     return new Response(JSON.stringify({ success: true, message_id: messageId }), {
       status: 200,
