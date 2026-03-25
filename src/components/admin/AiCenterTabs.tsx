@@ -245,9 +245,9 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
   );
 
   return (
-    <div className="flex gap-0 lg:gap-4 -mx-4 md:-mx-8 min-h-[calc(100vh-200px)] max-h-[calc(100vh-160px)]">
+    <div className="flex gap-0 lg:gap-4 -mx-4 md:-mx-8 min-h-[calc(100vh-200px)]">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex w-52 flex-col shrink-0 border-r border-border bg-card/50 overflow-hidden">
+      <aside className="hidden lg:flex w-52 flex-col shrink-0 border-r border-border bg-card/50 sticky top-0 h-[calc(100vh-160px)] overflow-hidden">
         <div className="px-4 py-3 border-b border-border">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-primary" />
