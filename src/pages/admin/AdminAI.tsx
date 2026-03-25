@@ -169,12 +169,14 @@ const LovaChatTab = () => {
   const [sending, setSending] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [loadingHistory, setLoadingHistory] = useState(true);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Auto-scroll to bottom whenever messages change
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  // Auto-scroll to top of messages (newest first) when messages change
+  const scrollToTop = useCallback(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   }, []);
 
   // Load most recent conversation
@@ -202,8 +204,8 @@ const LovaChatTab = () => {
   }, []);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, sending, scrollToBottom]);
+    scrollToTop();
+  }, [messages, sending, scrollToTop]);
 
   const sendMessage = async (overrideText?: string) => {
     const text = (overrideText || input).trim();
@@ -303,7 +305,7 @@ const LovaChatTab = () => {
       </div>
 
       {/* Messages - scrollable area */}
-      <div className="flex-1 overflow-y-auto py-4 px-1">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto py-4 px-1">
         {loadingHistory ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
