@@ -222,16 +222,6 @@ const Header = () => {
           <div className="flex items-center justify-between h-14 md:h-15 gap-2">
             {/* Left side: Hamburger (desktop/tablet) + Logo + Shop */}
             <div className="flex items-center gap-1 md:gap-3 shrink-0">
-              {/* Hamburger — desktop/tablet: LEFT, larger */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="hidden md:flex h-11 w-11 rounded-full hover:bg-secondary md:hidden"
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              >
-                {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-              </Button>
-
               <button
                 onClick={() => {
                   if (location.pathname === '/') {
