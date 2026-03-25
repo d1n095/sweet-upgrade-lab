@@ -66,6 +66,7 @@ const TAB_GROUPS: TabGroup[] = [
       { value: 'focused-scan', label: 'Fokuserad', icon: Radar },
       { value: 'sync-scan', label: 'Synk', icon: ArrowRightLeft },
       { value: 'interaction-qa', label: 'Interaktion QA', icon: Zap },
+      { value: 'ui-reality', label: 'UI Reality Check', icon: Eye },
     ],
   },
   {
