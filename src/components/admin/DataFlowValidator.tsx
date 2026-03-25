@@ -122,7 +122,7 @@ const DataFlowValidator = () => {
     const now = new Date().toISOString();
 
     try {
-      // ─── 1. SCAN → WORK ITEMS (scans that should have created tasks) ───
+      // ─── 1. SCAN → WORK ITEMS ───
       setProgress(10);
       const { data: scans } = await supabase
         .from('ai_scan_results')
@@ -134,13 +134,13 @@ const DataFlowValidator = () => {
         const links: FlowLink[] = [];
 
         if ((scan.tasks_created || 0) > 0) {
-          // Check if work items reference this scan
           const { data: linkedItems } = await supabase
             .from('work_items' as any)
             .select('id')
             .eq('source_type', 'scan')
             .eq('source_id', scan.id)
             .limit(1);
+          const items = linkedItems as any[] | null;
 
           const { data: linkedChanges } = await supabase
             .from('change_log')
@@ -150,9 +150,9 @@ const DataFlowValidator = () => {
 
           links.push({
             from: 'scan', fromId: scan.id,
-            to: 'work_items', toId: linkedItems?.[0]?.id || null,
-            status: linkedItems?.length ? 'ok' : 'broken',
-            detail: linkedItems?.length ? 'Koppling hittad' : `${scan.tasks_created} uppgifter skapades men ingen work_item refererar scan`,
+            to: 'work_items', toId: items?.[0]?.id || null,
+            status: items?.length ? 'ok' : 'broken',
+            detail: items?.length ? 'Koppling hittad' : `${scan.tasks_created} uppgifter skapades men ingen work_item refererar scan`,
           });
 
           links.push({
@@ -164,12 +164,12 @@ const DataFlowValidator = () => {
         }
 
         if (links.length > 0) {
-          const broken = links.some(l => l.status === 'broken');
-          const missing = links.some(l => l.status === 'missing');
+          const hasBroken = links.some(l => l.status === 'broken');
+          const hasMissing = links.some(l => l.status === 'missing');
           allTraces.push({
             id: scan.id, origin: 'scan', originId: scan.id,
             links,
-            status: broken ? 'broken' : missing ? 'partial' : 'intact',
+            status: hasBroken ? 'broken' : hasMissing ? 'partial' : 'intact',
             summary: `Scan ${scan.scan_type} (${scan.id.slice(0, 8)}) → ${links.length} kopplingar`,
             checkedAt: now,
           });
@@ -188,12 +188,13 @@ const DataFlowValidator = () => {
         const links: FlowLink[] = [];
 
         // Bug → Work Item
-        const { data: wiLinks } = await supabase
+        const { data: wiRaw } = await supabase
           .from('work_items' as any)
           .select('id, status, ai_review_status')
           .eq('source_type', 'bug_report')
           .eq('source_id', bug.id)
           .limit(5);
+        const wiLinks = wiRaw as any[] | null;
 
         const hasWorkItem = wiLinks && wiLinks.length > 0;
         links.push({
@@ -205,37 +206,38 @@ const DataFlowValidator = () => {
 
         // Work Item → Change Log
         if (hasWorkItem) {
+          const wi = wiLinks![0];
           const { data: clLinks } = await supabase
             .from('change_log')
             .select('id')
-            .or(`work_item_id.eq.${wiLinks[0].id},bug_report_id.eq.${bug.id}`)
+            .or(`work_item_id.eq.${wi.id},bug_report_id.eq.${bug.id}`)
             .limit(1);
 
           links.push({
-            from: 'work_items', fromId: wiLinks[0].id,
+            from: 'work_items', fromId: wi.id,
             to: 'change_log', toId: clLinks?.[0]?.id || null,
-            status: clLinks?.length ? 'ok' : (wiLinks[0].status === 'done' ? 'missing' : 'ok'),
-            detail: clLinks?.length ? 'Ändringslogg finns' : (wiLinks[0].status === 'done' ? 'Klar utan change_log' : 'Ej klar ännu'),
+            status: clLinks?.length ? 'ok' : (wi.status === 'done' ? 'missing' : 'ok'),
+            detail: clLinks?.length ? 'Ändringslogg finns' : (wi.status === 'done' ? 'Klar utan change_log' : 'Ej klar ännu'),
           });
 
           // Work Item → Verification (system_history)
           const { data: shLinks } = await supabase
             .from('system_history')
             .select('id, ai_review_status')
-            .eq('work_item_id', wiLinks[0].id)
+            .eq('work_item_id', wi.id)
             .limit(1);
 
           links.push({
-            from: 'work_items', fromId: wiLinks[0].id,
+            from: 'work_items', fromId: wi.id,
             to: 'verification', toId: shLinks?.[0]?.id || null,
-            status: shLinks?.length ? 'ok' : (wiLinks[0].status === 'done' ? 'missing' : 'ok'),
+            status: shLinks?.length ? 'ok' : (wi.status === 'done' ? 'missing' : 'ok'),
             detail: shLinks?.length
               ? `Verifierad: ${shLinks[0].ai_review_status || 'pending'}`
-              : (wiLinks[0].status === 'done' ? 'Klar men aldrig verifierad' : 'Ej klar'),
+              : (wi.status === 'done' ? 'Klar men aldrig verifierad' : 'Ej klar'),
           });
         }
 
-        // Bug → Change Log (direct link via resolved_by_change_id)
+        // Bug → Change Log (direct link)
         if (bug.resolved_by_change_id) {
           const { data: directChange } = await supabase
             .from('change_log')
@@ -251,12 +253,12 @@ const DataFlowValidator = () => {
           });
         }
 
-        const broken = links.some(l => l.status === 'broken');
-        const missing = links.some(l => l.status === 'missing');
+        const hasBroken = links.some(l => l.status === 'broken');
+        const hasMissing = links.some(l => l.status === 'missing');
         allTraces.push({
           id: bug.id, origin: 'bug_report', originId: bug.id,
           links,
-          status: broken ? 'broken' : missing ? 'partial' : 'intact',
+          status: hasBroken ? 'broken' : hasMissing ? 'partial' : 'intact',
           summary: `Bug ${bug.id.slice(0, 8)} (${bug.status}) → ${links.length} kopplingar`,
           checkedAt: now,
         });
@@ -264,16 +266,16 @@ const DataFlowValidator = () => {
 
       // ─── 3. WORK ITEMS → SOURCE VALIDATION ───
       setProgress(60);
-      const { data: workItems } = await supabase
+      const { data: wiRaw2 } = await supabase
         .from('work_items' as any)
         .select('id, title, source_type, source_id, status, ai_review_status, related_order_id')
         .in('status', ['open', 'claimed', 'in_progress', 'done'])
         .limit(200);
+      const workItems = (wiRaw2 as any[] | null) || [];
 
-      for (const wi of workItems || []) {
+      for (const wi of workItems) {
         const links: FlowLink[] = [];
 
-        // Validate source exists
         if (wi.source_type && wi.source_id) {
           let sourceExists = false;
           if (wi.source_type === 'bug_report') {
@@ -297,7 +299,6 @@ const DataFlowValidator = () => {
           }
         }
 
-        // Validate related order
         if (wi.related_order_id) {
           const { data: order } = await supabase
             .from('orders')
@@ -313,14 +314,13 @@ const DataFlowValidator = () => {
           });
         }
 
-        // Only include traces with checks
         if (links.length > 0) {
-          const broken = links.some(l => l.status === 'broken');
-          const missing = links.some(l => l.status === 'missing');
+          const hasBroken = links.some(l => l.status === 'broken');
+          const hasMissing = links.some(l => l.status === 'missing');
           allTraces.push({
             id: wi.id, origin: 'work_items', originId: wi.id,
             links,
-            status: broken ? 'broken' : missing ? 'partial' : 'intact',
+            status: hasBroken ? 'broken' : hasMissing ? 'partial' : 'intact',
             summary: `WI "${(wi.title || '').slice(0, 40)}" (${wi.status}) → ${links.length} kopplingar`,
             checkedAt: now,
           });
@@ -339,12 +339,13 @@ const DataFlowValidator = () => {
         const links: FlowLink[] = [];
 
         if (cl.work_item_id) {
-          const { data } = await supabase.from('work_items' as any).select('id').eq('id', cl.work_item_id).limit(1);
+          const { data: wiCheck } = await supabase.from('work_items' as any).select('id').eq('id', cl.work_item_id).limit(1);
+          const items = wiCheck as any[] | null;
           links.push({
             from: 'change_log', fromId: cl.id,
-            to: 'work_items', toId: data?.[0]?.id || null,
-            status: data?.length ? 'ok' : 'broken',
-            detail: data?.length ? 'Work item finns' : `work_item_id ${cl.work_item_id.slice(0, 8)} saknas`,
+            to: 'work_items', toId: items?.[0]?.id || null,
+            status: items?.length ? 'ok' : 'broken',
+            detail: items?.length ? 'Work item finns' : `work_item_id ${cl.work_item_id.slice(0, 8)} saknas`,
           });
         }
 
@@ -359,11 +360,11 @@ const DataFlowValidator = () => {
         }
 
         if (links.length > 0 && links.some(l => l.status !== 'ok')) {
-          const broken = links.some(l => l.status === 'broken');
+          const hasBroken = links.some(l => l.status === 'broken');
           allTraces.push({
             id: cl.id, origin: 'change_log', originId: cl.id,
             links,
-            status: broken ? 'broken' : 'partial',
+            status: hasBroken ? 'broken' : 'partial',
             summary: `Ändring ${cl.change_type} (${cl.id.slice(0, 8)}) → ${links.length} kopplingar`,
             checkedAt: now,
           });
@@ -372,7 +373,6 @@ const DataFlowValidator = () => {
 
       setProgress(100);
 
-      // Sort: broken first
       allTraces.sort((a, b) => {
         const order = { broken: 0, partial: 1, intact: 2 };
         return order[a.status] - order[b.status];
