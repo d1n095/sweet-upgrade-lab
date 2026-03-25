@@ -1642,27 +1642,33 @@ export type Database = {
           created_at: string
           display_order: number | null
           id: string
+          is_searchable: boolean
           name_en: string | null
           name_sv: string
           slug: string
+          tag_type: string
         }
         Insert: {
           color?: string | null
           created_at?: string
           display_order?: number | null
           id?: string
+          is_searchable?: boolean
           name_en?: string | null
           name_sv: string
           slug: string
+          tag_type?: string
         }
         Update: {
           color?: string | null
           created_at?: string
           display_order?: number | null
           id?: string
+          is_searchable?: boolean
           name_en?: string | null
           name_sv?: string
           slug?: string
+          tag_type?: string
         }
         Relationships: []
       }
