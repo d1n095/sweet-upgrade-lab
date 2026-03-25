@@ -3213,6 +3213,10 @@ const AdminAI = () => {
               <ShieldCheck className="w-3.5 h-3.5" />
               Integritet
             </TabsTrigger>
+            <TabsTrigger value="content-validation" className="gap-1.5 text-xs">
+              <Eye className="w-3.5 h-3.5" />
+              Innehåll QA
+            </TabsTrigger>
           </TabsList>
         </ScrollableTabs>
 
@@ -3275,6 +3279,9 @@ const AdminAI = () => {
         </TabsContent>
         <TabsContent value="data-integrity" className="mt-4">
           <DataIntegrityTab />
+        </TabsContent>
+        <TabsContent value="content-validation" className="mt-4">
+          <ContentValidationTab />
         </TabsContent>
       </Tabs>
 
