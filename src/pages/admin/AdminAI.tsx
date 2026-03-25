@@ -257,37 +257,37 @@ const LovaChatTab = () => {
   });
 
   return (
-    <div className="flex flex-col h-[calc(100vh-280px)] min-h-[400px]">
+    <div className="flex flex-col h-[calc(100vh-320px)] sm:h-[calc(100vh-280px)] min-h-[300px] sm:min-h-[400px]">
       {/* Header + Input at TOP */}
       <div className="pb-3 border-b border-border space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-              <Bot className="w-4 h-4 text-primary" />
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+              <Bot className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
             </div>
-            <div>
-              <h3 className="font-semibold text-sm">Lova 0.5</h3>
-              <p className="text-xs text-muted-foreground">AI-operatör · full systemåtkomst</p>
+            <div className="min-w-0">
+              <h3 className="font-semibold text-xs sm:text-sm truncate">Lova 0.5</h3>
+              <p className="text-[10px] sm:text-xs text-muted-foreground truncate hidden sm:block">AI-operatör · full systemåtkomst</p>
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={startNewConversation} className="gap-1.5">
-            <RefreshCw className="w-3.5 h-3.5" />
-            Ny
+          <Button variant="outline" size="sm" onClick={startNewConversation} className="gap-1 sm:gap-1.5 text-xs h-7 sm:h-8 px-2 sm:px-3 shrink-0">
+            <RefreshCw className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+            <span className="hidden sm:inline">Ny</span>
           </Button>
         </div>
 
         {/* Input area */}
-        <div className="flex gap-2">
+        <div className="flex gap-1.5 sm:gap-2">
           <Textarea
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Skriv till Lova... (Enter skickar)"
-            className="min-h-[44px] max-h-[120px] resize-none text-sm"
+            placeholder="Skriv till Lova..."
+            className="min-h-[40px] sm:min-h-[44px] max-h-[100px] sm:max-h-[120px] resize-none text-xs sm:text-sm"
             rows={1}
           />
-          <Button onClick={() => sendMessage()} disabled={!input.trim() || sending} size="icon" className="shrink-0 h-[44px] w-[44px]">
+          <Button onClick={() => sendMessage()} disabled={!input.trim() || sending} size="icon" className="shrink-0 h-[40px] w-[40px] sm:h-[44px] sm:w-[44px]">
             {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </Button>
         </div>
@@ -363,7 +363,7 @@ const LovaChatTab = () => {
             {[...messages].reverse().map((msg) => (
               <div key={msg.id} className={cn('flex', msg.role === 'user' ? 'justify-end' : 'justify-start')}>
                 <div className={cn(
-                  'max-w-[80%] rounded-xl px-4 py-2.5 text-sm',
+                  'max-w-[90%] sm:max-w-[80%] rounded-xl px-3 py-2 sm:px-4 sm:py-2.5 text-xs sm:text-sm',
                   msg.role === 'user'
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-muted text-foreground'
@@ -5832,143 +5832,152 @@ const OrchestrationTab = () => {
 
   return (
     <DetailContext.Provider value={{ openDetail }}>
-    <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-          <Sparkles className="w-5 h-5 text-primary" />
+    <div className="space-y-3 sm:space-y-6">
+      <div className="flex items-center gap-2 sm:gap-3">
+        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+          <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
         </div>
-        <div>
-          <h1 className="text-xl font-bold">AI Center</h1>
-          <p className="text-sm text-muted-foreground">Unified AI — läser från alla datakällor</p>
+        <div className="min-w-0">
+          <h1 className="text-base sm:text-xl font-bold truncate">AI Center</h1>
+          <p className="text-xs text-muted-foreground truncate">Unified AI — läser från alla datakällor</p>
         </div>
       </div>
 
       <Tabs defaultValue="lova-chat" className="w-full">
         <ScrollableTabs>
-          <TabsList>
-            <TabsTrigger value="lova-chat" className="gap-1.5 text-xs">
-              <Bot className="w-3.5 h-3.5" />
-              Lova 0.5
+          <TabsList className="h-auto flex-wrap gap-0.5 sm:gap-0">
+            <TabsTrigger value="lova-chat" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
+              <Bot className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              <span className="hidden sm:inline">Lova 0.5</span>
+              <span className="sm:hidden">Lova</span>
             </TabsTrigger>
-            <TabsTrigger value="lova-prompts" className="gap-1.5 text-xs">
-              <Copy className="w-3.5 h-3.5" />
-              Lova Prompts
+            <TabsTrigger value="lova-prompts" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
+              <Copy className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              Prompts
             </TabsTrigger>
-            <TabsTrigger value="autopilot" className="gap-1.5 text-xs">
-              <Play className="w-3.5 h-3.5" />
-              AI Autopilot
+            <TabsTrigger value="autopilot" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
+              <Play className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              Autopilot
             </TabsTrigger>
-            <TabsTrigger value="actions" className="gap-1.5 text-xs">
-              <TrendingUp className="w-3.5 h-3.5" />
-              AI Actions
+            <TabsTrigger value="actions" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
+              <TrendingUp className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              Actions
             </TabsTrigger>
-            <TabsTrigger value="scan" className="gap-1.5 text-xs">
-              <Radar className="w-3.5 h-3.5" />
-              System Scan
+            <TabsTrigger value="scan" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
+              <Radar className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              Scan
             </TabsTrigger>
-            <TabsTrigger value="dashboard" className="gap-1.5 text-xs">
-              <Activity className="w-3.5 h-3.5" />
-              Systemöversikt
+            <TabsTrigger value="dashboard" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
+              <Activity className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              Översikt
             </TabsTrigger>
-            <TabsTrigger value="visual-qa" className="gap-1.5 text-xs">
-              <Monitor className="w-3.5 h-3.5" />
-              Visual QA
+            <TabsTrigger value="visual-qa" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
+              <Monitor className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              <span className="hidden sm:inline">Visual QA</span>
+              <span className="sm:hidden">VQA</span>
             </TabsTrigger>
-            <TabsTrigger value="nav-bug" className="gap-1.5 text-xs">
-              <Compass className="w-3.5 h-3.5" />
-              Nav & Buggscan
+            <TabsTrigger value="nav-bug" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
+              <Compass className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              <span className="hidden sm:inline">Nav & Bugg</span>
+              <span className="sm:hidden">Nav</span>
             </TabsTrigger>
-            <TabsTrigger value="data-health" className="gap-1.5 text-xs">
-              <Database className="w-3.5 h-3.5" />
-              Data Health
+            <TabsTrigger value="data-health" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
+              <Database className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              Data
             </TabsTrigger>
-            <TabsTrigger value="health" className="gap-1.5 text-xs">
-              <Shield className="w-3.5 h-3.5" />
-              Systemhälsa
+            <TabsTrigger value="health" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
+              <Shield className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              Hälsa
             </TabsTrigger>
-            <TabsTrigger value="products" className="gap-1.5 text-xs">
-              <Package className="w-3.5 h-3.5" />
-              Produktförslag
+            <TabsTrigger value="products" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
+              <Package className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              <span className="hidden sm:inline">Produktförslag</span>
+              <span className="sm:hidden">Prod</span>
             </TabsTrigger>
-            <TabsTrigger value="tasks" className="gap-1.5 text-xs">
-              <Bot className="w-3.5 h-3.5" />
-              Task AI
+            <TabsTrigger value="tasks" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
+              <Bot className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              Tasks
             </TabsTrigger>
-            <TabsTrigger value="prompts" className="gap-1.5 text-xs">
-              <Sparkles className="w-3.5 h-3.5" />
-              Prompt Generator
+            <TabsTrigger value="prompts" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
+              <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              <span className="hidden sm:inline">Prompt Gen</span>
+              <span className="sm:hidden">Gen</span>
             </TabsTrigger>
-            <TabsTrigger value="bugs" className="gap-1.5 text-xs">
-              <Bug className="w-3.5 h-3.5" />
-              Bug AI
+            <TabsTrigger value="bugs" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
+              <Bug className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              Bugg
             </TabsTrigger>
-            <TabsTrigger value="insights" className="gap-1.5 text-xs">
-              <BarChart3 className="w-3.5 h-3.5" />
-              AI Insights
+            <TabsTrigger value="insights" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
+              <BarChart3 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              Insights
             </TabsTrigger>
-            <TabsTrigger value="structure" className="gap-1.5 text-xs">
-              <LayoutGrid className="w-3.5 h-3.5" />
+            <TabsTrigger value="structure" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
+              <LayoutGrid className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
               Struktur
             </TabsTrigger>
-            <TabsTrigger value="guardian" className="gap-1.5 text-xs">
-              <ShieldCheck className="w-3.5 h-3.5" />
+            <TabsTrigger value="guardian" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
+              <ShieldCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
               Guardian
             </TabsTrigger>
-            <TabsTrigger value="interaction-qa" className="gap-1.5 text-xs">
-              <Zap className="w-3.5 h-3.5" />
-              Interaction QA
+            <TabsTrigger value="interaction-qa" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
+              <Zap className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              <span className="hidden sm:inline">Interaction QA</span>
+              <span className="sm:hidden">IQA</span>
             </TabsTrigger>
-            <TabsTrigger value="verification" className="gap-1.5 text-xs">
-              <CheckCircle className="w-3.5 h-3.5" />
-              Verifiering
+            <TabsTrigger value="verification" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
+              <CheckCircle className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              <span className="hidden sm:inline">Verifiering</span>
+              <span className="sm:hidden">Ver</span>
             </TabsTrigger>
-            <TabsTrigger value="cleanup" className="gap-1.5 text-xs">
-              <Database className="w-3.5 h-3.5" />
+            <TabsTrigger value="cleanup" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
+              <Database className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
               Cleanup
             </TabsTrigger>
-            <TabsTrigger value="auto-fix" className="gap-1.5 text-xs">
-              <Wrench className="w-3.5 h-3.5" />
-              Auto-Fix
+            <TabsTrigger value="auto-fix" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
+              <Wrench className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              Fix
             </TabsTrigger>
-            <TabsTrigger value="data-integrity" className="gap-1.5 text-xs">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              Integritet
+            <TabsTrigger value="data-integrity" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
+              <ShieldCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              <span className="hidden sm:inline">Integritet</span>
+              <span className="sm:hidden">Int</span>
             </TabsTrigger>
-            <TabsTrigger value="content-validation" className="gap-1.5 text-xs">
-              <Eye className="w-3.5 h-3.5" />
-              Innehåll QA
+            <TabsTrigger value="content-validation" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
+              <Eye className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              <span className="hidden sm:inline">Innehåll QA</span>
+              <span className="sm:hidden">CQA</span>
             </TabsTrigger>
-            <TabsTrigger value="patterns" className="gap-1.5 text-xs">
-              <GitMerge className="w-3.5 h-3.5" />
+            <TabsTrigger value="patterns" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
+              <GitMerge className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
               Mönster
             </TabsTrigger>
-            <TabsTrigger value="focused-scan" className="gap-1.5 text-xs">
-              <Radar className="w-3.5 h-3.5" />
-              Fokusscan
+            <TabsTrigger value="focused-scan" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
+              <Radar className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              Fokus
             </TabsTrigger>
-            <TabsTrigger value="overflow-scan" className="gap-1.5 text-xs">
-              <Maximize2 className="w-3.5 h-3.5" />
-              Overflow QA
+            <TabsTrigger value="overflow-scan" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
+              <Maximize2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              Overflow
             </TabsTrigger>
-            <TabsTrigger value="ux-scanner" className="gap-1.5 text-xs">
-              <Eye className="w-3.5 h-3.5" />
-              UX Scanner
+            <TabsTrigger value="ux-scanner" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
+              <Eye className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              UX
             </TabsTrigger>
-            <TabsTrigger value="sync-scan" className="gap-1.5 text-xs">
-              <ArrowRightLeft className="w-3.5 h-3.5" />
-              Sync Scanner
+            <TabsTrigger value="sync-scan" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
+              <ArrowRightLeft className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              Sync
             </TabsTrigger>
-            <TabsTrigger value="governor" className="gap-1.5 text-xs">
-              <Gavel className="w-3.5 h-3.5" />
-              Governor
+            <TabsTrigger value="governor" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
+              <Gavel className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              Gov
             </TabsTrigger>
-            <TabsTrigger value="prompt-queue" className="gap-1.5 text-xs">
-              <Layers className="w-3.5 h-3.5" />
-              Prompt-kö
+            <TabsTrigger value="prompt-queue" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
+              <Layers className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              Kö
             </TabsTrigger>
-            <TabsTrigger value="orchestration" className="gap-1.5 text-xs">
-              <GitMerge className="w-3.5 h-3.5" />
-              Orchestration
+            <TabsTrigger value="orchestration" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
+              <GitMerge className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              Orch
             </TabsTrigger>
           </TabsList>
         </ScrollableTabs>
