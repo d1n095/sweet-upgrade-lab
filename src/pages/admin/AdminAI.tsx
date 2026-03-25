@@ -4617,9 +4617,12 @@ const SCAN_STEP_ICONS: Record<string, any> = {
 const AiAutopilotTab = () => {
   const [mode, setMode] = useState<AiMode>('assisted');
   const { scanning, steps, selectedSteps, toggleStep: storeToggleStep, selectAll, selectNone, runAllScans } = useScannerStore();
+  const orchestrator = useFullScanOrchestrator();
+  const [scanMode, setScanMode] = useState<'orchestrated' | 'custom'>('orchestrated');
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
   const [executionLoading, setExecutionLoading] = useState(false);
   const [showResults, setShowResults] = useState<string | null>(null);
+  const [showUnifiedDetail, setShowUnifiedDetail] = useState(false);
   const queryClient = useQueryClient();
   const { openDetail } = useDetailContext();
 
@@ -4647,7 +4650,6 @@ const AiAutopilotTab = () => {
 
   const toggleStep = storeToggleStep;
 
-
   const runExecution = async () => {
     setExecutionLoading(true);
     const res = await callAI('ai_execute', { mode });
@@ -4667,6 +4669,9 @@ const AiAutopilotTab = () => {
     autonomous: { label: 'Autonom', desc: 'AI utför allt utom raderingar', color: 'border-red-500 bg-red-50 text-red-800' },
   };
 
+  const isAnyScanRunning = scanning || orchestrator.running;
+
+  // Custom scan stats
   const completedCount = steps.filter(s => s.status === 'done').length;
   const errorCount = steps.filter(s => s.status === 'error').length;
   const totalIssues = steps.reduce((sum, s) => {
@@ -4678,6 +4683,12 @@ const AiAutopilotTab = () => {
     const scores = steps.filter(s => s.result).map(s => s.result.system_score || s.result.score || s.result.interaction_score || s.result.overall_score).filter(Boolean);
     return scores.length > 0 ? Math.round(scores.reduce((a: number, b: number) => a + b, 0) / scores.length) : null;
   })();
+
+  // Orchestrator stats
+  const orchCompleted = orchestrator.steps.filter(s => s.status === 'done').length;
+  const orchErrors = orchestrator.steps.filter(s => s.status === 'error').length;
+  const orchPct = orchestrator.steps.length > 0 ? Math.round(((orchCompleted + orchErrors) / orchestrator.steps.length) * 100) : 0;
+  const orchCurrentStep = orchestrator.steps.find(s => s.status === 'running');
 
   return (
     <div className="space-y-4">
