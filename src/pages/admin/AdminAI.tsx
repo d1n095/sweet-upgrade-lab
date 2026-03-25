@@ -5002,11 +5002,22 @@ const OrchestrationTab = () => {
                 <span className="text-xs text-muted-foreground">
                   Använde Pass {result.governor_decision?.use_pass} — Score: {result.governor_decision?.final_score}/100
                 </span>
+                {result.governor_decision?.early_stop && (
+                  <Badge className="bg-blue-500/10 text-blue-600 text-[10px]">⚡ Early Stop</Badge>
+                )}
+                <Badge variant="outline" className="text-[10px]">
+                  {result.governor_decision?.passes_run || 2} pass(es) körda
+                </Badge>
                 {result.prompts_queued > 0 && (
                   <Badge variant="outline" className="text-xs">{result.prompts_queued} prompts köade</Badge>
                 )}
               </div>
               <p className="text-xs text-muted-foreground">{result.governor_decision?.reason}</p>
+              {result.governor_decision?.stop_reason && (
+                <div className="p-2 rounded border border-blue-500/20 bg-blue-500/5 text-xs text-blue-700">
+                  <span className="font-medium">Stop-villkor:</span> {result.governor_decision.stop_reason}
+                </div>
+              )}
             </CardContent>
           </Card>
 
