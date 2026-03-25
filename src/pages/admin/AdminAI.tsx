@@ -2320,8 +2320,7 @@ const SystemScanTab = () => {
                 </div>
               )}
 
-              <ScrollArea className="max-h-[50vh]">
-                <div className="space-y-1.5 pr-2">
+              <div className="max-h-[50vh] overflow-y-auto space-y-1.5 pr-1">
                   {scanResult.issues.filter((i: any) => !isDismissed(i)).map((issue: any, i: number) => (
                     <div key={`${issue.title}-${i}`} className="border rounded-lg p-2.5 space-y-1.5 cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => setExpandedIssue(expandedIssue === i ? null : i)}>
                       <div className="flex items-start gap-2">
@@ -2400,9 +2399,8 @@ const SystemScanTab = () => {
                         </div>
                       )}
                     </div>
-                  ))}
-                </div>
-              </ScrollArea>
+                ))}
+              </div>
             </div>
           )}
 
