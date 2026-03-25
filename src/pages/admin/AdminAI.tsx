@@ -6758,11 +6758,108 @@ const AccessControlTab = () => {
           )}
         </>
       )}
+
+      {/* ── Access Flow Validation ── */}
+      <Separator className="my-4" />
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-semibold flex items-center gap-2"><ShieldCheck className="w-4 h-4" /> Flödesvalidering</h3>
+          <p className="text-xs text-muted-foreground">Testa att roller har korrekt åtkomst till rutter, API, UI och RLS</p>
+        </div>
+        <Button onClick={async () => {
+          setValidating(true);
+          const session = await getSession();
+          if (!session) { setValidating(false); return; }
+          try {
+            const resp = await fetch(
+              `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/access-flow-validate`,
+              { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` }, body: '{}' }
+            );
+            const data = await resp.json();
+            if (!resp.ok) throw new Error(data.error || 'Validation failed');
+            setFlowResult(data);
+            toast.success(`Validering klar: ${data.summary?.passed}/${data.summary?.total_tests} godkända`);
+          } catch (e: any) { toast.error(e.message); }
+          setValidating(false);
+        }} disabled={validating} size="sm" variant="outline" className="gap-1">
+          {validating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
+          {validating ? 'Validerar...' : 'Kör validering'}
+        </Button>
+      </div>
+
+      {flowResult && (
+        <>
+          {/* Score bar */}
+          <div className="flex items-center gap-3">
+            <div className={cn('text-2xl font-bold', flowResult.summary?.failed === 0 ? 'text-green-600' : flowResult.summary?.critical_failures > 0 ? 'text-red-600' : 'text-yellow-600')}>
+              {Math.round((flowResult.summary?.passed / flowResult.summary?.total_tests) * 100)}%
+            </div>
+            <div className="flex-1">
+              <Progress value={(flowResult.summary?.passed / flowResult.summary?.total_tests) * 100} className="h-2" />
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {flowResult.summary?.passed}/{flowResult.summary?.total_tests} godkända
+            </div>
+          </div>
+
+          {/* Category breakdown */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {Object.entries(flowResult.summary?.by_category || {}).map(([cat, counts]: [string, any]) => (
+              <Card key={cat}>
+                <CardContent className="py-2 px-3">
+                  <p className="text-[10px] text-muted-foreground uppercase">{cat === 'route' ? '🛤️ Rutter' : cat === 'api' ? '🔌 API' : cat === 'ui' ? '👁️ UI' : '🔒 RLS'}</p>
+                  <p className="text-sm font-medium">
+                    <span className="text-green-600">{counts.passed}✓</span>
+                    {counts.failed > 0 && <span className="text-red-600 ml-1">{counts.failed}✗</span>}
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Filter tabs */}
+          <div className="flex gap-1 flex-wrap">
+            {['all', 'failures', 'route', 'api', 'ui', 'rls'].map(f => (
+              <Button key={f} size="sm" variant={flowFilter === f ? 'default' : 'ghost'} className="h-6 text-[10px] px-2" onClick={() => setFlowFilter(f)}>
+                {f === 'all' ? 'Alla' : f === 'failures' ? `Misslyckade (${flowResult.summary?.failed})` : f.toUpperCase()}
+              </Button>
+            ))}
+          </div>
+
+          {/* Test results */}
+          <Card>
+            <CardContent className="py-3">
+              <ScrollArea className="max-h-[350px]">
+                <div className="space-y-1.5">
+                  {(flowResult.tests || [])
+                    .filter((t: any) => {
+                      if (flowFilter === 'all') return true;
+                      if (flowFilter === 'failures') return !t.passed;
+                      return t.category === flowFilter;
+                    })
+                    .map((test: any, idx: number) => (
+                    <div key={idx} className={cn('text-xs border rounded p-2 flex items-start gap-2', test.passed ? 'border-border bg-muted/20' : 'border-red-500/30 bg-red-500/5')}>
+                      <span className="mt-0.5">{test.passed ? <CheckCircle className="w-3 h-3 text-green-500" /> : <XCircle className="w-3 h-3 text-red-500" />}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <Badge variant="outline" className="text-[8px] px-1 py-0">{test.category}</Badge>
+                          <span className="font-medium">{test.role}</span>
+                          <span className="text-muted-foreground">→ {test.target}</span>
+                        </div>
+                        <p className="text-muted-foreground mt-0.5">{test.detail}</p>
+                      </div>
+                      {!test.passed && <Badge variant="destructive" className="text-[8px] shrink-0">{test.risk}</Badge>}
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </>
+      )}
     </div>
   );
 };
-
-const SyncScannerTab = () => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [filter, setFilter] = useState('all');
