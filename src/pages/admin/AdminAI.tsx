@@ -5885,112 +5885,40 @@ const OrchestrationTab = () => {
 
   return (
     <DetailContext.Provider value={{ openDetail }}>
-    <div className="space-y-3 sm:space-y-6">
-      <div className="flex items-center gap-2 sm:gap-3">
-        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-          <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-        </div>
-        <div className="min-w-0">
-          <h1 className="text-base sm:text-xl font-bold truncate">AI Center</h1>
-          <p className="text-xs text-muted-foreground truncate">Unified AI — läser från alla datakällor</p>
-        </div>
-      </div>
+    <div>
+      <AiCenterTabs defaultValue="ai-dashboard">
 
-      <AiCenterTabs defaultValue="lova-chat">
-
-        <TabsContent value="lova-chat" className="mt-4">
-          <LovaChatTab />
-        </TabsContent>
-        <TabsContent value="lova-prompts" className="mt-4">
-          <LovaPromptsTab />
-        </TabsContent>
-        <TabsContent value="autopilot" className="mt-4">
-          <AiAutopilotTab />
-        </TabsContent>
-        <TabsContent value="actions" className="mt-4">
-          <ActionEngineTab />
-        </TabsContent>
-        <TabsContent value="scan" className="mt-4">
-          <SystemScanTab />
-        </TabsContent>
-        <TabsContent value="dashboard" className="mt-4">
-          <UnifiedDashboardTab />
-        </TabsContent>
-        <TabsContent value="visual-qa" className="mt-4">
-          <VisualQATab />
-        </TabsContent>
-        <TabsContent value="nav-bug" className="mt-4">
-          <NavBugScanTab />
-        </TabsContent>
-        <TabsContent value="data-health" className="mt-4">
-          <DataHealthTab />
-        </TabsContent>
-        <TabsContent value="health" className="mt-4">
-          <SystemHealthTab />
-        </TabsContent>
-        <TabsContent value="products" className="mt-4">
-          <ProductSuggestionsTab />
-        </TabsContent>
-        <TabsContent value="tasks" className="mt-4">
-          <TaskAITab />
-        </TabsContent>
-        <TabsContent value="prompts" className="mt-4">
-          <PromptGeneratorTab />
-        </TabsContent>
-        <TabsContent value="bugs" className="mt-4">
-          <BugAITab />
-        </TabsContent>
-        <TabsContent value="insights" className="mt-4">
-          <DataInsightsTab />
-        </TabsContent>
-        <TabsContent value="structure" className="mt-4">
-          <StructureAnalysisTab />
-        </TabsContent>
-        <TabsContent value="guardian" className="mt-4">
-          <DevGuardianTab />
-        </TabsContent>
-        <TabsContent value="interaction-qa" className="mt-4">
-          <InteractionQATab />
-        </TabsContent>
-        <TabsContent value="verification" className="mt-4">
-          <VerificationEngineTab />
-        </TabsContent>
-        <TabsContent value="cleanup" className="mt-4">
-          <DataCleanupTab />
-        </TabsContent>
-        <TabsContent value="auto-fix" className="mt-4">
-          <AutoFixTab />
-        </TabsContent>
-        <TabsContent value="data-integrity" className="mt-4">
-          <DataIntegrityTab />
-        </TabsContent>
-        <TabsContent value="content-validation" className="mt-4">
-          <ContentValidationTab />
-        </TabsContent>
-        <TabsContent value="patterns" className="mt-4">
-          <PatternDetectionTab />
-        </TabsContent>
-        <TabsContent value="focused-scan" className="mt-4">
-          <FocusedScanTab />
-        </TabsContent>
-        <TabsContent value="overflow-scan" className="mt-4">
-          <OverflowScanTab />
-        </TabsContent>
-        <TabsContent value="ux-scanner" className="mt-4">
-          <UxScannerTab />
-        </TabsContent>
-        <TabsContent value="sync-scan" className="mt-4">
-          <SyncScannerTab />
-        </TabsContent>
-        <TabsContent value="governor" className="mt-4">
-          <ActionGovernorTab />
-        </TabsContent>
-        <TabsContent value="prompt-queue" className="mt-4">
-          <PromptQueueTab />
-        </TabsContent>
-        <TabsContent value="orchestration" className="mt-4">
-          <OrchestrationTab />
-        </TabsContent>
+        <div data-value="lova-chat"><LovaChatTab /></div>
+        <div data-value="lova-prompts"><LovaPromptsTab /></div>
+        <div data-value="autopilot"><AiAutopilotTab /></div>
+        <div data-value="actions"><ActionEngineTab /></div>
+        <div data-value="scan"><SystemScanTab /></div>
+        <div data-value="dashboard"><UnifiedDashboardTab /></div>
+        <div data-value="visual-qa"><VisualQATab /></div>
+        <div data-value="nav-bug"><NavBugScanTab /></div>
+        <div data-value="data-health"><DataHealthTab /></div>
+        <div data-value="health"><SystemHealthTab /></div>
+        <div data-value="products"><ProductSuggestionsTab /></div>
+        <div data-value="tasks"><TaskAITab /></div>
+        <div data-value="prompts"><PromptGeneratorTab /></div>
+        <div data-value="bugs"><BugAITab /></div>
+        <div data-value="insights"><DataInsightsTab /></div>
+        <div data-value="structure"><StructureAnalysisTab /></div>
+        <div data-value="guardian"><DevGuardianTab /></div>
+        <div data-value="interaction-qa"><InteractionQATab /></div>
+        <div data-value="verification"><VerificationEngineTab /></div>
+        <div data-value="cleanup"><DataCleanupTab /></div>
+        <div data-value="auto-fix"><AutoFixTab /></div>
+        <div data-value="data-integrity"><DataIntegrityTab /></div>
+        <div data-value="content-validation"><ContentValidationTab /></div>
+        <div data-value="patterns"><PatternDetectionTab /></div>
+        <div data-value="focused-scan"><FocusedScanTab /></div>
+        <div data-value="overflow-scan"><OverflowScanTab /></div>
+        <div data-value="ux-scanner"><UxScannerTab /></div>
+        <div data-value="sync-scan"><SyncScannerTab /></div>
+        <div data-value="governor"><ActionGovernorTab /></div>
+        <div data-value="prompt-queue"><PromptQueueTab /></div>
+        <div data-value="orchestration"><OrchestrationTab /></div>
       </AiCenterTabs>
 
       <WorkItemDetail
