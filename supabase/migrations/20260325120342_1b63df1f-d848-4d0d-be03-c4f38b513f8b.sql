@@ -1,0 +1,1 @@
+ALTER TABLE public.bug_reports ADD COLUMN IF NOT EXISTS resolved_by_change_id UUID REFERENCES public.change_log(id);

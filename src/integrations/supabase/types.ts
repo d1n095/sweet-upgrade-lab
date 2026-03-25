@@ -478,6 +478,7 @@ export type Database = {
           resolution_notes: string | null
           resolved_at: string | null
           resolved_by: string | null
+          resolved_by_change_id: string | null
           status: string
           user_id: string
         }
@@ -497,6 +498,7 @@ export type Database = {
           resolution_notes?: string | null
           resolved_at?: string | null
           resolved_by?: string | null
+          resolved_by_change_id?: string | null
           status?: string
           user_id: string
         }
@@ -516,10 +518,19 @@ export type Database = {
           resolution_notes?: string | null
           resolved_at?: string | null
           resolved_by?: string | null
+          resolved_by_change_id?: string | null
           status?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "bug_reports_resolved_by_change_id_fkey"
+            columns: ["resolved_by_change_id"]
+            isOneToOne: false
+            referencedRelation: "change_log"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       bundle_items: {
         Row: {
