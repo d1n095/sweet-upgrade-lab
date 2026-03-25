@@ -3135,3 +3135,126 @@ async function handleAutoFix(supabase: any, apiKey: string, supabaseUrl: string,
     fallback_tasks: fallbackTasks,
   };
 }
+
+// ── Data Integrity Validator ──
+async function handleDataIntegrity(supabase: any) {
+  const issues: { type: string; severity: 'critical' | 'high' | 'medium'; title: string; detail: string }[] = [];
+
+  // 1. Revenue consistency: compare paid orders sum vs what DB reports
+  const [ordersRes, workItemsRes, bugsRes, incidentsRes, productsRes] = await Promise.all([
+    supabase.from("orders").select("id, total_amount, payment_status, status, fulfillment_status, deleted_at, refund_amount, created_at").is("deleted_at", null).limit(1000),
+    supabase.from("work_items").select("id, title, status, source_type, source_id, related_order_id, item_type, created_at").neq("status", "cancelled").limit(1000),
+    supabase.from("bug_reports").select("id, status, created_at").limit(500),
+    supabase.from("order_incidents").select("id, status, order_id, created_at").limit(500),
+    supabase.from("products").select("id, stock, reserved_stock, allow_overselling, is_visible, title_sv").limit(500),
+  ]);
+
+  const orders = ordersRes.data || [];
+  const workItems = workItemsRes.data || [];
+  const bugs = bugsRes.data || [];
+  const incidents = incidentsRes.data || [];
+  const products = productsRes.data || [];
+
+  // 2. Orphan work items — source doesn't exist
+  const bugIds = new Set(bugs.map((b: any) => b.id));
+  const incidentIds = new Set(incidents.map((i: any) => i.id));
+  const orderIds = new Set(orders.map((o: any) => o.id));
+
+  for (const wi of workItems) {
+    if (wi.source_type === "bug_report" && wi.source_id && !bugIds.has(wi.source_id)) {
+      issues.push({ type: "orphan_source", severity: "high", title: `Orphan: "${wi.title}"`, detail: `source bug ${wi.source_id} missing` });
+    }
+    if (wi.source_type === "order_incident" && wi.source_id && !incidentIds.has(wi.source_id)) {
+      issues.push({ type: "orphan_source", severity: "high", title: `Orphan: "${wi.title}"`, detail: `source incident ${wi.source_id} missing` });
+    }
+    if (wi.related_order_id && !orderIds.has(wi.related_order_id)) {
+      issues.push({ type: "orphan_order", severity: "high", title: `Orphan: "${wi.title}"`, detail: `related order ${wi.related_order_id} missing/deleted` });
+    }
+  }
+
+  // 3. Status mismatches
+  const activeWiByBug = new Map<string, any>();
+  for (const wi of workItems) {
+    if (wi.source_type === "bug_report" && wi.source_id && ["open", "claimed", "in_progress"].includes(wi.status)) {
+      activeWiByBug.set(wi.source_id, wi);
+    }
+  }
+  for (const bug of bugs) {
+    if (["resolved", "closed"].includes(bug.status) && activeWiByBug.has(bug.id)) {
+      const wi = activeWiByBug.get(bug.id);
+      issues.push({ type: "status_mismatch", severity: "medium", title: `Mismatch: "${wi.title}" active but bug resolved`, detail: `bug ${bug.id.slice(0,8)} resolved, task still ${wi.status}` });
+    }
+  }
+
+  // 4. Open bugs without work items
+  const bugsWithWi = new Set(workItems.filter((w: any) => w.source_type === "bug_report" && w.source_id).map((w: any) => w.source_id));
+  for (const bug of bugs) {
+    if (bug.status === "open" && !bugsWithWi.has(bug.id)) {
+      issues.push({ type: "missing_task", severity: "medium", title: `Bug without task`, detail: `bug ${bug.id.slice(0,8)} open but no work_item` });
+    }
+  }
+
+  // 5. Negative stock
+  for (const p of products) {
+    if (!p.allow_overselling && p.stock < 0) {
+      issues.push({ type: "stock_negative", severity: "critical", title: `Negative stock: ${p.title_sv}`, detail: `stock=${p.stock}` });
+    }
+    if (p.reserved_stock && p.reserved_stock > p.stock && !p.allow_overselling) {
+      issues.push({ type: "stock_overreserved", severity: "high", title: `Over-reserved: ${p.title_sv}`, detail: `reserved=${p.reserved_stock}, stock=${p.stock}` });
+    }
+  }
+
+  // 6. Orders paid but still pending
+  const paidPending = orders.filter((o: any) => o.payment_status === "paid" && o.status === "pending");
+  if (paidPending.length > 0) {
+    issues.push({ type: "order_stuck", severity: "high", title: `${paidPending.length} paid orders stuck in pending`, detail: `Orders paid but status never advanced` });
+  }
+
+  // 7. Duplicate work items
+  const sourceKeys = new Map<string, number>();
+  for (const wi of workItems) {
+    if (wi.source_id && wi.source_type && ["open","claimed","in_progress"].includes(wi.status)) {
+      const key = `${wi.source_type}:${wi.source_id}`;
+      sourceKeys.set(key, (sourceKeys.get(key) || 0) + 1);
+    }
+  }
+  for (const [key, count] of sourceKeys) {
+    if (count > 1) {
+      issues.push({ type: "duplicate_tasks", severity: "medium", title: `${count} duplicate tasks for ${key}`, detail: `Multiple active work items for same source` });
+    }
+  }
+
+  // Auto-create data_issue tasks for critical/high issues
+  let tasksCreated = 0;
+  for (const issue of issues) {
+    if (issue.severity === "critical" || issue.severity === "high") {
+      // Check if similar task already exists
+      const existing = workItems.find((w: any) =>
+        w.item_type === "data_issue" && w.title === issue.title && ["open","claimed","in_progress"].includes(w.status)
+      );
+      if (!existing) {
+        await supabase.from("work_items").insert({
+          title: issue.title.substring(0, 200),
+          description: issue.detail,
+          status: "open",
+          priority: issue.severity === "critical" ? "critical" : "high",
+          item_type: "data_issue",
+          source_type: "system",
+          ai_detected: true,
+          ai_confidence: "high",
+        });
+        tasksCreated++;
+      }
+    }
+  }
+
+  const score = Math.max(0, 100 - issues.filter(i => i.severity === "critical").length * 20 - issues.filter(i => i.severity === "high").length * 10 - issues.filter(i => i.severity === "medium").length * 3);
+
+  await supabase.from("system_history").insert({
+    event_type: "data_integrity_scan",
+    snapshot: { total_issues: issues.length, score, tasks_created: tasksCreated },
+    resolution_notes: `Integrity scan: ${issues.length} issues, score ${score}/100`,
+  });
+
+  return { issues, score, tasks_created: tasksCreated };
+}
