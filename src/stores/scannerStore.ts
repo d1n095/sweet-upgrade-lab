@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useExecutionLockStore } from './executionLockStore';
 import { QueryClient } from '@tanstack/react-query';
 
 export type ScanStepStatus = 'pending' | 'running' | 'done' | 'error';
@@ -95,8 +96,19 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
     const { scanning, selectedSteps } = get();
     if (scanning) return;
 
+    // Acquire scans lock
+    const lockStore = useExecutionLockStore.getState();
+    const lockId = `scanner-${Date.now()}`;
+    const acquired = lockStore.acquire('scans', lockId, 'Full scanner run');
+    if (!acquired) {
+      const holder = lockStore.getHolder('scans');
+      toast.error(`Skanningar blockerade — område låst av ${holder?.description || 'annan uppgift'}`);
+      lockStore.logConflict(lockId, 'Scanner run', 'scans', holder?.lockedBy || 'unknown');
+      return;
+    }
+
     const toRun = SCAN_STEPS.filter(s => selectedSteps.has(s.type));
-    if (toRun.length === 0) { toast.error('Välj minst en skanning'); return; }
+    if (toRun.length === 0) { toast.error('Välj minst en skanning'); lockStore.release(lockId); return; }
 
     set({
       scanning: true,
@@ -144,6 +156,7 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
     }
 
     toast.success(`Alla skanningar klara (${toRun.length} st)`);
+    lockStore.release(lockId);
     set({ scanning: false });
   },
 }));
