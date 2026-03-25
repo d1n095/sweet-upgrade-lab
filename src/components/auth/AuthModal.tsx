@@ -388,7 +388,7 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
             )}
 
             {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4" autoComplete={mode === 'login' ? 'on' : 'off'}>
               {/* Username field for registration - REQUIRED */}
               {mode === 'register' && (
                 <div>
@@ -396,6 +396,8 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                     <UserCircle className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                     <Input
                       type="text"
+                      name="reg_uname_field"
+                      autoComplete="off"
                       placeholder={lang === 'sv' ? 'Användarnamn *' : 'Username *'}
                       value={username}
                       onChange={(e) => {
@@ -448,6 +450,8 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                     <Input
                       type="tel"
                       inputMode="tel"
+                      name="reg_phone_field"
+                      autoComplete="tel"
                       placeholder={lang === 'sv' ? 'Telefonnummer *' : 'Phone number *'}
                       value={phone}
                       onChange={(e) => {
@@ -474,6 +478,8 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
                   type="email"
+                  name={mode === 'login' ? 'login_email' : 'reg_email_field'}
+                  autoComplete={mode === 'login' ? 'email' : 'email'}
                   placeholder={lang === 'sv' ? 'E-postadress' : 'Email address'}
                   value={email}
                   onChange={(e) => { setEmail(e.target.value); setFormError(''); }}
@@ -487,6 +493,8 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                   <Input
                     type={showPassword ? 'text' : 'password'}
+                    name={mode === 'login' ? 'login_pass' : 'reg_pass_field'}
+                    autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                     placeholder={lang === 'sv' ? 'Lösenord' : 'Password'}
                     value={password}
                     onChange={(e) => { setPassword(e.target.value); setFormError(''); }}

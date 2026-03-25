@@ -179,7 +179,7 @@ const ProfileInfoForm = () => {
         </div>
       </div>
 
-      <form onSubmit={handleSave} className="space-y-4">
+      <form onSubmit={handleSave} className="space-y-4" autoComplete="off">
         {/* Name row */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
