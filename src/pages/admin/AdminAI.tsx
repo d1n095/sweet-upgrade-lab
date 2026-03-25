@@ -6509,6 +6509,149 @@ const syncTypeLabels: Record<string, string> = {
   missing_data: 'Saknad data', status_desync: 'Statusdesync',
 };
 
+// ── Access Control Intelligence Tab ──
+const AccessControlTab = () => {
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<any>(null);
+
+  const runScan = async () => {
+    setLoading(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { toast.error('Ej inloggad'); setLoading(false); return; }
+    try {
+      const resp = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/access-control-scan`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` }, body: '{}' }
+      );
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || 'Scan failed');
+      setResult(data);
+      toast.success(`Skanning klar: ${data.issues?.length || 0} problem hittade`);
+    } catch (e: any) { toast.error(e.message); }
+    setLoading(false);
+  };
+
+  const riskColor = (risk: string) => {
+    if (risk === 'critical') return 'text-red-600 bg-red-500/10 border-red-500/30';
+    if (risk === 'high') return 'text-orange-600 bg-orange-500/10 border-orange-500/30';
+    if (risk === 'medium') return 'text-yellow-600 bg-yellow-500/10 border-yellow-500/30';
+    return 'text-muted-foreground bg-muted/50 border-border';
+  };
+
+  const typeLabel = (type: string) => {
+    const map: Record<string, string> = {
+      over_permissioned: '⚠️ Överprivilegierad',
+      under_permissioned: '📉 Underprivilegierad',
+      orphan_role: '👻 Oanvänd roll',
+      broken_access: '🔴 Bruten åtkomst',
+      insecure_access: '🔓 Osäker åtkomst',
+      no_role: '❓ Saknar roll',
+      duplicate_role: '📋 Duplicerad roll',
+      stale_access: '⏰ Inaktiv admin',
+    };
+    return map[type] || type;
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-semibold flex items-center gap-2"><Shield className="w-4 h-4" /> Åtkomstkontroll</h3>
+          <p className="text-xs text-muted-foreground">Skanna användare, roller och behörigheter</p>
+        </div>
+        <Button onClick={runScan} disabled={loading} size="sm" className="gap-1">
+          {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Radar className="w-3 h-3" />}
+          {loading ? 'Skannar...' : 'Kör skanning'}
+        </Button>
+      </div>
+
+      {result && (
+        <>
+          {/* Summary cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {[
+              { label: 'Användare', value: result.summary?.total_users, icon: '👥' },
+              { label: 'Med roller', value: result.summary?.users_with_roles, icon: '🔑' },
+              { label: 'Roller', value: result.summary?.total_roles, icon: '🏷️' },
+              { label: 'Problem', value: result.summary?.issues_found, icon: result.summary?.critical_issues > 0 ? '🔴' : '✅' },
+            ].map(s => (
+              <Card key={s.label}>
+                <CardContent className="py-3 px-3">
+                  <p className="text-[10px] text-muted-foreground">{s.icon} {s.label}</p>
+                  <p className="text-lg font-bold">{s.value}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Risk breakdown */}
+          {result.summary?.issues_found > 0 && (
+            <div className="flex gap-2 flex-wrap">
+              {result.summary.critical_issues > 0 && <Badge variant="destructive" className="text-[10px]">🔴 {result.summary.critical_issues} kritiska</Badge>}
+              {result.summary.high_issues > 0 && <Badge variant="destructive" className="text-[10px] bg-orange-500">🟠 {result.summary.high_issues} höga</Badge>}
+              {result.summary.medium_issues > 0 && <Badge variant="secondary" className="text-[10px]">🟡 {result.summary.medium_issues} medel</Badge>}
+              {result.summary.low_issues > 0 && <Badge variant="outline" className="text-[10px]">⚪ {result.summary.low_issues} låga</Badge>}
+            </div>
+          )}
+
+          {/* Role overview */}
+          {result.roles?.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-xs">Rollöversikt</CardTitle></CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {result.roles.map((r: any) => (
+                    <div key={r.role} className="text-xs border rounded-md p-2 bg-muted/30">
+                      <p className="font-medium">{r.role}</p>
+                      <p className="text-muted-foreground">{r.user_count} användare · {r.modules.length} moduler</p>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Issues list */}
+          {result.issues?.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-xs">Hittade problem ({result.issues.length})</CardTitle></CardHeader>
+              <CardContent>
+                <ScrollArea className="max-h-[400px]">
+                  <div className="space-y-2">
+                    {result.issues.map((issue: any, idx: number) => (
+                      <div key={idx} className={cn('text-xs border rounded-md p-3 space-y-1', riskColor(issue.risk))}>
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium">{typeLabel(issue.type)}</span>
+                          <Badge variant="outline" className="text-[8px]">{issue.risk}</Badge>
+                        </div>
+                        <p>{issue.detail}</p>
+                        {issue.username && <p className="text-muted-foreground">Användare: {issue.username} {issue.user_email ? `(${issue.user_email})` : ''}</p>}
+                        {issue.role && !issue.username && <p className="text-muted-foreground">Roll: {issue.role}</p>}
+                        <p className="text-muted-foreground italic">💡 {issue.recommendation}</p>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          )}
+
+          {result.issues?.length === 0 && (
+            <Card className="border-green-500/20 bg-green-500/5">
+              <CardContent className="py-4">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-green-500" />
+                  <p className="text-xs font-medium">Inga problem hittade — åtkomstsystemet ser bra ut!</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </>
+      )}
+    </div>
+  );
+};
+
 const SyncScannerTab = () => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
