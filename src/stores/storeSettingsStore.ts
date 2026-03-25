@@ -70,9 +70,15 @@ export const useStoreSettings = create<StoreSettingsState>((set, get) => ({
         requireAddress: map['require_address'] ?? false,
         guestCheckout: map['guest_checkout'] ?? true,
         autoSaveProfile: map['auto_save_profile'] ?? true,
-        socialInstagram: map['social_instagram'] ?? '',
-        socialFacebook: map['social_facebook'] ?? '',
         isLoaded: true,
+      });
+
+      // Fetch text-based settings separately
+      const textMap = Object.fromEntries(data.map(r => [r.key, (r as any).text_value]));
+      set({
+        socialInstagram: textMap['social_instagram'] ?? '',
+        socialFacebook: textMap['social_facebook'] ?? '',
+      });
       });
     } else {
       set({ isLoaded: true });
@@ -137,7 +143,7 @@ export const useStoreSettings = create<StoreSettingsState>((set, get) => ({
     set({ [stateKey]: value } as any);
     await supabase
       .from('store_settings')
-      .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      .upsert({ key, value: true, text_value: value, updated_at: new Date().toISOString() } as any, { onConflict: 'key' });
     logSettingsChange(key, old, value);
   },
 }));
@@ -158,7 +164,8 @@ supabase
     if (key === 'require_address') useStoreSettings.setState({ requireAddress: value });
     if (key === 'guest_checkout') useStoreSettings.setState({ guestCheckout: value });
     if (key === 'auto_save_profile') useStoreSettings.setState({ autoSaveProfile: value });
-    if (key === 'social_instagram') useStoreSettings.setState({ socialInstagram: value as unknown as string });
-    if (key === 'social_facebook') useStoreSettings.setState({ socialFacebook: value as unknown as string });
+    const textVal = (payload.new as any).text_value;
+    if (key === 'social_instagram') useStoreSettings.setState({ socialInstagram: textVal ?? '' });
+    if (key === 'social_facebook') useStoreSettings.setState({ socialFacebook: textVal ?? '' });
   })
   .subscribe();
