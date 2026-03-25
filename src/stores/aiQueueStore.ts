@@ -296,7 +296,10 @@ export const useAiQueueStore = create<AiQueueState>((set, get) => ({
     return id;
   },
 
-  removeTask: (id) => set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id) })),
+  removeTask: (id) => {
+    useExecutionLockStore.getState().release(id);
+    set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id) }));
+  },
   clearCompleted: () => set((s) => ({ tasks: s.tasks.filter((t) => t.status !== 'completed') })),
   clearFailureLog: () => set({ failureLog: [] }),
   clearRegressionLog: () => set({ regressionLog: [] }),
