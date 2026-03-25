@@ -4745,23 +4745,25 @@ const AiAutopilotTab = () => {
         <CardContent className="space-y-3">
           {scanMode === 'orchestrated' ? (
             <>
-              <p className="text-[10px] text-muted-foreground">Körs på servern — du kan navigera bort, logga ut eller stänga fliken. Synkad mellan alla med åtkomst.</p>
-              <Button onClick={() => orchestrator.runOrchestrated(queryClient)} disabled={isAnyScanRunning} className="w-full gap-2" size="lg">
-                {orchestrator.running ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-                {orchestrator.running
-                  ? `${orchCurrentStep?.progressLabel || 'Kör...'} (${orchCompleted + orchErrors}/${orchestrator.steps.length})`
-                  : 'Kör Full Orchestrated Scan (10 steg)'}
-              </Button>
-              {orchestrator.running && orchestrator.steps.length > 0 && (
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground truncate max-w-[60%]">{orchCurrentStep?.progressLabel || 'Väntar...'}</span>
-                    <span className="font-bold text-primary">{orchPct}%</span>
-                  </div>
-                  <Progress value={orchPct} className="h-2.5" />
-                  <p className="text-[10px] text-muted-foreground text-center">{orchCompleted + orchErrors} av {orchestrator.steps.length} klara — körs på servern 🖥️</p>
-                </div>
-              )}
+               <p className="text-[10px] text-muted-foreground">Adaptiv rekursiv skanning — lär sig mönster och djupskannar högriskområden (max 3 iterationer). Körs på servern.</p>
+               <Button onClick={() => orchestrator.runOrchestrated(queryClient)} disabled={isAnyScanRunning} className="w-full gap-2" size="lg">
+                 {orchestrator.running ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                 {orchestrator.running
+                   ? `${orchestrator.currentStepLabel || orchCurrentStep?.progressLabel || 'Kör...'}`
+                   : 'Kör Adaptiv Full Scan'}
+               </Button>
+               {orchestrator.running && orchestrator.steps.length > 0 && (
+                 <div className="space-y-1.5">
+                   <div className="flex items-center justify-between text-xs">
+                     <span className="text-muted-foreground truncate max-w-[60%]">{orchestrator.currentStepLabel || orchCurrentStep?.progressLabel || 'Väntar...'}</span>
+                     <span className="font-bold text-primary">{orchPct}%</span>
+                   </div>
+                   <Progress value={orchPct} className="h-2.5" />
+                   <p className="text-[10px] text-muted-foreground text-center">
+                     Iteration {orchestrator.currentIteration}/3 — {orchCompleted + orchErrors} av {orchestrator.steps.length} klara 🖥️
+                   </p>
+                 </div>
+               )}
             </>
           ) : (
             <>
@@ -4828,6 +4830,32 @@ const AiAutopilotTab = () => {
                 <span>👻 {orchestrator.unifiedResult.fake_features.length} fake features</span>
                 <span>⚡ {orchestrator.unifiedResult.interaction_failures.length} interaction fails</span>
                 <span>📊 {orchestrator.unifiedResult.data_issues.length} data issues</span>
+              </div>
+            )}
+            {/* Adaptive scan metadata */}
+            {orchestrator.unifiedResult?.adaptive_scan && (
+              <div className="mt-2 p-2 rounded-lg bg-muted/40 border border-border">
+                <div className="flex items-center gap-2 mb-1">
+                  <Layers className="w-3 h-3 text-primary" />
+                  <span className="text-[10px] font-semibold">Adaptiv skanning</span>
+                </div>
+                <div className="flex gap-3 text-[10px] text-muted-foreground flex-wrap">
+                  <span>🔄 {orchestrator.unifiedResult.adaptive_scan.iterations} iterationer</span>
+                  <span>🔍 {orchestrator.unifiedResult.adaptive_scan.new_issues_found} nya problem</span>
+                  <span>🧠 {orchestrator.unifiedResult.adaptive_scan.pattern_discoveries.length} mönster</span>
+                  <span>⚠️ {orchestrator.unifiedResult.adaptive_scan.high_risk_areas.length} högrisk</span>
+                  <span>📈 {orchestrator.unifiedResult.adaptive_scan.coverage_score}% täckning</span>
+                </div>
+                {orchestrator.unifiedResult.adaptive_scan.high_risk_areas.length > 0 && (
+                  <div className="mt-1.5 space-y-0.5">
+                    <span className="text-[9px] font-medium text-destructive">Högriskområden:</span>
+                    {orchestrator.unifiedResult.adaptive_scan.high_risk_areas.slice(0, 5).map((area: any, i: number) => (
+                      <div key={i} className="text-[9px] text-muted-foreground ml-2">
+                        • {area.component} ({area.issue_count} problem, {area.risk_level})
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </CardHeader>
