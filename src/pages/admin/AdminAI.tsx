@@ -1185,7 +1185,7 @@ const BugAITab = () => {
   const selectedFix = selectedBugId ? fixes[selectedBugId] : null;
 
   return (
-    <div className="space-y-4 pb-8">
+    <div className="space-y-3">
       <div className="flex items-center gap-2 flex-wrap">
         <div className="flex gap-1">
           {(['open', 'resolved', 'all'] as const).map(f => (
@@ -1210,46 +1210,41 @@ const BugAITab = () => {
       {bugs.length === 0 && !loading ? (
         <p className="text-sm text-muted-foreground text-center py-6">Inga buggar hittade 🎉</p>
       ) : (
-        <div className="grid grid-cols-1 xl:grid-cols-[360px_minmax(0,1fr)] gap-3">
-          {/* List */}
-          <div className="space-y-2">
-            {bugs.map(bug => {
-              const isActive = selectedBugId === bug.id;
-              return (
-                <button
-                  key={bug.id}
-                  data-bug-id={bug.id}
-                  onClick={() => setSelectedBugId(bug.id)}
-                  className={cn(
-                    'w-full border rounded-lg p-3 text-left transition-colors',
-                    isActive ? 'border-primary bg-primary/5' : 'hover:bg-muted/30'
-                  )}
-                >
-                  <p className="text-sm font-medium line-clamp-2">{bug.ai_summary || bug.description?.substring(0, 120)}</p>
-                  <div className="flex gap-1.5 mt-2 flex-wrap items-center">
-                    {bug.ai_severity && <Badge variant={sevBadge(bug.ai_severity)} className="text-[10px]">{bug.ai_severity}</Badge>}
-                    {bug.ai_category && <Badge variant="outline" className="text-[10px]">{bug.ai_category}</Badge>}
-                    {bug.status === 'resolved' && <Badge variant="outline" className="text-[10px]">Löst</Badge>}
-                  </div>
-                  <div className="flex items-center justify-between mt-2">
-                    <span className="text-[10px] text-muted-foreground truncate max-w-[70%]">{bug.page_url}</span>
-                    <span className="text-[10px] text-muted-foreground">{new Date(bug.created_at).toLocaleDateString('sv-SE')}</span>
-                  </div>
-                </button>
-              );
-            })}
+        <div style={{ display: 'flex', gap: '12px', minHeight: '500px' }}>
+          {/* LEFT: Bug list — 35% */}
+          <div style={{ width: '35%', minWidth: 0, overflowY: 'auto', maxHeight: '70vh' }} className="space-y-1.5 pr-1">
+            {bugs.map(bug => (
+              <button
+                key={bug.id}
+                onClick={() => setSelectedBugId(bug.id)}
+                className={cn(
+                  'w-full border rounded-lg p-2.5 text-left transition-colors',
+                  selectedBugId === bug.id ? 'border-primary bg-primary/5' : 'hover:bg-muted/30'
+                )}
+              >
+                <p className="text-xs font-medium line-clamp-2">{bug.ai_summary || bug.description?.substring(0, 100)}</p>
+                <div className="flex gap-1 mt-1.5 flex-wrap items-center">
+                  {bug.ai_severity && <Badge variant={sevBadge(bug.ai_severity)} className="text-[9px] px-1 py-0">{bug.ai_severity}</Badge>}
+                  {bug.ai_category && <Badge variant="outline" className="text-[9px] px-1 py-0">{bug.ai_category}</Badge>}
+                </div>
+                <span className="text-[9px] text-muted-foreground mt-1 block">{new Date(bug.created_at).toLocaleDateString('sv-SE')}</span>
+              </button>
+            ))}
           </div>
 
-          {/* Detail panel */}
-          <Card key={selectedBugId || 'no-bug-selected'} className="min-h-[420px]">
-            <CardContent className="p-4 space-y-4">
-              {!selectedBug ? (
-                <div className="h-full min-h-[360px] flex items-center justify-center text-sm text-muted-foreground">
-                  Välj en bugg i listan för att öppna detaljer.
-                </div>
-              ) : (
-                <>
-                  <div className="flex items-start justify-between gap-3">
+          {/* RIGHT: Detail panel — flex: 1 */}
+          <div style={{ flex: 1, minWidth: 0, overflowY: 'auto' }}>
+            {!selectedBug ? (
+              <Card className="h-full">
+                <CardContent className="h-full flex items-center justify-center p-6">
+                  <p className="text-sm text-muted-foreground">← Välj en bugg för att se detaljer</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card key={selectedBugId!}>
+                <CardContent className="p-4 space-y-4">
+                  {/* Header */}
+                  <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <h4 className="text-sm font-semibold">{selectedBug.ai_summary || 'Buggrapport'}</h4>
                       <div className="flex gap-1.5 mt-1 flex-wrap items-center">
@@ -1258,69 +1253,40 @@ const BugAITab = () => {
                         <span className="text-[10px] text-muted-foreground">{selectedBug.page_url}</span>
                       </div>
                     </div>
-                    <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setSelectedBugId(null)}>
-                      Stäng
+                    <Button size="sm" variant="ghost" className="h-7 text-xs shrink-0" onClick={() => setSelectedBugId(null)}>
+                      ✕
                     </Button>
                   </div>
 
+                  {/* Action buttons */}
                   <div className="flex gap-1.5 flex-wrap">
-                    <Button
-                      size="sm"
-                      variant="default"
-                      className="gap-1 h-7 text-xs"
-                      disabled={analyzing === selectedBug.id}
-                      onClick={() => analyzeBug(selectedBug.id, false)}
-                    >
+                    <Button size="sm" variant="default" className="gap-1 h-7 text-xs" disabled={analyzing === selectedBug.id} onClick={() => analyzeBug(selectedBug.id, false)}>
                       {analyzing === selectedBug.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Bot className="w-3 h-3" />}
                       Bearbeta med AI
                     </Button>
-
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-1 h-7 text-xs"
-                      disabled={analyzing === selectedBug.id}
-                      onClick={() => analyzeBug(selectedBug.id, false)}
-                    >
+                    <Button size="sm" variant="outline" className="gap-1 h-7 text-xs" disabled={analyzing === selectedBug.id} onClick={() => analyzeBug(selectedBug.id, false)}>
                       {analyzing === selectedBug.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
                       Analysera
                     </Button>
-
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-1 h-7 text-xs"
-                      disabled={analyzing === selectedBug.id}
-                      onClick={() => analyzeBug(selectedBug.id, true)}
-                    >
+                    <Button size="sm" variant="outline" className="gap-1 h-7 text-xs" disabled={analyzing === selectedBug.id} onClick={() => analyzeBug(selectedBug.id, true)}>
                       {analyzing === selectedBug.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Activity className="w-3 h-3" />}
                       Djupanalys
                     </Button>
-
                     {selectedBug.status === 'open' && (
                       <>
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          className="gap-1 h-7 text-xs ml-auto"
-                          onClick={() => markResolved(selectedBug.id, selectedFix?.summary || selectedFix?.diagnosis?.summary)}
-                        >
+                        <Button size="sm" variant="secondary" className="gap-1 h-7 text-xs ml-auto" onClick={() => markResolved(selectedBug.id, selectedFix?.summary || selectedFix?.diagnosis?.summary)}>
                           <CheckCircle className="w-3 h-3" /> Markera löst
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="gap-1 h-7 text-xs text-muted-foreground"
-                          onClick={() => ignoreBug(selectedBug.id)}
-                        >
+                        <Button size="sm" variant="ghost" className="gap-1 h-7 text-xs text-muted-foreground" onClick={() => ignoreBug(selectedBug.id)}>
                           <XCircle className="w-3 h-3" /> Ignorera
                         </Button>
                       </>
                     )}
                   </div>
 
+                  {/* Description */}
                   <div className="bg-muted/30 rounded-md p-3 text-xs space-y-1">
-                    <p className="font-medium text-muted-foreground">Full beskrivning</p>
+                    <p className="font-medium text-muted-foreground">Beskrivning</p>
                     <p>{selectedBug.description}</p>
                     {selectedBug.resolution_notes && (
                       <div className="mt-2">
@@ -1330,37 +1296,30 @@ const BugAITab = () => {
                     )}
                   </div>
 
+                  {/* AI output */}
                   {selectedFix && (
                     <div className="space-y-2">
                       <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
                         <Sparkles className="w-3.5 h-3.5" />
                         {selectedFix._deep ? 'AI Djupanalys' : 'AI Output'}
                       </div>
-
                       {selectedFix.diagnosis?.summary && (
                         <div className="text-xs border rounded-md p-2 bg-muted/30">{selectedFix.diagnosis.summary}</div>
                       )}
-
                       {selectedFix.summary && !selectedFix.diagnosis?.summary && (
                         <div className="text-xs border rounded-md p-2 bg-muted/30">{selectedFix.summary}</div>
                       )}
-
                       {(selectedFix.lovable_prompt || selectedFix.fix_suggestions?.[0]?.lovable_prompt) && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 text-xs gap-1"
-                          onClick={() => copyToClipboard(selectedFix.lovable_prompt || selectedFix.fix_suggestions?.[0]?.lovable_prompt || '')}
-                        >
+                        <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => copyToClipboard(selectedFix.lovable_prompt || selectedFix.fix_suggestions?.[0]?.lovable_prompt || '')}>
                           <Copy className="w-3 h-3" /> Kopiera prompt
                         </Button>
                       )}
                     </div>
                   )}
-                </>
-              )}
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </div>
       )}
     </div>
