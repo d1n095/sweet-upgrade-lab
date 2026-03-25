@@ -22,6 +22,7 @@ import AdminNotificationBell from '@/components/admin/AdminNotificationBell';
 import BugReportButton from '@/components/admin/BugReportButton';
 import { AnimatePresence, motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
+import { useAdminRealtime } from '@/hooks/useAdminRealtime';
 
 
 // role: 'all' = everyone with admin/employee access, 'admin' = admin only, 'founder' = founder only
