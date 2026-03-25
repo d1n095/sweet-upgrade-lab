@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { useSafeModeStore } from './safeModeStore';
+import { useExecutionLockStore, resolveArea, type LockArea } from './executionLockStore';
 
 export type QueueTaskStatus = 'queued' | 'running' | 'completed' | 'failed' | 'blocked' | 'validating' | 'regressed';
 export type QueueTaskPriority = 'critical' | 'high' | 'normal';
@@ -47,6 +48,8 @@ export interface QueueTask {
   completedAt?: string;
   createdAt: string;
   executor?: () => Promise<any>;
+  /** Lock area hint — resolved automatically from item_type if not set */
+  lockArea?: LockArea;
   validator?: (result: any) => Promise<FailureCheck[]>;
   /** Captures state BEFORE execution for regression comparison */
   snapshotBefore?: () => Promise<Record<string, any>>;
@@ -335,11 +338,25 @@ export const useAiQueueStore = create<AiQueueState>((set, get) => ({
 
         // Safe Mode: skip non-critical tasks
         const safeMode = useSafeModeStore.getState();
+        const lockStore = useExecutionLockStore.getState();
+
         const nextTask = updatedTasks
           .filter((t) => {
             if (t.status !== 'queued') return false;
             if (t.dependsOn && !t.dependsOn.every((dep) => completedIds.has(dep))) return false;
             if (safeMode.active && t.priority !== 'critical') return false;
+
+            // Execution lock check — skip tasks whose area is locked by another task
+            const area = t.lockArea || resolveArea(t.title?.split(':')[0]?.trim());
+            if (area) {
+              const holder = lockStore.getHolder(area);
+              if (holder && holder.lockedBy !== t.id) {
+                // Log conflict and delay this task
+                lockStore.logConflict(t.id, t.title, area, holder.lockedBy);
+                return false;
+              }
+            }
+
             return true;
           })
           .sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority])[0];
@@ -347,6 +364,19 @@ export const useAiQueueStore = create<AiQueueState>((set, get) => ({
         if (!nextTask) {
           set({ tasks: updatedTasks });
           break;
+        }
+
+        // Acquire execution lock for the task's area
+        const taskArea = nextTask.lockArea || resolveArea(nextTask.title?.split(':')[0]?.trim());
+        if (taskArea) {
+          const acquired = lockStore.acquire(taskArea, nextTask.id, nextTask.title);
+          if (!acquired) {
+            const holder = lockStore.getHolder(taskArea);
+            lockStore.logConflict(nextTask.id, nextTask.title, taskArea, holder?.lockedBy || 'unknown');
+            // Skip this task for now — it will retry on next processQueue cycle
+            set({ tasks: updatedTasks });
+            break;
+          }
         }
 
         // Capture pre-snapshot
