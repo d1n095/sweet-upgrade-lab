@@ -1168,7 +1168,7 @@ const BugAITab = () => {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col h-full min-h-0 space-y-4">
       <div className="flex items-center gap-2 flex-wrap">
         <div className="flex gap-1">
           {(['open', 'resolved', 'all'] as const).map(f => (
