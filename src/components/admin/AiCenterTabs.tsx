@@ -74,6 +74,7 @@ const TAB_GROUPS: TabGroup[] = [
     icon: Database,
     tabs: [
       { value: 'queue-control', label: 'Köhantering', icon: Layers },
+      { value: 'data-flow', label: 'Dataflöde', icon: ArrowRightLeft },
       { value: 'data-health', label: 'Datahälsa', icon: Database },
       { value: 'data-integrity', label: 'Dataintegritet', icon: ShieldCheck },
       { value: 'content-validation', label: 'Innehållskontroll', icon: Eye },
