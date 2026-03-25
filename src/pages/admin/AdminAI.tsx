@@ -1926,6 +1926,9 @@ const SystemScanTab = () => {
       reason: dismissNote || 'Ignorerad utan kommentar',
       dismissed_by: session.user.id,
       scan_type: 'system_scan',
+      dismissed_severity: issue.severity || 'unknown',
+      escalation_note: null,
+      escalated_at: null,
     } as any, { onConflict: 'issue_key,scan_type' });
     setDismissingIssue(null);
     setDismissNote('');
