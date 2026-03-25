@@ -131,6 +131,11 @@ serve(async (req) => {
         break;
       }
 
+      case "interaction_qa": {
+        result = await handleInteractionQA(supabase, lovableKey);
+        break;
+      }
+
       case "ai_execute": {
         const { mode } = body;  // manual | assisted | autonomous
         result = await handleAiExecute(supabase, lovableKey, mode || "assisted");
