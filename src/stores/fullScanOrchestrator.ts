@@ -330,6 +330,14 @@ export const useFullScanOrchestrator = create<FullScanOrchestratorState>((set, g
       console.warn('Critical path check failed:', e);
     }
 
+    // ── POST-SCAN: Auto-assign, escalate & dedup critical items ──
+    try {
+      const escReport = await runCriticalEscalation();
+      console.log(`[Escalation] assigned=${escReport.assigned} escalated=${escReport.escalated} dedup=${escReport.deduplicated}`);
+    } catch (e) {
+      console.warn('Critical escalation failed:', e);
+    }
+
     if (queryClient) {
       for (const key of ['admin-scan-results', 'admin-work-items', 'admin-bugs', 'mini-workbench-items', 'autopilot-scan-runs', 'last-scan-result', 'scan-history', 'work-items']) {
         queryClient.invalidateQueries({ queryKey: [key] });
