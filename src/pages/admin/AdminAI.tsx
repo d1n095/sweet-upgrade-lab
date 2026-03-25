@@ -6202,10 +6202,9 @@ const OverflowScanTab = () => {
 
   const createTaskFromIssue = async (issue: OverflowIssue) => {
     try {
-      const { error } = await supabase.from('work_items' as any).insert({
+      const dedupResult = await createWorkItemWithDedup({
         title: `[Overflow] ${issue.title}`.substring(0, 200),
         description: `${issue.description}\n\nSida: ${issue.page}\nContainer: ${issue.container}\nBreakpoint: ${issue.breakpoint}\nTyp: ${issue.overflow_type}\n\nCSS Fix: ${issue.css_fix}`,
-        status: 'open',
         priority: issue.severity === 'critical' ? 'critical' : issue.severity === 'high' ? 'high' : 'medium',
         item_type: 'bug',
         source_type: 'ai_detection',
@@ -6213,9 +6212,14 @@ const OverflowScanTab = () => {
         ai_confidence: 'high',
         ai_category: 'frontend',
         ai_type_classification: 'ui_overflow',
-      } as any);
-      if (error) throw error;
-      toast.success(`Uppgift skapad: ${issue.title}`);
+      });
+      if (dedupResult.duplicate) {
+        toast.info(`Ärende finns redan i masterlistan`);
+      } else if (dedupResult.created) {
+        toast.success(`Uppgift skapad: ${issue.title}`);
+      } else {
+        toast.error(dedupResult.error || 'Kunde inte skapa uppgift');
+      }
     } catch { toast.error('Kunde inte skapa uppgift'); }
   };
 
