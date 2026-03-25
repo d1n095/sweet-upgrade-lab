@@ -137,14 +137,45 @@ interface ChatMessage {
   created_at: string;
 }
 
+const LOVA_SUGGESTIONS = [
+  // Analys & data
+  '📊 Analysera all data i databasen',
+  '📈 Visa intäkter och orderstatus',
+  '🔍 Kör full systemskanning',
+  '🧹 Rensa gamla/döda uppgifter',
+  // Scanningar
+  '🛡️ Kör säkerhetsskanning',
+  '🐛 Visa alla öppna buggar',
+  '📦 Kolla lagerstatus',
+  '⚡ Kör prestandaanalys',
+  // Tillväxt & insikter
+  '🚀 Ge tillväxtförslag',
+  '💡 Föreslå nya funktioner',
+  '🎯 Analysera konverteringsgrad',
+  '👥 Visa användarstatistik',
+  // Utseende & UX
+  '🎨 Föreslå designförbättringar',
+  '📱 Kolla mobilanpassning',
+  // Underhåll
+  '🔗 Hitta trasiga kopplingar',
+  '📧 Kolla e-postsystem',
+  '💰 Analysera ekonomin',
+  '📋 Skapa uppgift',
+];
+
 const LovaChatTab = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [loadingHistory, setLoadingHistory] = useState(true);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-scroll to bottom whenever messages change
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, []);
 
   // Load most recent conversation
   useEffect(() => {
@@ -171,18 +202,15 @@ const LovaChatTab = () => {
   }, []);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages]);
+    scrollToBottom();
+  }, [messages, sending, scrollToBottom]);
 
-  const sendMessage = async () => {
-    if (!input.trim() || sending) return;
-    const text = input.trim();
+  const sendMessage = async (overrideText?: string) => {
+    const text = (overrideText || input).trim();
+    if (!text || sending) return;
     setInput('');
     setSending(true);
 
-    // Optimistic add
     const tempMsg: ChatMessage = { id: crypto.randomUUID(), role: 'user', content: text, created_at: new Date().toISOString() };
     setMessages(prev => [...prev, tempMsg]);
 
@@ -220,27 +248,62 @@ const LovaChatTab = () => {
     }
   };
 
+  // Randomize 4 suggestions each render cycle
+  const [suggestions] = useState(() => {
+    const shuffled = [...LOVA_SUGGESTIONS].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, 4);
+  });
+
   return (
     <div className="flex flex-col h-[calc(100vh-280px)] min-h-[400px]">
-      {/* Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-border">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-            <Bot className="w-4 h-4 text-primary" />
+      {/* Header + Input at TOP */}
+      <div className="pb-3 border-b border-border space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+              <Bot className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-sm">Lova 0.5</h3>
+              <p className="text-xs text-muted-foreground">AI-operatör · full systemåtkomst</p>
+            </div>
           </div>
-          <div>
-            <h3 className="font-semibold text-sm">Lova 0.5</h3>
-            <p className="text-xs text-muted-foreground">AI-assistent med full systemåtkomst</p>
-          </div>
+          <Button variant="outline" size="sm" onClick={startNewConversation} className="gap-1.5">
+            <RefreshCw className="w-3.5 h-3.5" />
+            Ny
+          </Button>
         </div>
-        <Button variant="outline" size="sm" onClick={startNewConversation} className="gap-1.5">
-          <RefreshCw className="w-3.5 h-3.5" />
-          Ny konversation
-        </Button>
+
+        {/* Input area */}
+        <div className="flex gap-2">
+          <Textarea
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Skriv till Lova... (Enter skickar)"
+            className="min-h-[44px] max-h-[120px] resize-none text-sm"
+            rows={1}
+          />
+          <Button onClick={() => sendMessage()} disabled={!input.trim() || sending} size="icon" className="shrink-0 h-[44px] w-[44px]">
+            {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+          </Button>
+        </div>
+
+        {/* Quick suggestion chips */}
+        {messages.length === 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {suggestions.map(q => (
+              <Button key={q} variant="outline" size="sm" className="text-xs h-7" onClick={() => sendMessage(q)}>
+                {q}
+              </Button>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Messages */}
-      <ScrollArea ref={scrollRef} className="flex-1 py-4">
+      {/* Messages - scrollable area */}
+      <div className="flex-1 overflow-y-auto py-4 px-1">
         {loadingHistory ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
@@ -251,21 +314,32 @@ const LovaChatTab = () => {
             <div>
               <p className="font-medium text-foreground">Hej! Jag är Lova 0.5</p>
               <p className="text-sm text-muted-foreground mt-1">
-                Jag kan analysera data, köra skanningar, skapa uppgifter och fixa databasfel direkt.
+                Jag kan analysera data, köra skanningar, skapa uppgifter, fixa databasfel, ge tillväxtförslag och mycket mer.
                 <br />
                 Om något kräver kodändringar genererar jag en prompt till Lovable.
               </p>
             </div>
-            <div className="flex flex-wrap gap-2 justify-center mt-4">
-              {['Kör en systemanalys', 'Visa öppna buggar', 'Hur ser statistiken ut?', 'Rensa gamla uppgifter'].map(q => (
-                <Button key={q} variant="outline" size="sm" className="text-xs" onClick={() => { setInput(q); }}>
-                  {q}
-                </Button>
-              ))}
+            <div className="grid grid-cols-2 gap-2 max-w-md mx-auto mt-4">
+              <div className="text-left p-2.5 rounded-lg bg-muted/50 border border-border">
+                <p className="text-xs font-medium">🔍 Skanningar</p>
+                <p className="text-xs text-muted-foreground">System, säkerhet, prestanda, data, SEO</p>
+              </div>
+              <div className="text-left p-2.5 rounded-lg bg-muted/50 border border-border">
+                <p className="text-xs font-medium">📊 Analys</p>
+                <p className="text-xs text-muted-foreground">Intäkter, ordrar, konvertering, användare</p>
+              </div>
+              <div className="text-left p-2.5 rounded-lg bg-muted/50 border border-border">
+                <p className="text-xs font-medium">🛠️ Åtgärder</p>
+                <p className="text-xs text-muted-foreground">Rensa, fixa, skapa uppgifter, optimera</p>
+              </div>
+              <div className="text-left p-2.5 rounded-lg bg-muted/50 border border-border">
+                <p className="text-xs font-medium">💡 Förslag</p>
+                <p className="text-xs text-muted-foreground">Tillväxt, design, funktioner, tillägg</p>
+              </div>
             </div>
           </div>
         ) : (
-          <div className="space-y-4 px-1">
+          <div className="space-y-4">
             {messages.map((msg) => (
               <div key={msg.id} className={cn('flex', msg.role === 'user' ? 'justify-end' : 'justify-start')}>
                 <div className={cn(
@@ -296,26 +370,20 @@ const LovaChatTab = () => {
                 </div>
               </div>
             )}
+            <div ref={messagesEndRef} />
           </div>
         )}
-      </ScrollArea>
 
-      {/* Input */}
-      <div className="pt-3 border-t border-border">
-        <div className="flex gap-2">
-          <Textarea
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Skriv till Lova 0.5..."
-            className="min-h-[44px] max-h-[120px] resize-none text-sm"
-            rows={1}
-          />
-          <Button onClick={sendMessage} disabled={!input.trim() || sending} size="icon" className="shrink-0 h-[44px] w-[44px]">
-            {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-          </Button>
-        </div>
+        {/* Follow-up suggestions after messages */}
+        {messages.length > 0 && !sending && (
+          <div className="flex flex-wrap gap-1.5 mt-4 pt-3 border-t border-border/50">
+            {['📊 Analysera mer', '🔍 Skanna systemet', '🧹 Kör cleanup', '💡 Ge förslag'].map(q => (
+              <Button key={q} variant="ghost" size="sm" className="text-xs h-7" onClick={() => sendMessage(q)}>
+                {q}
+              </Button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
