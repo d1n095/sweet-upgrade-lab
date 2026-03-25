@@ -1600,43 +1600,51 @@ const SystemHealthTab = () => {
           {data.critical_issues?.length > 0 && (
             <div className="space-y-2">
               <h4 className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5 text-destructive" /> Kritiska problem ({data.critical_issues.length})</h4>
-              {data.critical_issues.map((issue: any, i: number) => (
-                <div key={i} className={cn('border rounded-lg p-3 space-y-1', severityColor(issue.severity))}>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="destructive" className="text-[9px]">{issue.severity}</Badge>
-                    <span className="text-sm font-semibold">{issue.title}</span>
-                  </div>
-                  <p className="text-xs">{issue.description}</p>
-                  <p className="text-xs font-medium">→ {issue.suggested_action}</p>
-                  <Button size="sm" variant="outline" className="h-5 text-[9px] gap-0.5 mt-1" onClick={async () => {
-                    const res = await callAI('create_action', {
-                      title: issue.title,
-                      description: `${issue.description}\n\nÅtgärd: ${issue.suggested_action}`,
-                      priority: issue.severity === 'critical' ? 'critical' : 'high',
-                      category: 'system',
-                      source_type: 'ai_detection',
-                    });
-                    if (res?.created) toast.success('Uppgift skapad');
-                  }}>
-                    <Zap className="w-2.5 h-2.5" /> Skapa uppgift
-                  </Button>
+              <ScrollArea className="max-h-[40vh]">
+                <div className="space-y-2 pr-2">
+                  {data.critical_issues.map((issue: any, i: number) => (
+                    <div key={i} className={cn('border rounded-lg p-3 space-y-1', severityColor(issue.severity))}>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="destructive" className="text-[9px]">{issue.severity}</Badge>
+                        <span className="text-sm font-semibold">{issue.title}</span>
+                      </div>
+                      <p className="text-xs">{issue.description}</p>
+                      <p className="text-xs font-medium">→ {issue.suggested_action}</p>
+                      <Button size="sm" variant="outline" className="h-5 text-[9px] gap-0.5 mt-1" onClick={async () => {
+                        const res = await callAI('create_action', {
+                          title: issue.title,
+                          description: `${issue.description}\n\nÅtgärd: ${issue.suggested_action}`,
+                          priority: issue.severity === 'critical' ? 'critical' : 'high',
+                          category: 'system',
+                          source_type: 'ai_detection',
+                        });
+                        if (res?.created) toast.success('Uppgift skapad');
+                      }}>
+                        <Zap className="w-2.5 h-2.5" /> Skapa uppgift
+                      </Button>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </ScrollArea>
             </div>
           )}
 
           {data.duplicate_bugs?.length > 0 && (
             <div className="space-y-2">
               <h4 className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><Bug className="w-3.5 h-3.5" /> Duplicerade buggar ({data.duplicate_bugs.length})</h4>
-              {data.duplicate_bugs.map((d: any, i: number) => (
-                <div key={i} className="border rounded-lg p-3 space-y-1">
-                  <p className="text-xs"><span className="font-medium">Anledning:</span> {d.reason}</p>
-                  <p className="text-xs text-muted-foreground">→ {d.suggested_action}</p>
-                  <div className="flex gap-1 flex-wrap">
-                    {d.bug_ids.map((id: string) => <span key={id} className="text-[9px] bg-muted px-1.5 py-0.5 rounded-full font-mono">{id.slice(0, 8)}</span>)}
-                  </div>
+              <ScrollArea className="max-h-[30vh]">
+                <div className="space-y-2 pr-2">
+                  {data.duplicate_bugs.map((d: any, i: number) => (
+                    <div key={i} className="border rounded-lg p-3 space-y-1">
+                      <p className="text-xs"><span className="font-medium">Anledning:</span> {d.reason}</p>
+                      <p className="text-xs text-muted-foreground">→ {d.suggested_action}</p>
+                      <div className="flex gap-1 flex-wrap">
+                        {d.bug_ids.map((id: string) => <span key={id} className="text-[9px] bg-muted px-1.5 py-0.5 rounded-full font-mono">{id.slice(0, 8)}</span>)}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </ScrollArea>
             </div>
           )}
 
@@ -1656,15 +1664,19 @@ const SystemHealthTab = () => {
           {data.improvements?.length > 0 && (
             <div className="space-y-2">
               <h4 className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><Lightbulb className="w-3.5 h-3.5" /> Förbättringsförslag</h4>
-              {data.improvements.map((imp: any, i: number) => (
-                <div key={i} className="border rounded-lg p-3 space-y-1">
-                  <div className="flex items-center gap-2">
-                    <Badge variant={impactBadge(imp.impact)} className="text-[9px]">{imp.impact} impact</Badge>
-                    <span className="text-sm font-medium">{imp.title}</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">{imp.description}</p>
+              <ScrollArea className="max-h-[30vh]">
+                <div className="space-y-2 pr-2">
+                  {data.improvements.map((imp: any, i: number) => (
+                    <div key={i} className="border rounded-lg p-3 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <Badge variant={impactBadge(imp.impact)} className="text-[9px]">{imp.impact} impact</Badge>
+                        <span className="text-sm font-medium">{imp.title}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">{imp.description}</p>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </ScrollArea>
             </div>
           )}
         </div>
@@ -2945,7 +2957,7 @@ const PatternDetectionTab = () => {
           </div>
 
           {result.clusters?.length > 0 && (
-            <div className="space-y-3">
+            <ScrollArea className="max-h-[50vh]"><div className="space-y-3 pr-2">
               {result.clusters.map((c: any, i: number) => (
                 <Card key={i} className="border-border">
                   <CardContent className="pt-4 pb-4 space-y-3">
@@ -2987,7 +2999,7 @@ const PatternDetectionTab = () => {
                   </CardContent>
                 </Card>
               ))}
-            </div>
+            </div></ScrollArea>
           )}
 
           {result.clusters?.length === 0 && (
@@ -4350,7 +4362,7 @@ const StructureAnalysisTab = () => {
                   <GitMerge className="w-4 h-4 text-primary" /> Sammanslagningsförslag ({result.merge_suggestions.length})
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent><ScrollArea className="max-h-[40vh]"><div className="space-y-3 pr-2">
                 {result.merge_suggestions.map((ms: any, i: number) => (
                   <div key={i} className="border rounded-lg p-3 space-y-2">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -4366,7 +4378,7 @@ const StructureAnalysisTab = () => {
                     </Button>
                   </div>
                 ))}
-              </CardContent>
+              </div></ScrollArea></CardContent>
             </Card>
           )}
 
@@ -4476,7 +4488,7 @@ const DevGuardianTab = () => {
                   <Zap className="w-4 h-4 text-warning" /> Top prioriteringar
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent><ScrollArea className="max-h-[30vh]"><div className="space-y-2 pr-2">
                 {result.top_priorities.map((p: any, i: number) => (
                   <div key={i} className="flex items-start gap-2 border rounded-lg p-2.5">
                     <Badge variant={urgencyBadge(p.urgency)} className="text-[9px] shrink-0 mt-0.5">
@@ -4488,7 +4500,7 @@ const DevGuardianTab = () => {
                     </div>
                   </div>
                 ))}
-              </CardContent>
+              </div></ScrollArea></CardContent>
             </Card>
           )}
 
@@ -5102,7 +5114,7 @@ const InteractionQATab = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                <ScrollArea className="max-h-[30vh]"><div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pr-2">
                   {result.route_issues.map((ri: any, i: number) => (
                     <div key={i} className="flex items-center gap-2 text-xs p-2 rounded bg-muted/50">
                       {ri.status === 'ok' ? <CheckCircle className="w-3.5 h-3.5 text-green-600 shrink-0" /> :
@@ -5112,7 +5124,7 @@ const InteractionQATab = () => {
                       {ri.issue !== 'OK' && <span className="text-muted-foreground truncate">{ri.issue}</span>}
                     </div>
                   ))}
-                </div>
+                </div></ScrollArea>
               </CardContent>
             </Card>
           )}
@@ -5126,7 +5138,7 @@ const InteractionQATab = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-1.5">
+                <ScrollArea className="max-h-[30vh]"><div className="space-y-1.5 pr-2">
                   {result.bug_reevaluation.map((br: any, i: number) => (
                     <div key={i} className="flex items-start gap-2 text-xs p-2 rounded bg-muted/50">
                       <Badge variant={br.recommended_status === 'likely_fixed' ? 'secondary' : br.recommended_status === 'still_open' ? 'destructive' : 'outline'} className="text-[10px] shrink-0">
@@ -5135,7 +5147,7 @@ const InteractionQATab = () => {
                       <span className="text-muted-foreground">{br.reason}</span>
                     </div>
                   ))}
-                </div>
+                </div></ScrollArea>
               </CardContent>
             </Card>
           )}
