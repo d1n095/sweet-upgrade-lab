@@ -18,65 +18,16 @@ import {
 
 type SortOption = 'default' | 'price-asc' | 'price-desc' | 'name-asc' | 'name-desc';
 
-// Helper to get visible categories from admin settings
-const getVisibleCategories = (): Category[] => {
-  const stored = localStorage.getItem('admin_categories');
-  if (stored) {
-    try {
-      const adminCategories = JSON.parse(stored) as Array<{
-        id: string;
-        isVisible: boolean;
-      }>;
-      const visibleIds = adminCategories
-        .filter(c => c.isVisible)
-        .map(c => c.id);
-      return categories.filter(c => visibleIds.includes(c.id));
-    } catch {
-      return categories;
-    }
-  }
-  return categories;
-};
-
-// Helper to get hidden category product_types for filtering
-const getHiddenCategoryQueries = (): string[] => {
-  const stored = localStorage.getItem('admin_categories');
-  if (stored) {
-    try {
-      const adminCategories = JSON.parse(stored) as Array<{
-        id: string;
-        isVisible: boolean;
-      }>;
-      const hiddenIds = adminCategories
-        .filter(c => !c.isVisible)
-        .map(c => c.id);
-      
-      // Map hidden category IDs to their product_type values
-      return categories
-        .filter(c => hiddenIds.includes(c.id) && c.query)
-        .map(c => {
-          // Extract product_type from query like 'product_type:CBD'
-          const match = c.query?.match(/product_type:([^\s]+)/);
-          return match ? match[1].replace(/"/g, '') : null;
-        })
-        .filter((v): v is string => v !== null);
-    } catch {
-      return [];
-    }
-  }
-  return [];
-};
-
 const ShopifyProductGrid = () => {
   const { language, t } = useLanguage();
   const lang = getContentLang(language);
+  const { categories } = useDbCategories();
   const [products, setProducts] = useState<ShopifyProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState('all');
   const [sortOption, setSortOption] = useState<SortOption>('default');
   const [bestsellerIds, setBestsellerIds] = useState<string[]>([]);
-  const [visibleCategories, setVisibleCategories] = useState<Category[]>(getVisibleCategories());
   const searchQuery = useSearchStore(state => state.searchQuery);
 
   // Listen for category visibility updates
