@@ -203,6 +203,20 @@ Provide:
 
     const result = JSON.parse(toolCall.function.arguments);
 
+    // Observability: log AI analysis completion
+    const traceId = `bug-analysis-${bug_id.slice(0, 8)}-${Date.now()}`;
+    await supabase.from("system_observability_log").insert({
+      event_type: "action",
+      severity: result.severity === "critical" ? "critical" : "info",
+      source: "edge_function",
+      message: `Bug analyserad: ${result.summary}`,
+      details: { category: result.category, severity: result.severity, tags: result.tags },
+      bug_id: bug_id,
+      trace_id: traceId,
+      component: "process-bug-report",
+      user_id: user.id,
+    });
+
     // Store full analysis in bug_reports
     await supabase.from("bug_reports").update({
       ai_summary: result.summary,
@@ -232,6 +246,17 @@ Provide:
         description: result.clean_prompt,
         priority: severityToPriority[result.severity] || "medium",
       }).eq("id", wi.id);
+
+      // Observability: log work item update
+      await supabase.from("system_observability_log").insert({
+        event_type: "state_change",
+        source: "edge_function",
+        message: `Work item uppdaterad från bugganalys`,
+        bug_id: bug_id,
+        work_item_id: wi.id,
+        trace_id: traceId,
+        component: "process-bug-report",
+      });
     }
 
     return new Response(JSON.stringify({ success: true, result }), {
@@ -239,6 +264,23 @@ Provide:
     });
   } catch (e) {
     console.error("process-bug-report error:", e);
+
+    // Observability: log error
+    try {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const errClient = createClient(supabaseUrl, serviceKey);
+      await errClient.from("system_observability_log").insert({
+        event_type: "error",
+        severity: "error",
+        source: "edge_function",
+        message: `process-bug-report fel: ${e instanceof Error ? e.message : "Unknown"}`,
+        error_code: e instanceof Error ? e.name : undefined,
+        stack_trace: e instanceof Error ? e.stack?.slice(0, 2000) : undefined,
+        component: "process-bug-report",
+      });
+    } catch (_) { /* ignore logging failure */ }
+
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
