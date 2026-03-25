@@ -15,6 +15,8 @@ import { cn } from '@/lib/utils';
 import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
 import WorkItemDetail from '@/components/admin/workbench/WorkItemDetail';
 import { useNavigate } from 'react-router-dom';
+import { useScannerStore, SCAN_STEPS } from '@/stores/scannerStore';
+import type { ScanStepResult } from '@/stores/scannerStore';
 
 // Context to allow any tab to open a work item detail view
 const DetailContext = createContext<{
@@ -3310,37 +3312,38 @@ interface ExecutionResult {
   executed_count: number;
 }
 
-const SCAN_STEPS = [
-  { type: 'system_scan', label: 'Systemskanning', icon: Radar, desc: 'Full skanning av alla datakällor' },
-  { type: 'data_integrity', label: 'Dataintegritet', icon: ShieldCheck, desc: 'Brutna relationer, felaktiga tillstånd' },
-  { type: 'content_validation', label: 'Innehåll QA', icon: Eye, desc: 'Verifierar UI-påståenden mot data' },
-  { type: 'sync_scan', label: 'Sync Scanner', icon: ArrowRightLeft, desc: 'Frontend-backend-inkonsekvenser' },
-  { type: 'interaction_qa', label: 'Interaction QA', icon: Zap, desc: 'Döda element, brutna flöden' },
-  { type: 'visual_qa', label: 'Visual QA', icon: Monitor, desc: 'Layout, responsivitet, overflow' },
-  { type: 'nav_scan', label: 'Navigation', icon: Compass, desc: 'Navigering, länkar, routing' },
-  { type: 'ux_scan', label: 'UX Scanner', icon: Eye, desc: 'Användarupplevelse, tillgänglighet' },
-  { type: 'action_governor', label: 'Governor', icon: Gavel, desc: 'Klassificerar åtgärder' },
-] as const;
-
-type ScanStepResult = {
-  type: string;
-  label: string;
-  status: 'pending' | 'running' | 'done' | 'error';
-  result?: any;
-  error?: string;
-  duration_ms?: number;
+// SCAN_STEPS and ScanStepResult imported from @/stores/scannerStore
+// Icon mapping for scan steps (icons can't be stored in zustand)
+const SCAN_STEP_ICONS: Record<string, any> = {
+  system_scan: Radar,
+  data_integrity: ShieldCheck,
+  content_validation: Eye,
+  sync_scan: ArrowRightLeft,
+  interaction_qa: Zap,
+  visual_qa: Monitor,
+  nav_scan: Compass,
+  ux_scan: Eye,
+  action_governor: Gavel,
 };
+
 
 const AiAutopilotTab = () => {
   const [mode, setMode] = useState<AiMode>('assisted');
-  const [scanning, setScanning] = useState(false);
+  const { scanning, steps, selectedSteps, toggleStep: storeToggleStep, selectAll, selectNone, runAllScans } = useScannerStore();
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
   const [executionLoading, setExecutionLoading] = useState(false);
-  const [steps, setSteps] = useState<ScanStepResult[]>([]);
-  const [selectedSteps, setSelectedSteps] = useState<Set<string>>(new Set(SCAN_STEPS.map(s => s.type)));
   const [showResults, setShowResults] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { openDetail } = useDetailContext();
+
+  // Invalidate queries when scanning finishes
+  useEffect(() => {
+    if (!scanning && steps.length > 0 && steps.every(s => s.status === 'done' || s.status === 'error')) {
+      queryClient.invalidateQueries({ queryKey: ['autopilot-scan-runs'] });
+      queryClient.invalidateQueries({ queryKey: ['last-scan-result'] });
+      queryClient.invalidateQueries({ queryKey: ['scan-history'] });
+    }
+  }, [scanning, steps]);
 
   // Load past full-scan runs
   const { data: scanRuns = [] } = useQuery({
@@ -3355,68 +3358,8 @@ const AiAutopilotTab = () => {
     },
   });
 
-  const toggleStep = (type: string) => {
-    setSelectedSteps(prev => {
-      const next = new Set(prev);
-      if (next.has(type)) next.delete(type); else next.add(type);
-      return next;
-    });
-  };
+  const toggleStep = storeToggleStep;
 
-  const selectAll = () => setSelectedSteps(new Set(SCAN_STEPS.map(s => s.type)));
-  const selectNone = () => setSelectedSteps(new Set());
-
-  const runAllScans = async () => {
-    const toRun = SCAN_STEPS.filter(s => selectedSteps.has(s.type));
-    if (toRun.length === 0) { toast.error('Välj minst en skanning'); return; }
-
-    setScanning(true);
-    const initialSteps: ScanStepResult[] = toRun.map(s => ({ type: s.type, label: s.label, status: 'pending' }));
-    setSteps(initialSteps);
-
-    for (let i = 0; i < toRun.length; i++) {
-      const step = toRun[i];
-      setSteps(prev => prev.map((s, idx) => idx === i ? { ...s, status: 'running' } : s));
-      const start = Date.now();
-
-      try {
-        const res = await callAI(step.type, step.type === 'content_validation' ? { auto_fix: false } : {});
-        const duration_ms = Date.now() - start;
-
-        if (res) {
-          // Persist to ai_scan_results
-          const { data: { session } } = await supabase.auth.getSession();
-          const score = res.system_score || res.score || res.interaction_score || res.overall_score || null;
-          const issueCount = res.issues_found || res.issues?.length || res.dead_elements?.length || res.mismatches?.length || 0;
-          const tasksCreated = res.tasks_created || 0;
-          const summary = res.executive_summary || res.summary || res.overall_summary || `${step.label} slutförd`;
-
-          await supabase.from('ai_scan_results' as any).insert({
-            scan_type: step.type,
-            results: res,
-            overall_score: score,
-            overall_status: score !== null ? (score >= 70 ? 'healthy' : score >= 40 ? 'warning' : 'critical') : null,
-            executive_summary: typeof summary === 'string' ? summary.substring(0, 500) : null,
-            issues_count: issueCount,
-            tasks_created: tasksCreated,
-            scanned_by: session?.user?.id || null,
-          } as any);
-
-          setSteps(prev => prev.map((s, idx) => idx === i ? { ...s, status: 'done', result: res, duration_ms } : s));
-        } else {
-          setSteps(prev => prev.map((s, idx) => idx === i ? { ...s, status: 'error', error: 'Inget resultat', duration_ms: Date.now() - start } : s));
-        }
-      } catch (err: any) {
-        setSteps(prev => prev.map((s, idx) => idx === i ? { ...s, status: 'error', error: err?.message || 'Fel', duration_ms: Date.now() - start } : s));
-      }
-    }
-
-    queryClient.invalidateQueries({ queryKey: ['autopilot-scan-runs'] });
-    queryClient.invalidateQueries({ queryKey: ['last-scan-result'] });
-    queryClient.invalidateQueries({ queryKey: ['scan-history'] });
-    toast.success(`Alla skanningar klara (${toRun.length} st)`);
-    setScanning(false);
-  };
 
   const runExecution = async () => {
     setExecutionLoading(true);
@@ -3468,7 +3411,7 @@ const AiAutopilotTab = () => {
           <div className="grid grid-cols-3 gap-1.5">
             {SCAN_STEPS.map(step => {
               const active = selectedSteps.has(step.type);
-              const Icon = step.icon;
+              const Icon = SCAN_STEP_ICONS[step.type] || Radar;
               return (
                 <button
                   key={step.type}
@@ -3527,7 +3470,7 @@ const AiAutopilotTab = () => {
             <div className="space-y-1.5">
               {steps.map((step, i) => {
                 const stepConfig = SCAN_STEPS.find(s => s.type === step.type);
-                const Icon = stepConfig?.icon || Radar;
+                const Icon = SCAN_STEP_ICONS[step.type] || Radar;
                 const score = step.result?.system_score || step.result?.score || step.result?.interaction_score || step.result?.overall_score;
 
                 return (
