@@ -47,12 +47,25 @@ export interface AdaptiveScanMeta {
   predictions?: PredictionItem[];
 }
 
+export interface IntegrityIssue {
+  type: "data_loss" | "failed_insert" | "stale_state" | "incorrect_filtering" | "scan_error";
+  severity: string;
+  entity: string;
+  entity_id?: string;
+  title: string;
+  description?: string;
+  step: string;
+  root_cause: string;
+}
+
 export interface UnifiedScanResult {
   blocker: any | null;
   broken_flows: any[];
   fake_features: any[];
   interaction_failures: any[];
   data_issues: any[];
+  integrity_issues?: IntegrityIssue[];
+  integrity_summary?: Record<string, number>;
   system_health_score: number;
   step_results: Record<string, any>;
   completed_at: string;

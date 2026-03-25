@@ -1349,14 +1349,42 @@ serve(async (req) => {
       }
 
       await supabase.from("scan_runs").update({
+        current_step_label: "Kör dataintegritetskontroll...",
+      }).eq("id", scan_run_id);
+
+      // ── Run Data Integrity Scan ──
+      const integrityResult = await runDataIntegrityScan(supabase, scan_run_id);
+
+      await supabase.from("scan_runs").update({
         current_step_label: "Sammanställer resultat...",
       }).eq("id", scan_run_id);
 
       const updatedResults = scanRun.steps_results || {};
+      updatedResults._data_integrity = integrityResult;
+
       const totalDuration = Object.values(updatedResults).reduce(
         (sum: number, r: any) => sum + (r?._duration_ms || 0), 0
       );
       const unified = buildUnifiedResult(updatedResults, totalDuration);
+
+      // Merge integrity issues into unified data_issues
+      for (const issue of integrityResult.issues || []) {
+        unified.data_issues.push({
+          title: issue.title,
+          description: issue.description,
+          severity: issue.severity,
+          type: issue.type,
+          entity: issue.entity,
+          entity_id: issue.entity_id,
+          step: issue.step,
+          root_cause: issue.root_cause,
+          source: "integrity_scan",
+        });
+      }
+      // Add integrity_issues as dedicated field
+      unified.integrity_issues = integrityResult.issues || [];
+      unified.integrity_summary = integrityResult.by_type || {};
+
       const issuesCount = unified.broken_flows.length + unified.fake_features.length +
         unified.interaction_failures.length + unified.data_issues.length;
 
