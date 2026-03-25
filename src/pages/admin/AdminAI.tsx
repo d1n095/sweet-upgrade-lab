@@ -139,8 +139,17 @@ const callTaskManager = async (action: string) => {
   return data.results;
 };
 
-const copyToClipboard = (text: string) => {
-  navigator.clipboard.writeText(text);
+const copyToClipboard = (text: string, buttonId?: string) => {
+  const clean = text.replace(/[#*`_~>]/g, '').replace(/\n{3,}/g, '\n\n').trim();
+  navigator.clipboard.writeText(clean);
+  if (buttonId) {
+    const el = document.getElementById(buttonId);
+    if (el) {
+      el.textContent = '✓ Kopierad';
+      el.classList.add('text-green-600');
+      setTimeout(() => { el.textContent = '📋 Copy Fix'; el.classList.remove('text-green-600'); }, 2000);
+    }
+  }
   toast.success('Kopierat till urklipp');
 };
 
