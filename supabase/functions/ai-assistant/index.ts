@@ -5835,6 +5835,54 @@ Return ONLY valid JSON.`,
       return { updated: bug_ids.length, status: newStatus };
     }
 
+    case "self_note": {
+      const canSelfFix = params.can_self_fix === true;
+      const noteTitle = (params.title || "AI-notering").substring(0, 200);
+      const noteDesc = params.description || "";
+      const notePriority = params.priority || "medium";
+
+      if (canSelfFix) {
+        // AI marks it as something it will handle autonomously
+        const { data, error } = await supabase.from("work_items").insert({
+          title: `🤖 ${noteTitle}`,
+          description: `[AI Self-Fix]\n${noteDesc}\n\nDetta hanteras automatiskt av Lova.`,
+          status: "in_progress",
+          priority: notePriority,
+          item_type: "ai_self_fix",
+          source_type: "ai_self_note",
+          ai_detected: true,
+          ai_confidence: "high",
+        }).select("id").single();
+        if (error) throw new Error(error.message);
+        return { created: true, self_fix: true, work_item_id: data.id };
+      } else {
+        // Needs manual intervention - create work item + prompt
+        const { data, error } = await supabase.from("work_items").insert({
+          title: `⚠️ ${noteTitle}`,
+          description: `[Manuellt ärende]\n${noteDesc}\n\nKräver kodändring via Lovable.`,
+          status: "open",
+          priority: notePriority,
+          item_type: "manual",
+          source_type: "ai_self_note",
+          ai_detected: true,
+          ai_confidence: "medium",
+        }).select("id").single();
+        if (error) throw new Error(error.message);
+
+        // Also generate a prompt for it
+        await supabase.from("prompt_queue").insert({
+          title: noteTitle,
+          implementation: noteDesc,
+          goal: `Fix: ${noteTitle}`,
+          priority: notePriority,
+          status: "pending",
+          source_type: "ai_self_note",
+        });
+
+        return { created: true, self_fix: false, work_item_id: data.id, prompt_queued: true };
+      }
+    }
+
     default:
       return { error: "Okänd åtgärdstyp" };
   }
