@@ -638,6 +638,266 @@ function countNewIssues(currentUnified: any, previousIssueKeys: Set<string>): { 
   return { newCount, newKeys };
 }
 
+// ── DATA INTEGRITY SCAN: Real DB checks for data loss / inconsistencies ──
+async function runDataIntegrityScan(supabase: any, scanRunId: string): Promise<any> {
+  const issues: any[] = [];
+  const traceId = `integrity-${scanRunId.slice(0, 8)}`;
+  const startMs = Date.now();
+
+  try {
+    // 1. Work items created but missing source (potential failed insert follow-up)
+    const { data: sourceless } = await supabase
+      .from("work_items")
+      .select("id, title, item_type, source_type, source_id, created_at")
+      .in("status", ["open", "claimed", "in_progress", "escalated"])
+      .is("source_id", null)
+      .not("item_type", "in", '("manual","manual_task","general")')
+      .limit(100);
+
+    for (const wi of sourceless || []) {
+      issues.push({
+        type: "failed_insert",
+        severity: "high",
+        entity: "work_item",
+        entity_id: wi.id,
+        title: `Work item utan källa: "${wi.title}"`,
+        description: `item_type=${wi.item_type} men source_id saknas — trolig ofullständig skapelse`,
+        step: "create → database",
+        root_cause: "source_id ej satt vid INSERT eller trigger misslyckades",
+      });
+    }
+
+    // 2. Orphan work items — source references non-existent rows
+    const { data: bugSourced } = await supabase
+      .from("work_items")
+      .select("id, title, source_id")
+      .eq("source_type", "bug_report")
+      .not("source_id", "is", null)
+      .in("status", ["open", "claimed", "in_progress", "escalated"])
+      .limit(200);
+
+    for (const wi of bugSourced || []) {
+      const { data: bug } = await supabase.from("bug_reports").select("id").eq("id", wi.source_id).maybeSingle();
+      if (!bug) {
+        issues.push({
+          type: "data_loss",
+          severity: "critical",
+          entity: "work_item",
+          entity_id: wi.id,
+          title: `Orphan: "${wi.title}" → bug ${wi.source_id} finns ej`,
+          description: "Work item pekar på raderad eller obefintlig bug_report",
+          step: "database → fetch",
+          root_cause: "Källa raderad utan att work_item uppdaterades",
+        });
+      }
+    }
+
+    const { data: incidentSourced } = await supabase
+      .from("work_items")
+      .select("id, title, source_id")
+      .eq("source_type", "order_incident")
+      .not("source_id", "is", null)
+      .in("status", ["open", "claimed", "in_progress", "escalated"])
+      .limit(200);
+
+    for (const wi of incidentSourced || []) {
+      const { data: inc } = await supabase.from("order_incidents").select("id").eq("id", wi.source_id).maybeSingle();
+      if (!inc) {
+        issues.push({
+          type: "data_loss",
+          severity: "critical",
+          entity: "work_item",
+          entity_id: wi.id,
+          title: `Orphan: "${wi.title}" → incident ${wi.source_id} finns ej`,
+          description: "Work item pekar på raderat eller obefintligt ärende",
+          step: "database → fetch",
+          root_cause: "Källa raderad utan att work_item uppdaterades",
+        });
+      }
+    }
+
+    // 3. Duplicate active work items (same source)
+    const { data: activeItems } = await supabase
+      .from("work_items")
+      .select("id, source_type, source_id, title, created_at")
+      .in("status", ["open", "claimed", "in_progress", "escalated"])
+      .not("source_id", "is", null)
+      .limit(500);
+
+    const sourceMap = new Map<string, any[]>();
+    for (const wi of activeItems || []) {
+      const key = `${wi.source_type}:${wi.source_id}`;
+      if (!sourceMap.has(key)) sourceMap.set(key, []);
+      sourceMap.get(key)!.push(wi);
+    }
+    for (const [key, items] of sourceMap) {
+      if (items.length > 1) {
+        issues.push({
+          type: "stale_state",
+          severity: "high",
+          entity: "work_item",
+          entity_id: items.map((i: any) => i.id).join(", "),
+          title: `${items.length} duplicerade work items för ${key}`,
+          description: `IDs: ${items.map((i: any) => i.id.slice(0, 8)).join(", ")}`,
+          step: "create → database",
+          root_cause: "Dedup-logik missade eller race condition vid skapande",
+        });
+      }
+    }
+
+    // 4. Work items linked to deleted/cancelled orders still active
+    const { data: orderLinked } = await supabase
+      .from("work_items")
+      .select("id, title, related_order_id, status")
+      .not("related_order_id", "is", null)
+      .in("status", ["open", "claimed", "in_progress"])
+      .limit(200);
+
+    for (const wi of orderLinked || []) {
+      const { data: order } = await supabase
+        .from("orders")
+        .select("id, status, deleted_at")
+        .eq("id", wi.related_order_id)
+        .maybeSingle();
+
+      if (!order) {
+        issues.push({
+          type: "data_loss",
+          severity: "high",
+          entity: "work_item",
+          entity_id: wi.id,
+          title: `"${wi.title}" → order finns ej`,
+          description: "Work item kopplad till obefintlig order",
+          step: "database → fetch",
+          root_cause: "Order raderad helt utan cleanup av work_items",
+        });
+      } else if (order.deleted_at) {
+        issues.push({
+          type: "incorrect_filtering",
+          severity: "high",
+          entity: "work_item",
+          entity_id: wi.id,
+          title: `"${wi.title}" → order soft-deleted`,
+          description: "Aktiv task kopplad till soft-deleted order",
+          step: "database → UI",
+          root_cause: "Cleanup-trigger/cron missade denna work_item",
+        });
+      } else if (["cancelled", "delivered", "completed"].includes(order.status)) {
+        issues.push({
+          type: "stale_state",
+          severity: "medium",
+          entity: "work_item",
+          entity_id: wi.id,
+          title: `"${wi.title}" → order redan ${order.status}`,
+          description: "Aktiv task för order som redan är färdig/avbruten",
+          step: "database → UI",
+          root_cause: "Status-synk mellan orders och work_items bruten",
+        });
+      }
+    }
+
+    // 5. Status mismatch: bug resolved but work_item still open
+    const { data: resolvedBugs } = await supabase
+      .from("bug_reports")
+      .select("id")
+      .eq("status", "resolved")
+      .limit(100);
+
+    for (const bug of resolvedBugs || []) {
+      const { data: activeWi } = await supabase
+        .from("work_items")
+        .select("id, title")
+        .eq("source_type", "bug_report")
+        .eq("source_id", bug.id)
+        .in("status", ["open", "claimed", "in_progress", "escalated"])
+        .limit(1);
+
+      if (activeWi?.length) {
+        issues.push({
+          type: "stale_state",
+          severity: "high",
+          entity: "work_item",
+          entity_id: activeWi[0].id,
+          title: `"${activeWi[0].title}" aktiv trots löst bug`,
+          description: `Bug ${bug.id.slice(0, 8)} markerad som resolved men work_item fortfarande aktiv`,
+          step: "database → UI",
+          root_cause: "Bi-direktionell statussynk misslyckades",
+        });
+      }
+    }
+
+    // 6. Stale claimed items (claimed >30min without progress)
+    const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    const { data: staleClaimed } = await supabase
+      .from("work_items")
+      .select("id, title, claimed_by, claimed_at")
+      .eq("status", "claimed")
+      .not("claimed_at", "is", null)
+      .lt("claimed_at", thirtyMinAgo)
+      .limit(50);
+
+    for (const wi of staleClaimed || []) {
+      issues.push({
+        type: "stale_state",
+        severity: "medium",
+        entity: "work_item",
+        entity_id: wi.id,
+        title: `"${wi.title}" claimad >30min utan progress`,
+        description: `Claimed ${wi.claimed_at} men aldrig flyttad till in_progress`,
+        step: "UI → database",
+        root_cause: "Användaren övergav uppgiften utan att frigöra den",
+      });
+    }
+
+  } catch (e: any) {
+    console.error("Data integrity scan error:", e);
+    issues.push({
+      type: "scan_error",
+      severity: "critical",
+      entity: "integrity_scan",
+      title: `Integrity scan fel: ${e.message}`,
+      step: "scan",
+      root_cause: e.message,
+    });
+  }
+
+  const durationMs = Date.now() - startMs;
+
+  // Log to observability
+  await supabase.from("system_observability_log").insert({
+    event_type: "scan_step",
+    severity: issues.filter(i => i.severity === "critical").length > 0 ? "warning" : "info",
+    source: "scanner",
+    message: `Data integrity scan: ${issues.length} problem hittade`,
+    details: {
+      total_issues: issues.length,
+      by_type: {
+        data_loss: issues.filter(i => i.type === "data_loss").length,
+        failed_insert: issues.filter(i => i.type === "failed_insert").length,
+        stale_state: issues.filter(i => i.type === "stale_state").length,
+        incorrect_filtering: issues.filter(i => i.type === "incorrect_filtering").length,
+      },
+    },
+    scan_id: scanRunId,
+    trace_id: traceId,
+    component: "data_integrity_scan",
+    duration_ms: durationMs,
+  }).catch(() => {});
+
+  return {
+    issues,
+    total_issues: issues.length,
+    by_type: {
+      data_loss: issues.filter(i => i.type === "data_loss").length,
+      failed_insert: issues.filter(i => i.type === "failed_insert").length,
+      stale_state: issues.filter(i => i.type === "stale_state").length,
+      incorrect_filtering: issues.filter(i => i.type === "incorrect_filtering").length,
+    },
+    duration_ms: durationMs,
+    scanned_at: new Date().toISOString(),
+  };
+}
+
 // ── Helper: Create work items from unified findings ──
 async function createWorkItems(supabase: any, unified: any, startedBy: string): Promise<number> {
   let workItemsCreated = 0;
@@ -1089,14 +1349,42 @@ serve(async (req) => {
       }
 
       await supabase.from("scan_runs").update({
+        current_step_label: "Kör dataintegritetskontroll...",
+      }).eq("id", scan_run_id);
+
+      // ── Run Data Integrity Scan ──
+      const integrityResult = await runDataIntegrityScan(supabase, scan_run_id);
+
+      await supabase.from("scan_runs").update({
         current_step_label: "Sammanställer resultat...",
       }).eq("id", scan_run_id);
 
       const updatedResults = scanRun.steps_results || {};
+      updatedResults._data_integrity = integrityResult;
+
       const totalDuration = Object.values(updatedResults).reduce(
         (sum: number, r: any) => sum + (r?._duration_ms || 0), 0
       );
       const unified = buildUnifiedResult(updatedResults, totalDuration);
+
+      // Merge integrity issues into unified data_issues
+      for (const issue of integrityResult.issues || []) {
+        unified.data_issues.push({
+          title: issue.title,
+          description: issue.description,
+          severity: issue.severity,
+          type: issue.type,
+          entity: issue.entity,
+          entity_id: issue.entity_id,
+          step: issue.step,
+          root_cause: issue.root_cause,
+          source: "integrity_scan",
+        });
+      }
+      // Add integrity_issues as dedicated field
+      unified.integrity_issues = integrityResult.issues || [];
+      unified.integrity_summary = integrityResult.by_type || {};
+
       const issuesCount = unified.broken_flows.length + unified.fake_features.length +
         unified.interaction_failures.length + unified.data_issues.length;
 
