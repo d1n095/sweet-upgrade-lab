@@ -205,6 +205,12 @@ async function runPostChecks(
       ),
       failureLog: [...s.failureLog, report],
     }));
+    // Evaluate safe mode
+    const st = get();
+    useSafeModeStore.getState().evaluateThreshold(
+      st.tasks.filter(t => t.status === 'failed').length,
+      st.regressionLog.length
+    );
     return;
   }
 
@@ -252,6 +258,11 @@ async function runPostChecks(
       failureLog: [...s.failureLog, report],
       regressionLog: [...s.regressionLog, ...regressions],
     }));
+    // Regression triggers safe mode evaluation
+    useSafeModeStore.getState().evaluateThreshold(
+      get().tasks.filter(t => t.status === 'failed').length,
+      get().regressionLog.length
+    );
     return;
   }
 
