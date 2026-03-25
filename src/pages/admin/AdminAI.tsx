@@ -1888,6 +1888,7 @@ const TrendAnalysisPanel = () => {
 const SystemScanTab = () => {
   const [loading, setLoading] = useState(false);
   const [scanResult, setScanResult] = useState<any>(null);
+  const [currentScanId, setCurrentScanId] = useState<string | null>(null);
   const [expandedIssue, setExpandedIssue] = useState<number | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [compareId, setCompareId] = useState<string | null>(null);
