@@ -4,6 +4,7 @@ import { Sparkles, Bug, BarChart3, Copy, Loader2, Send, AlertTriangle, Lightbulb
 import { Tabs, TabsContent, TabsList, TabsTrigger, ScrollableTabs } from '@/components/ui/tabs';
 import AiCenterTabs from '@/components/admin/AiCenterTabs';
 import { createAndVerify } from '@/utils/createVerifyLoop';
+import { createWorkItemWithDedup } from '@/utils/workItemDedup';
 import { trace, newTraceId } from '@/utils/deepDebugTrace';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -3775,19 +3776,25 @@ Förslag: ${issue.fix_suggestion}`,
 
   const handleAiDecision = async (issue: QAIssue, idx: number, decision: AiDecision, analysis: any) => {
     if (decision === 'auto_fix') {
-      // Create work item marked as auto-fixable and mark issue done
+      // Create work item marked as auto-fixable and mark issue done (with dedup)
       try {
-        await supabase.from('work_items' as any).insert({
+        const dedupResult = await createWorkItemWithDedup({
           title: `[Auto-fix] ${issue.title}`,
           description: `AI-beslut: Auto-fix\n\n${issue.description}\n\nGrundorsak: ${analysis.root_cause}\nFixsteg:\n${(analysis.fix_steps || []).map((s: string, i: number) => `${i + 1}. ${s}`).join('\n')}`,
           item_type: 'bug',
           priority: issue.severity === 'critical' ? 'critical' : issue.severity === 'high' ? 'high' : 'medium',
-          status: 'open',
           source_type: 'ai_visual_qa',
           source_id: scanMeta?.id || null,
-        } as any);
-        setIssueStatus(idx, 'done', 'AI auto-fix: uppgift skapad');
-        toast.success(`🤖 Auto-fix: ${issue.title}`);
+        });
+        if (dedupResult.duplicate) {
+          setIssueStatus(idx, 'done', 'Ärende finns redan i masterlistan');
+          toast.info(`Ärende finns redan: ${issue.title}`);
+        } else if (dedupResult.created) {
+          setIssueStatus(idx, 'done', 'AI auto-fix: uppgift skapad');
+          toast.success(`🤖 Auto-fix: ${issue.title}`);
+        } else {
+          toast.error(dedupResult.error || 'Kunde inte skapa uppgift');
+        }
       } catch {
         toast.error('Kunde inte skapa auto-fix uppgift');
       }
@@ -3825,18 +3832,22 @@ Förslag: ${issue.fix_suggestion}`,
   const createTaskFromIssue = async (issue: QAIssue, idx: number) => {
     const state = getState(idx);
     try {
-      const { error } = await supabase.from('work_items' as any).insert({
+      const dedupResult = await createWorkItemWithDedup({
         title: `[Visual QA] ${issue.title}`,
         description: `${issue.description}\n\nSida: ${issue.page}\nBreakpoint: ${issue.breakpoint}\nFix: ${issue.fix_suggestion}${state.aiAnalysis ? `\n\nAI Root Cause: ${state.aiAnalysis.root_cause}\nAuto-fixable: ${state.aiAnalysis.auto_fixable ? 'Ja' : 'Nej'}\nSteg:\n${state.aiAnalysis.fix_steps.map((s, i) => `${i + 1}. ${s}`).join('\n')}` : ''}`,
         item_type: 'bug',
         priority: issue.severity === 'critical' ? 'critical' : issue.severity === 'high' ? 'high' : 'medium',
-        status: 'open',
         source_type: 'ai_visual_qa',
         source_id: scanMeta?.id || null,
-      } as any);
-      if (error) throw error;
-      setIssueStatus(idx, 'done');
-      toast.success(`Uppgift skapad: ${issue.title}`);
+      });
+      if (dedupResult.duplicate) {
+        toast.info(`Ärende finns redan i masterlistan`);
+      } else if (dedupResult.created) {
+        setIssueStatus(idx, 'done');
+        toast.success(`Uppgift skapad: ${issue.title}`);
+      } else {
+        toast.error(dedupResult.error || 'Kunde inte skapa uppgift');
+      }
     } catch {
       toast.error('Kunde inte skapa uppgift');
     }
@@ -6191,10 +6202,9 @@ const OverflowScanTab = () => {
 
   const createTaskFromIssue = async (issue: OverflowIssue) => {
     try {
-      const { error } = await supabase.from('work_items' as any).insert({
+      const dedupResult = await createWorkItemWithDedup({
         title: `[Overflow] ${issue.title}`.substring(0, 200),
         description: `${issue.description}\n\nSida: ${issue.page}\nContainer: ${issue.container}\nBreakpoint: ${issue.breakpoint}\nTyp: ${issue.overflow_type}\n\nCSS Fix: ${issue.css_fix}`,
-        status: 'open',
         priority: issue.severity === 'critical' ? 'critical' : issue.severity === 'high' ? 'high' : 'medium',
         item_type: 'bug',
         source_type: 'ai_detection',
@@ -6202,9 +6212,14 @@ const OverflowScanTab = () => {
         ai_confidence: 'high',
         ai_category: 'frontend',
         ai_type_classification: 'ui_overflow',
-      } as any);
-      if (error) throw error;
-      toast.success(`Uppgift skapad: ${issue.title}`);
+      });
+      if (dedupResult.duplicate) {
+        toast.info(`Ärende finns redan i masterlistan`);
+      } else if (dedupResult.created) {
+        toast.success(`Uppgift skapad: ${issue.title}`);
+      } else {
+        toast.error(dedupResult.error || 'Kunde inte skapa uppgift');
+      }
     } catch { toast.error('Kunde inte skapa uppgift'); }
   };
 
