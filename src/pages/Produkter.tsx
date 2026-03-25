@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Package, Loader2, ArrowUpDown, SlidersHorizontal } from 'lucide-react';
 import { fetchDbProducts, DbProduct } from '@/lib/products';
-import { categories } from '@/data/categories';
+import { useDbCategories } from '@/hooks/useDbCategories';
 import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import { cn } from '@/lib/utils';
 import { useSearchStore } from '@/stores/searchStore';
@@ -23,6 +23,7 @@ type SortOption = 'default' | 'price-asc' | 'price-desc' | 'name-asc' | 'name-de
 const Produkter = () => {
   const { language, t } = useLanguage();
   const lang = getContentLang(language);
+  const { categories } = useDbCategories();
   const [products, setProducts] = useState<DbProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -79,7 +80,7 @@ const Produkter = () => {
       const type = match[1].toLowerCase();
       return products.some(p => (p.category || '').toLowerCase() === type);
     });
-  }, [products]);
+  }, [products, categories]);
 
   const filtered = useMemo(() => {
     let result = products;
@@ -118,7 +119,7 @@ const Produkter = () => {
     }
 
     return result;
-  }, [products, activeCategory, tagProductIds, priceRange, searchQuery]);
+  }, [products, activeCategory, tagProductIds, priceRange, searchQuery, categories]);
 
   const sortedProducts = useMemo(() => {
     const sorted = [...filtered];

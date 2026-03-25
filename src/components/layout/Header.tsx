@@ -17,7 +17,7 @@ import { storeConfig } from '@/config/storeConfig';
 import { useTheme } from 'next-themes';
 import { usePageVisibility } from '@/stores/pageVisibilityStore';
 import { supabase } from '@/integrations/supabase/client';
-import { categories as allCategoryDefs } from '@/data/categories';
+import { useDbCategories } from '@/hooks/useDbCategories';
 
 // Dropdown that auto-closes on leave and renders as plain link when only 1 item
 const NavDropdown = ({
@@ -129,9 +129,7 @@ const Header = () => {
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const { isVisible } = usePageVisibility();
-  const [activeCategories, setActiveCategories] = useState(
-    storeConfig.categories.filter(c => c.active)
-  );
+  const { categories: dbCategories } = useDbCategories();
   const [productCategories, setProductCategories] = useState<string[]>([]);
 
   useEffect(() => { setMounted(true); }, []);
@@ -156,24 +154,7 @@ const Header = () => {
       });
   }, []);
 
-  useEffect(() => {
-    const handleCategoriesUpdated = (event: CustomEvent) => {
-      const adminCategories = event.detail as Array<{ id: string; name: { [key: string]: string }; isVisible: boolean }>;
-      const visibleIds = adminCategories.filter(c => c.isVisible).map(c => c.id);
-      const updatedCategories = storeConfig.categories.filter(c => c.active && visibleIds.includes(c.id));
-      setActiveCategories(updatedCategories);
-    };
-
-    const stored = localStorage.getItem('admin_categories');
-    if (stored) {
-      try {
-        handleCategoriesUpdated({ detail: JSON.parse(stored) } as CustomEvent);
-      } catch { /* keep default */ }
-    }
-
-    window.addEventListener('categories-updated', handleCategoriesUpdated as EventListener);
-    return () => window.removeEventListener('categories-updated', handleCategoriesUpdated as EventListener);
-  }, []);
+  // Categories now loaded from DB — no localStorage listener needed
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
@@ -197,19 +178,17 @@ const Header = () => {
   const productDropdownItems = useMemo(() => {
     if (productCategories.length === 0) return [];
     
-    return activeCategories
+    return dbCategories
       .filter(c => {
-        if ((c.id as string) === 'all') return false;
-        const catDef = allCategoryDefs.find(cd => cd.id === c.id);
-        if (!catDef) return false;
+        if (c.id === 'all') return false;
         
-        if (catDef.isBestsellerFilter) {
+        if (c.isBestsellerFilter) {
           return productCategories.includes('bestsaljare');
         }
         
-        if (!catDef.query) return false;
+        if (!c.query) return false;
         
-        const typeMatches = catDef.query.matchAll(/product_type:"?([^"&\s]+)"?/g);
+        const typeMatches = c.query.matchAll(/product_type:"?([^"&\s]+)"?/g);
         for (const match of typeMatches) {
           if (productCategories.includes(match[1].toLowerCase())) return true;
         }
@@ -220,7 +199,7 @@ const Header = () => {
         label: c.name?.[language] ?? c.name?.[contentLang] ?? c.name?.en ?? c.name?.sv ?? '',
         icon: <Leaf className="w-3.5 h-3.5 text-muted-foreground" />,
       }));
-  }, [activeCategories, productCategories, language, contentLang]);
+  }, [dbCategories, productCategories, language, contentLang]);
 
   const allMobileLinks = [
     { href: '/produkter', label: 'Shop' },

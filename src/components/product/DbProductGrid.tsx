@@ -3,7 +3,7 @@ import { usePurchaseHistory } from '@/hooks/usePurchaseHistory';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Package, Loader2, ArrowUpDown, SlidersHorizontal } from 'lucide-react';
 import { fetchDbProducts, DbProduct } from '@/lib/products';
-import { categories } from '@/data/categories';
+import { useDbCategories } from '@/hooks/useDbCategories';
 import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import { cn } from '@/lib/utils';
 import { useSearchStore } from '@/stores/searchStore';
@@ -25,6 +25,7 @@ const DbProductGrid = () => {
   const { hasPurchased } = usePurchaseHistory();
   const { language, t } = useLanguage();
   const lang = getContentLang(language);
+  const { categories } = useDbCategories();
   const [products, setProducts] = useState<DbProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -90,7 +91,7 @@ const DbProductGrid = () => {
       }
     });
     return counts;
-  }, [products]);
+  }, [products, categories]);
 
   const categoryFiltered = useMemo(() => {
     let filtered = products;
@@ -110,7 +111,7 @@ const DbProductGrid = () => {
       filtered = filtered.filter(p => tagProductIds.has(p.id));
     }
     return filtered;
-  }, [products, activeCategory, tagProductIds]);
+  }, [products, activeCategory, tagProductIds, categories]);
 
   const searchFiltered = useMemo(() => {
     let filtered = categoryFiltered;

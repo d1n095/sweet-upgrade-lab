@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Package, Loader2, ArrowUpDown } from 'lucide-react';
 import ShopifyProductCard from '@/components/product/ShopifyProductCard';
 import { fetchProducts, ShopifyProduct } from '@/lib/shopify';
-import { categories, Category } from '@/data/categories';
+import { useDbCategories, type FrontendCategory } from '@/hooks/useDbCategories';
 import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import { cn } from '@/lib/utils';
 import { useSearchStore } from '@/stores/searchStore';
@@ -18,78 +18,19 @@ import {
 
 type SortOption = 'default' | 'price-asc' | 'price-desc' | 'name-asc' | 'name-desc';
 
-// Helper to get visible categories from admin settings
-const getVisibleCategories = (): Category[] => {
-  const stored = localStorage.getItem('admin_categories');
-  if (stored) {
-    try {
-      const adminCategories = JSON.parse(stored) as Array<{
-        id: string;
-        isVisible: boolean;
-      }>;
-      const visibleIds = adminCategories
-        .filter(c => c.isVisible)
-        .map(c => c.id);
-      return categories.filter(c => visibleIds.includes(c.id));
-    } catch {
-      return categories;
-    }
-  }
-  return categories;
-};
-
-// Helper to get hidden category product_types for filtering
-const getHiddenCategoryQueries = (): string[] => {
-  const stored = localStorage.getItem('admin_categories');
-  if (stored) {
-    try {
-      const adminCategories = JSON.parse(stored) as Array<{
-        id: string;
-        isVisible: boolean;
-      }>;
-      const hiddenIds = adminCategories
-        .filter(c => !c.isVisible)
-        .map(c => c.id);
-      
-      // Map hidden category IDs to their product_type values
-      return categories
-        .filter(c => hiddenIds.includes(c.id) && c.query)
-        .map(c => {
-          // Extract product_type from query like 'product_type:CBD'
-          const match = c.query?.match(/product_type:([^\s]+)/);
-          return match ? match[1].replace(/"/g, '') : null;
-        })
-        .filter((v): v is string => v !== null);
-    } catch {
-      return [];
-    }
-  }
-  return [];
-};
-
 const ShopifyProductGrid = () => {
   const { language, t } = useLanguage();
   const lang = getContentLang(language);
+  const { categories } = useDbCategories();
   const [products, setProducts] = useState<ShopifyProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState('all');
   const [sortOption, setSortOption] = useState<SortOption>('default');
   const [bestsellerIds, setBestsellerIds] = useState<string[]>([]);
-  const [visibleCategories, setVisibleCategories] = useState<Category[]>(getVisibleCategories());
   const searchQuery = useSearchStore(state => state.searchQuery);
 
-  // Listen for category visibility updates
-  useEffect(() => {
-    const handleCategoriesUpdated = () => {
-      setVisibleCategories(getVisibleCategories());
-    };
-
-    window.addEventListener('categories-updated', handleCategoriesUpdated);
-    return () => {
-      window.removeEventListener('categories-updated', handleCategoriesUpdated);
-    };
-  }, []);
+  // Categories are now loaded from DB via useDbCategories — no localStorage listener needed
 
   // Load bestseller IDs from database with realtime updates
   useEffect(() => {
@@ -189,19 +130,8 @@ const ShopifyProductGrid = () => {
     }
   }, [products, sortOption]);
 
-  // Filter out products from hidden categories
-  const filteredProducts = useMemo(() => {
-    const hiddenTypes = getHiddenCategoryQueries();
-    if (hiddenTypes.length === 0) return sortedProducts;
-    
-    return sortedProducts.filter(product => {
-      const productType = product.node.productType || '';
-      // Check if product's type matches any hidden category
-      return !hiddenTypes.some(hiddenType => 
-        productType.toLowerCase().includes(hiddenType.toLowerCase())
-      );
-    });
-  }, [sortedProducts]);
+  // All categories now come from DB (only visible ones), so no hidden filtering needed
+  const filteredProducts = sortedProducts;
 
   // Listen for URL query params and hash changes
   useEffect(() => {
@@ -253,7 +183,7 @@ const ShopifyProductGrid = () => {
           transition={{ delay: 0.1, duration: 0.5 }}
           className="flex flex-wrap justify-center gap-3 mb-8"
         >
-        {visibleCategories.map((category) => {
+        {categories.map((category) => {
             const Icon = category.icon;
             const isActive = activeCategory === category.id;
             return (
