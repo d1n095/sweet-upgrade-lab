@@ -3776,19 +3776,25 @@ Förslag: ${issue.fix_suggestion}`,
 
   const handleAiDecision = async (issue: QAIssue, idx: number, decision: AiDecision, analysis: any) => {
     if (decision === 'auto_fix') {
-      // Create work item marked as auto-fixable and mark issue done
+      // Create work item marked as auto-fixable and mark issue done (with dedup)
       try {
-        await supabase.from('work_items' as any).insert({
+        const dedupResult = await createWorkItemWithDedup({
           title: `[Auto-fix] ${issue.title}`,
           description: `AI-beslut: Auto-fix\n\n${issue.description}\n\nGrundorsak: ${analysis.root_cause}\nFixsteg:\n${(analysis.fix_steps || []).map((s: string, i: number) => `${i + 1}. ${s}`).join('\n')}`,
           item_type: 'bug',
           priority: issue.severity === 'critical' ? 'critical' : issue.severity === 'high' ? 'high' : 'medium',
-          status: 'open',
           source_type: 'ai_visual_qa',
           source_id: scanMeta?.id || null,
-        } as any);
-        setIssueStatus(idx, 'done', 'AI auto-fix: uppgift skapad');
-        toast.success(`🤖 Auto-fix: ${issue.title}`);
+        });
+        if (dedupResult.duplicate) {
+          setIssueStatus(idx, 'done', 'Ärende finns redan i masterlistan');
+          toast.info(`Ärende finns redan: ${issue.title}`);
+        } else if (dedupResult.created) {
+          setIssueStatus(idx, 'done', 'AI auto-fix: uppgift skapad');
+          toast.success(`🤖 Auto-fix: ${issue.title}`);
+        } else {
+          toast.error(dedupResult.error || 'Kunde inte skapa uppgift');
+        }
       } catch {
         toast.error('Kunde inte skapa auto-fix uppgift');
       }
