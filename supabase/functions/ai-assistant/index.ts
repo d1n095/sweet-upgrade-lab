@@ -2509,7 +2509,14 @@ Return a structured execution plan.`, [{
     }
 }
 
-// ── Interaction QA Engine ──
+  return {
+    ...analysis,
+    mode,
+    execution_log: executionLog,
+    executed_count: executionLog.filter(l => l.success).length,
+  };
+}
+
 async function handleInteractionQA(supabase: any, apiKey: string) {
   // Gather comprehensive data about UI interactions, routes, and state
   const [workItemsRes, bugsRes, eventsRes, productsRes, ordersRes, pagesRes, incidentsRes] = await Promise.all([
