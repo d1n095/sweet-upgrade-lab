@@ -405,9 +405,7 @@ const TaskAITab = () => {
             {!loadingItems && activeItems.length === 0 && (
               <p className="text-sm text-muted-foreground py-4 text-center">Inga aktiva AI-uppgifter</p>
             )}
-            {activeItems.map(item => {
-              const { openDetail } = useDetailContext();
-              return (
+            {activeItems.map(item => (
               <div key={item.id} className="border rounded-lg p-3 space-y-2 cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => openDetail(item.id)}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
@@ -438,7 +436,7 @@ const TaskAITab = () => {
                   </div>
                 )}
 
-                <div className="flex gap-1.5 pt-1">
+                <div className="flex gap-1.5 pt-1" onClick={e => e.stopPropagation()}>
                   {item.status !== 'done' && (
                     <>
                       <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1" onClick={() => overrideItem(item.id, { status: 'done', completed_at: new Date().toISOString() })}>
