@@ -385,7 +385,7 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
               {React.Children.map(children, child => {
                 if (!React.isValidElement(child)) return null;
                 const value = child.props['data-value'] || child.props.value;
-                return value === activeTab ? <div className="min-h-0">{child}</div> : null;
+                return value === activeTab ? <div className="min-h-0 flex-1 flex flex-col">{child}</div> : null;
               })}
             </div>
           )}

@@ -1168,7 +1168,7 @@ const BugAITab = () => {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col h-full min-h-0 space-y-4">
       <div className="flex items-center gap-2 flex-wrap">
         <div className="flex gap-1">
           {(['open', 'resolved', 'all'] as const).map(f => (
@@ -7480,7 +7480,7 @@ const OrchestrationTab = () => {
           <div data-value="autopilot"><AiAutopilotTab /></div>
           <div data-value="actions"><ActionEngineTab /></div>
           <div data-value="tasks"><TaskAITab /></div>
-          <div data-value="bugs"><BugAITab /></div>
+          <div data-value="bugs" className="flex flex-col min-h-0 h-full"><BugAITab /></div>
 
           {/* Scanners */}
           <div data-value="scan"><SystemScanTab /></div>
