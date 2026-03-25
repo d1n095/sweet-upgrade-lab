@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import {
   ClipboardList, Package, Truck, Check, Clock, Loader2,
   Eye, ChevronDown, ChevronUp, Save, X, CreditCard, MapPin, User, History, CheckCircle, AlertTriangle,
-  Printer, FileText, Download, RotateCcw, Trash2
+  Printer, FileText, Download, RotateCcw, Trash2, Mail, Receipt
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -710,6 +710,66 @@ const AdminOrderManager = () => {
     URL.revokeObjectURL(url);
   };
 
+  const handleDownloadReceipt = async (order: Order) => {
+    toast.loading('Genererar kvitto...', { id: 'receipt' });
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { toast.error('Ej inloggad', { id: 'receipt' }); return; }
+
+      const resp = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-receipt`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ order_id: order.id }),
+        }
+      );
+
+      if (!resp.ok) throw new Error('Kunde inte generera kvitto');
+      const result = await resp.json();
+
+      // Open in new window for print/PDF save
+      const win = window.open('', '_blank');
+      if (win) {
+        win.document.write(result.html);
+        win.document.close();
+        // Auto-trigger print dialog (user can save as PDF)
+        setTimeout(() => win.print(), 500);
+      }
+      toast.success('Kvitto genererat — spara som PDF via utskriftsdialogen', { id: 'receipt' });
+    } catch (err: any) {
+      toast.error(err.message || 'Fel vid kvittogenerering', { id: 'receipt' });
+    }
+  };
+
+  const handleResendReceipt = async (order: Order) => {
+    toast.loading('Skickar kvitto...', { id: 'resend-receipt' });
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { toast.error('Ej inloggad', { id: 'resend-receipt' }); return; }
+
+      const resp = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-receipt`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ order_id: order.id, action: 'resend_email' }),
+        }
+      );
+
+      if (!resp.ok) throw new Error('Kunde inte skicka kvitto');
+      toast.success(`Kvitto skickat till ${order.order_email}`, { id: 'resend-receipt' });
+    } catch (err: any) {
+      toast.error(err.message || 'Fel vid kvittoutskick', { id: 'resend-receipt' });
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -1244,6 +1304,28 @@ const AdminOrderManager = () => {
                       <Printer className="w-4 h-4" />
                       {language === 'sv' ? 'Skriv ut' : 'Print'}
                     </Button>
+                    {order.payment_status === 'paid' && (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => { e.stopPropagation(); handleDownloadReceipt(order); }}
+                          className="gap-2"
+                        >
+                          <Receipt className="w-4 h-4" />
+                          {language === 'sv' ? 'Kvitto PDF' : 'Receipt PDF'}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => { e.stopPropagation(); handleResendReceipt(order); }}
+                          className="gap-2"
+                        >
+                          <Mail className="w-4 h-4" />
+                          {language === 'sv' ? 'Skicka kvitto' : 'Send receipt'}
+                        </Button>
+                      </>
+                    )}
                     {order.payment_status === 'paid' && !['ready_to_ship', 'packed', 'shipped', 'delivered'].includes(order.fulfillment_status) && !order.tracking_number && (
                       <Button
                         variant="outline"
