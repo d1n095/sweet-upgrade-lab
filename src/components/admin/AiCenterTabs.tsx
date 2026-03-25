@@ -271,23 +271,10 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
   );
 
   return (
-    <div className="flex gap-0 lg:gap-4 -mx-4 md:-mx-8">
-      {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex w-52 flex-col shrink-0 border-r border-border bg-card/50 sticky top-0 self-start max-h-screen">
-        <div className="px-4 py-3 border-b border-border">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-primary" />
-            <span className="text-sm font-semibold">AI Center</span>
-          </div>
-        </div>
-        <ScrollArea className="flex-1 py-2">
-          {sidebarContent}
-        </ScrollArea>
-      </aside>
-
-      {/* Mobile bottom bar */}
-      <div className="lg:hidden">
-        <div className="md:hidden bg-card border-t border-border px-2 py-1.5 flex items-center gap-2 safe-area-inset-bottom">
+    <div className="-mx-4 md:-mx-8">
+      {/* Top navigation (no permanent sidebar) */}
+      <div className="border-b border-border bg-card/50">
+        <div className="md:hidden px-2 py-1.5 flex items-center gap-2 safe-area-inset-bottom">
           <Button
             variant={activeTab === 'ai-dashboard' ? 'secondary' : 'ghost'}
             size="sm"
@@ -304,8 +291,7 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
           </Button>
         </div>
 
-        {/* Tablet top bar */}
-        <div className="hidden md:flex lg:hidden items-center gap-2 px-4 py-2 border-b border-border bg-card/50 overflow-x-auto scrollbar-hide">
+        <div className="hidden md:flex items-center gap-2 px-4 md:px-8 py-2 overflow-x-auto scrollbar-hide">
           <Button
             variant={activeTab === 'ai-dashboard' ? 'secondary' : 'ghost'}
             size="sm"
@@ -334,8 +320,9 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
             </Button>
           ))}
         </div>
+
         {expandedGroup && (
-          <div className="hidden md:flex lg:hidden items-center gap-1 px-4 py-1.5 border-b border-border/50 bg-muted/30 overflow-x-auto scrollbar-hide">
+          <div className="hidden md:flex items-center gap-1 px-4 md:px-8 py-1.5 border-t border-border/50 bg-muted/30 overflow-x-auto scrollbar-hide">
             {TAB_GROUPS.find(g => g.id === expandedGroup)?.tabs.map(tab => (
               <Button
                 key={tab.value}
@@ -352,8 +339,42 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
         )}
       </div>
 
+      <AnimatePresence>
+        {mobileNavOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[80] bg-black/40"
+              onClick={() => setMobileNavOpen(false)}
+            />
+            <motion.div
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 26, stiffness: 320 }}
+              className="fixed inset-y-0 left-0 z-[90] w-72 bg-card border-r border-border flex flex-col"
+            >
+              <div className="h-12 px-3 border-b border-border flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-semibold">AI Center</span>
+                </div>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setMobileNavOpen(false)}>
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              <ScrollArea className="flex-1 py-2">
+                {sidebarContent}
+              </ScrollArea>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       {/* Main Content */}
-      <div className="flex-1 min-w-0 px-4 md:px-8 pb-4">
+      <div className="px-4 md:px-8 pb-4 pt-3">
         {activeTab !== 'ai-dashboard' && activeTabDef && (
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-4 pt-1 shrink-0">
             <button onClick={() => handleNavigate('ai-dashboard')} className="hover:text-foreground transition-colors">
