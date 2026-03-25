@@ -5397,16 +5397,24 @@ async function handleLovaChat(supabase: any, lovableKey: string, userId: string,
   // Gather system snapshot for context
   const snapshot = await gatherSystemSnapshot(supabase);
 
-  // Get open work items & recent scans for awareness
-  const [workRes, scanRes, bugsRes] = await Promise.all([
+  // Get open work items, recent scans, bugs, and prompt queue for awareness
+  const [workRes, scanRes, bugsRes, promptRes] = await Promise.all([
     supabase.from("work_items").select("id, title, status, priority, item_type").in("status", ["open", "claimed", "in_progress"]).order("created_at", { ascending: false }).limit(15),
     supabase.from("ai_scan_results").select("scan_type, overall_score, overall_status, executive_summary, created_at").order("created_at", { ascending: false }).limit(5),
     supabase.from("bug_reports").select("id, description, ai_summary, ai_severity, status").eq("status", "open").order("created_at", { ascending: false }).limit(10),
+    supabase.from("prompt_queue").select("id, title, status, priority, created_at").order("created_at", { ascending: false }).limit(20),
   ]);
 
   const openWork = workRes.data || [];
   const recentScans = scanRes.data || [];
   const openBugs = bugsRes.data || [];
+  const allPrompts = promptRes.data || [];
+  const pendingPrompts = allPrompts.filter((p: any) => p.status === "pending");
+  const donePrompts = allPrompts.filter((p: any) => p.status === "done");
+  const recentlyDone = donePrompts.filter((p: any) => {
+    const age = Date.now() - new Date(p.created_at).getTime();
+    return age < 7 * 24 * 60 * 60 * 1000; // last 7 days
+  });
 
   const capabilityContext = `
 === LOVA 0.5 — AI-OPERATÖR FÖR 4THEPEOPLE.SE ===
@@ -5453,6 +5461,13 @@ ${recentScans.map((s: any) => `${s.scan_type}: ${s.overall_status} (${s.overall_
 
 === ÖPPNA BUGGAR (${openBugs.length}) ===
 ${openBugs.map((b: any) => `[${b.ai_severity || "?"}] ${b.ai_summary || b.description.substring(0, 80)}`).join("\n")}
+
+=== PROMPT-KÖ ===
+Väntande: ${pendingPrompts.length} | Klara (7d): ${recentlyDone.length}
+${pendingPrompts.map((p: any) => `⏳ [${p.priority}] ${p.title}`).join("\n")}
+${recentlyDone.length > 0 ? `\nNyligen avklarade:\n${recentlyDone.map((p: any) => `✅ ${p.title}`).join("\n")}` : ""}
+
+VIKTIGT: Om användaren markerat prompts som klara, identifiera PROAKTIVT nästa problem/förbättring att ta itu med baserat på skanningar och buggar. Föreslå aldrig samma prompt igen.
 `;
 
   const messages = [

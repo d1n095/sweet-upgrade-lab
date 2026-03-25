@@ -57,6 +57,18 @@ interface FieldErrors {
   phone?: string;
 }
 
+// Validation helpers
+const validateEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim());
+const validateSwedishZip = (v: string) => /^\d{3}\s?\d{2}$/.test(v.trim());
+const validatePhone = (v: string) => {
+  const digits = v.replace(/\D/g, '');
+  return digits.length >= 7 && digits.length <= 15;
+};
+const validateName = (v: string) => {
+  const trimmed = v.trim();
+  return trimmed.length >= 2 && trimmed.length <= 100 && /\s/.test(trimmed); // must have first + last
+};
+
 const Checkout = () => {
   const { language } = useLanguage();
   const cl = getContentLang(language);
@@ -152,12 +164,14 @@ const Checkout = () => {
     guarantee: isSv ? '30 dagars garanti' : '30-day guarantee',
     encrypted: isSv ? 'Din betalning är krypterad och säker' : 'Your payment is encrypted and secure',
     returnPolicy: isSv ? 'Returpolicy' : 'Return policy',
-    errorEmail: isSv ? 'Ange en giltig e-postadress' : 'Enter a valid email address',
-    errorName: isSv ? 'Ange ditt namn' : 'Enter your name',
-    errorAddress: isSv ? 'Ange din adress' : 'Enter your address',
-    errorZip: isSv ? 'Ange postnummer' : 'Enter postal code',
-     errorCity: isSv ? 'Ange stad' : 'Enter city',
-    errorPhone: isSv ? 'Ange telefonnummer' : 'Enter phone number',
+    errorEmail: isSv ? 'Ange en giltig e-postadress (t.ex. namn@example.com)' : 'Enter a valid email (e.g. name@example.com)',
+    errorName: isSv ? 'Ange för- och efternamn (minst 2 tecken)' : 'Enter first and last name',
+    errorAddress: isSv ? 'Ange din gatuadress (t.ex. Storgatan 1)' : 'Enter your street address',
+    errorZip: isSv ? 'Ange giltigt svenskt postnummer (t.ex. 123 45)' : 'Enter valid Swedish postal code (e.g. 123 45)',
+    errorCity: isSv ? 'Ange stad' : 'Enter city',
+    errorPhone: isSv ? 'Ange giltigt telefonnummer (minst 7 siffror)' : 'Enter valid phone number (min 7 digits)',
+    errorNameTooLong: isSv ? 'Namnet är för långt (max 100 tecken)' : 'Name is too long (max 100 characters)',
+    errorAddressTooLong: isSv ? 'Adressen är för lång (max 200 tecken)' : 'Address too long (max 200 characters)',
     checkoutFailed: isSv ? 'Betalningen kunde inte genomföras. Försök igen.' : 'Payment could not be processed. Please try again.',
     checkoutTimeout: isSv ? 'Checkout tog för lång tid. Försök igen.' : 'Checkout timed out. Please retry.',
     retry: isSv ? 'Försök igen' : 'Retry',
@@ -169,19 +183,36 @@ const Checkout = () => {
     new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK', minimumFractionDigits: 0 }).format(amount);
 
   const validateField = useCallback((field: string, value: string): string | undefined => {
+    const v = value.trim();
     switch (field) {
-      case 'email': return !value || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? t.errorEmail : undefined;
-      case 'name': return !value.trim() ? t.errorName : undefined;
-      case 'address': return !value.trim() ? t.errorAddress : undefined;
-      case 'zip': return !value.trim() ? t.errorZip : undefined;
-      case 'city': return !value.trim() ? t.errorCity : undefined;
-      case 'phone': {
-        const digits = value.replace(/\D/g, '');
-        return digits.length < 7 ? (t as any).errorPhone : undefined;
-      }
+      case 'email':
+        if (!v) return t.errorEmail;
+        if (!validateEmail(v)) return t.errorEmail;
+        if (v.length > 255) return t.errorEmail;
+        return undefined;
+      case 'name':
+        if (!v || v.length < 2) return t.errorName;
+        if (v.length > 100) return (t as any).errorNameTooLong;
+        if (!/\s/.test(v)) return isSv ? 'Ange både för- och efternamn' : 'Enter both first and last name';
+        return undefined;
+      case 'address':
+        if (!v || v.length < 3) return t.errorAddress;
+        if (v.length > 200) return (t as any).errorAddressTooLong;
+        return undefined;
+      case 'zip':
+        if (!v) return t.errorZip;
+        if (form.country === 'SE' && !validateSwedishZip(v)) return t.errorZip;
+        return undefined;
+      case 'city':
+        if (!v || v.length < 2) return t.errorCity;
+        return undefined;
+      case 'phone':
+        if (!v) return t.errorPhone;
+        if (!validatePhone(v)) return t.errorPhone;
+        return undefined;
       default: return undefined;
     }
-  }, [t]);
+  }, [t, isSv, form.country]);
 
   const handleBlur = (field: string) => {
     setTouched(prev => ({ ...prev, [field]: true }));
@@ -514,7 +545,10 @@ const Checkout = () => {
                     <div>
                       <Label htmlFor="phone">{t.phone}</Label>
                       <Input id="phone" type="tel" inputMode="tel" autoComplete="tel"
-                        value={form.phone} onChange={(e) => updateField('phone', e.target.value)} />
+                        value={form.phone} onChange={(e) => updateField('phone', e.target.value)} onBlur={() => handleBlur('phone')}
+                        placeholder={isSv ? '070 123 45 67' : '070 123 45 67'}
+                        className={touched.phone && errors.phone ? 'border-destructive' : ''} />
+                      {renderFieldError('phone')}
                     </div>
 
                     {/* Single shipping method */}

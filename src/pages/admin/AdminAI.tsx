@@ -507,6 +507,25 @@ const LovaPromptsTab = () => {
                       {p.source_type && ` · ${p.source_type}`}
                     </span>
                     <div className="flex items-center gap-1.5">
+                      {p.status !== 'done' && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 gap-1 text-xs text-green-700 hover:text-green-800 hover:bg-green-50"
+                          onClick={async () => {
+                            const table = p._source === 'wi' ? 'work_items' : 'prompt_queue';
+                            const updateData = table === 'work_items'
+                              ? { status: 'done', completed_at: new Date().toISOString() }
+                              : { status: 'done' };
+                            await supabase.from(table as any).update(updateData).eq('id', p.id);
+                            toast.success('✅ Markerad som klar!');
+                            refetch();
+                          }}
+                        >
+                          <CheckCircle className="w-3 h-3" />
+                          Klar
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="sm"
@@ -525,7 +544,7 @@ const LovaPromptsTab = () => {
                         {copiedId === p.id ? (
                           <><CheckCircle className="w-3 h-3" /> Kopierad!</>
                         ) : (
-                          <><Copy className="w-3 h-3" /> Kopiera prompt</>
+                          <><Copy className="w-3 h-3" /> Kopiera</>
                         )}
                       </Button>
                     </div>
