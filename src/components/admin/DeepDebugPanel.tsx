@@ -160,7 +160,7 @@ const DeepDebugPanel = () => {
                             {traceIds.get(entry.traceId)! > 1 && <span className="bg-muted rounded px-1 ml-0.5">×{traceIds.get(entry.traceId)}</span>}
                           </button>
                           <span className="ml-auto tabular-nums">
-                            {new Date(entry.timestamp).toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3 })}
+                            {new Date(entry.timestamp).toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}.{String(entry.timestamp % 1000).padStart(3, '0')}
                           </span>
                         </div>
                         {entry.details && Object.keys(entry.details).length > 0 && (
