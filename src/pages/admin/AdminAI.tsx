@@ -1168,7 +1168,7 @@ const BugAITab = () => {
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0 space-y-4">
+    <div className="space-y-4 pb-24">
       <div className="flex items-center gap-2 flex-wrap">
         <div className="flex gap-1">
           {(['open', 'resolved', 'all'] as const).map(f => (
@@ -1241,7 +1241,7 @@ const BugAITab = () => {
         <p className="text-sm text-muted-foreground text-center py-6">Inga buggar hittade 🎉</p>
       )}
 
-      <div className="min-h-0 flex-1 overflow-y-auto space-y-2 pr-1">
+      <div className="space-y-2 pr-1 pb-20">
         {bugs.map(bug => {
           const selectedBug = bugs.find(b => b.id === selectedBugId);
           const isExpanded = selectedBugId === bug.id;
