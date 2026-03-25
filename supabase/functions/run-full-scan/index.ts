@@ -22,15 +22,17 @@ const STEPS = [
 const MAX_ITERATIONS = 3;
 
 // ── SYSTEM STAGE: Context awareness ──
-type SystemStage = "development" | "production";
+type SystemStage = "development" | "staging" | "production";
 
 async function getSystemStage(supabase: any): Promise<SystemStage> {
   try {
     const { data } = await supabase
       .from("store_settings")
-      .select("key, value")
+      .select("key, value, text_value")
       .eq("key", "system_stage")
       .maybeSingle();
+    const textVal = data?.text_value;
+    if (textVal === "production" || textVal === "staging") return textVal;
     if (data?.value === true || data?.value === "production") return "production";
     return "development";
   } catch {
