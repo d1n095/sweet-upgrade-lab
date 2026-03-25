@@ -27,6 +27,7 @@ import UiRealityCheck from '@/components/admin/UiRealityCheck';
 import SystemTrustScore from '@/components/admin/SystemTrustScore';
 import SafeModePanel, { SafeModeBanner } from '@/components/admin/SafeModePanel';
 import UnifiedPipelineDashboard from '@/components/admin/UnifiedPipelineDashboard';
+import SystemStateDashboard from '@/components/admin/SystemStateDashboard';
 
 // Context to allow any tab to open a work item detail view
 const DetailContext = createContext<{
@@ -7181,6 +7182,7 @@ const OrchestrationTab = () => {
       <div className="min-h-0 flex-1">
         <AiCenterTabs defaultValue="ai-dashboard">
           {/* Dashboard */}
+          <div data-value="system-state"><SystemStateDashboard /></div>
           <div data-value="unified-pipeline"><UnifiedPipelineDashboard /></div>
           <div data-value="health"><SystemHealthTab /></div>
           <div data-value="insights"><DataInsightsTab /></div>
