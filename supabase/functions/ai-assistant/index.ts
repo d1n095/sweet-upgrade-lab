@@ -2738,6 +2738,213 @@ Svara på svenska. Använd data_cleanup-funktionen.`,
   };
 }
 
+// ── Interaction QA / Scanner ──
+async function handleInteractionQA(supabase: any, apiKey: string) {
+  // Gather all routes, buttons, and interactive elements from the system
+  const { data: pages } = await supabase
+    .from("page_sections")
+    .select("page, section_key, is_visible")
+    .limit(200);
+
+  const { data: workItems } = await supabase
+    .from("work_items")
+    .select("id, title, status, item_type, source_type, source_id, related_order_id")
+    .in("status", ["open", "claimed", "in_progress", "done"])
+    .limit(200);
+
+  const { data: bugs } = await supabase
+    .from("bug_reports")
+    .select("id, description, status, page_url")
+    .limit(100);
+
+  const { data: incidents } = await supabase
+    .from("order_incidents")
+    .select("id, title, status, order_id")
+    .limit(100);
+
+  // Check for orphan references (work_items pointing to non-existent sources)
+  const orphanIssues: any[] = [];
+  for (const wi of workItems || []) {
+    if (wi.source_type === "bug_report" && wi.source_id) {
+      const found = (bugs || []).find((b: any) => b.id === wi.source_id);
+      if (!found) orphanIssues.push({ item: wi.title, issue: "Bug source missing", id: wi.id });
+    }
+    if (wi.source_type === "order_incident" && wi.source_id) {
+      const found = (incidents || []).find((i: any) => i.id === wi.source_id);
+      if (!found) orphanIssues.push({ item: wi.title, issue: "Incident source missing", id: wi.id });
+    }
+    if (wi.related_order_id) {
+      const { data: order } = await supabase.from("orders").select("id, deleted_at").eq("id", wi.related_order_id).single();
+      if (!order || order.deleted_at) orphanIssues.push({ item: wi.title, issue: "Related order deleted/missing", id: wi.id });
+    }
+  }
+
+  // Build context for AI analysis
+  const adminRoutes = [
+    "/admin", "/admin/orders", "/admin/products", "/admin/members", "/admin/shipping",
+    "/admin/campaigns", "/admin/stats", "/admin/ai", "/admin/ops", "/admin/staff",
+    "/admin/content", "/admin/growth", "/admin/finance", "/admin/logs", "/admin/legal",
+    "/admin/reviews", "/admin/partners", "/admin/incidents", "/admin/categories",
+    "/admin/visibility", "/admin/settings", "/admin/history", "/admin/payments",
+    "/admin/communication", "/admin/seo", "/admin/data", "/admin/updates", "/admin/database",
+  ];
+
+  const publicRoutes = [
+    "/", "/shop", "/about", "/contact", "/checkout", "/cbd",
+    "/donations", "/track-order", "/member-profile", "/business",
+  ];
+
+  const context = `
+SYSTEM STATE:
+Pages: ${(pages || []).length} sections across pages
+Work items: ${(workItems || []).length} total (${(workItems || []).filter((w: any) => w.status === "open").length} open)
+Bugs: ${(bugs || []).length} total (${(bugs || []).filter((b: any) => b.status === "open").length} open)
+Incidents: ${(incidents || []).length}
+Orphan references: ${orphanIssues.length}
+${orphanIssues.slice(0, 10).map((o: any) => `  ⚠️ "${o.item}" → ${o.issue}`).join("\n")}
+
+ADMIN ROUTES: ${adminRoutes.join(", ")}
+PUBLIC ROUTES: ${publicRoutes.join(", ")}
+
+KNOWN BUTTON PATTERNS IN ADMIN:
+- Work item click → should open detail sheet
+- Bug click → should open bug detail
+- Status buttons (Mark done, Escalate, Close) → should update DB
+- AI action buttons (Run scan, Run cleanup) → should call edge functions
+- Copy prompt buttons → should copy to clipboard
+- Navigation links → should route correctly
+
+RECENT BUGS (open):
+${(bugs || []).filter((b: any) => b.status === "open").slice(0, 10).map((b: any) => `  - ${b.description?.substring(0, 80)} (${b.page_url})`).join("\n")}
+`;
+
+  const result = await callAI(apiKey, [
+    {
+      role: "system",
+      content: `Du är en QA-ingenjör för en svensk e-handelsplattform. Analysera systemets interaktiva element och identifiera:
+1. Döda element (knappar/länkar utan funktion)
+2. Brutna flöden (checkout, login, navigation)  
+3. State sync-problem (UI visar fel data)
+4. Route-problem (saknade/brutna routes)
+
+Basera analysen på systemdata, kända buggar och routes. Svara på svenska.`,
+    },
+    { role: "user", content: `Analysera interaktioner:\n${context}` },
+  ], [{
+    type: "function",
+    function: {
+      name: "interaction_report",
+      description: "Report interaction QA findings",
+      parameters: {
+        type: "object",
+        properties: {
+          interaction_score: { type: "number", description: "Overall interaction health 0-100" },
+          click_test_score: { type: "number", description: "Button/click health 0-100" },
+          state_sync_score: { type: "number", description: "State sync health 0-100" },
+          route_health_score: { type: "number", description: "Route health 0-100" },
+          executive_summary: { type: "string", description: "2-3 sentences in Swedish" },
+          dead_elements: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                element: { type: "string" },
+                page: { type: "string" },
+                issue: { type: "string" },
+                severity: { type: "string", enum: ["critical", "high", "medium", "low"] },
+                fix_suggestion: { type: "string" },
+                lovable_prompt: { type: "string" },
+              },
+              required: ["element", "page", "issue", "severity", "fix_suggestion", "lovable_prompt"],
+              additionalProperties: false,
+            },
+          },
+          broken_flows: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                flow_name: { type: "string" },
+                steps: { type: "array", items: { type: "string" } },
+                broken_at: { type: "string" },
+                severity: { type: "string", enum: ["critical", "high", "medium", "low"] },
+                fix_suggestion: { type: "string" },
+                lovable_prompt: { type: "string" },
+              },
+              required: ["flow_name", "steps", "broken_at", "severity", "fix_suggestion", "lovable_prompt"],
+              additionalProperties: false,
+            },
+          },
+          state_issues: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                component: { type: "string" },
+                issue: { type: "string" },
+                severity: { type: "string", enum: ["critical", "high", "medium", "low"] },
+              },
+              required: ["component", "issue", "severity"],
+              additionalProperties: false,
+            },
+          },
+        },
+        required: ["interaction_score", "click_test_score", "state_sync_score", "route_health_score", "executive_summary", "dead_elements", "broken_flows"],
+        additionalProperties: false,
+      },
+    },
+  }], { type: "function", function: { name: "interaction_report" } });
+
+  // Auto-create tasks for critical/high issues
+  let tasksCreated = 0;
+  const allIssues = [
+    ...(result?.dead_elements || []).map((e: any) => ({ title: `Dött element: ${e.element} (${e.page})`, desc: e.issue, severity: e.severity, type: "dead_element" })),
+    ...(result?.broken_flows || []).map((f: any) => ({ title: `Brutet flöde: ${f.flow_name}`, desc: `Bryts vid: ${f.broken_at}`, severity: f.severity, type: "broken_flow" })),
+    ...orphanIssues.map((o: any) => ({ title: `Orphan: ${o.item}`, desc: o.issue, severity: "high", type: "orphan_ref" })),
+  ];
+
+  for (const issue of allIssues) {
+    if (!["critical", "high"].includes(issue.severity)) continue;
+    const { data: existing } = await supabase
+      .from("work_items")
+      .select("id")
+      .eq("item_type", "interaction_bug")
+      .ilike("title", `%${issue.title.substring(0, 40)}%`)
+      .in("status", ["open", "claimed", "in_progress"])
+      .limit(1);
+    if (!existing?.length) {
+      await supabase.from("work_items").insert({
+        title: issue.title.substring(0, 200),
+        description: issue.desc,
+        status: "open",
+        priority: issue.severity === "critical" ? "urgent" : "high",
+        item_type: "interaction_bug",
+        source_type: "ai_detection",
+        ai_detected: true,
+        ai_confidence: "high",
+        ai_category: issue.type,
+      });
+      tasksCreated++;
+    }
+  }
+
+  // Log
+  await supabase.from("system_history").insert({
+    event_type: "ai_interaction_scan",
+    snapshot: {
+      interaction_score: result?.interaction_score,
+      dead_elements: result?.dead_elements?.length || 0,
+      broken_flows: result?.broken_flows?.length || 0,
+      orphan_refs: orphanIssues.length,
+      tasks_created: tasksCreated,
+    },
+    resolution_notes: result?.executive_summary || "Interaction scan completed",
+    ai_review_result: result,
+  });
+
+  return { ...result, tasks_created: tasksCreated, orphan_issues: orphanIssues };
+}
+
 // ── Auto-Fix Engine ──
 async function handleAutoFix(supabase: any, apiKey: string, supabaseUrl: string, serviceKey: string, authHeader: string) {
   const fixes: { type: string; action: string; target_id: string; confidence: number; fixed: boolean }[] = [];
