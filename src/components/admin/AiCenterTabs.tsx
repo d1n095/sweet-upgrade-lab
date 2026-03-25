@@ -248,20 +248,20 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
   return (
     <div className="flex gap-0 lg:gap-4 -mx-4 md:-mx-8">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex w-52 flex-col shrink-0 border-r border-border bg-card/50 min-h-0">
+      <aside className="hidden lg:flex w-52 flex-col shrink-0 border-r border-border bg-card/50 sticky top-0 self-start max-h-screen">
         <div className="px-4 py-3 border-b border-border">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-primary" />
             <span className="text-sm font-semibold">AI Center</span>
           </div>
         </div>
-        <ScrollArea className="flex-1 min-h-0 py-2">
+        <ScrollArea className="flex-1 py-2">
           {sidebarContent}
         </ScrollArea>
       </aside>
 
       {/* Mobile bottom bar */}
-      <div className="lg:hidden sticky bottom-0 z-40 md:relative md:z-auto md:bottom-auto">
+      <div className="lg:hidden">
         <div className="md:hidden bg-card border-t border-border px-2 py-1.5 flex items-center justify-between safe-area-inset-bottom">
           <Button variant="ghost" size="sm" className="gap-1.5 text-xs h-9" onClick={() => setMobileNavOpen(true)}>
             <Menu className="w-4 h-4" />
@@ -331,7 +331,7 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 min-w-0 min-h-0 flex flex-col px-4 md:px-8 pb-4">
+      <div className="flex-1 min-w-0 px-4 md:px-8 pb-4">
         {activeTab !== 'ai-dashboard' && activeTabDef && (
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-4 pt-1 shrink-0">
             <button onClick={() => handleNavigate('ai-dashboard')} className="hover:text-foreground transition-colors">
@@ -342,15 +342,15 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
           </div>
         )}
 
-        <div className="min-h-0 flex-1 flex flex-col">
+        <div>
           {activeTab === 'ai-dashboard' ? (
             <DashboardOverview onNavigate={handleNavigate} />
           ) : (
-            <div className="flex-1 min-h-0">
+            <div>
               {React.Children.map(children, child => {
                 if (!React.isValidElement(child)) return null;
                 const value = child.props['data-value'] || child.props.value;
-                return value === activeTab ? <div className="min-h-0 flex-1 flex flex-col">{child}</div> : null;
+                return value === activeTab ? <div>{child}</div> : null;
               })}
             </div>
           )}
