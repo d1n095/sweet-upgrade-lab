@@ -86,7 +86,7 @@ const AdminBugReports = () => {
   const [processingAI, setProcessingAI] = useState<string | null>(null);
   const [promptSearch, setPromptSearch] = useState('');
   const [promptTagFilter, setPromptTagFilter] = useState<string | null>(null);
-  const [diagnostics, setDiagnostics] = useState<Record<string, any>>({});
+  
 
   const fetchBugs = async (): Promise<BugReport[]> => {
     const { data: bugs } = await supabase
