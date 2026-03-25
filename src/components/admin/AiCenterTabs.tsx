@@ -2,11 +2,10 @@ import * as React from 'react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import {
-  Bot, Copy, Play, TrendingUp, Radar, Activity, Monitor, Compass,
-  Database, Shield, Package, Sparkles, Bug, BarChart3, LayoutGrid,
-  ShieldCheck, Zap, CheckCircle, Wrench, Eye, GitMerge, Maximize2,
-  ArrowRightLeft, Gavel, Layers, ChevronRight, Menu, X,
-  AlertTriangle, Clock, ArrowRight,
+  Bot, Play, TrendingUp, Radar, Activity, Monitor,
+  Database, Shield, Eye, GitMerge,
+  ArrowRightLeft, Layers, ChevronRight, Menu, X,
+  Sparkles, Bug, Wrench, Clock,
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -37,9 +36,8 @@ const TAB_GROUPS: TabGroup[] = [
     tabs: [
       { value: 'ai-dashboard', label: 'Översikt', icon: Activity },
       { value: 'unified-pipeline', label: 'Pipeline', icon: GitMerge },
-      { value: 'dashboard', label: 'Systemstatus', icon: BarChart3 },
-      { value: 'health', label: 'Hälsorapport', icon: Shield },
-      { value: 'insights', label: 'Insikter', icon: BarChart3 },
+      { value: 'health', label: 'Systemhälsa', icon: Shield },
+      { value: 'insights', label: 'Insikter', icon: TrendingUp },
     ],
   },
   {
@@ -50,7 +48,7 @@ const TAB_GROUPS: TabGroup[] = [
       { value: 'lova-chat', label: 'Lova Chat', icon: Bot },
       { value: 'autopilot', label: 'Autopilot', icon: Play },
       { value: 'actions', label: 'Åtgärder', icon: TrendingUp },
-      { value: 'tasks', label: 'Uppgifter', icon: Bot },
+      { value: 'tasks', label: 'Uppgifter', icon: Layers },
       { value: 'bugs', label: 'Buggar', icon: Bug },
     ],
   },
@@ -61,13 +59,8 @@ const TAB_GROUPS: TabGroup[] = [
     tabs: [
       { value: 'scan', label: 'Full skanning', icon: Radar },
       { value: 'visual-qa', label: 'Visual QA', icon: Monitor },
-      { value: 'nav-bug', label: 'Navigation', icon: Compass },
-      { value: 'overflow-scan', label: 'Overflow', icon: Maximize2 },
       { value: 'ux-scanner', label: 'UX-skanner', icon: Eye },
-      { value: 'focused-scan', label: 'Fokuserad', icon: Radar },
-      { value: 'sync-scan', label: 'Synk', icon: ArrowRightLeft },
-      { value: 'interaction-qa', label: 'Interaktion QA', icon: Zap },
-      { value: 'ui-reality', label: 'UI Reality Check', icon: Eye },
+      { value: 'sync-scan', label: 'Synk-skanner', icon: ArrowRightLeft },
     ],
   },
   {
@@ -77,11 +70,7 @@ const TAB_GROUPS: TabGroup[] = [
     tabs: [
       { value: 'safe-mode', label: 'Safe Mode', icon: Shield },
       { value: 'trust-score', label: 'Trust Score', icon: Shield },
-      { value: 'queue-control', label: 'Köhantering', icon: Layers },
       { value: 'data-flow', label: 'Dataflöde', icon: ArrowRightLeft },
-      { value: 'data-health', label: 'Datahälsa', icon: Database },
-      { value: 'data-integrity', label: 'Dataintegritet', icon: ShieldCheck },
-      { value: 'content-validation', label: 'Innehållskontroll', icon: Eye },
       { value: 'cleanup', label: 'Rensning', icon: Database },
       { value: 'change-log', label: 'Ändringslogg', icon: Clock },
       { value: 'ai-reads', label: 'AI-läslogg', icon: Eye },
@@ -95,7 +84,7 @@ function findGroupForTab(value: string) {
   return TAB_GROUPS.find(g => g.tabs.some(t => t.value === value));
 }
 
-// ── Dashboard Overview (new default view) ──
+// ── Dashboard Overview ──
 
 interface DashboardOverviewProps {
   onNavigate: (tab: string) => void;
@@ -110,7 +99,6 @@ const quickActions = [
 
 const DashboardOverview = ({ onNavigate }: DashboardOverviewProps) => (
   <div className="space-y-6">
-    {/* Quick Actions */}
     <div>
       <h3 className="text-sm font-semibold mb-3">Snabbåtgärder</h3>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -127,10 +115,9 @@ const DashboardOverview = ({ onNavigate }: DashboardOverviewProps) => (
       </div>
     </div>
 
-    {/* Group Cards */}
     <div>
       <h3 className="text-sm font-semibold mb-3">Moduler</h3>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {TAB_GROUPS.filter(g => g.id !== 'dashboard').map(group => (
           <Card
             key={group.id}
@@ -148,7 +135,7 @@ const DashboardOverview = ({ onNavigate }: DashboardOverviewProps) => (
                 <Badge variant="secondary" className="text-[10px]">{group.tabs.length}</Badge>
               </div>
               <div className="space-y-1">
-                {group.tabs.slice(0, 3).map(t => (
+                {group.tabs.slice(0, 4).map(t => (
                   <button
                     key={t.value}
                     onClick={(e) => { e.stopPropagation(); onNavigate(t.value); }}
@@ -158,9 +145,9 @@ const DashboardOverview = ({ onNavigate }: DashboardOverviewProps) => (
                     {t.label}
                   </button>
                 ))}
-                {group.tabs.length > 3 && (
+                {group.tabs.length > 4 && (
                   <span className="text-[10px] text-muted-foreground/60 pl-5">
-                    +{group.tabs.length - 3} till
+                    +{group.tabs.length - 4} till
                   </span>
                 )}
               </div>
@@ -193,10 +180,8 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
 
   const activeTabDef = ALL_TABS.find(t => t.value === activeTab);
 
-
   const sidebarContent = (
     <nav className="space-y-1 px-2">
-      {/* Dashboard link */}
       <button
         onClick={() => handleNavigate('ai-dashboard')}
         className={cn(
@@ -212,7 +197,6 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
 
       <div className="h-px bg-border my-2" />
 
-      {/* Groups */}
       {TAB_GROUPS.filter(g => g.id !== 'dashboard').map(group => {
         const isExpanded = expandedGroup === group.id;
         const hasActive = group.tabs.some(t => t.value === activeTab);
@@ -262,8 +246,8 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
 
   return (
     <div className="flex gap-0 lg:gap-4 -mx-4 md:-mx-8 min-h-[calc(100vh-200px)] max-h-[calc(100vh-160px)]">
-      {/* ── Desktop Sidebar ── */}
-      <aside className="hidden lg:flex w-56 flex-col shrink-0 border-r border-border bg-card/50 overflow-hidden">
+      {/* Desktop Sidebar */}
+      <aside className="hidden lg:flex w-52 flex-col shrink-0 border-r border-border bg-card/50 overflow-hidden">
         <div className="px-4 py-3 border-b border-border">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-primary" />
@@ -275,9 +259,8 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
         </ScrollArea>
       </aside>
 
-      {/* ── Mobile Header Bar ── */}
+      {/* Mobile bottom bar */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 md:relative md:z-auto md:bottom-auto">
-        {/* Mobile bottom nav bar */}
         <div className="md:hidden bg-card border-t border-border px-2 py-1.5 flex items-center justify-between safe-area-inset-bottom">
           <Button variant="ghost" size="sm" className="gap-1.5 text-xs h-9" onClick={() => setMobileNavOpen(true)}>
             <Menu className="w-4 h-4" />
@@ -310,26 +293,24 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
             Dashboard
           </Button>
           {TAB_GROUPS.filter(g => g.id !== 'dashboard').map(group => (
-            <div key={group.id} className="relative group shrink-0">
-              <Button
-                variant={group.tabs.some(t => t.value === activeTab) ? 'secondary' : 'ghost'}
-                size="sm"
-                className="gap-1.5 text-xs h-8"
-                onClick={() => {
-                  setExpandedGroup(expandedGroup === group.id ? null : group.id);
-                  if (!group.tabs.some(t => t.value === activeTab)) {
-                    handleNavigate(group.tabs[0].value);
-                  }
-                }}
-              >
-                <group.icon className="w-3.5 h-3.5" />
-                {group.label}
-                <ChevronRight className={cn('w-3 h-3 transition-transform', expandedGroup === group.id && 'rotate-90')} />
-              </Button>
-            </div>
+            <Button
+              key={group.id}
+              variant={group.tabs.some(t => t.value === activeTab) ? 'secondary' : 'ghost'}
+              size="sm"
+              className="gap-1.5 text-xs h-8 shrink-0"
+              onClick={() => {
+                setExpandedGroup(expandedGroup === group.id ? null : group.id);
+                if (!group.tabs.some(t => t.value === activeTab)) {
+                  handleNavigate(group.tabs[0].value);
+                }
+              }}
+            >
+              <group.icon className="w-3.5 h-3.5" />
+              {group.label}
+              <ChevronRight className={cn('w-3 h-3 transition-transform', expandedGroup === group.id && 'rotate-90')} />
+            </Button>
           ))}
         </div>
-        {/* Tablet sub-tabs */}
         {expandedGroup && (
           <div className="hidden md:flex lg:hidden items-center gap-1 px-4 py-1.5 border-b border-border/50 bg-muted/30 overflow-x-auto scrollbar-hide">
             {TAB_GROUPS.find(g => g.id === expandedGroup)?.tabs.map(tab => (
@@ -348,7 +329,7 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
         )}
       </div>
 
-      {/* ── Mobile Nav Drawer ── */}
+      {/* Mobile Nav Drawer */}
       <AnimatePresence>
         {mobileNavOpen && (
           <>
@@ -383,9 +364,8 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
         )}
       </AnimatePresence>
 
-      {/* ── Main Content ── */}
+      {/* Main Content */}
       <div className="flex-1 min-w-0 px-4 md:px-8 pb-20 lg:pb-4 overflow-y-auto">
-        {/* Breadcrumb */}
         {activeTab !== 'ai-dashboard' && activeTabDef && (
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-4 pt-1">
             <button onClick={() => handleNavigate('ai-dashboard')} className="hover:text-foreground transition-colors">
@@ -396,18 +376,15 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
           </div>
         )}
 
-        {/* Render active content - force visible */}
         <div className="min-h-[400px]">
           {activeTab === 'ai-dashboard' ? (
             <DashboardOverview onNavigate={handleNavigate} />
           ) : (
-            // Render all TabsContent but only show active one
             <div>
               {React.Children.map(children, child => {
                 if (!React.isValidElement(child)) return null;
                 const value = child.props['data-value'] || child.props.value;
-                const isActive = value === activeTab;
-                return isActive ? <div>{child}</div> : null;
+                return value === activeTab ? <div>{child}</div> : null;
               })}
             </div>
           )}
