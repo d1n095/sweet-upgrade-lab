@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -11,109 +11,40 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-
-interface FinanceData {
-  totalRevenue: number;
-  revenueToday: number;
-  revenueThisMonth: number;
-  totalOrders: number;
-  paidOrders: number;
-  unpaidOrders: number;
-  donationsTotal: number;
-  donationsThisMonth: number;
-  affiliateCommissionsTotal: number;
-  affiliatePending: number;
-  affiliatePaid: number;
-  pendingPayoutRequests: number;
-  pendingPayoutAmount: number;
-  recentPayouts: Array<{
-    id: string;
-    amount: number;
-    status: string;
-    created_at: string;
-    payout_type: string;
-  }>;
-  recentPaidOrders: Array<{
-    id: string;
-    order_email: string;
-    total_amount: number;
-    created_at: string;
-    order_number: string | null;
-    payment_intent_id: string | null;
-  }>;
-}
+import { useQueryClient } from '@tanstack/react-query';
+import {
+  useAdminRevenue, useAdminDonations, computeDonationMetrics,
+  useAdminAffiliates, computeAffiliateMetrics, useAdminPayoutRequests,
+} from '@/hooks/useAdminData';
 
 const AdminFinance = () => {
-  const [data, setData] = useState<FinanceData | null>(null);
-  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { data: orders = [], metrics, isLoading: ordersLoading } = useAdminRevenue();
+  const { data: donations = [], isLoading: donationsLoading } = useAdminDonations();
+  const { data: affiliates = [], isLoading: affiliatesLoading } = useAdminAffiliates();
+  const { data: payoutRequests = [], isLoading: payoutsLoading } = useAdminPayoutRequests();
 
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const now = new Date();
-      const todayStart = new Date(now);
-      todayStart.setHours(0, 0, 0, 0);
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const loading = ordersLoading || donationsLoading || affiliatesLoading || payoutsLoading;
 
-      const [
-        ordersRes, todayOrdersRes, monthOrdersRes,
-        donationsRes, monthDonationsRes, affiliatesRes,
-        payoutRequestsRes, recentPayoutsRes, recentPaidRes,
-      ] = await Promise.all([
-        supabase.from('orders').select('id, total_amount, payment_status, status'),
-        supabase.from('orders').select('total_amount, payment_status').gte('created_at', todayStart.toISOString()),
-        supabase.from('orders').select('total_amount, payment_status').gte('created_at', monthStart.toISOString()),
-        supabase.from('donations').select('amount'),
-        supabase.from('donations').select('amount').gte('created_at', monthStart.toISOString()),
-        supabase.from('affiliates').select('pending_earnings, paid_earnings, total_earnings'),
-        supabase.from('affiliate_payout_requests').select('amount, status').eq('status', 'pending'),
-        supabase.from('affiliate_payout_requests').select('id, amount, status, created_at, payout_type').order('created_at', { ascending: false }).limit(5),
-        supabase.from('orders').select('id, order_email, total_amount, created_at, order_number, payment_intent_id').eq('payment_status', 'paid').order('created_at', { ascending: false }).limit(8),
-      ]);
+  const donationMetrics = useMemo(() => computeDonationMetrics(donations), [donations]);
+  const affiliateMetrics = useMemo(() => computeAffiliateMetrics(affiliates), [affiliates]);
+  const pendingPayouts = useMemo(() => payoutRequests.filter((p: any) => p.status === 'pending'), [payoutRequests]);
+  const pendingPayoutAmount = useMemo(() => pendingPayouts.reduce((s: number, p: any) => s + (p.amount || 0), 0), [pendingPayouts]);
 
-      const orders = ordersRes.data || [];
-      const todayOrders = todayOrdersRes.data || [];
-      const monthOrders = monthOrdersRes.data || [];
-      const donations = donationsRes.data || [];
-      const monthDonations = monthDonationsRes.data || [];
-      const affiliates = affiliatesRes.data || [];
-      const payoutReqs = payoutRequestsRes.data || [];
-      const paidFilter = (o: any) => o.payment_status === 'paid';
+  const recentPaidOrders = useMemo(() =>
+    orders.filter((o: any) => o.payment_status === 'paid').slice(0, 8),
+    [orders]
+  );
 
-      setData({
-        totalRevenue: orders.filter(paidFilter).reduce((s, o) => s + Number(o.total_amount || 0), 0),
-        revenueToday: todayOrders.filter(paidFilter).reduce((s, o) => s + Number(o.total_amount || 0), 0),
-        revenueThisMonth: monthOrders.filter(paidFilter).reduce((s, o) => s + Number(o.total_amount || 0), 0),
-        totalOrders: orders.length,
-        paidOrders: orders.filter(paidFilter).length,
-        unpaidOrders: orders.filter(o => o.payment_status === 'unpaid').length,
-        donationsTotal: donations.reduce((s, d) => s + Number(d.amount || 0), 0),
-        donationsThisMonth: monthDonations.reduce((s, d) => s + Number(d.amount || 0), 0),
-        affiliateCommissionsTotal: affiliates.reduce((s, a) => s + Number(a.total_earnings || 0), 0),
-        affiliatePending: affiliates.reduce((s, a) => s + Number(a.pending_earnings || 0), 0),
-        affiliatePaid: affiliates.reduce((s, a) => s + Number(a.paid_earnings || 0), 0),
-        pendingPayoutRequests: payoutReqs.length,
-        pendingPayoutAmount: payoutReqs.reduce((s, p) => s + Number(p.amount || 0), 0),
-        recentPayouts: (recentPayoutsRes.data || []) as any,
-        recentPaidOrders: (recentPaidRes.data || []) as any,
-      });
-    } catch (e) {
-      console.error('Failed to load finance data:', e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { fetchData(); }, []);
+  const recentPayouts = useMemo(() => payoutRequests.slice(0, 5), [payoutRequests]);
 
   const fmt = (amount: number) =>
     new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK', minimumFractionDigits: 0 }).format(amount);
 
   const formatTime = (dateStr: string) => {
     const d = new Date(dateStr);
-    const now = new Date();
-    const diffMs = now.getTime() - d.getTime();
+    const diffMs = Date.now() - d.getTime();
     const diffMins = Math.floor(diffMs / 60000);
     if (diffMins < 1) return 'Just nu';
     if (diffMins < 60) return `${diffMins} min sedan`;
@@ -130,10 +61,17 @@ const AdminFinance = () => {
       return;
     }
     toast.success('Donationer nollställda');
-    fetchData();
+    queryClient.invalidateQueries({ queryKey: ['admin-donations'] });
   };
 
-  if (loading || !data) {
+  const refreshAll = () => {
+    queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
+    queryClient.invalidateQueries({ queryKey: ['admin-donations'] });
+    queryClient.invalidateQueries({ queryKey: ['admin-affiliates'] });
+    queryClient.invalidateQueries({ queryKey: ['admin-payout-requests'] });
+  };
+
+  if (loading || !metrics) {
     return (
       <div className="flex items-center justify-center h-64">
         <RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" />
@@ -143,32 +81,32 @@ const AdminFinance = () => {
 
   const topCards = [
     {
-      label: 'Total intäkt', value: fmt(data.totalRevenue), sub: `${data.paidOrders} betalda ordrar`,
+      label: 'Total intäkt', value: fmt(metrics.grossRevenue), sub: `${metrics.paidCount} betalda ordrar`,
       icon: DollarSign, color: 'text-green-600', bg: 'bg-green-500/10',
       onClick: () => navigate('/admin/orders'),
     },
     {
-      label: 'Idag', value: fmt(data.revenueToday), sub: `Denna månad: ${fmt(data.revenueThisMonth)}`,
+      label: 'Idag', value: fmt(metrics.revenueToday), sub: `Denna månad: ${fmt(metrics.revenueThisMonth)}`,
       icon: TrendingUp, color: 'text-blue-600', bg: 'bg-blue-500/10',
       onClick: () => navigate('/admin/stats'),
     },
     {
-      label: 'Donationer', value: fmt(data.donationsTotal), sub: `Denna månad: ${fmt(data.donationsThisMonth)}`,
+      label: 'Donationer', value: fmt(donationMetrics.totalAmount), sub: `Denna månad: ${fmt(donationMetrics.monthAmount)}`,
       icon: Heart, color: 'text-pink-600', bg: 'bg-pink-500/10',
-      onClick: () => navigate('/admin/legal'),
+      onClick: () => navigate('/admin/donations'),
     },
     {
-      label: 'Affiliate', value: fmt(data.affiliateCommissionsTotal), sub: `Väntande: ${fmt(data.affiliatePending)}`,
+      label: 'Affiliate', value: fmt(affiliateMetrics.totalEarnings), sub: `Väntande: ${fmt(affiliateMetrics.pendingEarnings)}`,
       icon: Users, color: 'text-amber-600', bg: 'bg-amber-500/10',
       onClick: () => navigate('/admin/partners'),
     },
   ];
 
   const secondaryCards = [
-    { icon: CreditCard, title: `${data.paidOrders} betalda`, sub: `${data.unpaidOrders} obetalda`, onClick: () => navigate('/admin/orders') },
-    { icon: Wallet, title: `${fmt(data.affiliatePaid)} utbetalt`, sub: 'till affiliates', onClick: () => navigate('/admin/partners') },
-    { icon: Clock, title: `${data.pendingPayoutRequests} väntande`, sub: `${fmt(data.pendingPayoutAmount)} att betala`, onClick: () => navigate('/admin/partners'), accent: true },
-    { icon: Heart, title: fmt(data.donationsThisMonth), sub: 'donationer denna månad', onClick: () => navigate('/admin/legal') },
+    { icon: CreditCard, title: `${metrics.paidCount} betalda`, sub: `${orders.filter((o: any) => o.payment_status === 'unpaid').length} obetalda`, onClick: () => navigate('/admin/orders') },
+    { icon: Wallet, title: `${fmt(affiliateMetrics.paidEarnings)} utbetalt`, sub: 'till affiliates', onClick: () => navigate('/admin/partners') },
+    { icon: Clock, title: `${pendingPayouts.length} väntande`, sub: `${fmt(pendingPayoutAmount)} att betala`, onClick: () => navigate('/admin/partners'), accent: true },
+    { icon: Heart, title: fmt(donationMetrics.monthAmount), sub: 'donationer denna månad', onClick: () => navigate('/admin/donations') },
   ];
 
   return (
@@ -182,20 +120,16 @@ const AdminFinance = () => {
           <Button onClick={handleResetDonations} variant="outline" size="sm" className="gap-2 text-destructive hover:text-destructive">
             <RotateCcw className="w-4 h-4" /> Nollställ donationer
           </Button>
-          <Button onClick={fetchData} variant="outline" size="sm" className="gap-2">
+          <Button onClick={refreshAll} variant="outline" size="sm" className="gap-2">
             <RefreshCw className="w-4 h-4" /> Uppdatera
           </Button>
         </div>
       </div>
 
-      {/* Top Stats - clickable */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {topCards.map((card, i) => (
           <motion.div key={card.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-            <Card
-              className="border-border cursor-pointer hover:shadow-md hover:border-primary/20 transition-all group"
-              onClick={card.onClick}
-            >
+            <Card className="border-border cursor-pointer hover:shadow-md hover:border-primary/20 transition-all group" onClick={card.onClick}>
               <CardContent className="pt-5 pb-4">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{card.label}</span>
@@ -214,14 +148,9 @@ const AdminFinance = () => {
         ))}
       </div>
 
-      {/* Secondary stats - clickable */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {secondaryCards.map((card, i) => (
-          <Card
-            key={i}
-            className="border-border bg-secondary/20 cursor-pointer hover:bg-secondary/40 transition-colors group"
-            onClick={card.onClick}
-          >
+          <Card key={i} className="border-border bg-secondary/20 cursor-pointer hover:bg-secondary/40 transition-colors group" onClick={card.onClick}>
             <CardContent className="pt-4 pb-3 flex items-center gap-3">
               <card.icon className={`w-5 h-5 ${card.accent ? 'text-amber-500' : 'text-muted-foreground'}`} />
               <div className="flex-1">
@@ -234,12 +163,11 @@ const AdminFinance = () => {
         ))}
       </div>
 
-      {/* Quick links */}
       <div className="flex flex-wrap gap-2">
         {[
           { label: 'Ordrar', to: '/admin/orders' },
           { label: 'Partners & Affiliates', to: '/admin/partners' },
-          { label: 'Donationer', to: '/admin/legal' },
+          { label: 'Donationer', to: '/admin/donations' },
           { label: 'Inställningar', to: '/admin/settings' },
           { label: 'Statistik', to: '/admin/stats' },
           { label: 'Kampanjer', to: '/admin/campaigns' },
@@ -250,7 +178,6 @@ const AdminFinance = () => {
         ))}
       </div>
 
-      {/* Recent paid orders & payout requests */}
       <div className="grid lg:grid-cols-2 gap-6">
         <Card className="border-border">
           <CardHeader className="pb-3">
@@ -265,15 +192,11 @@ const AdminFinance = () => {
             </div>
           </CardHeader>
           <CardContent className="space-y-2">
-            {data.recentPaidOrders.length === 0 ? (
+            {recentPaidOrders.length === 0 ? (
               <p className="text-sm text-muted-foreground py-4 text-center">Inga betalda ordrar ännu</p>
             ) : (
-              data.recentPaidOrders.map((order) => (
-                <div
-                  key={order.id}
-                  className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 cursor-pointer hover:bg-secondary/50 transition-colors"
-                  onClick={() => navigate('/admin/orders')}
-                >
+              recentPaidOrders.map((order: any) => (
+                <div key={order.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 cursor-pointer hover:bg-secondary/50 transition-colors" onClick={() => navigate('/admin/orders')}>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{order.payment_intent_id ? '#' + order.payment_intent_id.slice(-8).toUpperCase() : order.order_email}</p>
                     <p className="text-xs text-muted-foreground">{formatTime(order.created_at)}</p>
@@ -298,15 +221,11 @@ const AdminFinance = () => {
             </div>
           </CardHeader>
           <CardContent className="space-y-2">
-            {data.recentPayouts.length === 0 ? (
+            {recentPayouts.length === 0 ? (
               <p className="text-sm text-muted-foreground py-4 text-center">Inga utbetalningsförfrågningar</p>
             ) : (
-              data.recentPayouts.map((p) => (
-                <div
-                  key={p.id}
-                  className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 cursor-pointer hover:bg-secondary/50 transition-colors"
-                  onClick={() => navigate('/admin/partners')}
-                >
+              recentPayouts.map((p: any) => (
+                <div key={p.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 cursor-pointer hover:bg-secondary/50 transition-colors" onClick={() => navigate('/admin/partners')}>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium">{p.payout_type === 'cash' ? 'Kontant' : 'Butikskredit'}</p>
                     <p className="text-xs text-muted-foreground">{formatTime(p.created_at)}</p>
