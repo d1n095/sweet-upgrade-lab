@@ -7093,8 +7093,12 @@ const OrchestrationTab = () => {
     queryClient.invalidateQueries({ queryKey: ['work-items'] });
     queryClient.invalidateQueries({ queryKey: ['ai-managed-items'] });
     if (newStatus === 'done') {
+      // Look up linked IDs from the work item for full traceability
+      const { data: wi } = await supabase.from('work_items' as any).select('source_type, source_id, title').eq('id', itemId).maybeSingle();
+      const linkedBugId = (wi as any)?.source_type === 'bug_report' ? (wi as any)?.source_id : null;
+      const linkedScanId = ['scan', 'ai_visual_qa', 'ai_detection'].includes((wi as any)?.source_type) ? (wi as any)?.source_id : null;
       triggerAiReviewForWorkItem(itemId, { context: 'admin_ai_detail' });
-      logChange({ change_type: 'fix', description: `Work item slutförd: ${itemId}`, source: 'manual', affected_components: ['work_items'], work_item_id: itemId });
+      logChange({ change_type: 'fix', description: `Work item slutförd: ${(wi as any)?.title || itemId}`, source: 'manual', affected_components: ['work_items'], work_item_id: itemId, bug_report_id: linkedBugId, scan_id: linkedScanId });
     }
   };
 
