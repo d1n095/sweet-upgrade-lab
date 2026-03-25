@@ -5885,18 +5885,8 @@ const OrchestrationTab = () => {
 
   return (
     <DetailContext.Provider value={{ openDetail }}>
-    <div className="space-y-3 sm:space-y-6">
-      <div className="flex items-center gap-2 sm:gap-3">
-        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-          <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-        </div>
-        <div className="min-w-0">
-          <h1 className="text-base sm:text-xl font-bold truncate">AI Center</h1>
-          <p className="text-xs text-muted-foreground truncate">Unified AI — läser från alla datakällor</p>
-        </div>
-      </div>
-
-      <AiCenterTabs defaultValue="lova-chat">
+    <div>
+      <AiCenterTabs defaultValue="ai-dashboard">
 
         <TabsContent value="lova-chat" className="mt-4">
           <LovaChatTab />
