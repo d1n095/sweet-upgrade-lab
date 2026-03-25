@@ -7085,33 +7085,29 @@ const OrchestrationTab = () => {
     <div className="space-y-3">
       <SafeModeBanner />
       <AiCenterTabs defaultValue="ai-dashboard">
-
-        <div data-value="lova-chat"><LovaChatTab /></div>
+        {/* Dashboard */}
         <div data-value="unified-pipeline"><UnifiedPipelineDashboard /></div>
+        <div data-value="health"><SystemHealthTab /></div>
+        <div data-value="insights"><DataInsightsTab /></div>
+
+        {/* Operations */}
+        <div data-value="lova-chat"><LovaChatTab /></div>
         <div data-value="autopilot"><AiAutopilotTab /></div>
         <div data-value="actions"><ActionEngineTab /></div>
         <div data-value="tasks"><TaskAITab /></div>
         <div data-value="bugs"><BugAITab /></div>
+
+        {/* Scanners */}
         <div data-value="scan"><SystemScanTab /></div>
-        <div data-value="dashboard"><UnifiedDashboardTab /></div>
         <div data-value="visual-qa"><VisualQATab /></div>
-        <div data-value="nav-bug"><NavBugScanTab /></div>
-        <div data-value="overflow-scan"><OverflowScanTab /></div>
         <div data-value="ux-scanner"><UxScannerTab /></div>
-        <div data-value="focused-scan"><FocusedScanTab /></div>
         <div data-value="sync-scan"><SyncScannerTab /></div>
-        <div data-value="interaction-qa"><InteractionQATab /></div>
-        <div data-value="ui-reality"><UiRealityCheck /></div>
+
+        {/* System */}
         <div data-value="safe-mode"><SafeModePanel /></div>
         <div data-value="trust-score"><SystemTrustScore /></div>
-        <div data-value="queue-control"><AiQueueControl /></div>
         <div data-value="data-flow"><DataFlowValidator /></div>
-        <div data-value="data-health"><DataHealthTab /></div>
-        <div data-value="health"><SystemHealthTab /></div>
-        <div data-value="data-integrity"><DataIntegrityTab /></div>
-        <div data-value="content-validation"><ContentValidationTab /></div>
         <div data-value="cleanup"><DataCleanupTab /></div>
-        <div data-value="insights"><DataInsightsTab /></div>
         <div data-value="change-log"><ChangeLogTab /></div>
         <div data-value="ai-reads"><AdminAiReadLog /></div>
       </AiCenterTabs>
