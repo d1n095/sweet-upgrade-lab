@@ -89,7 +89,7 @@ serve(async (req) => {
         if (!deepBug) {
           return new Response(JSON.stringify({ error: "Bug not found" }), { status: 404, headers: corsHeaders });
         }
-        await logAiRead(supabase, { action_type: "deep_analysis", target_type: "bug_report", target_ids: [deepBugId], result: "inspected", summary: `Deep analysis of bug: ${deepBug.ai_summary || deepBug.description?.substring(0, 80)}`, triggered_by: user.id });
+        await logAiRead(supabase, { action_type: "deep_analysis", target_type: "bug_report", target_ids: [deepBugId], result: "inspected", summary: `Deep analysis of bug: ${deepBug.ai_summary || deepBug.description?.substring(0, 80)}`, triggered_by: user.id, linked_bug_id: deepBugId, file_paths: deepBug.ai_tags || [], affected_components: [deepBug.ai_category || 'unknown', deepBug.page_url || ''] });
         result = await handleBugDeepAnalysis(supabase, lovableKey, deepBug);
         break;
       }
