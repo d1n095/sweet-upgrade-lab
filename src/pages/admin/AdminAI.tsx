@@ -2236,19 +2236,25 @@ const SystemScanTab = () => {
                         <div className="pt-2 border-t space-y-2 text-xs" onClick={(e) => e.stopPropagation()}>
                           <p className="text-muted-foreground">{issue.description}</p>
                           <div>
-                            <span className="font-medium text-muted-foreground">🔧 Fix-förslag:</span>
-                            <p>{issue.fix_suggestion}</p>
+                            <div className="flex items-center justify-between">
+                              <span className="font-medium text-muted-foreground">🔧 Fix-förslag:</span>
+                              <Button
+                                size="sm"
+                                variant="default"
+                                className="h-6 text-[10px] gap-1"
+                                id={`copy-fix-${i}`}
+                                onClick={() => {
+                                  const fixText = issue.lovable_prompt || issue.fix_suggestion || '';
+                                  copyToClipboard(fixText, `copy-fix-${i}`);
+                                }}
+                              >
+                                📋 Copy Fix
+                              </Button>
+                            </div>
+                            <p className="mt-1">{issue.fix_suggestion}</p>
                           </div>
                           {issue.lovable_prompt && (
-                            <div>
-                              <div className="flex items-center justify-between">
-                                <span className="font-medium text-muted-foreground">📋 Lovable-prompt:</span>
-                                <Button size="sm" variant="ghost" className="h-5 text-[9px] gap-0.5" onClick={() => copyToClipboard(issue.lovable_prompt)}>
-                                  <Copy className="w-2.5 h-2.5" /> Kopiera
-                                </Button>
-                              </div>
-                              <div className="bg-muted/50 rounded-md p-2 font-mono text-[10px] whitespace-pre-wrap max-h-32 overflow-y-auto mt-1 border">{issue.lovable_prompt}</div>
-                            </div>
+                            <div className="bg-muted/50 rounded-md p-2 font-mono text-[10px] whitespace-pre-wrap max-h-32 overflow-y-auto border">{issue.lovable_prompt}</div>
                           )}
 
                           {/* Action buttons */}
