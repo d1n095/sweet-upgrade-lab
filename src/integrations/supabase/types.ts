@@ -758,6 +758,51 @@ export type Database = {
           },
         ]
       }
+      change_log: {
+        Row: {
+          affected_components: string[] | null
+          bug_report_id: string | null
+          change_type: string
+          created_at: string
+          created_by: string | null
+          description: string
+          id: string
+          metadata: Json | null
+          prompt_queue_id: string | null
+          scan_id: string | null
+          source: string
+          work_item_id: string | null
+        }
+        Insert: {
+          affected_components?: string[] | null
+          bug_report_id?: string | null
+          change_type?: string
+          created_at?: string
+          created_by?: string | null
+          description: string
+          id?: string
+          metadata?: Json | null
+          prompt_queue_id?: string | null
+          scan_id?: string | null
+          source?: string
+          work_item_id?: string | null
+        }
+        Update: {
+          affected_components?: string[] | null
+          bug_report_id?: string | null
+          change_type?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          id?: string
+          metadata?: Json | null
+          prompt_queue_id?: string | null
+          scan_id?: string | null
+          source?: string
+          work_item_id?: string | null
+        }
+        Relationships: []
+      }
       donation_projects: {
         Row: {
           created_at: string
