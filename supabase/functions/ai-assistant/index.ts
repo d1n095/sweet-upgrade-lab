@@ -163,7 +163,8 @@ serve(async (req) => {
       }
 
       case "content_validation": {
-        result = await handleContentValidation(supabase, lovableKey);
+        const { auto_fix } = body;
+        result = await handleContentValidation(supabase, lovableKey, !!auto_fix);
         break;
       }
 
