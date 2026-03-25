@@ -4295,7 +4295,7 @@ const StructureAnalysisTab = () => {
                   <AlertTriangle className="w-4 h-4 text-warning" /> Strukturproblem ({result.issues.length})
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent><ScrollArea className="max-h-[50vh]"><div className="space-y-3 pr-2">
                 {result.issues.map((issue: any, i: number) => (
                   <div key={i} className="border rounded-lg p-3 space-y-2">
                     <div className="flex items-start gap-2">
@@ -4328,7 +4328,7 @@ const StructureAnalysisTab = () => {
                     </Button>
                   </div>
                 ))}
-              </CardContent>
+              </div></ScrollArea></CardContent>
             </Card>
           )}
 
