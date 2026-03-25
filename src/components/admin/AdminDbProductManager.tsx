@@ -10,6 +10,7 @@ import {
   ArrowUpDown, LayoutGrid, LayoutList, ChevronDown, Check,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import {
@@ -523,6 +524,7 @@ const AdminDbProductManager = () => {
               </th>
               <th className="p-3">{sv ? 'Produkt' : 'Product'}</th>
               <th className="p-3 hidden sm:table-cell">{sv ? 'Status' : 'Status'}</th>
+              <th className="p-3 w-16">{sv ? 'Aktiv' : 'Active'}</th>
               <th className="p-3">{sv ? 'Pris' : 'Price'}</th>
               <th className="p-3">{sv ? 'Lager' : 'Stock'}</th>
               <th className="p-3 hidden md:table-cell">{sv ? 'Kategori' : 'Category'}</th>
@@ -566,6 +568,17 @@ const AdminDbProductManager = () => {
                     </div>
                   </td>
                   <td className="p-3 hidden sm:table-cell">{statusBadge(product)}</td>
+                  <td className="p-3" onClick={e => e.stopPropagation()}>
+                    <Switch
+                      checked={product.is_visible}
+                      onCheckedChange={async (checked) => {
+                        await updateDbProduct(product.id, { is_visible: checked });
+                        queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });
+                        toast.success(checked ? (sv ? 'Produkt aktiverad' : 'Product activated') : (sv ? 'Produkt inaktiverad' : 'Product deactivated'));
+                      }}
+                      className="data-[state=checked]:bg-green-600"
+                    />
+                  </td>
                   <td className="p-3" onClick={e => { if (!isEditing) { e.stopPropagation(); setInlineEditId(product.id); setInlinePrice(product.price.toString()); setInlineStock(product.stock.toString()); } }}>
                     {isEditing ? (
                       <Input
