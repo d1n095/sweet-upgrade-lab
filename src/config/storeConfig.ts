@@ -29,7 +29,7 @@ export const storeConfig = {
 
   // Contact
   contact: {
-    email: 'info@4thepeople.se',
+    email: 'support@4thepeople.se',
     phone: '',
     phoneFormatted: '',
   },

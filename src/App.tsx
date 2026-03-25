@@ -45,6 +45,7 @@ import AdminOverview from "./pages/admin/AdminOverview";
 import AdminOrders from "./pages/admin/AdminOrders";
 import AdminProducts from "./pages/admin/AdminProducts";
 import AdminCategories from "./pages/admin/AdminCategories";
+import AdminDonations from "./pages/admin/AdminDonations";
 import AdminMembers from "./pages/admin/AdminMembers";
 import AdminPartners from "./pages/admin/AdminPartners";
 import AdminContent from "./pages/admin/AdminContent";
@@ -146,6 +147,7 @@ const App = () => (
                 <Route path="incidents" element={<AdminIncidents />} />
                 <Route path="finance" element={<AdminPayments />} />
                 <Route path="payments" element={<AdminPayments />} />
+                <Route path="donations" element={<AdminDonations />} />
                 <Route path="staff" element={<AdminStaff />} />
                 <Route path="insights" element={<AdminInsights />} />
                 <Route path="data" element={<AdminData />} />

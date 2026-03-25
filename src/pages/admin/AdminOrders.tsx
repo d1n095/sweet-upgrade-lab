@@ -20,15 +20,16 @@ const AdminOrders = () => {
         .select('status, total_amount, payment_status, deleted_at, fulfillment_status')
         .is('deleted_at', null);
       const ords = data || [];
+      const paidOrders = ords.filter(o => o.payment_status === 'paid');
       setStats({
-        total: ords.length,
+        total: paidOrders.length,
         pending: ords.filter(o => o.status === 'pending').length,
-        shipped: ords.filter(o => o.status === 'shipped' || o.status === 'delivered').length,
-        revenue: ords.filter(o => o.payment_status === 'paid').reduce((s, o) => s + (o.total_amount || 0), 0),
-        delivered: ords.filter(o => o.status === 'delivered').length,
-        returned: ords.filter(o => o.status === 'returned').length,
-        lost: ords.filter(o => o.status === 'lost').length,
-        readyToShip: ords.filter(o => o.fulfillment_status === 'ready_to_ship').length,
+        shipped: paidOrders.filter(o => o.status === 'shipped' || o.status === 'delivered').length,
+        revenue: paidOrders.reduce((s, o) => s + (o.total_amount || 0), 0),
+        delivered: paidOrders.filter(o => o.status === 'delivered').length,
+        returned: paidOrders.filter(o => o.status === 'returned').length,
+        lost: paidOrders.filter(o => o.status === 'lost').length,
+        readyToShip: paidOrders.filter(o => o.fulfillment_status === 'ready_to_ship').length,
       });
       setLoading(false);
     };
