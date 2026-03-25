@@ -37,8 +37,9 @@ const ALL_CATEGORY: FrontendCategory = {
 /**
  * Load categories exclusively from the database.
  * Returns a list starting with "All" plus every visible DB category.
+ * Empty categories (0 products) are hidden on the frontend unless adminView is true.
  */
-export const useDbCategories = () => {
+export const useDbCategories = (adminView = false) => {
   const [categories, setCategories] = useState<FrontendCategory[]>([ALL_CATEGORY]);
   const [loading, setLoading] = useState(true);
 
@@ -56,23 +57,43 @@ export const useDbCategories = () => {
         return;
       }
 
-      const dbCats: FrontendCategory[] = (data || []).map((c: any) => ({
-        id: c.slug, // use slug as frontend id for URL compatibility
-        name: { sv: c.name_sv, en: c.name_en || c.name_sv },
-        icon: resolveIcon(c.icon),
-        slug: c.slug,
-        query: c.slug === 'bestsaljare' ? undefined : `product_type:${c.name_sv}`,
-        isBestsellerFilter: c.slug === 'bestsaljare',
-        parent_id: c.parent_id,
-        is_visible: c.is_visible,
-      }));
+      // Fetch product counts per category to hide empty ones on frontend
+      let productCountMap: Record<string, number> = {};
+      if (!adminView) {
+        const { data: pcData } = await supabase
+          .from('product_categories')
+          .select('category_id');
+        if (pcData) {
+          pcData.forEach((r: any) => {
+            productCountMap[r.category_id] = (productCountMap[r.category_id] || 0) + 1;
+          });
+        }
+      }
+
+      const dbCats: FrontendCategory[] = (data || [])
+        .filter((c: any) => {
+          // In admin view show all; on frontend hide categories with 0 products
+          // Bestseller categories are always shown (they use a different data source)
+          if (adminView || c.slug === 'bestsaljare') return true;
+          return (productCountMap[c.id] || 0) > 0;
+        })
+        .map((c: any) => ({
+          id: c.slug,
+          name: { sv: c.name_sv, en: c.name_en || c.name_sv },
+          icon: resolveIcon(c.icon),
+          slug: c.slug,
+          query: c.slug === 'bestsaljare' ? undefined : `product_type:${c.name_sv}`,
+          isBestsellerFilter: c.slug === 'bestsaljare',
+          parent_id: c.parent_id,
+          is_visible: c.is_visible,
+        }));
 
       setCategories([ALL_CATEGORY, ...dbCats]);
       setLoading(false);
     };
 
     load();
-  }, []);
+  }, [adminView]);
 
   return { categories, loading };
 };
