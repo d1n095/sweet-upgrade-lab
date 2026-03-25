@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import {
   Grid, Plus, Eye, EyeOff, Trash2, Loader2, Save, ChevronRight, ChevronDown,
   Cpu, Shirt, Droplets, Flame, Sparkles, Gem, Bed, Tag, Leaf, GripVertical, Pencil,
-  Wand2, CheckCircle, AlertTriangle, Info, XCircle,
+  Wand2, CheckCircle, AlertTriangle, Info, XCircle, ShieldCheck,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -46,6 +46,8 @@ const AdminCategoryManager = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [aiSyncing, setAiSyncing] = useState(false);
   const [aiResult, setAiResult] = useState<any>(null);
+  const [aiValidating, setAiValidating] = useState(false);
+  const [validationResult, setValidationResult] = useState<any>(null);
 
   const { data: categories = [], isLoading } = useQuery({
     queryKey: ['admin-categories'],
@@ -191,13 +193,35 @@ const AdminCategoryManager = () => {
       });
       toast.success(`"${suggestion.name_sv}" skapad!`);
       queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
-      // Remove from pending
       setAiResult((prev: any) => prev ? {
         ...prev,
         pending_review: (prev.pending_review || []).filter((s: any) => s.slug !== suggestion.slug),
       } : prev);
     } catch (err: any) {
       toast.error('Kunde inte skapa: ' + (err?.message || ''));
+    }
+  };
+
+  const runAiValidate = async () => {
+    setAiValidating(true);
+    setValidationResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-assistant', {
+        body: { type: 'category_validate' },
+      });
+      if (error) throw error;
+      const res = data?.result || data;
+      setValidationResult(res);
+      queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
+      const fixed = res?.auto_fixed?.length || 0;
+      const issues = res?.issues_found || 0;
+      if (issues === 0) toast.success('Inga problem hittades!');
+      else if (fixed > 0) toast.success(`${fixed} problem åtgärdade automatiskt`);
+      else toast.info(`${issues} problem hittade`);
+    } catch (err: any) {
+      toast.error('Validering misslyckades: ' + (err?.message || ''));
+    } finally {
+      setAiValidating(false);
     }
   };
 
@@ -375,6 +399,10 @@ const AdminCategoryManager = () => {
         </div>
 
         <div className="flex gap-2">
+          <Button size="sm" variant="outline" className="gap-2" onClick={runAiValidate} disabled={aiValidating}>
+            {aiValidating ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+            {aiValidating ? 'Validerar...' : 'Validera'}
+          </Button>
           <Button size="sm" variant="outline" className="gap-2" onClick={runAiSync} disabled={aiSyncing}>
             {aiSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
             {aiSyncing ? 'Analyserar...' : 'AI-synk'}
@@ -464,6 +492,69 @@ const AdminCategoryManager = () => {
           </div>
 
           <Button size="sm" variant="ghost" className="text-xs" onClick={() => setAiResult(null)}>
+            <XCircle className="w-3.5 h-3.5 mr-1" /> Stäng
+          </Button>
+        </div>
+      )}
+
+      {/* Validation Results */}
+      {validationResult && (
+        <div className="border border-border rounded-lg p-4 space-y-3 bg-secondary/20">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-primary" />
+            <h4 className="text-sm font-semibold">Kategorivalidering</h4>
+          </div>
+
+          {validationResult.issues_found === 0 && (
+            <div className="flex items-center gap-2 text-accent text-xs">
+              <CheckCircle className="w-4 h-4" />
+              Inga problem hittades — kategoristrukturen är ren
+            </div>
+          )}
+
+          {validationResult.auto_fixed?.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Åtgärdat automatiskt</p>
+              {validationResult.auto_fixed.map((f: any, i: number) => (
+                <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-accent/10 border border-accent/20">
+                  <CheckCircle className="w-3.5 h-3.5 text-accent shrink-0" />
+                  <span className="text-xs">
+                    {f.action === 'hidden_empty' && `Dold tom kategori: ${f.category}`}
+                    {f.action === 'cleared_broken_parent' && `Rensad trasig förälder: ${f.category}`}
+                    {f.action === 'removed_orphan_links' && `${f.count} föräldralösa produktkopplingar borttagna`}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {validationResult.issues?.filter((i: any) => i.type === 'duplicate_slug' || i.type === 'duplicate_name').length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Kräver manuell granskning</p>
+              {validationResult.issues.filter((i: any) => i.type === 'duplicate_slug' || i.type === 'duplicate_name').map((issue: any, i: number) => (
+                <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20">
+                  <AlertTriangle className="w-3.5 h-3.5 text-destructive shrink-0" />
+                  <span className="text-xs">
+                    {issue.type === 'duplicate_slug' ? `Duplicerad slug: "${issue.slug}" (${issue.count} st)` : `Duplicerat namn: "${issue.name}" (${issue.count} st)`}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {validationResult.tasks_created?.length > 0 && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Info className="w-3.5 h-3.5" />
+              {validationResult.tasks_created.length} uppgifter skapade i Workbench
+            </div>
+          )}
+
+          <div className="flex gap-3 text-[10px] text-muted-foreground">
+            <span>{validationResult.total_categories} kategorier</span>
+            <span>{validationResult.total_product_links} produktkopplingar</span>
+          </div>
+
+          <Button size="sm" variant="ghost" className="text-xs" onClick={() => setValidationResult(null)}>
             <XCircle className="w-3.5 h-3.5 mr-1" /> Stäng
           </Button>
         </div>
