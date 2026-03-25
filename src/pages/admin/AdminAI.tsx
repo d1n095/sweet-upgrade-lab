@@ -2243,9 +2243,10 @@ const SystemScanTab = () => {
             <div className="min-w-0 flex-1">
               <h3 className="text-sm font-bold">Systemhälsa</h3>
               <p className="text-xs text-muted-foreground mt-0.5">{scanResult.executive_summary}</p>
-              <div className="flex gap-2 mt-2 text-[10px]">
+              <div className="flex gap-2 mt-2 text-[10px] flex-wrap">
                 <span>⏱ {Math.round(scanResult.scan_duration_ms / 1000)}s</span>
                 <span>🔍 {scanResult.issues_found} issues</span>
+                {scanResult.dismissed_count > 0 && <span>🚫 {scanResult.dismissed_count} ignorerade</span>}
                 <span>✅ {scanResult.tasks_created} skapade</span>
                 <span>📎 {scanResult.tasks_skipped_duplicate} dubbletter</span>
               </div>

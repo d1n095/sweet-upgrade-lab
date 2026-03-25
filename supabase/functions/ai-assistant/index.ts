@@ -1347,12 +1347,22 @@ Du MÅSTE använda system_scan-funktionen.`,
     },
   }], { type: "function", function: { name: "system_scan" } });
 
-  // 3. Auto-create work_items for detected issues (with dedup)
+  // 2b. Load dismissed issues and filter them out
+  const { data: dismissedRows } = await supabase
+    .from("scan_dismissals")
+    .select("issue_key")
+    .eq("scan_type", "system_scan");
+  const dismissedKeys = new Set((dismissedRows || []).map((d: any) => (d.issue_key || "").toLowerCase().trim()));
+
+  const allIssues = analysis?.issues || [];
+  const activeIssues = allIssues.filter((issue: any) => !dismissedKeys.has((issue.title || "").toLowerCase().trim()));
+
+  // 3. Auto-create work_items for detected issues (with dedup) — only non-dismissed
   let created = 0;
   let skipped = 0;
   const createdIds: string[] = [];
 
-  for (const issue of analysis?.issues || []) {
+  for (const issue of activeIssues) {
     // Dedup: check if similar task already exists
     const searchTitle = issue.title.substring(0, 40);
     const { data: existing } = await supabase
@@ -1431,8 +1441,9 @@ Du MÅSTE använda system_scan-funktionen.`,
     system_score: analysis?.system_score || 0,
     executive_summary: analysis?.executive_summary || "",
     risk_areas: analysis?.risk_areas || [],
-    issues_found: analysis?.issues?.length || 0,
-    issues: analysis?.issues || [],
+    issues_found: activeIssues.length,
+    issues: activeIssues,
+    dismissed_count: allIssues.length - activeIssues.length,
     tasks_created: created,
     tasks_skipped_duplicate: skipped,
     task_manager: taskManagerResult,
