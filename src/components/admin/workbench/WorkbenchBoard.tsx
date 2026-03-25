@@ -238,6 +238,41 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     }
   };
 
+  const runValidation = async () => {
+    setRunningValidation(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { toast.error('Ej inloggad'); setRunningValidation(false); return; }
+      const resp = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/data-sync`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ mode: 'repair' }),
+        }
+      );
+      if (resp.ok) {
+        const data = await resp.json();
+        const r = data.results;
+        setValidationResult(r);
+        if (r.total_fixed > 0) {
+          toast.success(`Validering klar: ${r.total_fixed} problem åtgärdade av ${r.total_issues} hittade`);
+          queryClient.invalidateQueries({ queryKey: ['work-items'] });
+        } else if (r.total_issues > 0) {
+          toast.warning(`${r.total_issues} problem hittade men inga kunde åtgärdas automatiskt`);
+        } else {
+          toast.success('Allt är synkat och korrekt ✓');
+        }
+      } else {
+        toast.error('Validering misslyckades');
+      }
+    } catch (e: any) {
+      toast.error('Validering misslyckades: ' + e.message);
+    } finally {
+      setRunningValidation(false);
+    }
+  };
+
   const { data: staffProfiles = [] } = useQuery({
     queryKey: ['staff-profiles'],
     queryFn: async () => {
