@@ -46,6 +46,8 @@ const AdminCategoryManager = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [aiSyncing, setAiSyncing] = useState(false);
   const [aiResult, setAiResult] = useState<any>(null);
+  const [aiValidating, setAiValidating] = useState(false);
+  const [validationResult, setValidationResult] = useState<any>(null);
 
   const { data: categories = [], isLoading } = useQuery({
     queryKey: ['admin-categories'],
