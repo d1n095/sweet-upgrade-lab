@@ -25,6 +25,7 @@ const SCAN_STEPS = [
   { type: 'ux_scan', label: 'UX Scanner', desc: 'Användarupplevelse, tillgänglighet' },
   { type: 'human_test', label: 'Användartest', desc: 'Simulerar användarbeteende end-to-end' },
   { type: 'action_governor', label: 'Governor', desc: 'Klassificerar åtgärder' },
+  { type: 'feature_detection', label: 'Feature Detection', desc: 'Real vs Fake — klassificerar funktioner' },
 ] as const;
 
 export { SCAN_STEPS };
