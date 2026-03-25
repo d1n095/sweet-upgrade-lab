@@ -95,7 +95,7 @@ const AdminBugReports = () => {
         profiles?.map(p => [p.user_id, p.first_name ? `${p.first_name} ${p.last_name || ''}`.trim() : (p.username || 'Okänd')]) || []
       );
 
-      setReports(bugs.map(b => ({
+      const mapped = bugs.map(b => ({
         ...b,
         ai_tags: (b as any).ai_tags || [],
         ai_approved: (b as any).ai_approved || false,
