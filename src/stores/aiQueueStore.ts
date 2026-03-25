@@ -242,11 +242,11 @@ export async function backfillChangeLog() {
       description: wi.title || 'Retroaktiv change_log',
       source: 'system',
       work_item_id: wi.id,
-      bug_report_id: (wi as any).source_type === 'bug' ? (wi as any).source_id : undefined,
+      bug_report_id: wi.source_type === 'bug' ? wi.source_id : undefined,
       metadata: {
         auto_generated: true,
         retroactive: true,
-        original_completed_at: (wi as any).completed_at,
+        original_completed_at: wi.completed_at,
       },
     });
     created++;
