@@ -338,6 +338,12 @@ serve(async (req) => {
         break;
       }
 
+      case "component_map": {
+        await logAiRead(supabase, { action_type: "scan", target_type: "component_map", result: "inspected", summary: "AI ran component link mapping", triggered_by: user.id });
+        result = await handleComponentMap(supabase, lovableKey);
+        break;
+      }
+
       default:
         return new Response(JSON.stringify({ error: "Unknown type" }), { status: 400, headers: corsHeaders });
     }
@@ -6048,6 +6054,7 @@ async function executeLovaAction(supabase: any, lovableKey: string, args: any) {
       if (scanType === "sync_scan") return await handleSyncScan(supabase, lovableKey);
       if (scanType === "data_integrity") return await handleDataIntegrity(supabase);
       if (scanType === "human_test") return await handleHumanTest(supabase, lovableKey);
+      if (scanType === "component_map") return await handleComponentMap(supabase, lovableKey);
 
       // Default / system-level scan
       return await handleSystemHealth(supabase, lovableKey);
@@ -6944,6 +6951,362 @@ INSTRUKTIONER:
     default:
       return { error: "Okänd åtgärdstyp" };
   }
+}
+
+// ── Component Link Mapping ──
+async function handleComponentMap(supabase: any, lovableKey: string) {
+  // Gather data about the system's components, state stores, routes, and DB tables
+  const [pagesRes, prodsRes, catsRes, bugsRes, workRes, changeRes, ordersRes, tagsRes, bundlesRes, reviewsRes] = await Promise.all([
+    supabase.from("page_sections").select("page, section_key, is_visible").limit(200),
+    supabase.from("products").select("id, title_sv, handle, is_visible, is_sellable, stock, category").limit(200),
+    supabase.from("categories").select("id, name_sv, slug, is_visible, parent_id").limit(100),
+    supabase.from("bug_reports").select("id, status, ai_category, page_url").order("created_at", { ascending: false }).limit(20),
+    supabase.from("work_items").select("id, title, status, item_type, source_type, ai_category").order("created_at", { ascending: false }).limit(40),
+    supabase.from("change_log").select("id, description, affected_components, change_type").order("created_at", { ascending: false }).limit(20),
+    supabase.from("orders").select("id, status, payment_status, fulfillment_status").is("deleted_at", null).limit(10),
+    supabase.from("product_tags").select("id, name_sv, tag_type").limit(50),
+    supabase.from("bundles").select("id, name, is_active").limit(20),
+    supabase.from("reviews").select("id, shopify_product_id, status").limit(30),
+  ]);
+
+  // Build the comprehensive component registry
+  const componentRegistry = {
+    // ── PUBLIC PAGES ──
+    pages: [
+      { component: "Index", route: "/", file: "src/pages/Index.tsx",
+        children: ["Hero", "HomepageBestsellers", "HomepageNewProducts", "HomepageReviews", "HomepageSustainability", "HomepageTimeline", "HomepageValues", "HomepageContact", "Newsletter", "TrustBadges"],
+        state: ["LanguageContext", "CartContext"], data: ["products (static)", "page_sections"], handlers: ["navigation"] },
+      { component: "Produkter", route: "/produkter", file: "src/pages/Produkter.tsx",
+        children: ["DbProductGrid", "DbProductCard", "UseCaseFilter", "CategoryFilter"],
+        state: ["CartContext", "wishlistStore", "searchStore", "LanguageContext"], data: ["products", "categories", "product_tags"], handlers: ["addToCart", "toggleWishlist", "filterByCategory", "filterByUseCase"] },
+      { component: "ProductDetail", route: "/produkt/:handle", file: "src/pages/ProductDetail.tsx",
+        children: ["ZoomableImage", "QuantitySelector", "ReviewList", "ReviewForm", "RelatedProducts", "ProductIngredients", "ProductCertifications", "ProductBundles", "MobileBuyBar", "PurchasedBadge"],
+        state: ["CartContext", "wishlistStore", "recentlyViewedStore", "LanguageContext"], data: ["products (by handle)", "reviews", "bundles", "recipe_ingredients"], handlers: ["addToCart", "toggleWishlist", "submitReview", "changeQuantity"] },
+      { component: "Checkout", route: "/checkout", file: "src/pages/Checkout.tsx",
+        children: ["AddressAutocomplete", "InfluencerCodeInput", "RoundUpDonation", "PaymentIcons", "ShippingProgressBar"],
+        state: ["CartContext", "cartStore"], data: ["orders (create)", "donations", "affiliates", "influencers"], handlers: ["submitOrder", "applyDiscount", "applyInfluencerCode", "roundUpDonation"] },
+      { component: "Shop", route: "/shop", file: "src/pages/Shop.tsx",
+        children: ["redirect → /produkter"], state: [], data: [], handlers: ["redirect"] },
+      { component: "AboutUs", route: "/om-oss", file: "src/pages/AboutUs.tsx",
+        children: ["About", "AboutCompact", "ImpactSection"], state: ["LanguageContext"], data: ["page_sections"], handlers: [] },
+      { component: "Contact", route: "/kontakt", file: "src/pages/Contact.tsx",
+        children: [], state: ["LanguageContext"], data: ["page_sections"], handlers: ["submitContactForm"] },
+      { component: "Donations", route: "/donationer", file: "src/pages/Donations.tsx",
+        children: ["DonationImpact", "LiveDonationFeed"], state: ["LanguageContext"], data: ["donations", "donation_projects"], handlers: ["donate"] },
+      { component: "MemberProfile", route: "/profil", file: "src/pages/MemberProfile.tsx",
+        children: ["ProfileInfoForm", "AccountSettings", "BalanceOverview", "BusinessAccountForm", "CompleteProfileBanner", "OrderTracker", "ReferralDashboard"],
+        state: ["useAuth", "LanguageContext"], data: ["profiles", "orders", "referrals", "business_accounts"], handlers: ["updateProfile", "saveSettings", "requestRefund"] },
+      { component: "OrderConfirmation", route: "/orderbekraftelse", file: "src/pages/OrderConfirmation.tsx",
+        children: ["PostPurchaseSignup"], state: ["CartContext"], data: ["orders"], handlers: [] },
+      { component: "CBD", route: "/cbd", file: "src/pages/CBD.tsx", children: [], state: ["LanguageContext"], data: ["page_sections"], handlers: [] },
+      { component: "Business", route: "/foretag", file: "src/pages/Business.tsx", children: ["BusinessAccountForm"], state: ["useAuth"], data: ["business_accounts"], handlers: ["submitBusinessApp"] },
+      { component: "SuggestProduct", route: "/foreslå-produkt", file: "src/pages/SuggestProduct.tsx", children: [], state: ["useAuth"], data: ["interest_logs"], handlers: ["submitSuggestion"] },
+      { component: "TrackOrder", route: "/track-order", file: "src/pages/TrackOrder.tsx", children: ["OrderTracker"], state: [], data: ["orders (lookup)"], handlers: ["lookupOrder"] },
+      { component: "WhatsNew", route: "/nyheter", file: "src/pages/WhatsNew.tsx", children: [], state: ["LanguageContext"], data: ["site_updates"], handlers: [] },
+    ],
+    // ── ADMIN PAGES ──
+    admin_pages: [
+      { component: "AdminOverview", route: "/admin", file: "src/pages/admin/AdminOverview.tsx",
+        children: ["AdminDashboardCharts", "AdminGlobalSearch", "AdminNotificationBell"],
+        state: ["useAdminData", "useAdminRealtime"], data: ["orders", "profiles", "work_items", "analytics_events"], handlers: ["periodSelector", "refresh"] },
+      { component: "AdminOrders", route: "/admin/orders", file: "src/pages/admin/AdminOrders.tsx",
+        children: ["AdminOrderManager", "AdminOrdersByStatus", "AdminOrderAuditLog", "AdminDeletedOrders"],
+        state: ["useAdminData"], data: ["orders", "order_incidents", "refund_requests"], handlers: ["changeStatus", "packOrder", "shipOrder", "refund", "deleteOrder"] },
+      { component: "AdminProducts", route: "/admin/products", file: "src/pages/admin/AdminProducts.tsx",
+        children: ["AdminDbProductManager", "AdminProductForm", "AdminProductImportExport", "AdminRecipeIngredientLibrary", "AdminRecipeTemplateBuilder", "AdminStockIntelligence", "AdminInventoryManager"],
+        state: ["useAdminData"], data: ["products", "categories", "product_tags", "recipe_ingredients"], handlers: ["createProduct", "editProduct", "deleteProduct", "importExport", "manageStock"] },
+      { component: "AdminAI", route: "/admin/ai", file: "src/pages/admin/AdminAI.tsx",
+        children: ["AiCenterTabs", "MiniWorkbench", "SafeModePanel", "SystemTrustScore", "AiQueueControl", "AdminAiReadLog", "DataFlowValidator", "UiRealityCheck", "UnifiedPipelineDashboard"],
+        state: ["safeModeStore", "aiQueueStore"], data: ["ai_scan_results", "work_items", "bug_reports", "prompt_queue", "change_log"], handlers: ["runScan", "generatePrompt", "triageBugs", "manageQueue"] },
+      { component: "AdminMembers", route: "/admin/members", file: "src/pages/admin/AdminMembers.tsx",
+        children: ["AdminMemberManager", "UserSearchInput"], state: ["useAdminData"], data: ["profiles", "user_roles"], handlers: ["searchUsers", "assignRole"] },
+      { component: "AdminShipping", route: "/admin/shipping", file: "src/pages/admin/AdminShipping.tsx",
+        children: ["ShippingCarriersSection", "ShippingFormDialog", "ScanPackingMode"],
+        state: ["scannerStore"], data: ["orders", "shipping_carriers"], handlers: ["createShipment", "scanPack", "printLabel"] },
+      { component: "AdminFinance", route: "/admin/finance", file: "src/pages/admin/AdminFinance.tsx",
+        children: ["AdminPayoutManager", "AdminRefundRequests", "AdminPaymentLogs"],
+        state: ["useAdminData"], data: ["orders", "affiliate_payouts", "refund_requests"], handlers: ["processRefund", "approveRefund", "payout"] },
+      { component: "AdminStaff", route: "/admin/staff", file: "src/pages/admin/AdminStaff.tsx",
+        children: ["WorkbenchBoard", "WorkbenchOverview", "WorkbenchStaffPanel", "WorkItemDetail", "QuickPackMode"],
+        state: ["useAdminData"], data: ["work_items", "staff_tasks", "staff_performance"], handlers: ["claimTask", "completeTask", "escalate"] },
+    ],
+    // ── SHARED/LAYOUT COMPONENTS ──
+    shared: [
+      { component: "Header", file: "src/components/layout/Header.tsx",
+        children: ["LanguageSwitcher", "NavLink", "CartDrawer", "WishlistDrawer", "AuthModal", "AccountDrawer", "AdminNotificationBell", "SearchSuggestions"],
+        state: ["CartContext", "wishlistStore", "useAuth", "LanguageContext", "searchStore"], data: [], handlers: ["toggleCart", "toggleWishlist", "toggleAuth", "search", "navigate"] },
+      { component: "Footer", file: "src/components/layout/Footer.tsx",
+        children: ["PaymentIcons", "Newsletter"], state: ["LanguageContext"], data: [], handlers: ["navigate", "subscribeNewsletter"] },
+      { component: "CartDrawer", file: "src/components/cart/CartDrawer.tsx",
+        children: ["QuantitySelector", "ShippingProgressBar", "InfluencerCodeInput", "CartReservationTimer"],
+        state: ["CartContext", "cartStore"], data: ["products"], handlers: ["updateQuantity", "removeItem", "goToCheckout", "applyCode"] },
+      { component: "AuthModal", file: "src/components/auth/AuthModal.tsx",
+        children: ["LoginIncentives"], state: ["useAuth"], data: ["profiles (create on signup)"], handlers: ["login", "signup", "resetPassword", "socialAuth"] },
+      { component: "WishlistDrawer", file: "src/components/wishlist/WishlistDrawer.tsx",
+        children: ["WishlistButton"], state: ["wishlistStore", "CartContext"], data: [], handlers: ["removeFromWishlist", "moveToCart"] },
+    ],
+    // ── STATE STORES ──
+    state_stores: [
+      { name: "CartContext", file: "src/context/CartContext.tsx", type: "context", consumers: ["Header", "CartDrawer", "Checkout", "ProductDetail", "Produkter", "MobileBuyBar", "DbProductCard"] },
+      { name: "LanguageContext", file: "src/context/LanguageContext.tsx", type: "context", consumers: ["Header", "Footer", "all pages"] },
+      { name: "wishlistStore", file: "src/stores/wishlistStore.ts", type: "zustand", consumers: ["WishlistDrawer", "WishlistButton", "ProductCard", "DbProductCard"] },
+      { name: "cartStore", file: "src/stores/cartStore.ts", type: "zustand", consumers: ["CartDrawer", "Checkout"] },
+      { name: "searchStore", file: "src/stores/searchStore.ts", type: "zustand", consumers: ["Header", "SearchSuggestions"] },
+      { name: "recentlyViewedStore", file: "src/stores/recentlyViewedStore.ts", type: "zustand", consumers: ["RecentlyViewed", "ProductDetail"] },
+      { name: "safeModeStore", file: "src/stores/safeModeStore.ts", type: "zustand", consumers: ["SafeModePanel", "AiCenterTabs"] },
+      { name: "aiQueueStore", file: "src/stores/aiQueueStore.ts", type: "zustand", consumers: ["AiQueueControl", "AiCenterTabs"] },
+      { name: "pageVisibilityStore", file: "src/stores/pageVisibilityStore.ts", type: "zustand", consumers: ["MaintenanceGuard", "AdminPageVisibility"] },
+      { name: "scannerStore", file: "src/stores/scannerStore.ts", type: "zustand", consumers: ["ScanPackingMode", "AdminShipping"] },
+      { name: "storeSettingsStore", file: "src/stores/storeSettingsStore.ts", type: "zustand", consumers: ["various admin/public components"] },
+      { name: "paymentMethodsStore", file: "src/stores/paymentMethodsStore.ts", type: "zustand", consumers: ["PaymentMethodIcons", "Checkout"] },
+    ],
+    // ── KEY HOOKS ──
+    hooks: [
+      { name: "useAuth", file: "src/hooks/useAuth.ts", data: ["auth.users", "profiles"], consumers: ["AuthModal", "MemberProfile", "AccountDrawer", "Header"] },
+      { name: "useAdminData", file: "src/hooks/useAdminData.ts", data: ["orders", "products", "profiles"], consumers: ["AdminOverview", "AdminOrders", "AdminProducts"] },
+      { name: "useAdminRole", file: "src/hooks/useAdminRole.ts", data: ["user_roles"], consumers: ["AdminLayout"] },
+      { name: "useCartDiscounts", file: "src/hooks/useCartDiscounts.ts", data: ["affiliates", "bundles"], consumers: ["CartDrawer", "Checkout"] },
+      { name: "useDbCategories", file: "src/hooks/useDbCategories.ts", data: ["categories"], consumers: ["Produkter", "AdminCategories"] },
+      { name: "useProductReviewStats", file: "src/hooks/useProductReviewStats.ts", data: ["reviews"], consumers: ["ProductDetail", "ReviewSummary"] },
+      { name: "usePurchaseHistory", file: "src/hooks/usePurchaseHistory.ts", data: ["orders"], consumers: ["PurchasedBadge", "MemberProfile"] },
+      { name: "useMemberPrices", file: "src/hooks/useMemberPrices.ts", data: ["member_prices"], consumers: ["ProductDetail", "DbProductCard"] },
+      { name: "useInfluencerCode", file: "src/hooks/useInfluencerCode.ts", data: ["influencers"], consumers: ["InfluencerCodeInput", "Checkout"] },
+      { name: "usePageSections", file: "src/hooks/usePageSections.ts", data: ["page_sections"], consumers: ["AboutUs", "CBD", "Contact", "Index"] },
+    ],
+    // ── DB TABLES ──
+    db_tables: [
+      "products", "categories", "product_categories", "product_tags", "product_tag_relations",
+      "orders", "order_incidents", "refund_requests", "profiles", "user_roles",
+      "reviews", "bundles", "bundle_items", "donations", "donation_projects",
+      "affiliates", "affiliate_orders", "influencers", "influencer_products",
+      "work_items", "bug_reports", "change_log", "ai_scan_results", "ai_read_log",
+      "analytics_events", "search_logs", "notifications", "page_sections",
+      "store_settings", "email_templates", "legal_documents", "referrals",
+      "recipe_ingredients", "recipe_templates", "recipe_template_slots",
+      "member_prices", "business_accounts", "feedback_surveys",
+    ],
+    // ── EDGE FUNCTIONS ──
+    edge_functions: [
+      { name: "ai-assistant", triggers: ["AiCenterTabs", "MiniWorkbench", "Lova chat"], tables: ["work_items", "bug_reports", "ai_scan_results", "change_log", "products", "orders"] },
+      { name: "create-checkout", triggers: ["Checkout"], tables: ["orders"] },
+      { name: "stripe-webhook", triggers: ["Stripe"], tables: ["orders"] },
+      { name: "send-order-email", triggers: ["order creation"], tables: ["orders", "email_send_log"] },
+      { name: "automation-engine", triggers: ["AdminAI"], tables: ["automation_rules", "automation_logs", "work_items"] },
+      { name: "generate-receipt", triggers: ["AdminOrders"], tables: ["orders"] },
+      { name: "process-refund", triggers: ["AdminRefundRequests"], tables: ["orders", "refund_requests"] },
+      { name: "shopify-proxy", triggers: ["ProductDetail", "Produkter"], tables: [] },
+    ],
+  };
+
+  const context = JSON.stringify({
+    component_registry: componentRegistry,
+    system_state: {
+      products: (prodsRes.data || []).length,
+      visible_products: (prodsRes.data || []).filter((p: any) => p.is_visible).length,
+      categories: (catsRes.data || []).length,
+      pages: (pagesRes.data || []).length,
+      open_bugs: (bugsRes.data || []).filter((b: any) => b.status === "open").length,
+      open_work_items: (workRes.data || []).filter((w: any) => ["open", "claimed", "in_progress"].includes(w.status)).length,
+      recent_changes: (changeRes.data || []).slice(0, 10).map((c: any) => ({ desc: c.description, components: c.affected_components })),
+      orders: (ordersRes.data || []).length,
+      tags: (tagsRes.data || []).length,
+      bundles: (bundlesRes.data || []).length,
+      reviews: (reviewsRes.data || []).length,
+    },
+  });
+
+  const prompt = `Du är en systemarkitekt som kartlägger hur alla UI-komponenter i 4thepeople.se är kopplade.
+
+KOMPLETT KOMPONENTREGISTER:
+${context}
+
+═══ UPPDRAG: KARTLÄGG ALLA KOPPLINGAR ═══
+
+FÖR VARJE KOMPONENT, verifiera kedjan:
+  component → handler → state store → data source → render result
+
+═══ DETEKTERA ═══
+1. SAKNADE LÄNKAR — komponent har onClick men ingen state-ändring
+2. BRUTNA KEDJOR — state uppdateras men UI re-renderas inte
+3. FÖRÄLDRALÖSA KOMPONENTER — importeras aldrig / nås aldrig via route
+4. DÖDA STATE STORES — store existerar men ingen konsument läser
+5. OPÅVERKADE DB-TABELLER — tabell finns men ingen komponent läser/skriver
+6. EDGE FUNCTIONS SOM ALDRIG ANROPAS — funktion deployad men inget UI triggar den
+7. HOOKS UTAN KONSUMENTER — hook finns men ingen komponent använder den
+
+═══ KLASSIFICERA VARJE KOMPONENT ═══
+- fully_connected: Alla länkar intakta (handler → state → data → render)
+- partially_connected: Renderar men saknar en eller flera länkar
+- broken: Kritisk kedja bruten (t.ex. form submit utan handler)
+- orphan: Existerar i koden men nås aldrig
+
+═══ REGLER ═══
+- Basera ALL analys på registret ovan
+- Var SPECIFIK: ge fil- och komponentnamn
+- Varje trasigt problem MÅSTE ha en lovable_prompt för fix
+- Svara på svenska`;
+
+  const analysis = await callAIWithTools(lovableKey, prompt, [{
+    type: "function",
+    function: {
+      name: "component_map_results",
+      description: "Component link mapping results",
+      parameters: {
+        type: "object",
+        properties: {
+          overall_score: { type: "number", description: "Overall wiring health 0-100" },
+          total_components: { type: "number" },
+          fully_connected: { type: "number" },
+          partially_connected: { type: "number" },
+          broken: { type: "number" },
+          orphan: { type: "number" },
+          executive_summary: { type: "string" },
+          components: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                name: { type: "string", description: "Component name" },
+                file: { type: "string", description: "File path" },
+                route: { type: "string", description: "Route if page component" },
+                status: { type: "string", enum: ["fully_connected", "partially_connected", "broken", "orphan"] },
+                chain: { type: "string", description: "component → handler → state → data → render trace" },
+                missing_links: { type: "array", items: { type: "string" }, description: "What is missing in the chain" },
+                severity: { type: "string", enum: ["critical", "high", "medium", "low", "ok"] },
+                fix_suggestion: { type: "string" },
+                lovable_prompt: { type: "string" },
+              },
+              required: ["name", "file", "status", "chain", "missing_links", "severity"],
+            },
+          },
+          dead_stores: {
+            type: "array",
+            description: "State stores with no consumers or broken consumers",
+            items: {
+              type: "object",
+              properties: {
+                store_name: { type: "string" },
+                file: { type: "string" },
+                issue: { type: "string" },
+                consumers_expected: { type: "array", items: { type: "string" } },
+                consumers_actual: { type: "array", items: { type: "string" } },
+              },
+              required: ["store_name", "file", "issue"],
+            },
+          },
+          unused_tables: {
+            type: "array",
+            description: "DB tables not read/written by any component",
+            items: { type: "string" },
+          },
+          unused_edge_functions: {
+            type: "array",
+            description: "Edge functions not triggered by any UI",
+            items: {
+              type: "object",
+              properties: {
+                function_name: { type: "string" },
+                issue: { type: "string" },
+              },
+              required: ["function_name", "issue"],
+            },
+          },
+          broken_chains: {
+            type: "array",
+            description: "Specific broken connection chains",
+            items: {
+              type: "object",
+              properties: {
+                from_component: { type: "string" },
+                to_component: { type: "string" },
+                expected_link: { type: "string" },
+                actual_status: { type: "string", enum: ["missing", "broken", "stale", "wrong_target"] },
+                impact: { type: "string" },
+                severity: { type: "string", enum: ["critical", "high", "medium", "low"] },
+                lovable_prompt: { type: "string" },
+              },
+              required: ["from_component", "to_component", "expected_link", "actual_status", "impact", "severity", "lovable_prompt"],
+            },
+          },
+          positive_findings: { type: "array", items: { type: "string" } },
+        },
+        required: ["overall_score", "total_components", "fully_connected", "partially_connected", "broken", "orphan", "executive_summary", "components", "dead_stores", "unused_tables", "unused_edge_functions", "broken_chains", "positive_findings"],
+        additionalProperties: false,
+      },
+    },
+  }], { type: "function", function: { name: "component_map_results" } });
+
+  // Persist scan result
+  const mapScore = analysis?.overall_score || 0;
+  const totalIssues = (analysis?.broken || 0) + (analysis?.orphan || 0) + (analysis?.broken_chains?.length || 0);
+  const scanId = await persistScanResult(supabase, {
+    scan_type: "component_map",
+    results: analysis || {},
+    overall_score: mapScore,
+    overall_status: mapScore >= 80 ? "healthy" : mapScore >= 50 ? "warning" : "critical",
+    issues_count: totalIssues,
+    executive_summary: analysis?.executive_summary || "",
+  });
+
+  // Auto-create work items for broken/orphan components and broken chains
+  let tasksCreated = 0;
+
+  if (analysis?.components) {
+    for (const comp of analysis.components) {
+      if (!["broken", "orphan"].includes(comp.status) || !["critical", "high"].includes(comp.severity)) continue;
+      const titleKey = comp.name.substring(0, 25);
+      const { data: existing } = await supabase
+        .from("work_items").select("id")
+        .ilike("title", `%${titleKey}%`)
+        .in("status", ["open", "claimed", "in_progress"]).limit(1);
+      if (!existing?.length) {
+        await supabase.from("work_items").insert({
+          title: `[${comp.status}] ${comp.name} — ${comp.missing_links?.join(", ") || "broken chain"}`.substring(0, 200),
+          description: `Komponent: ${comp.name}\nFil: ${comp.file}\nRoute: ${comp.route || "N/A"}\nStatus: ${comp.status}\nKedja: ${comp.chain}\n\nSaknade länkar: ${comp.missing_links?.join(", ")}\n\nFix: ${comp.fix_suggestion || ""}\n\nLovable prompt:\n${comp.lovable_prompt || ""}`,
+          status: "open",
+          priority: comp.severity === "critical" ? "critical" : "high",
+          item_type: "bug",
+          source_type: "ai_scan",
+          source_id: scanId || undefined,
+          ai_detected: true,
+          ai_confidence: "high",
+          ai_category: "architecture",
+          ai_type_classification: `component_${comp.status}`,
+        });
+        tasksCreated++;
+      }
+    }
+  }
+
+  if (analysis?.broken_chains) {
+    for (const chain of analysis.broken_chains) {
+      if (!["critical", "high"].includes(chain.severity)) continue;
+      const chainKey = `${chain.from_component}→${chain.to_component}`.substring(0, 30);
+      const { data: existing } = await supabase
+        .from("work_items").select("id")
+        .ilike("title", `%${chainKey.substring(0, 20)}%`)
+        .in("status", ["open", "claimed", "in_progress"]).limit(1);
+      if (!existing?.length) {
+        await supabase.from("work_items").insert({
+          title: `Broken chain: ${chain.from_component} → ${chain.to_component}`.substring(0, 200),
+          description: `Från: ${chain.from_component}\nTill: ${chain.to_component}\nFörväntad länk: ${chain.expected_link}\nStatus: ${chain.actual_status}\nImpakt: ${chain.impact}\n\nLovable prompt:\n${chain.lovable_prompt}`,
+          status: "open",
+          priority: chain.severity === "critical" ? "critical" : "high",
+          item_type: "bug",
+          source_type: "ai_scan",
+          source_id: scanId || undefined,
+          ai_detected: true,
+          ai_confidence: "high",
+          ai_category: "architecture",
+          ai_type_classification: "broken_chain",
+        });
+        tasksCreated++;
+      }
+    }
+  }
+
+  if (scanId && tasksCreated > 0) await updateScanTaskCount(supabase, scanId, tasksCreated);
+  return { ...analysis, tasks_created: tasksCreated, scan_id: scanId };
 }
 
 // ── Human-Like Automated Test with Full Click Simulation ──
