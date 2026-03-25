@@ -20,6 +20,8 @@ import WorkItemDetail from '@/components/admin/workbench/WorkItemDetail';
 import { useNavigate } from 'react-router-dom';
 import { useScannerStore, SCAN_STEPS } from '@/stores/scannerStore';
 import type { ScanStepResult } from '@/stores/scannerStore';
+import { useFullScanOrchestrator, ORCHESTRATED_STEPS } from '@/stores/fullScanOrchestrator';
+import type { UnifiedScanResult } from '@/stores/fullScanOrchestrator';
 import AdminAiReadLog from '@/components/admin/AdminAiReadLog';
 import AiQueueControl from '@/components/admin/AiQueueControl';
 import DataFlowValidator from '@/components/admin/DataFlowValidator';
