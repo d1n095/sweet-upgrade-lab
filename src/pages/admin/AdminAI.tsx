@@ -5449,9 +5449,13 @@ const OrchestrationTab = () => {
         </div>
       </div>
 
-      <Tabs defaultValue="autopilot" className="w-full">
+      <Tabs defaultValue="lova-chat" className="w-full">
         <ScrollableTabs>
           <TabsList>
+            <TabsTrigger value="lova-chat" className="gap-1.5 text-xs">
+              <Bot className="w-3.5 h-3.5" />
+              Lova 0.5
+            </TabsTrigger>
             <TabsTrigger value="autopilot" className="gap-1.5 text-xs">
               <Play className="w-3.5 h-3.5" />
               AI Autopilot
@@ -5571,6 +5575,9 @@ const OrchestrationTab = () => {
           </TabsList>
         </ScrollableTabs>
 
+        <TabsContent value="lova-chat" className="mt-4">
+          <LovaChatTab />
+        </TabsContent>
         <TabsContent value="autopilot" className="mt-4">
           <AiAutopilotTab />
         </TabsContent>
