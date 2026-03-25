@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, createContext, useContext, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Sparkles, Bug, BarChart3, Copy, Loader2, Send, AlertTriangle, Lightbulb, Info, RefreshCw, Bot, CheckCircle, XCircle, Shield, Clock, Zap, Activity, TrendingUp, Package, AlertCircle, Database, Wrench, Radar, ArrowRight, Layers, Monitor, Smartphone, Tablet, Eye, Compass, LayoutGrid, GitMerge, ArrowRightLeft, ShieldCheck, Play, Settings2, ToggleRight } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger, ScrollableTabs } from '@/components/ui/tabs';
@@ -13,6 +13,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
+import WorkItemDetail from '@/components/admin/workbench/WorkItemDetail';
+import { useNavigate } from 'react-router-dom';
+
+// Context to allow any tab to open a work item detail view
+const DetailContext = createContext<{
+  openDetail: (itemId: string) => void;
+}>({ openDetail: () => {} });
+
+const useDetailContext = () => useContext(DetailContext);
 
 interface GeneratedPrompt {
   title: string;
