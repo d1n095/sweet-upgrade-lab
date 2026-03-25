@@ -306,8 +306,8 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-[440px] sm:w-[520px] p-0 flex flex-col">
-        <SheetHeader className="px-5 py-4 border-b border-border">
+      <SheetContent side="right" className="w-[440px] sm:w-[520px] p-0 flex flex-col h-full min-h-0">
+        <SheetHeader className="px-5 py-4 border-b border-border shrink-0">
           <SheetTitle className="flex items-center gap-2 text-base">
             {item.item_type === 'bug' && <Bug className="w-4.5 h-4.5 text-destructive" />}
             {item.item_type === 'incident' && <ShieldAlert className="w-4.5 h-4.5 text-destructive" />}
@@ -316,7 +316,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
           </SheetTitle>
         </SheetHeader>
 
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1 min-h-0">
           <div className="p-5 space-y-5">
             {/* Ignored banner */}
             {item.ignored && (
