@@ -1540,7 +1540,18 @@ Var SPECIFIK med vilka sidor och element som har problem. Svara på svenska.`,
     },
   }], { type: "function", function: { name: "visual_qa" } });
 
-  // Auto-create work items for critical/high issues
+  // Persist scan result FIRST to get ID for linking
+  const scanScore = analysis?.overall_ui_score || 0;
+  const scanId = await persistScanResult(supabase, {
+    scan_type: "visual_qa",
+    results: analysis || {},
+    overall_score: scanScore,
+    overall_status: scanScore >= 80 ? "good" : scanScore >= 50 ? "warning" : "critical",
+    issues_count: analysis?.issues?.length || 0,
+    executive_summary: analysis?.executive_summary || "",
+  });
+
+  // Auto-create work items for critical/high issues, linked to scan
   let tasksCreated = 0;
   if (analysis?.issues) {
     for (const issue of analysis.issues) {
@@ -1558,7 +1569,8 @@ Var SPECIFIK med vilka sidor och element som har problem. Svara på svenska.`,
           status: "open",
           priority: issue.severity === "critical" ? "critical" : "high",
           item_type: issue.category === "broken_flow" ? "bug" : "improvement",
-          source_type: "ai_detection",
+          source_type: "ai_scan",
+          source_id: scanId || undefined,
           ai_detected: true,
           ai_confidence: "medium",
           ai_category: "frontend",
@@ -1569,18 +1581,8 @@ Var SPECIFIK med vilka sidor och element som har problem. Svara på svenska.`,
     }
   }
 
-  // Persist scan result to ai_scan_results
-  await supabase.from("ai_scan_results").insert({
-    scan_type: "visual_qa",
-    results: analysis || {},
-    overall_score: analysis?.overall_ui_score || 0,
-    overall_status: (analysis?.overall_ui_score || 0) >= 80 ? "good" : (analysis?.overall_ui_score || 0) >= 50 ? "warning" : "critical",
-    issues_count: analysis?.issues?.length || 0,
-    tasks_created: tasksCreated,
-    executive_summary: analysis?.executive_summary || "",
-  });
-
-  return { ...analysis, tasks_created: tasksCreated };
+  if (scanId && tasksCreated > 0) await updateScanTaskCount(supabase, scanId, tasksCreated);
+  return { ...analysis, tasks_created: tasksCreated, scan_id: scanId };
 }
 
 // ── Navigation Scanner ──
