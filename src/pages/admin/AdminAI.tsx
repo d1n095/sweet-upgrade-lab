@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, createContext, useContext, useCallback } f
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Sparkles, Bug, BarChart3, Copy, Loader2, Send, AlertTriangle, Lightbulb, Info, RefreshCw, Bot, CheckCircle, XCircle, Shield, Clock, Zap, Activity, TrendingUp, Package, AlertCircle, Database, Wrench, Radar, ArrowRight, Layers, Monitor, Smartphone, Tablet, Eye, Compass, LayoutGrid, GitMerge, ArrowRightLeft, ShieldCheck, Play, Settings2, ToggleRight, Maximize2, Gavel } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger, ScrollableTabs } from '@/components/ui/tabs';
+import AiCenterTabs from '@/components/admin/AiCenterTabs';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -5895,144 +5896,7 @@ const OrchestrationTab = () => {
         </div>
       </div>
 
-      <Tabs defaultValue="lova-chat" className="w-full">
-        <ScrollableTabs>
-          <TabsList className="h-auto flex-wrap gap-0.5 sm:gap-0">
-            <TabsTrigger value="lova-chat" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
-              <Bot className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              <span className="hidden sm:inline">Lova 0.5</span>
-              <span className="sm:hidden">Lova</span>
-            </TabsTrigger>
-            <TabsTrigger value="lova-prompts" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
-              <Copy className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              Prompts
-            </TabsTrigger>
-            <TabsTrigger value="autopilot" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
-              <Play className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              Autopilot
-            </TabsTrigger>
-            <TabsTrigger value="actions" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
-              <TrendingUp className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              Actions
-            </TabsTrigger>
-            <TabsTrigger value="scan" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
-              <Radar className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              Scan
-            </TabsTrigger>
-            <TabsTrigger value="dashboard" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
-              <Activity className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              Översikt
-            </TabsTrigger>
-            <TabsTrigger value="visual-qa" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
-              <Monitor className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              <span className="hidden sm:inline">Visual QA</span>
-              <span className="sm:hidden">VQA</span>
-            </TabsTrigger>
-            <TabsTrigger value="nav-bug" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
-              <Compass className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              <span className="hidden sm:inline">Nav & Bugg</span>
-              <span className="sm:hidden">Nav</span>
-            </TabsTrigger>
-            <TabsTrigger value="data-health" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
-              <Database className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              Data
-            </TabsTrigger>
-            <TabsTrigger value="health" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
-              <Shield className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              Hälsa
-            </TabsTrigger>
-            <TabsTrigger value="products" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
-              <Package className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              <span className="hidden sm:inline">Produktförslag</span>
-              <span className="sm:hidden">Prod</span>
-            </TabsTrigger>
-            <TabsTrigger value="tasks" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
-              <Bot className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              Tasks
-            </TabsTrigger>
-            <TabsTrigger value="prompts" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
-              <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              <span className="hidden sm:inline">Prompt Gen</span>
-              <span className="sm:hidden">Gen</span>
-            </TabsTrigger>
-            <TabsTrigger value="bugs" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
-              <Bug className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              Bugg
-            </TabsTrigger>
-            <TabsTrigger value="insights" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
-              <BarChart3 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              Insights
-            </TabsTrigger>
-            <TabsTrigger value="structure" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
-              <LayoutGrid className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              Struktur
-            </TabsTrigger>
-            <TabsTrigger value="guardian" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
-              <ShieldCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              Guardian
-            </TabsTrigger>
-            <TabsTrigger value="interaction-qa" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
-              <Zap className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              <span className="hidden sm:inline">Interaction QA</span>
-              <span className="sm:hidden">IQA</span>
-            </TabsTrigger>
-            <TabsTrigger value="verification" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
-              <CheckCircle className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              <span className="hidden sm:inline">Verifiering</span>
-              <span className="sm:hidden">Ver</span>
-            </TabsTrigger>
-            <TabsTrigger value="cleanup" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
-              <Database className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              Cleanup
-            </TabsTrigger>
-            <TabsTrigger value="auto-fix" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
-              <Wrench className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              Fix
-            </TabsTrigger>
-            <TabsTrigger value="data-integrity" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
-              <ShieldCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              <span className="hidden sm:inline">Integritet</span>
-              <span className="sm:hidden">Int</span>
-            </TabsTrigger>
-            <TabsTrigger value="content-validation" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
-              <Eye className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              <span className="hidden sm:inline">Innehåll QA</span>
-              <span className="sm:hidden">CQA</span>
-            </TabsTrigger>
-            <TabsTrigger value="patterns" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
-              <GitMerge className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              Mönster
-            </TabsTrigger>
-            <TabsTrigger value="focused-scan" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
-              <Radar className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              Fokus
-            </TabsTrigger>
-            <TabsTrigger value="overflow-scan" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
-              <Maximize2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              Overflow
-            </TabsTrigger>
-            <TabsTrigger value="ux-scanner" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
-              <Eye className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              UX
-            </TabsTrigger>
-            <TabsTrigger value="sync-scan" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
-              <ArrowRightLeft className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              Sync
-            </TabsTrigger>
-            <TabsTrigger value="governor" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
-              <Gavel className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              Gov
-            </TabsTrigger>
-            <TabsTrigger value="prompt-queue" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
-              <Layers className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              Kö
-            </TabsTrigger>
-            <TabsTrigger value="orchestration" className="gap-1 text-[10px] sm:text-xs px-2 sm:px-3 py-1.5">
-              <GitMerge className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              Orch
-            </TabsTrigger>
-          </TabsList>
-        </ScrollableTabs>
+      <AiCenterTabs defaultValue="lova-chat">
 
         <TabsContent value="lova-chat" className="mt-4">
           <LovaChatTab />
@@ -6127,7 +5991,7 @@ const OrchestrationTab = () => {
         <TabsContent value="orchestration" className="mt-4">
           <OrchestrationTab />
         </TabsContent>
-      </Tabs>
+      </AiCenterTabs>
 
       <WorkItemDetail
         item={detailItem}
