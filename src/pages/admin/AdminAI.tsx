@@ -1888,6 +1888,7 @@ const TrendAnalysisPanel = () => {
 const SystemScanTab = () => {
   const [loading, setLoading] = useState(false);
   const [scanResult, setScanResult] = useState<any>(null);
+  const [currentScanId, setCurrentScanId] = useState<string | null>(null);
   const [expandedIssue, setExpandedIssue] = useState<number | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [compareId, setCompareId] = useState<string | null>(null);
@@ -1938,15 +1939,18 @@ const SystemScanTab = () => {
   const handleCreateWorkItem = async (issue: any) => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
-    await supabase.from('work_items' as any).insert({
+    const { data: wiRow } = await supabase.from('work_items' as any).insert({
       title: `[Scan] ${issue.title}`,
       description: `${issue.description}\n\nFix-förslag: ${issue.fix_suggestion || 'Ingen'}\n\nSeverity: ${issue.severity}\nCategory: ${issue.category}`,
       priority: issue.severity === 'critical' ? 'critical' : issue.severity === 'high' ? 'high' : 'medium',
       status: 'open',
       item_type: 'bug',
       source_type: 'scan',
+      source_id: currentScanId || lastScan?.id || null,
       created_by: session.user.id,
-    } as any);
+    } as any).select('id').single();
+    const wiId = (wiRow as any)?.id || null;
+    logChange({ change_type: 'task_created', description: `Work item skapat från scan: ${issue.title}`, source: 'ai', affected_components: ['work_items', 'scan'], scan_id: currentScanId || lastScan?.id || null, work_item_id: wiId });
     toast.success('Ärende skapat i Workbench');
   };
 
@@ -1993,7 +1997,7 @@ const SystemScanTab = () => {
       setScanResult(res);
       // Persist to DB
       const { data: { session } } = await supabase.auth.getSession();
-      await supabase.from('ai_scan_results' as any).insert({
+      const { data: scanRow } = await supabase.from('ai_scan_results' as any).insert({
         scan_type: 'system_scan',
         results: res,
         overall_score: res.system_score || null,
@@ -2002,8 +2006,10 @@ const SystemScanTab = () => {
         issues_count: res.issues_found || 0,
         tasks_created: res.tasks_created || 0,
         scanned_by: session?.user?.id || null,
-      } as any);
-      logChange({ change_type: 'scan', description: `Systemskanning klar — poäng: ${res.system_score || '?'}, ${res.issues_found || 0} problem`, source: 'ai', affected_components: ['system_scan'] });
+      } as any).select('id').single();
+      const savedScanId = (scanRow as any)?.id || null;
+      setCurrentScanId(savedScanId);
+      logChange({ change_type: 'scan', description: `Systemskanning klar — poäng: ${res.system_score || '?'}, ${res.issues_found || 0} problem`, source: 'ai', affected_components: ['system_scan'], scan_id: savedScanId });
       queryClient.invalidateQueries({ queryKey: ['last-scan-result'] });
       queryClient.invalidateQueries({ queryKey: ['scan-history'] });
     }
@@ -7087,8 +7093,12 @@ const OrchestrationTab = () => {
     queryClient.invalidateQueries({ queryKey: ['work-items'] });
     queryClient.invalidateQueries({ queryKey: ['ai-managed-items'] });
     if (newStatus === 'done') {
+      // Look up linked IDs from the work item for full traceability
+      const { data: wi } = await supabase.from('work_items' as any).select('source_type, source_id, title').eq('id', itemId).maybeSingle();
+      const linkedBugId = (wi as any)?.source_type === 'bug_report' ? (wi as any)?.source_id : null;
+      const linkedScanId = ['scan', 'ai_visual_qa', 'ai_detection'].includes((wi as any)?.source_type) ? (wi as any)?.source_id : null;
       triggerAiReviewForWorkItem(itemId, { context: 'admin_ai_detail' });
-      logChange({ change_type: 'fix', description: `Work item slutförd: ${itemId}`, source: 'manual', affected_components: ['work_items'], work_item_id: itemId });
+      logChange({ change_type: 'fix', description: `Work item slutförd: ${(wi as any)?.title || itemId}`, source: 'manual', affected_components: ['work_items'], work_item_id: itemId, bug_report_id: linkedBugId, scan_id: linkedScanId });
     }
   };
 
