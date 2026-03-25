@@ -56,7 +56,7 @@ function groupSimilarIssues(issues: any[]): any[] {
   
   for (const issue of issues) {
     const fp = generateFingerprint(issue);
-    // Group by component::type (ignore location for grouping)
+    // Group by component::type (first 2 segments of 4-part fingerprint)
     const groupKey = fp.split("::").slice(0, 2).join("::");
     if (!groups.has(groupKey)) groups.set(groupKey, []);
     groups.get(groupKey)!.push({ ...issue, _fingerprint: fp });
