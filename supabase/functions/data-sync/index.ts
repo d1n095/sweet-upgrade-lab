@@ -124,6 +124,68 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ─── 1b. COMPLETED ORDER TASKS (still active) ───
+    for (const wi of workItems || []) {
+      if (!wi.related_order_id || !["open", "claimed", "in_progress"].includes(wi.status)) continue;
+      // Already checked deleted above, now check completed/delivered
+      const { data: order } = await supabase
+        .from("orders")
+        .select("id, status, deleted_at")
+        .eq("id", wi.related_order_id)
+        .single();
+      if (!order || order.deleted_at) continue; // handled above
+
+      if (["delivered", "completed"].includes(order.status) && ["pack_order", "packing", "shipping"].includes(wi.item_type)) {
+        results.completed_order_tasks++;
+        results.details.push({ type: "completed_order", message: `"${wi.title}" → order redan levererad/klar`, fixed: false });
+        if (mode === "repair") {
+          await supabase.from("work_items").update({
+            status: "done",
+            completed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }).eq("id", wi.id);
+          await logRepair(supabase, "order_complete_sync", "work_item", wi.id, "Order levererad. Task stängd.");
+          results.completed_order_tasks_fixed++;
+          results.details[results.details.length - 1].fixed = true;
+        }
+      }
+
+      if (order.status === "cancelled") {
+        results.cancelled_order_tasks++;
+        results.details.push({ type: "cancelled_order", message: `"${wi.title}" → order avbruten`, fixed: false });
+        if (mode === "repair") {
+          await supabase.from("work_items").update({
+            status: "cancelled",
+            updated_at: new Date().toISOString(),
+          }).eq("id", wi.id);
+          await logRepair(supabase, "order_cancel_sync", "work_item", wi.id, "Order avbruten. Task avbruten.");
+          results.cancelled_order_tasks_fixed++;
+          results.details[results.details.length - 1].fixed = true;
+        }
+      }
+    }
+
+    // ─── 1c. SOURCELESS ITEMS (no source_type or source_id on non-manual items) ───
+    const sourcelessItems = (workItems || []).filter((wi: any) =>
+      !["manual", "manual_task", "general"].includes(wi.item_type) &&
+      !wi.source_type && !wi.source_id &&
+      ["open", "claimed", "in_progress"].includes(wi.status)
+    );
+    for (const wi of sourcelessItems) {
+      results.sourceless_items++;
+      results.details.push({ type: "sourceless", message: `"${wi.title}" (${wi.item_type}) saknar source_type/source_id`, fixed: false });
+      if (mode === "repair") {
+        // Flag it with source_type = "unknown" so it's visible
+        await supabase.from("work_items").update({
+          source_type: "unknown",
+          updated_at: new Date().toISOString(),
+        }).eq("id", wi.id);
+        await logRepair(supabase, "flag_sourceless", "work_item", wi.id, "Saknar källa. Flaggad.");
+        results.sourceless_items_fixed++;
+        results.details[results.details.length - 1].fixed = true;
+      }
+    }
+
     // ─── 2. BUGS WITHOUT WORK ITEMS ───
     const { data: openBugs } = await supabase
       .from("bug_reports")
