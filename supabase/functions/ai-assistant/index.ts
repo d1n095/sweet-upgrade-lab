@@ -173,6 +173,11 @@ serve(async (req) => {
         break;
       }
 
+      case "memory_trends": {
+        result = await handleMemoryTrends(supabase, lovableKey);
+        break;
+      }
+
       case "create_action": {
         const { title, description, priority, category, source_type: srcType, source_id: srcId } = body;
         if (!title) {
@@ -3515,4 +3520,130 @@ Rules:
   });
 
   return { clusters: rootIssues, total_items_analyzed: items.length, links_created: linksCreated, master_tasks_created: masterTasksCreated };
+}
+
+// ── Memory & Trend Analysis ──
+async function handleMemoryTrends(supabase: any, lovableKey: string) {
+  const { data: scans } = await supabase
+    .from("ai_scan_results")
+    .select("id, overall_score, overall_status, executive_summary, issues_count, tasks_created, created_at")
+    .eq("scan_type", "system_scan")
+    .order("created_at", { ascending: false })
+    .limit(10);
+
+  if (!scans?.length || scans.length < 2) {
+    return { trend_available: false, message: "Minst 2 skanningar krävs för trendanalys" };
+  }
+
+  const { data: bugs } = await supabase
+    .from("bug_reports")
+    .select("status, ai_severity, created_at")
+    .order("created_at", { ascending: false })
+    .limit(200);
+
+  const { data: workItems } = await supabase
+    .from("work_items")
+    .select("status, priority, created_at, completed_at, ai_detected")
+    .order("created_at", { ascending: false })
+    .limit(300);
+
+  const scanTimeline = scans.map((s: any) => ({
+    date: s.created_at, score: s.overall_score, status: s.overall_status,
+    issues: s.issues_count, tasks: s.tasks_created, summary: s.executive_summary,
+  })).reverse();
+
+  const bugStats = {
+    total: bugs?.length || 0,
+    open: bugs?.filter((b: any) => b.status === "open").length || 0,
+    resolved: bugs?.filter((b: any) => b.status === "resolved").length || 0,
+    critical: bugs?.filter((b: any) => b.ai_severity === "critical").length || 0,
+  };
+
+  const workStats = {
+    total: workItems?.length || 0,
+    done: workItems?.filter((w: any) => w.status === "done").length || 0,
+    open: workItems?.filter((w: any) => !["done", "cancelled"].includes(w.status)).length || 0,
+    ai_detected: workItems?.filter((w: any) => w.ai_detected).length || 0,
+  };
+
+  const dataStr = `=== SCAN TIMELINE (${scanTimeline.length} scans) ===
+${scanTimeline.map((s: any) => `[${s.date}] Score: ${s.score} | Status: ${s.status} | Issues: ${s.issues} | Tasks: ${s.tasks} | ${s.summary}`).join("\n")}
+
+=== BUG STATS ===
+Total: ${bugStats.total} | Open: ${bugStats.open} | Resolved: ${bugStats.resolved} | Critical: ${bugStats.critical}
+
+=== WORK ITEM STATS ===
+Total: ${workStats.total} | Done: ${workStats.done} | Open: ${workStats.open} | AI-detected: ${workStats.ai_detected}`;
+
+  const result = await callAI(lovableKey, [
+    {
+      role: "system",
+      content: `Du är en AI-analytiker för en svensk e-handelsplattform. Analysera historiska data och identifiera trender. Svara ALLTID på svenska. Använd memory_trends-funktionen.`,
+    },
+    { role: "user", content: `Analysera trender:\n\n${dataStr}` },
+  ], [
+    {
+      type: "function",
+      function: {
+        name: "memory_trends",
+        description: "Analyze system trends over time",
+        parameters: {
+          type: "object",
+          properties: {
+            overall_trend: { type: "string", enum: ["improving", "stable", "declining"] },
+            trend_summary: { type: "string", description: "2-3 sentence trend summary in Swedish" },
+            score_trend: {
+              type: "object",
+              properties: {
+                direction: { type: "string", enum: ["up", "stable", "down"] },
+                change: { type: "number" },
+                message: { type: "string" },
+              },
+              required: ["direction", "change", "message"],
+              additionalProperties: false,
+            },
+            bug_trend: {
+              type: "object",
+              properties: {
+                direction: { type: "string", enum: ["increasing", "stable", "decreasing"] },
+                message: { type: "string" },
+              },
+              required: ["direction", "message"],
+              additionalProperties: false,
+            },
+            performance_trend: {
+              type: "object",
+              properties: {
+                direction: { type: "string", enum: ["improving", "stable", "declining"] },
+                message: { type: "string" },
+              },
+              required: ["direction", "message"],
+              additionalProperties: false,
+            },
+            key_changes: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  area: { type: "string" },
+                  change: { type: "string", enum: ["improved", "unchanged", "worsened"] },
+                  detail: { type: "string" },
+                },
+                required: ["area", "change", "detail"],
+                additionalProperties: false,
+              },
+            },
+            recommendations: {
+              type: "array",
+              items: { type: "string" },
+            },
+          },
+          required: ["overall_trend", "trend_summary", "score_trend", "bug_trend", "performance_trend", "key_changes", "recommendations"],
+          additionalProperties: false,
+        },
+      },
+    },
+  ], { type: "function", function: { name: "memory_trends" } });
+
+  return { ...result, trend_available: true, scan_count: scanTimeline.length, scan_timeline: scanTimeline, bug_stats: bugStats, work_stats: workStats };
 }
