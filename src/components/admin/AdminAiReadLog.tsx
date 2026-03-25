@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,18 +7,26 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Search, Eye, Bot, CheckCircle2, AlertTriangle, Clock, FileCode,
   ChevronDown, ChevronUp, Bug, Link2, Radar, FolderOpen, Globe,
+  ThumbsUp, ThumbsDown, Sparkles, ShieldCheck, XCircle, MessageSquare,
 } from 'lucide-react';
 import { format, subDays } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 const RESULT_META: Record<string, { label: string; color: string; icon: typeof CheckCircle2 }> = {
   no_issues: { label: 'Inga problem', color: 'text-green-600 bg-green-600/10', icon: CheckCircle2 },
   possible_issue: { label: 'Möjligt problem', color: 'text-amber-600 bg-amber-600/10', icon: AlertTriangle },
   inspected: { label: 'Inspekterad', color: 'text-blue-600 bg-blue-600/10', icon: Eye },
   verified_working: { label: 'Verifierad OK', color: 'text-green-600 bg-green-600/10', icon: CheckCircle2 },
+};
+
+const VERIFY_META: Record<string, { label: string; color: string; icon: typeof CheckCircle2 }> = {
+  confirmed: { label: 'Bekräftad fixad', color: 'text-green-600 bg-green-600/10', icon: ShieldCheck },
+  rejected: { label: 'Ej fixad', color: 'text-destructive bg-destructive/10', icon: XCircle },
 };
 
 const ACTION_LABELS: Record<string, string> = {
@@ -35,6 +43,8 @@ const AdminAiReadLog = () => {
   const [resultFilter, setResultFilter] = useState('all');
   const [dateRange, setDateRange] = useState('7');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [verifyNote, setVerifyNote] = useState('');
+  const queryClient = useQueryClient();
 
   const { data: logs = [], isLoading } = useQuery({
     queryKey: ['ai-read-log', resultFilter, dateRange],
@@ -56,6 +66,27 @@ const AdminAiReadLog = () => {
     refetchInterval: 30000,
   });
 
+  const verifyMutation = useMutation({
+    mutationFn: async ({ id, status, note }: { id: string; status: 'confirmed' | 'rejected'; note?: string }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await (supabase.from('ai_read_log' as any) as any)
+        .update({
+          verify_status: status,
+          verify_note: note || null,
+          verified_by: user?.id,
+          verified_at: new Date().toISOString(),
+        })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['ai-read-log'] });
+      toast.success(vars.status === 'confirmed' ? 'Bekräftad som fixad ✓' : 'Markerad som ej fixad');
+      setVerifyNote('');
+    },
+    onError: () => toast.error('Kunde inte uppdatera verifieringsstatus'),
+  });
+
   const filtered = logs.filter((l: any) => {
     if (!search) return true;
     const s = search.toLowerCase();
@@ -68,8 +99,8 @@ const AdminAiReadLog = () => {
   // Stats
   const totalChecks = filtered.length;
   const issueCount = filtered.filter((l: any) => l.result === 'possible_issue').length;
-  const withFiles = filtered.filter((l: any) => l.file_paths?.length > 0).length;
-  const linkedCount = filtered.filter((l: any) => l.linked_bug_id || l.linked_work_item_id || l.linked_scan_id).length;
+  const suggestFixed = filtered.filter((l: any) => l.ai_suggestion && !l.verify_status).length;
+  const verifiedCount = filtered.filter((l: any) => l.verify_status === 'confirmed').length;
 
   return (
     <div className="space-y-4">
@@ -78,8 +109,8 @@ const AdminAiReadLog = () => {
         {[
           { label: 'Inspektioner', value: totalChecks, icon: Eye, color: 'text-blue-600' },
           { label: 'Möjliga problem', value: issueCount, icon: AlertTriangle, color: 'text-amber-600' },
-          { label: 'Med filer', value: withFiles, icon: FolderOpen, color: 'text-primary' },
-          { label: 'Länkade', value: linkedCount, icon: Link2, color: 'text-purple-600' },
+          { label: 'Föreslår fixad', value: suggestFixed, icon: Sparkles, color: 'text-primary' },
+          { label: 'Verifierade', value: verifiedCount, icon: ShieldCheck, color: 'text-green-600' },
         ].map(s => (
           <Card key={s.label} className="border-border">
             <CardContent className="py-2 px-3 flex items-center gap-2">
@@ -142,9 +173,14 @@ const AdminAiReadLog = () => {
               const isExpanded = expandedId === log.id;
               const hasTrace = log.file_paths?.length > 0 || log.endpoints?.length > 0 || log.affected_components?.length > 0;
               const hasLinks = log.linked_bug_id || log.linked_work_item_id || log.linked_scan_id;
+              const hasSuggestion = !!log.ai_suggestion;
+              const verifyMeta = log.verify_status ? VERIFY_META[log.verify_status] : null;
 
               return (
-                <Card key={log.id} className="border-border">
+                <Card key={log.id} className={cn(
+                  'border-border',
+                  hasSuggestion && !log.verify_status && 'border-primary/30 bg-primary/[0.02]',
+                )}>
                   <CardContent className="py-2.5 px-4">
                     <div
                       className="flex items-center gap-3 cursor-pointer"
@@ -166,6 +202,16 @@ const AdminAiReadLog = () => {
                           <Badge variant="outline" className={cn('text-[9px] py-0', resMeta.color)}>
                             {resMeta.label}
                           </Badge>
+                          {hasSuggestion && !log.verify_status && (
+                            <Badge variant="secondary" className="text-[9px] py-0 text-primary bg-primary/10 animate-pulse">
+                              <Sparkles className="w-3 h-3 mr-0.5" />Föreslår fixad
+                            </Badge>
+                          )}
+                          {verifyMeta && (
+                            <Badge variant="secondary" className={cn('text-[9px] py-0', verifyMeta.color)}>
+                              <verifyMeta.icon className="w-3 h-3 mr-0.5" />{verifyMeta.label}
+                            </Badge>
+                          )}
                           {hasTrace && (
                             <Badge variant="secondary" className="text-[9px] py-0">
                               <FileCode className="w-3 h-3 mr-0.5" />{(log.file_paths?.length || 0) + (log.affected_components?.length || 0)} spår
@@ -185,6 +231,69 @@ const AdminAiReadLog = () => {
 
                     {isExpanded && (
                       <div className="mt-3 ml-10 space-y-3 border-t border-border pt-3">
+                        {/* AI Suggestion */}
+                        {hasSuggestion && (
+                          <div className={cn(
+                            'rounded-lg p-3 space-y-2',
+                            log.verify_status === 'confirmed' ? 'bg-green-500/5 border border-green-500/20' :
+                            log.verify_status === 'rejected' ? 'bg-destructive/5 border border-destructive/20' :
+                            'bg-primary/5 border border-primary/20'
+                          )}>
+                            <div className="flex items-start gap-2">
+                              <Sparkles className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                              <div className="flex-1">
+                                <p className="text-xs font-semibold mb-1">AI-förslag</p>
+                                <p className="text-xs text-foreground">{log.ai_suggestion}</p>
+                              </div>
+                            </div>
+
+                            {log.verify_status ? (
+                              <div className="flex items-center gap-2 pt-1">
+                                {verifyMeta && <verifyMeta.icon className={cn('w-4 h-4', verifyMeta.color.split(' ')[0])} />}
+                                <span className="text-xs font-medium">{verifyMeta?.label}</span>
+                                {log.verified_at && (
+                                  <span className="text-[10px] text-muted-foreground">
+                                    {format(new Date(log.verified_at), 'yyyy-MM-dd HH:mm')}
+                                  </span>
+                                )}
+                                {log.verify_note && (
+                                  <span className="text-xs text-muted-foreground ml-2 flex items-center gap-1">
+                                    <MessageSquare className="w-3 h-3" /> {log.verify_note}
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="space-y-2 pt-1">
+                                <Textarea
+                                  placeholder="Valfri kommentar..."
+                                  value={expandedId === log.id ? verifyNote : ''}
+                                  onChange={e => setVerifyNote(e.target.value)}
+                                  className="h-16 text-xs"
+                                />
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    className="gap-1.5 text-xs h-8 bg-green-600 hover:bg-green-700"
+                                    disabled={verifyMutation.isPending}
+                                    onClick={() => verifyMutation.mutate({ id: log.id, status: 'confirmed', note: verifyNote })}
+                                  >
+                                    <ThumbsUp className="w-3.5 h-3.5" /> Bekräfta fixad
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="gap-1.5 text-xs h-8 text-destructive border-destructive/30 hover:bg-destructive/10"
+                                    disabled={verifyMutation.isPending}
+                                    onClick={() => verifyMutation.mutate({ id: log.id, status: 'rejected', note: verifyNote })}
+                                  >
+                                    <ThumbsDown className="w-3.5 h-3.5" /> Ej fixad
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                         {/* Checked files */}
                         {log.file_paths?.length > 0 && (
                           <div>
@@ -232,6 +341,20 @@ const AdminAiReadLog = () => {
                             </div>
                           </div>
                         )}
+
+                        {/* AI checked timestamp */}
+                        <div className="flex items-center gap-2 text-[10px] text-muted-foreground pt-1 border-t border-border/50">
+                          <Bot className="w-3 h-3" />
+                          <span>AI kontrollerade detta</span>
+                          <Clock className="w-3 h-3 ml-1" />
+                          <span>{format(new Date(log.created_at), 'yyyy-MM-dd HH:mm:ss')}</span>
+                          {log.triggered_by && (
+                            <>
+                              <span className="mx-1">·</span>
+                              <span>Utlöst av: {log.triggered_by.slice(0, 8)}…</span>
+                            </>
+                          )}
+                        </div>
 
                         {/* Links */}
                         {hasLinks && (
