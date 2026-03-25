@@ -20,6 +20,8 @@ import WorkItemDetail from '@/components/admin/workbench/WorkItemDetail';
 import { useNavigate } from 'react-router-dom';
 import { useScannerStore, SCAN_STEPS } from '@/stores/scannerStore';
 import type { ScanStepResult } from '@/stores/scannerStore';
+import { useFullScanOrchestrator, ORCHESTRATED_STEPS } from '@/stores/fullScanOrchestrator';
+import type { UnifiedScanResult } from '@/stores/fullScanOrchestrator';
 import AdminAiReadLog from '@/components/admin/AdminAiReadLog';
 import AiQueueControl from '@/components/admin/AiQueueControl';
 import DataFlowValidator from '@/components/admin/DataFlowValidator';
@@ -4615,9 +4617,12 @@ const SCAN_STEP_ICONS: Record<string, any> = {
 const AiAutopilotTab = () => {
   const [mode, setMode] = useState<AiMode>('assisted');
   const { scanning, steps, selectedSteps, toggleStep: storeToggleStep, selectAll, selectNone, runAllScans } = useScannerStore();
+  const orchestrator = useFullScanOrchestrator();
+  const [scanMode, setScanMode] = useState<'orchestrated' | 'custom'>('orchestrated');
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
   const [executionLoading, setExecutionLoading] = useState(false);
   const [showResults, setShowResults] = useState<string | null>(null);
+  const [showUnifiedDetail, setShowUnifiedDetail] = useState(false);
   const queryClient = useQueryClient();
   const { openDetail } = useDetailContext();
 
@@ -4645,7 +4650,6 @@ const AiAutopilotTab = () => {
 
   const toggleStep = storeToggleStep;
 
-
   const runExecution = async () => {
     setExecutionLoading(true);
     const res = await callAI('ai_execute', { mode });
@@ -4665,6 +4669,9 @@ const AiAutopilotTab = () => {
     autonomous: { label: 'Autonom', desc: 'AI utför allt utom raderingar', color: 'border-red-500 bg-red-50 text-red-800' },
   };
 
+  const isAnyScanRunning = scanning || orchestrator.running;
+
+  // Custom scan stats
   const completedCount = steps.filter(s => s.status === 'done').length;
   const errorCount = steps.filter(s => s.status === 'error').length;
   const totalIssues = steps.reduce((sum, s) => {
@@ -4677,73 +4684,190 @@ const AiAutopilotTab = () => {
     return scores.length > 0 ? Math.round(scores.reduce((a: number, b: number) => a + b, 0) / scores.length) : null;
   })();
 
+  // Orchestrator stats
+  const orchCompleted = orchestrator.steps.filter(s => s.status === 'done').length;
+  const orchErrors = orchestrator.steps.filter(s => s.status === 'error').length;
+  const orchPct = orchestrator.steps.length > 0 ? Math.round(((orchCompleted + orchErrors) / orchestrator.steps.length) * 100) : 0;
+  const orchCurrentStep = orchestrator.steps.find(s => s.status === 'running');
+
   return (
     <div className="space-y-4">
-      {/* Scan Selector */}
+      {/* Scan Mode Toggle */}
       <Card className="border-border">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm flex items-center gap-2">
-              <Radar className="w-4 h-4 text-primary" /> Full AI-skanning
+              <Radar className="w-4 h-4 text-primary" /> Systemskanning
             </CardTitle>
-            <div className="flex gap-1">
-              <Button size="sm" variant="ghost" className="h-6 text-[10px]" onClick={selectAll}>Alla</Button>
-              <Button size="sm" variant="ghost" className="h-6 text-[10px]" onClick={selectNone}>Ingen</Button>
+            <div className="flex gap-1 bg-muted rounded-lg p-0.5">
+              <button onClick={() => setScanMode('orchestrated')} className={cn('px-2 py-1 rounded text-[10px] font-medium transition-colors', scanMode === 'orchestrated' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')}>Full scan</button>
+              <button onClick={() => setScanMode('custom')} className={cn('px-2 py-1 rounded text-[10px] font-medium transition-colors', scanMode === 'custom' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')}>Anpassad</button>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="grid grid-cols-3 gap-1.5">
-            {SCAN_STEPS.map(step => {
-              const active = selectedSteps.has(step.type);
-              const Icon = SCAN_STEP_ICONS[step.type] || Radar;
-              return (
-                <button
-                  key={step.type}
-                  onClick={() => !scanning && toggleStep(step.type)}
-                  className={cn(
-                    'border rounded-lg p-2 text-left transition-all text-xs',
-                    active ? 'border-primary bg-primary/5' : 'border-border opacity-50',
-                    scanning && 'pointer-events-none'
-                  )}
-                >
-                  <div className="flex items-center gap-1.5">
-                    <Icon className="w-3 h-3 shrink-0" />
-                    <span className="font-medium text-[10px] truncate">{step.label}</span>
+          {scanMode === 'orchestrated' ? (
+            <>
+              <p className="text-[10px] text-muted-foreground">Kör alla 10 skanners i korrekt ordning med resultatöverföring mellan steg.</p>
+              <Button onClick={() => orchestrator.runOrchestrated(queryClient)} disabled={isAnyScanRunning} className="w-full gap-2" size="lg">
+                {orchestrator.running ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                {orchestrator.running
+                  ? `${orchCurrentStep?.progressLabel || 'Kör...'} (${orchCompleted + orchErrors}/${orchestrator.steps.length})`
+                  : 'Kör Full Orchestrated Scan (10 steg)'}
+              </Button>
+              {orchestrator.running && orchestrator.steps.length > 0 && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground truncate max-w-[60%]">{orchCurrentStep?.progressLabel || 'Väntar...'}</span>
+                    <span className="font-bold text-primary">{orchPct}%</span>
                   </div>
-                </button>
-              );
-            })}
-          </div>
-
-          <Button onClick={() => runAllScans(queryClient)} disabled={scanning || selectedSteps.size === 0} className="w-full gap-2" size="lg">
-            {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-            {scanning ? `Skannar... (${completedCount + errorCount}/${steps.length})` : `Kör ${selectedSteps.size} skanningar`}
-          </Button>
-
-          {scanning && steps.length > 0 && (() => {
-            const pct = Math.round(((completedCount + errorCount) / steps.length) * 100);
-            const currentStep = steps.find(s => s.status === 'running');
-            return (
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground truncate max-w-[60%]">
-                    {currentStep ? `Kör: ${currentStep.label}` : 'Väntar...'}
-                  </span>
-                  <span className="font-bold text-primary">{pct}%</span>
+                  <Progress value={orchPct} className="h-2.5" />
+                  <p className="text-[10px] text-muted-foreground text-center">{orchCompleted + orchErrors} av {orchestrator.steps.length} klara</p>
                 </div>
-                <Progress value={pct} className="h-2.5" />
-                <p className="text-[10px] text-muted-foreground text-center">
-                  {completedCount + errorCount} av {steps.length} klara — {steps.length - completedCount - errorCount} kvar
-                </p>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="flex justify-end gap-1">
+                <Button size="sm" variant="ghost" className="h-6 text-[10px]" onClick={selectAll}>Alla</Button>
+                <Button size="sm" variant="ghost" className="h-6 text-[10px]" onClick={selectNone}>Ingen</Button>
               </div>
-            );
-          })()}
+              <div className="grid grid-cols-3 gap-1.5">
+                {SCAN_STEPS.map(step => {
+                  const active = selectedSteps.has(step.type);
+                  const Icon = SCAN_STEP_ICONS[step.type] || Radar;
+                  return (
+                    <button key={step.type} onClick={() => !scanning && toggleStep(step.type)} className={cn('border rounded-lg p-2 text-left transition-all text-xs', active ? 'border-primary bg-primary/5' : 'border-border opacity-50', scanning && 'pointer-events-none')}>
+                      <div className="flex items-center gap-1.5">
+                        <Icon className="w-3 h-3 shrink-0" />
+                        <span className="font-medium text-[10px] truncate">{step.label}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              <Button onClick={() => runAllScans(queryClient)} disabled={isAnyScanRunning || selectedSteps.size === 0} className="w-full gap-2" size="lg">
+                {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                {scanning ? `Skannar... (${completedCount + errorCount}/${steps.length})` : `Kör ${selectedSteps.size} skanningar`}
+              </Button>
+              {scanning && steps.length > 0 && (() => {
+                const pct = Math.round(((completedCount + errorCount) / steps.length) * 100);
+                const currentStep = steps.find(s => s.status === 'running');
+                return (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground truncate max-w-[60%]">{currentStep ? `Kör: ${currentStep.label}` : 'Väntar...'}</span>
+                      <span className="font-bold text-primary">{pct}%</span>
+                    </div>
+                    <Progress value={pct} className="h-2.5" />
+                  </div>
+                );
+              })()}
+            </>
+          )}
         </CardContent>
       </Card>
 
-      {/* Live scan progress */}
-      {steps.length > 0 && (
+      {/* Orchestrated scan results */}
+      {orchestrator.steps.length > 0 && scanMode === 'orchestrated' && (
+        <Card className="border-border">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm">Orkestreringsresultat</CardTitle>
+              {orchestrator.unifiedResult && (
+                <div className={cn(
+                  'w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold border-2',
+                  orchestrator.unifiedResult.system_health_score >= 70 ? 'border-green-500 text-green-700' : orchestrator.unifiedResult.system_health_score >= 40 ? 'border-yellow-500 text-yellow-700' : 'border-red-500 text-red-700'
+                )}>
+                  {orchestrator.unifiedResult.system_health_score}
+                </div>
+              )}
+            </div>
+            {orchestrator.unifiedResult && (
+              <div className="flex gap-3 text-[10px] text-muted-foreground mt-1 flex-wrap">
+                <span>✅ {orchCompleted} klara</span>
+                {orchErrors > 0 && <span>❌ {orchErrors} fel</span>}
+                <span>🔴 {orchestrator.unifiedResult.broken_flows.length} broken flows</span>
+                <span>👻 {orchestrator.unifiedResult.fake_features.length} fake features</span>
+                <span>⚡ {orchestrator.unifiedResult.interaction_failures.length} interaction fails</span>
+                <span>📊 {orchestrator.unifiedResult.data_issues.length} data issues</span>
+              </div>
+            )}
+          </CardHeader>
+          <CardContent>
+            {/* Unified blocker highlight */}
+            {orchestrator.unifiedResult?.blocker && (
+              <div className="mb-3 p-3 rounded-lg border-2 border-destructive/40 bg-destructive/5">
+                <div className="flex items-center gap-2 mb-1">
+                  <AlertTriangle className="w-4 h-4 text-destructive" />
+                  <span className="text-xs font-bold text-destructive">BLOCKER</span>
+                </div>
+                <p className="text-xs font-medium">{orchestrator.unifiedResult.blocker.title || orchestrator.unifiedResult.blocker.stage || 'Kritiskt problem'}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">{orchestrator.unifiedResult.blocker.description || orchestrator.unifiedResult.blocker.root_cause || ''}</p>
+              </div>
+            )}
+
+            {/* Step-by-step results */}
+            <div className="space-y-1.5">
+              {orchestrator.steps.map((step, i) => {
+                const score = step.result?.overall_score || step.result?.system_score || step.result?.score || step.result?.health_score;
+                return (
+                  <div key={step.id}>
+                    <div className={cn(
+                      'flex items-center gap-2 p-2 rounded-lg transition-colors',
+                      step.status === 'running' && 'bg-primary/5 border border-primary/20',
+                      step.status === 'done' && 'bg-muted/30 cursor-pointer hover:bg-muted/50',
+                      step.status === 'error' && 'bg-destructive/5',
+                    )} onClick={() => step.status === 'done' && setShowResults(showResults === step.id ? null : step.id)}>
+                      {step.status === 'pending' && <div className="w-4 h-4 rounded-full border-2 border-muted-foreground/20 shrink-0" />}
+                      {step.status === 'running' && <Loader2 className="w-4 h-4 animate-spin text-primary shrink-0" />}
+                      {step.status === 'done' && <CheckCircle className="w-4 h-4 text-green-600 shrink-0" />}
+                      {step.status === 'error' && <XCircle className="w-4 h-4 text-destructive shrink-0" />}
+
+                      <span className="text-[10px] text-muted-foreground shrink-0 w-4">{i + 1}</span>
+                      <span className={cn('text-xs font-medium flex-1', step.status === 'pending' && 'text-muted-foreground')}>{step.label}</span>
+
+                      {step.duration_ms != null && <span className="text-[9px] text-muted-foreground">{(step.duration_ms / 1000).toFixed(1)}s</span>}
+                      {score != null && <span className={cn('text-[10px] font-bold', score >= 70 ? 'text-green-700' : score >= 40 ? 'text-yellow-700' : 'text-red-700')}>{score}</span>}
+                      {step.error && <span className="text-[9px] text-destructive truncate max-w-[100px]">{step.error}</span>}
+                      {step.status === 'done' && <ArrowRight className={cn('w-3 h-3 text-muted-foreground transition-transform', showResults === step.id && 'rotate-90')} />}
+                    </div>
+
+                    {showResults === step.id && step.result && (
+                      <div className="ml-8 mt-1 mb-2 border rounded-lg p-3 bg-card space-y-2 text-xs">
+                        {(step.result.executive_summary || step.result.summary) && (
+                          <p className="text-muted-foreground">{step.result.executive_summary || (typeof step.result.summary === 'string' ? step.result.summary : '')}</p>
+                        )}
+                        {(step.result.issues || step.result.dead_elements || step.result.mismatches || step.result.critical_issues)?.slice(0, 5).map((issue: any, j: number) => (
+                          <div key={j} className="flex items-start gap-2 p-1.5 rounded bg-muted/30">
+                            <AlertTriangle className="w-3 h-3 text-destructive shrink-0 mt-0.5" />
+                            <div className="min-w-0">
+                              <p className="text-[11px] font-medium">{issue.title || issue.element || issue.field || 'Issue'}</p>
+                              <p className="text-[10px] text-muted-foreground line-clamp-1">{issue.description || issue.issue || issue.detail || ''}</p>
+                            </div>
+                          </div>
+                        ))}
+                        {step.result.tasks_created > 0 && <Badge variant="default" className="bg-green-600 text-[9px]">{step.result.tasks_created} uppgifter skapade</Badge>}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Total duration */}
+            {orchestrator.unifiedResult && (
+              <div className="mt-3 pt-2 border-t flex items-center justify-between text-[10px] text-muted-foreground">
+                <span>Total tid: {(orchestrator.unifiedResult.total_duration_ms / 1000).toFixed(1)}s</span>
+                <span>Klar: {new Date(orchestrator.unifiedResult.completed_at).toLocaleTimeString('sv-SE')}</span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Custom scan results (existing) */}
+      {steps.length > 0 && scanMode === 'custom' && (
         <Card className="border-border">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
@@ -4772,123 +4896,30 @@ const AiAutopilotTab = () => {
                 const stepConfig = SCAN_STEPS.find(s => s.type === step.type);
                 const Icon = SCAN_STEP_ICONS[step.type] || Radar;
                 const score = step.result?.system_score || step.result?.score || step.result?.interaction_score || step.result?.overall_score;
-
                 return (
                   <div key={step.type}>
-                    <div
-                      className={cn(
-                        'flex items-center gap-2 p-2 rounded-lg transition-colors',
-                        step.status === 'running' && 'bg-primary/5 border border-primary/20',
-                        step.status === 'done' && 'bg-muted/30 cursor-pointer hover:bg-muted/50',
-                        step.status === 'error' && 'bg-destructive/5',
-                      )}
-                      onClick={() => step.status === 'done' && setShowResults(showResults === step.type ? null : step.type)}
-                    >
+                    <div className={cn(
+                      'flex items-center gap-2 p-2 rounded-lg transition-colors',
+                      step.status === 'running' && 'bg-primary/5 border border-primary/20',
+                      step.status === 'done' && 'bg-muted/30 cursor-pointer hover:bg-muted/50',
+                      step.status === 'error' && 'bg-destructive/5',
+                    )} onClick={() => step.status === 'done' && setShowResults(showResults === step.type ? null : step.type)}>
                       {step.status === 'pending' && <div className="w-4 h-4 rounded-full border-2 border-muted-foreground/20 shrink-0" />}
                       {step.status === 'running' && <Loader2 className="w-4 h-4 animate-spin text-primary shrink-0" />}
                       {step.status === 'done' && <CheckCircle className="w-4 h-4 text-green-600 shrink-0" />}
                       {step.status === 'error' && <XCircle className="w-4 h-4 text-destructive shrink-0" />}
-
                       <Icon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                      <span className={cn('text-xs font-medium flex-1', step.status === 'pending' && 'text-muted-foreground')}>
-                        {step.label}
-                      </span>
-
-                      {step.duration_ms != null && (
-                        <span className="text-[9px] text-muted-foreground">{(step.duration_ms / 1000).toFixed(1)}s</span>
-                      )}
-
-                      {score != null && (
-                        <span className={cn(
-                          'text-[10px] font-bold',
-                          score >= 70 ? 'text-green-700' : score >= 40 ? 'text-yellow-700' : 'text-red-700'
-                        )}>
-                          {score}
-                        </span>
-                      )}
-
-                      {step.result && (
-                        <span className="text-[9px] text-muted-foreground">
-                          {step.result.issues_found || step.result.issues?.length || step.result.dead_elements?.length || step.result.mismatches?.length || 0} issues
-                        </span>
-                      )}
-
-                      {step.status === 'done' && (
-                        <ArrowRight className={cn('w-3 h-3 text-muted-foreground transition-transform', showResults === step.type && 'rotate-90')} />
-                      )}
+                      <span className={cn('text-xs font-medium flex-1', step.status === 'pending' && 'text-muted-foreground')}>{step.label}</span>
+                      {step.duration_ms != null && <span className="text-[9px] text-muted-foreground">{(step.duration_ms / 1000).toFixed(1)}s</span>}
+                      {score != null && <span className={cn('text-[10px] font-bold', score >= 70 ? 'text-green-700' : score >= 40 ? 'text-yellow-700' : 'text-red-700')}>{score}</span>}
+                      {step.result && <span className="text-[9px] text-muted-foreground">{step.result.issues_found || step.result.issues?.length || step.result.dead_elements?.length || step.result.mismatches?.length || 0} issues</span>}
+                      {step.status === 'done' && <ArrowRight className={cn('w-3 h-3 text-muted-foreground transition-transform', showResults === step.type && 'rotate-90')} />}
                     </div>
-
-                    {/* Expanded result preview */}
                     {showResults === step.type && step.result && (
                       <div className="ml-8 mt-1 mb-2 border rounded-lg p-3 bg-card space-y-2 text-xs">
-                        {step.result.executive_summary && (
-                          <p className="text-muted-foreground">{step.result.executive_summary}</p>
+                        {(step.result.executive_summary || step.result.summary) && (
+                          <p className="text-muted-foreground">{step.result.executive_summary || (typeof step.result.summary === 'string' ? step.result.summary : '')}</p>
                         )}
-                        {step.result.summary && !step.result.executive_summary && (
-                          <p className="text-muted-foreground">{typeof step.result.summary === 'string' ? step.result.summary : ''}</p>
-                        )}
-
-                        {/* Human Test: Areas status grid */}
-                        {step.type === 'human_test' && step.result.areas?.length > 0 && (
-                          <div className="space-y-1">
-                            <p className="font-semibold text-[11px]">Systemområden</p>
-                            <div className="grid grid-cols-2 gap-1">
-                              {step.result.areas.map((area: any, j: number) => (
-                                <div key={area.name || j} className={cn(
-                                  'p-1.5 rounded border text-[10px]',
-                                  area.status === 'working' ? 'border-green-500/30 bg-green-50 dark:bg-green-950/20' :
-                                  area.status === 'unstable' ? 'border-yellow-500/30 bg-yellow-50 dark:bg-yellow-950/20' :
-                                  'border-red-500/30 bg-red-50 dark:bg-red-950/20'
-                                )}>
-                                  <div className="flex items-center gap-1">
-                                    <span>{area.status === 'working' ? '✅' : area.status === 'unstable' ? '⚠️' : '❌'}</span>
-                                    <span className="font-medium truncate">{area.name}</span>
-                                    {area.score != null && <span className="ml-auto font-bold">{area.score}</span>}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Human Test: Pipeline status */}
-                        {step.type === 'human_test' && step.result.pipeline_status && (
-                          <div className="space-y-1">
-                            <p className="font-semibold text-[11px]">Pipeline-status</p>
-                            <div className="flex gap-1 flex-wrap">
-                              {Object.entries(step.result.pipeline_status).map(([key, val]: [string, any]) => (
-                                <Badge key={key} variant="outline" className={cn(
-                                  'text-[8px]',
-                                  val === 'working' ? 'border-green-500 text-green-700' :
-                                  val === 'unstable' ? 'border-yellow-500 text-yellow-700' :
-                                  'border-red-500 text-red-700'
-                                )}>
-                                  {val === 'working' ? '✅' : val === 'unstable' ? '⚠️' : '❌'} {key.replace(/_/g, ' → ')}
-                                </Badge>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Human Test: Broken interactions */}
-                        {step.type === 'human_test' && step.result.broken_interactions?.length > 0 && (
-                          <div className="space-y-1">
-                            <p className="font-semibold text-[11px]">Trasiga interaktioner</p>
-                            {step.result.broken_interactions.slice(0, 5).map((bi: any, j: number) => (
-                              <div key={j} className="flex items-start gap-2 p-1.5 rounded bg-destructive/5 border border-destructive/20">
-                                <AlertTriangle className="w-3 h-3 text-destructive shrink-0 mt-0.5" />
-                                <div className="min-w-0">
-                                  <p className="text-[11px] font-medium">{bi.flow}: {bi.step}</p>
-                                  <p className="text-[10px] text-muted-foreground">Förväntat: {bi.expected}</p>
-                                  <p className="text-[10px] text-destructive">Faktiskt: {bi.actual}</p>
-                                </div>
-                                <Badge variant="destructive" className="text-[8px] shrink-0">{bi.severity}</Badge>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Generic issues list */}
                         {(step.result.issues || step.result.dead_elements || step.result.mismatches || step.result.critical_issues)?.slice(0, 5).map((issue: any, j: number) => (
                           <div key={j} className="flex items-start gap-2 p-1.5 rounded bg-muted/30">
                             <AlertTriangle className="w-3 h-3 text-destructive shrink-0 mt-0.5" />
@@ -4898,28 +4929,7 @@ const AiAutopilotTab = () => {
                             </div>
                           </div>
                         ))}
-
-                        {/* Positive findings */}
-                        {step.result.positive_findings?.length > 0 && step.type === 'human_test' && (
-                          <div className="space-y-1">
-                            <p className="font-semibold text-[11px] text-green-700">Positivt</p>
-                            {step.result.positive_findings.slice(0, 3).map((p: string, j: number) => (
-                              <p key={j} className="text-[10px] text-muted-foreground">✅ {p}</p>
-                            ))}
-                          </div>
-                        )}
-
-                        {step.result.tasks_created > 0 && (
-                          <Badge variant="default" className="bg-green-600 text-[9px]">{step.result.tasks_created} uppgifter skapade</Badge>
-                        )}
-
-                        {step.result.risk_areas?.length > 0 && (
-                          <div className="flex gap-1 flex-wrap">
-                            {step.result.risk_areas.map((r: string, j: number) => (
-                              <Badge key={j} variant="destructive" className="text-[8px]">{r}</Badge>
-                            ))}
-                          </div>
-                        )}
+                        {step.result.tasks_created > 0 && <Badge variant="default" className="bg-green-600 text-[9px]">{step.result.tasks_created} uppgifter skapade</Badge>}
                       </div>
                     )}
                   </div>
