@@ -72,7 +72,20 @@ serve(async (req) => {
         if (!bug) {
           return new Response(JSON.stringify({ error: "Bug not found" }), { status: 404, headers: corsHeaders });
         }
-        result = await suggestBugFix(lovableKey, bug);
+        result = await suggestBugFixEnhanced(supabase, lovableKey, bug);
+        break;
+      }
+
+      case "bug_deep_analysis": {
+        const { bug_id: deepBugId } = body;
+        if (!deepBugId) {
+          return new Response(JSON.stringify({ error: "bug_id required" }), { status: 400, headers: corsHeaders });
+        }
+        const { data: deepBug } = await supabase.from("bug_reports").select("*").eq("id", deepBugId).single();
+        if (!deepBug) {
+          return new Response(JSON.stringify({ error: "Bug not found" }), { status: 404, headers: corsHeaders });
+        }
+        result = await handleBugDeepAnalysis(supabase, lovableKey, deepBug);
         break;
       }
 
