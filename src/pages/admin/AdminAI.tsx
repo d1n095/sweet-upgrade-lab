@@ -1511,6 +1511,104 @@ const DataIntegrityTab = () => {
   );
 };
 
+// ── Content Validation Tab ──
+const ContentValidationTab = () => {
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<any>(null);
+
+  const runScan = async () => {
+    setLoading(true);
+    try {
+      const data = await callAI('content_validation');
+      if (data) setResult(data);
+    } catch { toast.error('Content validation misslyckades'); }
+    finally { setLoading(false); }
+  };
+
+  const sevColor = (s: string) => {
+    if (s === 'critical') return 'bg-destructive/15 text-destructive border-destructive/30';
+    if (s === 'high') return 'bg-destructive/10 text-destructive border-destructive/20';
+    return 'bg-yellow-500/10 text-yellow-700 border-yellow-500/20';
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="font-semibold flex items-center gap-2"><Eye className="w-5 h-5 text-primary" /> Content Validation Engine</h3>
+          <p className="text-sm text-muted-foreground">Verifierar att alla påståenden i UI:t matchar verklig systemdata.</p>
+        </div>
+        <Button onClick={runScan} disabled={loading} size="sm">
+          {loading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Radar className="w-4 h-4 mr-1" />}
+          Validera innehåll
+        </Button>
+      </div>
+
+      {result && (
+        <>
+          <div className="grid grid-cols-3 gap-3">
+            <Card className="border-border">
+              <CardContent className="pt-4 pb-4 text-center">
+                <p className="text-3xl font-bold" style={{ color: result.score >= 80 ? 'hsl(var(--primary))' : result.score >= 50 ? 'hsl(45,100%,40%)' : 'hsl(var(--destructive))' }}>{result.score}</p>
+                <p className="text-xs text-muted-foreground">Content Score</p>
+              </CardContent>
+            </Card>
+            <Card className="border-border">
+              <CardContent className="pt-4 pb-4 text-center">
+                <p className="text-3xl font-bold">{result.mismatches?.length || 0}</p>
+                <p className="text-xs text-muted-foreground">Mismatches</p>
+              </CardContent>
+            </Card>
+            <Card className="border-border">
+              <CardContent className="pt-4 pb-4 text-center">
+                <p className="text-3xl font-bold text-primary">{result.tasks_created || 0}</p>
+                <p className="text-xs text-muted-foreground">Tasks skapade</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {result.mismatches?.length > 0 && (
+            <Card className="border-border">
+              <CardHeader className="pb-2"><CardTitle className="text-sm">Innehållsavvikelser</CardTitle></CardHeader>
+              <CardContent>
+                <ScrollArea className="max-h-[400px]">
+                  <div className="space-y-2">
+                    {result.mismatches.map((m: any, i: number) => (
+                      <div key={i} className="p-3 rounded-lg border border-border bg-card space-y-1">
+                        <div className="flex items-start gap-2">
+                          <Badge variant="outline" className={cn('text-[10px] shrink-0', sevColor(m.severity))}>{m.severity}</Badge>
+                          <p className="text-sm font-medium">{m.claim}</p>
+                        </div>
+                        <p className="text-xs text-muted-foreground"><span className="font-medium">Verklighet:</span> {m.reality}</p>
+                        <p className="text-xs text-muted-foreground"><span className="font-medium">Källa:</span> {m.source}</p>
+                        <div className="flex items-center gap-1 mt-1">
+                          <Lightbulb className="w-3 h-3 text-yellow-500" />
+                          <p className="text-xs text-foreground/70">{m.suggestion}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          )}
+
+          {result.mismatches?.length === 0 && (
+            <Card className="border-border">
+              <CardContent className="py-8 text-center">
+                <CheckCircle className="w-10 h-10 text-primary mx-auto mb-2" />
+                <p className="font-medium">Allt stämmer!</p>
+                <p className="text-sm text-muted-foreground">Inga innehållsavvikelser hittade.</p>
+              </CardContent>
+            </Card>
+          )}
+        </>
+      )}
+    </div>
+  );
+};
+
+
 const DataHealthTab = () => {
   const [scanning, setScanning] = useState(false);
   const [repairing, setRepairing] = useState(false);
@@ -3213,6 +3311,10 @@ const AdminAI = () => {
               <ShieldCheck className="w-3.5 h-3.5" />
               Integritet
             </TabsTrigger>
+            <TabsTrigger value="content-validation" className="gap-1.5 text-xs">
+              <Eye className="w-3.5 h-3.5" />
+              Innehåll QA
+            </TabsTrigger>
           </TabsList>
         </ScrollableTabs>
 
@@ -3275,6 +3377,9 @@ const AdminAI = () => {
         </TabsContent>
         <TabsContent value="data-integrity" className="mt-4">
           <DataIntegrityTab />
+        </TabsContent>
+        <TabsContent value="content-validation" className="mt-4">
+          <ContentValidationTab />
         </TabsContent>
       </Tabs>
 

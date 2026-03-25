@@ -162,6 +162,11 @@ serve(async (req) => {
         break;
       }
 
+      case "content_validation": {
+        result = await handleContentValidation(supabase, lovableKey);
+        break;
+      }
+
       case "create_action": {
         const { title, description, priority, category, source_type: srcType, source_id: srcId } = body;
         if (!title) {
@@ -3257,4 +3262,93 @@ async function handleDataIntegrity(supabase: any) {
   });
 
   return { issues, score, tasks_created: tasksCreated };
+}
+
+// ── Content Validation Engine ──
+async function handleContentValidation(supabase: any, lovableKey: string) {
+  // Gather real data to compare against common frontend claims
+  const { data: products } = await supabase.from("products").select("id, title_sv, certifications, ingredients_sv, price, original_price, status, is_visible, stock, category").eq("status", "active");
+  const { data: storeSettings } = await supabase.from("store_settings").select("key, value");
+  const { data: pageSections } = await supabase.from("page_sections").select("section_key, title_sv, content_sv, is_visible").eq("is_visible", true);
+
+  const settingsMap: Record<string, string> = {};
+  (storeSettings || []).forEach((s: any) => { settingsMap[s.key] = s.value; });
+
+  const mismatches: { claim: string; source: string; reality: string; severity: string; suggestion: string }[] = [];
+
+  // Check 1: Products claiming certifications actually have them
+  for (const p of (products || [])) {
+    if (p.certifications && p.certifications.length > 0) {
+      for (const cert of p.certifications) {
+        if (!cert || cert.trim() === "") {
+          mismatches.push({ claim: `Product "${p.title_sv}" lists empty certification`, source: "product_metadata", reality: "Empty string in certifications array", severity: "medium", suggestion: "Remove empty certification entries from product" });
+        }
+      }
+    }
+    // Check sale badge vs actual discount
+    if (p.original_price && p.price >= p.original_price) {
+      mismatches.push({ claim: `Product "${p.title_sv}" has original_price but no actual discount`, source: "product_pricing", reality: `price=${p.price}, original_price=${p.original_price}`, severity: "high", suggestion: "Remove original_price or set correct discount price" });
+    }
+    // Check stock vs visibility
+    if (p.is_visible && p.stock <= 0) {
+      mismatches.push({ claim: `Product "${p.title_sv}" is visible but has 0 stock`, source: "product_inventory", reality: `stock=${p.stock}, visible=true`, severity: "high", suggestion: "Hide product or update stock" });
+    }
+  }
+
+  // Check 2: Shipping claims match store_settings
+  const shippingCost = settingsMap["shipping_cost"];
+  const freeThreshold = settingsMap["free_shipping_threshold"];
+  if (shippingCost && Number(shippingCost) < 0) {
+    mismatches.push({ claim: "Negative shipping cost configured", source: "store_settings", reality: `shipping_cost=${shippingCost}`, severity: "critical", suggestion: "Fix shipping cost to a valid positive number" });
+  }
+  if (freeThreshold && Number(freeThreshold) <= 0) {
+    mismatches.push({ claim: "Free shipping threshold is 0 or negative", source: "store_settings", reality: `free_shipping_threshold=${freeThreshold}`, severity: "high", suggestion: "Set a valid free shipping threshold" });
+  }
+
+  // Check 3: Page sections with empty content
+  for (const section of (pageSections || [])) {
+    if (section.is_visible && (!section.content_sv || section.content_sv.trim() === "") && (!section.title_sv || section.title_sv.trim() === "")) {
+      mismatches.push({ claim: `Section "${section.section_key}" is visible but has no content`, source: "page_sections", reality: "Empty title and content", severity: "medium", suggestion: "Add content or hide the section" });
+    }
+  }
+
+  // Check 4: Products with "ingredients" claim but no actual ingredients
+  for (const p of (products || [])) {
+    if (p.category && ["Kroppsvård", "Bastudofter", "CBD"].includes(p.category)) {
+      if (!p.ingredients_sv || p.ingredients_sv.trim() === "") {
+        mismatches.push({ claim: `Product "${p.title_sv}" is in ${p.category} but has no ingredients listed`, source: "product_metadata", reality: "ingredients_sv is empty", severity: "medium", suggestion: "Add ingredients list to product" });
+      }
+    }
+  }
+
+  // Auto-create work items for high/critical
+  let tasksCreated = 0;
+  const { data: existingTasks } = await supabase.from("work_items").select("title, status").in("status", ["open", "claimed", "in_progress"]).eq("item_type", "content_mismatch");
+  const existingTitles = new Set((existingTasks || []).map((t: any) => t.title));
+
+  for (const m of mismatches) {
+    if ((m.severity === "critical" || m.severity === "high") && !existingTitles.has(m.claim.substring(0, 200))) {
+      await supabase.from("work_items").insert({
+        title: m.claim.substring(0, 200),
+        description: `${m.reality}\n\nSuggestion: ${m.suggestion}`,
+        status: "open",
+        priority: m.severity === "critical" ? "critical" : "high",
+        item_type: "content_mismatch",
+        source_type: m.source,
+        ai_detected: true,
+        ai_confidence: "high",
+      });
+      tasksCreated++;
+    }
+  }
+
+  const score = Math.max(0, 100 - mismatches.filter(m => m.severity === "critical").length * 25 - mismatches.filter(m => m.severity === "high").length * 10 - mismatches.filter(m => m.severity === "medium").length * 3);
+
+  await supabase.from("system_history").insert({
+    event_type: "content_validation_scan",
+    snapshot: { total_mismatches: mismatches.length, score, tasks_created: tasksCreated },
+    resolution_notes: `Content validation: ${mismatches.length} mismatches, score ${score}/100`,
+  });
+
+  return { mismatches, score, tasks_created: tasksCreated };
 }
