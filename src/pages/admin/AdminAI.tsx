@@ -3174,6 +3174,9 @@ const AdminAI = () => {
         <TabsContent value="cleanup" className="mt-4">
           <DataCleanupTab />
         </TabsContent>
+        <TabsContent value="auto-fix" className="mt-4">
+          <AutoFixTab />
+        </TabsContent>
       </Tabs>
 
       <WorkItemDetail
