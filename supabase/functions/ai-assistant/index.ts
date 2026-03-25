@@ -344,6 +344,12 @@ serve(async (req) => {
         break;
       }
 
+      case "decision_engine": {
+        await logAiRead(supabase, { action_type: "analyze", target_type: "decision_engine", result: "inspected", summary: "AI Decision Engine — impact-based prioritization", triggered_by: user.id });
+        result = await handleDecisionEngine(supabase, lovableKey);
+        break;
+      }
+
       default:
         return new Response(JSON.stringify({ error: "Unknown type" }), { status: 400, headers: corsHeaders });
     }
@@ -6055,6 +6061,7 @@ async function executeLovaAction(supabase: any, lovableKey: string, args: any) {
       if (scanType === "data_integrity") return await handleDataIntegrity(supabase);
       if (scanType === "human_test") return await handleHumanTest(supabase, lovableKey);
       if (scanType === "component_map") return await handleComponentMap(supabase, lovableKey);
+      if (scanType === "decision_engine") return await handleDecisionEngine(supabase, lovableKey);
 
       // Default / system-level scan
       return await handleSystemHealth(supabase, lovableKey);
