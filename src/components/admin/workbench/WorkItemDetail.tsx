@@ -643,7 +643,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                 {runningPreVerify ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
                 AI: Kontrollera om löst
               </Button>
-            )
+            )}
 
             {/* AI Review Results */}
             {item.ai_review_status && (
