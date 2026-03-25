@@ -1,198 +1,442 @@
 import * as React from 'react';
-import { useState } from 'react';
-import * as TabsPrimitive from '@radix-ui/react-tabs';
+import { useState, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import {
   Bot, Copy, Play, TrendingUp, Radar, Activity, Monitor, Compass,
   Database, Shield, Package, Sparkles, Bug, BarChart3, LayoutGrid,
   ShieldCheck, Zap, CheckCircle, Wrench, Eye, GitMerge, Maximize2,
-  ArrowRightLeft, Gavel, Layers,
+  ArrowRightLeft, Gavel, Layers, ChevronRight, Menu, X,
+  AlertTriangle, Clock, ArrowRight,
 } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import { AnimatePresence, motion } from 'framer-motion';
+
+// ── Tab & Group definitions ──
 
 interface TabDef {
   value: string;
   label: string;
-  shortLabel?: string;
   icon: React.ElementType;
 }
 
 interface TabGroup {
+  id: string;
   label: string;
+  icon: React.ElementType;
   tabs: TabDef[];
 }
 
 const TAB_GROUPS: TabGroup[] = [
   {
-    label: 'Kärna',
+    id: 'dashboard',
+    label: 'Dashboard',
+    icon: Activity,
     tabs: [
-      { value: 'lova-chat', label: 'Lova 0.5', shortLabel: 'Lova', icon: Bot },
+      { value: 'ai-dashboard', label: 'Översikt', icon: Activity },
+      { value: 'dashboard', label: 'Systemstatus', icon: BarChart3 },
+      { value: 'health', label: 'Hälsorapport', icon: Shield },
+      { value: 'insights', label: 'Insikter', icon: BarChart3 },
+    ],
+  },
+  {
+    id: 'operations',
+    label: 'Operations',
+    icon: Wrench,
+    tabs: [
+      { value: 'lova-chat', label: 'Lova Chat', icon: Bot },
       { value: 'lova-prompts', label: 'Prompts', icon: Copy },
       { value: 'autopilot', label: 'Autopilot', icon: Play },
       { value: 'actions', label: 'Actions', icon: TrendingUp },
+      { value: 'tasks', label: 'Uppgifter', icon: Bot },
+      { value: 'bugs', label: 'Buggar', icon: Bug },
+      { value: 'prompt-queue', label: 'Prompt-kö', icon: Layers },
     ],
   },
   {
-    label: 'Skanning',
+    id: 'scanners',
+    label: 'Skanners',
+    icon: Radar,
     tabs: [
-      { value: 'scan', label: 'Scan', icon: Radar },
-      { value: 'visual-qa', label: 'Visual QA', shortLabel: 'VQA', icon: Monitor },
-      { value: 'nav-bug', label: 'Nav & Bugg', shortLabel: 'Nav', icon: Compass },
+      { value: 'scan', label: 'Full skanning', icon: Radar },
+      { value: 'visual-qa', label: 'Visual QA', icon: Monitor },
+      { value: 'nav-bug', label: 'Navigation', icon: Compass },
       { value: 'overflow-scan', label: 'Overflow', icon: Maximize2 },
-      { value: 'ux-scanner', label: 'UX', icon: Eye },
-      { value: 'focused-scan', label: 'Fokus', icon: Radar },
-      { value: 'sync-scan', label: 'Sync', icon: ArrowRightLeft },
+      { value: 'ux-scanner', label: 'UX-skanner', icon: Eye },
+      { value: 'focused-scan', label: 'Fokuserad', icon: Radar },
+      { value: 'sync-scan', label: 'Synk', icon: ArrowRightLeft },
+      { value: 'interaction-qa', label: 'Interaktion QA', icon: Zap },
     ],
   },
   {
-    label: 'Data & Hälsa',
+    id: 'ai-lab',
+    label: 'AI Lab',
+    icon: Sparkles,
     tabs: [
-      { value: 'dashboard', label: 'Översikt', icon: Activity },
-      { value: 'data-health', label: 'Data', icon: Database },
-      { value: 'health', label: 'Hälsa', icon: Shield },
-      { value: 'data-integrity', label: 'Integritet', shortLabel: 'Int', icon: ShieldCheck },
-      { value: 'content-validation', label: 'Innehåll QA', shortLabel: 'CQA', icon: Eye },
-      { value: 'cleanup', label: 'Cleanup', icon: Database },
-    ],
-  },
-  {
-    label: 'Verktyg',
-    tabs: [
-      { value: 'products', label: 'Produktförslag', shortLabel: 'Prod', icon: Package },
-      { value: 'tasks', label: 'Tasks', icon: Bot },
-      { value: 'prompts', label: 'Prompt Gen', shortLabel: 'Gen', icon: Sparkles },
-      { value: 'bugs', label: 'Bugg', icon: Bug },
-      { value: 'insights', label: 'Insights', icon: BarChart3 },
-      { value: 'auto-fix', label: 'Fix', icon: Wrench },
-    ],
-  },
-  {
-    label: 'Avancerat',
-    tabs: [
-      { value: 'structure', label: 'Struktur', icon: LayoutGrid },
+      { value: 'prompts', label: 'Prompt Generator', icon: Sparkles },
+      { value: 'products', label: 'Produktförslag', icon: Package },
+      { value: 'auto-fix', label: 'Auto-fix', icon: Wrench },
+      { value: 'governor', label: 'Governor', icon: Gavel },
+      { value: 'orchestration', label: 'Orkestrering', icon: GitMerge },
       { value: 'guardian', label: 'Guardian', icon: ShieldCheck },
-      { value: 'interaction-qa', label: 'Interaction QA', shortLabel: 'IQA', icon: Zap },
-      { value: 'verification', label: 'Verifiering', shortLabel: 'Ver', icon: CheckCircle },
+      { value: 'verification', label: 'Verifiering', icon: CheckCircle },
+    ],
+  },
+  {
+    id: 'system',
+    label: 'System',
+    icon: Database,
+    tabs: [
+      { value: 'data-health', label: 'Datahälsa', icon: Database },
+      { value: 'data-integrity', label: 'Dataintegritet', icon: ShieldCheck },
+      { value: 'content-validation', label: 'Innehållskontroll', icon: Eye },
+      { value: 'cleanup', label: 'Rensning', icon: Database },
+      { value: 'structure', label: 'Struktur', icon: LayoutGrid },
       { value: 'patterns', label: 'Mönster', icon: GitMerge },
-      { value: 'governor', label: 'Gov', icon: Gavel },
-      { value: 'prompt-queue', label: 'Kö', icon: Layers },
-      { value: 'orchestration', label: 'Orch', icon: GitMerge },
     ],
   },
 ];
 
 const ALL_TABS = TAB_GROUPS.flatMap(g => g.tabs);
 
-function findTabGroup(value: string) {
+function findGroupForTab(value: string) {
   return TAB_GROUPS.find(g => g.tabs.some(t => t.value === value));
 }
 
-interface AiCenterTabsProps extends React.ComponentPropsWithoutRef<typeof TabsPrimitive.Root> {
-  defaultValue?: string;
+// ── Dashboard Overview (new default view) ──
+
+interface DashboardOverviewProps {
+  onNavigate: (tab: string) => void;
 }
 
-const AiCenterTabs = ({ defaultValue = 'lova-chat', children, className, ...props }: AiCenterTabsProps) => {
-  const [activeTab, setActiveTab] = useState(defaultValue);
-  const [activeGroup, setActiveGroup] = useState(() => findTabGroup(defaultValue)?.label || 'Kärna');
+const quickActions = [
+  { label: 'Prata med Lova', icon: Bot, tab: 'lova-chat', color: 'text-primary' },
+  { label: 'Full skanning', icon: Radar, tab: 'scan', color: 'text-blue-500' },
+  { label: 'Autopilot', icon: Play, tab: 'autopilot', color: 'text-green-500' },
+  { label: 'Buggar', icon: Bug, tab: 'bugs', color: 'text-destructive' },
+];
 
-  const handleTabChange = (value: string) => {
-    setActiveTab(value);
-    const group = findTabGroup(value);
-    if (group) setActiveGroup(group.label);
+const DashboardOverview = ({ onNavigate }: DashboardOverviewProps) => (
+  <div className="space-y-6">
+    {/* Quick Actions */}
+    <div>
+      <h3 className="text-sm font-semibold mb-3">Snabbåtgärder</h3>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {quickActions.map(a => (
+          <button
+            key={a.tab}
+            onClick={() => onNavigate(a.tab)}
+            className="flex flex-col items-center gap-2 p-4 rounded-xl border border-border bg-card hover:bg-accent transition-colors"
+          >
+            <a.icon className={cn('w-6 h-6', a.color)} />
+            <span className="text-xs font-medium">{a.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+
+    {/* Group Cards */}
+    <div>
+      <h3 className="text-sm font-semibold mb-3">Moduler</h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {TAB_GROUPS.filter(g => g.id !== 'dashboard').map(group => (
+          <Card
+            key={group.id}
+            className="cursor-pointer hover:border-primary/30 transition-colors"
+            onClick={() => onNavigate(group.tabs[0].value)}
+          >
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <group.icon className="w-4 h-4 text-primary" />
+                  </div>
+                  <span className="font-semibold text-sm">{group.label}</span>
+                </div>
+                <Badge variant="secondary" className="text-[10px]">{group.tabs.length}</Badge>
+              </div>
+              <div className="space-y-1">
+                {group.tabs.slice(0, 3).map(t => (
+                  <button
+                    key={t.value}
+                    onClick={(e) => { e.stopPropagation(); onNavigate(t.value); }}
+                    className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors w-full text-left py-0.5"
+                  >
+                    <t.icon className="w-3 h-3 shrink-0" />
+                    {t.label}
+                  </button>
+                ))}
+                {group.tabs.length > 3 && (
+                  <span className="text-[10px] text-muted-foreground/60 pl-5">
+                    +{group.tabs.length - 3} till
+                  </span>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  </div>
+);
+
+// ── Main Component ──
+
+interface AiCenterTabsProps {
+  defaultValue?: string;
+  children: React.ReactNode;
+}
+
+const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsProps) => {
+  const [activeTab, setActiveTab] = useState(defaultValue);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [expandedGroup, setExpandedGroup] = useState<string | null>(() => findGroupForTab(defaultValue)?.id || 'dashboard');
+
+  const handleNavigate = (tab: string) => {
+    setActiveTab(tab);
+    const group = findGroupForTab(tab);
+    if (group) setExpandedGroup(group.id);
+    setMobileNavOpen(false);
   };
 
-  const currentGroupTabs = TAB_GROUPS.find(g => g.label === activeGroup)?.tabs || [];
+  const activeTabDef = ALL_TABS.find(t => t.value === activeTab);
 
-  return (
-    <TabsPrimitive.Root value={activeTab} onValueChange={handleTabChange} className={cn('w-full', className)} {...props}>
-      {/* ── Mobile: Select dropdown ── */}
-      <div className="md:hidden space-y-2">
-        <Select value={activeTab} onValueChange={handleTabChange}>
-          <SelectTrigger className="w-full h-10">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent className="max-h-[60vh]">
-            {TAB_GROUPS.map(group => (
-              <React.Fragment key={group.label}>
-                <div className="px-2 py-1.5 text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider">
-                  {group.label}
-                </div>
-                {group.tabs.map(tab => {
-                  const Icon = tab.icon;
-                  return (
-                    <SelectItem key={tab.value} value={tab.value}>
-                      <span className="flex items-center gap-2">
-                        <Icon className="w-3.5 h-3.5 shrink-0" />
-                        {tab.label}
-                      </span>
-                    </SelectItem>
-                  );
-                })}
-              </React.Fragment>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+  // Render only the active TabsContent child
+  const activeContent = useMemo(() => {
+    if (activeTab === 'ai-dashboard') return <DashboardOverview onNavigate={handleNavigate} />;
 
-      {/* ── Desktop/Tablet: Group chips + tab row ── */}
-      <div className="hidden md:block space-y-2">
-        {/* Group selector */}
-        <div className="flex items-center gap-1 flex-wrap">
-          {TAB_GROUPS.map(group => (
+    const childArray = React.Children.toArray(children);
+    return childArray.find((child) => {
+      if (React.isValidElement(child) && child.props.value === activeTab) return true;
+      return false;
+    }) || null;
+  }, [activeTab, children]);
+
+  const sidebarContent = (
+    <nav className="space-y-1 px-2">
+      {/* Dashboard link */}
+      <button
+        onClick={() => handleNavigate('ai-dashboard')}
+        className={cn(
+          'flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+          activeTab === 'ai-dashboard'
+            ? 'bg-primary/10 text-primary'
+            : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
+        )}
+      >
+        <Activity className="w-4 h-4 shrink-0" />
+        Dashboard
+      </button>
+
+      <div className="h-px bg-border my-2" />
+
+      {/* Groups */}
+      {TAB_GROUPS.filter(g => g.id !== 'dashboard').map(group => {
+        const isExpanded = expandedGroup === group.id;
+        const hasActive = group.tabs.some(t => t.value === activeTab);
+
+        return (
+          <div key={group.id}>
             <button
-              key={group.label}
-              type="button"
-              onClick={() => {
-                setActiveGroup(group.label);
-                // Switch to first tab in group if current tab isn't in it
-                if (!group.tabs.some(t => t.value === activeTab)) {
-                  handleTabChange(group.tabs[0].value);
-                }
-              }}
+              onClick={() => setExpandedGroup(isExpanded ? null : group.id)}
               className={cn(
-                'px-2.5 py-1 rounded-md text-xs font-medium transition-colors',
-                activeGroup === group.label
-                  ? 'bg-primary/10 text-primary'
+                'flex items-center justify-between w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                hasActive
+                  ? 'text-primary'
                   : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
               )}
             >
-              {group.label}
-              <Badge variant="secondary" className="ml-1.5 h-4 px-1 text-[10px]">{group.tabs.length}</Badge>
+              <span className="flex items-center gap-2.5">
+                <group.icon className="w-4 h-4 shrink-0" />
+                {group.label}
+              </span>
+              <ChevronRight className={cn('w-3.5 h-3.5 transition-transform', isExpanded && 'rotate-90')} />
             </button>
-          ))}
+
+            {isExpanded && (
+              <div className="ml-4 pl-3 border-l border-border/50 space-y-0.5 mt-0.5 mb-1">
+                {group.tabs.map(tab => (
+                  <button
+                    key={tab.value}
+                    onClick={() => handleNavigate(tab.value)}
+                    className={cn(
+                      'flex items-center gap-2 w-full px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors',
+                      activeTab === tab.value
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
+                    )}
+                  >
+                    <tab.icon className="w-3.5 h-3.5 shrink-0" />
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </nav>
+  );
+
+  return (
+    <div className="flex gap-0 lg:gap-4 -mx-4 md:-mx-8">
+      {/* ── Desktop Sidebar ── */}
+      <aside className="hidden lg:flex w-56 flex-col shrink-0 border-r border-border bg-card/50 min-h-[calc(100vh-200px)]">
+        <div className="px-4 py-3 border-b border-border">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-primary" />
+            <span className="text-sm font-semibold">AI Center</span>
+          </div>
+        </div>
+        <ScrollArea className="flex-1 py-2">
+          {sidebarContent}
+        </ScrollArea>
+      </aside>
+
+      {/* ── Mobile Header Bar ── */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 md:relative md:z-auto md:bottom-auto">
+        {/* Mobile bottom nav bar */}
+        <div className="md:hidden bg-card border-t border-border px-2 py-1.5 flex items-center justify-between safe-area-inset-bottom">
+          <Button variant="ghost" size="sm" className="gap-1.5 text-xs h-9" onClick={() => setMobileNavOpen(true)}>
+            <Menu className="w-4 h-4" />
+            <span className="max-w-[120px] truncate">{activeTabDef?.label || 'Dashboard'}</span>
+          </Button>
+          <div className="flex items-center gap-1">
+            {quickActions.slice(0, 3).map(a => (
+              <Button
+                key={a.tab}
+                variant={activeTab === a.tab ? 'secondary' : 'ghost'}
+                size="icon"
+                className="h-9 w-9"
+                onClick={() => handleNavigate(a.tab)}
+              >
+                <a.icon className={cn('w-4 h-4', activeTab === a.tab ? 'text-primary' : 'text-muted-foreground')} />
+              </Button>
+            ))}
+          </div>
         </div>
 
-        {/* Tab triggers for active group */}
-        <ScrollArea className="w-full">
-          <TabsPrimitive.List className="inline-flex items-center rounded-lg bg-muted p-1 text-muted-foreground gap-0.5">
-            {currentGroupTabs.map(tab => {
-              const Icon = tab.icon;
-              return (
-                <TabsPrimitive.Trigger
-                  key={tab.value}
-                  value={tab.value}
-                  className={cn(
-                    'inline-flex items-center justify-center whitespace-nowrap shrink-0 rounded-md px-3 py-1.5 text-xs font-medium ring-offset-background transition-all gap-1.5',
-                    'data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm',
-                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-                    'disabled:pointer-events-none disabled:opacity-50'
-                  )}
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                  {tab.shortLabel || tab.label}
-                </TabsPrimitive.Trigger>
-              );
-            })}
-          </TabsPrimitive.List>
-          <ScrollBar orientation="horizontal" />
-        </ScrollArea>
+        {/* Tablet top bar */}
+        <div className="hidden md:flex lg:hidden items-center gap-2 px-4 py-2 border-b border-border bg-card/50 overflow-x-auto scrollbar-hide">
+          <Button
+            variant={activeTab === 'ai-dashboard' ? 'secondary' : 'ghost'}
+            size="sm"
+            className="gap-1.5 text-xs shrink-0 h-8"
+            onClick={() => handleNavigate('ai-dashboard')}
+          >
+            <Activity className="w-3.5 h-3.5" />
+            Dashboard
+          </Button>
+          {TAB_GROUPS.filter(g => g.id !== 'dashboard').map(group => (
+            <div key={group.id} className="relative group shrink-0">
+              <Button
+                variant={group.tabs.some(t => t.value === activeTab) ? 'secondary' : 'ghost'}
+                size="sm"
+                className="gap-1.5 text-xs h-8"
+                onClick={() => {
+                  setExpandedGroup(expandedGroup === group.id ? null : group.id);
+                  if (!group.tabs.some(t => t.value === activeTab)) {
+                    handleNavigate(group.tabs[0].value);
+                  }
+                }}
+              >
+                <group.icon className="w-3.5 h-3.5" />
+                {group.label}
+                <ChevronRight className={cn('w-3 h-3 transition-transform', expandedGroup === group.id && 'rotate-90')} />
+              </Button>
+            </div>
+          ))}
+        </div>
+        {/* Tablet sub-tabs */}
+        {expandedGroup && (
+          <div className="hidden md:flex lg:hidden items-center gap-1 px-4 py-1.5 border-b border-border/50 bg-muted/30 overflow-x-auto scrollbar-hide">
+            {TAB_GROUPS.find(g => g.id === expandedGroup)?.tabs.map(tab => (
+              <Button
+                key={tab.value}
+                variant={activeTab === tab.value ? 'secondary' : 'ghost'}
+                size="sm"
+                className="gap-1 text-[11px] h-7 shrink-0"
+                onClick={() => handleNavigate(tab.value)}
+              >
+                <tab.icon className="w-3 h-3" />
+                {tab.label}
+              </Button>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Tab content passed as children */}
-      {children}
-    </TabsPrimitive.Root>
+      {/* ── Mobile Nav Drawer ── */}
+      <AnimatePresence>
+        {mobileNavOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="lg:hidden fixed inset-0 z-[60] bg-black/40"
+              onClick={() => setMobileNavOpen(false)}
+            />
+            <motion.div
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="lg:hidden fixed inset-y-0 left-0 z-[70] w-72 bg-card border-r border-border flex flex-col"
+            >
+              <div className="h-12 flex items-center justify-between px-4 border-b border-border">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-semibold">AI Center</span>
+                </div>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setMobileNavOpen(false)}>
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              <ScrollArea className="flex-1 py-2">
+                {sidebarContent}
+              </ScrollArea>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── Main Content ── */}
+      <div className="flex-1 min-w-0 px-4 md:px-8 pb-20 lg:pb-0">
+        {/* Breadcrumb */}
+        {activeTab !== 'ai-dashboard' && activeTabDef && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-4 pt-1">
+            <button onClick={() => handleNavigate('ai-dashboard')} className="hover:text-foreground transition-colors">
+              AI Center
+            </button>
+            <ChevronRight className="w-3 h-3" />
+            <span className="text-foreground font-medium">{activeTabDef.label}</span>
+          </div>
+        )}
+
+        {/* Render active content - force visible */}
+        <div className="min-h-[400px]">
+          {activeTab === 'ai-dashboard' ? (
+            <DashboardOverview onNavigate={handleNavigate} />
+          ) : (
+            // Render all TabsContent but only show active one
+            <div>
+              {React.Children.map(children, child => {
+                if (!React.isValidElement(child)) return null;
+                const isActive = child.props.value === activeTab;
+                return (
+                  <div className={isActive ? 'block' : 'hidden'}>
+                    {isActive ? child : null}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 };
 
