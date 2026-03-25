@@ -346,6 +346,13 @@ async function runPostChecks(
     ),
   }));
 
+  // Auto-create change_log entry on completion (with dedup)
+  try {
+    await createChangeLogForTask(task);
+  } catch (e) {
+    console.warn('Auto change_log failed:', e);
+  }
+
   // Feedback loop — evaluate after successful fix
   const qState2 = get();
   await useFeedbackLoopStore.getState().evaluateAfterAction('fix', task.title, {
