@@ -156,7 +156,7 @@ export const useAdminProducts = (options?: { enabled?: boolean }) =>
     queryFn: async () => {
       const { data, error } = await supabase
         .from('products')
-        .select('id, title_sv, title_en, handle, price, compare_at_price, stock, reserved_stock, allow_overselling, is_visible, badge, category, currency, created_at')
+        .select('id, title_sv, title_en, handle, price, original_price, stock, reserved_stock, allow_overselling, is_visible, badge, category, currency, created_at')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];
