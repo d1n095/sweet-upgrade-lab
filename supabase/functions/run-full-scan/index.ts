@@ -1711,11 +1711,19 @@ serve(async (req) => {
       const integrityResult = await runDataIntegrityScan(supabase, scan_run_id);
 
       await supabase.from("scan_runs").update({
+        current_step_label: "Kör funktionell beteendeskanning...",
+      }).eq("id", scan_run_id);
+
+      // ── Run Functional Behavior Scan ──
+      const behaviorResult = await runFunctionalBehaviorScan(supabase, scan_run_id);
+
+      await supabase.from("scan_runs").update({
         current_step_label: "Sammanställer resultat...",
       }).eq("id", scan_run_id);
 
       const updatedResults = scanRun.steps_results || {};
       updatedResults._data_integrity = integrityResult;
+      updatedResults._functional_behavior = behaviorResult;
 
       const totalDuration = Object.values(updatedResults).reduce(
         (sum: number, r: any) => sum + (r?._duration_ms || 0), 0
@@ -1739,6 +1747,23 @@ serve(async (req) => {
       // Add integrity_issues as dedicated field
       unified.integrity_issues = integrityResult.issues || [];
       unified.integrity_summary = integrityResult.by_type || {};
+      // Add behavior failures as dedicated field
+      unified.behavior_failures = behaviorResult.failures || [];
+      unified.behavior_summary = behaviorResult.by_type || {};
+
+      // Merge critical/high behavior failures into interaction_failures for scoring
+      for (const f of behaviorResult.failures || []) {
+        if (f.severity === "critical" || f.severity === "high") {
+          unified.interaction_failures.push({
+            title: `[Behavior] ${f.chain}: ${f.action}`,
+            description: `Expected: ${f.expected}\nActual: ${f.actual}`,
+            severity: f.severity,
+            type: f.failure_type,
+            step: f.step,
+            source: "behavior_scan",
+          });
+        }
+      }
 
       const issuesCount = unified.broken_flows.length + unified.fake_features.length +
         unified.interaction_failures.length + unified.data_issues.length;
