@@ -70,6 +70,8 @@ export interface QueueTask {
 }
 
 const MAX_CONCURRENT = 2;
+/** If _isProcessing is stuck longer than this, force-release it */
+const PROCESSING_TIMEOUT_MS = 60_000;
 
 interface AiQueueState {
   tasks: QueueTask[];
@@ -436,6 +438,7 @@ export const useAiQueueStore = create<AiQueueState>((set, get) => ({
   failureLog: [],
   regressionLog: [],
   _isProcessing: false,
+  _processingStartedAt: null as number | null,
 
   addTask: (input) => {
     const id = input.id || generateId();
