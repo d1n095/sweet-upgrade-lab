@@ -147,6 +147,11 @@ serve(async (req) => {
         break;
       }
 
+      case "data_cleanup": {
+        result = await handleDataCleanup(supabase, lovableKey);
+        break;
+      }
+
       case "create_action": {
         const { title, description, priority, category, source_type: srcType, source_id: srcId } = body;
         if (!title) {
@@ -2531,5 +2536,199 @@ Svara på svenska. Använd verification_engine-funktionen.`,
     false_done_items: falseDoneItems,
     auto_closed_items: autoClosedItems,
     tasks_created: tasksCreated,
+  };
+}
+
+// ── Data Cleanup & Deduplication Engine ──
+async function handleDataCleanup(supabase: any, apiKey: string) {
+  const now = new Date().toISOString();
+
+  // 1. Fetch all active work_items
+  const { data: allItems } = await supabase
+    .from("work_items")
+    .select("id, title, description, status, item_type, source_type, source_id, created_at, priority, ai_detected")
+    .in("status", ["open", "claimed", "in_progress", "escalated", "done"])
+    .order("created_at", { ascending: true })
+    .limit(500);
+
+  const items = allItems || [];
+
+  // 2. Detect orphans: items with source_id that no longer exist
+  const orphans: any[] = [];
+  const bugSourceIds = items.filter((i: any) => i.source_type === "bug_report" && i.source_id).map((i: any) => i.source_id);
+  const incidentSourceIds = items.filter((i: any) => i.source_type === "order_incident" && i.source_id).map((i: any) => i.source_id);
+
+  if (bugSourceIds.length > 0) {
+    const { data: existingBugs } = await supabase.from("bug_reports").select("id").in("id", bugSourceIds.slice(0, 100));
+    const existingBugIds = new Set((existingBugs || []).map((b: any) => b.id));
+    for (const item of items) {
+      if (item.source_type === "bug_report" && item.source_id && !existingBugIds.has(item.source_id)) {
+        orphans.push(item);
+      }
+    }
+  }
+
+  if (incidentSourceIds.length > 0) {
+    const { data: existingIncidents } = await supabase.from("order_incidents").select("id").in("id", incidentSourceIds.slice(0, 100));
+    const existingIncidentIds = new Set((existingIncidents || []).map((i: any) => i.id));
+    for (const item of items) {
+      if (item.source_type === "order_incident" && item.source_id && !existingIncidentIds.has(item.source_id)) {
+        if (!orphans.find((o: any) => o.id === item.id)) orphans.push(item);
+      }
+    }
+  }
+
+  // 3. Mark orphans as ignored
+  let orphansCleaned = 0;
+  for (const orphan of orphans) {
+    if (["done", "cancelled"].includes(orphan.status)) continue;
+    await supabase.from("work_items").update({
+      status: "cancelled",
+      ai_review_status: "verified",
+      ai_review_result: { status: "verified", verdict: "Auto-ignorerad: källa borttagen", cleaned_at: now },
+    }).eq("id", orphan.id);
+    orphansCleaned++;
+  }
+
+  // 4. Use AI for similarity-based duplicate detection
+  const activeItems = items.filter((i: any) => !["done", "cancelled"].includes(i.status));
+  const itemSummaries = activeItems.slice(0, 80).map((i: any, idx: number) =>
+    `[${idx}] id=${i.id} title="${i.title}" type=${i.item_type} priority=${i.priority} status=${i.status}`
+  ).join("\n");
+
+  const analysis = await callAI(apiKey, [
+    {
+      role: "system",
+      content: `Du är en databasrensningsmotor. Analysera work_items och identifiera:
+1. Duplicat (liknande titel/beskrivning)
+2. Testdata som bör tas bort
+3. Föråldrade uppgifter (irrelevanta)
+Svara på svenska. Använd data_cleanup-funktionen.`,
+    },
+    { role: "user", content: `Analysera dessa ${activeItems.length} uppgifter:\n\n${itemSummaries}` },
+  ], [
+    {
+      type: "function",
+      function: {
+        name: "data_cleanup",
+        description: "Data cleanup and deduplication analysis",
+        parameters: {
+          type: "object",
+          properties: {
+            cleanliness_score: { type: "number", description: "Database cleanliness 0-100" },
+            duplicate_groups: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  item_indices: { type: "array", items: { type: "number" }, description: "Indices of duplicate items" },
+                  keep_index: { type: "number", description: "Index of the best item to keep" },
+                  reason: { type: "string" },
+                },
+                required: ["item_indices", "keep_index", "reason"],
+                additionalProperties: false,
+              },
+            },
+            test_data: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  item_index: { type: "number" },
+                  reason: { type: "string" },
+                },
+                required: ["item_index", "reason"],
+                additionalProperties: false,
+              },
+            },
+            outdated: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  item_index: { type: "number" },
+                  reason: { type: "string" },
+                },
+                required: ["item_index", "reason"],
+                additionalProperties: false,
+              },
+            },
+            summary: { type: "string" },
+          },
+          required: ["cleanliness_score", "duplicate_groups", "test_data", "outdated", "summary"],
+          additionalProperties: false,
+        },
+      },
+    },
+  ], { type: "function", function: { name: "data_cleanup" } });
+
+  // 5. Auto-merge duplicates
+  let duplicatesMerged = 0;
+  if (analysis?.duplicate_groups) {
+    for (const group of analysis.duplicate_groups) {
+      const keepIdx = group.keep_index;
+      const removeIndices = group.item_indices.filter((idx: number) => idx !== keepIdx);
+      for (const idx of removeIndices) {
+        const item = activeItems[idx];
+        if (!item) continue;
+        await supabase.from("work_items").update({
+          status: "cancelled",
+          ai_review_status: "verified",
+          ai_review_result: { status: "verified", verdict: `Duplicat av index ${keepIdx}: ${group.reason}`, merged_at: now },
+        }).eq("id", item.id);
+        duplicatesMerged++;
+      }
+    }
+  }
+
+  // 6. Mark test data
+  let testDataRemoved = 0;
+  if (analysis?.test_data) {
+    for (const td of analysis.test_data) {
+      const item = activeItems[td.item_index];
+      if (!item) continue;
+      await supabase.from("work_items").update({
+        status: "cancelled",
+        ai_review_result: { verdict: `Testdata: ${td.reason}`, cleaned_at: now },
+      }).eq("id", item.id);
+      testDataRemoved++;
+    }
+  }
+
+  // 7. Mark outdated
+  let outdatedRemoved = 0;
+  if (analysis?.outdated) {
+    for (const od of analysis.outdated) {
+      const item = activeItems[od.item_index];
+      if (!item) continue;
+      await supabase.from("work_items").update({
+        status: "cancelled",
+        ai_review_result: { verdict: `Föråldrad: ${od.reason}`, cleaned_at: now },
+      }).eq("id", item.id);
+      outdatedRemoved++;
+    }
+  }
+
+  // Log
+  await supabase.from("system_history").insert({
+    event_type: "ai_data_cleanup",
+    snapshot: {
+      orphans_cleaned: orphansCleaned,
+      duplicates_merged: duplicatesMerged,
+      test_data_removed: testDataRemoved,
+      outdated_removed: outdatedRemoved,
+      cleanliness_score: analysis?.cleanliness_score || 0,
+    },
+    resolution_notes: analysis?.summary || "Cleanup completed",
+    ai_review_result: analysis,
+  });
+
+  return {
+    ...analysis,
+    orphans_cleaned: orphansCleaned,
+    duplicates_merged: duplicatesMerged,
+    test_data_removed: testDataRemoved,
+    outdated_removed: outdatedRemoved,
+    total_cleaned: orphansCleaned + duplicatesMerged + testDataRemoved + outdatedRemoved,
   };
 }
