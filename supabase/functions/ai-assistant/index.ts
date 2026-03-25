@@ -5156,7 +5156,7 @@ Focus area: ${context}
 `;
 
   // ── PASS 1: Generate + Validate ──
-  const pass1Generator = await callAI(apiKey, "google/gemini-2.5-flash", [
+  const pass1Generator = await callAIWithModel(apiKey, "google/gemini-2.5-flash", [
     { role: "system", content: `Du är en systemarkitekt (Generator). Analysera systemet och skapa en lösningsplan.
 Returnera JSON:
 {
