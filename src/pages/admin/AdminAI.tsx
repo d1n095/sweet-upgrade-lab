@@ -4657,6 +4657,12 @@ const AiAutopilotTab = () => {
   const queryClient = useQueryClient();
   const { openDetail } = useDetailContext();
 
+  // Load latest scan run on mount (restores progress if user navigated away)
+  useEffect(() => {
+    orchestrator.loadLatestScanRun();
+    return () => orchestrator.stopPolling();
+  }, []);
+
   // Invalidate queries when scanning finishes
   useEffect(() => {
     if (!scanning && steps.length > 0 && steps.every(s => s.status === 'done' || s.status === 'error')) {
