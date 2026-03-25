@@ -139,6 +139,7 @@ const SearchSuggestions = () => {
             .from('categories')
             .select('id, name_sv, name_en, slug')
             .eq('is_visible', true)
+            .is('parent_id', null)
             .ilike('name_sv', `%${q}%`)
             .limit(4);
           setCategoryMatches((catData || []) as CategoryResult[]);
