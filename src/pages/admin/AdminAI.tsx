@@ -267,7 +267,7 @@ const LovaChatTab = () => {
   });
 
   return (
-    <div className="flex flex-col h-[calc(100vh-320px)] sm:h-[calc(100vh-280px)] min-h-[300px] sm:min-h-[400px]">
+    <div className="flex flex-col h-[calc(100vh-280px)] min-h-[350px] max-h-[700px]">
       {/* Header + Input at TOP */}
       <div className="pb-3 border-b border-border space-y-3">
         <div className="flex items-center justify-between gap-2">
@@ -841,7 +841,7 @@ const TaskAITab = () => {
         <h4 className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
           <Bot className="w-3.5 h-3.5" /> Aktiva AI-hanterade uppgifter ({activeItems.length})
         </h4>
-        <ScrollArea className="max-h-[40vh]">
+        <ScrollArea className="max-h-[50vh]">
           <div className="space-y-2 pr-2">
             {loadingItems && <p className="text-sm text-muted-foreground py-4 text-center">Laddar...</p>}
             {!loadingItems && activeItems.length === 0 && (
