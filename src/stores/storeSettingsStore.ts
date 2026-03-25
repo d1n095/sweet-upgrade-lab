@@ -79,7 +79,6 @@ export const useStoreSettings = create<StoreSettingsState>((set, get) => ({
         socialInstagram: textMap['social_instagram'] ?? '',
         socialFacebook: textMap['social_facebook'] ?? '',
       });
-      });
     } else {
       set({ isLoaded: true });
     }
