@@ -1385,9 +1385,22 @@ const BugAITab = () => {
                       <div className="text-xs border rounded-md p-2 bg-muted/30">{selectedFix.summary}</div>
                     )}
                     {(selectedFix.lovable_prompt || selectedFix.fix_suggestions?.[0]?.lovable_prompt) && (
-                      <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => copyToClipboard(selectedFix.lovable_prompt || selectedFix.fix_suggestions?.[0]?.lovable_prompt || '')}>
-                        <Copy className="w-3 h-3" /> Kopiera prompt
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="default" className="h-7 text-xs gap-1" onClick={() => {
+                          const fixText = selectedFix.lovable_prompt || selectedFix.fix_suggestions?.[0]?.lovable_prompt || '';
+                          applyFix(fixText, selectedBug?.description?.slice(0, 80) || 'Bug fix', {
+                            severity: selectedBug?.ai_severity,
+                            category: selectedBug?.ai_category,
+                            bugId: selectedBug?.id,
+                            buttonId: 'apply-fix-bug',
+                          });
+                        }} id="apply-fix-bug">
+                          <Zap className="w-3 h-3" /> Apply Fix
+                        </Button>
+                        <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => copyToClipboard(selectedFix.lovable_prompt || selectedFix.fix_suggestions?.[0]?.lovable_prompt || '')}>
+                          <Copy className="w-3 h-3" /> Kopiera prompt
+                        </Button>
+                      </div>
                     )}
                   </div>
                 )}
@@ -2317,20 +2330,38 @@ const SystemScanTab = () => {
                         <div className="pt-2 border-t space-y-2 text-xs" onClick={(e) => e.stopPropagation()}>
                           <p className="text-muted-foreground">{issue.description}</p>
                           <div>
-                            <div className="flex items-center justify-between">
+                             <div className="flex items-center justify-between">
                               <span className="font-medium text-muted-foreground">🔧 Fix-förslag:</span>
-                              <Button
-                                size="sm"
-                                variant="default"
-                                className="h-6 text-[10px] gap-1"
-                                id={`copy-fix-${i}`}
-                                onClick={() => {
-                                  const fixText = issue.lovable_prompt || issue.fix_suggestion || '';
-                                  copyToClipboard(fixText, `copy-fix-${i}`);
-                                }}
-                              >
-                                📋 Copy Fix
-                              </Button>
+                              <div className="flex gap-1">
+                                <Button
+                                  size="sm"
+                                  variant="default"
+                                  className="h-6 text-[10px] gap-1"
+                                  id={`apply-fix-${i}`}
+                                  onClick={() => {
+                                    const fixText = issue.lovable_prompt || issue.fix_suggestion || '';
+                                    applyFix(fixText, issue.title, {
+                                      category: issue.category,
+                                      severity: issue.severity,
+                                      buttonId: `apply-fix-${i}`,
+                                    });
+                                  }}
+                                >
+                                  ⚡ Apply Fix
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-6 text-[10px] gap-1"
+                                  id={`copy-fix-${i}`}
+                                  onClick={() => {
+                                    const fixText = issue.lovable_prompt || issue.fix_suggestion || '';
+                                    copyToClipboard(fixText, `copy-fix-${i}`);
+                                  }}
+                                >
+                                  📋 Copy Fix
+                                </Button>
+                              </div>
                             </div>
                             <p className="mt-1">{issue.fix_suggestion}</p>
                           </div>
