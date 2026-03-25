@@ -75,6 +75,7 @@ serve(async (req) => {
         if (!bug) {
           return new Response(JSON.stringify({ error: "Bug not found" }), { status: 404, headers: corsHeaders });
         }
+        await logAiRead(supabase, { action_type: "analyze", target_type: "bug_report", target_ids: [bug_id], result: "inspected", summary: `AI analyzed bug: ${bug.ai_summary || bug.description?.substring(0, 80)}`, triggered_by: user.id });
         result = await suggestBugFixEnhanced(supabase, lovableKey, bug);
         break;
       }
@@ -88,11 +89,13 @@ serve(async (req) => {
         if (!deepBug) {
           return new Response(JSON.stringify({ error: "Bug not found" }), { status: 404, headers: corsHeaders });
         }
+        await logAiRead(supabase, { action_type: "deep_analysis", target_type: "bug_report", target_ids: [deepBugId], result: "inspected", summary: `Deep analysis of bug: ${deepBug.ai_summary || deepBug.description?.substring(0, 80)}`, triggered_by: user.id });
         result = await handleBugDeepAnalysis(supabase, lovableKey, deepBug);
         break;
       }
 
       case "data_insights": {
+        await logAiRead(supabase, { action_type: "scan", target_type: "data_insights", result: "inspected", summary: "AI ran data insights analysis", triggered_by: user.id });
         result = await handleDataInsights(supabase, lovableKey, body);
         break;
       }
@@ -108,11 +111,13 @@ serve(async (req) => {
       }
 
       case "system_health": {
+        await logAiRead(supabase, { action_type: "scan", target_type: "system_health", result: "inspected", summary: "AI ran system health check", triggered_by: user.id });
         result = await handleSystemHealth(supabase, lovableKey);
         break;
       }
 
       case "system_scan": {
+        await logAiRead(supabase, { action_type: "scan", target_type: "system_scan", result: "inspected", summary: "AI ran full system scan", triggered_by: user.id });
         result = await handleSystemScan(supabase, lovableKey, supabaseUrl, serviceKey);
         break;
       }
@@ -133,6 +138,7 @@ serve(async (req) => {
       }
 
       case "bug_rescan": {
+        await logAiRead(supabase, { action_type: "scan", target_type: "bug_rescan", result: "inspected", summary: "AI rescanned all bugs", triggered_by: user.id });
         result = await handleBugRescan(supabase, lovableKey);
         break;
       }
@@ -271,6 +277,7 @@ serve(async (req) => {
         if (!message || typeof message !== "string" || message.length < 1 || message.length > 5000) {
           return new Response(JSON.stringify({ error: "Invalid message" }), { status: 400, headers: corsHeaders });
         }
+        await logAiRead(supabase, { action_type: "chat", target_type: "lova_chat", result: "inspected", summary: `Lova chat: ${message.substring(0, 100)}`, triggered_by: user.id });
         result = await handleLovaChat(supabase, lovableKey, user.id, message, conversation_id);
         break;
       }
@@ -292,8 +299,35 @@ serve(async (req) => {
   }
 });
 
+// ── AI Read Log helper ──
+async function logAiRead(supabase: any, entry: {
+  action_type: string;
+  target_type: string;
+  target_ids?: string[];
+  affected_components?: string[];
+  result: string;
+  summary?: string;
+  metadata?: any;
+  triggered_by?: string;
+}) {
+  try {
+    await supabase.from("ai_read_log").insert({
+      action_type: entry.action_type,
+      target_type: entry.target_type,
+      target_ids: entry.target_ids || [],
+      affected_components: entry.affected_components || [],
+      result: entry.result,
+      summary: entry.summary || null,
+      metadata: entry.metadata || {},
+      triggered_by: entry.triggered_by || null,
+    });
+  } catch (e) {
+    console.warn("ai_read_log insert failed:", e);
+  }
+}
+
 // ── Gather all system data ──
-async function gatherSystemSnapshot(supabase: any) {
+async function gatherSystemSnapshot(supabase: any, triggeredBy?: string) {
   const now = new Date();
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -370,7 +404,7 @@ async function gatherSystemSnapshot(supabase: any) {
   const errorLogs = activities.filter((a: any) => a.log_type === "error").length;
   const warningLogs = activities.filter((a: any) => a.log_type === "warning").length;
 
-  return {
+  const snap = {
     summary: `=== SYSTEM SNAPSHOT (Last 7 days) ===
 
 📦 ORDERS
@@ -426,6 +460,21 @@ Errors: ${errorLogs} | Warnings: ${warningLogs}`,
       slaRate, errorLogs, warningLogs, totalDonations,
     },
   };
+
+  // Log the read action
+  if (triggeredBy) {
+    const hasIssues = criticalBugs > 0 || overdue > 0 || slaOverdue > 0 || outOfStock.length > 0;
+    await logAiRead(supabase, {
+      action_type: "snapshot",
+      target_type: "system",
+      affected_components: ["orders", "bugs", "work_items", "incidents", "products", "staff_performance"],
+      result: hasIssues ? "possible_issue" : "no_issues",
+      summary: `System snapshot: ${paidOrders.length} orders, ${openBugs} open bugs, ${criticalBugs} critical, ${overdue} overdue tasks, ${outOfStock.length} OOS products`,
+      triggered_by: triggeredBy,
+    });
+  }
+
+  return snap;
 }
 
 // ── Handle data_insights ──

@@ -20,6 +20,7 @@ import WorkItemDetail from '@/components/admin/workbench/WorkItemDetail';
 import { useNavigate } from 'react-router-dom';
 import { useScannerStore, SCAN_STEPS } from '@/stores/scannerStore';
 import type { ScanStepResult } from '@/stores/scannerStore';
+import AdminAiReadLog from '@/components/admin/AdminAiReadLog';
 
 // Context to allow any tab to open a work item detail view
 const DetailContext = createContext<{
@@ -6839,6 +6840,7 @@ const OrchestrationTab = () => {
         <div data-value="cleanup"><DataCleanupTab /></div>
         <div data-value="insights"><DataInsightsTab /></div>
         <div data-value="change-log"><ChangeLogTab /></div>
+        <div data-value="ai-reads"><AdminAiReadLog /></div>
       </AiCenterTabs>
 
       <WorkItemDetail
