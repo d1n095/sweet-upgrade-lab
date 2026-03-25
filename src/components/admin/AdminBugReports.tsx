@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Bug, CheckCircle2, Loader2, Clock, MapPin, User, ChevronDown, ChevronUp, AlertCircle, Sparkles, Tag, Search, RefreshCw, BookOpen, Copy, Filter } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -108,12 +108,14 @@ const AdminBugReports = () => {
 
   useEffect(() => { load(); }, []);
 
-  const openBug = (id: string) => {
-    if (expandedId === id) { setExpandedId(null); return; }
-    setExpandedId(id);
-    setChecklist({});
-    setResolutionNotes('');
-  };
+  const openBug = useCallback((id: string) => {
+    setExpandedId(prev => {
+      if (prev === id) return null;
+      setChecklist({});
+      setResolutionNotes('');
+      return id;
+    });
+  }, []);
 
   const allChecked = RESOLVE_CHECKLIST.every(c => checklist[c.key]);
 
