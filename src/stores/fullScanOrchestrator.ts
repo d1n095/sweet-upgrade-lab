@@ -298,8 +298,28 @@ export const useFullScanOrchestrator = create<FullScanOrchestratorState>((set, g
       console.warn('Failed to persist orchestrated scan result:', e);
     }
 
+    // ── POST-SCAN: Auto-generate work items ──
+    set({ postScanStatus: 'generating_items' });
+    let workItemsCreated = 0;
+    try {
+      workItemsCreated = await autoGenerateWorkItems(unified);
+      if (workItemsCreated > 0) {
+        toast.info(`${workItemsCreated} arbetsuppgifter skapade från skanning`, { duration: 4000 });
+      }
+    } catch (e) {
+      console.warn('Failed to auto-generate work items:', e);
+    }
+
+    // ── POST-SCAN: Run unified pipeline (links bugs → work items → change log → verification) ──
+    set({ postScanStatus: 'running_pipeline' });
+    try {
+      await runUnifiedPipeline();
+    } catch (e) {
+      console.warn('Post-scan pipeline failed:', e);
+    }
+
     if (queryClient) {
-      for (const key of ['admin-scan-results', 'admin-work-items', 'admin-bugs', 'mini-workbench-items', 'autopilot-scan-runs', 'last-scan-result', 'scan-history']) {
+      for (const key of ['admin-scan-results', 'admin-work-items', 'admin-bugs', 'mini-workbench-items', 'autopilot-scan-runs', 'last-scan-result', 'scan-history', 'work-items']) {
         queryClient.invalidateQueries({ queryKey: [key] });
       }
     }
@@ -311,9 +331,9 @@ export const useFullScanOrchestrator = create<FullScanOrchestratorState>((set, g
 
     const verdictLabel = fbEntry?.verdict === 'improved' ? '📈 Förbättrat' :
       fbEntry?.verdict === 'degraded' ? '📉 Försämrat' : '➡️ Stabilt';
-    toast.success(`Full skanning klar — ${unified.system_health_score}/100 — ${verdictLabel}`, { duration: 6000 });
+    toast.success(`Full skanning klar — ${unified.system_health_score}/100 — ${verdictLabel} — ${workItemsCreated} nya uppgifter`, { duration: 6000 });
 
     lockStore.release(lockId);
-    set({ running: false, unifiedResult: unified });
+    set({ running: false, unifiedResult: unified, postScanStatus: 'done', workItemsCreated });
   },
 }));
