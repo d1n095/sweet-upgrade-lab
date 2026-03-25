@@ -5871,6 +5871,7 @@ async function executeLovaAction(supabase: any, lovableKey: string, args: any) {
       if (scanType === "ux_scan") return await handleUxScan(supabase, lovableKey);
       if (scanType === "sync_scan") return await handleSyncScan(supabase, lovableKey);
       if (scanType === "data_integrity") return await handleDataIntegrity(supabase);
+      if (scanType === "human_test") return await handleHumanTest(supabase, lovableKey);
 
       // Default / system-level scan
       return await handleSystemHealth(supabase, lovableKey);
