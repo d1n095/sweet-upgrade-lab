@@ -12,6 +12,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useStoreSettings } from '@/stores/storeSettingsStore';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+  useAdminOrders, useAdminWorkItems, useAdminProducts, useAdminAnalytics,
+  computeRevenueMetrics, computeProductMetrics, computeFunnelMetrics,
+} from '@/hooks/useAdminData';
 
 interface RecentOrder {
   id: string;
