@@ -30,17 +30,7 @@ const ShopifyProductGrid = () => {
   const [bestsellerIds, setBestsellerIds] = useState<string[]>([]);
   const searchQuery = useSearchStore(state => state.searchQuery);
 
-  // Listen for category visibility updates
-  useEffect(() => {
-    const handleCategoriesUpdated = () => {
-      setVisibleCategories(getVisibleCategories());
-    };
-
-    window.addEventListener('categories-updated', handleCategoriesUpdated);
-    return () => {
-      window.removeEventListener('categories-updated', handleCategoriesUpdated);
-    };
-  }, []);
+  // Categories are now loaded from DB via useDbCategories — no localStorage listener needed
 
   // Load bestseller IDs from database with realtime updates
   useEffect(() => {
@@ -140,19 +130,8 @@ const ShopifyProductGrid = () => {
     }
   }, [products, sortOption]);
 
-  // Filter out products from hidden categories
-  const filteredProducts = useMemo(() => {
-    const hiddenTypes = getHiddenCategoryQueries();
-    if (hiddenTypes.length === 0) return sortedProducts;
-    
-    return sortedProducts.filter(product => {
-      const productType = product.node.productType || '';
-      // Check if product's type matches any hidden category
-      return !hiddenTypes.some(hiddenType => 
-        productType.toLowerCase().includes(hiddenType.toLowerCase())
-      );
-    });
-  }, [sortedProducts]);
+  // All categories now come from DB (only visible ones), so no hidden filtering needed
+  const filteredProducts = sortedProducts;
 
   // Listen for URL query params and hash changes
   useEffect(() => {
@@ -204,7 +183,7 @@ const ShopifyProductGrid = () => {
           transition={{ delay: 0.1, duration: 0.5 }}
           className="flex flex-wrap justify-center gap-3 mb-8"
         >
-        {visibleCategories.map((category) => {
+        {categories.map((category) => {
             const Icon = category.icon;
             const isActive = activeCategory === category.id;
             return (
