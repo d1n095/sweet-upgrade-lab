@@ -3626,12 +3626,27 @@ const AiAutopilotTab = () => {
 
           <Button onClick={runAllScans} disabled={scanning || selectedSteps.size === 0} className="w-full gap-2" size="lg">
             {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-            {scanning ? `Skannar... (${completedCount}/${steps.length})` : `Kör ${selectedSteps.size} skanningar`}
+            {scanning ? `Skannar... (${completedCount + errorCount}/${steps.length})` : `Kör ${selectedSteps.size} skanningar`}
           </Button>
 
-          {scanning && steps.length > 0 && (
-            <Progress value={(completedCount + errorCount) / steps.length * 100} className="h-2" />
-          )}
+          {scanning && steps.length > 0 && (() => {
+            const pct = Math.round(((completedCount + errorCount) / steps.length) * 100);
+            const currentStep = steps.find(s => s.status === 'running');
+            return (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground truncate max-w-[60%]">
+                    {currentStep ? `Kör: ${currentStep.label}` : 'Väntar...'}
+                  </span>
+                  <span className="font-bold text-primary">{pct}%</span>
+                </div>
+                <Progress value={pct} className="h-2.5" />
+                <p className="text-[10px] text-muted-foreground text-center">
+                  {completedCount + errorCount} av {steps.length} klara — {steps.length - completedCount - errorCount} kvar
+                </p>
+              </div>
+            );
+          })()}
         </CardContent>
       </Card>
 
