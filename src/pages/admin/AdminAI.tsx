@@ -1,4 +1,4 @@
-import { useState, createContext, useContext, useCallback } from 'react';
+import { useState, useEffect, createContext, useContext, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Sparkles, Bug, BarChart3, Copy, Loader2, Send, AlertTriangle, Lightbulb, Info, RefreshCw, Bot, CheckCircle, XCircle, Shield, Clock, Zap, Activity, TrendingUp, Package, AlertCircle, Database, Wrench, Radar, ArrowRight, Layers, Monitor, Smartphone, Tablet, Eye, Compass, LayoutGrid, GitMerge, ArrowRightLeft, ShieldCheck, Play, Settings2, ToggleRight } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger, ScrollableTabs } from '@/components/ui/tabs';
@@ -974,13 +974,81 @@ const SystemScanTab = () => {
   const [loading, setLoading] = useState(false);
   const [scanResult, setScanResult] = useState<any>(null);
   const [expandedIssue, setExpandedIssue] = useState<number | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
+  const [compareId, setCompareId] = useState<string | null>(null);
+  const [compareData, setCompareData] = useState<any>(null);
   const { openDetail } = useDetailContext();
+  const queryClient = useQueryClient();
+
+  // Load last scan on mount
+  const { data: lastScan } = useQuery({
+    queryKey: ['last-scan-result'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('ai_scan_results' as any)
+        .select('*')
+        .eq('scan_type', 'system_scan')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data as any;
+    },
+  });
+
+  // Load scan history
+  const { data: scanHistory = [] } = useQuery({
+    queryKey: ['scan-history'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('ai_scan_results' as any)
+        .select('id, scan_type, overall_score, overall_status, executive_summary, issues_count, tasks_created, created_at')
+        .eq('scan_type', 'system_scan')
+        .order('created_at', { ascending: false })
+        .limit(20);
+      return (data || []) as any[];
+    },
+  });
+
+  // Set last scan as current if no active result
+  useEffect(() => {
+    if (!scanResult && lastScan?.results) {
+      setScanResult(lastScan.results);
+    }
+  }, [lastScan, scanResult]);
 
   const runScan = async () => {
     setLoading(true);
     const res = await callAI('system_scan');
-    if (res) setScanResult(res);
+    if (res) {
+      setScanResult(res);
+      // Persist to DB
+      const { data: { session } } = await supabase.auth.getSession();
+      await supabase.from('ai_scan_results' as any).insert({
+        scan_type: 'system_scan',
+        results: res,
+        overall_score: res.system_score || null,
+        overall_status: res.system_score >= 70 ? 'healthy' : res.system_score >= 40 ? 'warning' : 'critical',
+        executive_summary: res.executive_summary || null,
+        issues_count: res.issues_found || 0,
+        tasks_created: res.tasks_created || 0,
+        scanned_by: session?.user?.id || null,
+      } as any);
+      queryClient.invalidateQueries({ queryKey: ['last-scan-result'] });
+      queryClient.invalidateQueries({ queryKey: ['scan-history'] });
+    }
     setLoading(false);
+  };
+
+  const loadHistoryScan = async (id: string) => {
+    const { data } = await supabase.from('ai_scan_results' as any).select('*').eq('id', id).maybeSingle();
+    if (data) {
+      if (compareId === id) {
+        setCompareData((data as any).results);
+      } else {
+        setScanResult((data as any).results);
+        setShowHistory(false);
+      }
+    }
   };
 
   const typeIcon = (t: string) => {
@@ -1041,6 +1109,52 @@ const SystemScanTab = () => {
     );
   };
 
+  const renderScoreComparison = () => {
+    if (!compareData || !scanResult) return null;
+    const diff = (scanResult.system_score || 0) - (compareData.system_score || 0);
+    return (
+      <div className="border rounded-xl p-4 bg-card space-y-3">
+        <div className="flex items-center justify-between">
+          <h4 className="text-xs font-bold flex items-center gap-1.5">
+            <ArrowRightLeft className="w-4 h-4" /> Jämförelse
+          </h4>
+          <Button size="sm" variant="ghost" className="h-6 text-[10px]" onClick={() => { setCompareId(null); setCompareData(null); }}>
+            Stäng
+          </Button>
+        </div>
+        <div className="grid grid-cols-3 gap-3 text-center">
+          <div>
+            <p className="text-[10px] text-muted-foreground">Nuvarande</p>
+            <p className={cn('text-2xl font-bold', (scanResult.system_score || 0) >= 70 ? 'text-green-700' : (scanResult.system_score || 0) >= 40 ? 'text-yellow-700' : 'text-destructive')}>
+              {scanResult.system_score || 0}
+            </p>
+          </div>
+          <div className="flex items-center justify-center">
+            <span className={cn('text-sm font-bold', diff > 0 ? 'text-green-700' : diff < 0 ? 'text-destructive' : 'text-muted-foreground')}>
+              {diff > 0 ? `+${diff}` : diff}
+            </span>
+          </div>
+          <div>
+            <p className="text-[10px] text-muted-foreground">Tidigare</p>
+            <p className={cn('text-2xl font-bold', (compareData.system_score || 0) >= 70 ? 'text-green-700' : (compareData.system_score || 0) >= 40 ? 'text-yellow-700' : 'text-destructive')}>
+              {compareData.system_score || 0}
+            </p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          <div className="border rounded p-2">
+            <p className="text-muted-foreground text-[10px]">Issues nu</p>
+            <p className="font-bold">{scanResult.issues_found || 0}</p>
+          </div>
+          <div className="border rounded p-2">
+            <p className="text-muted-foreground text-[10px]">Issues förr</p>
+            <p className="font-bold">{compareData.issues_found || 0}</p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-4">
       <div className="border rounded-xl p-4 bg-card space-y-3">
@@ -1048,10 +1162,14 @@ const SystemScanTab = () => {
           <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
             <Radar className="w-5 h-5 text-primary" />
           </div>
-          <div>
+          <div className="flex-1">
             <h3 className="text-sm font-bold">Full Systemskanning</h3>
             <p className="text-[10px] text-muted-foreground">Skannar → Detekterar → Skapar uppgifter → Prioriterar → Ordnar</p>
           </div>
+          <Button size="sm" variant="outline" className="gap-1 text-xs shrink-0" onClick={() => setShowHistory(!showHistory)}>
+            <Clock className="w-3.5 h-3.5" />
+            Historik ({scanHistory.length})
+          </Button>
         </div>
         <Button onClick={runScan} disabled={loading} className="w-full gap-2" size="lg">
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Radar className="w-4 h-4" />}
@@ -1062,7 +1180,68 @@ const SystemScanTab = () => {
             AI analyserar alla datakällor, skapar uppgifter och prioriterar...
           </p>
         )}
+        {lastScan?.created_at && !loading && (
+          <p className="text-[10px] text-muted-foreground text-center">
+            Senaste skanning: {new Date(lastScan.created_at).toLocaleString('sv-SE')}
+          </p>
+        )}
       </div>
+
+      {/* Scan History Panel */}
+      {showHistory && (
+        <div className="border rounded-xl p-4 bg-card space-y-3">
+          <h4 className="text-xs font-bold flex items-center gap-1.5">
+            <Clock className="w-4 h-4" /> Skanningshistorik
+          </h4>
+          {scanHistory.length === 0 && (
+            <p className="text-xs text-muted-foreground text-center py-3">Ingen historik ännu</p>
+          )}
+          <ScrollArea className="max-h-[30vh]">
+            <div className="space-y-1.5 pr-2">
+              {scanHistory.map((scan: any) => (
+                <div
+                  key={scan.id}
+                  className={cn(
+                    "border rounded-lg p-2.5 flex items-center gap-3 cursor-pointer hover:bg-muted/40 transition-colors",
+                    compareId === scan.id && "border-primary bg-primary/5"
+                  )}
+                  onClick={() => loadHistoryScan(scan.id)}
+                >
+                  <div className={cn(
+                    'w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border',
+                    (scan.overall_score || 0) >= 70 ? 'border-green-400 text-green-700 bg-green-50' :
+                    (scan.overall_score || 0) >= 40 ? 'border-yellow-400 text-yellow-700 bg-yellow-50' :
+                    'border-red-400 text-destructive bg-red-50'
+                  )}>
+                    {scan.overall_score || '—'}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium truncate">{scan.executive_summary || 'Systemskanning'}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {new Date(scan.created_at).toLocaleString('sv-SE')} · {scan.issues_count} issues · {scan.tasks_created} uppgifter
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 text-[9px] shrink-0"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCompareId(scan.id);
+                      loadHistoryScan(scan.id);
+                    }}
+                  >
+                    Jämför
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+        </div>
+      )}
+
+      {/* Score Comparison */}
+      {renderScoreComparison()}
 
       {scanResult && (
         <div className="space-y-4">
