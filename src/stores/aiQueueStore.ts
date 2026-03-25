@@ -475,12 +475,21 @@ export const useAiQueueStore = create<AiQueueState>((set, get) => ({
 
   processQueue: async () => {
     const state = get();
-    if (state._isProcessing) return;
+
+    // Deadlock protection: if _isProcessing has been stuck for too long, force-release
+    if (state._isProcessing) {
+      if (state._processingStartedAt && Date.now() - state._processingStartedAt > PROCESSING_TIMEOUT_MS) {
+        console.warn('[AiQueue] Processing lock stuck for >60s, force-releasing');
+        set({ _isProcessing: false, _processingStartedAt: null });
+      } else {
+        return;
+      }
+    }
 
     // Auto-release stale locks before processing to prevent deadlocks
     useExecutionLockStore.getState().releaseStale();
 
-    set({ _isProcessing: true });
+    set({ _isProcessing: true, _processingStartedAt: Date.now() });
 
     try {
       // eslint-disable-next-line no-constant-condition
