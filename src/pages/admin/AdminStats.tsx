@@ -172,7 +172,7 @@ const AdminStats = () => {
         setRecentLogs(prev => [payload.new as LogEntry, ...prev].slice(0, 50));
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
-        // Refresh stats when orders change
+        console.log('[AdminStats] Order change detected, refetching stats');
         fetchDashboardStats();
       })
       .subscribe();
