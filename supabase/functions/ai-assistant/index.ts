@@ -137,8 +137,13 @@ serve(async (req) => {
       }
 
       case "ai_execute": {
-        const { mode } = body;  // manual | assisted | autonomous
+        const { mode } = body;
         result = await handleAiExecute(supabase, lovableKey, mode || "assisted");
+        break;
+      }
+
+      case "verification_engine": {
+        result = await handleVerificationEngine(supabase, lovableKey);
         break;
       }
 
@@ -2291,5 +2296,240 @@ Var EXTREMT SPECIFIK. Ge exakta komponent-/sidnamn. Prioritera efter användarim
     mode,
     execution_log: executionLog,
     executed_count: executionLog.filter(l => l.success).length,
+  };
+}
+
+// ── Verification & Completion Engine ──
+async function handleVerificationEngine(supabase: any, apiKey: string) {
+  const now = new Date().toISOString();
+
+  // 1. Get all "done" items for verification + open items for false-done check
+  const [doneRes, openRes, bugsRes] = await Promise.all([
+    supabase.from("work_items")
+      .select("id, title, description, status, item_type, source_type, source_id, completed_at, ai_review_status, ai_review_result, priority, tags")
+      .eq("status", "done")
+      .order("completed_at", { ascending: false })
+      .limit(50),
+    supabase.from("work_items")
+      .select("id, title, description, status, item_type, source_type, source_id, priority, created_at, tags")
+      .in("status", ["open", "claimed", "in_progress", "escalated"])
+      .order("created_at", { ascending: true })
+      .limit(100),
+    supabase.from("bug_reports")
+      .select("id, status, description, ai_summary, ai_severity, resolved_at")
+      .limit(100),
+  ]);
+
+  const doneItems = doneRes.data || [];
+  const openItems = openRes.data || [];
+  const bugs = bugsRes.data || [];
+
+  // 2. Cross-check: done work_items whose source bug is still open
+  const falseDoneItems: any[] = [];
+  for (const item of doneItems) {
+    if (item.source_type === "bug_report" && item.source_id) {
+      const sourceBug = bugs.find((b: any) => b.id === item.source_id);
+      if (sourceBug && sourceBug.status === "open") {
+        falseDoneItems.push({
+          work_item_id: item.id,
+          title: item.title,
+          reason: "Kopplad bugg fortfarande öppen",
+          source_status: sourceBug.status,
+        });
+        // Auto-reopen
+        await supabase.from("work_items").update({
+          status: "in_progress",
+          ai_review_status: "needs_review",
+          ai_review_result: {
+            status: "needs_review",
+            verdict: "Automatiskt återöppnad: källbugg fortfarande öppen",
+            reopened_at: now,
+          },
+        }).eq("id", item.id);
+      }
+    }
+  }
+
+  // 3. Auto-close open items whose source is already resolved
+  const autoClosedItems: any[] = [];
+  for (const item of openItems) {
+    if (item.source_type === "bug_report" && item.source_id) {
+      const sourceBug = bugs.find((b: any) => b.id === item.source_id);
+      if (sourceBug && ["resolved", "closed"].includes(sourceBug.status)) {
+        await supabase.from("work_items").update({
+          status: "done",
+          completed_at: now,
+          ai_review_status: "verified",
+          ai_review_result: {
+            status: "verified",
+            verdict: "Auto-stängd: källbugg redan löst",
+            verification_source: "system_scan",
+            verified_at: now,
+          },
+        }).eq("id", item.id);
+        autoClosedItems.push({ work_item_id: item.id, title: item.title, reason: "Källbugg redan löst" });
+      }
+    }
+    if (item.source_type === "order_incident" && item.source_id) {
+      const { data: incident } = await supabase.from("order_incidents")
+        .select("status").eq("id", item.source_id).maybeSingle();
+      if (incident && ["resolved", "closed"].includes(incident.status)) {
+        await supabase.from("work_items").update({
+          status: "done",
+          completed_at: now,
+          ai_review_status: "verified",
+          ai_review_result: {
+            status: "verified",
+            verdict: "Auto-stängd: incident redan löst",
+            verification_source: "system_scan",
+            verified_at: now,
+          },
+        }).eq("id", item.id);
+        autoClosedItems.push({ work_item_id: item.id, title: item.title, reason: "Incident redan löst" });
+      }
+    }
+  }
+
+  // 4. AI analysis: post-fix improvements + re-categorization
+  const recentDone = doneItems.slice(0, 20);
+  const openSummary = openItems.slice(0, 30).map((i: any) => `[${i.priority}] ${i.title} (${i.item_type})`).join("\n");
+
+  const analysis = await callAI(apiKey, [
+    {
+      role: "system",
+      content: `Du är en AI-verifieringsmotor för en svensk e-handelsplattform.
+Analysera avslutade och öppna uppgifter. Identifiera:
+1. Post-fix förbättringar (kan detta göras bättre?)
+2. Felkategoriserade uppgifter
+3. Uppgifter som bör grupperas/slås ihop
+4. Prioriteringsförslag
+Svara på svenska. Använd verification_engine-funktionen.`,
+    },
+    {
+      role: "user",
+      content: `AVSLUTADE UPPGIFTER (${recentDone.length}):\n${recentDone.map((i: any) => `- ${i.title} [${i.item_type}] review: ${i.ai_review_status || "none"}`).join("\n")}\n\nÖPPNA UPPGIFTER (${openItems.length}):\n${openSummary}`,
+    },
+  ], [
+    {
+      type: "function",
+      function: {
+        name: "verification_engine",
+        description: "Verification and completion analysis",
+        parameters: {
+          type: "object",
+          properties: {
+            verification_score: { type: "number", description: "Overall verification health 0-100" },
+            post_fix_suggestions: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  related_task: { type: "string" },
+                  suggestion: { type: "string" },
+                  type: { type: "string", enum: ["improvement", "upgrade", "missing_feature", "ux_fix"] },
+                  priority: { type: "string", enum: ["low", "medium", "high"] },
+                  lovable_prompt: { type: "string" },
+                },
+                required: ["related_task", "suggestion", "type", "priority", "lovable_prompt"],
+                additionalProperties: false,
+              },
+            },
+            recategorizations: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  task_title: { type: "string" },
+                  current_type: { type: "string" },
+                  suggested_type: { type: "string" },
+                  reason: { type: "string" },
+                },
+                required: ["task_title", "current_type", "suggested_type", "reason"],
+                additionalProperties: false,
+              },
+            },
+            merge_suggestions: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  tasks: { type: "array", items: { type: "string" } },
+                  reason: { type: "string" },
+                },
+                required: ["tasks", "reason"],
+                additionalProperties: false,
+              },
+            },
+            priority_adjustments: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  task_title: { type: "string" },
+                  current_priority: { type: "string" },
+                  suggested_priority: { type: "string" },
+                  reason: { type: "string" },
+                },
+                required: ["task_title", "current_priority", "suggested_priority", "reason"],
+                additionalProperties: false,
+              },
+            },
+            summary: { type: "string", description: "Overall verification summary in Swedish" },
+          },
+          required: ["verification_score", "post_fix_suggestions", "recategorizations", "merge_suggestions", "priority_adjustments", "summary"],
+          additionalProperties: false,
+        },
+      },
+    },
+  ], { type: "function", function: { name: "verification_engine" } });
+
+  // 5. Create work_items for high-priority post-fix suggestions
+  let tasksCreated = 0;
+  if (analysis?.post_fix_suggestions) {
+    for (const suggestion of analysis.post_fix_suggestions) {
+      if (suggestion.priority !== "high") continue;
+      const { data: existing } = await supabase
+        .from("work_items")
+        .select("id")
+        .ilike("title", `%${suggestion.suggestion.substring(0, 25)}%`)
+        .in("status", ["open", "claimed", "in_progress"])
+        .limit(1);
+      if (!existing?.length) {
+        await supabase.from("work_items").insert({
+          title: `Post-fix: ${suggestion.suggestion}`.substring(0, 200),
+          description: `Relaterad uppgift: ${suggestion.related_task}\n\nFörbättring: ${suggestion.suggestion}\n\nPrompt:\n${suggestion.lovable_prompt}`,
+          status: "open",
+          priority: "medium",
+          item_type: suggestion.type === "improvement" ? "improvement" : suggestion.type === "upgrade" ? "upgrade" : "feature",
+          source_type: "ai_detection",
+          ai_detected: true,
+          ai_confidence: "medium",
+          ai_category: "post_fix",
+          ai_type_classification: suggestion.type,
+        });
+        tasksCreated++;
+      }
+    }
+  }
+
+  // 6. Log to system_history
+  await supabase.from("system_history").insert({
+    event_type: "ai_verification_scan",
+    snapshot: {
+      false_done_count: falseDoneItems.length,
+      auto_closed_count: autoClosedItems.length,
+      tasks_created: tasksCreated,
+      verification_score: analysis?.verification_score || 0,
+      post_fix_count: analysis?.post_fix_suggestions?.length || 0,
+    },
+    resolution_notes: analysis?.summary || "Verification scan completed",
+    ai_review_result: analysis,
+  });
+
+  return {
+    ...analysis,
+    false_done_items: falseDoneItems,
+    auto_closed_items: autoClosedItems,
+    tasks_created: tasksCreated,
   };
 }
