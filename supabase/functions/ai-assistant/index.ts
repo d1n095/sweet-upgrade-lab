@@ -356,6 +356,12 @@ serve(async (req) => {
         break;
       }
 
+      case "blocker_detection": {
+        await logAiRead(supabase, { action_type: "analyze", target_type: "blocker_detection", result: "inspected", summary: "Blocker Detection — finding root cause blockages in pipeline", triggered_by: user.id });
+        result = await handleBlockerDetection(supabase, lovableKey);
+        break;
+      }
+
       default:
         return new Response(JSON.stringify({ error: "Unknown type" }), { status: 400, headers: corsHeaders });
     }
@@ -7309,6 +7315,275 @@ KLASSIFICERING:
       items_reprioritized: itemsUpdated,
       duplicates_closed: duplicatesClosed,
     },
+  };
+}
+
+// ── Blocker Detection System ──
+async function handleBlockerDetection(supabase: any, lovableKey: string) {
+  // 1. Probe every stage of the pipeline: scan → issue → bug → work_item → change_log → verification
+  const probes: Record<string, any> = {};
+
+  // Stage 1: Scans — are scans running and producing results?
+  const { data: recentScans } = await supabase.from("ai_scan_results")
+    .select("id, scan_type, issues_count, tasks_created, overall_status, overall_score, created_at")
+    .order("created_at", { ascending: false }).limit(20);
+  probes.scans = {
+    count: recentScans?.length || 0,
+    latest: recentScans?.[0]?.created_at || null,
+    with_issues: recentScans?.filter((s: any) => (s.issues_count || 0) > 0).length || 0,
+    with_tasks: recentScans?.filter((s: any) => (s.tasks_created || 0) > 0).length || 0,
+    failing: recentScans?.filter((s: any) => s.overall_status === "critical" || s.overall_status === "error").length || 0,
+  };
+
+  // Stage 2: Bug reports — are bugs being created and enriched?
+  const { data: bugs } = await supabase.from("bug_reports")
+    .select("id, status, ai_summary, ai_severity, ai_category, ai_processed_at, ai_clean_prompt, created_at, resolved_at, resolved_by_change_id")
+    .order("created_at", { ascending: false }).limit(50);
+  const bugList = bugs || [];
+  probes.bugs = {
+    total: bugList.length,
+    open: bugList.filter((b: any) => ["open", "new", "triaged"].includes(b.status)).length,
+    resolved: bugList.filter((b: any) => b.status === "resolved").length,
+    enriched: bugList.filter((b: any) => b.ai_summary && b.ai_severity).length,
+    not_enriched: bugList.filter((b: any) => !b.ai_summary || !b.ai_severity).length,
+    missing_prompt: bugList.filter((b: any) => b.ai_summary && !b.ai_clean_prompt).length,
+    missing_category: bugList.filter((b: any) => b.ai_summary && !b.ai_category).length,
+    resolved_without_change: bugList.filter((b: any) => b.status === "resolved" && !b.resolved_by_change_id).length,
+    stale_open: bugList.filter((b: any) => {
+      if (!["open", "new"].includes(b.status)) return false;
+      const age = Date.now() - new Date(b.created_at).getTime();
+      return age > 48 * 3600 * 1000;
+    }).length,
+  };
+
+  // Stage 3: Work items — are bugs linked to work items? Are items progressing?
+  const { data: workItems } = await supabase.from("work_items")
+    .select("id, title, status, priority, item_type, source_type, source_id, ai_review_status, completed_at, created_at, tags, assigned_to, claimed_by")
+    .order("created_at", { ascending: false }).limit(100);
+  const wiList = workItems || [];
+  const bugSourcedWI = wiList.filter((w: any) => w.source_type === "bug_report");
+  probes.work_items = {
+    total: wiList.length,
+    open: wiList.filter((w: any) => w.status === "open").length,
+    in_progress: wiList.filter((w: any) => w.status === "in_progress").length,
+    done: wiList.filter((w: any) => w.status === "done").length,
+    escalated: wiList.filter((w: any) => w.status === "escalated").length,
+    unassigned: wiList.filter((w: any) => !w.assigned_to && !w.claimed_by && w.status !== "done").length,
+    bug_linked: bugSourcedWI.length,
+    bugs_without_wi: probes.bugs.open - bugSourcedWI.filter((w: any) => w.status !== "done").length,
+    stale_open: wiList.filter((w: any) => {
+      if (w.status !== "open") return false;
+      const age = Date.now() - new Date(w.created_at).getTime();
+      return age > 24 * 3600 * 1000;
+    }).length,
+    missing_review: wiList.filter((w: any) => w.status === "done" && (!w.ai_review_status || w.ai_review_status === "pending")).length,
+  };
+
+  // Stage 4: Change log — are completed work items producing change entries?
+  const { data: changes } = await supabase.from("change_log")
+    .select("id, change_type, work_item_id, bug_report_id, source, created_at")
+    .order("created_at", { ascending: false }).limit(50);
+  const changeList = changes || [];
+  const doneWIIds = new Set(wiList.filter((w: any) => w.status === "done").map((w: any) => w.id));
+  const changeWIIds = new Set(changeList.filter((c: any) => c.work_item_id).map((c: any) => c.work_item_id));
+  probes.change_log = {
+    total: changeList.length,
+    with_work_item: changeList.filter((c: any) => c.work_item_id).length,
+    with_bug: changeList.filter((c: any) => c.bug_report_id).length,
+    done_without_log: [...doneWIIds].filter(id => !changeWIIds.has(id)).length,
+    auto_generated: changeList.filter((c: any) => c.source === "system").length,
+  };
+
+  // Stage 5: Verification — are done items being AI-reviewed?
+  probes.verification = {
+    done_items: wiList.filter((w: any) => w.status === "done").length,
+    reviewed: wiList.filter((w: any) => w.status === "done" && w.ai_review_status && !["pending", null].includes(w.ai_review_status)).length,
+    pending_review: wiList.filter((w: any) => w.status === "done" && (!w.ai_review_status || w.ai_review_status === "pending")).length,
+  };
+
+  // Stage 6: AI Read Log — is AI actually reading/acting?
+  const { data: aiReads } = await supabase.from("ai_read_log")
+    .select("id, action_type, target_type, result, created_at")
+    .order("created_at", { ascending: false }).limit(20);
+  probes.ai_activity = {
+    recent_reads: aiReads?.length || 0,
+    latest: aiReads?.[0]?.created_at || null,
+    action_types: [...new Set((aiReads || []).map((r: any) => r.action_type))],
+  };
+
+  // 2. Build blocker analysis
+  const blockers: Array<{ stage: string; severity: string; description: string; evidence: string; fix_hint: string }> = [];
+
+  // Check each pipeline stage for blockages
+  if (probes.scans.count === 0) {
+    blockers.push({ stage: "scan", severity: "critical", description: "Inga skanningar har körts", evidence: "0 scan_results i databasen", fix_hint: "Kör en fullständig skanning via AI Center" });
+  } else if (probes.scans.with_tasks === 0 && probes.scans.with_issues > 0) {
+    blockers.push({ stage: "scan→issue", severity: "high", description: "Skanningar hittar problem men skapar inga uppgifter", evidence: `${probes.scans.with_issues} skanningar med issues, 0 med tasks`, fix_hint: "Kontrollera att scan-handlern skapar work_items från fynd" });
+  }
+
+  if (probes.bugs.not_enriched > 0) {
+    blockers.push({ stage: "bug_enrichment", severity: probes.bugs.not_enriched > 5 ? "critical" : "high", description: `${probes.bugs.not_enriched} buggar saknar AI-analys (ai_summary/ai_severity är null)`, evidence: `Enriched: ${probes.bugs.enriched}, Not enriched: ${probes.bugs.not_enriched}`, fix_hint: "Kör process-bug-report edge function för dessa buggar" });
+  }
+  if (probes.bugs.missing_prompt > 0) {
+    blockers.push({ stage: "bug_enrichment", severity: "medium", description: `${probes.bugs.missing_prompt} buggar har summary men saknar clean_prompt`, evidence: "Partiell AI-bearbetning", fix_hint: "AI-modellen returnerade ofullständig data — kör om bearbetning" });
+  }
+
+  if (probes.work_items.bugs_without_wi > 0) {
+    blockers.push({ stage: "bug→work_item", severity: "high", description: `${probes.work_items.bugs_without_wi} öppna buggar saknar work_item`, evidence: `Öppna buggar: ${probes.bugs.open}, Bug-länkade WI: ${bugSourcedWI.length}`, fix_hint: "Unified Pipeline bör auto-skapa work_items — kör pipeline" });
+  }
+
+  if (probes.work_items.unassigned > 3) {
+    blockers.push({ stage: "work_item_assignment", severity: "high", description: `${probes.work_items.unassigned} uppgifter är otilldelade`, evidence: "Ingen ansvarig person", fix_hint: "Kör auto_assign_work_item eller tilldela manuellt" });
+  }
+
+  if (probes.work_items.stale_open > 3) {
+    blockers.push({ stage: "work_item_progress", severity: "medium", description: `${probes.work_items.stale_open} uppgifter har varit öppna >24h utan progress`, evidence: "Stale open items", fix_hint: "Eskalera eller omfördela dessa uppgifter" });
+  }
+
+  if (probes.change_log.done_without_log > 0) {
+    blockers.push({ stage: "work_item→change_log", severity: "medium", description: `${probes.change_log.done_without_log} slutförda uppgifter saknar ändringslogg`, evidence: `Done WI: ${doneWIIds.size}, With log: ${changeWIIds.size}`, fix_hint: "Unified Pipeline bör auto-skapa change_log — kör pipeline" });
+  }
+
+  if (probes.verification.pending_review > 0) {
+    blockers.push({ stage: "verification", severity: probes.verification.pending_review > 5 ? "high" : "medium", description: `${probes.verification.pending_review} slutförda uppgifter väntar på AI-verifiering`, evidence: `Reviewed: ${probes.verification.reviewed}, Pending: ${probes.verification.pending_review}`, fix_hint: "Kör AI review via Unified Pipeline steg 5" });
+  }
+
+  if (probes.bugs.stale_open > 0) {
+    blockers.push({ stage: "bug_resolution", severity: "medium", description: `${probes.bugs.stale_open} buggar har varit öppna >48h`, evidence: "Stale bugs", fix_hint: "Prioritera eller stäng dessa buggar" });
+  }
+
+  if (probes.bugs.resolved_without_change > 0) {
+    blockers.push({ stage: "change_log→bug_matching", severity: "low", description: `${probes.bugs.resolved_without_change} lösta buggar saknar koppling till ändringslogg`, evidence: "resolved_by_change_id är null", fix_hint: "Kör pipeline steg 4 för att matcha ändringar till buggar" });
+  }
+
+  // Sort blockers by severity
+  const sevOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+  blockers.sort((a, b) => (sevOrder[a.severity] ?? 9) - (sevOrder[b.severity] ?? 9));
+
+  // 3. Send to AI for deeper analysis
+  const prompt = `Du är en systemanalytiker som identifierar exakt var pipeline-flödet blockeras.
+
+PIPELINE: scan → issue/bug → work_item → change_log → verification
+
+PROBEDATA:
+${JSON.stringify(probes, null, 2)}
+
+DETEKTERADE BLOCKERINGAR (${blockers.length} st):
+${JSON.stringify(blockers, null, 2)}
+
+UPPGIFT:
+1. Identifiera den FÖRSTA och MEST KRITISKA blockeringen i kedjan
+2. Förklara exakt varför systemet stannar där
+3. Ge en steg-för-steg plan för att lösa grundorsaken
+4. Identifiera sekundära blockeringar som blir synliga efter den första lösts
+5. Bedöm om det finns dolda blockeringar som proberna inte fångade`;
+
+  const analysis = await callAIWithTools(lovableKey, prompt, [{
+    type: "function",
+    function: {
+      name: "blocker_analysis",
+      description: "Blocker detection results",
+      parameters: {
+        type: "object",
+        properties: {
+          pipeline_status: { type: "string", enum: ["flowing", "partially_blocked", "critically_blocked", "dead"] },
+          primary_blocker: {
+            type: "object",
+            properties: {
+              stage: { type: "string", description: "Exact pipeline stage that is blocked" },
+              message: { type: "string", description: "One-line blocker message like 'Blocked at bug enrichment — AI fields are null'" },
+              severity: { type: "string", enum: ["critical", "high", "medium", "low"] },
+              root_cause: { type: "string", description: "Why this stage is blocked" },
+              downstream_impact: { type: "string", description: "What breaks because of this blocker" },
+              fix_steps: { type: "array", items: { type: "string" }, description: "Step-by-step fix instructions" },
+            },
+            required: ["stage", "message", "severity", "root_cause", "downstream_impact", "fix_steps"],
+          },
+          secondary_blockers: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                stage: { type: "string" },
+                message: { type: "string" },
+                severity: { type: "string", enum: ["critical", "high", "medium", "low"] },
+                depends_on_primary: { type: "boolean", description: "Will this resolve when primary is fixed?" },
+              },
+              required: ["stage", "message", "severity", "depends_on_primary"],
+            },
+          },
+          hidden_risks: {
+            type: "array",
+            items: { type: "string" },
+            description: "Potential issues not caught by probes",
+          },
+          health_scores: {
+            type: "object",
+            properties: {
+              scan: { type: "number", description: "0-100" },
+              enrichment: { type: "number" },
+              work_items: { type: "number" },
+              change_log: { type: "number" },
+              verification: { type: "number" },
+              overall: { type: "number" },
+            },
+            required: ["scan", "enrichment", "work_items", "change_log", "verification", "overall"],
+          },
+          executive_summary: { type: "string", description: "2-3 sentence summary in Swedish" },
+          recommended_action: { type: "string", description: "Single most important action to take NOW" },
+        },
+        required: ["pipeline_status", "primary_blocker", "secondary_blockers", "hidden_risks", "health_scores", "executive_summary", "recommended_action"],
+        additionalProperties: false,
+      },
+    },
+  }], { type: "function", function: { name: "blocker_analysis" } });
+
+  // 4. Auto-create work items for critical blockers
+  let tasksCreated = 0;
+  if (analysis?.primary_blocker?.severity === "critical" || analysis?.primary_blocker?.severity === "high") {
+    const { data: existing } = await supabase.from("work_items")
+      .select("id").eq("source_type", "blocker_detection")
+      .ilike("title", `%${analysis.primary_blocker.stage}%`)
+      .in("status", ["open", "claimed", "in_progress"]).limit(1);
+
+    if (!existing?.length) {
+      await supabase.from("work_items").insert({
+        title: `Blocker: ${analysis.primary_blocker.message}`.substring(0, 120),
+        description: `Grundorsak: ${analysis.primary_blocker.root_cause}\n\nFix:\n${(analysis.primary_blocker.fix_steps || []).map((s: string, i: number) => `${i + 1}. ${s}`).join("\n")}\n\nDownstream: ${analysis.primary_blocker.downstream_impact}`,
+        status: "open",
+        priority: analysis.primary_blocker.severity,
+        item_type: "bug",
+        source_type: "blocker_detection",
+        tags: ["blocker", `stage:${analysis.primary_blocker.stage}`, "auto_detected"],
+      });
+      tasksCreated++;
+    }
+  }
+
+  // Persist scan
+  const scanId = await persistScanResult(supabase, {
+    scan_type: "blocker_detection",
+    results: { ...analysis, probes, detected_blockers: blockers },
+    overall_score: analysis?.health_scores?.overall || 0,
+    overall_status: analysis?.pipeline_status === "flowing" ? "healthy" : analysis?.pipeline_status === "dead" ? "critical" : "warning",
+    issues_count: blockers.length,
+    executive_summary: analysis?.executive_summary || "",
+  });
+
+  if (scanId) await updateScanTaskCount(supabase, scanId, tasksCreated);
+
+  return {
+    pipeline_status: analysis?.pipeline_status,
+    primary_blocker: analysis?.primary_blocker,
+    secondary_blockers: analysis?.secondary_blockers,
+    hidden_risks: analysis?.hidden_risks,
+    health_scores: analysis?.health_scores,
+    executive_summary: analysis?.executive_summary,
+    recommended_action: analysis?.recommended_action,
+    probes,
+    detected_blockers: blockers,
+    scan_id: scanId,
+    tasks_created: tasksCreated,
   };
 }
 
