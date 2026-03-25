@@ -131,56 +131,146 @@ function prioritizeSteps(steps: typeof STEPS, focusMemory: any[]): typeof STEPS 
   return scored.map(s => s.step);
 }
 
-// ── Prediction rules: map issue categories to predicted future problems ──
+// ── Prediction rules: map issue categories to predicted future problems + preventive fixes ──
 const PREDICTION_RULES: {
   trigger: (ctx: PredictionContext) => boolean;
-  predict: (ctx: PredictionContext) => { problem: string; area: string; reason: string };
+  predict: (ctx: PredictionContext) => { problem: string; area: string; reason: string; preventive_fixes: string[] };
 }[] = [
   {
     trigger: (ctx) => countByCategory(ctx.issues, "scroll") >= 2,
-    predict: () => ({ problem: "Fler layout-/overflow-problem", area: "Scroll-containers, modaler, listor", reason: "Flera scroll-buggar tyder på globalt overflow-problem" }),
+    predict: () => ({
+      problem: "Fler layout-/overflow-problem",
+      area: "Scroll-containers, modaler, listor",
+      reason: "Flera scroll-buggar tyder på globalt overflow-problem",
+      preventive_fixes: [
+        "Standardisera modallayout med overflow-y:auto och min-height:0",
+        "Granska alla flex-containers — säkerställ overflow-hidden på föräldrar",
+        "Lägg till globalt ScrollArea-wrapper för långa listor",
+      ],
+    }),
   },
   {
     trigger: (ctx) => countByCategory(ctx.issues, "modal") >= 2 || countByCategory(ctx.issues, "dialog") >= 2,
-    predict: () => ({ problem: "Interaktionsfel i overlay-komponenter", area: "Modaler, drawers, popovers", reason: "Upprepade modal-problem tyder på z-index eller fokushanteringsfel" }),
+    predict: () => ({
+      problem: "Interaktionsfel i overlay-komponenter",
+      area: "Modaler, drawers, popovers",
+      reason: "Upprepade modal-problem tyder på z-index eller fokushanteringsfel",
+      preventive_fixes: [
+        "Centralisera z-index-skalan i design tokens (t.ex. --z-modal: 50)",
+        "Säkerställ att alla modaler använder Radix Dialog med fokuslåsning",
+        "Testa overlay-stacking: modal-i-modal, popover-i-drawer",
+      ],
+    }),
   },
   {
     trigger: (ctx) => countByCategory(ctx.issues, "form") >= 2 || countByCategory(ctx.issues, "input") >= 2,
-    predict: () => ({ problem: "Formulärvalidering misslyckas", area: "Formulär, checkout, profilinställningar", reason: "Upprepade formulärproblem pekar på bristande valideringslogik" }),
+    predict: () => ({
+      problem: "Formulärvalidering misslyckas",
+      area: "Formulär, checkout, profilinställningar",
+      reason: "Upprepade formulärproblem pekar på bristande valideringslogik",
+      preventive_fixes: [
+        "Standardisera formulärvalidering med react-hook-form + zod-schemas",
+        "Lägg till visuell felindikering på alla obligatoriska fält",
+        "Testa edge cases: tomma fält, specialtecken, extremt långa värden",
+      ],
+    }),
   },
   {
     trigger: (ctx) => ctx.unified.data_issues.length >= 3,
-    predict: () => ({ problem: "Synkroniseringsfel mellan UI och databas", area: "Datatabeller, realtidsuppdateringar", reason: "Flera dataproblem tyder på inkonsistent state-hantering" }),
+    predict: () => ({
+      problem: "Synkroniseringsfel mellan UI och databas",
+      area: "Datatabeller, realtidsuppdateringar",
+      reason: "Flera dataproblem tyder på inkonsistent state-hantering",
+      preventive_fixes: [
+        "Använd React Query invalidation konsekvent efter alla mutationer",
+        "Lägg till optimistic updates med rollback vid fel",
+        "Verifiera att RLS-policys inte blockerar förväntad data",
+      ],
+    }),
   },
   {
     trigger: (ctx) => countByCategory(ctx.issues, "nav") >= 2 || countByCategory(ctx.issues, "route") >= 2,
-    predict: () => ({ problem: "Navigeringsfel och döda länkar", area: "Routing, breadcrumbs, sidlänkar", reason: "Upprepade navigeringsproblem tyder på trasiga routes" }),
+    predict: () => ({
+      problem: "Navigeringsfel och döda länkar",
+      area: "Routing, breadcrumbs, sidlänkar",
+      reason: "Upprepade navigeringsproblem tyder på trasiga routes",
+      preventive_fixes: [
+        "Skapa centraliserad route-config med typade konstanter",
+        "Lägg till 404-catch för alla dynamiska routes",
+        "Granska alla NavLink/Link-komponenter mot route-registret",
+      ],
+    }),
   },
   {
     trigger: (ctx) => ctx.focusMemory.filter(m => m.scan_count >= 3).length >= 2,
     predict: (ctx) => {
       const chronic = ctx.focusMemory.filter(m => m.scan_count >= 3).map(m => m.label).slice(0, 3);
-      return { problem: "Kroniska problemområden som inte åtgärdats", area: chronic.join(", "), reason: `${chronic.length} komponenter har haft problem i 3+ skanningar` };
+      return {
+        problem: "Kroniska problemområden som inte åtgärdats",
+        area: chronic.join(", "),
+        reason: `${chronic.length} komponenter har haft problem i 3+ skanningar`,
+        preventive_fixes: [
+          `Prioritera refaktorering av: ${chronic.join(", ")}`,
+          "Bryt ner stora komponenter till mindre, testbara enheter",
+          "Lägg till unit tests för de mest problemdrabbade komponenterna",
+        ],
+      };
     },
   },
   {
     trigger: (ctx) => ctx.rootCause.filter(r => r.recurrence_count >= 3).length >= 1,
     predict: (ctx) => {
       const recurring = ctx.rootCause.filter(r => r.recurrence_count >= 3)[0];
-      return { problem: `Återkommande grundorsak: ${recurring.root_cause}`, area: recurring.affected_system || "Systemövergripande", reason: `Mönstret "${recurring.pattern_key}" har upprepats ${recurring.recurrence_count} gånger` };
+      return {
+        problem: `Återkommande grundorsak: ${recurring.root_cause}`,
+        area: recurring.affected_system || "Systemövergripande",
+        reason: `Mönstret "${recurring.pattern_key}" har upprepats ${recurring.recurrence_count} gånger`,
+        preventive_fixes: [
+          `Åtgärda grundorsaken permanent i ${recurring.affected_system || "berört system"}`,
+          "Lägg till regression-test som fångar detta mönster",
+          "Dokumentera root cause och fix i change_log",
+        ],
+      };
     },
   },
   {
     trigger: (ctx) => ctx.systemicIssues.filter(s => s.severity === "critical").length >= 1,
-    predict: () => ({ problem: "Kaskadfel från systemiskt problem", area: "Hela systemet", reason: "Kritiska systemiska problem sprider sig ofta till relaterade komponenter" }),
+    predict: () => ({
+      problem: "Kaskadfel från systemiskt problem",
+      area: "Hela systemet",
+      reason: "Kritiska systemiska problem sprider sig ofta till relaterade komponenter",
+      preventive_fixes: [
+        "Isolera kritiska systemiska problem med error boundaries",
+        "Implementera graceful degradation för beroende komponenter",
+        "Lägg till hälsokontroller som varnar innan kaskadfel uppstår",
+      ],
+    }),
   },
   {
     trigger: (ctx) => ctx.unified.fake_features.length >= 3,
-    predict: () => ({ problem: "Fler icke-funktionella UI-element", area: "Knappar, formulär, interaktiva element", reason: "Många fake features tyder på inkomplett implementation i flera områden" }),
+    predict: () => ({
+      problem: "Fler icke-funktionella UI-element",
+      area: "Knappar, formulär, interaktiva element",
+      reason: "Många fake features tyder på inkomplett implementation i flera områden",
+      preventive_fixes: [
+        "Granska alla onClick/onSubmit-handlers — ta bort tomma/placeholder-handlers",
+        "Dölj icke-implementerade funktioner bakom feature flags",
+        "Markera WIP-funktioner visuellt med 'Kommer snart'-badges",
+      ],
+    }),
   },
   {
     trigger: (ctx) => ctx.unified.interaction_failures.length >= 4,
-    predict: () => ({ problem: "Event-hanteringsfel i komplexa vyer", area: "Interaktiva komponenter, admin-paneler", reason: "Hög frekvens interaktionsfel indikerar djupare event-bindningsproblem" }),
+    predict: () => ({
+      problem: "Event-hanteringsfel i komplexa vyer",
+      area: "Interaktiva komponenter, admin-paneler",
+      reason: "Hög frekvens interaktionsfel indikerar djupare event-bindningsproblem",
+      preventive_fixes: [
+        "Standardisera event-hantering med useCallback och korrekta dependencies",
+        "Granska event.stopPropagation()-användning i nästlade interaktioner",
+        "Testa alla klickbara element med disabled/loading-states",
+      ],
+    }),
   },
 ];
 

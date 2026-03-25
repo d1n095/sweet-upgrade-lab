@@ -4917,6 +4917,19 @@ const AiAutopilotTab = () => {
                           <span className="font-medium">Område:</span> {pred.area}
                         </p>
                         <p className="text-[8px] text-muted-foreground/70 mt-0.5 ml-1 italic">{pred.reason}</p>
+                        {pred.preventive_fixes?.length > 0 && (
+                          <div className="mt-1 ml-1 space-y-0.5">
+                            <span className="text-[8px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                              <Shield className="w-2.5 h-2.5" /> Förebyggande åtgärder:
+                            </span>
+                            {pred.preventive_fixes.map((fix: string, fi: number) => (
+                              <div key={fi} className="text-[8px] text-muted-foreground ml-2 flex items-start gap-1">
+                                <span className="text-emerald-500 mt-px">→</span>
+                                <span>{fix}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

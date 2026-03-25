@@ -31,6 +31,7 @@ export interface PredictionItem {
   area: string;
   confidence: number;
   reason: string;
+  preventive_fixes: string[];
   type: "prediction";
 }
 
