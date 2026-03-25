@@ -4606,6 +4606,7 @@ const SCAN_STEP_ICONS: Record<string, any> = {
   visual_qa: Monitor,
   nav_scan: Compass,
   ux_scan: Eye,
+  human_test: User,
   action_governor: Gavel,
 };
 
