@@ -1945,7 +1945,7 @@ const SystemScanTab = () => {
   const handleCreateWorkItem = async (issue: any) => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
-    const { data: wiRow } = await supabase.from('work_items' as any).insert({
+    const { data: wiRow, error: insertError } = await supabase.from('work_items' as any).insert({
       title: `[Scan] ${issue.title}`,
       description: `${issue.description}\n\nFix-förslag: ${issue.fix_suggestion || 'Ingen'}\n\nSeverity: ${issue.severity}\nCategory: ${issue.category}`,
       priority: issue.severity === 'critical' ? 'critical' : issue.severity === 'high' ? 'high' : 'medium',
@@ -1955,8 +1955,16 @@ const SystemScanTab = () => {
       source_id: currentScanId || lastScan?.id || null,
       created_by: session.user.id,
     } as any).select('id, title, status, priority, item_type, ai_detected, ai_category, ai_type_classification, ai_confidence, execution_order, depends_on, blocks, conflict_flag, duplicate_of, created_at, ai_type_reason').single();
+
+    if (insertError) {
+      console.error('[AdminAI] INSERT FAILED:', insertError);
+      toast.error(`Kunde inte skapa ärende: ${insertError.message}`);
+      return;
+    }
+
     const newItem = wiRow as any;
     const wiId = newItem?.id || null;
+    console.log('[AdminAI] CREATED ITEM:', newItem);
     logChange({ change_type: 'task_created', description: `Work item skapat från scan: ${issue.title}`, source: 'ai', affected_components: ['work_items', 'scan'], scan_id: currentScanId || lastScan?.id || null, work_item_id: wiId });
 
     // Remove issue from detected list and add to master list
@@ -1980,6 +1988,10 @@ const SystemScanTab = () => {
         },
       };
     });
+
+    // Force refetch work items from DB
+    queryClient.invalidateQueries({ queryKey: ['work-items'] });
+    queryClient.invalidateQueries({ queryKey: ['admin-work-items'] });
 
     setExpandedIssue(null);
     toast.success('Ärende skapat och flyttat till Master Task List');
