@@ -3,6 +3,8 @@ import { useSafeModeStore } from './safeModeStore';
 import { useExecutionLockStore, resolveArea, type LockArea } from './executionLockStore';
 import { evaluateFixConfidence, applyConfidenceAction, useFixConfidenceStore } from './fixConfidenceStore';
 import { useFeedbackLoopStore } from './feedbackLoopStore';
+import { supabase } from '@/integrations/supabase/client';
+import { logChange } from '@/utils/changeLogger';
 
 export type QueueTaskStatus = 'queued' | 'running' | 'completed' | 'failed' | 'blocked' | 'validating' | 'regressed';
 export type QueueTaskPriority = 'critical' | 'high' | 'normal';
