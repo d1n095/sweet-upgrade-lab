@@ -2670,6 +2670,9 @@ export type Database = {
         Row: {
           created_at: string
           dismissed_by: string
+          dismissed_severity: string | null
+          escalated_at: string | null
+          escalation_note: string | null
           id: string
           issue_key: string
           issue_title: string
@@ -2679,6 +2682,9 @@ export type Database = {
         Insert: {
           created_at?: string
           dismissed_by: string
+          dismissed_severity?: string | null
+          escalated_at?: string | null
+          escalation_note?: string | null
           id?: string
           issue_key: string
           issue_title: string
@@ -2688,6 +2694,9 @@ export type Database = {
         Update: {
           created_at?: string
           dismissed_by?: string
+          dismissed_severity?: string | null
+          escalated_at?: string | null
+          escalation_note?: string | null
           id?: string
           issue_key?: string
           issue_title?: string
