@@ -7094,35 +7094,37 @@ const OrchestrationTab = () => {
 
   return (
     <DetailContext.Provider value={{ openDetail }}>
-    <div className="space-y-3">
+    <div className="flex h-full min-h-0 flex-col space-y-3">
       <SafeModeBanner />
-      <AiCenterTabs defaultValue="ai-dashboard">
-        {/* Dashboard */}
-        <div data-value="unified-pipeline"><UnifiedPipelineDashboard /></div>
-        <div data-value="health"><SystemHealthTab /></div>
-        <div data-value="insights"><DataInsightsTab /></div>
+      <div className="min-h-0 flex-1">
+        <AiCenterTabs defaultValue="ai-dashboard">
+          {/* Dashboard */}
+          <div data-value="unified-pipeline"><UnifiedPipelineDashboard /></div>
+          <div data-value="health"><SystemHealthTab /></div>
+          <div data-value="insights"><DataInsightsTab /></div>
 
-        {/* Operations */}
-        <div data-value="lova-chat"><LovaChatTab /></div>
-        <div data-value="autopilot"><AiAutopilotTab /></div>
-        <div data-value="actions"><ActionEngineTab /></div>
-        <div data-value="tasks"><TaskAITab /></div>
-        <div data-value="bugs"><BugAITab /></div>
+          {/* Operations */}
+          <div data-value="lova-chat"><LovaChatTab /></div>
+          <div data-value="autopilot"><AiAutopilotTab /></div>
+          <div data-value="actions"><ActionEngineTab /></div>
+          <div data-value="tasks"><TaskAITab /></div>
+          <div data-value="bugs"><BugAITab /></div>
 
-        {/* Scanners */}
-        <div data-value="scan"><SystemScanTab /></div>
-        <div data-value="visual-qa"><VisualQATab /></div>
-        <div data-value="ux-scanner"><UxScannerTab /></div>
-        <div data-value="sync-scan"><SyncScannerTab /></div>
+          {/* Scanners */}
+          <div data-value="scan"><SystemScanTab /></div>
+          <div data-value="visual-qa"><VisualQATab /></div>
+          <div data-value="ux-scanner"><UxScannerTab /></div>
+          <div data-value="sync-scan"><SyncScannerTab /></div>
 
-        {/* System */}
-        <div data-value="safe-mode"><SafeModePanel /></div>
-        <div data-value="trust-score"><SystemTrustScore /></div>
-        <div data-value="data-flow"><DataFlowValidator /></div>
-        <div data-value="cleanup"><DataCleanupTab /></div>
-        <div data-value="change-log"><ChangeLogTab /></div>
-        <div data-value="ai-reads"><AdminAiReadLog /></div>
-      </AiCenterTabs>
+          {/* System */}
+          <div data-value="safe-mode"><SafeModePanel /></div>
+          <div data-value="trust-score"><SystemTrustScore /></div>
+          <div data-value="data-flow"><DataFlowValidator /></div>
+          <div data-value="cleanup"><DataCleanupTab /></div>
+          <div data-value="change-log"><ChangeLogTab /></div>
+          <div data-value="ai-reads"><AdminAiReadLog /></div>
+        </AiCenterTabs>
+      </div>
 
       <WorkItemDetail
         item={detailItem}
