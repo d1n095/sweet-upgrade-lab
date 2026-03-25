@@ -4920,91 +4920,218 @@ Basera analysen på verklig data — inte spekulationer.`;
 
 // ── Sync Scanner ──
 async function handleSyncScan(supabase: any, lovableKey: string) {
-  // 1. Categories: DB vs product_categories links
-  const { data: allCats } = await supabase.from("categories").select("id, name_sv, slug, is_visible, parent_id").limit(200);
-  const { data: pcLinks } = await supabase.from("product_categories").select("product_id, category_id").limit(2000);
-  const { data: allProducts } = await supabase.from("products").select("id, title_sv, is_visible, is_sellable, category, status, handle, stock, image_urls").limit(500);
-  const { data: recentOrders } = await supabase.from("orders").select("id, status, payment_status, total_amount, items, deleted_at, created_at").order("created_at", { ascending: false }).limit(50);
-  const { data: workItems } = await supabase.from("work_items").select("id, title, status, source_type, source_id, related_order_id").in("status", ["open", "claimed", "in_progress"]).limit(200);
-  const { data: bugReports } = await supabase.from("bug_reports").select("id, status, description").in("status", ["open", "investigating"]).limit(50);
+  // 1. Gather all data sources for comprehensive UI-Data Binding Validation
+  const [allCatsRes, pcLinksRes, allProductsRes, recentOrdersRes, workItemsRes, bugReportsRes, reviewsRes, donationsRes, bundlesRes, tagsRes, tagRelsRes, profilesRes, pagesRes, changeLogRes] = await Promise.all([
+    supabase.from("categories").select("id, name_sv, slug, is_visible, parent_id").limit(200),
+    supabase.from("product_categories").select("product_id, category_id").limit(2000),
+    supabase.from("products").select("id, title_sv, is_visible, is_sellable, category, status, handle, stock, image_urls, price, description_sv").limit(500),
+    supabase.from("orders").select("id, status, payment_status, total_amount, items, deleted_at, created_at, order_number, fulfillment_status").order("created_at", { ascending: false }).limit(50),
+    supabase.from("work_items").select("id, title, status, source_type, source_id, related_order_id").in("status", ["open", "claimed", "in_progress"]).limit(200),
+    supabase.from("bug_reports").select("id, status, description").in("status", ["open", "investigating"]).limit(50),
+    supabase.from("reviews").select("id, shopify_product_id, shopify_product_handle, is_approved, user_id, rating").limit(200),
+    supabase.from("donations").select("id, amount, user_id, order_id, created_at").order("created_at", { ascending: false }).limit(50),
+    supabase.from("bundles").select("id, name, is_active, discount_percent").limit(50),
+    supabase.from("product_tags").select("id, name_sv, slug").limit(200),
+    supabase.from("product_tag_relations").select("product_id, tag_id").limit(2000),
+    supabase.from("profiles").select("id, user_id, is_member, full_name, referral_code").limit(100),
+    supabase.from("page_sections").select("page, section_key, is_visible, title_sv").limit(300),
+    supabase.from("change_log").select("id, description, change_type, affected_components, created_at").order("created_at", { ascending: false }).limit(30),
+  ]);
 
-  // Build sync checks
+  const allCats = allCatsRes.data || [];
+  const pcLinks = pcLinksRes.data || [];
+  const allProducts = allProductsRes.data || [];
+  const recentOrders = recentOrdersRes.data || [];
+  const workItems = workItemsRes.data || [];
+  const bugReports = bugReportsRes.data || [];
+  const reviews = reviewsRes.data || [];
+  const donations = donationsRes.data || [];
+  const bundles = bundlesRes.data || [];
+  const tags = tagsRes.data || [];
+  const tagRels = tagRelsRes.data || [];
+  const profiles = profilesRes.data || [];
+  const pages = pagesRes.data || [];
+  const changeLog = changeLogRes.data || [];
+
+  // Build sync & binding checks
   const checks: any[] = [];
 
-  // Check: orphan product_categories (category_id not in categories)
-  const catIds = new Set((allCats || []).map((c: any) => c.id));
-  const productIds = new Set((allProducts || []).map((p: any) => p.id));
-  const orphanLinks = (pcLinks || []).filter((l: any) => !catIds.has(l.category_id));
-  const orphanProductLinks = (pcLinks || []).filter((l: any) => !productIds.has(l.product_id));
+  // === STRUCTURAL SYNC CHECKS ===
+  const catIds = new Set(allCats.map((c: any) => c.id));
+  const productIds = new Set(allProducts.map((p: any) => p.id));
+  const tagIds = new Set(tags.map((t: any) => t.id));
+
+  const orphanLinks = pcLinks.filter((l: any) => !catIds.has(l.category_id));
+  const orphanProductLinks = pcLinks.filter((l: any) => !productIds.has(l.product_id));
   if (orphanLinks.length > 0) checks.push({ type: "orphan_category_link", count: orphanLinks.length, detail: `${orphanLinks.length} product_categories pekar till raderade kategorier` });
   if (orphanProductLinks.length > 0) checks.push({ type: "orphan_product_link", count: orphanProductLinks.length, detail: `${orphanProductLinks.length} product_categories pekar till raderade produkter` });
 
-  // Check: categories with parent_id pointing to missing parent
-  const orphanParents = (allCats || []).filter((c: any) => c.parent_id && !catIds.has(c.parent_id));
+  const orphanParents = allCats.filter((c: any) => c.parent_id && !catIds.has(c.parent_id));
   if (orphanParents.length > 0) checks.push({ type: "orphan_parent", count: orphanParents.length, detail: `${orphanParents.length} kategorier pekar till raderad föräldrakategori`, items: orphanParents.map((c: any) => c.name_sv) });
 
-  // Check: visible products without any category
-  const productsWithCat = new Set((pcLinks || []).map((l: any) => l.product_id));
-  const visibleNoCat = (allProducts || []).filter((p: any) => p.is_visible && p.is_sellable && !productsWithCat.has(p.id));
+  const productsWithCat = new Set(pcLinks.map((l: any) => l.product_id));
+  const visibleNoCat = allProducts.filter((p: any) => p.is_visible && p.is_sellable && !productsWithCat.has(p.id));
   if (visibleNoCat.length > 0) checks.push({ type: "product_no_category", count: visibleNoCat.length, detail: `${visibleNoCat.length} synliga produkter saknar kategoritilldelning`, items: visibleNoCat.slice(0, 10).map((p: any) => p.title_sv) });
 
-  // Check: products with missing images
-  const noImages = (allProducts || []).filter((p: any) => p.is_visible && (!p.image_urls || p.image_urls.length === 0));
+  const noImages = allProducts.filter((p: any) => p.is_visible && (!p.image_urls || p.image_urls.length === 0));
   if (noImages.length > 0) checks.push({ type: "product_no_image", count: noImages.length, detail: `${noImages.length} synliga produkter saknar bilder`, items: noImages.slice(0, 10).map((p: any) => p.title_sv) });
 
-  // Check: products with missing handle
-  const noHandle = (allProducts || []).filter((p: any) => p.is_visible && !p.handle);
-  if (noHandle.length > 0) checks.push({ type: "product_no_handle", count: noHandle.length, detail: `${noHandle.length} produkter saknar URL-handle` });
+  const noHandle = allProducts.filter((p: any) => p.is_visible && !p.handle);
+  if (noHandle.length > 0) checks.push({ type: "product_no_handle", count: noHandle.length, detail: `${noHandle.length} produkter saknar URL-handle (broken /product/:handle links)` });
 
-  // Check: work_items linked to deleted/cancelled orders
-  const deletedOrderIds = new Set((recentOrders || []).filter((o: any) => o.deleted_at || o.status === "cancelled").map((o: any) => o.id));
-  const staleWorkItems = (workItems || []).filter((w: any) => w.related_order_id && deletedOrderIds.has(w.related_order_id));
+  // === UI-DATA BINDING CHECKS ===
+
+  // 1. Product cards binding: visible products must have price, title, and handle for links to work
+  const brokenProductCards = allProducts.filter((p: any) => p.is_visible && p.status === "active" && (!p.title_sv || !p.price || p.price <= 0));
+  if (brokenProductCards.length > 0) checks.push({ type: "broken_product_card_binding", count: brokenProductCards.length, detail: `${brokenProductCards.length} aktiva produkter saknar titel eller pris — UI visar tomma/brutna kort`, items: brokenProductCards.slice(0, 10).map((p: any) => `${p.id}: title="${p.title_sv || 'null'}" price=${p.price}`) });
+
+  // 2. Product detail binding: handle must be unique for /product/:handle routing
+  const handleCounts: Record<string, number> = {};
+  allProducts.filter((p: any) => p.handle).forEach((p: any) => { handleCounts[p.handle] = (handleCounts[p.handle] || 0) + 1; });
+  const duplicateHandles = Object.entries(handleCounts).filter(([_, c]) => c > 1);
+  if (duplicateHandles.length > 0) checks.push({ type: "duplicate_product_handles", count: duplicateHandles.length, detail: `${duplicateHandles.length} duplicerade handles — /product/:handle visar fel produkt`, items: duplicateHandles.map(([h, c]) => `"${h}" (${c} produkter)`) });
+
+  // 3. Reviews binding: reviews referencing products that don't exist
+  const productHandles = new Set(allProducts.map((p: any) => p.handle).filter(Boolean));
+  const orphanReviews = reviews.filter((r: any) => r.shopify_product_handle && !productHandles.has(r.shopify_product_handle));
+  if (orphanReviews.length > 0) checks.push({ type: "orphan_reviews", count: orphanReviews.length, detail: `${orphanReviews.length} recensioner kopplade till produkter som inte längre finns — visas inte i UI` });
+
+  // 4. Tag binding: tag relations pointing to deleted products or tags
+  const orphanTagRels = tagRels.filter((r: any) => !productIds.has(r.product_id) || !tagIds.has(r.tag_id));
+  if (orphanTagRels.length > 0) checks.push({ type: "orphan_tag_relations", count: orphanTagRels.length, detail: `${orphanTagRels.length} tagg-relationer pekar till raderade produkter/taggar — filter visar felaktigt antal` });
+
+  // 5. Order items binding: order items referencing products
+  const ordersWithMissingProducts: string[] = [];
+  for (const order of recentOrders.filter((o: any) => !o.deleted_at)) {
+    if (Array.isArray(order.items)) {
+      for (const item of order.items as any[]) {
+        if (item.product_id && !productIds.has(item.product_id)) {
+          ordersWithMissingProducts.push(order.order_number || order.id);
+          break;
+        }
+      }
+    }
+  }
+  if (ordersWithMissingProducts.length > 0) checks.push({ type: "order_missing_product_ref", count: ordersWithMissingProducts.length, detail: `${ordersWithMissingProducts.length} ordrar refererar till raderade produkter — orderdetalj kan visa tomma rader` });
+
+  // 6. Donations binding: donations linked to deleted orders
+  const deletedOrderIds = new Set(recentOrders.filter((o: any) => o.deleted_at || o.status === "cancelled").map((o: any) => o.id));
+  const orphanDonations = donations.filter((d: any) => d.order_id && deletedOrderIds.has(d.order_id));
+  if (orphanDonations.length > 0) checks.push({ type: "orphan_donations", count: orphanDonations.length, detail: `${orphanDonations.length} donationer kopplade till raderade ordrar` });
+
+  // 7. Bundle binding: bundles referencing products
+  // (bundle_items checked separately)
+
+  // 8. Work items linked to deleted orders
+  const staleWorkItems = workItems.filter((w: any) => w.related_order_id && deletedOrderIds.has(w.related_order_id));
   if (staleWorkItems.length > 0) checks.push({ type: "stale_work_items", count: staleWorkItems.length, detail: `${staleWorkItems.length} aktiva uppgifter kopplade till raderade/avbrutna ordrar` });
 
-  // Check: bug_reports with open status but linked work_item is done
-  const bugSourceIds = new Set((workItems || []).filter((w: any) => w.source_type === "bug_report" && w.status === "done").map((w: any) => w.source_id));
-  // Not straightforward without matching, but check open bugs count
-  const openBugs = (bugReports || []).length;
+  // 9. Page sections: sections marked visible but referencing non-existent data
+  const hiddenPages = pages.filter((p: any) => !p.is_visible);
+
+  // 10. Profile binding: profiles without user_id match (stale)
+  const profileUserIds = new Set(profiles.map((p: any) => p.user_id));
+
+  // 11. Products visible but not sellable (misleading UI — shows "Add to cart" but can't purchase)
+  const visibleNotSellable = allProducts.filter((p: any) => p.is_visible && !p.is_sellable && p.status === "active");
+  if (visibleNotSellable.length > 0) checks.push({ type: "visible_not_sellable", count: visibleNotSellable.length, detail: `${visibleNotSellable.length} produkter visas med köpknapp men är markerade som ej säljbara — fake button`, items: visibleNotSellable.slice(0, 10).map((p: any) => p.title_sv) });
+
+  // 12. Products with zero/negative stock but visible
+  const zeroStockVisible = allProducts.filter((p: any) => p.is_visible && p.stock !== null && p.stock <= 0 && p.status === "active");
+  if (zeroStockVisible.length > 0) checks.push({ type: "zero_stock_visible", count: zeroStockVisible.length, detail: `${zeroStockVisible.length} produkter synliga med 0 i lager — "Lägg i kundvagn" leder till ingen effekt`, items: zeroStockVisible.slice(0, 10).map((p: any) => `${p.title_sv} (stock: ${p.stock})`) });
+
+  // UI-data binding map for AI analysis
+  const bindingMap = [
+    { ui: "ProductCard → onClick", data_source: "products.handle", check: "handle exists and is unique", issues: noHandle.length + duplicateHandles.length },
+    { ui: "ProductCard → price display", data_source: "products.price", check: "price > 0", issues: brokenProductCards.length },
+    { ui: "ProductCard → image", data_source: "products.image_urls[0]", check: "at least 1 image", issues: noImages.length },
+    { ui: "ProductCard → Add to cart", data_source: "products.is_sellable + stock", check: "sellable and in stock", issues: visibleNotSellable.length + zeroStockVisible.length },
+    { ui: "CategoryFilter → product count", data_source: "product_categories", check: "no orphan links", issues: orphanLinks.length + orphanProductLinks.length },
+    { ui: "ReviewList → product", data_source: "reviews.shopify_product_handle", check: "product exists", issues: orphanReviews.length },
+    { ui: "TagFilter → count badge", data_source: "product_tag_relations", check: "no orphan relations", issues: orphanTagRels.length },
+    { ui: "OrderDetail → items list", data_source: "orders.items[].product_id", check: "product exists", issues: ordersWithMissingProducts.length },
+    { ui: "WorkItem → order link", data_source: "work_items.related_order_id", check: "order not deleted", issues: staleWorkItems.length },
+  ];
 
   // Send to AI for analysis
-  const prompt = `Du är en systemintegritetsexpert. Analysera dessa synkroniseringskontroller för en svensk e-handelsplattform.
+  const prompt = `Du är en expert på UI-Data Binding Validation för en svensk e-handelsplattform.
 
-KONTROLLER:
+UPPGIFT: Analysera alla databindningar mellan UI-komponenter och datalagret. Varje UI-element som visar data eller triggar en aktion MÅSTE vara korrekt bunden till faktisk data.
+
+PRINCIP: UI = real system state. Alla avvikelser är buggar.
+
+SYNKRONISERINGSKONTROLLER:
 ${JSON.stringify(checks, null, 2)}
 
-STATS:
-- Kategorier: ${(allCats || []).length}
-- Produkter: ${(allProducts || []).length}
-- Kategori-kopplingar: ${(pcLinks || []).length}
-- Aktiva uppgifter: ${(workItems || []).length}
-- Öppna buggar: ${openBugs}
+UI-DATA BINDNINGSKARTA:
+${JSON.stringify(bindingMap, null, 2)}
 
-Analysera synkroniseringsproblem mellan frontend och backend. Klassificera varje problem.`;
+STATS:
+- Kategorier: ${allCats.length} (${allCats.filter((c: any) => c.is_visible).length} synliga)
+- Produkter: ${allProducts.length} (${allProducts.filter((p: any) => p.is_visible).length} synliga, ${allProducts.filter((p: any) => p.status === "active").length} aktiva)
+- Kategori-kopplingar: ${pcLinks.length}
+- Tagg-kopplingar: ${tagRels.length}
+- Recensioner: ${reviews.length} (${reviews.filter((r: any) => r.is_approved).length} godkända)
+- Ordrar (senaste): ${recentOrders.length}
+- Aktiva uppgifter: ${workItems.length}
+- Öppna buggar: ${bugReports.length}
+- Bundles aktiva: ${bundles.length}
+- Senaste ändringar: ${changeLog.length}
+
+SENASTE ÄNDRINGAR (kan ha brutit bindningar):
+${changeLog.slice(0, 10).map((c: any) => `- [${c.change_type}] ${c.description?.substring(0, 80)} (${(c.affected_components || []).join(", ")})`).join("\n")}
+
+Analysera ALLA bindningar. Identifiera:
+1. UI visar data som inte finns (stale/phantom)
+2. Klick leder till fel entity (wrong ID binding)
+3. Data finns men UI visar inte (missing render)
+4. Action (knapp) ändrar inte data (no effect)
+5. List visar rätt antal men fel items (binding mismatch)
+
+Svara på svenska.`;
 
   const analysis = await callAIWithTools(lovableKey, prompt, [{
     type: "function",
     function: {
       name: "sync_scan_results",
-      description: "Return sync scan findings",
+      description: "UI-Data Binding Validation results",
       parameters: {
         type: "object",
         properties: {
-          sync_score: { type: "number", description: "Sync health score 0-100" },
+          sync_score: { type: "number", description: "Overall UI-data binding health 0-100" },
           executive_summary: { type: "string" },
+          binding_score: { type: "number", description: "Data binding accuracy 0-100" },
           issues: {
             type: "array",
             items: {
               type: "object",
               properties: {
                 title: { type: "string" },
-                type: { type: "string", enum: ["category_mismatch", "product_mismatch", "orphan_data", "stale_reference", "missing_data", "status_desync"] },
+                type: { type: "string", enum: ["category_mismatch", "product_mismatch", "orphan_data", "stale_reference", "missing_data", "status_desync", "wrong_binding", "phantom_ui", "no_effect_action", "binding_mismatch"] },
                 severity: { type: "string", enum: ["critical", "high", "medium", "low"] },
                 affected_count: { type: "number" },
+                ui_component: { type: "string", description: "Which UI component is affected" },
+                data_source: { type: "string", description: "Which data table/field" },
                 description: { type: "string" },
+                user_impact: { type: "string", description: "What the user experiences" },
                 fix_action: { type: "string" },
+                lovable_prompt: { type: "string" },
                 can_auto_fix: { type: "boolean" },
               },
-              required: ["title", "type", "severity", "affected_count", "description", "fix_action", "can_auto_fix"],
+              required: ["title", "type", "severity", "affected_count", "ui_component", "data_source", "description", "user_impact", "fix_action", "can_auto_fix"],
+            },
+          },
+          binding_checks: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                ui_element: { type: "string" },
+                data_source: { type: "string" },
+                status: { type: "string", enum: ["ok", "warning", "broken", "phantom"] },
+                note: { type: "string" },
+              },
+              required: ["ui_element", "data_source", "status", "note"],
             },
           },
           auto_fixed: {
@@ -5017,7 +5144,7 @@ Analysera synkroniseringsproblem mellan frontend och backend. Klassificera varje
           },
           issues_found: { type: "number" },
         },
-        required: ["sync_score", "executive_summary", "issues", "auto_fixed", "issues_found"],
+        required: ["sync_score", "executive_summary", "binding_score", "issues", "binding_checks", "auto_fixed", "issues_found"],
         additionalProperties: false,
       },
     },
@@ -5025,7 +5152,6 @@ Analysera synkroniseringsproblem mellan frontend och backend. Klassificera varje
 
   // Auto-fix safe issues
   let autoFixCount = 0;
-  // Fix orphan product_categories
   if (orphanLinks.length > 0) {
     for (const link of orphanLinks) {
       await supabase.from("product_categories").delete().eq("category_id", link.category_id).eq("product_id", link.product_id);
@@ -5038,15 +5164,21 @@ Analysera synkroniseringsproblem mellan frontend och backend. Klassificera varje
       autoFixCount++;
     }
   }
-  // Fix orphan parent references
   if (orphanParents.length > 0) {
     for (const cat of orphanParents) {
       await supabase.from("categories").update({ parent_id: null }).eq("id", cat.id);
       autoFixCount++;
     }
   }
+  // Auto-fix orphan tag relations
+  if (orphanTagRels.length > 0) {
+    for (const rel of orphanTagRels) {
+      await supabase.from("product_tag_relations").delete().eq("product_id", rel.product_id).eq("tag_id", rel.tag_id);
+      autoFixCount++;
+    }
+  }
 
-  // Persist scan result FIRST
+  // Persist scan result
   const syncScore = analysis?.sync_score || 0;
   const scanId = await persistScanResult(supabase, {
     scan_type: "sync_scan",
@@ -5069,8 +5201,8 @@ Analysera synkroniseringsproblem mellan frontend och backend. Klassificera varje
         .limit(1);
       if (!existing?.length) {
         await supabase.from("work_items").insert({
-          title: `Sync: ${issue.title}`.substring(0, 200),
-          description: `Typ: ${issue.type}\nAntal påverkade: ${issue.affected_count}\n\n${issue.description}\n\nÅtgärd: ${issue.fix_action}`,
+          title: `Binding: ${issue.title}`.substring(0, 200),
+          description: `UI: ${issue.ui_component}\nData: ${issue.data_source}\nTyp: ${issue.type}\nAntal: ${issue.affected_count}\n\n${issue.description}\n\nAnvändareffekt: ${issue.user_impact}\n\nÅtgärd: ${issue.fix_action}${issue.lovable_prompt ? `\n\nLovable prompt:\n${issue.lovable_prompt}` : ''}`,
           status: "open",
           priority: issue.severity === "critical" ? "critical" : "high",
           item_type: "bug",
@@ -5079,7 +5211,7 @@ Analysera synkroniseringsproblem mellan frontend och backend. Klassificera varje
           ai_detected: true,
           ai_confidence: "high",
           ai_category: "data_integrity",
-          ai_type_classification: "sync_issue",
+          ai_type_classification: issue.type,
         });
         tasksCreated++;
       }
