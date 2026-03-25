@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Loader2, Package, ArrowRight, FlaskConical, Tag, Clock, X } from 'lucide-react';
+import { Search, Loader2, Package, ArrowRight, FlaskConical, Tag, Clock, X, Sparkles, Heart, Zap, Droplets } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useSearchStore } from '@/stores/searchStore';
 import { useLanguage } from '@/context/LanguageContext';
@@ -27,6 +27,16 @@ interface CategoryResult {
   name_sv: string;
   name_en: string | null;
   slug: string;
+  parent_id: string | null;
+}
+
+interface TagResult {
+  id: string;
+  name_sv: string;
+  name_en: string | null;
+  slug: string;
+  tag_type: string;
+  color: string | null;
 }
 
 const RECENT_SEARCHES_KEY = '4tp_recent_searches';
@@ -48,6 +58,14 @@ function clearRecentSearches() {
   localStorage.removeItem(RECENT_SEARCHES_KEY);
 }
 
+const TAG_TYPE_CONFIG: Record<string, { icon: typeof Sparkles; labelSv: string; labelEn: string }> = {
+  effect: { icon: Zap, labelSv: 'Effekter', labelEn: 'Effects' },
+  feeling: { icon: Heart, labelSv: 'Känsla', labelEn: 'Feelings' },
+  use_case: { icon: Sparkles, labelSv: 'Användning', labelEn: 'Use cases' },
+  scent: { icon: Droplets, labelSv: 'Dofter', labelEn: 'Scents' },
+  body_part: { icon: Sparkles, labelSv: 'Kroppsvård', labelEn: 'Body care' },
+};
+
 const SearchSuggestions = () => {
   const { language } = useLanguage();
   const navigate = useNavigate();
@@ -56,6 +74,8 @@ const SearchSuggestions = () => {
   const [comingSoon, setComingSoon] = useState<DbProductResult[]>([]);
   const [ingredientMatches, setIngredientMatches] = useState<string[]>([]);
   const [categoryMatches, setCategoryMatches] = useState<CategoryResult[]>([]);
+  const [subcategoryMatches, setSubcategoryMatches] = useState<CategoryResult[]>([]);
+  const [tagMatches, setTagMatches] = useState<TagResult[]>([]);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
@@ -95,8 +115,8 @@ const SearchSuggestions = () => {
         const q = searchQuery.trim().toLowerCase();
 
         if (q) {
-          // Search products
-          const { data } = await supabase
+          // 1. Search products (title, ingredients, tags array)
+          const { data: productData } = await supabase
             .from('products')
             .select('id, title_sv, title_en, handle, price, currency, image_urls, ingredients_sv, ingredients_en, status, tags')
             .eq('is_visible', true)
@@ -104,16 +124,21 @@ const SearchSuggestions = () => {
             .or(`title_sv.ilike.%${q}%,title_en.ilike.%${q}%,ingredients_sv.ilike.%${q}%,ingredients_en.ilike.%${q}%,tags.cs.{${q}}`)
             .limit(12);
 
-          // Search tags for extra products
-          const { data: tagMatches } = await supabase
+          // 2. Search tags (effects, feelings, use cases, etc.)
+          const { data: tagData } = await supabase
             .from('product_tags')
-            .select('id, name_sv')
-            .ilike('name_sv', `%${q}%`)
-            .limit(5);
+            .select('id, name_sv, name_en, slug, tag_type, color')
+            .eq('is_searchable', true)
+            .or(`name_sv.ilike.%${q}%,name_en.ilike.%${q}%`)
+            .order('display_order')
+            .limit(10);
+          
+          setTagMatches((tagData || []) as TagResult[]);
 
+          // 3. Get products linked to matched tags
           let tagProductIds: string[] = [];
-          if (tagMatches && tagMatches.length > 0) {
-            const tagIds = tagMatches.map(t => t.id);
+          if (tagData && tagData.length > 0) {
+            const tagIds = tagData.map(t => t.id);
             const { data: relations } = await supabase
               .from('product_tag_relations')
               .select('product_id')
@@ -121,7 +146,7 @@ const SearchSuggestions = () => {
             tagProductIds = (relations || []).map(r => r.product_id);
           }
 
-          const existingIds = new Set((data || []).map(p => p.id));
+          const existingIds = new Set((productData || []).map(p => p.id));
           const missingTagProductIds = tagProductIds.filter(id => !existingIds.has(id));
           let extraProducts: DbProductResult[] = [];
           if (missingTagProductIds.length > 0) {
@@ -134,17 +159,27 @@ const SearchSuggestions = () => {
             extraProducts = (tagProds || []) as DbProductResult[];
           }
 
-          // Search categories
+          // 4. Search categories (top-level)
           const { data: catData } = await supabase
             .from('categories')
-            .select('id, name_sv, name_en, slug')
+            .select('id, name_sv, name_en, slug, parent_id')
             .eq('is_visible', true)
             .is('parent_id', null)
             .ilike('name_sv', `%${q}%`)
             .limit(4);
           setCategoryMatches((catData || []) as CategoryResult[]);
 
-          // Search ingredients
+          // 5. Search subcategories
+          const { data: subCatData } = await supabase
+            .from('categories')
+            .select('id, name_sv, name_en, slug, parent_id')
+            .eq('is_visible', true)
+            .not('parent_id', 'is', null)
+            .or(`name_sv.ilike.%${q}%,name_en.ilike.%${q}%`)
+            .limit(4);
+          setSubcategoryMatches((subCatData || []) as CategoryResult[]);
+
+          // 6. Search ingredients from recipe library
           const { data: ingData } = await supabase
             .from('recipe_ingredients')
             .select('id, name_sv, name_en')
@@ -154,7 +189,7 @@ const SearchSuggestions = () => {
             .limit(5);
 
           // Split active vs coming_soon
-          const allResults = [...((data || []) as DbProductResult[]), ...extraProducts];
+          const allResults = [...((productData || []) as DbProductResult[]), ...extraProducts];
           const active = allResults.filter(p => p.status === 'active');
           const soon = allResults.filter(p => p.status === 'coming_soon');
           const info = allResults.filter(p => p.status === 'info');
@@ -162,11 +197,13 @@ const SearchSuggestions = () => {
           setSuggestions([...active, ...info].slice(0, 6));
           setComingSoon(soon.slice(0, 3));
 
-          logSearchStandalone(q, allResults.length);
+          // Log search with total results across all dimensions
+          const totalResults = allResults.length + (tagData?.length || 0) + (catData?.length || 0) + (subCatData?.length || 0) + (ingData?.length || 0);
+          logSearchStandalone(q, totalResults);
 
           // Ingredient matches
           const matched = new Set<string>();
-          (data || []).forEach((p: any) => {
+          (productData || []).forEach((p: any) => {
             const ingStr = language === 'sv' ? p.ingredients_sv : (p.ingredients_en || p.ingredients_sv);
             if (ingStr) {
               ingStr.split(',').map((s: string) => s.trim()).filter(Boolean).forEach((ing: string) => {
@@ -180,9 +217,15 @@ const SearchSuggestions = () => {
           });
           setIngredientMatches([...matched].slice(0, 5));
 
-          if (matched.size > 0) {
-            trackEvent('ingredient_search', { query: q, matched_ingredients: [...matched] });
-          }
+          // Track search analytics
+          trackEvent('search', {
+            query: q,
+            product_results: allResults.length,
+            tag_results: tagData?.length || 0,
+            category_results: (catData?.length || 0) + (subCatData?.length || 0),
+            ingredient_results: matched.size,
+            total_results: totalResults,
+          });
         } else {
           // Empty query — show popular products
           const { data } = await supabase
@@ -195,6 +238,8 @@ const SearchSuggestions = () => {
           setComingSoon([]);
           setIngredientMatches([]);
           setCategoryMatches([]);
+          setSubcategoryMatches([]);
+          setTagMatches([]);
           setRecentSearches(getRecentSearches());
         }
         setShowSuggestions(true);
@@ -220,6 +265,18 @@ const SearchSuggestions = () => {
     setSearchQuery(ingredient);
   };
 
+  const handleTagClick = (tag: TagResult) => {
+    trackEvent('tag_click', { tag_id: tag.id, tag_name: tag.name_sv, tag_type: tag.tag_type, query: searchQuery });
+    setShowSuggestions(false);
+    navigate(`/produkter?tag=${tag.slug}`);
+  };
+
+  const handleCategoryClick = (cat: CategoryResult) => {
+    trackEvent('category_click', { category_id: cat.id, category_name: cat.name_sv, query: searchQuery });
+    setShowSuggestions(false);
+    navigate(`/produkter?category=${cat.slug}`);
+  };
+
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
@@ -238,6 +295,8 @@ const SearchSuggestions = () => {
 
   const sv = language === 'sv';
   const title = (p: DbProductResult) => sv ? p.title_sv : (p.title_en || p.title_sv);
+  const tagName = (t: TagResult) => sv ? t.name_sv : (t.name_en || t.name_sv);
+  const catName = (c: CategoryResult) => sv ? c.name_sv : (c.name_en || c.name_sv);
 
   const ProductRow = ({ product }: { product: DbProductResult }) => (
     <button
@@ -275,7 +334,15 @@ const SearchSuggestions = () => {
     </button>
   );
 
-  const hasResults = suggestions.length > 0 || comingSoon.length > 0 || ingredientMatches.length > 0 || categoryMatches.length > 0;
+  // Group tags by type
+  const tagsByType = tagMatches.reduce<Record<string, TagResult[]>>((acc, tag) => {
+    const type = tag.tag_type || 'use_case';
+    if (!acc[type]) acc[type] = [];
+    acc[type].push(tag);
+    return acc;
+  }, {});
+
+  const hasResults = suggestions.length > 0 || comingSoon.length > 0 || ingredientMatches.length > 0 || categoryMatches.length > 0 || subcategoryMatches.length > 0 || tagMatches.length > 0;
   const hasQuery = searchQuery.trim().length > 0;
 
   return (
@@ -285,7 +352,7 @@ const SearchSuggestions = () => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             type="text"
-            placeholder={sv ? 'Sök produkt eller ingrediens...' : 'Search product or ingredient...'}
+            placeholder={sv ? 'Sök produkt, effekt, ingrediens...' : 'Search product, effect, ingredient...'}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onFocus={() => { setIsFocused(true); setShowSuggestions(true); setRecentSearches(getRecentSearches()); }}
@@ -350,6 +417,35 @@ const SearchSuggestions = () => {
               </div>
             ) : (
               <div className="p-2">
+                {/* Tags grouped by type (effects, feelings, use cases, etc.) */}
+                {Object.entries(tagsByType).map(([type, tags]) => {
+                  const config = TAG_TYPE_CONFIG[type] || TAG_TYPE_CONFIG.use_case;
+                  const Icon = config.icon;
+                  return (
+                    <div key={type} className="px-3 py-2">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1.5 flex items-center gap-1">
+                        <Icon className="w-3 h-3" />
+                        {sv ? config.labelSv : config.labelEn}
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {tags.map(tag => (
+                          <button
+                            key={tag.id}
+                            onMouseDown={(e) => { e.preventDefault(); handleTagClick(tag); }}
+                            className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium transition-colors"
+                            style={{
+                              backgroundColor: tag.color ? `${tag.color}20` : undefined,
+                              color: tag.color || undefined,
+                            }}
+                          >
+                            {tagName(tag)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+
                 {/* Category matches */}
                 {categoryMatches.length > 0 && (
                   <div className="px-3 py-2">
@@ -359,14 +455,34 @@ const SearchSuggestions = () => {
                     </p>
                     <div className="flex flex-wrap gap-1">
                       {categoryMatches.map(cat => (
-                        <Link
+                        <button
                           key={cat.id}
-                          to={`/produkter?category=${cat.slug}`}
-                          onMouseDown={(e) => { e.preventDefault(); setShowSuggestions(false); navigate(`/produkter?category=${cat.slug}`); }}
+                          onMouseDown={(e) => { e.preventDefault(); handleCategoryClick(cat); }}
                           className="inline-flex items-center px-2.5 py-1 rounded-full bg-secondary text-foreground text-xs font-medium hover:bg-secondary/80 transition-colors"
                         >
-                          {sv ? cat.name_sv : (cat.name_en || cat.name_sv)}
-                        </Link>
+                          {catName(cat)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Subcategory matches */}
+                {subcategoryMatches.length > 0 && (
+                  <div className="px-3 py-2">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1.5 flex items-center gap-1">
+                      <Tag className="w-3 h-3" />
+                      {sv ? 'Underkategorier' : 'Subcategories'}
+                    </p>
+                    <div className="flex flex-wrap gap-1">
+                      {subcategoryMatches.map(cat => (
+                        <button
+                          key={cat.id}
+                          onMouseDown={(e) => { e.preventDefault(); handleCategoryClick(cat); }}
+                          className="inline-flex items-center px-2.5 py-1 rounded-full bg-accent/50 text-foreground text-xs font-medium hover:bg-accent/70 transition-colors"
+                        >
+                          {catName(cat)}
+                        </button>
                       ))}
                     </div>
                   </div>
