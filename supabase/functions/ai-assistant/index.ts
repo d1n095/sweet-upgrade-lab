@@ -362,6 +362,12 @@ serve(async (req) => {
         break;
       }
 
+      case "feature_detection": {
+        await logAiRead(supabase, { action_type: "scan", target_type: "feature_detection", result: "inspected", summary: "Real vs Fake Feature Detection — classifying feature completeness", triggered_by: user.id });
+        result = await handleFeatureDetection(supabase, lovableKey);
+        break;
+      }
+
       default:
         return new Response(JSON.stringify({ error: "Unknown type" }), { status: 400, headers: corsHeaders });
     }
