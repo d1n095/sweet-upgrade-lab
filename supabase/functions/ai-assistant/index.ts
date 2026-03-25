@@ -6946,23 +6946,33 @@ INSTRUKTIONER:
   }
 }
 
-// ── Human-Like Automated Test ──
+// ── Human-Like Automated Test with Full Click Simulation ──
 async function handleHumanTest(supabase: any, lovableKey: string) {
-  // 1. Gather full system snapshot for AI to analyze
+  // 1. Gather full system snapshot
   const [
     pagesRes, catsRes, prodsRes, bugsRes, workRes, changeRes,
-    ordersRes, profilesRes, settingsRes, scanHistRes
+    ordersRes, profilesRes, settingsRes, scanHistRes,
+    reviewsRes, bundlesRes, donationsRes, affiliatesRes,
+    tagsRes, analyticsRes, searchLogsRes, incidentsRes
   ] = await Promise.all([
     supabase.from("page_sections").select("page, section_key, is_visible").limit(200),
     supabase.from("categories").select("id, name_sv, slug, is_visible, parent_id").limit(100),
-    supabase.from("products").select("id, title_sv, is_visible, is_sellable, stock, price, handle, image_urls, low_stock_threshold").eq("is_visible", true).limit(100),
+    supabase.from("products").select("id, title_sv, title_en, is_visible, is_sellable, stock, price, handle, image_urls, low_stock_threshold, badge, category, status, description_sv").limit(200),
     supabase.from("bug_reports").select("id, description, ai_summary, ai_severity, ai_category, status, page_url, created_at").order("created_at", { ascending: false }).limit(30),
-    supabase.from("work_items").select("id, title, status, priority, item_type, source_type, source_id, created_at, completed_at, ai_review_status").order("created_at", { ascending: false }).limit(50),
+    supabase.from("work_items").select("id, title, status, priority, item_type, source_type, source_id, created_at, completed_at, ai_review_status, tags").order("created_at", { ascending: false }).limit(50),
     supabase.from("change_log").select("id, description, change_type, source, affected_components, bug_report_id, work_item_id, created_at").order("created_at", { ascending: false }).limit(30),
-    supabase.from("orders").select("id, status, payment_status, fulfillment_status, created_at, deleted_at").order("created_at", { ascending: false }).is("deleted_at", null).limit(20),
-    supabase.from("profiles").select("user_id, username, is_member, level").limit(5),
+    supabase.from("orders").select("id, status, payment_status, fulfillment_status, created_at, deleted_at, items, total_amount").order("created_at", { ascending: false }).is("deleted_at", null).limit(20),
+    supabase.from("profiles").select("user_id, username, is_member, level, first_name, last_name").limit(10),
     supabase.from("store_settings").select("key, value, text_value").limit(50),
     supabase.from("ai_scan_results").select("scan_type, overall_score, overall_status, issues_count, created_at").order("created_at", { ascending: false }).limit(30),
+    supabase.from("reviews").select("id, shopify_product_id, rating, status, user_id").limit(50),
+    supabase.from("bundles").select("id, name, is_active, discount_percent").eq("is_active", true).limit(20),
+    supabase.from("donations").select("id, amount, source, created_at").order("created_at", { ascending: false }).limit(10),
+    supabase.from("affiliates").select("id, name, code, is_active").limit(20),
+    supabase.from("product_tags").select("id, name_sv, slug, tag_type").limit(50),
+    supabase.from("analytics_events").select("event_type, created_at").order("created_at", { ascending: false }).limit(100),
+    supabase.from("search_logs").select("query, results_count, created_at").order("created_at", { ascending: false }).limit(30),
+    supabase.from("order_incidents").select("id, title, status, priority, order_id").order("created_at", { ascending: false }).limit(20),
   ]);
 
   const pages = pagesRes.data || [];
@@ -6975,57 +6985,56 @@ async function handleHumanTest(supabase: any, lovableKey: string) {
   const profiles = profilesRes.data || [];
   const settings = settingsRes.data || [];
   const scanHistory = scanHistRes.data || [];
+  const reviews = reviewsRes.data || [];
+  const bundles = bundlesRes.data || [];
+  const donations = donationsRes.data || [];
+  const affiliates = affiliatesRes.data || [];
+  const tags = tagsRes.data || [];
+  const analytics = analyticsRes.data || [];
+  const searchLogs = searchLogsRes.data || [];
+  const incidents = incidentsRes.data || [];
 
-  // 2. Check data consistency issues programmatically
+  // 2. Programmatic data checks
   const dataChecks: any[] = [];
 
-  // Check: products with no images
   const noImageProducts = products.filter((p: any) => !p.image_urls || p.image_urls.length === 0);
-  if (noImageProducts.length > 0) {
-    dataChecks.push({ test: "products_without_images", status: "broken", count: noImageProducts.length, details: noImageProducts.map((p: any) => p.title_sv) });
-  }
+  if (noImageProducts.length > 0) dataChecks.push({ test: "products_without_images", status: "fail", count: noImageProducts.length, details: noImageProducts.map((p: any) => p.title_sv) });
 
-  // Check: products with zero stock but visible
   const zeroStockVisible = products.filter((p: any) => p.stock <= 0 && p.is_visible && p.is_sellable);
-  if (zeroStockVisible.length > 0) {
-    dataChecks.push({ test: "zero_stock_visible", status: "unstable", count: zeroStockVisible.length, details: zeroStockVisible.map((p: any) => p.title_sv) });
-  }
+  if (zeroStockVisible.length > 0) dataChecks.push({ test: "zero_stock_visible", status: "warning", count: zeroStockVisible.length, details: zeroStockVisible.map((p: any) => p.title_sv) });
 
-  // Check: orphan work items (source_id pointing to non-existent bugs)
   const bugSourcedItems = workItems.filter((w: any) => w.source_type === "bug_report" && w.source_id);
   const bugIds = new Set(bugs.map((b: any) => b.id));
   const orphanWorkItems = bugSourcedItems.filter((w: any) => !bugIds.has(w.source_id));
-  if (orphanWorkItems.length > 0) {
-    dataChecks.push({ test: "orphan_work_items", status: "broken", count: orphanWorkItems.length, details: orphanWorkItems.map((w: any) => w.title) });
-  }
+  if (orphanWorkItems.length > 0) dataChecks.push({ test: "orphan_work_items", status: "fail", count: orphanWorkItems.length, details: orphanWorkItems.map((w: any) => w.title) });
 
-  // Check: done work items without change_log entry
   const doneItems = workItems.filter((w: any) => w.status === "done");
   const changeWorkIds = new Set(changes.filter((c: any) => c.work_item_id).map((c: any) => c.work_item_id));
   const doneWithoutLog = doneItems.filter((w: any) => !changeWorkIds.has(w.id));
-  if (doneWithoutLog.length > 0) {
-    dataChecks.push({ test: "done_without_changelog", status: "unstable", count: doneWithoutLog.length, details: doneWithoutLog.map((w: any) => w.title) });
-  }
+  if (doneWithoutLog.length > 0) dataChecks.push({ test: "done_without_changelog", status: "warning", count: doneWithoutLog.length, details: doneWithoutLog.map((w: any) => w.title) });
 
-  // Check: bugs marked resolved but work item still open
   const resolvedBugs = bugs.filter((b: any) => b.status === "resolved");
   const resolvedBugIds = resolvedBugs.map((b: any) => b.id);
   const openItemsForResolvedBugs = workItems.filter((w: any) =>
     w.source_type === "bug_report" && resolvedBugIds.includes(w.source_id) && w.status !== "done"
   );
-  if (openItemsForResolvedBugs.length > 0) {
-    dataChecks.push({ test: "resolved_bug_open_task", status: "broken", count: openItemsForResolvedBugs.length, details: openItemsForResolvedBugs.map((w: any) => w.title) });
-  }
+  if (openItemsForResolvedBugs.length > 0) dataChecks.push({ test: "resolved_bug_open_task", status: "fail", count: openItemsForResolvedBugs.length, details: openItemsForResolvedBugs.map((w: any) => w.title) });
 
-  // Check: categories with no products
   const { data: prodCats } = await supabase.from("product_categories").select("category_id").limit(1000);
   const usedCatIds = new Set((prodCats || []).map((pc: any) => pc.category_id));
   const emptyCats = categories.filter((c: any) => c.is_visible && !usedCatIds.has(c.id));
-  if (emptyCats.length > 0) {
-    dataChecks.push({ test: "empty_categories", status: "unstable", count: emptyCats.length, details: emptyCats.map((c: any) => c.name_sv) });
-  }
+  if (emptyCats.length > 0) dataChecks.push({ test: "empty_categories", status: "warning", count: emptyCats.length, details: emptyCats.map((c: any) => c.name_sv) });
 
-  // Check: scan history degradation
+  // New: products without handle (broken product detail links)
+  const noHandle = products.filter((p: any) => !p.handle && p.is_visible);
+  if (noHandle.length > 0) dataChecks.push({ test: "products_without_handle", status: "fail", count: noHandle.length, details: noHandle.map((p: any) => p.title_sv) });
+
+  // New: reviews for non-existent products
+  const productIds = new Set(products.map((p: any) => p.id));
+  const orphanReviews = reviews.filter((r: any) => r.shopify_product_id && !productIds.has(r.shopify_product_id));
+  if (orphanReviews.length > 0) dataChecks.push({ test: "orphan_reviews", status: "warning", count: orphanReviews.length });
+
+  // Scan history degradation
   const scansByType: Record<string, any[]> = {};
   for (const s of scanHistory) {
     if (!scansByType[s.scan_type]) scansByType[s.scan_type] = [];
@@ -7034,98 +7043,361 @@ async function handleHumanTest(supabase: any, lovableKey: string) {
   const degradations = Object.entries(scansByType)
     .filter(([_, scans]) => scans.length >= 2 && (scans[0].overall_score || 0) < (scans[1].overall_score || 0) - 5)
     .map(([type, scans]) => ({ type, current: scans[0].overall_score, previous: scans[1].overall_score }));
-  if (degradations.length > 0) {
-    dataChecks.push({ test: "scan_score_degradation", status: "unstable", count: degradations.length, details: degradations });
-  }
+  if (degradations.length > 0) dataChecks.push({ test: "scan_score_degradation", status: "warning", count: degradations.length, details: degradations });
 
+  // 3. Build comprehensive interactive element inventory
+  const interactiveElements = {
+    public_pages: {
+      homepage: {
+        buttons: ["Hero CTA", "Shop nu", "Läs mer om oss", "Newsletter submit", "Cookie accept/reject", "Floating contact button"],
+        cards: ["Bestseller product cards", "New product cards", "Review cards", "Value proposition cards"],
+        tabs: [],
+        modals: ["Cookie banner", "Auth modal", "Cart drawer", "Wishlist drawer", "Exit intent popup", "Promo popup"],
+        links: ["Header nav links (5+)", "Footer links (9+)", "Social media links", "Language switcher"],
+      },
+      produkter: {
+        buttons: ["Add to cart (per product)", "Wishlist toggle", "Category filter buttons", "Use case filter", "Sort dropdown"],
+        cards: ["Product cards with hover effects", "Category cards"],
+        tabs: ["Category tabs"],
+        modals: ["Quick view (if exists)", "Cart drawer on add"],
+        links: ["Product detail links", "Breadcrumb navigation"],
+      },
+      product_detail: {
+        buttons: ["Add to cart", "Wishlist", "Quantity +/-", "Buy bar (mobile)", "Related product cards"],
+        cards: ["Related products", "Bundle suggestions", "Review cards"],
+        tabs: ["Description", "Ingredients", "Reviews", "Dosage/Safety"],
+        modals: ["Zoom image", "Review form modal"],
+        links: ["Back to shop", "Category breadcrumb"],
+      },
+      checkout: {
+        buttons: ["Place order", "Apply discount code", "Remove item", "Update quantity", "Back to cart"],
+        cards: ["Order summary items"],
+        tabs: [],
+        modals: ["Address autocomplete"],
+        forms: ["Shipping address form", "Payment method selection", "Influencer/affiliate code input"],
+      },
+      auth_profile: {
+        buttons: ["Login", "Signup", "Logout", "Save profile", "Reset password", "Business account apply"],
+        cards: ["Order history cards", "Balance overview"],
+        tabs: ["Profile tabs (info, orders, settings, balance)"],
+        modals: ["Auth modal", "Account drawer", "Post-purchase signup"],
+        forms: ["Login form", "Signup form", "Profile edit form", "Business account form"],
+      },
+    },
+    admin_pages: {
+      overview: { buttons: ["Refresh", "Quick actions", "Period selector"], cards: ["Stats cards", "Chart panels"], tabs: ["Dashboard tabs"] },
+      orders: { buttons: ["Status change", "Pack", "Ship", "Print receipt", "Refund"], cards: ["Order cards"], tabs: ["Order status tabs"], modals: ["Order detail", "Shipping form"] },
+      products: { buttons: ["Add product", "Edit", "Delete", "Import/Export", "Toggle visibility"], cards: ["Product list items"], tabs: ["Product management tabs"], modals: ["Product form", "Image gallery"] },
+      ai_center: { buttons: ["Run scan", "Generate prompt", "Process queue", "Triage bugs"], cards: ["Scan result cards", "Work item cards"], tabs: ["AI Center tabs (4 categories)"], modals: ["Scan detail", "Work item detail"] },
+      workbench: { buttons: ["Claim task", "Complete", "Escalate", "Quick pack"], cards: ["Work item board cards"], tabs: ["Board columns (Open/Claimed/In Progress/Done)"], modals: ["Work item detail", "Scan/pack mode"] },
+    },
+  };
+
+  // 4. Build comprehensive route map
   const routes = [
     { path: "/", name: "Startsida", type: "public", critical: true },
-    { path: "/shop", name: "Butik", type: "public", critical: true },
+    { path: "/shop", name: "Butik (redirect)", type: "public", critical: true },
     { path: "/produkter", name: "Produkter", type: "public", critical: true },
+    { path: "/produkt/:handle", name: "Produktdetalj", type: "public", critical: true, dynamic: true },
     { path: "/om-oss", name: "Om oss", type: "public", critical: false },
     { path: "/kontakt", name: "Kontakt", type: "public", critical: false },
     { path: "/checkout", name: "Kassa", type: "checkout", critical: true },
+    { path: "/orderbekraftelse", name: "Orderbekräftelse", type: "checkout", critical: true },
     { path: "/donationer", name: "Donationer", type: "public", critical: false },
+    { path: "/nyheter", name: "Nyheter", type: "public", critical: false },
     { path: "/profil", name: "Profil", type: "auth", critical: true },
+    { path: "/saldo", name: "Saldo", type: "auth", critical: false },
     { path: "/track-order", name: "Spåra order", type: "public", critical: false },
+    { path: "/foreslå-produkt", name: "Föreslå produkt", type: "public", critical: false },
+    { path: "/cbd", name: "CBD info", type: "public", critical: false },
+    { path: "/foretag", name: "Företag", type: "public", critical: false },
+    { path: "/affiliate", name: "Affiliate landing", type: "public", critical: false },
+    { path: "/referral/:code", name: "Referral landing", type: "public", critical: false, dynamic: true },
+    { path: "/reset-password", name: "Återställ lösenord", type: "auth", critical: true },
     { path: "/admin", name: "Admin Overview", type: "admin", critical: true },
     { path: "/admin/ai", name: "AI Center", type: "admin", critical: true },
     { path: "/admin/orders", name: "Admin Ordrar", type: "admin", critical: true },
     { path: "/admin/products", name: "Admin Produkter", type: "admin", critical: true },
+    { path: "/admin/members", name: "Admin Medlemmar", type: "admin", critical: false },
+    { path: "/admin/content", name: "Admin Innehåll", type: "admin", critical: false },
+    { path: "/admin/shipping", name: "Admin Frakt", type: "admin", critical: false },
+    { path: "/admin/finance", name: "Admin Finans", type: "admin", critical: false },
+    { path: "/admin/staff", name: "Admin Personal", type: "admin", critical: false },
+    { path: "/admin/settings", name: "Admin Inställningar", type: "admin", critical: false },
+    { path: "/admin/stats", name: "Admin Statistik", type: "admin", critical: false },
+    { path: "/admin/partners", name: "Admin Partners", type: "admin", critical: false },
+    { path: "/admin/donations", name: "Admin Donationer", type: "admin", critical: false },
+    { path: "/admin/campaigns", name: "Admin Kampanjer", type: "admin", critical: false },
+    { path: "/admin/reviews", name: "Admin Recensioner", type: "admin", critical: false },
   ];
 
-  // 3. Send everything to AI for human-like test analysis
+  // 5. Define user flows for click simulation
+  const clickSimulationFlows = [
+    {
+      name: "Köpflöde (Purchase Flow)",
+      priority: "critical",
+      steps: [
+        "1. Öppna startsida → verifiera Hero CTA-knapp har onClick",
+        "2. Klicka 'Handla nu' → navigerar till /produkter",
+        "3. Klicka produktkort → navigerar till /produkt/:handle",
+        "4. Klicka '+' quantity → state uppdateras",
+        "5. Klicka 'Lägg i kundvagn' → CartContext uppdateras, drawer öppnas",
+        "6. I cart drawer: ändra quantity → totalt uppdateras",
+        "7. Klicka 'Till kassan' → navigerar till /checkout",
+        "8. Fyll i formulär → alla inputs binder till state",
+        "9. Klicka 'Slutför köp' → Stripe session skapas",
+      ],
+    },
+    {
+      name: "Konto & Profil (Account Flow)",
+      priority: "critical",
+      steps: [
+        "1. Klicka konto-ikon i Header → AuthModal öppnas",
+        "2. Klicka 'Registrera' tab → signup-formulär visas",
+        "3. Fyll i email/lösenord → submit → auth.signUp anropas",
+        "4. Klicka 'Logga in' tab → login-formulär visas",
+        "5. Logga in → redirect till /profil eller stanna på sida",
+        "6. Klicka profil-flikar (Info, Ordrar, Inställningar) → rätt data laddas",
+        "7. Redigera profil → spara → toast bekräftar",
+        "8. Klicka 'Logga ut' → session rensas",
+      ],
+    },
+    {
+      name: "Sök & Filter (Search Flow)",
+      priority: "high",
+      steps: [
+        "1. Klicka sökikonen → sökfält expanderar/öppnas",
+        "2. Skriv sökterm → SearchSuggestions visar resultat",
+        "3. Klicka sökresultat → navigerar till produktsida",
+        "4. Klicka kategorifilter → produktlistan filtreras",
+        "5. Klicka 'Rensa filter' → alla produkter visas",
+      ],
+    },
+    {
+      name: "Önskelista (Wishlist Flow)",
+      priority: "high",
+      steps: [
+        "1. Klicka hjärt-ikon på produktkort → wishlistStore uppdateras",
+        "2. Klicka önskelista-ikon i Header → WishlistDrawer öppnas",
+        "3. Verifiera produkten syns i drawern",
+        "4. Klicka 'Ta bort' → wishlistStore uppdateras, produkt försvinner",
+        "5. Klicka 'Lägg i kundvagn' från önskelista → CartContext uppdateras",
+      ],
+    },
+    {
+      name: "Admin Grundflöde (Admin Core)",
+      priority: "high",
+      steps: [
+        "1. Navigera till /admin → AdminLayout renderar sidebar",
+        "2. Klicka varje sidebar-menyval → rätt sida laddas",
+        "3. Klicka 'Ordrar' → AdminOrderManager visar orderlista",
+        "4. Klicka en order → OrderDetail öppnas/expanderas",
+        "5. Klicka statusändring → order.status uppdateras i DB",
+        "6. Klicka 'Packa' → packed_at sätts, status ändras",
+        "7. Klicka notifikationsklocka → dropdown med notiser visas",
+      ],
+    },
+    {
+      name: "AI Center Flöde",
+      priority: "high",
+      steps: [
+        "1. Navigera till /admin/ai → AiCenterTabs renderar",
+        "2. Klicka 'Dashboard' tab → översikt/hälsa visas",
+        "3. Klicka 'Operations' tab → Lova/Autopilot/Tasks visas",
+        "4. Klicka 'Kör skanning' → scan startas, progress visas",
+        "5. Klicka scan-resultat → detaljer expanderas",
+        "6. Klicka 'Skapa work item' → work_items-tabell uppdateras",
+        "7. Klicka 'Skanners' tab → full-/visuell skanning tillgänglig",
+      ],
+    },
+    {
+      name: "Donationsflöde",
+      priority: "medium",
+      steps: [
+        "1. Navigera till /donationer → DonationImpact renderar",
+        "2. Klicka donationsbelopp → belopp väljs",
+        "3. Klicka 'Donera' → donation registreras",
+        "4. I checkout: 'Avrunda' toggle → RoundUpDonation state",
+      ],
+    },
+    {
+      name: "Workbench Flöde",
+      priority: "high",
+      steps: [
+        "1. Öppna MiniWorkbench → work items listas",
+        "2. Klicka 'Claim' på ett item → claimed_by sätts",
+        "3. Klicka item → WorkItemDetail öppnas",
+        "4. Klicka 'Starta' → status = in_progress",
+        "5. Klicka 'Klar' → status = done, completed_at sätts",
+        "6. Klicka 'Eskalera' → status = escalated",
+      ],
+    },
+    {
+      name: "Mobilvy (Mobile UX)",
+      priority: "medium",
+      steps: [
+        "1. Hamburger-meny → meny öppnas",
+        "2. Klicka menyalternativ → navigerar korrekt",
+        "3. MobileBuyBar visas på produktsida",
+        "4. Klicka 'Köp' i MobileBuyBar → läggs i kundvagn",
+        "5. Scroll → alla sektioner nåbara",
+      ],
+    },
+    {
+      name: "Footer & Policyer",
+      priority: "low",
+      steps: [
+        "1. Klicka 'Integritetspolicy' → /privacy renderar",
+        "2. Klicka 'Köpvillkor' → /terms renderar",
+        "3. Klicka 'Retur & Reklamation' → /returns renderar",
+        "4. Klicka 'Fraktpolicy' → /shipping-policy renderar",
+        "5. Alla sidor har korrekt innehåll (ej placeholder)",
+      ],
+    },
+  ];
+
+  // 6. Send to AI for full click simulation analysis
   const context = JSON.stringify({
+    interactive_elements: interactiveElements,
     routes,
+    click_simulation_flows: clickSimulationFlows,
     data_checks: dataChecks,
-    pages_count: pages.length,
-    categories: categories.slice(0, 20),
-    products_sample: products.slice(0, 15).map((p: any) => ({
-      title: p.title_sv, visible: p.is_visible, sellable: p.is_sellable,
-      stock: p.stock, has_images: (p.image_urls?.length || 0) > 0, handle: p.handle, price: p.price,
+    system_state: {
+      products_count: products.length,
+      visible_products: products.filter((p: any) => p.is_visible).length,
+      sellable_products: products.filter((p: any) => p.is_sellable).length,
+      categories_count: categories.length,
+      visible_categories: categories.filter((c: any) => c.is_visible).length,
+      pages_count: pages.length,
+      open_bugs: bugs.filter((b: any) => b.status === "open").length,
+      resolved_bugs: bugs.filter((b: any) => b.status === "resolved").length,
+      open_work_items: workItems.filter((w: any) => ["open", "claimed", "in_progress"].includes(w.status)).length,
+      done_work_items: workItems.filter((w: any) => w.status === "done").length,
+      orders_total: orders.length,
+      orders_paid: orders.filter((o: any) => o.payment_status === "paid").length,
+      reviews_count: reviews.length,
+      bundles_active: bundles.length,
+      affiliates_active: affiliates.filter((a: any) => a.is_active).length,
+      donations_count: donations.length,
+      tags_count: tags.length,
+      recent_analytics: analytics.slice(0, 20).map((a: any) => a.event_type),
+      recent_searches: searchLogs.slice(0, 10),
+      open_incidents: incidents.filter((i: any) => !["resolved", "closed"].includes(i.status)).length,
+    },
+    products_sample: products.slice(0, 20).map((p: any) => ({
+      id: p.id, title: p.title_sv, visible: p.is_visible, sellable: p.is_sellable,
+      stock: p.stock, has_images: (p.image_urls?.length || 0) > 0, handle: p.handle,
+      price: p.price, badge: p.badge, has_description: !!p.description_sv,
     })),
-    open_bugs: bugs.filter((b: any) => b.status === "open").length,
-    resolved_bugs: bugs.filter((b: any) => b.status === "resolved").length,
-    work_items_open: workItems.filter((w: any) => ["open", "claimed", "in_progress"].includes(w.status)).length,
-    work_items_done: workItems.filter((w: any) => w.status === "done").length,
-    recent_changes: changes.slice(0, 10).map((c: any) => ({ type: c.change_type, desc: c.description, components: c.affected_components })),
-    store_settings: settings.slice(0, 20),
+    recent_changes: changes.slice(0, 15).map((c: any) => ({ type: c.change_type, desc: c.description, components: c.affected_components })),
     scan_trends: degradations,
-    orders_summary: { total: orders.length, paid: orders.filter((o: any) => o.payment_status === "paid").length },
+    store_settings: settings.slice(0, 30),
   });
 
-  const prompt = `Du är en erfaren QA-testare som simulerar en verklig användare av 4thepeople.se (svensk e-handel med CBD/wellness-produkter).
+  const prompt = `Du är en EXPERT QA-testare som utför FULLSTÄNDIG klicksimulering av 4thepeople.se (svensk CBD/wellness e-handel).
 
-KONTEXT (all tillgänglig data):
+KONTEXT:
 ${context}
 
-Utför en komplett human-like testning av hela systemet. Testa som en riktig användare:
+═══ UPPDRAG: SIMULERA ATT KLICKA ALLT ═══
 
-═══ TEST 1: NAVIGATION ═══
-Gå igenom alla routes. Identifiera:
-- Sidor som saknar kritiskt innehåll
-- Brutna navigeringsflöden (t.ex. checkout utan produkter)
-- Saknade breadcrumbs eller tillbaka-knappar
+Du ska simulera en verklig användare som systematiskt klickar på VARJE interaktivt element i hela applikationen.
 
-═══ TEST 2: INTERAKTION ═══
-Simulera att:
-- Öppna en produkt → lägg i kundvagn → gå till checkout
-- Logga in → se profil → se ordrar
-- Öppna admin → skapa bugg → se i Workbench
-- Köra en skanning → se resultat → skapa work item
-Identifiera var flöden BRYTER.
+FÖR VARJE ELEMENT — kontrollera:
+1. ✅ Har elementet en click handler (onClick/onSubmit/Link)?
+2. ✅ Händer något visuellt vid klick (state change, navigation, modal)?
+3. ✅ Laddas korrekt data efter klick?
+4. ✅ Uppdateras UI korrekt efter action?
 
-═══ TEST 3: UI KONSISTENS ═══
-Kontrollera:
-- Laddningstillstånd (loading states) — finns de överallt?
-- Tomma tillstånd (empty states) — vad visas utan data?
-- Scroll — kan man nå allt innehåll?
-- Knappar — alla synliga knappar bör ha funktion
-- Responsivitet — fungerar sidorna på mobil?
+═══ SIMULERING PER SIDA ═══
 
-═══ TEST 4: DATA VERIFIERING ═══
-Programmatiska data-kontroller redan utförda:
-${JSON.stringify(dataChecks, null, 2)}
+Gå igenom VARJE sida och testa VARJE:
+• KNAPP — har den handler? Gör den rätt sak?
+• KORT — är det klickbart? Leder det rätt?
+• FLIK/TAB — byter den innehåll korrekt?
+• MODAL/DRAWER — öppnas den? Stängs den?
+• FORMULÄR — submittas det? Sparas data?
+• LÄNK — navigerar den korrekt?
+• TOGGLE — ändrar den state?
+• DROPDOWN — visar den alternativ?
 
-Analysera dessa resultat och identifiera ytterligare datainkonsistenser.
+═══ FLÖDEN ATT SIMULERA ═══
+${clickSimulationFlows.map(f => `\n[${f.priority.toUpperCase()}] ${f.name}:\n${f.steps.join("\n")}`).join("\n")}
 
-═══ TEST 5: FLÖDESKONTINUITET ═══
-Verifiera end-to-end:
-scan → issue → work_item → change_log → bug_resolution → verification
-Identifiera var kedjan BRYTER baserat på existerande data.
+═══ RAPPORTERING ═══
 
-VIKTIGT: Basera ALL analys på verklig data ovan — inga spekulationer.`;
+FÖR VARJE element, rapportera:
+- element_id: Unikt namn (t.ex. "Header.CartIcon", "ProductCard.AddToCart")
+- page: Vilken sida/route
+- element_type: button | card | tab | modal | link | form | toggle | dropdown
+- click_result: working | broken | fake_interaction | no_response | wrong_data | stale_state
+- what_happens: Exakt vad som händer vid klick
+- what_should_happen: Förväntat beteende
+- data_binding: correct | wrong | missing | stale
+- severity: critical | high | medium | low
+- lovable_prompt: Exakt prompt för att fixa (om trasigt)
+
+REGLER:
+- Var EXTREMT SPECIFIK — ge komponent- och filnamn
+- Basera ALL analys på kodstruktur och data ovan
+- Testa MINST 80 element
+- Varje flaggat problem MÅSTE ha lovable_prompt
+- Prioritera efter KONVERTERINGSIMPAKT
+- Svara på svenska`;
 
   const analysis = await callAIWithTools(lovableKey, prompt, [{
     type: "function",
     function: {
       name: "human_test_results",
-      description: "Return comprehensive human-like test results",
+      description: "Full click simulation test results",
       parameters: {
         type: "object",
         properties: {
           test_score: { type: "number", description: "Overall test score 0-100" },
-          executive_summary: { type: "string", description: "One paragraph summary of system health" },
+          elements_tested: { type: "number", description: "Total elements click-tested" },
+          elements_working: { type: "number", description: "Elements functioning correctly" },
+          elements_broken: { type: "number", description: "Elements with issues" },
+          click_coverage_percent: { type: "number", description: "% of UI covered by click tests" },
+          executive_summary: { type: "string", description: "One paragraph system health summary" },
+          click_results: {
+            type: "array",
+            description: "Per-element click simulation results",
+            items: {
+              type: "object",
+              properties: {
+                element_id: { type: "string", description: "Unique element identifier e.g. Header.CartIcon" },
+                page: { type: "string", description: "Route where element lives" },
+                element_type: { type: "string", enum: ["button", "card", "tab", "modal", "link", "form", "toggle", "dropdown", "icon"] },
+                click_result: { type: "string", enum: ["working", "broken", "fake_interaction", "no_response", "wrong_data", "stale_state"] },
+                what_happens: { type: "string" },
+                what_should_happen: { type: "string" },
+                data_binding: { type: "string", enum: ["correct", "wrong", "missing", "stale", "n/a"] },
+                severity: { type: "string", enum: ["critical", "high", "medium", "low", "ok"] },
+                fix_needed: { type: "boolean" },
+                lovable_prompt: { type: "string", description: "Fix prompt if broken, empty if working" },
+              },
+              required: ["element_id", "page", "element_type", "click_result", "what_happens", "what_should_happen", "data_binding", "severity", "fix_needed"],
+            },
+          },
+          flow_simulations: {
+            type: "array",
+            description: "End-to-end flow simulation results",
+            items: {
+              type: "object",
+              properties: {
+                flow_name: { type: "string" },
+                priority: { type: "string", enum: ["critical", "high", "medium", "low"] },
+                steps_total: { type: "number" },
+                steps_passed: { type: "number" },
+                status: { type: "string", enum: ["pass", "partial", "fail"] },
+                broken_at_step: { type: "string", description: "Which step breaks, if any" },
+                simulation_detail: { type: "string", description: "What happens when simulating this flow" },
+                fix_suggestion: { type: "string" },
+                lovable_prompt: { type: "string" },
+              },
+              required: ["flow_name", "priority", "steps_total", "steps_passed", "status", "simulation_detail"],
+            },
+          },
           areas: {
             type: "array",
             description: "System areas with status assessment",
@@ -7135,27 +7407,11 @@ VIKTIGT: Basera ALL analys på verklig data ovan — inga spekulationer.`;
                 name: { type: "string" },
                 status: { type: "string", enum: ["working", "unstable", "broken"] },
                 score: { type: "number" },
+                elements_tested: { type: "number" },
+                elements_ok: { type: "number" },
                 details: { type: "string" },
-                tests_passed: { type: "number" },
-                tests_failed: { type: "number" },
               },
-              required: ["name", "status", "score", "details", "tests_passed", "tests_failed"],
-            },
-          },
-          broken_interactions: {
-            type: "array",
-            description: "Specific broken interactions found",
-            items: {
-              type: "object",
-              properties: {
-                flow: { type: "string", description: "Which user flow is broken" },
-                step: { type: "string", description: "Exact step where it breaks" },
-                severity: { type: "string", enum: ["critical", "high", "medium", "low"] },
-                expected: { type: "string" },
-                actual: { type: "string" },
-                fix_suggestion: { type: "string" },
-              },
-              required: ["flow", "step", "severity", "expected", "actual", "fix_suggestion"],
+              required: ["name", "status", "score", "elements_tested", "elements_ok", "details"],
             },
           },
           data_issues: {
@@ -7173,7 +7429,6 @@ VIKTIGT: Basera ALL analys på verklig data ovan — inga spekulationer.`;
           },
           pipeline_status: {
             type: "object",
-            description: "Status of each pipeline stage",
             properties: {
               scan_to_issues: { type: "string", enum: ["working", "unstable", "broken"] },
               issues_to_work_items: { type: "string", enum: ["working", "unstable", "broken"] },
@@ -7185,7 +7440,7 @@ VIKTIGT: Basera ALL analys på verklig data ovan — inga spekulationer.`;
           positive_findings: { type: "array", items: { type: "string" } },
           issues_found: { type: "number" },
         },
-        required: ["test_score", "executive_summary", "areas", "broken_interactions", "data_issues", "pipeline_status", "positive_findings", "issues_found"],
+        required: ["test_score", "elements_tested", "elements_working", "elements_broken", "click_coverage_percent", "executive_summary", "click_results", "flow_simulations", "areas", "data_issues", "pipeline_status", "positive_findings", "issues_found"],
         additionalProperties: false,
       },
     },
@@ -7202,30 +7457,63 @@ VIKTIGT: Basera ALL analys på verklig data ovan — inga spekulationer.`;
     executive_summary: analysis?.executive_summary || "",
   });
 
-  // Auto-create work items for critical/high broken interactions
+  // Auto-create work items for broken elements and failed flows
   let tasksCreated = 0;
-  if (analysis?.broken_interactions) {
-    for (const bi of analysis.broken_interactions) {
-      if (!["critical", "high"].includes(bi.severity)) continue;
+
+  // Work items from broken click results
+  if (analysis?.click_results) {
+    for (const cr of analysis.click_results) {
+      if (!cr.fix_needed || !["critical", "high"].includes(cr.severity)) continue;
+      const titleKey = cr.element_id.substring(0, 30);
       const { data: existing } = await supabase
         .from("work_items")
         .select("id")
-        .ilike("title", `%${bi.flow.substring(0, 20)}%`)
+        .ilike("title", `%${titleKey}%`)
         .in("status", ["open", "claimed", "in_progress"])
         .limit(1);
       if (!existing?.length) {
         await supabase.from("work_items").insert({
-          title: `Test: ${bi.flow} — ${bi.step}`.substring(0, 200),
-          description: `Flöde: ${bi.flow}\nSteg: ${bi.step}\nFörväntat: ${bi.expected}\nFaktiskt: ${bi.actual}\n\nFix: ${bi.fix_suggestion}`,
+          title: `[${cr.click_result}] ${cr.element_id} (${cr.page})`.substring(0, 200),
+          description: `Element: ${cr.element_id}\nSida: ${cr.page}\nTyp: ${cr.element_type}\nResultat: ${cr.click_result}\n\nHänder: ${cr.what_happens}\nBorde hända: ${cr.what_should_happen}\nData: ${cr.data_binding}\n\nLovable prompt:\n${cr.lovable_prompt || "Fixera " + cr.element_id}`,
           status: "open",
-          priority: bi.severity === "critical" ? "critical" : "high",
+          priority: cr.severity === "critical" ? "critical" : "high",
           item_type: "bug",
           source_type: "ai_scan",
           source_id: scanId || undefined,
           ai_detected: true,
           ai_confidence: "high",
           ai_category: "frontend",
-          ai_type_classification: "human_test",
+          ai_type_classification: `click_sim_${cr.click_result}`,
+        });
+        tasksCreated++;
+      }
+    }
+  }
+
+  // Work items from failed flows
+  if (analysis?.flow_simulations) {
+    for (const flow of analysis.flow_simulations) {
+      if (flow.status === "pass" || !["critical", "high"].includes(flow.priority)) continue;
+      const flowKey = flow.flow_name.substring(0, 25);
+      const { data: existing } = await supabase
+        .from("work_items")
+        .select("id")
+        .ilike("title", `%${flowKey}%`)
+        .in("status", ["open", "claimed", "in_progress"])
+        .limit(1);
+      if (!existing?.length) {
+        await supabase.from("work_items").insert({
+          title: `Flow: ${flow.flow_name} — ${flow.status}`.substring(0, 200),
+          description: `Flöde: ${flow.flow_name}\nPrioritet: ${flow.priority}\nSteg: ${flow.steps_passed}/${flow.steps_total} OK\nBryter vid: ${flow.broken_at_step || "N/A"}\n\nSimulering: ${flow.simulation_detail}\n\nFix: ${flow.fix_suggestion || ""}\n\nLovable prompt:\n${flow.lovable_prompt || ""}`,
+          status: "open",
+          priority: flow.priority === "critical" ? "critical" : "high",
+          item_type: "bug",
+          source_type: "ai_scan",
+          source_id: scanId || undefined,
+          ai_detected: true,
+          ai_confidence: "high",
+          ai_category: "interaction",
+          ai_type_classification: "flow_simulation_fail",
         });
         tasksCreated++;
       }
@@ -7233,5 +7521,23 @@ VIKTIGT: Basera ALL analys på verklig data ovan — inga spekulationer.`;
   }
 
   if (scanId && tasksCreated > 0) await updateScanTaskCount(supabase, scanId, tasksCreated);
-  return { ...analysis, tasks_created: tasksCreated, scan_id: scanId, data_checks_automated: dataChecks };
+
+  // Build summary stats
+  const clickResults = analysis?.click_results || [];
+  const summary = {
+    working: clickResults.filter((c: any) => c.click_result === "working").length,
+    broken: clickResults.filter((c: any) => c.click_result === "broken").length,
+    fake: clickResults.filter((c: any) => c.click_result === "fake_interaction").length,
+    no_response: clickResults.filter((c: any) => c.click_result === "no_response").length,
+    wrong_data: clickResults.filter((c: any) => c.click_result === "wrong_data").length,
+    stale: clickResults.filter((c: any) => c.click_result === "stale_state").length,
+  };
+
+  return {
+    ...analysis,
+    tasks_created: tasksCreated,
+    scan_id: scanId,
+    data_checks_automated: dataChecks,
+    click_summary: summary,
+  };
 }
