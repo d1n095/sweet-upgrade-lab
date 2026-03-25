@@ -128,6 +128,199 @@ const copyToClipboard = (text: string) => {
   toast.success('Kopierat till urklipp');
 };
 
+// ── Lova 0.5 Chat Tab ──
+interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  metadata?: any;
+  created_at: string;
+}
+
+const LovaChatTab = () => {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState('');
+  const [sending, setSending] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [loadingHistory, setLoadingHistory] = useState(true);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Load most recent conversation
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from('ai_chat_messages' as any)
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      if (data?.[0]) {
+        const cid = (data[0] as any).conversation_id;
+        setConversationId(cid);
+        const { data: history } = await supabase
+          .from('ai_chat_messages' as any)
+          .select('*')
+          .eq('conversation_id', cid)
+          .order('created_at', { ascending: true })
+          .limit(100);
+        if (history) setMessages(history as any);
+      }
+      setLoadingHistory(false);
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  const sendMessage = async () => {
+    if (!input.trim() || sending) return;
+    const text = input.trim();
+    setInput('');
+    setSending(true);
+
+    // Optimistic add
+    const tempMsg: ChatMessage = { id: crypto.randomUUID(), role: 'user', content: text, created_at: new Date().toISOString() };
+    setMessages(prev => [...prev, tempMsg]);
+
+    try {
+      const res = await callAI('lova_chat', { message: text, conversation_id: conversationId });
+      if (res) {
+        if (!conversationId) setConversationId(res.conversation_id);
+        const assistantMsg: ChatMessage = {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: res.response,
+          metadata: res.actions?.length ? { actions: res.actions } : undefined,
+          created_at: new Date().toISOString(),
+        };
+        setMessages(prev => [...prev, assistantMsg]);
+      }
+    } catch {
+      toast.error('Kunde inte skicka meddelande');
+    } finally {
+      setSending(false);
+      inputRef.current?.focus();
+    }
+  };
+
+  const startNewConversation = () => {
+    setMessages([]);
+    setConversationId(null);
+    setInput('');
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-[calc(100vh-280px)] min-h-[400px]">
+      {/* Header */}
+      <div className="flex items-center justify-between pb-3 border-b border-border">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+            <Bot className="w-4 h-4 text-primary" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-sm">Lova 0.5</h3>
+            <p className="text-xs text-muted-foreground">AI-assistent med full systemåtkomst</p>
+          </div>
+        </div>
+        <Button variant="outline" size="sm" onClick={startNewConversation} className="gap-1.5">
+          <RefreshCw className="w-3.5 h-3.5" />
+          Ny konversation
+        </Button>
+      </div>
+
+      {/* Messages */}
+      <ScrollArea ref={scrollRef} className="flex-1 py-4">
+        {loadingHistory ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="text-center py-12 space-y-3">
+            <Bot className="w-12 h-12 mx-auto text-muted-foreground/40" />
+            <div>
+              <p className="font-medium text-foreground">Hej! Jag är Lova 0.5</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Jag kan analysera data, köra skanningar, skapa uppgifter och fixa databasfel direkt.
+                <br />
+                Om något kräver kodändringar genererar jag en prompt till Lovable.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 justify-center mt-4">
+              {['Kör en systemanalys', 'Visa öppna buggar', 'Hur ser statistiken ut?', 'Rensa gamla uppgifter'].map(q => (
+                <Button key={q} variant="outline" size="sm" className="text-xs" onClick={() => { setInput(q); }}>
+                  {q}
+                </Button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4 px-1">
+            {messages.map((msg) => (
+              <div key={msg.id} className={cn('flex', msg.role === 'user' ? 'justify-end' : 'justify-start')}>
+                <div className={cn(
+                  'max-w-[80%] rounded-xl px-4 py-2.5 text-sm',
+                  msg.role === 'user'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-foreground'
+                )}>
+                  <div className="whitespace-pre-wrap break-words">{msg.content}</div>
+                  {msg.metadata?.actions?.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-border/30 space-y-1">
+                      {msg.metadata.actions.map((a: any, i: number) => (
+                        <div key={i} className="flex items-center gap-1.5 text-xs opacity-80">
+                          <Zap className="w-3 h-3" />
+                          <span>{a.action}: {a.error ? `❌ ${a.error}` : '✅ Utfört'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+            {sending && (
+              <div className="flex justify-start">
+                <div className="bg-muted rounded-xl px-4 py-2.5 flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Lova tänker...</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </ScrollArea>
+
+      {/* Input */}
+      <div className="pt-3 border-t border-border">
+        <div className="flex gap-2">
+          <Textarea
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Skriv till Lova 0.5..."
+            className="min-h-[44px] max-h-[120px] resize-none text-sm"
+            rows={1}
+          />
+          <Button onClick={sendMessage} disabled={!input.trim() || sending} size="icon" className="shrink-0 h-[44px] w-[44px]">
+            {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ── Unified Dashboard Tab (NEW) ──
 const UnifiedDashboardTab = () => {
   const [loading, setLoading] = useState(false);
