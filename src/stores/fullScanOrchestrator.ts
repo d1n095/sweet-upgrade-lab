@@ -16,6 +16,16 @@ export interface OrchestratorStep {
   duration_ms?: number;
 }
 
+export interface FocusMemoryItem {
+  focus_key: string;
+  focus_type: string;
+  label: string;
+  issue_count: number;
+  scan_count: number;
+  severity: string;
+  last_seen_at: string;
+}
+
 export interface AdaptiveScanMeta {
   iterations: number;
   new_issues_found: number;
@@ -24,6 +34,7 @@ export interface AdaptiveScanMeta {
   systemic_issues: any[];
   coverage_score: number;
   iteration_results: any[];
+  focus_memory?: FocusMemoryItem[];
 }
 
 export interface UnifiedScanResult {

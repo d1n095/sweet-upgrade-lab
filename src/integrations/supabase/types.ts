@@ -2705,6 +2705,54 @@ export type Database = {
         }
         Relationships: []
       }
+      scan_focus_memory: {
+        Row: {
+          created_at: string
+          first_seen_at: string
+          focus_key: string
+          focus_type: string
+          id: string
+          issue_count: number
+          label: string
+          last_seen_at: string
+          metadata: Json | null
+          related_scan_types: string[]
+          scan_count: number
+          severity: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          first_seen_at?: string
+          focus_key: string
+          focus_type?: string
+          id?: string
+          issue_count?: number
+          label: string
+          last_seen_at?: string
+          metadata?: Json | null
+          related_scan_types?: string[]
+          scan_count?: number
+          severity?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          first_seen_at?: string
+          focus_key?: string
+          focus_type?: string
+          id?: string
+          issue_count?: number
+          label?: string
+          last_seen_at?: string
+          metadata?: Json | null
+          related_scan_types?: string[]
+          scan_count?: number
+          severity?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       scan_runs: {
         Row: {
           completed_at: string | null
