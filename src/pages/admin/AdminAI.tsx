@@ -7099,6 +7099,7 @@ const OrchestrationTab = () => {
       const linkedScanId = ['scan', 'ai_visual_qa', 'ai_detection'].includes((wi as any)?.source_type) ? (wi as any)?.source_id : null;
       triggerAiReviewForWorkItem(itemId, { context: 'admin_ai_detail' });
       logChange({ change_type: 'fix', description: `Work item slutförd: ${(wi as any)?.title || itemId}`, source: 'manual', affected_components: ['work_items'], work_item_id: itemId, bug_report_id: linkedBugId, scan_id: linkedScanId });
+      if (linkedBugId) queryClient.invalidateQueries({ queryKey: ['bug-reports'] });
     }
   };
 
