@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { useSafeModeStore } from './safeModeStore';
 import { useExecutionLockStore, resolveArea, type LockArea } from './executionLockStore';
+import { evaluateFixConfidence, applyConfidenceAction, useFixConfidenceStore } from './fixConfidenceStore';
 
 export type QueueTaskStatus = 'queued' | 'running' | 'completed' | 'failed' | 'blocked' | 'validating' | 'regressed';
 export type QueueTaskPriority = 'critical' | 'high' | 'normal';
@@ -270,8 +271,54 @@ async function runPostChecks(
     return;
   }
 
-  // 3. All good — release lock
+  // 3. All good — evaluate fix confidence, release lock
+  const validate2 = task.validator || defaultValidator;
+  const allChecks = await validate2(result);
+  let postSnap: Record<string, any> | undefined;
+  if (task.snapshotAfter) {
+    try { postSnap = await task.snapshotAfter(); } catch {}
+  }
+
+  const confidence = evaluateFixConfidence({
+    taskId: task.id,
+    taskTitle: task.title,
+    validationPassed: true,
+    checksTotal: allChecks.length,
+    checksPassed: allChecks.filter(c => c.passed).length,
+    regressionsDetected: regressions.length,
+    preSnapshot: task.preSnapshot,
+    postSnapshot: postSnap,
+    expectChangedKeys: task.expectChangedKeys,
+    guardKeys: task.guardKeys,
+    resultHasData: result !== null && result !== undefined,
+  });
+
+  // Apply actions for low/failed confidence
+  const finalConfidence = await applyConfidenceAction(confidence, (task as any).source_type, (task as any).source_id);
+  useFixConfidenceStore.getState().addResult(finalConfidence);
+
   useExecutionLockStore.getState().release(task.id);
+
+  if (finalConfidence.confidence === 'low' || finalConfidence.confidence === 'failed') {
+    // Mark as regressed instead of completed
+    const report: FailureReport = {
+      what: `Låg fix-konfidens: ${finalConfidence.score}/100`,
+      where: task.title,
+      why: finalConfidence.factors.filter(f => f.score < 50).map(f => `${f.name}: ${f.detail}`).join('; '),
+      checks: finalConfidence.factors.map(f => ({ name: f.name, passed: f.score >= 50, detail: f.detail })),
+      timestamp: new Date().toISOString(),
+    };
+    set((s) => ({
+      tasks: s.tasks.map((t) =>
+        t.id === task.id
+          ? { ...t, status: 'regressed' as const, error: `Konfidens: ${finalConfidence.confidence} (${finalConfidence.score})`, failureReport: report, completedAt: new Date().toISOString(), result }
+          : t
+      ),
+      failureLog: [...s.failureLog, report],
+    }));
+    return;
+  }
+
   set((s) => ({
     tasks: s.tasks.map((t) =>
       t.id === task.id
