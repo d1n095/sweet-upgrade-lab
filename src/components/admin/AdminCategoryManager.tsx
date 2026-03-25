@@ -377,6 +377,10 @@ const AdminCategoryManager = () => {
         </div>
 
         <div className="flex gap-2">
+          <Button size="sm" variant="outline" className="gap-2" onClick={runAiValidate} disabled={aiValidating}>
+            {aiValidating ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+            {aiValidating ? 'Validerar...' : 'Validera'}
+          </Button>
           <Button size="sm" variant="outline" className="gap-2" onClick={runAiSync} disabled={aiSyncing}>
             {aiSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
             {aiSyncing ? 'Analyserar...' : 'AI-synk'}
