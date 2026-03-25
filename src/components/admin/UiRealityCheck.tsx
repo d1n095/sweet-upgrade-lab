@@ -486,6 +486,120 @@ const UiRealityCheck = () => {
     }
   }, []);
 
+  const applyFix = useCallback((check: UICheck) => {
+    const el = check.fixTarget;
+    if (!el || !check.fixType) return false;
+
+    try {
+      switch (check.fixType) {
+        case 'no_scroll': {
+          el.style.overflowY = 'auto';
+          // Fix flex parent chain
+          let parent = el.parentElement;
+          let depth = 0;
+          while (parent && depth < 5) {
+            const ps = getComputedStyle(parent);
+            if (ps.display === 'flex' || ps.display === 'inline-flex') {
+              if (ps.minHeight !== '0px' && ps.minHeight !== '0') {
+                parent.style.minHeight = '0';
+              }
+            }
+            parent = parent.parentElement;
+            depth++;
+          }
+          return true;
+        }
+        case 'content_cut': {
+          el.style.overflowY = 'auto';
+          // If parent is flex, ensure min-height:0
+          const flexParent = el.parentElement;
+          if (flexParent) {
+            const fps = getComputedStyle(flexParent);
+            if (fps.display === 'flex' || fps.display === 'inline-flex') {
+              el.style.minHeight = '0';
+            }
+          }
+          return true;
+        }
+        case 'overflow_hidden_horiz': {
+          el.style.overflowX = 'auto';
+          return true;
+        }
+        case 'modal_overflow': {
+          el.style.display = 'flex';
+          el.style.flexDirection = 'column';
+          el.style.minHeight = '0';
+          // Find the main content child (skip close buttons etc)
+          const children = Array.from(el.children) as HTMLElement[];
+          const contentChild = children.find(c => c.scrollHeight > 100) || children[children.length - 1];
+          if (contentChild) {
+            contentChild.style.overflowY = 'auto';
+            contentChild.style.flex = '1';
+            contentChild.style.minHeight = '0';
+          }
+          return true;
+        }
+        case 'modal_blocked_scroll': {
+          const scrollViewport = el.querySelector('[data-radix-scroll-area-viewport], [class*="overflow-y-auto"], [class*="overflow-auto"]') as HTMLElement;
+          if (scrollViewport) {
+            scrollViewport.style.overflowY = 'auto';
+          }
+          // Fix flex chain inside modal
+          let node = scrollViewport?.parentElement || el;
+          let d = 0;
+          while (node && node !== el && d < 5) {
+            const ns = getComputedStyle(node);
+            if (ns.display === 'flex' || ns.display === 'inline-flex') {
+              node.style.minHeight = '0';
+            }
+            node = node.parentElement!;
+            d++;
+          }
+          return true;
+        }
+        default:
+          return false;
+      }
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const handleFixOne = useCallback((check: UICheck) => {
+    const success = applyFix(check);
+    if (success) {
+      setChecks(prev => prev.map(c =>
+        c.id === check.id
+          ? { ...c, verdict: 'auto_fixed' as CheckVerdict, detail: `✅ Auto-fixad: ${c.detail}` }
+          : c
+      ));
+      toast.success(`Layout-fix applicerad: ${check.element.slice(0, 40)}`);
+    } else {
+      toast.error('Kunde inte applicera fix');
+    }
+  }, [applyFix]);
+
+  const handleFixAll = useCallback(() => {
+    const fixable = checks.filter(c => c.fixType && c.fixTarget && c.verdict !== 'auto_fixed' && c.verdict !== 'working');
+    let fixed = 0;
+    const updated = checks.map(c => {
+      if (c.fixType && c.fixTarget && c.verdict !== 'auto_fixed' && c.verdict !== 'working') {
+        const success = applyFix(c);
+        if (success) {
+          fixed++;
+          return { ...c, verdict: 'auto_fixed' as CheckVerdict, detail: `✅ Auto-fixad: ${c.detail}` };
+        }
+      }
+      return c;
+    });
+    setChecks(updated);
+    if (fixed > 0) {
+      toast.success(`${fixed}/${fixable.length} layout-problem auto-fixade`);
+    } else {
+      toast.info('Inga fixbara layout-problem hittades');
+    }
+  }, [checks, applyFix]);
+
   const stats = {
     total: checks.length,
     working: checks.filter(c => c.verdict === 'working').length,
