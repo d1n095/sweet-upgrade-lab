@@ -441,7 +441,7 @@ export const useAiQueueStore = create<AiQueueState>((set, get) => ({
           }
         }
 
-        // Capture pre-snapshot
+        // Capture pre-snapshot + feedback loop before-state
         let preSnapshot: Record<string, any> | undefined;
         if (nextTask.snapshotBefore) {
           try {
@@ -450,6 +450,7 @@ export const useAiQueueStore = create<AiQueueState>((set, get) => ({
             console.warn('Pre-snapshot failed', err);
           }
         }
+        await useFeedbackLoopStore.getState().captureBeforeAction();
 
         set({
           tasks: updatedTasks.map((t) =>
