@@ -357,9 +357,17 @@ const ProductDetail = () => {
                 <p className="text-muted-foreground leading-relaxed mb-4 text-[15px]">{description}</p>
               )}
 
+              {/* VARIANT SELECTOR */}
+              <VariantSelector
+                variants={variants}
+                selectedVariant={selectedVariant}
+                onSelect={setSelectedVariant}
+                lang={lang}
+              />
+
               {/* 4. PRICE + SAVINGS */}
               <div className="flex items-baseline gap-3 mb-2">
-                <span className="text-3xl font-bold">{formatPrice(product.price)}</span>
+                <span className="text-3xl font-bold">{formatPrice(activePrice)}</span>
                 {hasDiscount && (
                   <>
                     <span className="text-lg text-muted-foreground line-through">{formatPrice(product.original_price!)}</span>
@@ -626,7 +634,7 @@ const ProductDetail = () => {
         setQuantity={setQuantity}
         isAdded={isAdded}
         isOutOfStock={isOutOfStock}
-        price={product.price}
+        price={activePrice}
         onAddToCart={handleAddToCart}
       />
 
