@@ -1939,15 +1939,18 @@ const SystemScanTab = () => {
   const handleCreateWorkItem = async (issue: any) => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
-    await supabase.from('work_items' as any).insert({
+    const { data: wiRow } = await supabase.from('work_items' as any).insert({
       title: `[Scan] ${issue.title}`,
       description: `${issue.description}\n\nFix-förslag: ${issue.fix_suggestion || 'Ingen'}\n\nSeverity: ${issue.severity}\nCategory: ${issue.category}`,
       priority: issue.severity === 'critical' ? 'critical' : issue.severity === 'high' ? 'high' : 'medium',
       status: 'open',
       item_type: 'bug',
       source_type: 'scan',
+      source_id: currentScanId || lastScan?.id || null,
       created_by: session.user.id,
-    } as any);
+    } as any).select('id').single();
+    const wiId = (wiRow as any)?.id || null;
+    logChange({ change_type: 'task_created', description: `Work item skapat från scan: ${issue.title}`, source: 'ai', affected_components: ['work_items', 'scan'], scan_id: currentScanId || lastScan?.id || null, work_item_id: wiId });
     toast.success('Ärende skapat i Workbench');
   };
 
