@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { TrendingUp, ShoppingCart, Eye, ArrowDown, BarChart3, Package } from 'lucide-react';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { PAID_STATUS } from '@/hooks/useAdminData';
 
 type Period = '7d' | '30d' | '90d';
 
