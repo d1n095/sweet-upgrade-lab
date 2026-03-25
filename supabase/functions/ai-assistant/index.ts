@@ -2782,13 +2782,6 @@ Var EXTREMT SPECIFIK. Ge exakta komponent-/sidnamn. Prioritera efter användarim
 
   if (scanId && tasksCreated > 0) await updateScanTaskCount(supabase, scanId, tasksCreated);
   return { ...analysis, tasks_created: tasksCreated, scan_id: scanId };
-
-  return {
-    ...analysis,
-    mode,
-    execution_log: executionLog,
-    executed_count: executionLog.filter(l => l.success).length,
-  };
 }
 
 // ── Verification & Completion Engine ──
