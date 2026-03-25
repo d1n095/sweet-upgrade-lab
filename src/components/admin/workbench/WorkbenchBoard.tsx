@@ -305,7 +305,74 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
         .neq('status', 'cancelled')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return (data || []) as unknown as WorkItem[];
+      const allItems = (data || []) as unknown as WorkItem[];
+
+      // ── Source validation: filter out ghost tasks ──
+      const orderLinkedIds = [...new Set(allItems.filter(i => i.related_order_id).map(i => i.related_order_id!))];
+      const bugLinkedIds = [...new Set(allItems.filter(i => i.source_type === 'bug_report' && i.source_id).map(i => i.source_id!))];
+      const incidentLinkedIds = [...new Set(allItems.filter(i => i.source_type === 'order_incident' && i.source_id).map(i => i.source_id!))];
+
+      const [ordersRes, bugsRes, incidentsRes] = await Promise.all([
+        orderLinkedIds.length > 0
+          ? supabase.from('orders').select('id, deleted_at, status').in('id', orderLinkedIds)
+          : Promise.resolve({ data: [] as any[] }),
+        bugLinkedIds.length > 0
+          ? supabase.from('bug_reports').select('id, status').in('id', bugLinkedIds)
+          : Promise.resolve({ data: [] as any[] }),
+        incidentLinkedIds.length > 0
+          ? supabase.from('order_incidents').select('id, status').in('id', incidentLinkedIds)
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
+
+      const validOrders = new Map((ordersRes.data || []).map((o: any) => [o.id, o]));
+      const validBugs = new Set((bugsRes.data || []).map((b: any) => b.id));
+      const validIncidents = new Set((incidentsRes.data || []).map((i: any) => i.id));
+
+      // Auto-cancel orphan tasks in background (fire-and-forget)
+      const orphanIds: string[] = [];
+
+      const validated = allItems.filter(item => {
+        // Check order-linked tasks
+        if (item.related_order_id) {
+          const order = validOrders.get(item.related_order_id);
+          if (!order || order.deleted_at) {
+            if (['open', 'claimed', 'in_progress'].includes(item.status)) orphanIds.push(item.id);
+            return false; // hide from UI
+          }
+          // Order completed/delivered but task still active for pack/ship types
+          if (['delivered', 'completed'].includes(order.status) &&
+              ['pack_order', 'packing', 'shipping'].includes(item.item_type) &&
+              ['open', 'claimed', 'in_progress'].includes(item.status)) {
+            orphanIds.push(item.id);
+            return false;
+          }
+        }
+        // Check bug source
+        if (item.source_type === 'bug_report' && item.source_id && !validBugs.has(item.source_id) &&
+            ['open', 'claimed', 'in_progress'].includes(item.status)) {
+          orphanIds.push(item.id);
+          return false;
+        }
+        // Check incident source
+        if (item.source_type === 'order_incident' && item.source_id && !validIncidents.has(item.source_id) &&
+            ['open', 'claimed', 'in_progress'].includes(item.status)) {
+          orphanIds.push(item.id);
+          return false;
+        }
+        return true;
+      });
+
+      // Fire-and-forget cleanup of orphans
+      if (orphanIds.length > 0) {
+        supabase.from('work_items' as any)
+          .update({ status: 'cancelled', updated_at: new Date().toISOString() } as any)
+          .in('id', orphanIds)
+          .then(() => {
+            console.log(`[Workbench] Auto-cancelled ${orphanIds.length} orphan tasks`);
+          });
+      }
+
+      return validated;
     },
   });
 
