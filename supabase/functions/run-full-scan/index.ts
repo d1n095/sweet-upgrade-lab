@@ -1691,7 +1691,7 @@ const REAL_DB_SCANNERS: Record<string, (supabase: any, scanRunId: string) => Pro
   interaction_qa: runRealInteractionQA,
 };
 
-
+async function createWorkItems(supabase: any, unified: any): Promise<number> {
   let workItemsCreated = 0;
   const allWorkIssues: { title: string; priority: string; item_type: string; description?: string }[] = [];
 
