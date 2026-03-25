@@ -6,7 +6,7 @@ import {
   Bot, Play, TrendingUp, Radar, Activity, Monitor,
   Database, Shield, Eye, GitMerge,
   ArrowRightLeft, Layers, ChevronRight, Menu, X,
-  Sparkles, Bug, Wrench, Clock,
+  Sparkles, Bug, Wrench, Clock, Lock,
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -61,6 +61,7 @@ const TAB_GROUPS: TabGroup[] = [
     icon: Radar,
     tabs: [
       { value: 'scan', label: 'Full skanning', icon: Radar },
+      { value: 'access-control', label: 'Åtkomstkontroll', icon: Lock },
       { value: 'visual-qa', label: 'Visual QA', icon: Monitor },
       { value: 'ux-scanner', label: 'UX-skanner', icon: Eye },
       { value: 'sync-scan', label: 'Synk-skanner', icon: ArrowRightLeft },
