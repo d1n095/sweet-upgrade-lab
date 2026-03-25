@@ -2399,8 +2399,7 @@ const SystemScanTab = () => {
                         </div>
                       )}
                     </div>
-                  ))}
-                </div>
+                ))}
               </div>
             </div>
           )}
