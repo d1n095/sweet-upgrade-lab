@@ -47,15 +47,29 @@ serve(async (req) => {
       edge_cases: [],
     };
 
+    // Fetch recent changes related to this work item
+    let relatedChanges: any[] = [];
+    try {
+      const { data: changes } = await supabase
+        .from("change_log")
+        .select("id, change_type, description, affected_components, created_at")
+        .or(`work_item_id.eq.${work_item_id},bug_report_id.eq.${item.source_id || "00000000-0000-0000-0000-000000000000"}`)
+        .order("created_at", { ascending: false })
+        .limit(10);
+      relatedChanges = changes || [];
+    } catch { /* ignore */ }
+
     // Run AI review if key available
     if (apiKey) {
-      const prompt = `Analysera denna avslutade uppgift och bedöm om den verkar korrekt löst.
+      const prompt = `Du är en strikt QA-ingenjör. Verifiera att denna uppgift verkligen är löst korrekt.
 
 UPPGIFT:
 Titel: ${item.title}
 Typ: ${item.item_type}
 Beskrivning: ${item.description || "Ingen"}
 Fix-anteckningar: ${item.resolution_notes || "Inga"}
+Manuell orsak: ${(item as any).human_selected_cause || (item as any).human_custom_cause || "Ingen"}
+Manuell fix: ${(item as any).human_custom_fix || "Ingen"}
 
 ${sourceData ? `KÄLLA (Buggrapport):
 Beskrivning: ${sourceData.description}
@@ -64,14 +78,16 @@ AI-sammanfattning: ${sourceData.ai_summary || "Ingen"}
 AI-kategori: ${sourceData.ai_category || "Okänd"}
 AI-reproduktionssteg: ${sourceData.ai_repro_steps || "Inga"}` : ""}
 
-Svara med JSON:
-{
-  "status": "verified" | "needs_review" | "incomplete",
-  "verdict": "kort bedömning",
-  "confidence": 0-100,
-  "risks": ["ev. risker"],
-  "edge_cases": ["ev. edge cases som kan ha missats"]
-}`;
+${relatedChanges.length > 0 ? `RELATERADE ÄNDRINGAR:
+${JSON.stringify(relatedChanges.map(c => ({ type: c.change_type, desc: c.description, components: c.affected_components })), null, 2)}` : "Inga relaterade ändringar hittades."}
+
+VERIFIERINGSREGLER:
+1. Om fix-anteckningar saknas eller är vaga → "incomplete"
+2. Om buggens grundorsak inte adresseras av ändringarna → "incomplete"  
+3. Om risker eller edge cases identifieras → "needs_review"
+4. Om allt ser korrekt ut med bevis → "verified"
+
+Var STRIKT. Falska positiva (markera som klar fast det inte är fixat) är värre än falska negativa.`;
 
       try {
         const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -81,24 +97,25 @@ Svara med JSON:
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "google/gemini-2.5-flash-lite",
+            model: "google/gemini-2.5-flash",
             messages: [
-              { role: "system", content: "Du är en QA-ingenjör. Analysera avslutade uppgifter och bedöm kvaliteten på lösningen. Svara ALLTID med valid JSON." },
+              { role: "system", content: "Du är en strikt QA-ingenjör som verifierar att fixar verkligen löser problemen. Svara ALLTID med valid JSON via tool call." },
               { role: "user", content: prompt },
             ],
             tools: [{
               type: "function",
               function: {
                 name: "review_result",
-                description: "Return structured review result",
+                description: "Return structured verification result",
                 parameters: {
                   type: "object",
                   properties: {
                     status: { type: "string", enum: ["verified", "needs_review", "incomplete"] },
-                    verdict: { type: "string" },
-                    confidence: { type: "number" },
-                    risks: { type: "array", items: { type: "string" } },
-                    edge_cases: { type: "array", items: { type: "string" } },
+                    verdict: { type: "string", description: "Kort bedömning av verifieringen" },
+                    confidence: { type: "number", description: "0-100 konfidens" },
+                    risks: { type: "array", items: { type: "string" }, description: "Identifierade risker" },
+                    edge_cases: { type: "array", items: { type: "string" }, description: "Edge cases som kan ha missats" },
+                    reopen_reason: { type: "string", description: "Om status=incomplete, varför bör uppgiften återöppnas" },
                   },
                   required: ["status", "verdict", "confidence"],
                 },
@@ -122,12 +139,57 @@ Svara med JSON:
 
     const now = new Date().toISOString();
 
-    // Update work item with review
-    await supabase.from("work_items").update({
-      ai_review_status: reviewResult.status,
-      ai_review_result: reviewResult,
-      ai_review_at: now,
-    }).eq("id", work_item_id);
+    // If AI says incomplete with high confidence → auto-reopen
+    const shouldReopen = reviewResult.status === "incomplete" && reviewResult.confidence >= 70;
+
+    if (shouldReopen) {
+      // Reopen work item
+      await supabase.from("work_items").update({
+        status: "open",
+        completed_at: null,
+        ai_review_status: reviewResult.status,
+        ai_review_result: { ...reviewResult, auto_reopened: true, reopened_at: now },
+        ai_review_at: now,
+      }).eq("id", work_item_id);
+
+      // Reopen source bug if applicable
+      if (item.source_type === "bug_report" && item.source_id) {
+        await supabase.from("bug_reports").update({
+          status: "open",
+          resolved_at: null,
+          resolved_by: null,
+          resolution_notes: `AI-verifiering: Återöppnad — ${reviewResult.reopen_reason || reviewResult.verdict}`,
+        }).eq("id", item.source_id);
+      }
+
+      // Log the reopen
+      await supabase.from("change_log").insert({
+        change_type: "reopen",
+        description: `AI återöppnade: ${item.title} — ${reviewResult.reopen_reason || reviewResult.verdict}`,
+        affected_components: ["work_items", item.source_type || "unknown"],
+        source: "ai_verification",
+        work_item_id: work_item_id,
+        bug_report_id: item.source_type === "bug_report" ? item.source_id : null,
+        metadata: { review: reviewResult },
+      });
+
+      console.log(`[ai-review-fix] REOPENED work_item_id=${work_item_id} reason=${reviewResult.reopen_reason || reviewResult.verdict}`);
+    } else {
+      // Normal update — mark as verified or needs_review
+      await supabase.from("work_items").update({
+        ai_review_status: reviewResult.status,
+        ai_review_result: reviewResult,
+        ai_review_at: now,
+      }).eq("id", work_item_id);
+
+      // If verified, mark source bug as verified_done
+      if (reviewResult.status === "verified" && item.source_type === "bug_report" && item.source_id) {
+        await supabase.from("bug_reports").update({
+          resolution_notes: (sourceData?.resolution_notes ? sourceData.resolution_notes + "\n" : "") + 
+            `✅ AI-verifierad (${reviewResult.confidence}%): ${reviewResult.verdict}`,
+        }).eq("id", item.source_id);
+      }
+    }
 
     // Archive to system_history
     await supabase.from("system_history").insert({
