@@ -346,10 +346,14 @@ Deno.serve(async (req) => {
 
     results.total_issues = results.orphan_work_items + results.bugs_without_work_items +
       results.status_mismatches + results.deleted_order_tasks +
+      results.completed_order_tasks + results.cancelled_order_tasks +
+      results.sourceless_items +
       results.duplicate_work_items + results.stale_claimed;
 
     results.total_fixed = results.orphan_work_items_fixed + results.bugs_without_work_items_fixed +
       results.status_mismatches_fixed + results.deleted_order_tasks_fixed +
+      results.completed_order_tasks_fixed + results.cancelled_order_tasks_fixed +
+      results.sourceless_items_fixed +
       results.stale_claimed_fixed;
 
     return new Response(JSON.stringify({ success: true, mode, results }), {
