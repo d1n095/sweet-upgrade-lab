@@ -69,6 +69,7 @@ import AdminOps from "./pages/admin/AdminOps";
 import AdminGrowth from "./pages/admin/AdminGrowth";
 import AdminAI from "./pages/admin/AdminAI";
 import AdminHistory from "./pages/admin/AdminHistory";
+import AdminChangeHistory from "./pages/admin/AdminChangeHistory";
 import AdminPOS from "./pages/admin/AdminPOS";
 import ScanPackingMode from "./components/admin/warehouse/ScanPackingMode";
 
@@ -153,6 +154,7 @@ const App = () => (
                 <Route path="data" element={<AdminData />} />
                 <Route path="ai" element={<AdminAI />} />
                 <Route path="history" element={<AdminHistory />} />
+                <Route path="changes" element={<AdminChangeHistory />} />
                 <Route path="database" element={<AdminDatabase />} />
                 <Route path="warehouse" element={<ScanPackingMode />} />
               </Route>
