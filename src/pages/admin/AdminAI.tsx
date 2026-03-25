@@ -2874,7 +2874,29 @@ const DataCleanupTab = () => {
 };
 
 const AdminAI = () => {
+  const [detailItem, setDetailItem] = useState<any>(null);
+  const queryClient = useQueryClient();
+
+  const openDetail = useCallback(async (itemId: string) => {
+    const { data } = await supabase.from('work_items' as any).select('*').eq('id', itemId).maybeSingle();
+    if (data) setDetailItem(data);
+    else toast.error('Uppgiften hittades inte');
+  }, []);
+
+  const handleStatusChange = async (itemId: string, newStatus: string) => {
+    const now = new Date().toISOString();
+    const updates: Record<string, any> = { status: newStatus, updated_at: now };
+    if (newStatus === 'done') updates.completed_at = now;
+    await supabase.from('work_items' as any).update(updates).eq('id', itemId);
+    queryClient.invalidateQueries({ queryKey: ['work-items'] });
+    queryClient.invalidateQueries({ queryKey: ['ai-managed-items'] });
+    if (newStatus === 'done') {
+      triggerAiReviewForWorkItem(itemId, { context: 'admin_ai_detail' });
+    }
+  };
+
   return (
+    <DetailContext.Provider value={{ openDetail }}>
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -3019,7 +3041,24 @@ const AdminAI = () => {
           <DataCleanupTab />
         </TabsContent>
       </Tabs>
+
+      <WorkItemDetail
+        item={detailItem}
+        open={!!detailItem}
+        onOpenChange={(open) => { if (!open) setDetailItem(null); }}
+        onStatusChange={handleStatusChange}
+        onRefresh={() => {
+          queryClient.invalidateQueries({ queryKey: ['work-items'] });
+          queryClient.invalidateQueries({ queryKey: ['ai-managed-items'] });
+          if (detailItem) {
+            supabase.from('work_items' as any).select('*').eq('id', detailItem.id).maybeSingle().then(({ data }) => {
+              if (data) setDetailItem(data);
+            });
+          }
+        }}
+      />
     </div>
+    </DetailContext.Provider>
   );
 };
 
