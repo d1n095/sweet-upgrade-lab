@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useExecutionLockStore } from './executionLockStore';
+import { useFeedbackLoopStore } from './feedbackLoopStore';
 import { QueryClient } from '@tanstack/react-query';
 
 export type ScanStepStatus = 'pending' | 'running' | 'done' | 'error';
@@ -110,6 +111,9 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
     const toRun = SCAN_STEPS.filter(s => selectedSteps.has(s.type));
     if (toRun.length === 0) { toast.error('Välj minst en skanning'); lockStore.release(lockId); return; }
 
+    // Capture before-snapshot for feedback loop
+    await useFeedbackLoopStore.getState().captureBeforeAction();
+
     set({
       scanning: true,
       steps: toRun.map(s => ({ type: s.type, label: s.label, status: 'pending' as const })),
@@ -155,7 +159,18 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
       }
     }
 
-    toast.success(`Alla skanningar klara (${toRun.length} st)`);
+    // Evaluate feedback loop after scans
+    const steps = get().steps;
+    const errorCount = steps.filter(s => s.status === 'error').length;
+    const fbEntry = await useFeedbackLoopStore.getState().evaluateAfterAction(
+      'scan', `Skanning (${toRun.length} steg)`, { failed: errorCount, regressed: 0, errors: errorCount }
+    );
+
+    const verdictLabel = fbEntry?.verdict === 'improved' ? '📈 Förbättrat' :
+      fbEntry?.verdict === 'degraded' ? '📉 Försämrat' : '➡️ Stabilt';
+    toast.success(`Skanningar klara (${toRun.length} st) — ${verdictLabel}`);
+    if (fbEntry?.suggestion) toast.warning(fbEntry.suggestion, { duration: 8000 });
+
     lockStore.release(lockId);
     set({ scanning: false });
   },

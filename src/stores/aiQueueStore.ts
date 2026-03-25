@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { useSafeModeStore } from './safeModeStore';
 import { useExecutionLockStore, resolveArea, type LockArea } from './executionLockStore';
 import { evaluateFixConfidence, applyConfidenceAction, useFixConfidenceStore } from './fixConfidenceStore';
+import { useFeedbackLoopStore } from './feedbackLoopStore';
 
 export type QueueTaskStatus = 'queued' | 'running' | 'completed' | 'failed' | 'blocked' | 'validating' | 'regressed';
 export type QueueTaskPriority = 'critical' | 'high' | 'normal';
@@ -325,6 +326,13 @@ async function runPostChecks(
       ),
       failureLog: [...s.failureLog, report],
     }));
+    // Feedback loop — evaluate after action for degraded tasks
+    const qState = get();
+    await useFeedbackLoopStore.getState().evaluateAfterAction('fix', task.title, {
+      failed: qState.tasks.filter(t => t.status === 'failed').length,
+      regressed: qState.tasks.filter(t => t.status === 'regressed').length + 1,
+      errors: qState.failureLog.length,
+    });
     return;
   }
 
@@ -335,6 +343,14 @@ async function runPostChecks(
         : t
     ),
   }));
+
+  // Feedback loop — evaluate after successful fix
+  const qState2 = get();
+  await useFeedbackLoopStore.getState().evaluateAfterAction('fix', task.title, {
+    failed: qState2.tasks.filter(t => t.status === 'failed').length,
+    regressed: qState2.tasks.filter(t => t.status === 'regressed').length,
+    errors: qState2.failureLog.length,
+  });
 }
 
 export const useAiQueueStore = create<AiQueueState>((set, get) => ({
@@ -440,7 +456,7 @@ export const useAiQueueStore = create<AiQueueState>((set, get) => ({
           }
         }
 
-        // Capture pre-snapshot
+        // Capture pre-snapshot + feedback loop before-state
         let preSnapshot: Record<string, any> | undefined;
         if (nextTask.snapshotBefore) {
           try {
@@ -449,6 +465,7 @@ export const useAiQueueStore = create<AiQueueState>((set, get) => ({
             console.warn('Pre-snapshot failed', err);
           }
         }
+        await useFeedbackLoopStore.getState().captureBeforeAction();
 
         set({
           tasks: updatedTasks.map((t) =>
