@@ -680,6 +680,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                   >
                     {runningPreVerify ? <Loader2 className="w-3 h-3 animate-spin" /> : <AlertCircle className="w-3 h-3" />}
                     Inte fixad
+                  </Button>
                 </div>
                 )}
               </div>
