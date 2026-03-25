@@ -194,6 +194,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     enabled: true,
   });
 
+  const { data: automationLogs = [] } = useQuery({
     queryKey: ['automation-logs-recent'],
     queryFn: async () => {
       const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
