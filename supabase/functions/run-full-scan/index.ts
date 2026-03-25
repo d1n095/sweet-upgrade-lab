@@ -22,15 +22,17 @@ const STEPS = [
 const MAX_ITERATIONS = 3;
 
 // ── SYSTEM STAGE: Context awareness ──
-type SystemStage = "development" | "production";
+type SystemStage = "development" | "staging" | "production";
 
 async function getSystemStage(supabase: any): Promise<SystemStage> {
   try {
     const { data } = await supabase
       .from("store_settings")
-      .select("key, value")
+      .select("key, value, text_value")
       .eq("key", "system_stage")
       .maybeSingle();
+    const textVal = data?.text_value;
+    if (textVal === "production" || textVal === "staging") return textVal;
     if (data?.value === true || data?.value === "production") return "production";
     return "development";
   } catch {
@@ -83,10 +85,11 @@ function groupSimilarIssues(issues: any[]): any[] {
   return result;
 }
 
-// ── Context-aware filtering: suppress false positives in dev mode ──
+// ── Context-aware filtering: suppress false positives based on stage ──
 function filterDevFalsePositives(issues: any[], stage: SystemStage): any[] {
   if (stage === "production") return issues;
   
+  // Patterns always suppressed in development
   const devIgnorePatterns = [
     /0\s*(produkter|intäkter|ordrar|recensioner|donationer)/i,
     /tom(ma|t)?\s*(data|tabell|lista)/i,
@@ -94,11 +97,18 @@ function filterDevFalsePositives(issues: any[], stage: SystemStage): any[] {
     /inga\s*(produkter|ordrar|recensioner)/i,
     /row_count.*0/i,
     /0\s*st\b/i,
+    /saknar\s*test\s*data/i,
+    /dummy|placeholder|lorem/i,
+    /ingen\s*(betalning|leverans|transaktion)/i,
   ];
+
+  // In staging: only suppress empty-data warnings, keep structural issues
+  const stagingIgnorePatterns = stage === "staging" ? devIgnorePatterns.slice(0, 6) : devIgnorePatterns;
+  const activePatterns = stage === "staging" ? stagingIgnorePatterns : devIgnorePatterns;
   
   return issues.map(issue => {
     const text = `${issue.title || ""} ${issue.description || ""}`;
-    const isDevExpected = devIgnorePatterns.some(p => p.test(text));
+    const isDevExpected = activePatterns.some(p => p.test(text));
     if (isDevExpected) {
       return { ...issue, _dev_expected: true, severity: "info", _original_severity: issue.severity };
     }
@@ -1640,6 +1650,7 @@ serve(async (req) => {
       const adaptiveResult = {
         ...unified,
         system_overview: systemOverview,
+        system_stage: systemStage,
         adaptive_scan: {
           iterations: iterationsCompleted, new_issues_found: scanRun.total_new_issues || 0,
           pattern_discoveries: patternDiscoveries, high_risk_areas: highRiskAreas,

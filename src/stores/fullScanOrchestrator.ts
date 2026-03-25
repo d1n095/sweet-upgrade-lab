@@ -69,6 +69,8 @@ export interface BehaviorFailure {
   entity_id?: string;
 }
 
+export type SystemStage = 'development' | 'staging' | 'production';
+
 export interface UnifiedScanResult {
   blocker: any | null;
   broken_flows: any[];
@@ -84,6 +86,13 @@ export interface UnifiedScanResult {
   completed_at: string;
   total_duration_ms: number;
   adaptive_scan?: AdaptiveScanMeta;
+  system_overview?: any;
+  system_stage?: SystemStage;
+}
+
+/** Filter out dev-expected issues for count/display purposes */
+export function filterRelevantIssues<T extends Record<string, any>>(issues: T[]): T[] {
+  return issues.filter(i => !i._dev_expected);
 }
 
 /**
