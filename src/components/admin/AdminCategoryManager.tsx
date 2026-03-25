@@ -193,13 +193,35 @@ const AdminCategoryManager = () => {
       });
       toast.success(`"${suggestion.name_sv}" skapad!`);
       queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
-      // Remove from pending
       setAiResult((prev: any) => prev ? {
         ...prev,
         pending_review: (prev.pending_review || []).filter((s: any) => s.slug !== suggestion.slug),
       } : prev);
     } catch (err: any) {
       toast.error('Kunde inte skapa: ' + (err?.message || ''));
+    }
+  };
+
+  const runAiValidate = async () => {
+    setAiValidating(true);
+    setValidationResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-assistant', {
+        body: { type: 'category_validate' },
+      });
+      if (error) throw error;
+      const res = data?.result || data;
+      setValidationResult(res);
+      queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
+      const fixed = res?.auto_fixed?.length || 0;
+      const issues = res?.issues_found || 0;
+      if (issues === 0) toast.success('Inga problem hittades!');
+      else if (fixed > 0) toast.success(`${fixed} problem åtgärdade automatiskt`);
+      else toast.info(`${issues} problem hittade`);
+    } catch (err: any) {
+      toast.error('Validering misslyckades: ' + (err?.message || ''));
+    } finally {
+      setAiValidating(false);
     }
   };
 
