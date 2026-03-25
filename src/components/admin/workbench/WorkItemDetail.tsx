@@ -300,8 +300,9 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
   };
 
   const dt = fmtFull(item.created_at);
+  const reanalysis = (item.ai_root_causes as any)?.refined_diagnosis ? item.ai_root_causes as any : null;
   const rootCauses = fixSuggestion?.root_causes || (item.ai_root_causes as any)?.root_causes || [];
-  const analysisSummary = fixSuggestion?.summary || (item.ai_root_causes as any)?.summary;
+  const analysisSummary = reanalysis?.refined_diagnosis?.summary || fixSuggestion?.summary || (item.ai_root_causes as any)?.summary;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
