@@ -238,6 +238,11 @@ serve(async (req) => {
         break;
       }
 
+      case "sync_scan": {
+        result = await handleSyncScan(supabase, lovableKey);
+        break;
+      }
+
       default:
         return new Response(JSON.stringify({ error: "Unknown type" }), { status: 400, headers: corsHeaders });
     }
