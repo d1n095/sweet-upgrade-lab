@@ -245,7 +245,7 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
   );
 
   return (
-    <div className="flex gap-0 lg:gap-4 -mx-4 md:-mx-8 h-[calc(100vh-200px)] min-h-0">
+    <div className="flex gap-0 lg:gap-4 -mx-4 md:-mx-8 h-full min-h-0">
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex w-52 flex-col shrink-0 border-r border-border bg-card/50 min-h-0">
         <div className="px-4 py-3 border-b border-border">
@@ -376,15 +376,15 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
           </div>
         )}
 
-        <div className="min-h-0">
+        <div className="min-h-0 h-full flex flex-col">
           {activeTab === 'ai-dashboard' ? (
             <DashboardOverview onNavigate={handleNavigate} />
           ) : (
-            <div>
+            <div className="h-full min-h-0">
               {React.Children.map(children, child => {
                 if (!React.isValidElement(child)) return null;
                 const value = child.props['data-value'] || child.props.value;
-                return value === activeTab ? <div>{child}</div> : null;
+                return value === activeTab ? <div className="h-full min-h-0">{child}</div> : null;
               })}
             </div>
           )}
