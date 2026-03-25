@@ -397,7 +397,7 @@ async function gatherSystemSnapshot(supabase: any, triggeredBy?: string) {
   const errorLogs = activities.filter((a: any) => a.log_type === "error").length;
   const warningLogs = activities.filter((a: any) => a.log_type === "warning").length;
 
-  return {
+  const snap = {
     summary: `=== SYSTEM SNAPSHOT (Last 7 days) ===
 
 📦 ORDERS
