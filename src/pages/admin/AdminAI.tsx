@@ -4699,7 +4699,7 @@ const AiAutopilotTab = () => {
             })}
           </div>
 
-          <Button onClick={runAllScans} disabled={scanning || selectedSteps.size === 0} className="w-full gap-2" size="lg">
+          <Button onClick={() => runAllScans(queryClient)} disabled={scanning || selectedSteps.size === 0} className="w-full gap-2" size="lg">
             {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
             {scanning ? `Skannar... (${completedCount + errorCount}/${steps.length})` : `Kör ${selectedSteps.size} skanningar`}
           </Button>
