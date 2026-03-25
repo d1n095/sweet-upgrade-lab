@@ -305,6 +305,45 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_scan_results: {
+        Row: {
+          created_at: string
+          executive_summary: string | null
+          id: string
+          issues_count: number | null
+          overall_score: number | null
+          overall_status: string | null
+          results: Json
+          scan_type: string
+          scanned_by: string | null
+          tasks_created: number | null
+        }
+        Insert: {
+          created_at?: string
+          executive_summary?: string | null
+          id?: string
+          issues_count?: number | null
+          overall_score?: number | null
+          overall_status?: string | null
+          results?: Json
+          scan_type?: string
+          scanned_by?: string | null
+          tasks_created?: number | null
+        }
+        Update: {
+          created_at?: string
+          executive_summary?: string | null
+          id?: string
+          issues_count?: number | null
+          overall_score?: number | null
+          overall_status?: string | null
+          results?: Json
+          scan_type?: string
+          scanned_by?: string | null
+          tasks_created?: number | null
+        }
+        Relationships: []
+      }
       analytics_events: {
         Row: {
           created_at: string
