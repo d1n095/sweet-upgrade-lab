@@ -502,7 +502,7 @@ const AdminBugReports = () => {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="flex h-full min-h-0 flex-col space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Bug className="w-5 h-5 text-destructive" />
@@ -515,7 +515,7 @@ const AdminBugReports = () => {
         </Button>
       </div>
 
-      <Tabs defaultValue="inbox" className="w-full">
+      <Tabs defaultValue="inbox" className="w-full min-h-0 flex-1 flex flex-col">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="inbox" className="gap-1.5 text-xs">
             <Bug className="w-3.5 h-3.5" />
@@ -533,27 +533,27 @@ const AdminBugReports = () => {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="inbox" className="mt-3">
+        <TabsContent value="inbox" className="mt-3 min-h-0 flex-1">
           {inbox.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">Alla buggar är bearbetade 🎉</p>
           ) : (
-            <ScrollArea className="max-h-[65vh]">
+            <ScrollArea className="h-full min-h-0">
               <div className="space-y-2 pr-2">{inbox.map(r => renderBugCard(r, false))}</div>
             </ScrollArea>
           )}
         </TabsContent>
 
-        <TabsContent value="processed" className="mt-3">
+        <TabsContent value="processed" className="mt-3 min-h-0 flex-1">
           {processed.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">Inga bearbetade buggar ännu</p>
           ) : (
-            <ScrollArea className="max-h-[65vh]">
+            <ScrollArea className="h-full min-h-0">
               <div className="space-y-2 pr-2">{processed.map(r => renderBugCard(r, true))}</div>
             </ScrollArea>
           )}
         </TabsContent>
 
-        <TabsContent value="prompts" className="mt-3 space-y-3">
+        <TabsContent value="prompts" className="mt-3 min-h-0 flex-1 flex flex-col space-y-3">
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -591,7 +591,7 @@ const AdminBugReports = () => {
           {filteredPrompts.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">Inga promptar hittade</p>
           ) : (
-            <ScrollArea className="max-h-[60vh]">
+            <ScrollArea className="flex-1 min-h-0">
               <div className="space-y-2 pr-2">
                 {filteredPrompts.map(r => (
                   <div key={r.id} className="border rounded-lg p-3 space-y-2">

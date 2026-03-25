@@ -212,7 +212,7 @@ const AdminActivityLog = () => {
   );
 
   return (
-    <div className="space-y-4">
+    <div className="flex h-full min-h-0 flex-col space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -284,7 +284,7 @@ const AdminActivityLog = () => {
       })()}
 
       {/* Tabs for different log views */}
-      <Tabs defaultValue="all" className="space-y-4">
+      <Tabs defaultValue="all" className="flex min-h-0 flex-1 flex-col space-y-4">
         <ScrollableTabs>
           <TabsList className="bg-secondary/50 w-max">
             <TabsTrigger value="all">Alla loggar</TabsTrigger>
@@ -294,7 +294,7 @@ const AdminActivityLog = () => {
           </TabsList>
         </ScrollableTabs>
 
-        <TabsContent value="all" className="space-y-4" ref={(el: HTMLDivElement | null) => { logsListRef.current = el; }}>
+        <TabsContent value="all" className="mt-0 flex min-h-0 flex-1 flex-col space-y-4" ref={(el: HTMLDivElement | null) => { logsListRef.current = el; }}>
           {/* Search + Filters */}
           <div className="flex flex-wrap gap-3">
             <div className="relative flex-1 min-w-[200px]">
@@ -344,50 +344,54 @@ const AdminActivityLog = () => {
             </div>
           </div>
 
-          {isLoading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin text-primary" />
-            </div>
-          ) : (
-            renderLogList(filteredLogs)
-          )}
+          <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+            {isLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              </div>
+            ) : (
+              renderLogList(filteredLogs)
+            )}
+          </div>
         </TabsContent>
 
-        <TabsContent value="auth">
-          <div className="space-y-2">
+        <TabsContent value="auth" className="mt-0 flex min-h-0 flex-1 flex-col">
+          <div className="space-y-2 min-h-0 flex-1 flex flex-col">
             <div className="flex items-center gap-2 mb-3">
               <LogIn className="w-4 h-4 text-primary" />
               <h4 className="font-medium text-sm">Inloggningshistorik</h4>
               <Badge variant="outline" className="text-xs">{authLogs.length} poster</Badge>
             </div>
-            {renderLogList(authLogs)}
+            <div className="min-h-0 flex-1 overflow-y-auto pr-1">{renderLogList(authLogs)}</div>
           </div>
         </TabsContent>
 
-        <TabsContent value="orders">
-          <div className="space-y-2">
+        <TabsContent value="orders" className="mt-0 flex min-h-0 flex-1 flex-col">
+          <div className="space-y-2 min-h-0 flex-1 flex flex-col">
             <div className="flex items-center gap-2 mb-3">
               <ShoppingCart className="w-4 h-4 text-primary" />
               <h4 className="font-medium text-sm">Orderlogg</h4>
               <Badge variant="outline" className="text-xs">{orderLogs.length} poster</Badge>
             </div>
-            {renderLogList(orderLogs)}
+            <div className="min-h-0 flex-1 overflow-y-auto pr-1">{renderLogList(orderLogs)}</div>
           </div>
         </TabsContent>
 
-        <TabsContent value="security">
-          <div className="space-y-2">
+        <TabsContent value="security" className="mt-0 flex min-h-0 flex-1 flex-col">
+          <div className="space-y-2 min-h-0 flex-1 flex flex-col">
             <div className="flex items-center gap-2 mb-3">
               <Shield className="w-4 h-4 text-destructive" />
               <h4 className="font-medium text-sm">Säkerhetsloggar</h4>
               <Badge variant="outline" className="text-xs">{securityLogs.length} poster</Badge>
             </div>
-            {securityLogs.length === 0 ? (
-              <div className="text-center py-8">
-                <Shield className="w-8 h-8 text-green-500 mx-auto mb-2" />
-                <p className="text-muted-foreground text-sm">Inga säkerhetshändelser registrerade</p>
-              </div>
-            ) : renderLogList(securityLogs)}
+            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+              {securityLogs.length === 0 ? (
+                <div className="text-center py-8">
+                  <Shield className="w-8 h-8 text-green-500 mx-auto mb-2" />
+                  <p className="text-muted-foreground text-sm">Inga säkerhetshändelser registrerade</p>
+                </div>
+              ) : renderLogList(securityLogs)}
+            </div>
           </div>
         </TabsContent>
       </Tabs>

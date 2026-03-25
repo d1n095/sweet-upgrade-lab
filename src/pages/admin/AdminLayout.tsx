@@ -409,8 +409,8 @@ const AdminLayout = () => {
         )}
 
         {/* Content */}
-        <main className="flex-1 overflow-y-auto">
-          <div className="md:p-8 p-4 pt-24 pb-8 md:pt-6 md:pb-8 max-w-6xl mx-auto">
+        <main className="flex-1 min-h-0 overflow-y-auto">
+          <div className="md:p-8 p-4 pt-24 pb-8 md:pt-6 md:pb-8 max-w-6xl mx-auto h-full min-h-0 flex flex-col">
             <Outlet />
           </div>
         </main>
