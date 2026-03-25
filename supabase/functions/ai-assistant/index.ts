@@ -1539,6 +1539,17 @@ Var SPECIFIK med vilka sidor och element som har problem. Svara på svenska.`,
     }
   }
 
+  // Persist scan result to ai_scan_results
+  await supabase.from("ai_scan_results").insert({
+    scan_type: "visual_qa",
+    results: analysis || {},
+    overall_score: analysis?.overall_ui_score || 0,
+    overall_status: (analysis?.overall_ui_score || 0) >= 80 ? "good" : (analysis?.overall_ui_score || 0) >= 50 ? "warning" : "critical",
+    issues_count: analysis?.issues?.length || 0,
+    tasks_created: tasksCreated,
+    executive_summary: analysis?.executive_summary || "",
+  });
+
   return { ...analysis, tasks_created: tasksCreated };
 }
 
