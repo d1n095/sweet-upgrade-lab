@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { QueryClient } from '@tanstack/react-query';
 import { runUnifiedPipeline } from '@/lib/unifiedPipeline';
 import { runCriticalPathCheck } from '@/lib/criticalPathProtection';
+import { runCriticalEscalation } from '@/lib/criticalEscalation';
 
 export type OrchestratorStepStatus = 'pending' | 'running' | 'done' | 'error' | 'skipped';
 
@@ -327,6 +328,14 @@ export const useFullScanOrchestrator = create<FullScanOrchestratorState>((set, g
       }
     } catch (e) {
       console.warn('Critical path check failed:', e);
+    }
+
+    // ── POST-SCAN: Auto-assign, escalate & dedup critical items ──
+    try {
+      const escReport = await runCriticalEscalation();
+      console.log(`[Escalation] assigned=${escReport.assigned} escalated=${escReport.escalated} dedup=${escReport.deduplicated}`);
+    } catch (e) {
+      console.warn('Critical escalation failed:', e);
     }
 
     if (queryClient) {
