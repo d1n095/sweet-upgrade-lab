@@ -366,9 +366,9 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
       </AnimatePresence>
 
       {/* Main Content */}
-      <div className="flex-1 min-w-0 min-h-0 px-4 md:px-8 pb-20 lg:pb-4 overflow-y-auto">
+      <div className="flex-1 min-w-0 min-h-0 flex flex-col px-4 md:px-8 pb-20 lg:pb-4 overflow-y-auto">
         {activeTab !== 'ai-dashboard' && activeTabDef && (
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-4 pt-1">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-4 pt-1 shrink-0">
             <button onClick={() => handleNavigate('ai-dashboard')} className="hover:text-foreground transition-colors">
               AI Center
             </button>
@@ -377,15 +377,15 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
           </div>
         )}
 
-        <div className="min-h-0 h-full flex flex-col">
+        <div className="min-h-0 flex-1 flex flex-col">
           {activeTab === 'ai-dashboard' ? (
             <DashboardOverview onNavigate={handleNavigate} />
           ) : (
-            <div className="h-full min-h-0">
+            <div className="flex-1 min-h-0">
               {React.Children.map(children, child => {
                 if (!React.isValidElement(child)) return null;
                 const value = child.props['data-value'] || child.props.value;
-                return value === activeTab ? <div className="h-full min-h-0">{child}</div> : null;
+                return value === activeTab ? <div className="min-h-0">{child}</div> : null;
               })}
             </div>
           )}
