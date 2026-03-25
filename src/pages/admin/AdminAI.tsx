@@ -3546,19 +3546,48 @@ const VisualQATab = () => {
     setLoading(true);
     setIssueStates({});
     setExpandedIdx(null);
+    setCompareScanId(null);
+    setCompareResult(null);
     const r = await callAI('visual_qa');
     if (r) {
       setResult(r);
       toast.success(`QA klar – ${r.issues?.length || 0} problem`);
-      // Reload scan meta
       const { data } = await (supabase.from('ai_scan_results') as any)
         .select('id, created_at')
         .eq('scan_type', 'visual_qa')
         .order('created_at', { ascending: false })
         .limit(1);
       if (data?.[0]) setScanMeta({ id: data[0].id, created_at: data[0].created_at });
+      await loadHistory();
     }
     setLoading(false);
+  };
+
+  const loadScan = async (scanId: string) => {
+    const { data } = await (supabase.from('ai_scan_results') as any)
+      .select('id, results, created_at')
+      .eq('id', scanId)
+      .single();
+    if (data) {
+      setResult(data.results);
+      setScanMeta({ id: data.id, created_at: data.created_at });
+      setIssueStates({});
+      setExpandedIdx(null);
+      setShowHistory(false);
+      toast.success('Skanning laddad');
+    }
+  };
+
+  const loadCompare = async (scanId: string) => {
+    if (compareScanId === scanId) { setCompareScanId(null); setCompareResult(null); return; }
+    const { data } = await (supabase.from('ai_scan_results') as any)
+      .select('id, results')
+      .eq('id', scanId)
+      .single();
+    if (data) {
+      setCompareScanId(scanId);
+      setCompareResult(data.results);
+    }
   };
 
   const getState = (idx: number): IssueState => issueStates[idx] || { status: 'open', updatedAt: '' };
