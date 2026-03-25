@@ -174,6 +174,16 @@ serve(async (req) => {
         break;
       }
 
+      case "pre_verify": {
+        const { work_item_id } = body;
+        if (!work_item_id) {
+          result = { error: "work_item_id required" };
+          break;
+        }
+        result = await handlePreVerify(supabase, lovableKey, work_item_id, user.id);
+        break;
+      }
+
       case "auto_fix": {
         result = await handleAutoFix(supabase, lovableKey, supabaseUrl, serviceKey, authHeader);
         break;
