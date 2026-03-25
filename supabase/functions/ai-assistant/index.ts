@@ -568,7 +568,7 @@ async function callAIWithTools(apiKey: string, prompt: string, systemPromptOrToo
   ], tools);
 }
 
-
+async function generatePrompt(apiKey: string, input: string) {
   return callAI(apiKey, [
     {
       role: "system",
