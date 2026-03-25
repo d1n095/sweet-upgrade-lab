@@ -3552,7 +3552,23 @@ const VisualQATab = () => {
   const analyzeIssue = async (issue: QAIssue, idx: number) => {
     setAnalyzingIdx(idx);
     const res = await callAI('lova_chat', {
-      message: `Analysera detta Visual QA-problem i detalj och ge mig: 1) root cause, 2) om det kan auto-fixas, 3) steg för att fixa, 4) impact-bedömning, 5) confidence-nivå (high/medium/low). Svara i JSON-format med fälten: root_cause, auto_fixable (boolean), fix_steps (array), impact, confidence.\n\nProblem: ${issue.title}\nSida: ${issue.page}\nBreakpoint: ${issue.breakpoint}\nKategori: ${issue.category}\nSeverity: ${issue.severity}\nBeskrivning: ${issue.description}\nFörslag: ${issue.fix_suggestion}`,
+      message: `Analysera detta Visual QA-problem och bestäm hur det ska hanteras. Svara i JSON-format med fälten:
+- root_cause (string): grundorsak
+- auto_fixable (boolean): kan fixas automatiskt utan kodändring?
+- fix_steps (array of strings): steg för att fixa
+- impact (string): impact-bedömning
+- confidence (string: high/medium/low)
+- decision (string: "auto_fix" om du bedömer att det kan fixas direkt utan mänsklig hjälp, "needs_prompt" om det kräver en Lovable-prompt/kodändring, "ignore" om det är en falsk positiv eller inte värt att åtgärda)
+- decision_reason (string): kort motivering till beslutet
+- lovable_prompt (string, valfritt): om decision är "needs_prompt", generera en tydlig och komplett Lovable-prompt för att fixa problemet
+
+Problem: ${issue.title}
+Sida: ${issue.page}
+Breakpoint: ${issue.breakpoint}
+Kategori: ${issue.category}
+Severity: ${issue.severity}
+Beskrivning: ${issue.description}
+Förslag: ${issue.fix_suggestion}`,
       conversation_id: null,
     });
     if (res?.response) {
@@ -3560,20 +3576,81 @@ const VisualQATab = () => {
         const jsonMatch = res.response.match(/\{[\s\S]*\}/);
         const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
         if (parsed) {
+          const decision: AiDecision = ['auto_fix', 'needs_prompt', 'ignore'].includes(parsed.decision) ? parsed.decision : 'needs_prompt';
           setIssueStates(prev => ({
             ...prev,
-            [idx]: { ...prev[idx] || { status: 'open', updatedAt: new Date().toISOString() }, aiAnalysis: parsed }
+            [idx]: {
+              ...prev[idx] || { status: 'open', updatedAt: new Date().toISOString() },
+              aiAnalysis: { ...parsed, decision, decision_reason: parsed.decision_reason || '' },
+              aiDecision: decision,
+              aiDecisionReason: parsed.decision_reason || '',
+              generatedPrompt: parsed.lovable_prompt || issue.lovable_prompt,
+            }
           }));
+          // Auto-handle based on decision
+          await handleAiDecision(issue, idx, decision, parsed);
         }
       } catch {
-        // If AI didn't return JSON, store the text as root_cause
         setIssueStates(prev => ({
           ...prev,
-          [idx]: { ...prev[idx] || { status: 'open', updatedAt: new Date().toISOString() }, aiAnalysis: { root_cause: res.response, auto_fixable: false, fix_steps: [], impact: 'Okänd', confidence: 'low' } }
+          [idx]: {
+            ...prev[idx] || { status: 'open', updatedAt: new Date().toISOString() },
+            aiAnalysis: { root_cause: res.response, auto_fixable: false, fix_steps: [], impact: 'Okänd', confidence: 'low', decision: 'needs_prompt' as AiDecision, decision_reason: 'Kunde inte tolka AI-svar' },
+            aiDecision: 'needs_prompt' as AiDecision,
+          }
         }));
       }
     }
     setAnalyzingIdx(null);
+  };
+
+  const handleAiDecision = async (issue: QAIssue, idx: number, decision: AiDecision, analysis: any) => {
+    if (decision === 'auto_fix') {
+      // Create work item marked as auto-fixable and mark issue done
+      try {
+        await supabase.from('work_items' as any).insert({
+          title: `[Auto-fix] ${issue.title}`,
+          description: `AI-beslut: Auto-fix\n\n${issue.description}\n\nGrundorsak: ${analysis.root_cause}\nFixsteg:\n${(analysis.fix_steps || []).map((s: string, i: number) => `${i + 1}. ${s}`).join('\n')}`,
+          item_type: 'bug',
+          priority: issue.severity === 'critical' ? 'critical' : issue.severity === 'high' ? 'high' : 'medium',
+          status: 'open',
+          source_type: 'ai_visual_qa',
+          source_id: scanMeta?.id || null,
+        } as any);
+        setIssueStatus(idx, 'done', 'AI auto-fix: uppgift skapad');
+        toast.success(`🤖 Auto-fix: ${issue.title}`);
+      } catch {
+        toast.error('Kunde inte skapa auto-fix uppgift');
+      }
+    } else if (decision === 'ignore') {
+      setIssueStatus(idx, 'ignored', analysis.decision_reason || 'AI bedömde som ej åtgärdskrävande');
+      toast.info(`⏭️ AI ignorerade: ${issue.title}`);
+    }
+    // needs_prompt: stays open with generated prompt visible
+  };
+
+  const smartTriageAll = async () => {
+    const openIssues = (result?.issues || [])
+      .map((issue, idx) => ({ issue, idx }))
+      .filter(({ idx }) => getState(idx).status === 'open' && !getState(idx).aiDecision);
+
+    if (openIssues.length === 0) { toast.info('Inga öppna problem utan AI-beslut'); return; }
+    setTriaging(true);
+    toast.info(`Triagerar ${openIssues.length} problem...`);
+
+    for (const { issue, idx } of openIssues) {
+      await analyzeIssue(issue, idx);
+      // Small delay between calls to avoid rate limiting
+      await new Promise(r => setTimeout(r, 500));
+    }
+
+    setTriaging(false);
+    const states = { auto_fix: 0, needs_prompt: 0, ignore: 0 };
+    openIssues.forEach(({ idx }) => {
+      const d = getState(idx).aiDecision;
+      if (d) states[d]++;
+    });
+    toast.success(`Triage klar: ${states.auto_fix} auto-fix, ${states.needs_prompt} prompt, ${states.ignore} ignorerade`);
   };
 
   const createTaskFromIssue = async (issue: QAIssue, idx: number) => {
