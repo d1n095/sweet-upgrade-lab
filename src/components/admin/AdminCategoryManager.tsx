@@ -374,22 +374,100 @@ const AdminCategoryManager = () => {
           </div>
         </div>
 
-        <Dialog open={isAddOpen} onOpenChange={open => { setIsAddOpen(open); if (!open) resetForm(); }}>
-          <DialogTrigger asChild>
-            <Button size="sm" className="gap-2">
-              <Plus className="w-4 h-4" /> Ny kategori
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Grid className="w-5 h-5 text-primary" /> Ny kategori
-              </DialogTitle>
-            </DialogHeader>
-            <CategoryForm onSubmit={handleAdd} submitLabel="Skapa" />
-          </DialogContent>
-        </Dialog>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" className="gap-2" onClick={runAiSync} disabled={aiSyncing}>
+            {aiSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
+            {aiSyncing ? 'Analyserar...' : 'AI-synk'}
+          </Button>
+
+          <Dialog open={isAddOpen} onOpenChange={open => { setIsAddOpen(open); if (!open) resetForm(); }}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="gap-2">
+                <Plus className="w-4 h-4" /> Ny kategori
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Grid className="w-5 h-5 text-primary" /> Ny kategori
+                </DialogTitle>
+              </DialogHeader>
+              <CategoryForm onSubmit={handleAdd} submitLabel="Skapa" />
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
+
+      {/* AI Sync Results */}
+      {aiResult && (
+        <div className="border border-border rounded-lg p-4 space-y-3 bg-secondary/20">
+          <div className="flex items-center gap-2">
+            <Wand2 className="w-4 h-4 text-primary" />
+            <h4 className="text-sm font-semibold">AI Kategorianalys</h4>
+          </div>
+          
+          {aiResult.analysis && (
+            <p className="text-xs text-muted-foreground">{aiResult.analysis}</p>
+          )}
+
+          {aiResult.no_changes_needed && (
+            <div className="flex items-center gap-2 text-accent text-xs">
+              <CheckCircle className="w-4 h-4" />
+              Alla produkter är korrekt kategoriserade
+            </div>
+          )}
+
+          {aiResult.created?.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Skapade automatiskt</p>
+              {aiResult.created.map((c: any) => (
+                <div key={c.id || c.slug} className="flex items-center gap-2 p-2 rounded-lg bg-accent/10 border border-accent/20">
+                  <CheckCircle className="w-3.5 h-3.5 text-accent shrink-0" />
+                  <span className="text-xs font-medium">{c.name_sv}</span>
+                  <span className="text-[10px] text-muted-foreground">({c.slug})</span>
+                  {c.reason && <span className="text-[10px] text-muted-foreground ml-auto">{c.reason}</span>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {aiResult.pending_review?.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Behöver granskning</p>
+              {aiResult.pending_review.map((s: any) => (
+                <div key={s.slug} className="flex items-center gap-2 p-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                  <AlertTriangle className="w-3.5 h-3.5 text-yellow-600 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-xs font-medium">{s.name_sv}</span>
+                    <span className="text-[10px] text-muted-foreground ml-1">({s.name_en})</span>
+                    <p className="text-[10px] text-muted-foreground truncate">{s.reason}</p>
+                  </div>
+                  <Badge variant="secondary" className="text-[9px] shrink-0">{s.confidence}</Badge>
+                  <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1 shrink-0" onClick={() => acceptPendingSuggestion(s)}>
+                    <Plus className="w-3 h-3" /> Skapa
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {aiResult.already_exists?.length > 0 && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Info className="w-3.5 h-3.5" />
+              {aiResult.already_exists.length} förslag redan existerande
+            </div>
+          )}
+
+          <div className="flex gap-3 text-[10px] text-muted-foreground">
+            <span>{aiResult.total_products_analyzed} produkter analyserade</span>
+            <span>{aiResult.total_categories} befintliga kategorier</span>
+          </div>
+
+          <Button size="sm" variant="ghost" className="text-xs" onClick={() => setAiResult(null)}>
+            <XCircle className="w-3.5 h-3.5 mr-1" /> Stäng
+          </Button>
+        </div>
+      )}
 
       {/* Tree */}
       <div className="border border-border rounded-lg divide-y divide-border/50">
