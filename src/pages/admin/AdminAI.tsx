@@ -3850,6 +3850,11 @@ Förslag: ${issue.fix_suggestion}`,
                           <span className={cn('text-sm font-medium truncate', state.status !== 'open' && 'line-through')}>{issue.title}</span>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
+                          {state.aiDecision && (
+                            <Badge variant={state.aiDecision === 'auto_fix' ? 'default' : state.aiDecision === 'ignore' ? 'outline' : 'secondary'} className="text-[10px]">
+                              {state.aiDecision === 'auto_fix' ? '⚡' : state.aiDecision === 'ignore' ? '⏭️' : '📝'}
+                            </Badge>
+                          )}
                           <Badge variant="outline" className="text-[10px]">{issue.page}</Badge>
                           <Badge variant={issue.severity === 'critical' ? 'destructive' : 'outline'} className={cn('text-[10px]', sevColor(issue.severity))}>{issue.severity}</Badge>
                           <ChevronDown className={cn('w-4 h-4 text-muted-foreground transition-transform', isExpanded && 'rotate-180')} />
