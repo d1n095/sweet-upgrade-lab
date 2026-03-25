@@ -21,6 +21,7 @@ export interface AdaptiveScanMeta {
   new_issues_found: number;
   pattern_discoveries: any[];
   high_risk_areas: any[];
+  systemic_issues: any[];
   coverage_score: number;
   iteration_results: any[];
 }
