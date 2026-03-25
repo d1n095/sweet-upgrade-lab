@@ -802,7 +802,7 @@ serve(async (req) => {
         results: adaptiveResult,
         overall_score: unified.system_health_score,
         overall_status: unified.system_health_score >= 75 ? "healthy" : unified.system_health_score >= 50 ? "warning" : "critical",
-        executive_summary: `Adaptive scan (${iterationsCompleted} iterations): ${unified.system_health_score}/100 | ${issuesCount} issues | ${patternDiscoveries.length} patterns | Coverage: ${coverageScore}%`,
+        executive_summary: `Adaptive scan (${iterationsCompleted} iter): ${unified.system_health_score}/100 | ${issuesCount} issues | ${systemicIssues.length} systemic | ${patternDiscoveries.length} patterns | ${coverageScore}%`,
         issues_count: issuesCount,
         scanned_by: scanRun.started_by,
       });
@@ -810,8 +810,31 @@ serve(async (req) => {
       // Persist per-step results
       await persistStepResults(supabase, STEPS, updatedResults, scanRun.started_by);
 
-      // Create work items
-      const workItemsCreated = await createWorkItems(supabase, unified, scanRun.started_by);
+      // Create work items from findings + systemic issues
+      let workItemsCreated = await createWorkItems(supabase, unified, scanRun.started_by);
+
+      // Create work items from systemic issues
+      for (const si of systemicIssues) {
+        const searchTitle = si.label.substring(0, 40);
+        const { data: existing } = await supabase
+          .from("work_items")
+          .select("id")
+          .ilike("title", `%${searchTitle}%`)
+          .in("status", ["open", "claimed", "in_progress", "escalated"])
+          .limit(1);
+        if (existing?.length) continue;
+
+        const { error } = await supabase.from("work_items").insert({
+          title: `🔗 ${si.label}`.slice(0, 120),
+          description: `${si.description}\n\nExempel: ${si.examples?.join(", ") || "N/A"}\nPåverkade: ${si.affected_components?.join(", ") || "N/A"}`,
+          status: "open",
+          priority: si.severity === "critical" ? "critical" : "high",
+          item_type: "bug",
+          source_type: "ai_scan",
+          ai_detected: true,
+        });
+        if (!error) workItemsCreated++;
+      }
 
       // Finalize scan run
       const execSummary = `${unified.system_health_score}/100 — ${issuesCount} issues — ${iterationsCompleted} iterationer — ${patternDiscoveries.length} mönster — ${coverageScore}% täckning — ${workItemsCreated} uppgifter`;
