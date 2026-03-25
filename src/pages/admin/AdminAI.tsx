@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Sparkles, Bug, BarChart3, Copy, Loader2, Send, AlertTriangle, Lightbulb, Info, RefreshCw, Bot, CheckCircle, XCircle, Shield, Clock, Zap, Activity, TrendingUp, Package, AlertCircle, Database, Wrench, Radar, ArrowRight, Layers, Monitor, Smartphone, Tablet, Eye, Compass, LayoutGrid, GitMerge, ArrowRightLeft, ShieldCheck, Play, Settings2, ToggleRight, Maximize2, Gavel, ChevronDown, History, User, Brain } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger, ScrollableTabs } from '@/components/ui/tabs';
 import AiCenterTabs from '@/components/admin/AiCenterTabs';
+import { createAndVerify } from '@/utils/createVerifyLoop';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
@@ -1945,26 +1946,32 @@ const SystemScanTab = () => {
   const handleCreateWorkItem = async (issue: any) => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
-    const { data: wiRow, error: insertError } = await supabase.from('work_items' as any).insert({
-      title: `[Scan] ${issue.title}`,
-      description: `${issue.description}\n\nFix-förslag: ${issue.fix_suggestion || 'Ingen'}\n\nSeverity: ${issue.severity}\nCategory: ${issue.category}`,
-      priority: issue.severity === 'critical' ? 'critical' : issue.severity === 'high' ? 'high' : 'medium',
-      status: 'open',
-      item_type: 'bug',
-      source_type: 'scan',
-      source_id: currentScanId || lastScan?.id || null,
-      created_by: session.user.id,
-    } as any).select('id, title, status, priority, item_type, ai_detected, ai_category, ai_type_classification, ai_confidence, execution_order, depends_on, blocks, conflict_flag, duplicate_of, created_at, ai_type_reason').single();
 
-    if (insertError) {
-      console.error('[AdminAI] INSERT FAILED:', insertError);
-      toast.error(`Kunde inte skapa ärende: ${insertError.message}`);
+    const result = await createAndVerify({
+      table: 'work_items',
+      payload: {
+        title: `[Scan] ${issue.title}`,
+        description: `${issue.description}\n\nFix-förslag: ${issue.fix_suggestion || 'Ingen'}\n\nSeverity: ${issue.severity}\nCategory: ${issue.category}`,
+        priority: issue.severity === 'critical' ? 'critical' : issue.severity === 'high' ? 'high' : 'medium',
+        status: 'open',
+        item_type: 'bug',
+        source_type: 'scan',
+        source_id: currentScanId || lastScan?.id || null,
+        created_by: session.user.id,
+      },
+      selectColumns: 'id, title, status, priority, item_type, ai_detected, ai_category, ai_type_classification, ai_confidence, execution_order, depends_on, blocks, conflict_flag, duplicate_of, created_at, ai_type_reason',
+      traceContext: { component: 'AdminAI', scanId: currentScanId || lastScan?.id || undefined },
+    });
+
+    if (!result.success) {
+      console.error('[AdminAI] CREATE-VERIFY FAILED:', result.error);
+      toast.error(`Kunde inte skapa ärende: ${result.error}`);
       return;
     }
 
-    const newItem = wiRow as any;
+    const newItem = result.data as any;
     const wiId = newItem?.id || null;
-    console.log('[AdminAI] CREATED ITEM:', newItem);
+    console.log('[AdminAI] CREATED & VERIFIED:', newItem);
     logChange({ change_type: 'task_created', description: `Work item skapat från scan: ${issue.title}`, source: 'ai', affected_components: ['work_items', 'scan'], scan_id: currentScanId || lastScan?.id || null, work_item_id: wiId });
 
     // Remove issue from detected list and add to master list

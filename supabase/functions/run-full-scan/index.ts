@@ -957,7 +957,8 @@ async function createWorkItems(supabase: any, unified: any, startedBy: string): 
       .limit(1);
     if (existing?.length) continue;
 
-    const { error } = await supabase.from("work_items").insert({
+    // Create-Verify Loop: INSERT → FETCH → COMPARE
+    const insertPayload = {
       title: issue.title,
       description: issue.description || "Auto-generated from adaptive recursive scan",
       status: "open",
@@ -965,8 +966,60 @@ async function createWorkItems(supabase: any, unified: any, startedBy: string): 
       item_type: issue.item_type,
       source_type: "ai_scan",
       ai_detected: true,
-    });
-    if (!error) workItemsCreated++;
+    };
+
+    let verified = false;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      const { data: created, error } = await supabase
+        .from("work_items")
+        .insert(insertPayload)
+        .select("id, title, status")
+        .single();
+
+      if (error) {
+        console.error(`[create-verify] INSERT failed (attempt ${attempt}):`, error.message);
+        await supabase.from("system_observability_log").insert({
+          event_type: "error",
+          severity: "error",
+          source: "scanner",
+          message: `Create-verify INSERT failed: ${issue.title.slice(0, 60)}`,
+          details: { error: error.message, attempt, title: issue.title },
+          component: "createWorkItems",
+          error_code: "CREATE_VERIFY_INSERT_FAIL",
+        }).catch(() => {});
+        continue;
+      }
+
+      // Verify: fetch back
+      const { data: fetched } = await supabase
+        .from("work_items")
+        .select("id")
+        .eq("id", created.id)
+        .maybeSingle();
+
+      if (!fetched) {
+        console.error(`[create-verify] VERIFY failed — id=${created.id} not found (attempt ${attempt})`);
+        await supabase.from("system_observability_log").insert({
+          event_type: "error",
+          severity: "critical",
+          source: "scanner",
+          message: `Create-verify MISMATCH: work_item id=${created.id} inserted but not found`,
+          details: { id: created.id, attempt, title: issue.title },
+          component: "createWorkItems",
+          error_code: "CREATE_VERIFY_MISMATCH",
+        }).catch(() => {});
+        continue;
+      }
+
+      console.log(`[create-verify] ✅ VERIFIED: ${created.id} "${issue.title.slice(0, 40)}"`);
+      workItemsCreated++;
+      verified = true;
+      break;
+    }
+
+    if (!verified) {
+      console.error(`[create-verify] ❌ FAILED after retries: "${issue.title.slice(0, 60)}"`);
+    }
   }
 
   return workItemsCreated;
