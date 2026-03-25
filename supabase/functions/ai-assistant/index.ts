@@ -335,11 +335,8 @@ async function logAiRead(supabase: any, entry: {
     console.warn("ai_read_log insert failed:", e);
   }
 }
-    });
-  } catch (e) {
-    console.warn("ai_read_log insert failed:", e);
-  }
-}
+
+
 
 // ── Gather all system data ──
 async function gatherSystemSnapshot(supabase: any, triggeredBy?: string) {
