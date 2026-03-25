@@ -1451,6 +1451,9 @@ const DataHealthTab = () => {
     { key: 'bugs_without_work_items', label: 'Buggar utan uppgift', icon: Bug, fixed: results.bugs_without_work_items_fixed },
     { key: 'status_mismatches', label: 'Statusmismatch', icon: RefreshCw, fixed: results.status_mismatches_fixed },
     { key: 'deleted_order_tasks', label: 'Raderade order-tasks', icon: XCircle, fixed: results.deleted_order_tasks_fixed },
+    { key: 'completed_order_tasks', label: 'Klara order-tasks', icon: CheckCircle, fixed: results.completed_order_tasks_fixed || 0 },
+    { key: 'cancelled_order_tasks', label: 'Avbrutna order-tasks', icon: XCircle, fixed: results.cancelled_order_tasks_fixed || 0 },
+    { key: 'sourceless_items', label: 'Utan källa', icon: AlertCircle, fixed: results.sourceless_items_fixed || 0 },
     { key: 'duplicate_work_items', label: 'Dubbletter', icon: Copy, fixed: 0 },
     { key: 'stale_claimed', label: 'Inaktiva claims', icon: Clock, fixed: results.stale_claimed_fixed },
   ] : [];
