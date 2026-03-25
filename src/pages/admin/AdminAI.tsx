@@ -25,6 +25,7 @@ import { useScannerStore, SCAN_STEPS } from '@/stores/scannerStore';
 import type { ScanStepResult } from '@/stores/scannerStore';
 import { useFullScanOrchestrator, ORCHESTRATED_STEPS } from '@/stores/fullScanOrchestrator';
 import type { UnifiedScanResult } from '@/stores/fullScanOrchestrator';
+import { filterRelevantIssues } from '@/stores/fullScanOrchestrator';
 import AdminAiReadLog from '@/components/admin/AdminAiReadLog';
 import AiQueueControl from '@/components/admin/AiQueueControl';
 import DataFlowValidator from '@/components/admin/DataFlowValidator';
