@@ -704,38 +704,154 @@ const BugAITab = () => {
                     <span className="text-[10px] text-muted-foreground">{bug.page_url}</span>
                   </div>
                 </div>
-                <Button size="sm" variant="outline" className="gap-1 h-7 text-xs shrink-0" disabled={analyzing === bug.id} onClick={() => analyzeBug(bug.id)}>
-                  {analyzing === bug.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-                  Analysera
-                </Button>
+                <div className="flex gap-1 shrink-0">
+                  <Button size="sm" variant="outline" className="gap-1 h-7 text-xs" disabled={analyzing === bug.id} onClick={() => analyzeBug(bug.id)}>
+                    {analyzing === bug.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                    Analysera
+                  </Button>
+                  <Button size="sm" variant="outline" className="gap-1 h-7 text-xs" disabled={analyzing === bug.id} onClick={async () => {
+                    setAnalyzing(bug.id);
+                    const res = await callAI('bug_deep_analysis', { bug_id: bug.id });
+                    if (res) setFixes(prev => ({ ...prev, [bug.id]: { ...res, _deep: true } }));
+                    setAnalyzing(null);
+                  }}>
+                    {analyzing === bug.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Activity className="w-3 h-3" />}
+                    Djupanalys
+                  </Button>
+                </div>
               </div>
 
-              {fixes[bug.id] && (
+              {fixes[bug.id] && fixes[bug.id]._deep ? (
+                /* Deep analysis view */
+                <div className="border-t pt-2 space-y-3 mt-2">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
+                    <Activity className="w-3.5 h-3.5" />
+                    AI Djupanalys
+                    <Badge variant="outline" className="text-[9px] ml-auto">Risk: {fixes[bug.id].overall_risk}</Badge>
+                    {fixes[bug.id].is_recurring && <Badge variant="destructive" className="text-[9px]">Återkommande</Badge>}
+                  </div>
+
+                  {/* Diagnosis */}
+                  {fixes[bug.id].diagnosis && (
+                    <div className="bg-muted/50 rounded-md p-2 space-y-1">
+                      <p className="text-xs font-medium">Diagnos (konfidens: {fixes[bug.id].diagnosis.confidence}%)</p>
+                      <p className="text-xs">{fixes[bug.id].diagnosis.summary}</p>
+                      <p className="text-xs text-muted-foreground"><strong>Trolig orsak:</strong> {fixes[bug.id].diagnosis.likely_cause}</p>
+                      {fixes[bug.id].diagnosis.evidence?.length > 0 && (
+                        <div className="text-xs space-y-0.5 mt-1">
+                          <span className="text-muted-foreground font-medium">Bevis:</span>
+                          {fixes[bug.id].diagnosis.evidence.map((e: string, i: number) => (
+                            <p key={i} className="text-[11px] text-muted-foreground pl-2">• {e}</p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Log Analysis */}
+                  {fixes[bug.id].log_analysis && (
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Logganalys</p>
+                      {fixes[bug.id].log_analysis.error_pattern && <p className="text-xs text-muted-foreground">{fixes[bug.id].log_analysis.error_pattern}</p>}
+                      {fixes[bug.id].log_analysis.relevant_errors?.length > 0 && (
+                        <div className="text-[11px] bg-muted rounded p-1.5 space-y-0.5 font-mono max-h-24 overflow-y-auto">
+                          {fixes[bug.id].log_analysis.relevant_errors.slice(0, 5).map((e: string, i: number) => <p key={i}>{e}</p>)}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Historical Matches */}
+                  {fixes[bug.id].historical_matches?.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium flex items-center gap-1"><Clock className="w-3 h-3" /> Historiska matchningar</p>
+                      {fixes[bug.id].historical_matches.slice(0, 3).map((m: any, i: number) => (
+                        <div key={i} className="text-xs border border-border rounded p-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <Badge variant="outline" className="text-[9px]">{m.similarity}% match</Badge>
+                            {m.was_resolved ? <CheckCircle className="w-3 h-3 text-green-600" /> : <XCircle className="w-3 h-3 text-destructive" />}
+                            <span className="truncate">{m.bug_summary}</span>
+                          </div>
+                          {m.lesson && <p className="text-[11px] text-muted-foreground mt-0.5">💡 {m.lesson}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Recurring Pattern */}
+                  {fixes[bug.id].is_recurring && fixes[bug.id].recurring_info && (
+                    <div className="bg-destructive/5 border border-destructive/20 rounded-md p-2 space-y-1">
+                      <p className="text-xs font-medium text-destructive">⚠️ Återkommande problem</p>
+                      <p className="text-xs">{fixes[bug.id].recurring_info.pattern}</p>
+                      {fixes[bug.id].recurring_info.prevention && (
+                        <p className="text-xs text-muted-foreground"><strong>Förebyggande:</strong> {fixes[bug.id].recurring_info.prevention}</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Fix Suggestions */}
+                  {fixes[bug.id].fix_suggestions?.length > 0 && (
+                    <div className="space-y-1.5">
+                      <p className="text-xs font-medium">Fix-förslag</p>
+                      {fixes[bug.id].fix_suggestions.map((f: any, i: number) => (
+                        <div key={i} className="border border-border rounded p-2 space-y-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-medium">{f.title}</span>
+                            <Badge variant="outline" className="text-[9px]">Effort: {f.effort}</Badge>
+                            <Badge variant="outline" className="text-[9px]">Risk: {f.risk}</Badge>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground">{f.description}</p>
+                          {f.based_on && <p className="text-[10px] text-muted-foreground italic">Baserat på: {f.based_on}</p>}
+                          <Button size="sm" variant="ghost" className="h-5 text-[10px] gap-1 p-0 px-1" onClick={() => copyToClipboard(f.lovable_prompt)}>
+                            <Copy className="w-2.5 h-2.5" /> Kopiera prompt
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : fixes[bug.id] ? (
+                /* Standard analysis view */
                 <div className="border-t pt-2 space-y-2 mt-2">
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
                     <Sparkles className="w-3.5 h-3.5" />
                     AI Fix-förslag
-                    <Badge variant="outline" className="text-[9px] ml-auto">Risk: {fixes[bug.id].risk_level}</Badge>
+                    <Badge variant="outline" className="text-[9px] ml-auto">Risk: {fixes[bug.id].overall_risk}</Badge>
+                    {fixes[bug.id].is_recurring && <Badge variant="destructive" className="text-[9px]">Återkommande</Badge>}
                   </div>
-                  <div className="space-y-1.5 text-xs">
-                    <div><span className="text-muted-foreground font-medium">Trolig orsak:</span><p>{fixes[bug.id].possible_cause}</p></div>
-                    <div><span className="text-muted-foreground font-medium">Fix-strategi:</span><p>{fixes[bug.id].fix_strategy}</p></div>
-                    {fixes[bug.id].code_suggestion && (
-                      <div><span className="text-muted-foreground font-medium">Kodförslag:</span><pre className="text-[11px] bg-muted rounded-md p-2 mt-0.5 whitespace-pre-wrap font-mono overflow-x-auto">{fixes[bug.id].code_suggestion}</pre></div>
-                    )}
-                    <div>
-                      <span className="text-muted-foreground font-medium">Berörda områden:</span>
-                      <div className="flex gap-1 flex-wrap mt-0.5">{fixes[bug.id].affected_areas.map((a: string) => <span key={a} className="text-[9px] bg-muted px-1.5 py-0.5 rounded-full">{a}</span>)}</div>
+                  {fixes[bug.id].log_insights && (
+                    <p className="text-[11px] text-muted-foreground bg-muted/50 rounded p-1.5">📊 {fixes[bug.id].log_insights}</p>
+                  )}
+                  {fixes[bug.id].root_causes?.map((rc: any, i: number) => (
+                    <div key={i} className="border border-border rounded p-2 space-y-1">
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant="outline" className="text-[9px]">{rc.confidence}%</Badge>
+                        <span className="text-xs font-medium">{rc.cause}</span>
+                        <Badge variant="outline" className="text-[9px] ml-auto">{rc.risk_level}</Badge>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">{rc.fix_strategy}</p>
+                      {rc.historical_match && <p className="text-[10px] text-muted-foreground italic">📜 {rc.historical_match}</p>}
+                      <div className="flex gap-1 flex-wrap">{rc.affected_areas?.map((a: string) => <span key={a} className="text-[9px] bg-muted px-1.5 py-0.5 rounded-full">{a}</span>)}</div>
+                      <Button size="sm" variant="ghost" className="h-5 text-[10px] gap-1 p-0 px-1" onClick={() => copyToClipboard(rc.lovable_prompt)}>
+                        <Copy className="w-2.5 h-2.5" /> Kopiera prompt
+                      </Button>
                     </div>
-                  </div>
+                  )) || (
+                    /* Fallback for old format */
+                    <div className="space-y-1.5 text-xs">
+                      <div><span className="text-muted-foreground font-medium">Trolig orsak:</span><p>{fixes[bug.id].possible_cause}</p></div>
+                      <div><span className="text-muted-foreground font-medium">Fix-strategi:</span><p>{fixes[bug.id].fix_strategy}</p></div>
+                    </div>
+                  )}
                   <div className="flex gap-1.5 pt-1">
-                    <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1 flex-1" onClick={() => copyToClipboard(fixes[bug.id].lovable_prompt)}>
-                      <Copy className="w-2.5 h-2.5" /> Kopiera Lovable-prompt
+                    <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1 flex-1" onClick={() => copyToClipboard(fixes[bug.id].lovable_prompt || fixes[bug.id].root_causes?.[0]?.lovable_prompt || '')}>
+                      <Copy className="w-2.5 h-2.5" /> Kopiera prompt
                     </Button>
                     <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1 flex-1" onClick={async () => {
+                      const topCause = fixes[bug.id].root_causes?.[0];
                       const res = await callAI('create_action', {
                         title: `Fix: ${bug.ai_summary || bug.description.substring(0, 80)}`,
-                        description: `Orsak: ${fixes[bug.id].possible_cause}\nStrategi: ${fixes[bug.id].fix_strategy}\n\n${fixes[bug.id].lovable_prompt}`,
+                        description: topCause ? `Orsak: ${topCause.cause}\nStrategi: ${topCause.fix_strategy}\n\n${topCause.lovable_prompt}` : fixes[bug.id].summary,
                         priority: bug.ai_severity === 'critical' ? 'critical' : bug.ai_severity === 'high' ? 'high' : 'medium',
                         category: bug.ai_category || 'bug',
                         source_type: 'bug_fix',
@@ -747,7 +863,7 @@ const BugAITab = () => {
                     </Button>
                   </div>
                 </div>
-              )}
+              ) : null}
             </div>
           ))}
         </div>

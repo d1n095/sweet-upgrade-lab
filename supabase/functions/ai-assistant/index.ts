@@ -72,7 +72,20 @@ serve(async (req) => {
         if (!bug) {
           return new Response(JSON.stringify({ error: "Bug not found" }), { status: 404, headers: corsHeaders });
         }
-        result = await suggestBugFix(lovableKey, bug);
+        result = await suggestBugFixEnhanced(supabase, lovableKey, bug);
+        break;
+      }
+
+      case "bug_deep_analysis": {
+        const { bug_id: deepBugId } = body;
+        if (!deepBugId) {
+          return new Response(JSON.stringify({ error: "bug_id required" }), { status: 400, headers: corsHeaders });
+        }
+        const { data: deepBug } = await supabase.from("bug_reports").select("*").eq("id", deepBugId).single();
+        if (!deepBug) {
+          return new Response(JSON.stringify({ error: "Bug not found" }), { status: 404, headers: corsHeaders });
+        }
+        result = await handleBugDeepAnalysis(supabase, lovableKey, deepBug);
         break;
       }
 
@@ -530,20 +543,63 @@ Always respond in Swedish. Use the generate_prompt function.`,
   ], { type: "function", function: { name: "generate_prompt" } });
 }
 
-async function suggestBugFix(apiKey: string, bug: any) {
+// Enhanced bug fix with log analysis and historical matching
+async function suggestBugFixEnhanced(supabase: any, apiKey: string, bug: any) {
+  // Gather historical context
+  const [logsRes, historyRes, relatedWorkRes] = await Promise.all([
+    supabase.from("activity_logs").select("log_type, category, message, created_at")
+      .eq("log_type", "error").order("created_at", { ascending: false }).limit(30),
+    supabase.from("bug_reports").select("id, description, ai_summary, ai_category, ai_severity, status, page_url, resolution_notes, resolved_at")
+      .neq("id", bug.id).order("created_at", { ascending: false }).limit(50),
+    supabase.from("work_items").select("title, description, status, ai_category, priority")
+      .eq("source_type", "bug_report").in("status", ["done", "cancelled"]).limit(30),
+  ]);
+
+  const errorLogs = logsRes.data || [];
+  const pastBugs = historyRes.data || [];
+  const resolvedWork = relatedWorkRes.data || [];
+
+  // Find similar past bugs (same category or page)
+  const similarBugs = pastBugs.filter((b: any) =>
+    (b.ai_category && b.ai_category === bug.ai_category) ||
+    (b.page_url && bug.page_url && b.page_url === bug.page_url)
+  ).slice(0, 10);
+
+  // Find resolved bugs with same category for learning
+  const resolvedSimilar = similarBugs.filter((b: any) => b.status === "resolved" && b.resolution_notes);
+
+  const historicalContext = `
+=== ERROR LOGS (Recent) ===
+${errorLogs.slice(0, 15).map((l: any) => `[${l.category}] ${l.message}`).join("\n") || "Inga felloggar."}
+
+=== SIMILAR PAST BUGS (${similarBugs.length}) ===
+${similarBugs.slice(0, 5).map((b: any) => `- [${b.status}] ${b.ai_summary || b.description?.substring(0, 80)} (sev: ${b.ai_severity || "?"}, cat: ${b.ai_category || "?"})`).join("\n") || "Inga liknande."}
+
+=== RESOLVED SIMILAR BUGS WITH FIXES ===
+${resolvedSimilar.slice(0, 3).map((b: any) => `- ${b.ai_summary || "?"}: ${b.resolution_notes}`).join("\n") || "Inga lösta liknande buggar."}
+
+=== PAST FIX PATTERNS ===
+${resolvedWork.slice(0, 5).map((w: any) => `- [${w.ai_category}] ${w.title}`).join("\n") || "Inga."}`;
+
   const context = `Bug report:
 Description: ${bug.description}
 Page: ${bug.page_url}
 AI Summary: ${bug.ai_summary || "N/A"}
 AI Category: ${bug.ai_category || "N/A"}
 AI Severity: ${bug.ai_severity || "N/A"}
-AI Repro Steps: ${bug.ai_repro_steps || "N/A"}`;
+AI Repro Steps: ${bug.ai_repro_steps || "N/A"}
+
+${historicalContext}`;
 
   return callAI(apiKey, [
     {
       role: "system",
       content: `Du är en senior utvecklare som analyserar buggar i en svensk e-handelsplattform byggd med React, TypeScript, Supabase och Tailwind.
-Analysera buggen och ge FLERA möjliga grundorsaker med konfidensnivå. För varje orsak, ge en fix-strategi och Lovable-prompt.
+Du har tillgång till felloggar och historiska buggrapporter. Använd dem för att:
+1. Hitta mönster — har denna typ av bugg hänt förut?
+2. Lära från tidigare lösningar — vad fungerade?
+3. Analysera felloggar för ledtrådar
+4. Ge FLERA möjliga grundorsaker med konfidensnivå
 Rangordna efter sannolikhet. Svara på svenska. Använd suggest_fix_v2-funktionen.`,
     },
     { role: "user", content: context },
@@ -552,7 +608,7 @@ Rangordna efter sannolikhet. Svara på svenska. Använd suggest_fix_v2-funktione
       type: "function",
       function: {
         name: "suggest_fix_v2",
-        description: "Suggest multiple root causes and fixes for a bug",
+        description: "Suggest multiple root causes and fixes for a bug, informed by historical data",
         parameters: {
           type: "object",
           properties: {
@@ -568,6 +624,7 @@ Rangordna efter sannolikhet. Svara på svenska. Använd suggest_fix_v2-funktione
                   affected_areas: { type: "array", items: { type: "string" } },
                   risk_level: { type: "string", enum: ["low", "medium", "high"] },
                   lovable_prompt: { type: "string" },
+                  historical_match: { type: "string", description: "Reference to similar past bug if any" },
                 },
                 required: ["cause", "confidence", "fix_strategy", "affected_areas", "risk_level", "lovable_prompt"],
                 additionalProperties: false,
@@ -576,13 +633,176 @@ Rangordna efter sannolikhet. Svara på svenska. Använd suggest_fix_v2-funktione
             },
             summary: { type: "string", description: "Executive summary of the analysis" },
             overall_risk: { type: "string", enum: ["low", "medium", "high", "critical"] },
+            is_recurring: { type: "boolean", description: "Whether this appears to be a recurring issue" },
+            recurring_pattern: { type: "string", description: "Description of the recurring pattern if any" },
+            log_insights: { type: "string", description: "Key insights from error logs" },
           },
-          required: ["root_causes", "summary", "overall_risk"],
+          required: ["root_causes", "summary", "overall_risk", "is_recurring"],
           additionalProperties: false,
         },
       },
     },
   ], { type: "function", function: { name: "suggest_fix_v2" } });
+}
+
+// Deep bug analysis with full historical learning
+async function handleBugDeepAnalysis(supabase: any, apiKey: string, bug: any) {
+  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  const [logsRes, allBugsRes, eventsRes, workRes, incidentsRes] = await Promise.all([
+    supabase.from("activity_logs").select("log_type, category, message, details, created_at")
+      .in("log_type", ["error", "warning"]).gte("created_at", weekAgo)
+      .order("created_at", { ascending: false }).limit(100),
+    supabase.from("bug_reports").select("id, description, ai_summary, ai_category, ai_severity, status, page_url, resolution_notes, ai_tags, created_at")
+      .order("created_at", { ascending: false }).limit(100),
+    supabase.from("analytics_events").select("event_type, event_data, created_at")
+      .in("event_type", ["page_error", "checkout_abandon", "checkout_start"]).gte("created_at", weekAgo).limit(200),
+    supabase.from("work_items").select("title, description, status, priority, ai_category, source_type, completed_at")
+      .order("created_at", { ascending: false }).limit(100),
+    supabase.from("order_incidents").select("title, type, priority, status, resolution, created_at")
+      .gte("created_at", monthAgo).limit(50),
+  ]);
+
+  const errorLogs = logsRes.data || [];
+  const allBugs = allBugsRes.data || [];
+  const userEvents = eventsRes.data || [];
+  const workItems = workRes.data || [];
+  const incidents = incidentsRes.data || [];
+
+  // Categorize bugs by area for pattern detection
+  const bugsByCategory: Record<string, number> = {};
+  for (const b of allBugs) {
+    const cat = (b as any).ai_category || "unknown";
+    bugsByCategory[cat] = (bugsByCategory[cat] || 0) + 1;
+  }
+
+  // Find resolved bugs in same category for learning
+  const sameCatResolved = allBugs.filter((b: any) =>
+    b.id !== bug.id && b.ai_category === bug.ai_category && b.status === "resolved"
+  );
+
+  const prompt = `=== AKTUELL BUGG ===
+Beskrivning: ${bug.description}
+Sida: ${bug.page_url}
+AI-sammanfattning: ${bug.ai_summary || "Ej analyserad"}
+Kategori: ${bug.ai_category || "?"} | Svårighetsgrad: ${bug.ai_severity || "?"}
+Taggar: ${(bug.ai_tags || []).join(", ") || "inga"}
+
+=== FELLOGGAR (senaste veckan: ${errorLogs.length}) ===
+${errorLogs.slice(0, 20).map((l: any) => `[${l.category}/${l.log_type}] ${l.message}`).join("\n") || "Inga."}
+
+=== BUGGMÖNSTER PER KATEGORI ===
+${Object.entries(bugsByCategory).map(([k, v]) => `${k}: ${v} buggar`).join(", ")}
+
+=== LÖSTA LIKNANDE BUGGAR (${sameCatResolved.length}) ===
+${sameCatResolved.slice(0, 5).map((b: any) => `- ${b.ai_summary || b.description?.substring(0, 80)}\n  Lösning: ${b.resolution_notes || "ej dokumenterad"}`).join("\n") || "Inga."}
+
+=== ANVÄNDARÅTGÄRDER/EVENTS ===
+Sidfel: ${userEvents.filter((e: any) => e.event_type === "page_error").length}
+Checkout-avhopp: ${userEvents.filter((e: any) => e.event_type === "checkout_abandon").length}
+
+=== INCIDENTER (senaste månaden: ${incidents.length}) ===
+${incidents.slice(0, 5).map((i: any) => `[${i.type}/${i.priority}/${i.status}] ${i.title}`).join("\n") || "Inga."}
+
+=== RELATERADE TASKS ===
+${workItems.filter((w: any) => w.ai_category === bug.ai_category).slice(0, 5).map((w: any) => `[${w.status}/${w.priority}] ${w.title}`).join("\n") || "Inga."}`;
+
+  const analysis = await callAI(apiKey, [
+    {
+      role: "system",
+      content: `Du är en AI-felsökningsexpert för en svensk e-handelsplattform. Du har tillgång till:
+- Felloggar (errors & warnings)
+- Hela bugghistoriken och lösningar
+- Användarbeteende-events
+- Incidenthistorik
+- Relaterade uppgifter
+
+Din uppgift:
+1. LOGGANALYS: Analysera felloggar för att hitta ledtrådar relaterade till denna bugg
+2. HISTORISK KOPPLING: Hitta liknande buggar som lösts förut och lär av dem
+3. ROTORSAKSMATCHNING: Identifiera om detta är ett återkommande problem
+4. SMART DEBUGGING: Ge konkreta fix-förslag baserat på alla data
+
+Svara på svenska. Använd deep_analysis-funktionen.`,
+    },
+    { role: "user", content: prompt },
+  ], [{
+    type: "function",
+    function: {
+      name: "deep_analysis",
+      description: "Deep bug analysis with historical learning and log-based diagnosis",
+      parameters: {
+        type: "object",
+        properties: {
+          diagnosis: {
+            type: "object",
+            properties: {
+              summary: { type: "string", description: "Executive summary of the diagnosis" },
+              confidence: { type: "number", description: "Overall diagnostic confidence 0-100" },
+              likely_cause: { type: "string", description: "Most likely root cause" },
+              evidence: { type: "array", items: { type: "string" }, description: "Evidence from logs/history supporting the diagnosis" },
+            },
+            required: ["summary", "confidence", "likely_cause", "evidence"],
+          },
+          log_analysis: {
+            type: "object",
+            properties: {
+              relevant_errors: { type: "array", items: { type: "string" }, description: "Error log entries relevant to this bug" },
+              error_pattern: { type: "string", description: "Pattern detected in errors" },
+              affected_systems: { type: "array", items: { type: "string" } },
+            },
+            required: ["relevant_errors", "affected_systems"],
+          },
+          historical_matches: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                similarity: { type: "number", description: "0-100 similarity score" },
+                bug_summary: { type: "string" },
+                was_resolved: { type: "boolean" },
+                resolution: { type: "string" },
+                lesson: { type: "string", description: "What we can learn from this past bug" },
+              },
+              required: ["similarity", "bug_summary", "was_resolved"],
+            },
+            description: "Similar bugs from history",
+          },
+          is_recurring: { type: "boolean" },
+          recurring_info: {
+            type: "object",
+            properties: {
+              pattern: { type: "string" },
+              frequency: { type: "string" },
+              root_cause_category: { type: "string" },
+              prevention: { type: "string", description: "How to prevent this from happening again" },
+            },
+          },
+          fix_suggestions: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                title: { type: "string" },
+                description: { type: "string" },
+                effort: { type: "string", enum: ["low", "medium", "high"] },
+                risk: { type: "string", enum: ["low", "medium", "high"] },
+                based_on: { type: "string", description: "What evidence or past fix this is based on" },
+                lovable_prompt: { type: "string" },
+              },
+              required: ["title", "description", "effort", "risk", "lovable_prompt"],
+            },
+          },
+          overall_risk: { type: "string", enum: ["low", "medium", "high", "critical"] },
+        },
+        required: ["diagnosis", "log_analysis", "historical_matches", "is_recurring", "fix_suggestions", "overall_risk"],
+        additionalProperties: false,
+      },
+    },
+  }], { type: "function", function: { name: "deep_analysis" } });
+
+  return analysis;
 }
 
 async function analyzeData(apiKey: string, summary: string) {
