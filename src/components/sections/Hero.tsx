@@ -6,7 +6,6 @@ import { useLanguage } from '@/context/LanguageContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { PageSection } from '@/hooks/usePageSections';
-import { storeConfig } from '@/config/storeConfig';
 
 interface HeroProps {
   sections?: PageSection[];
@@ -19,6 +18,7 @@ const Hero = ({ getSection, isSectionVisible }: HeroProps) => {
   const navigate = useNavigate();
   const [reviewCount, setReviewCount] = useState(0);
   const [avgRating, setAvgRating] = useState(0);
+  const [freeThreshold, setFreeThreshold] = useState(500);
 
   const lang = contentLang;
   const getLang = (sv: string | null | undefined, en: string | null | undefined) =>
@@ -28,27 +28,32 @@ const Hero = ({ getSection, isSectionVisible }: HeroProps) => {
 
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase
-        .from('reviews')
-        .select('rating')
-        .eq('is_approved', true);
-      if (data && data.length > 0) {
-        setReviewCount(data.length);
-        setAvgRating(Math.round((data.reduce((s, r) => s + r.rating, 0) / data.length) * 10) / 10);
+      const [reviewRes, settingsRes] = await Promise.all([
+        supabase.from('reviews').select('rating').eq('is_approved', true),
+        supabase.from('store_settings').select('key, text_value').in('key', ['free_shipping_threshold']),
+      ]);
+      if (reviewRes.data && reviewRes.data.length > 0) {
+        setReviewCount(reviewRes.data.length);
+        setAvgRating(Math.round((reviewRes.data.reduce((s, r) => s + r.rating, 0) / reviewRes.data.length) * 10) / 10);
+      }
+      if (settingsRes.data) {
+        for (const row of settingsRes.data) {
+          const val = Number(row.text_value);
+          if (row.key === 'free_shipping_threshold' && Number.isFinite(val)) setFreeThreshold(val);
+        }
       }
     };
     load();
   }, []);
 
-  const threshold = storeConfig.shipping.freeShippingThreshold;
   const trustItems = contentLang === 'sv'
     ? [
         { icon: ShieldCheck, text: 'Certifierade ingredienser' },
-        { icon: Truck, text: `Fri frakt över ${threshold} kr` },
+        { icon: Truck, text: `Fri frakt över ${freeThreshold} kr` },
       ]
     : [
         { icon: ShieldCheck, text: 'Certified ingredients' },
-        { icon: Truck, text: `Free shipping over ${threshold} kr` },
+        { icon: Truck, text: `Free shipping over ${freeThreshold} kr` },
       ];
 
   const showBadges = isSectionVisible ? isSectionVisible('hero_badges') : true;
