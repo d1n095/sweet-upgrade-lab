@@ -394,12 +394,28 @@ const LovaPromptsTab = () => {
   const { data: prompts, isLoading, refetch } = useQuery({
     queryKey: ['lova-prompts'],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('prompt_queue')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(50);
-      return (data || []) as any[];
+      // Fetch from both prompt_queue AND work_items (legacy ai_chat prompts)
+      const [pqRes, wiRes] = await Promise.all([
+        supabase.from('prompt_queue').select('*').order('created_at', { ascending: false }).limit(50),
+        supabase.from('work_items' as any).select('id, title, description, priority, status, created_at, source_type, item_type').eq('source_type', 'ai_chat').order('created_at', { ascending: false }).limit(50),
+      ]);
+      const pqItems = (pqRes.data || []).map((p: any) => ({ ...p, _source: 'pq' }));
+      const wiItems = (wiRes.data || []).map((w: any) => ({
+        id: w.id,
+        title: w.title,
+        implementation: w.description || '',
+        goal: '',
+        priority: w.priority || 'medium',
+        status: w.status === 'open' ? 'pending' : w.status === 'done' ? 'done' : w.status,
+        created_at: w.created_at,
+        source_type: w.source_type,
+        _source: 'wi',
+      }));
+      // Merge, deduplicate, sort newest first
+      const all = [...pqItems, ...wiItems].sort((a: any, b: any) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+      return all as any[];
     },
   });
 
