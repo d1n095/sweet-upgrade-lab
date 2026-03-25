@@ -1686,6 +1686,17 @@ Ge SPECIFIKA och handlingsbara resultat. Svara på svenska.`,
     }
   }
 
+  // Persist scan result
+  await supabase.from("ai_scan_results").insert({
+    scan_type: "nav_scan",
+    results: analysis || {},
+    overall_score: analysis?.overall_score || 0,
+    overall_status: (analysis?.overall_score || 0) >= 80 ? "good" : (analysis?.overall_score || 0) >= 50 ? "warning" : "critical",
+    issues_count: analysis?.issues?.length || 0,
+    tasks_created: tasksCreated,
+    executive_summary: analysis?.executive_summary || "",
+  });
+
   return { ...analysis, tasks_created: tasksCreated };
 }
 
