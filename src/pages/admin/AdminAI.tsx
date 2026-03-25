@@ -1926,6 +1926,9 @@ const SystemScanTab = () => {
       reason: dismissNote || 'Ignorerad utan kommentar',
       dismissed_by: session.user.id,
       scan_type: 'system_scan',
+      dismissed_severity: issue.severity || 'unknown',
+      escalation_note: null,
+      escalated_at: null,
     } as any, { onConflict: 'issue_key,scan_type' });
     setDismissingIssue(null);
     setDismissNote('');
@@ -2272,6 +2275,7 @@ const SystemScanTab = () => {
                 <span>⏱ {Math.round(scanResult.scan_duration_ms / 1000)}s</span>
                 <span>🔍 {scanResult.issues_found} issues</span>
                 {scanResult.dismissed_count > 0 && <span>🚫 {scanResult.dismissed_count} ignorerade</span>}
+                {scanResult.escalated_dismissed?.length > 0 && <span className="text-destructive font-bold">⚠️ {scanResult.escalated_dismissed.length} eskalerade (var ignorerade)</span>}
                 <span>✅ {scanResult.tasks_created} skapade</span>
                 <span>📎 {scanResult.tasks_skipped_duplicate} dubbletter</span>
               </div>
@@ -2359,6 +2363,9 @@ const SystemScanTab = () => {
                             </span>
                             <Badge variant={issue.severity === 'critical' || issue.severity === 'high' ? 'destructive' : 'secondary'} className="text-[8px]">{issue.severity}</Badge>
                             <Badge variant="outline" className="text-[8px]">{issue.category}</Badge>
+                            {issue._escalated_from_dismissed && (
+                              <Badge variant="destructive" className="text-[8px] animate-pulse">⚠️ Eskalerad (var {issue._previous_severity})</Badge>
+                            )}
                           </div>
                         </div>
                         <ArrowRight className={cn('w-3 h-3 text-muted-foreground transition-transform shrink-0', expandedIssue === i && 'rotate-90')} />
