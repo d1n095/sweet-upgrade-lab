@@ -4575,7 +4575,8 @@ const SyncScannerTab = () => {
 };
 
 
-  const AdminAI = () => {
+const AdminAI = () => {
+  const [detailItem, setDetailItem] = useState<any>(null);
   const queryClient = useQueryClient();
 
   const openDetail = useCallback(async (itemId: string) => {
