@@ -5682,7 +5682,7 @@ Vid statusrapporter/översikter, använd istället kortfattade punktlistor med �
 - Fråga ALDRIG "ska jag gå igenom buggarna?" — GÖR DET DIREKT
 
 ═══ VERKTYG (execute_action) ═══
-✅ DIREKT: run_scan, create_work_item, update_work_item, run_cleanup, run_data_integrity, query_data, generate_lovable_prompt, triage_bugs, close_bug, batch_update_bugs, self_note
+✅ DIREKT: run_scan, create_work_item, update_work_item, run_cleanup, run_data_integrity, query_data, generate_lovable_prompt, triage_bugs, close_bug, batch_update_bugs, self_note, suggest_upgrades
 ⚠️ VIA PROMPT: UI-ändringar, nya features, edge functions → generate_lovable_prompt automatiskt
 
 ═══ SELF-NOTE & SJÄLVFÖRBÄTTRING ═══
@@ -5728,6 +5728,45 @@ Efter varje misslyckande:
 2. Förklara VILKEN kapacitet som skulle lösa det
 3. Föreslå UPPGRADERINGSVÄG (verktyg, integration, konfiguration)
 4. Logga som self_note för framtida referens
+
+═══ MODE 12 — VERKTYG & MODELL-UPPGRADERINGSHANTERARE ═══
+
+VERKTYGSINVENTERING (uppdatera mental modell vid varje session):
+┌─────────────────────────────────────────────────────────┐
+│ KATEGORI          │ VERKTYG/KAPACITET                   │
+├───────────────────┼─────────────────────────────────────┤
+│ Databas           │ Supabase RLS-skyddad CRUD           │
+│ Skanningar        │ 10 skanningstyper (system → human)  │
+│ AI-analys         │ Gemini 3 Flash / Pro via gateway     │
+│ Bugg-hantering    │ Triage, stäng, batch, auto-link      │
+│ Work items        │ CRUD, prioritering, pipeline         │
+│ Prompt-generering │ Lovable-prompts med mål & steg       │
+│ Ändringslogg      │ Automatisk change_log-koppling       │
+│ Pipeline          │ scan→issues→tasks→log→verify         │
+│ Självnotering     │ self_note för egna uppgifter         │
+│ Uppgradering      │ suggest_upgrades (denna funktion)    │
+└───────────────────┴─────────────────────────────────────┘
+
+GAP-ANALYS: Vid varje uppgift, jämför:
+- Krav: Vad behövs för att lösa uppgiften?
+- Tillgängligt: Vilka verktyg/API:er har jag?
+- Gap: Vad saknas? → Använd suggest_upgrades-åtgärden
+
+MODELLMEDVETENHET:
+- Kontext för liten? → Föreslå "Byt till gemini-2.5-pro (större kontext)"
+- Resonemang otillräckligt? → Föreslå "Aktivera reasoning med effort=high"
+- Analys begränsad? → Föreslå "Multi-pass med double-pass orchestration"
+- Bildanalys behövs? → Föreslå "Multimodal modell med vision"
+
+PRIORITERING AV UPPGRADERINGAR:
+🔴 KRITISK — blockerar systemfunktionalitet (t.ex. saknar DB-åtkomst)
+🟡 VIKTIG — förbättrar precision/automatisering (t.ex. browser-testning)
+🟢 VALFRI — nice-to-have (t.ex. bättre loggning, dashboard-widget)
+
+Använd suggest_upgrades-åtgärden för att:
+1. Inventera nuvarande kapacitet
+2. Identifiera gap baserat på senaste skanningar/buggar
+3. Generera prioriterade uppgraderingsförslag med exakta Lovable-prompts
 
 ═══ REGLER ═══
 🚫 Inga generiska svar
@@ -5814,12 +5853,12 @@ Du har FULL tillgång till ändringsloggen ovan. Använd den AKTIVT:
               properties: {
                 action_type: {
                   type: "string",
-                  enum: ["run_scan", "create_work_item", "update_work_item", "run_double_pass", "generate_lovable_prompt", "run_cleanup", "run_data_integrity", "query_data", "triage_bugs", "close_bug", "batch_update_bugs", "self_note"],
-                  description: "Type of action to execute. self_note: create a task that AI will handle itself or flag for manual work. triage_bugs: autonomously sort/prioritize/group all open bugs. close_bug: close a specific bug by id. batch_update_bugs: update multiple bugs at once.",
+                  enum: ["run_scan", "create_work_item", "update_work_item", "run_double_pass", "generate_lovable_prompt", "run_cleanup", "run_data_integrity", "query_data", "triage_bugs", "close_bug", "batch_update_bugs", "self_note", "suggest_upgrades"],
+                  description: "Type of action to execute. self_note: create a task that AI will handle itself or flag for manual work. triage_bugs: autonomously sort/prioritize/group all open bugs. close_bug: close a specific bug by id. batch_update_bugs: update multiple bugs at once. suggest_upgrades: analyze current capabilities and suggest tool/model/integration upgrades prioritized by impact.",
                 },
                 params: {
                   type: "object",
-                  description: "Parameters for the action. For self_note: { title, description, can_self_fix: boolean, priority }. If can_self_fix=true, AI will auto-handle. If false, creates a work item flagged for manual Lovable prompt. For triage_bugs: {} (no params needed). For close_bug: { bug_id, resolution_notes }. For batch_update_bugs: { bug_ids: string[], status, resolution_notes }. For generate_lovable_prompt: { title, prompt (min 100 chars), goal }. For create_work_item: { title, description, priority }.",
+                  description: "Parameters for the action. For self_note: { title, description, can_self_fix: boolean, priority }. For triage_bugs: {} (no params needed). For close_bug: { bug_id, resolution_notes }. For batch_update_bugs: { bug_ids: string[], status, resolution_notes }. For generate_lovable_prompt: { title, prompt (min 100 chars), goal }. For create_work_item: { title, description, priority }. For suggest_upgrades: { focus?: string } (optional focus area like 'testing', 'ai', 'monitoring').",
                 },
               },
               required: ["action_type", "params"],
@@ -6183,6 +6222,126 @@ Return ONLY valid JSON.`,
 
         return { created: true, self_fix: false, work_item_id: data.id, prompt_queued: true };
       }
+    }
+
+    case "suggest_upgrades": {
+      const focus = params?.focus || "all";
+
+      // Gather system state for gap analysis
+      const [bugsRes, workRes, scansRes, settingsRes] = await Promise.all([
+        supabase.from("bug_reports").select("ai_category, ai_severity, status").limit(200),
+        supabase.from("work_items").select("item_type, status, priority, ai_category, ai_type_classification").limit(200),
+        supabase.from("ai_scan_results").select("scan_type, overall_score, overall_status, issues_count, created_at").order("created_at", { ascending: false }).limit(50),
+        supabase.from("store_settings").select("key, value").limit(50),
+      ]);
+
+      const allBugs = bugsRes.data || [];
+      const allWork = workRes.data || [];
+      const allScans = scansRes.data || [];
+
+      // Compute gap signals
+      const openBugsByCategory: Record<string, number> = {};
+      for (const b of allBugs.filter((b: any) => b.status === "open")) {
+        const cat = (b as any).ai_category || "unknown";
+        openBugsByCategory[cat] = (openBugsByCategory[cat] || 0) + 1;
+      }
+
+      const failedScans = allScans.filter((s: any) => (s.overall_score || 0) < 50);
+      const scanCoverage = new Set(allScans.map((s: any) => s.scan_type));
+
+      const toolInventory = {
+        database: { status: "active", tools: ["Supabase CRUD", "RLS policies", "Edge functions"] },
+        scanning: { status: "active", tools: ["system_scan", "data_integrity", "content_validation", "sync_scan", "interaction_qa", "visual_qa", "nav_scan", "ux_scan", "human_test", "action_governor"] },
+        ai_analysis: { status: "active", tools: ["Gemini 3 Flash", "Gemini 2.5 Pro (available)", "GPT-5 (available)"], current_model: "google/gemini-3-flash-preview" },
+        bug_management: { status: "active", tools: ["triage_bugs", "close_bug", "batch_update_bugs", "process-bug-report"] },
+        work_items: { status: "active", tools: ["create", "update", "pipeline linking", "AI review"] },
+        prompt_generation: { status: "active", tools: ["generate_lovable_prompt", "prompt_queue"] },
+        monitoring: { status: "partial", tools: ["ai_read_log", "change_log", "activity_logs"], missing: ["real-time alerting", "performance metrics", "error rate tracking"] },
+        testing: { status: "limited", tools: ["human_test (simulated)", "data integrity checks"], missing: ["browser automation", "visual regression", "E2E testing"] },
+        communication: { status: "partial", tools: ["email templates", "notifications"], missing: ["Slack/webhook alerts", "SMS notifications"] },
+      };
+
+      const upgradeAnalysis = {
+        tool_inventory: toolInventory,
+        gap_signals: {
+          open_bugs_by_category: openBugsByCategory,
+          failed_scans: failedScans.length,
+          scan_coverage: Array.from(scanCoverage),
+          total_open_work: allWork.filter((w: any) => ["open", "claimed", "in_progress"].includes(w.status)).length,
+          recurring_issue_types: Object.entries(openBugsByCategory).filter(([_, count]) => count >= 3).map(([cat]) => cat),
+        },
+        upgrade_suggestions: [] as any[],
+      };
+
+      // Generate prioritized upgrade suggestions based on actual gaps
+      if (!scanCoverage.has("security") || failedScans.length > 3) {
+        upgradeAnalysis.upgrade_suggestions.push({
+          priority: "critical",
+          category: "testing",
+          title: "Browser Automation / E2E Testing",
+          reason: `${failedScans.length} skanningar under 50 poäng. Simulerad testning kan inte verifiera faktisk UI-interaktion.`,
+          solution: "Integrera Playwright via edge function för riktiga browser-tester. Alternativ: Lovable browser API för screenshot-baserad verifiering.",
+          lovable_prompt: "Add Playwright-based E2E testing edge function that can navigate pages, click buttons, fill forms, and capture screenshots. Store results in ai_scan_results with scan_type='e2e_test'. Include tests for: checkout flow, login flow, admin navigation, product browsing.",
+        });
+      }
+
+      if (openBugsByCategory["UI"] >= 2 || openBugsByCategory["navigation"] >= 2) {
+        upgradeAnalysis.upgrade_suggestions.push({
+          priority: "important",
+          category: "monitoring",
+          title: "Visual Regression Detection",
+          reason: `${(openBugsByCategory["UI"] || 0) + (openBugsByCategory["navigation"] || 0)} öppna UI/nav-buggar. Saknar automatisk visuell jämförelse.`,
+          solution: "Screenshot-capture före/efter ändringar med pixel-diff analys via AI vision model.",
+          lovable_prompt: "Add visual regression testing: capture page screenshots via edge function, store in Supabase storage, compare with previous baseline using AI vision model (gemini-2.5-pro with image input). Flag visual differences > 5% as potential regressions.",
+        });
+      }
+
+      if (allWork.filter((w: any) => w.status === "open" && w.priority === "critical").length > 2) {
+        upgradeAnalysis.upgrade_suggestions.push({
+          priority: "critical",
+          category: "ai",
+          title: "AI Model Upgrade for Complex Analysis",
+          reason: "Flera kritiska öppna uppgifter. Nuvarande modell (Flash) kan missa komplexa samband.",
+          solution: "Byt till gemini-2.5-pro för kritiska analyser, behåll Flash för rutinskanning. Implementera automatisk modellval baserat på uppgiftskomplexitet.",
+          lovable_prompt: "Update ai-assistant edge function to use adaptive model selection: use google/gemini-2.5-pro for critical priority tasks and complex multi-step analysis, keep google/gemini-3-flash-preview for routine scans and simple queries. Add a model_used field to ai_scan_results for tracking.",
+        });
+      }
+
+      upgradeAnalysis.upgrade_suggestions.push({
+        priority: "important",
+        category: "monitoring",
+        title: "Real-Time System Health Alerts",
+        reason: "Inga realtidsvarningar vid systemfel. Problem upptäcks först vid manuell skanning.",
+        solution: "Webhook/Slack-integration för automatiska varningar vid: scan score < 50, nya kritiska buggar, pipeline-stopp.",
+        lovable_prompt: "Add a webhook notification system: create edge function 'system-alerts' that sends alerts via configured webhook URL when scan scores drop below threshold, critical bugs are filed, or pipeline stages fail. Store webhook URL in store_settings. Add admin UI to configure alert thresholds.",
+      });
+
+      upgradeAnalysis.upgrade_suggestions.push({
+        priority: "optional",
+        category: "ai",
+        title: "Structured Telemetry & Performance Metrics",
+        reason: "Saknar aggregerad prestanda-data. Kan inte spåra AI-effektivitet över tid.",
+        solution: "Dashbord med: genomsnittlig scan-poäng per vecka, bugg-lösningstid, AI-precision (verifierade vs falskt positiva).",
+        lovable_prompt: "Add AI performance metrics tracking: create 'ai_metrics' table with fields (metric_type, value, period, created_at). Add edge function cron job to aggregate weekly scan scores, bug resolution times, AI review accuracy. Display in AdminAI as trend charts.",
+      });
+
+      // Sort by priority
+      const priorityOrder: Record<string, number> = { critical: 0, important: 1, optional: 2 };
+      upgradeAnalysis.upgrade_suggestions.sort((a, b) => (priorityOrder[a.priority] || 99) - (priorityOrder[b.priority] || 99));
+
+      // Persist as scan result
+      await supabase.from("ai_scan_results").insert({
+        scan_type: "upgrade_analysis",
+        results: upgradeAnalysis,
+        overall_score: Math.max(0, 100 - upgradeAnalysis.upgrade_suggestions.filter(u => u.priority === "critical").length * 25 - upgradeAnalysis.upgrade_suggestions.filter(u => u.priority === "important").length * 10),
+        overall_status: upgradeAnalysis.upgrade_suggestions.some(u => u.priority === "critical") ? "critical" : "warning",
+        issues_count: upgradeAnalysis.upgrade_suggestions.length,
+        executive_summary: `Upgrade-analys: ${upgradeAnalysis.upgrade_suggestions.length} förslag (${upgradeAnalysis.upgrade_suggestions.filter(u => u.priority === "critical").length} kritiska)`,
+        scanned_by: "lova_upgrade_manager",
+      });
+
+      result = upgradeAnalysis;
+      break;
     }
 
     case "bug_fix_match": {
