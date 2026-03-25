@@ -41,20 +41,26 @@ interface DedupResult {
 
 /**
  * Generate a fingerprint from a title for dedup purposes.
- * Normalizes the title by removing prefixes like [Auto-fix], [Visual QA], etc.
+ * Normalizes the title and produces a 4-part identity key matching the server format:
+ *   component::type::location::description_pattern
  */
 function titleToFingerprint(title: string): string {
-  return title
+  const cleaned = title
     .replace(/^\[.*?\]\s*/g, '')       // Remove [prefix] tags
     .replace(/\(?\+\d+\s*liknande\)?/g, '') // Remove (+N liknande)
     .trim()
-    .toLowerCase()
-    .replace(/[^a-zåäö0-9\s]/g, '')     // Keep letters, digits, spaces
-    .replace(/\s+/g, '_')
-    .slice(0, 80);
+    .toLowerCase();
+  
+  // Extract component from known prefixes (e.g. "Broken flow:", "Data:", "Interaction:")
+  const prefixMatch = cleaned.match(/^(blocker|broken\s*flow|fake\s*feature|interaction|data|bug|incident):\s*/i);
+  const component = prefixMatch ? prefixMatch[1].replace(/\s+/g, '_').slice(0, 30) : 'unknown';
+  const rest = prefixMatch ? cleaned.slice(prefixMatch[0].length) : cleaned;
+  
+  const descPattern = rest.replace(/[^a-z0-9 ]/g, '').trim().split(/\s+/).slice(0, 5).join('_').slice(0, 30);
+  return `${component}::general::global::${descPattern}`;
 }
 
-const ACTIVE_STATUSES = ['open', 'claimed', 'in_progress', 'escalated'];
+const ACTIVE_STATUSES = ['open', 'claimed', 'in_progress', 'escalated', 'new', 'pending', 'detected'];
 
 export async function createWorkItemWithDedup(payload: WorkItemPayload): Promise<DedupResult> {
   const title = payload.title || '';
