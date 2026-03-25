@@ -1107,7 +1107,7 @@ const BugAITab = () => {
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState<string | null>(null);
   const [fixes, setFixes] = useState<Record<string, any>>({});
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [selectedBugId, setSelectedBugId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<'open' | 'resolved' | 'all'>('open');
   const [matching, setMatching] = useState(false);
   const [matchResult, setMatchResult] = useState<any>(null);
@@ -1138,7 +1138,7 @@ const BugAITab = () => {
     } as any).eq('id', bugId);
     if (!error) {
       toast.success('Bugg markerad som löst ✅');
-      if (expandedId === bugId) setExpandedId(null);
+      if (selectedBugId === bugId) setSelectedBugId(null);
       setBugs(prev => prev.filter(b => b.id !== bugId));
     } else toast.error('Kunde inte uppdatera bugg');
   };
@@ -1150,7 +1150,7 @@ const BugAITab = () => {
     } as any).eq('id', bugId);
     if (!error) {
       toast.success('Bugg ignorerad');
-      if (expandedId === bugId) setExpandedId(null);
+      if (selectedBugId === bugId) setSelectedBugId(null);
       setBugs(prev => prev.filter(b => b.id !== bugId));
     } else toast.error('Kunde inte ignorera bugg');
   };
@@ -1237,7 +1237,8 @@ const BugAITab = () => {
 
       <div className="max-h-[65vh] overflow-y-auto space-y-2 pr-1">
         {bugs.map(bug => {
-          const isExpanded = expandedId === bug.id;
+          const selectedBug = bugs.find(b => b.id === selectedBugId);
+          const isExpanded = selectedBugId === bug.id;
           const fix = fixes[bug.id];
 
           return (
@@ -1245,7 +1246,15 @@ const BugAITab = () => {
               {/* Header - always visible */}
               <div
                 className="p-3 flex items-start gap-3 cursor-pointer hover:bg-muted/30 transition-colors"
-                onClick={() => setExpandedId(isExpanded ? null : bug.id)}
+                onClick={() => {
+                  console.log("CLICK BUG:", bug.id);
+                  const newId = isExpanded ? null : bug.id;
+                  setSelectedBugId(newId);
+                  if (newId) {
+                    const found = bugs.find(b => b.id === newId);
+                    console.log("FOUND BUG:", found);
+                  }
+                }}
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium">{bug.ai_summary || bug.description?.substring(0, 100)}</p>
@@ -1262,7 +1271,7 @@ const BugAITab = () => {
 
               {/* Expanded content */}
               {isExpanded && (
-                <div className="border-t px-3 pb-3 space-y-3">
+                <div key={selectedBugId} className="border-t px-3 pb-3 space-y-3">
                   {/* Action buttons */}
                   <div className="flex gap-1.5 pt-2 flex-wrap">
                     <Button size="sm" variant="outline" className="gap-1 h-7 text-xs" disabled={analyzing === bug.id} onClick={(e) => { e.stopPropagation(); analyzeBug(bug.id); }}>
