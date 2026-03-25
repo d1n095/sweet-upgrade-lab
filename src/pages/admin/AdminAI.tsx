@@ -3916,6 +3916,10 @@ const AdminAI = () => {
               <GitMerge className="w-3.5 h-3.5" />
               Mönster
             </TabsTrigger>
+            <TabsTrigger value="focused-scan" className="gap-1.5 text-xs">
+              <Radar className="w-3.5 h-3.5" />
+              Fokusscan
+            </TabsTrigger>
           </TabsList>
         </ScrollableTabs>
 
