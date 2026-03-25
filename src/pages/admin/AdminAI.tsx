@@ -2363,6 +2363,9 @@ const SystemScanTab = () => {
                             </span>
                             <Badge variant={issue.severity === 'critical' || issue.severity === 'high' ? 'destructive' : 'secondary'} className="text-[8px]">{issue.severity}</Badge>
                             <Badge variant="outline" className="text-[8px]">{issue.category}</Badge>
+                            {issue._escalated_from_dismissed && (
+                              <Badge variant="destructive" className="text-[8px] animate-pulse">⚠️ Eskalerad (var {issue._previous_severity})</Badge>
+                            )}
                           </div>
                         </div>
                         <ArrowRight className={cn('w-3 h-3 text-muted-foreground transition-transform shrink-0', expandedIssue === i && 'rotate-90')} />
