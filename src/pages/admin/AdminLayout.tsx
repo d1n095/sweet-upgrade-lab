@@ -195,65 +195,15 @@ const AdminLayout = () => {
   ) || (location.pathname === '/admin' ? visibleNavItems[0] : undefined);
 
   return (
-    <div className="min-h-screen flex bg-background">
-      {/* Sidebar - desktop */}
-      <aside className="hidden md:flex w-60 flex-col border-r border-border bg-card fixed inset-y-0 left-0 z-30">
-        <div className="h-14 flex items-center gap-3 px-5 border-b border-border">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Shield className="w-4 h-4 text-primary" />
-          </div>
-          <span className="font-display font-semibold text-lg">Admin</span>
-        </div>
-
-        <ScrollArea className="flex-1 py-3">
-          <nav className="space-y-4 px-3">
-            {visibleGroups.map((group, gi) => (
-              <div key={gi}>
-                {group.label && (
-                  <p className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider px-3 mb-1">{group.label}</p>
-                )}
-                <div className="space-y-0.5">
-                  {group.items.map((item) => (
-                    <NavLink
-                      key={item.to}
-                      to={item.to}
-                      end={item.end}
-                      className={({ isActive }) =>
-                        cn(
-                          'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                          isActive
-                            ? 'bg-primary/10 text-primary'
-                            : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
-                        )
-                      }
-                    >
-                      <item.icon className="w-4 h-4 shrink-0" />
-                      {item.label}
-                    </NavLink>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </nav>
-        </ScrollArea>
-
-        <div className="p-3 border-t border-border space-y-0.5">
-          <Button variant="ghost" size="sm" className="w-full justify-start gap-3 text-muted-foreground hover:text-foreground" onClick={() => navigate('/')}>
-            <Home className="w-4 h-4" />
-            Tillbaka till butiken
-          </Button>
-          <Button variant="ghost" size="sm" className="w-full justify-start gap-3 text-muted-foreground hover:text-foreground" onClick={handleSignOut}>
-            <LogOut className="w-4 h-4" />
-            Logga ut
-          </Button>
-        </div>
-      </aside>
-
+    <div className="min-h-screen bg-background">
       {/* Main area */}
-      <div className="flex-1 md:ml-60 flex flex-col min-h-screen">
+      <div className="flex flex-col min-h-screen">
         {/* Desktop Topbar */}
         <header className="hidden md:flex h-14 items-center justify-between px-8 border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-20">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg shrink-0" onClick={() => setMobileNavOpen(true)}>
+              <Menu className="w-5 h-5" />
+            </Button>
             <AdminGlobalSearch />
           </div>
           <div className="flex items-center gap-2">
@@ -305,7 +255,7 @@ const AdminLayout = () => {
           </div>
         </div>
 
-        {/* Mobile nav drawer */}
+        {/* Nav drawer */}
         <AnimatePresence>
           {mobileNavOpen && (
             <>
@@ -313,7 +263,7 @@ const AdminLayout = () => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="md:hidden fixed inset-0 z-[60] bg-black/40"
+                className="fixed inset-0 z-[60] bg-black/40"
                 onClick={() => setMobileNavOpen(false)}
               />
               <motion.div
@@ -321,7 +271,7 @@ const AdminLayout = () => {
                 animate={{ x: 0 }}
                 exit={{ x: '-100%' }}
                 transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                className="md:hidden fixed inset-y-0 left-0 z-[70] w-72 bg-card border-r border-border flex flex-col"
+                className="fixed inset-y-0 left-0 z-[70] w-72 bg-card border-r border-border flex flex-col"
               >
                 <div className="h-14 flex items-center justify-between px-4 border-b border-border">
                   <div className="flex items-center gap-2">
