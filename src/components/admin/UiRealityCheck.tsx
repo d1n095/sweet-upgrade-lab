@@ -382,13 +382,16 @@ const UiRealityCheck = () => {
         // Skip if parent is a known scroll container
         const parentScrollable = htmlEl.closest('[data-radix-scroll-area-viewport], [class*="overflow-y-auto"], [class*="overflow-auto"]');
         if (!parentScrollable) {
-          results.push(makeCheck(
+          const check = makeCheck(
             'layout',
             `no_scroll: ${buildSelector(htmlEl).slice(0, 50)}`,
             buildSelector(htmlEl),
             'broken',
             `Innehåll (${contentH}px) överstiger container (${containerH}px) med ${overflow}px men overflow-y:hidden blockerar scroll. Fix: ändra till overflow-y:auto och lägg till min-height:0 på flex-förälder.`
-          ));
+          );
+          check.fixType = 'no_scroll';
+          check.fixTarget = htmlEl;
+          results.push(check);
         }
       }
 
@@ -397,13 +400,16 @@ const UiRealityCheck = () => {
       if (hasFixedH && overflow > 50 && (overflowY === 'hidden' || overflowY === 'visible') && containerH > 40) {
         const isInsideScrollArea = !!htmlEl.closest('[data-radix-scroll-area-viewport]');
         if (!isInsideScrollArea) {
-          results.push(makeCheck(
+          const check = makeCheck(
             'layout',
             `content_cut: ${buildSelector(htmlEl).slice(0, 50)}`,
             buildSelector(htmlEl),
             'broken',
             `Container har fast höjd (${containerH}px) men innehållet är ${contentH}px — ${overflow}px klipps bort. Fix: ta bort fixed height eller lägg till overflow-y:auto.`
-          ));
+          );
+          check.fixType = 'content_cut';
+          check.fixTarget = htmlEl;
+          results.push(check);
         }
       }
 
@@ -411,13 +417,16 @@ const UiRealityCheck = () => {
       if (overflowHoriz > 30 && overflowX === 'hidden' && containerW > 50) {
         const isTable = !!htmlEl.closest('table') || htmlEl.querySelector('table');
         if (!isTable) {
-          results.push(makeCheck(
+          const check = makeCheck(
             'layout',
             `overflow_hidden_issue (horiz): ${buildSelector(htmlEl).slice(0, 50)}`,
             buildSelector(htmlEl),
             'partially_working',
             `Horisontellt innehåll (${contentW}px) klipps i container (${containerW}px). ${overflowHoriz}px dolt. Fix: overflow-x:auto eller bredda containern.`
-          ));
+          );
+          check.fixType = 'overflow_hidden_horiz';
+          check.fixTarget = htmlEl;
+          results.push(check);
         }
       }
     });
@@ -432,24 +441,30 @@ const UiRealityCheck = () => {
         const mContentH = htmlModal.scrollHeight;
         const mContainerH = htmlModal.clientHeight;
         if (mContentH > mContainerH + 30) {
-          results.push(makeCheck(
+          const check = makeCheck(
             'layout',
             `modal_overflow_bug: ${buildSelector(htmlModal).slice(0, 50)}`,
             buildSelector(htmlModal),
             'broken',
             `Öppen modal har ${mContentH}px innehåll i ${mContainerH}px container utan scroll-wrapper. Fix: wrappa innehållet i ScrollArea eller lägg till overflow-y:auto med flex-1 min-h-0.`
-          ));
+          );
+          check.fixType = 'modal_overflow';
+          check.fixTarget = htmlModal;
+          results.push(check);
         }
       } else {
         const scrollEl = innerScrollable as HTMLElement;
         if (scrollEl.scrollHeight > scrollEl.clientHeight + 20 && getComputedStyle(scrollEl).overflowY === 'hidden') {
-          results.push(makeCheck(
+          const check = makeCheck(
             'layout',
             `modal_overflow_bug (blocked scroll): ${buildSelector(htmlModal).slice(0, 50)}`,
             buildSelector(htmlModal),
             'broken',
             `Modal har ScrollArea men overflow-y:hidden blockerar scroll. Fix: kontrollera flex-chain — säkerställ min-height:0 på alla flex-föräldrar.`
-          ));
+          );
+          check.fixType = 'modal_blocked_scroll';
+          check.fixTarget = htmlModal;
+          results.push(check);
         }
       }
     });
@@ -457,7 +472,7 @@ const UiRealityCheck = () => {
     setProgress(100);
 
     // Sort: issues first
-    const order: Record<CheckVerdict, number> = { broken: 0, fake_done: 1, partially_working: 2, working: 3 };
+    const order: Record<CheckVerdict, number> = { broken: 0, fake_done: 1, partially_working: 2, auto_fixed: 3, working: 4 };
     results.sort((a, b) => order[a.verdict] - order[b.verdict]);
 
     setChecks(results);
