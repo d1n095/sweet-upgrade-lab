@@ -1222,13 +1222,11 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
       .limit(1);
 
     if (existingByFp?.length) {
+      // TEMPORARILY DISABLED: dedup skip
       // Update existing instead of creating new
-      console.log(`[dedup] Fingerprint match: "${issue.title.slice(0, 40)}" → existing ${existingByFp[0].id.slice(0, 8)}`);
-      await supabase.from("work_items").update({
-        updated_at: new Date().toISOString(),
-        description: `${existingByFp[0].title}\n\nSenast sedd: ${new Date().toISOString()}\n${issue.description || ""}`.slice(0, 2000),
-      }).eq("id", existingByFp[0].id);
-      continue;
+      console.log(`[dedup] Fingerprint match (SKIPPING DISABLED): "${issue.title.slice(0, 40)}" → existing ${existingByFp[0].id.slice(0, 8)}`);
+      // await supabase.from("work_items").update({...}).eq("id", existingByFp[0].id);
+      // continue;
     }
 
     // Fallback: fuzzy title match
@@ -1239,7 +1237,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
       .ilike("title", `%${searchTitle}%`)
       .in("status", ["open", "claimed", "in_progress", "escalated"])
       .limit(1);
-    if (existingByTitle?.length) continue;
+    // if (existingByTitle?.length) continue; // TEMPORARILY DISABLED
 
     // Create new with fingerprint
     const insertPayload = {
@@ -1602,11 +1600,11 @@ serve(async (req) => {
       for (const si of systemicIssues) {
         const fp = generateFingerprint({ component: si.pattern, type: "systemic", route: "global" });
         const { data: existingByFp } = await supabase.from("work_items").select("id").eq("issue_fingerprint", fp).in("status", ["open", "claimed", "in_progress", "escalated"]).limit(1);
-        if (existingByFp?.length) continue;
+        // if (existingByFp?.length) continue; // TEMPORARILY DISABLED
 
         const searchTitle = si.label.substring(0, 40);
         const { data: existing } = await supabase.from("work_items").select("id").ilike("title", `%${searchTitle}%`).in("status", ["open", "claimed", "in_progress", "escalated"]).limit(1);
-        if (existing?.length) continue;
+        // if (existing?.length) continue; // TEMPORARILY DISABLED
 
         const { error } = await supabase.from("work_items").insert({
           title: `🔗 ${si.label}`.slice(0, 120),
