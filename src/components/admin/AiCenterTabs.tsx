@@ -273,9 +273,9 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
   );
 
   return (
-    <div className="-mx-4 md:-mx-8 overflow-x-hidden">
+    <div className="-mx-4 md:-mx-6 flex flex-col min-h-0 flex-1 overflow-hidden">
       {/* Top navigation (no permanent sidebar) */}
-      <div className="border-b border-border bg-card/50">
+      <div className="border-b border-border bg-card/50 shrink-0">
         <div className="md:hidden px-2 py-1.5 flex items-center gap-2 safe-area-inset-bottom">
           <Button
             variant={activeTab === 'ai-dashboard' ? 'secondary' : 'ghost'}
@@ -375,30 +375,32 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
         )}
       </AnimatePresence>
 
-      {/* Main Content */}
-      <div className="px-4 md:px-8 pb-4 pt-3">
-        {activeTab !== 'ai-dashboard' && activeTabDef && (
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-4 pt-1 shrink-0">
-            <button onClick={() => handleNavigate('ai-dashboard')} className="hover:text-foreground transition-colors">
-              AI Center
-            </button>
-            <ChevronRight className="w-3 h-3" />
-            <span className="text-foreground font-medium">{activeTabDef.label}</span>
-          </div>
-        )}
-
-        <div>
-          {activeTab === 'ai-dashboard' ? (
-            <DashboardOverview onNavigate={handleNavigate} />
-          ) : (
-            <div>
-              {React.Children.map(children, child => {
-                if (!React.isValidElement(child)) return null;
-                const value = child.props['data-value'] || child.props.value;
-                return value === activeTab ? <div>{child}</div> : null;
-              })}
+      {/* Main Content — independently scrollable */}
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="px-4 md:px-6 pb-4 pt-3">
+          {activeTab !== 'ai-dashboard' && activeTabDef && (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-4 pt-1 shrink-0">
+              <button onClick={() => handleNavigate('ai-dashboard')} className="hover:text-foreground transition-colors">
+                AI Center
+              </button>
+              <ChevronRight className="w-3 h-3" />
+              <span className="text-foreground font-medium">{activeTabDef.label}</span>
             </div>
           )}
+
+          <div>
+            {activeTab === 'ai-dashboard' ? (
+              <DashboardOverview onNavigate={handleNavigate} />
+            ) : (
+              <div>
+                {React.Children.map(children, child => {
+                  if (!React.isValidElement(child)) return null;
+                  const value = child.props['data-value'] || child.props.value;
+                  return value === activeTab ? <div>{child}</div> : null;
+                })}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
