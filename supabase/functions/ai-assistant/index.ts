@@ -5439,6 +5439,15 @@ Du är Lova, AI-operatör för 4thepeople.se. Du är erfaren, självsäker och t
 3. Oklart vad som menas → Gör ditt bästa antagande baserat på kontext, nämn kort vad du antog
 4. Kodändring behövs → Generera prompt DIREKT, säg "Prompt skapad ✅" — fråga inte först
 
+═══ AUTONOM BUGG-HANTERING ═══
+När du ser öppna buggar eller får frågor om teknisk skuld:
+- TRIAGE: Använd triage_bugs för att automatiskt sortera, kategorisera och prioritera ALLA öppna buggar
+- STÄNG DUBBLETTER: Identifiera och stäng buggar som är dubbletter, redan fixade, eller irrelevanta
+- GRUPPERA: Slå ihop liknande buggar till en sammanhängande work item
+- AGERA: Skapa work items för de viktigaste bugggrupperna, med tydliga beskrivningar
+- Generera Lovable-prompts DIREKT för buggar som kräver kodändringar
+- Fråga ALDRIG "ska jag gå igenom buggarna?" — GÖR DET DIREKT
+
 ═══ SVAR-FORMAT ═══
 - Max 2-4 meningar per punkt, punktlistor
 - Resultat efter åtgärd: ✅ Gjort / ⚠️ Problem / ❌ Misslyckades
@@ -5446,7 +5455,7 @@ Du är Lova, AI-operatör för 4thepeople.se. Du är erfaren, självsäker och t
 - Formatera: **fetstil** för nyckelord, emojis sparsamt
 
 ═══ VERKTYG (execute_action) ═══
-✅ DIREKT: run_scan, create_work_item, update_work_item, run_cleanup, run_data_integrity, query_data, generate_lovable_prompt
+✅ DIREKT: run_scan, create_work_item, update_work_item, run_cleanup, run_data_integrity, query_data, generate_lovable_prompt, triage_bugs, close_bug, batch_update_bugs
 ⚠️ VIA PROMPT: UI-ändringar, nya features, edge functions → generate_lovable_prompt automatiskt
 `;
 
@@ -5493,12 +5502,12 @@ VIKTIGT: Om användaren markerat prompts som klara, identifiera PROAKTIVT nästa
               properties: {
                 action_type: {
                   type: "string",
-                  enum: ["run_scan", "create_work_item", "update_work_item", "run_double_pass", "generate_lovable_prompt", "run_cleanup", "run_data_integrity", "query_data"],
-                  description: "Type of action to execute",
+                  enum: ["run_scan", "create_work_item", "update_work_item", "run_double_pass", "generate_lovable_prompt", "run_cleanup", "run_data_integrity", "query_data", "triage_bugs", "close_bug", "batch_update_bugs"],
+                  description: "Type of action to execute. triage_bugs: autonomously sort/prioritize/group all open bugs. close_bug: close a specific bug by id. batch_update_bugs: update multiple bugs at once.",
                 },
                 params: {
                   type: "object",
-                  description: "Parameters for the action. For generate_lovable_prompt: { title: string, prompt: string (full detailed prompt, min 100 chars), goal: string }. For create_work_item: { title, description, priority }.",
+                  description: "Parameters for the action. For triage_bugs: {} (no params needed, analyzes all open bugs). For close_bug: { bug_id, resolution_notes }. For batch_update_bugs: { bug_ids: string[], status, resolution_notes }. For generate_lovable_prompt: { title, prompt (min 100 chars), goal }. For create_work_item: { title, description, priority }.",
                 },
               },
               required: ["action_type", "params"],
@@ -5662,6 +5671,159 @@ async function executeLovaAction(supabase: any, lovableKey: string, args: any) {
       if (error) return { error: error.message };
       return { rows: data?.length || 0, data: data?.slice(0, 10) };
     }
+    case "triage_bugs": {
+      // Fetch ALL open bugs with full detail
+      const { data: allBugs } = await supabase
+        .from("bug_reports")
+        .select("id, description, page_url, ai_summary, ai_severity, ai_category, ai_tags, status, created_at")
+        .eq("status", "open")
+        .order("created_at", { ascending: false })
+        .limit(200);
+
+      if (!allBugs || allBugs.length === 0) {
+        return { total: 0, message: "Inga öppna buggar att triagera." };
+      }
+
+      // Use AI to analyze and group bugs
+      const triageResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [{
+            role: "user",
+            content: `You are a senior bug triage engineer. Analyze these ${allBugs.length} open bugs and return a JSON object with:
+
+1. "groups": Array of bug groups, each with:
+   - "group_name": Short descriptive name (Swedish)
+   - "severity": "critical" | "high" | "medium" | "low"
+   - "bug_ids": Array of bug IDs that belong to this group
+   - "summary": 1-2 sentence description of the group (Swedish)
+   - "action": "fix_code" | "close_duplicate" | "close_irrelevant" | "needs_investigation" | "auto_fixable"
+   - "prompt_suggestion": If action is "fix_code", a brief description of what needs fixing
+
+2. "duplicates": Array of { keep_id, close_ids[], reason }
+3. "auto_closeable": Array of { bug_id, reason } for bugs that are already fixed or irrelevant
+4. "priority_order": Array of group_names in order of importance
+5. "stats": { total, critical, high, medium, low, duplicates, auto_closeable }
+
+BUGS:
+${allBugs.map((b: any) => `ID: ${b.id}\nSeverity: ${b.ai_severity || "unknown"}\nCategory: ${b.ai_category || "unknown"}\nSummary: ${b.ai_summary || b.description.substring(0, 150)}\nPage: ${b.page_url}\nTags: ${(b.ai_tags || []).join(", ")}\nCreated: ${b.created_at}\n---`).join("\n")}
+
+Return ONLY valid JSON.`,
+          }],
+          temperature: 0.2,
+          response_format: { type: "json_object" },
+        }),
+      });
+
+      if (!triageResp.ok) throw new Error(`Triage AI failed: ${triageResp.status}`);
+      const triageData = await triageResp.json();
+      let triage;
+      try {
+        triage = JSON.parse(triageData.choices?.[0]?.message?.content || "{}");
+      } catch {
+        return { error: "Kunde inte parsa triage-resultat" };
+      }
+
+      // Auto-close duplicates and irrelevant bugs
+      let closed = 0;
+      const closeBugIds: string[] = [];
+
+      for (const dup of (triage.duplicates || [])) {
+        for (const closeId of (dup.close_ids || [])) {
+          closeBugIds.push(closeId);
+        }
+      }
+      for (const ac of (triage.auto_closeable || [])) {
+        closeBugIds.push(ac.bug_id);
+      }
+
+      if (closeBugIds.length > 0) {
+        const uniqueIds = [...new Set(closeBugIds)];
+        const { error: closeErr } = await supabase
+          .from("bug_reports")
+          .update({ status: "resolved", resolution_notes: "Auto-stängd av Lova: duplikat eller irrelevant", resolved_at: new Date().toISOString() })
+          .in("id", uniqueIds);
+        if (!closeErr) closed = uniqueIds.length;
+      }
+
+      // Create work items for important bug groups
+      let workItemsCreated = 0;
+      for (const group of (triage.groups || []).filter((g: any) => g.action === "fix_code" && ["critical", "high"].includes(g.severity))) {
+        const { error: wiErr } = await supabase.from("work_items").insert({
+          title: `🐛 ${group.group_name}`.substring(0, 200),
+          description: `${group.summary}\n\nBuggar: ${group.bug_ids.length} st\nÅtgärd: Kodfix krävs\n${group.prompt_suggestion || ""}`,
+          status: "open",
+          priority: group.severity === "critical" ? "critical" : "high",
+          item_type: "bug",
+          source_type: "ai_triage",
+          ai_detected: true,
+          ai_confidence: "high",
+        });
+        if (!wiErr) workItemsCreated++;
+      }
+
+      // Generate prompts for critical groups
+      let promptsCreated = 0;
+      for (const group of (triage.groups || []).filter((g: any) => g.action === "fix_code" && g.severity === "critical")) {
+        const { error: pErr } = await supabase.from("prompt_queue").insert({
+          title: `Fix: ${group.group_name}`.substring(0, 200),
+          implementation: `Fix the following bug group: ${group.group_name}\n\n${group.summary}\n\nAffected bugs: ${group.bug_ids.length}\n\nSuggested fix:\n${group.prompt_suggestion || "Investigate and fix the root cause."}\n\nRequirements:\n1) Identify root cause across all related bugs\n2) Implement robust fix\n3) Test edge cases\n4) Ensure no regressions`,
+          goal: group.summary,
+          priority: "critical",
+          status: "pending",
+          source_type: "ai_triage",
+        });
+        if (!pErr) promptsCreated++;
+      }
+
+      return {
+        total_bugs: allBugs.length,
+        groups: (triage.groups || []).length,
+        duplicates_closed: closed,
+        work_items_created: workItemsCreated,
+        prompts_created: promptsCreated,
+        priority_order: triage.priority_order || [],
+        stats: triage.stats || {},
+        group_details: (triage.groups || []).map((g: any) => ({
+          name: g.group_name,
+          severity: g.severity,
+          count: g.bug_ids?.length || 0,
+          action: g.action,
+        })),
+      };
+    }
+
+    case "close_bug": {
+      const { bug_id, resolution_notes } = params;
+      if (!bug_id) return { error: "bug_id krävs" };
+      const { error } = await supabase
+        .from("bug_reports")
+        .update({
+          status: "resolved",
+          resolution_notes: resolution_notes || "Stängd av Lova",
+          resolved_at: new Date().toISOString(),
+        })
+        .eq("id", bug_id);
+      if (error) throw new Error(error.message);
+      return { closed: true, bug_id };
+    }
+
+    case "batch_update_bugs": {
+      const { bug_ids, status: newStatus, resolution_notes: notes } = params;
+      if (!bug_ids || !Array.isArray(bug_ids) || bug_ids.length === 0) return { error: "bug_ids array krävs" };
+      const updates: any = { status: newStatus || "resolved" };
+      if (notes) updates.resolution_notes = notes;
+      if (newStatus === "resolved") updates.resolved_at = new Date().toISOString();
+      const { error } = await supabase
+        .from("bug_reports")
+        .update(updates)
+        .in("id", bug_ids);
+      if (error) throw new Error(error.message);
+      return { updated: bug_ids.length, status: newStatus };
+    }
+
     default:
       return { error: "Okänd åtgärdstyp" };
   }
