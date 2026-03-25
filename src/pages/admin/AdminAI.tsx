@@ -1983,8 +1983,7 @@ const SystemScanTab = () => {
           {scanHistory.length === 0 && (
             <p className="text-xs text-muted-foreground text-center py-3">Ingen historik ännu</p>
           )}
-          <ScrollArea className="max-h-[30vh]">
-            <div className="space-y-1.5 pr-2">
+          <div className="max-h-[30vh] overflow-y-auto space-y-1.5 pr-1">
               {scanHistory.map((scan: any) => (
                 <div
                   key={scan.id}
@@ -1995,7 +1994,7 @@ const SystemScanTab = () => {
                   onClick={() => loadHistoryScan(scan.id)}
                 >
                   <div className={cn(
-                    'w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border',
+                    'w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border shrink-0',
                     (scan.overall_score || 0) >= 70 ? 'border-green-400 text-green-700 bg-green-50' :
                     (scan.overall_score || 0) >= 40 ? 'border-yellow-400 text-yellow-700 bg-yellow-50' :
                     'border-red-400 text-destructive bg-red-50'
@@ -2022,8 +2021,7 @@ const SystemScanTab = () => {
                   </Button>
                 </div>
               ))}
-            </div>
-          </ScrollArea>
+          </div>
         </div>
       )}
 
