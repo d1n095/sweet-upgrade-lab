@@ -286,11 +286,14 @@ Deno.serve(async (req) => {
     }
 
     // ─── 4. DUPLICATE WORK ITEMS ───
+    // Only consider items older than 2 minutes to avoid dedup race conditions with newly created items
+    const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
     const { data: allActive } = await supabase
       .from("work_items")
-      .select("id, source_type, source_id")
+      .select("id, source_type, source_id, created_at")
       .in("status", ["open", "claimed", "in_progress", "escalated"])
       .not("source_id", "is", null)
+      .lt("created_at", twoMinAgo)
       .limit(500);
 
     const sourceMap = new Map<string, string[]>();
@@ -311,6 +314,7 @@ Deno.serve(async (req) => {
               updated_at: new Date().toISOString(),
             }).eq("id", id);
             await logRepair(supabase, "dedup", "work_item", id, `Dubblett av ${ids[0]}. Avbruten.`);
+            console.log(`[data-sync] Dedup: cancelled ${id} as duplicate of ${ids[0]} for ${key}`);
           }
           results.details[results.details.length - 1].fixed = true;
         }
