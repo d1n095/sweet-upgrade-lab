@@ -1326,6 +1326,7 @@ const AdminOrderManager = () => {
                         </Button>
                       </>
                     )}
+                    {order.payment_status === 'paid' && !['ready_to_ship', 'packed', 'shipped', 'delivered'].includes(order.fulfillment_status) && !order.tracking_number && (
                       <Button
                         variant="outline"
                         size="sm"
