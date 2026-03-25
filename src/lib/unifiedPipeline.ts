@@ -214,8 +214,19 @@ export const runUnifiedPipeline = async (
           resolution_notes: `Auto-löst via pipeline: ${change.description?.slice(0, 100)}`,
         }).eq('id', bug.id);
 
+        // Record root cause memory
+        await recordRootCause({
+          bug_report_id: bug.id,
+          work_item_id: change.work_item_id || undefined,
+          change_log_id: change.id,
+          root_cause: change.description || 'Unknown root cause',
+          affected_system: 'pipeline',
+          fix_applied: change.description || 'Auto-resolved via change log',
+          severity: 'medium',
+        });
+
         emit(makeEvent('change_log', 'bug_resolved', change.id, 'change_log', true,
-          `Bugg auto-löst via ändringslogg`, { bug_id: bug.id, change_id: change.id }));
+          `Bugg auto-löst + root cause registrerad`, { bug_id: bug.id, change_id: change.id }));
       } else if (bug) {
         emit(makeEvent('change_log', 'bug_already_resolved', change.id, 'change_log', true,
           'Bugg redan löst'));
