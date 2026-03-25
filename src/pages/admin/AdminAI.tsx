@@ -1256,7 +1256,6 @@ const BugAITab = () => {
                   }
                 }}
               >
-              >
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium">{bug.ai_summary || bug.description?.substring(0, 100)}</p>
                   <div className="flex gap-1.5 mt-1 flex-wrap items-center">
