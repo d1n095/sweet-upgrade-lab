@@ -135,7 +135,6 @@ export const useAdminWorkItems = (options?: { enabled?: boolean }) =>
       const { data, error } = await supabase
         .from('work_items' as any)
         .select('*')
-        .in('status', [...ACTIVE_WORK_ITEM_STATUSES])
         .order('created_at', { ascending: false })
         .limit(500);
       if (error) throw error;
