@@ -90,6 +90,8 @@ export const useDbCategories = (adminView = false) => {
 
       const dbCats: FrontendCategory[] = (data || [])
         .filter((c: any) => {
+          // Hide subcategories (with parent_id) from top-level display unless admin
+          if (!adminView && c.parent_id) return false;
           if (adminView || c.slug === 'bestsaljare') return true;
           return (productCountMap[c.id] || 0) > 0;
         })
