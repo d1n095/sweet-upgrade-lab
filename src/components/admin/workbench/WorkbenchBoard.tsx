@@ -553,6 +553,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
               traceContext: { component: 'WorkbenchBoard' },
             });
             if (!cvResult.success) throw new Error(cvResult.error || 'Insert failed');
+            console.log('CREATED ITEM:', cvResult.data);
             return { ...prev, item: cvResult.data };
           },
         },
