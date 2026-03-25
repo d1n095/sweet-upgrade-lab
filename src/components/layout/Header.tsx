@@ -129,9 +129,7 @@ const Header = () => {
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const { isVisible } = usePageVisibility();
-  const [activeCategories, setActiveCategories] = useState(
-    storeConfig.categories.filter(c => c.active)
-  );
+  const { categories: dbCategories } = useDbCategories();
   const [productCategories, setProductCategories] = useState<string[]>([]);
 
   useEffect(() => { setMounted(true); }, []);
