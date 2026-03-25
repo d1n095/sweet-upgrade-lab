@@ -552,6 +552,22 @@ async function callAI(apiKey: string, messages: any[], tools?: any[], tool_choic
   return { text: data.choices?.[0]?.message?.content || "" };
 }
 
+// callAIWithTools: overloaded — (key, prompt, systemPrompt, tools) or (key, prompt, tools)
+async function callAIWithTools(apiKey: string, prompt: string, systemPromptOrTools: string | any[], toolsOrNothing?: any[]) {
+  let systemPrompt = "You are a helpful assistant.";
+  let tools: any[];
+  if (typeof systemPromptOrTools === "string") {
+    systemPrompt = systemPromptOrTools;
+    tools = toolsOrNothing!;
+  } else {
+    tools = systemPromptOrTools;
+  }
+  return callAI(apiKey, [
+    { role: "system", content: systemPrompt },
+    { role: "user", content: prompt },
+  ], tools);
+}
+
 async function generatePrompt(apiKey: string, input: string) {
   return callAI(apiKey, [
     {
@@ -5156,7 +5172,7 @@ Focus area: ${context}
 `;
 
   // ── PASS 1: Generate + Validate ──
-  const pass1Generator = await callAI(apiKey, "google/gemini-2.5-flash", [
+  const pass1Generator = await callAIWithModel(apiKey, "google/gemini-2.5-flash", [
     { role: "system", content: `Du är en systemarkitekt (Generator). Analysera systemet och skapa en lösningsplan.
 Returnera JSON:
 {
@@ -5170,7 +5186,7 @@ Returnera JSON:
   let generatorResult: any;
   try { generatorResult = JSON.parse(pass1Generator); } catch { generatorResult = { solution_v1: { title: "Analys", analysis: pass1Generator, recommendations: [], priority_actions: [] }, confidence: 50, areas_analyzed: [] }; }
 
-  const pass1Validator = await callAI(apiKey, "openai/gpt-5-mini", [
+  const pass1Validator = await callAIWithModel(apiKey, "openai/gpt-5-mini", [
     { role: "system", content: `Du är en kodgranskare (Validator). Granska lösningsförslaget och hitta problem.
 Returnera JSON:
 {
@@ -5185,7 +5201,7 @@ Returnera JSON:
   let validatorResult: any;
   try { validatorResult = JSON.parse(pass1Validator); } catch { validatorResult = { issues_found: [], approval_score: 70, missing_considerations: [], risk_assessment: "medium" }; }
 
-  const pass1Refiner = await callAI(apiKey, "google/gemini-2.5-flash-lite", [
+  const pass1Refiner = await callAIWithModel(apiKey, "google/gemini-2.5-flash-lite", [
     { role: "system", content: `Du är en optimerare (Executor). Ta lösningen och valideringen, förfina till en bättre lösning.
 Returnera JSON:
 {
@@ -5220,7 +5236,7 @@ Returnera JSON:
     stopReason = `Pass 2 hoppades över: Pass 1 score ${pass1Score}/100, confidence ${pass1Confidence}/100, ${pass1IssueCount} problem (risk: ${pass1Risk}). Lösningen är redan stabil.`;
   } else {
     // ── PASS 2: Refine + Final Review ──
-    const pass2Generator = await callAI(apiKey, "google/gemini-2.5-flash", [
+    const pass2Generator = await callAIWithModel(apiKey, "google/gemini-2.5-flash", [
       { role: "system", content: `Du är systemarkitekten igen (Generator Pass 2). Förbättra lösningen baserat på feedback. BYGG VIDARE — starta inte om.
 Returnera JSON:
 {
@@ -5250,7 +5266,7 @@ Returnera JSON:
         skipped_critical_review: true,
       };
     } else {
-      const pass2Validator = await callAI(apiKey, "openai/gpt-5", [
+      const pass2Validator = await callAIWithModel(apiKey, "openai/gpt-5", [
         { role: "system", content: `Du är en KRITISK säkerhetsgranskare (Critical Validator Pass 2). Din uppgift är att STRESS-TESTA lösningen. Var aggressivt kritisk.
 
 Du MÅSTE:
@@ -5335,7 +5351,7 @@ Returnera JSON:
 }
 
 // Helper to call AI with specific model
-async function callAI(apiKey: string, model: string, messages: { role: string; content: string }[]): Promise<string> {
+async function callAIWithModel(apiKey: string, model: string, messages: { role: string; content: string }[]): Promise<string> {
   const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
