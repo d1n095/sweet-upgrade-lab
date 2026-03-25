@@ -4288,13 +4288,13 @@ const UxScannerTab = () => {
   const { data: lastScan } = useQuery({
     queryKey: ['ux-scan-last'],
     queryFn: async () => {
-      const { data } = await supabase.from('ai_scan_results' as any).select('*').eq('scan_type', 'ux_scan').order('created_at', { ascending: false }).limit(1);
+      const { data } = await supabase.from('ai_scan_results' as any).select('*').eq('scan_type', 'ux_scan').order('created_at', { ascending: false }).limit(1) as any;
       return data?.[0] || null;
     },
   });
 
   useEffect(() => {
-    if (lastScan && !result) setResult(lastScan.results);
+    if (lastScan && !result) setResult((lastScan as any).results);
   }, [lastScan]);
 
   const runScan = async () => {
