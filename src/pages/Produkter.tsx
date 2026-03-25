@@ -74,6 +74,7 @@ const Produkter = () => {
   const categoriesWithProducts = useMemo(() => {
     return categories.filter(cat => {
       if (cat.id === 'all') return true;
+      if (cat.parent_id) return false;
       if (cat.isBestsellerFilter) return products.some(p => p.badge === 'bestseller');
       const match = cat.query?.match(/product_type:"?([^"&\s]+)"?/);
       if (!match) return false;
