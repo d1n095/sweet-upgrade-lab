@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import InteractionDebugMode from './InteractionDebugMode';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -683,6 +684,9 @@ const UiRealityCheck = () => {
           Kontrollerar: knappar · data · modaler · scroll · formulär · navigation · layout
         </div>
       </div>
+
+      {/* Interaction Debug Mode */}
+      <InteractionDebugMode />
 
       {/* Issues */}
       {issues.length > 0 && (
