@@ -77,12 +77,13 @@ serve(async (req) => {
           {
             role: "system",
             content: `You are an expert bug analyst for a Swedish e-commerce web application built with React, Supabase, and Stripe.
-Your job is to deeply analyze bug reports: classify them, determine root causes, assess if the issue is likely reproducible, and suggest fixes.
-Always respond by calling the analyze_bug function. Write summaries and descriptions in Swedish. Use English for enum values only.`,
+Your job is to produce ACTIONABLE, EXECUTABLE fix instructions — not vague descriptions.
+Every analysis must include: exact file paths, exact function names, exact step-by-step fix instructions, and a ready-to-copy Lovable prompt.
+Always respond by calling the analyze_bug function. Write all text in Swedish. Use English for enum values and file paths only.`,
           },
           {
             role: "user",
-            content: `Analyze this bug report in detail:
+            content: `Analyze this bug report and produce an actionable fix:
 
 Page: ${bug.page_url}
 Reported: ${bug.created_at}
@@ -91,12 +92,15 @@ Description: ${bug.description}
 System context:
 ${systemContext}
 
-Provide:
-1. Classification (summary, severity, category, tags)
-2. Root cause analysis with 2-5 possible causes ranked by confidence
-3. Whether the issue seems reproducible and why
-4. Concrete fix suggestions
-5. A clean developer prompt for Lovable AI`,
+Your output MUST follow this exact structure:
+1. BLOCKER: One sentence describing what is broken
+2. ROOT CAUSE: The exact technical cause (specific code/logic issue)
+3. LOCATION: Exact file path, function name, and line area
+4. FIX: Step-by-step concrete fix instructions (no vague wording — say exactly what to add/change/remove)
+5. COPY PROMPT: A complete, ready-to-paste Lovable prompt that fixes this issue. Include DO/Ensure/Fields sections.
+6. Classification metadata (severity, category, tags)
+7. Root cause analysis with confidence scores
+8. Reproducibility assessment`,
           },
         ],
         tools: [
@@ -104,7 +108,7 @@ Provide:
             type: "function",
             function: {
               name: "analyze_bug",
-              description: "Full bug analysis with root cause, verification, and fix suggestions",
+              description: "Actionable bug analysis with executable fix instructions",
               parameters: {
                 type: "object",
                 properties: {
@@ -120,13 +124,35 @@ Provide:
                     type: "string",
                     enum: ["UI", "payment", "auth", "system", "performance", "data", "navigation", "unclear"],
                   },
+                  blocker_statement: {
+                    type: "string",
+                    description: "One sentence in Swedish describing what is broken for the user",
+                  },
+                  root_cause_exact: {
+                    type: "string",
+                    description: "The exact technical root cause in Swedish — specific code/logic issue, not vague",
+                  },
+                  location: {
+                    type: "object",
+                    properties: {
+                      file_path: { type: "string", description: "Exact file path e.g. src/components/cart/CartDrawer.tsx" },
+                      function_name: { type: "string", description: "Function or component name e.g. CartDrawer, handleSubmit" },
+                      system_area: { type: "string", description: "System area e.g. checkout, cart, admin, auth" },
+                    },
+                    required: ["file_path", "function_name", "system_area"],
+                  },
+                  fix_steps: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "Ordered list of exact, concrete fix steps in Swedish. Each step must say exactly what to do (e.g. 'Lägg till onClick={() => navigate(\"/checkout\")} på Button-elementet på rad 128')",
+                  },
+                  copy_prompt: {
+                    type: "string",
+                    description: "A complete, ready-to-paste Lovable prompt in Swedish. Must include sections: what to fix, DO steps, Ensure requirements. Must reference exact files and functions. No vague wording.",
+                  },
                   repro_steps: {
                     type: "string",
                     description: "Step-by-step reproduction instructions in Swedish",
-                  },
-                  clean_prompt: {
-                    type: "string",
-                    description: "Well-structured developer prompt in Swedish for fixing this issue via Lovable",
                   },
                   tags: {
                     type: "array",
@@ -140,7 +166,7 @@ Provide:
                       properties: {
                         cause: { type: "string", description: "Description of potential cause in Swedish" },
                         confidence: { type: "number", description: "Confidence 0-100" },
-                        affected_area: { type: "string", description: "Which system area (e.g. 'checkout', 'auth', 'admin', 'cart')" },
+                        affected_area: { type: "string", description: "Which system area" },
                       },
                       required: ["cause", "confidence", "affected_area"],
                     },
@@ -148,7 +174,7 @@ Provide:
                   },
                   is_reproducible: {
                     type: "boolean",
-                    description: "Whether the issue seems reproducible based on description",
+                    description: "Whether the issue seems reproducible",
                   },
                   reproducibility_reasoning: {
                     type: "string",
@@ -170,10 +196,10 @@ Provide:
                   affected_components: {
                     type: "array",
                     items: { type: "string" },
-                    description: "List of likely affected file paths or component names",
+                    description: "List of likely affected file paths",
                   },
                 },
-                required: ["summary", "severity", "category", "clean_prompt", "tags", "root_causes", "is_reproducible", "reproducibility_reasoning", "fix_suggestions"],
+                required: ["summary", "severity", "category", "blocker_statement", "root_cause_exact", "location", "fix_steps", "copy_prompt", "tags", "root_causes", "is_reproducible", "reproducibility_reasoning", "fix_suggestions"],
                 additionalProperties: false,
               },
             },
