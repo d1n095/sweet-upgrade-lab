@@ -5064,6 +5064,10 @@ const AdminAI = () => {
               <Layers className="w-3.5 h-3.5" />
               Prompt-kö
             </TabsTrigger>
+            <TabsTrigger value="orchestration" className="gap-1.5 text-xs">
+              <GitMerge className="w-3.5 h-3.5" />
+              Orchestration
+            </TabsTrigger>
           </TabsList>
         </ScrollableTabs>
 
@@ -5150,6 +5154,9 @@ const AdminAI = () => {
         </TabsContent>
         <TabsContent value="prompt-queue" className="mt-4">
           <PromptQueueTab />
+        </TabsContent>
+        <TabsContent value="orchestration" className="mt-4">
+          <OrchestrationTab />
         </TabsContent>
       </Tabs>
 
