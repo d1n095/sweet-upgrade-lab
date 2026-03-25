@@ -80,7 +80,7 @@ const Produkter = () => {
       const type = match[1].toLowerCase();
       return products.some(p => (p.category || '').toLowerCase() === type);
     });
-  }, [products]);
+  }, [products, categories]);
 
   const filtered = useMemo(() => {
     let result = products;
@@ -119,7 +119,7 @@ const Produkter = () => {
     }
 
     return result;
-  }, [products, activeCategory, tagProductIds, priceRange, searchQuery]);
+  }, [products, activeCategory, tagProductIds, priceRange, searchQuery, categories]);
 
   const sortedProducts = useMemo(() => {
     const sorted = [...filtered];
