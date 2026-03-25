@@ -5853,12 +5853,12 @@ Du har FULL tillgång till ändringsloggen ovan. Använd den AKTIVT:
               properties: {
                 action_type: {
                   type: "string",
-                  enum: ["run_scan", "create_work_item", "update_work_item", "run_double_pass", "generate_lovable_prompt", "run_cleanup", "run_data_integrity", "query_data", "triage_bugs", "close_bug", "batch_update_bugs", "self_note"],
-                  description: "Type of action to execute. self_note: create a task that AI will handle itself or flag for manual work. triage_bugs: autonomously sort/prioritize/group all open bugs. close_bug: close a specific bug by id. batch_update_bugs: update multiple bugs at once.",
+                  enum: ["run_scan", "create_work_item", "update_work_item", "run_double_pass", "generate_lovable_prompt", "run_cleanup", "run_data_integrity", "query_data", "triage_bugs", "close_bug", "batch_update_bugs", "self_note", "suggest_upgrades"],
+                  description: "Type of action to execute. self_note: create a task that AI will handle itself or flag for manual work. triage_bugs: autonomously sort/prioritize/group all open bugs. close_bug: close a specific bug by id. batch_update_bugs: update multiple bugs at once. suggest_upgrades: analyze current capabilities and suggest tool/model/integration upgrades prioritized by impact.",
                 },
                 params: {
                   type: "object",
-                  description: "Parameters for the action. For self_note: { title, description, can_self_fix: boolean, priority }. If can_self_fix=true, AI will auto-handle. If false, creates a work item flagged for manual Lovable prompt. For triage_bugs: {} (no params needed). For close_bug: { bug_id, resolution_notes }. For batch_update_bugs: { bug_ids: string[], status, resolution_notes }. For generate_lovable_prompt: { title, prompt (min 100 chars), goal }. For create_work_item: { title, description, priority }.",
+                  description: "Parameters for the action. For self_note: { title, description, can_self_fix: boolean, priority }. For triage_bugs: {} (no params needed). For close_bug: { bug_id, resolution_notes }. For batch_update_bugs: { bug_ids: string[], status, resolution_notes }. For generate_lovable_prompt: { title, prompt (min 100 chars), goal }. For create_work_item: { title, description, priority }. For suggest_upgrades: { focus?: string } (optional focus area like 'testing', 'ai', 'monitoring').",
                 },
               },
               required: ["action_type", "params"],
