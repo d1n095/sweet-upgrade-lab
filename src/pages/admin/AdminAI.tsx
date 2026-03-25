@@ -3312,26 +3312,20 @@ interface ExecutionResult {
   executed_count: number;
 }
 
-const SCAN_STEPS = [
-  { type: 'system_scan', label: 'Systemskanning', icon: Radar, desc: 'Full skanning av alla datakällor' },
-  { type: 'data_integrity', label: 'Dataintegritet', icon: ShieldCheck, desc: 'Brutna relationer, felaktiga tillstånd' },
-  { type: 'content_validation', label: 'Innehåll QA', icon: Eye, desc: 'Verifierar UI-påståenden mot data' },
-  { type: 'sync_scan', label: 'Sync Scanner', icon: ArrowRightLeft, desc: 'Frontend-backend-inkonsekvenser' },
-  { type: 'interaction_qa', label: 'Interaction QA', icon: Zap, desc: 'Döda element, brutna flöden' },
-  { type: 'visual_qa', label: 'Visual QA', icon: Monitor, desc: 'Layout, responsivitet, overflow' },
-  { type: 'nav_scan', label: 'Navigation', icon: Compass, desc: 'Navigering, länkar, routing' },
-  { type: 'ux_scan', label: 'UX Scanner', icon: Eye, desc: 'Användarupplevelse, tillgänglighet' },
-  { type: 'action_governor', label: 'Governor', icon: Gavel, desc: 'Klassificerar åtgärder' },
-] as const;
-
-type ScanStepResult = {
-  type: string;
-  label: string;
-  status: 'pending' | 'running' | 'done' | 'error';
-  result?: any;
-  error?: string;
-  duration_ms?: number;
+// SCAN_STEPS and ScanStepResult imported from @/stores/scannerStore
+// Icon mapping for scan steps (icons can't be stored in zustand)
+const SCAN_STEP_ICONS: Record<string, any> = {
+  system_scan: Radar,
+  data_integrity: ShieldCheck,
+  content_validation: Eye,
+  sync_scan: ArrowRightLeft,
+  interaction_qa: Zap,
+  visual_qa: Monitor,
+  nav_scan: Compass,
+  ux_scan: Eye,
+  action_governor: Gavel,
 };
+
 
 const AiAutopilotTab = () => {
   const [mode, setMode] = useState<AiMode>('assisted');
