@@ -4211,6 +4211,10 @@ const AdminAI = () => {
               <Radar className="w-3.5 h-3.5" />
               Fokusscan
             </TabsTrigger>
+            <TabsTrigger value="overflow-scan" className="gap-1.5 text-xs">
+              <Maximize2 className="w-3.5 h-3.5" />
+              Overflow QA
+            </TabsTrigger>
           </TabsList>
         </ScrollableTabs>
 
@@ -4282,6 +4286,9 @@ const AdminAI = () => {
         </TabsContent>
         <TabsContent value="focused-scan" className="mt-4">
           <FocusedScanTab />
+        </TabsContent>
+        <TabsContent value="overflow-scan" className="mt-4">
+          <OverflowScanTab />
         </TabsContent>
       </Tabs>
 
