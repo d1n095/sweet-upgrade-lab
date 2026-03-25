@@ -331,9 +331,19 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
       // Auto-cancel orphan tasks in background (fire-and-forget)
       const orphanIds: string[] = [];
 
+      // ── Source validation: filter out ghost tasks ──
+      // IMPORTANT: Only filter out items that are clearly orphaned.
+      // Items with source_type='manual', 'ai_scan', or no source_id are always kept.
+      // Items created in the last 60 seconds are NEVER filtered (prevents race conditions).
+      const sixtySecondsAgo = Date.now() - 60_000;
+
       const validated = allItems.filter(item => {
         // Filter out ignored items
         if ((item as any).ignored) return false;
+
+        // Never filter items created in last 60 seconds — prevents disappearing on create
+        const createdAt = new Date(item.created_at).getTime();
+        if (createdAt > sixtySecondsAgo) return true;
 
         // Check order-linked tasks
         if (item.related_order_id) {
@@ -349,14 +359,14 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
             return false;
           }
         }
-        // Check bug source
-        if (item.source_type === 'bug_report' && item.source_id && !validBugs.has(item.source_id) &&
+        // Check bug source — only filter if we actually queried for it
+        if (item.source_type === 'bug_report' && item.source_id && bugLinkedIds.length > 0 && !validBugs.has(item.source_id) &&
             ['open', 'claimed', 'in_progress'].includes(item.status)) {
           orphanIds.push(item.id);
           return false;
         }
-        // Check incident source
-        if (item.source_type === 'order_incident' && item.source_id && !validIncidents.has(item.source_id) &&
+        // Check incident source — only filter if we actually queried for it
+        if (item.source_type === 'order_incident' && item.source_id && incidentLinkedIds.length > 0 && !validIncidents.has(item.source_id) &&
             ['open', 'claimed', 'in_progress'].includes(item.status)) {
           orphanIds.push(item.id);
           return false;
@@ -517,7 +527,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     setCreating(true);
     try {
       const { data: bestUser } = await supabase.rpc('auto_assign_work_item', { p_item_type: newType });
-      await supabase.from('work_items' as any).insert({
+      const insertPayload = {
         title: newTitle.trim(),
         description: newDesc.trim() || null,
         priority: newPriority,
@@ -525,11 +535,28 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
         source_type: 'manual',
         created_by: user.id,
         ...(bestUser ? { assigned_to: bestUser, status: 'claimed', claimed_by: bestUser, claimed_at: new Date().toISOString() } : {}),
-      });
+      };
+      const { data: createdRow, error: insertError } = await supabase
+        .from('work_items' as any)
+        .insert(insertPayload)
+        .select('*')
+        .single();
+
+      if (insertError) {
+        console.error('[WorkbenchBoard] INSERT FAILED:', insertError);
+        toast.error(`Kunde inte skapa: ${insertError.message}`);
+        return;
+      }
+
+      console.log('[WorkbenchBoard] CREATED ITEM:', createdRow);
       toast.success(bestUser ? `Skapad → tilldelad ${getStaffName(bestUser as string)}` : 'Skapad (ingen tillgänglig)');
       setNewTitle(''); setNewDesc(''); setShowCreate(false);
-      queryClient.invalidateQueries({ queryKey: ['work-items'] });
+
+      // Force refetch from DB — don't rely on cache
+      await queryClient.invalidateQueries({ queryKey: ['work-items'] });
+      await queryClient.invalidateQueries({ queryKey: ['admin-work-items'] });
     } catch (err: any) {
+      console.error('[WorkbenchBoard] CREATE ERROR:', err);
       toast.error(err?.message || 'Fel');
     } finally {
       setCreating(false);
