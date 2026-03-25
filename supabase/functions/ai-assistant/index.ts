@@ -552,7 +552,23 @@ async function callAI(apiKey: string, messages: any[], tools?: any[], tool_choic
   return { text: data.choices?.[0]?.message?.content || "" };
 }
 
-async function generatePrompt(apiKey: string, input: string) {
+// callAIWithTools: overloaded — (key, prompt, systemPrompt, tools) or (key, prompt, tools)
+async function callAIWithTools(apiKey: string, prompt: string, systemPromptOrTools: string | any[], toolsOrNothing?: any[]) {
+  let systemPrompt = "You are a helpful assistant.";
+  let tools: any[];
+  if (typeof systemPromptOrTools === "string") {
+    systemPrompt = systemPromptOrTools;
+    tools = toolsOrNothing!;
+  } else {
+    tools = systemPromptOrTools;
+  }
+  return callAI(apiKey, [
+    { role: "system", content: systemPrompt },
+    { role: "user", content: prompt },
+  ], tools);
+}
+
+
   return callAI(apiKey, [
     {
       role: "system",
