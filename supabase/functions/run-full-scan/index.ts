@@ -896,6 +896,12 @@ serve(async (req) => {
         .limit(50);
       const { systemicIssues } = extractPatterns(unified, finalRootCause || []);
 
+      // Save focus memory for future scans
+      await saveFocusMemory(supabase, unified, highRiskAreas, patternDiscoveries);
+
+      // Load updated focus memory to include in result
+      const updatedFocusMemory = await loadFocusMemory(supabase);
+
       // Enrich unified result with adaptive scan metadata
       const adaptiveResult = {
         ...unified,
@@ -907,6 +913,15 @@ serve(async (req) => {
           systemic_issues: systemicIssues,
           coverage_score: coverageScore,
           iteration_results: scanRun.iteration_results || [],
+          focus_memory: updatedFocusMemory.slice(0, 15).map((m: any) => ({
+            focus_key: m.focus_key,
+            focus_type: m.focus_type,
+            label: m.label,
+            issue_count: m.issue_count,
+            scan_count: m.scan_count,
+            severity: m.severity,
+            last_seen_at: m.last_seen_at,
+          })),
         },
       };
 
