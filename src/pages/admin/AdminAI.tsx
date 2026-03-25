@@ -1994,7 +1994,7 @@ const SystemScanTab = () => {
       setScanResult(res);
       // Persist to DB
       const { data: { session } } = await supabase.auth.getSession();
-      await supabase.from('ai_scan_results' as any).insert({
+      const { data: scanRow } = await supabase.from('ai_scan_results' as any).insert({
         scan_type: 'system_scan',
         results: res,
         overall_score: res.system_score || null,
@@ -2003,8 +2003,10 @@ const SystemScanTab = () => {
         issues_count: res.issues_found || 0,
         tasks_created: res.tasks_created || 0,
         scanned_by: session?.user?.id || null,
-      } as any);
-      logChange({ change_type: 'scan', description: `Systemskanning klar — poäng: ${res.system_score || '?'}, ${res.issues_found || 0} problem`, source: 'ai', affected_components: ['system_scan'] });
+      } as any).select('id').single();
+      const savedScanId = (scanRow as any)?.id || null;
+      setCurrentScanId(savedScanId);
+      logChange({ change_type: 'scan', description: `Systemskanning klar — poäng: ${res.system_score || '?'}, ${res.issues_found || 0} problem`, source: 'ai', affected_components: ['system_scan'], scan_id: savedScanId });
       queryClient.invalidateQueries({ queryKey: ['last-scan-result'] });
       queryClient.invalidateQueries({ queryKey: ['scan-history'] });
     }
