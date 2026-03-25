@@ -197,6 +197,7 @@ async function runPostChecks(
 
   if (anyFailed) {
     const report = buildFailureReport(task, checks);
+    useExecutionLockStore.getState().release(task.id);
     set((s) => ({
       tasks: blockDependents(
         s.tasks.map((t) =>
@@ -248,7 +249,7 @@ async function runPostChecks(
       })),
       timestamp: new Date().toISOString(),
     };
-
+    useExecutionLockStore.getState().release(task.id);
     set((s) => ({
       tasks: blockDependents(
         s.tasks.map((t) =>
@@ -269,7 +270,8 @@ async function runPostChecks(
     return;
   }
 
-  // 3. All good
+  // 3. All good — release lock
+  useExecutionLockStore.getState().release(task.id);
   set((s) => ({
     tasks: s.tasks.map((t) =>
       t.id === task.id
@@ -427,6 +429,8 @@ export const useAiQueueStore = create<AiQueueState>((set, get) => ({
                 }));
               }
 
+              // Release lock after post-checks (success or failure handled inside runPostChecks)
+              useExecutionLockStore.getState().release(nextTask.id);
               set({ _isProcessing: false });
               get().processQueue();
             })
@@ -452,6 +456,8 @@ export const useAiQueueStore = create<AiQueueState>((set, get) => ({
               const recentRegs = st.tasks.filter(t => t.status === 'regressed').length;
               useSafeModeStore.getState().evaluateThreshold(recentFails, recentRegs);
 
+              // Release lock on failure
+              useExecutionLockStore.getState().release(nextTask.id);
               set({ _isProcessing: false });
               get().processQueue();
             });
