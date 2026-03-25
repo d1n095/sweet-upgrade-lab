@@ -152,6 +152,11 @@ serve(async (req) => {
         break;
       }
 
+      case "auto_fix": {
+        result = await handleAutoFix(supabase, lovableKey, supabaseUrl, serviceKey, authHeader);
+        break;
+      }
+
       case "create_action": {
         const { title, description, priority, category, source_type: srcType, source_id: srcId } = body;
         if (!title) {
