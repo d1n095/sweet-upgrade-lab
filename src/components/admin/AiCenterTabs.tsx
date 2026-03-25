@@ -77,6 +77,7 @@ const TAB_GROUPS: TabGroup[] = [
       { value: 'data-integrity', label: 'Dataintegritet', icon: ShieldCheck },
       { value: 'content-validation', label: 'Innehållskontroll', icon: Eye },
       { value: 'cleanup', label: 'Rensning', icon: Database },
+      { value: 'change-log', label: 'Ändringslogg', icon: Clock },
     ],
   },
 ];

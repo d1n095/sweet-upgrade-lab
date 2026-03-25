@@ -15,6 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
+import { logChange } from '@/utils/changeLogger';
 import WorkItemDetail from '@/components/admin/workbench/WorkItemDetail';
 import { useNavigate } from 'react-router-dom';
 import { useScannerStore, SCAN_STEPS } from '@/stores/scannerStore';
@@ -518,6 +519,7 @@ const LovaPromptsTab = () => {
                               ? { status: 'done', completed_at: new Date().toISOString() }
                               : { status: 'done' };
                             await supabase.from(table as any).update(updateData).eq('id', p.id);
+                            logChange({ change_type: 'fix', description: `Prompt klar: ${p.title}`, source: 'ai', affected_components: ['prompt_queue'], prompt_queue_id: p._source === 'pq' ? p.id : undefined, work_item_id: p._source === 'wi' ? p.id : undefined });
                             toast.success('✅ Markerad som klar!');
                             refetch();
                           }}
@@ -6215,6 +6217,9 @@ const PromptQueueTab = () => {
     const updates: any = { status, updated_at: new Date().toISOString() };
     if (status === 'completed') updates.completed_at = new Date().toISOString();
     await supabase.from('prompt_queue' as any).update(updates).eq('id', id);
+    if (status === 'completed') {
+      logChange({ change_type: 'deployment', description: `Prompt slutförd: ${id}`, source: 'ai', affected_components: ['prompt_queue'], prompt_queue_id: id });
+    }
     toast.success(`Status: ${status}`);
     loadPrompts();
   };
@@ -6647,6 +6652,7 @@ const OrchestrationTab = () => {
     queryClient.invalidateQueries({ queryKey: ['ai-managed-items'] });
     if (newStatus === 'done') {
       triggerAiReviewForWorkItem(itemId, { context: 'admin_ai_detail' });
+      logChange({ change_type: 'fix', description: `Work item slutförd: ${itemId}`, source: 'manual', affected_components: ['work_items'], work_item_id: itemId });
     }
   };
 
