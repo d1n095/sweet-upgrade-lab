@@ -1609,6 +1609,7 @@ const ContentValidationTab = () => {
 };
 
 
+const DataHealthTab = () => {
   const [scanning, setScanning] = useState(false);
   const [repairing, setRepairing] = useState(false);
   const [results, setResults] = useState<any>(null);
