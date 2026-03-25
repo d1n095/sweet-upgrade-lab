@@ -100,7 +100,7 @@ export function computeRevenueMetrics(orders: any[]) {
     paidCount: paidOrders.length,
     pendingCount: orders.filter(o => o.status === 'pending').length,
     failedCount: orders.filter(o => o.payment_status === 'failed').length,
-    todayOrderCount: orders.filter(o => o.created_at >= today).length,
+    todayOrderCount: todayPaid.length,
     ordersToPackCount: paidOrders.filter(o => ['pending', 'unfulfilled'].includes(o.fulfillment_status)).length,
     ordersToShipCount: paidOrders.filter(o => o.fulfillment_status === 'ready_to_ship').length,
     shippedCount: paidOrders.filter(o => o.fulfillment_status === 'shipped').length,
