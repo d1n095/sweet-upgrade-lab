@@ -509,9 +509,10 @@ const AdminBugReports = () => {
                         size="sm"
                         variant="default"
                         className="h-6 text-[10px] gap-1"
-                        onClick={() => copyToClipboard(r.ai_actionable_fix?.copy_prompt || r.ai_clean_prompt!)}
+                        id={`copy-fix-bug-${r.id}`}
+                        onClick={() => copyToClipboard(r.ai_actionable_fix?.copy_prompt || r.ai_clean_prompt!, `copy-fix-bug-${r.id}`)}
                       >
-                        <Copy className="w-2.5 h-2.5" /> Kopiera Fix
+                        📋 Copy Fix
                       </Button>
                     </div>
                     <div className="text-xs bg-muted rounded-md p-2.5 whitespace-pre-wrap font-mono leading-relaxed border max-h-48 overflow-y-auto">
