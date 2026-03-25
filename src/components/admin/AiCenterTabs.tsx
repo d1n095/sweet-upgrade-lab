@@ -261,7 +261,7 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
       </aside>
 
       {/* Mobile bottom bar */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 md:relative md:z-auto md:bottom-auto">
+      <div className="lg:hidden sticky bottom-0 z-40 md:relative md:z-auto md:bottom-auto">
         <div className="md:hidden bg-card border-t border-border px-2 py-1.5 flex items-center justify-between safe-area-inset-bottom">
           <Button variant="ghost" size="sm" className="gap-1.5 text-xs h-9" onClick={() => setMobileNavOpen(true)}>
             <Menu className="w-4 h-4" />
@@ -330,43 +330,8 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
         )}
       </div>
 
-      {/* Mobile Nav Drawer */}
-      <AnimatePresence>
-        {mobileNavOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="lg:hidden fixed inset-0 z-[60] bg-black/40"
-              onClick={() => setMobileNavOpen(false)}
-            />
-            <motion.div
-              initial={{ x: '-100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '-100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="lg:hidden fixed inset-y-0 left-0 z-[70] w-72 bg-card border-r border-border flex flex-col"
-            >
-              <div className="h-12 flex items-center justify-between px-4 border-b border-border">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-semibold">AI Center</span>
-                </div>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setMobileNavOpen(false)}>
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
-              <ScrollArea className="flex-1 py-2">
-                {sidebarContent}
-              </ScrollArea>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-
       {/* Main Content */}
-      <div className="flex-1 min-w-0 min-h-0 flex flex-col px-4 md:px-8 pb-20 lg:pb-4 overflow-y-auto">
+      <div className="flex-1 min-w-0 min-h-0 flex flex-col px-4 md:px-8 pb-4">
         {activeTab !== 'ai-dashboard' && activeTabDef && (
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-4 pt-1 shrink-0">
             <button onClick={() => handleNavigate('ai-dashboard')} className="hover:text-foreground transition-colors">

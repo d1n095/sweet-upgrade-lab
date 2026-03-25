@@ -1115,64 +1115,84 @@ const BugAITab = () => {
   const [fixes, setFixes] = useState<Record<string, any>>({});
   const [selectedBugId, setSelectedBugId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<'open' | 'resolved' | 'all'>('open');
-  const [matching, setMatching] = useState(false);
-  const [matchResult, setMatchResult] = useState<any>(null);
 
   const loadBugs = useCallback(async () => {
     setLoading(true);
-    let query = supabase.from('bug_reports').select('id, description, page_url, status, ai_summary, ai_severity, ai_category, ai_tags, created_at, resolution_notes, resolved_at').order('created_at', { ascending: false }).limit(30);
+    let query = supabase
+      .from('bug_reports')
+      .select('id, description, page_url, status, ai_summary, ai_severity, ai_category, ai_tags, created_at, resolution_notes, resolved_at')
+      .order('created_at', { ascending: false })
+      .limit(30);
+
     if (statusFilter !== 'all') query = query.eq('status', statusFilter);
+
     const { data } = await query;
     setBugs(data || []);
     setLoading(false);
   }, [statusFilter]);
 
-  useEffect(() => { loadBugs(); }, [loadBugs]);
+  useEffect(() => {
+    loadBugs();
+  }, [loadBugs]);
 
-  const analyzeBug = async (bugId: string) => {
+  const analyzeBug = async (bugId: string, deep = false) => {
     setAnalyzing(bugId);
-    const res = await callAI('bug_fix_suggestion', { bug_id: bugId });
-    if (res) setFixes(prev => ({ ...prev, [bugId]: res }));
+    const res = await callAI(deep ? 'bug_deep_analysis' : 'bug_fix_suggestion', { bug_id: bugId });
+    if (res) setFixes(prev => ({ ...prev, [bugId]: deep ? { ...res, _deep: true } : res }));
     setAnalyzing(null);
   };
 
   const markResolved = async (bugId: string, notes?: string) => {
-    const { error } = await supabase.from('bug_reports').update({
-      status: 'resolved',
-      resolved_at: new Date().toISOString(),
-      resolution_notes: notes || 'Markerad som löst',
-    } as any).eq('id', bugId);
+    const { error } = await supabase
+      .from('bug_reports')
+      .update({
+        status: 'resolved',
+        resolved_at: new Date().toISOString(),
+        resolution_notes: notes || 'Markerad som löst',
+      } as any)
+      .eq('id', bugId);
+
     if (!error) {
       toast.success('Bugg markerad som löst ✅');
-      if (selectedBugId === bugId) setSelectedBugId(null);
+      setSelectedBugId(null);
       setBugs(prev => prev.filter(b => b.id !== bugId));
-    } else toast.error('Kunde inte uppdatera bugg');
+    } else {
+      toast.error('Kunde inte uppdatera bugg');
+    }
   };
 
   const ignoreBug = async (bugId: string) => {
-    const { error } = await supabase.from('bug_reports').update({
-      status: 'ignored' as any,
-      resolution_notes: 'Ignorerad av admin',
-    } as any).eq('id', bugId);
+    const { error } = await supabase
+      .from('bug_reports')
+      .update({ status: 'ignored' as any, resolution_notes: 'Ignorerad av admin' } as any)
+      .eq('id', bugId);
+
     if (!error) {
       toast.success('Bugg ignorerad');
-      if (selectedBugId === bugId) setSelectedBugId(null);
+      setSelectedBugId(null);
       setBugs(prev => prev.filter(b => b.id !== bugId));
-    } else toast.error('Kunde inte ignorera bugg');
+    } else {
+      toast.error('Kunde inte ignorera bugg');
+    }
   };
 
   const sevBadge = (sev: string) => {
-    if (sev === 'critical') return 'destructive' as const;
-    if (sev === 'high') return 'destructive' as const;
+    if (sev === 'critical' || sev === 'high') return 'destructive' as const;
     return 'secondary' as const;
   };
 
   return (
-    <div className="space-y-4 pb-24">
+    <div className="space-y-4 pb-8">
       <div className="flex items-center gap-2 flex-wrap">
         <div className="flex gap-1">
           {(['open', 'resolved', 'all'] as const).map(f => (
-            <Button key={f} size="sm" variant={statusFilter === f ? 'default' : 'outline'} className="h-7 text-xs" onClick={() => setStatusFilter(f)}>
+            <Button
+              key={f}
+              size="sm"
+              variant={statusFilter === f ? 'default' : 'outline'}
+              className="h-7 text-xs"
+              onClick={() => setStatusFilter(f)}
+            >
               {f === 'open' ? '🐛 Öppna' : f === 'resolved' ? '✅ Lösta' : '📋 Alla'}
             </Button>
           ))}
@@ -1181,132 +1201,96 @@ const BugAITab = () => {
           {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
           Uppdatera
         </Button>
-        <Button
-          onClick={async () => {
-            setMatching(true);
-            setMatchResult(null);
-            const res = await callAI('bug_fix_match');
-            if (res) {
-              setMatchResult(res);
-              if (res.matched > 0) loadBugs();
-            }
-            setMatching(false);
-          }}
-          disabled={matching}
-          variant="outline"
-          size="sm"
-          className="h-7 gap-1 text-xs"
-        >
-          {matching ? <Loader2 className="w-3 h-3 animate-spin" /> : <GitMerge className="w-3 h-3" />}
-          Auto-matcha
-        </Button>
         <Badge variant="secondary" className="text-xs">{bugs.length} buggar</Badge>
       </div>
-
-      {/* Match result banner */}
-      {matchResult && (
-        <Card className={cn("border", matchResult.matched > 0 ? "border-green-500/30 bg-green-50/30" : "border-border")}>
-          <CardContent className="p-3 space-y-2">
-            <div className="flex items-center gap-2">
-              <GitMerge className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium">{matchResult.message}</span>
-              <Badge variant="secondary" className="text-[10px] ml-auto">
-                {matchResult.checked} kontrollerade · {matchResult.changes_compared || 0} ändringar
-              </Badge>
-            </div>
-            {matchResult.bugs?.length > 0 && (
-              <ScrollArea className="max-h-[200px]">
-                <div className="space-y-1">
-                  {matchResult.bugs.map((m: any) => (
-                    <div key={m.bug_id} className="flex items-center gap-2 text-xs p-1.5 rounded bg-card border">
-                      {m.verdict === 'fixed' ? <CheckCircle className="w-3 h-3 text-green-600 shrink-0" /> :
-                       m.verdict === 'likely_fixed' ? <AlertCircle className="w-3 h-3 text-yellow-600 shrink-0" /> :
-                       m.verdict === 'duplicate' ? <Copy className="w-3 h-3 text-blue-600 shrink-0" /> :
-                       <XCircle className="w-3 h-3 text-muted-foreground shrink-0" />}
-                      <span className="truncate flex-1">{m.reason}</span>
-                      <Badge variant="outline" className="text-[9px] shrink-0">{m.confidence}%</Badge>
-                      <Badge variant={m.verdict === 'fixed' ? 'default' : m.verdict === 'duplicate' ? 'secondary' : 'outline'} className="text-[9px] shrink-0">
-                        {m.verdict === 'fixed' ? 'Fixad' : m.verdict === 'likely_fixed' ? 'Troligen fixad' : m.verdict === 'duplicate' ? 'Dubblett' : 'Ej fixad'}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </ScrollArea>
-            )}
-          </CardContent>
-        </Card>
-      )}
 
       {bugs.length === 0 && !loading && (
         <p className="text-sm text-muted-foreground text-center py-6">Inga buggar hittade 🎉</p>
       )}
 
-      <div className="space-y-2 pr-1 pb-20">
+      <div className="space-y-2 pr-1 pb-8">
         {bugs.map(bug => {
-          const selectedBug = bugs.find(b => b.id === selectedBugId);
           const isExpanded = selectedBugId === bug.id;
           const fix = fixes[bug.id];
 
           return (
             <div key={bug.id} className="border rounded-lg" data-bug-id={bug.id}>
-              {/* Header - always visible */}
-              <div
-                className="p-3 flex items-start gap-3 cursor-pointer hover:bg-muted/30 transition-colors"
-                onClick={() => {
-                  console.log("CLICK BUG:", bug.id);
-                  const newId = isExpanded ? null : bug.id;
-                  setSelectedBugId(newId);
-                  if (newId) {
-                    const found = bugs.find(b => b.id === newId);
-                    console.log("FOUND BUG:", found);
-                  }
-                }}
+              <button
+                className="w-full p-3 flex items-start gap-3 text-left hover:bg-muted/30 transition-colors"
+                onClick={() => setSelectedBugId(isExpanded ? null : bug.id)}
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium">{bug.ai_summary || bug.description?.substring(0, 100)}</p>
                   <div className="flex gap-1.5 mt-1 flex-wrap items-center">
                     {bug.ai_severity && <Badge variant={sevBadge(bug.ai_severity)} className="text-[10px]">{bug.ai_severity}</Badge>}
                     {bug.ai_category && <Badge variant="outline" className="text-[10px]">{bug.ai_category}</Badge>}
-                    {bug.status === 'resolved' && <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 border-green-200">Löst</Badge>}
+                    {bug.status === 'resolved' && <Badge variant="outline" className="text-[10px]">Löst</Badge>}
                     <span className="text-[10px] text-muted-foreground">{bug.page_url}</span>
                     <span className="text-[10px] text-muted-foreground ml-auto">{new Date(bug.created_at).toLocaleDateString('sv-SE')}</span>
                   </div>
                 </div>
                 <ChevronDown className={cn('w-4 h-4 text-muted-foreground shrink-0 transition-transform', isExpanded && 'rotate-180')} />
-              </div>
+              </button>
 
-              {/* Expanded content */}
               {isExpanded && (
-                <div key={selectedBugId} className="border-t px-3 pb-3 space-y-3">
-                  {/* Action buttons */}
+                <div className="border-t px-3 pb-3 space-y-3">
                   <div className="flex gap-1.5 pt-2 flex-wrap">
-                    <Button size="sm" variant="outline" className="gap-1 h-7 text-xs" disabled={analyzing === bug.id} onClick={(e) => { e.stopPropagation(); analyzeBug(bug.id); }}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1 h-7 text-xs"
+                      disabled={analyzing === bug.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        analyzeBug(bug.id, false);
+                      }}
+                    >
                       {analyzing === bug.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
                       Analysera
                     </Button>
-                    <Button size="sm" variant="outline" className="gap-1 h-7 text-xs" disabled={analyzing === bug.id} onClick={async (e) => {
-                      e.stopPropagation();
-                      setAnalyzing(bug.id);
-                      const res = await callAI('bug_deep_analysis', { bug_id: bug.id });
-                      if (res) setFixes(prev => ({ ...prev, [bug.id]: { ...res, _deep: true } }));
-                      setAnalyzing(null);
-                    }}>
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1 h-7 text-xs"
+                      disabled={analyzing === bug.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        analyzeBug(bug.id, true);
+                      }}
+                    >
                       {analyzing === bug.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Activity className="w-3 h-3" />}
                       Djupanalys
                     </Button>
+
                     {bug.status === 'open' && (
                       <>
-                        <Button size="sm" variant="default" className="gap-1 h-7 text-xs ml-auto" onClick={(e) => { e.stopPropagation(); markResolved(bug.id, fix?.root_causes?.[0]?.fix_strategy); }}>
+                        <Button
+                          size="sm"
+                          variant="default"
+                          className="gap-1 h-7 text-xs ml-auto"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            markResolved(bug.id, fix?.summary || fix?.diagnosis?.summary);
+                          }}
+                        >
                           <CheckCircle className="w-3 h-3" /> Markera löst
                         </Button>
-                        <Button size="sm" variant="ghost" className="gap-1 h-7 text-xs text-muted-foreground" onClick={(e) => { e.stopPropagation(); ignoreBug(bug.id); }}>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="gap-1 h-7 text-xs text-muted-foreground"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            ignoreBug(bug.id);
+                          }}
+                        >
                           <XCircle className="w-3 h-3" /> Ignorera
                         </Button>
                       </>
                     )}
                   </div>
 
-                  {/* Bug details */}
                   <div className="bg-muted/30 rounded-md p-2 text-xs space-y-1">
                     <p className="font-medium text-muted-foreground">Beskrivning</p>
                     <p>{bug.description}</p>
@@ -1318,163 +1302,33 @@ const BugAITab = () => {
                     )}
                   </div>
 
-                  {/* Analysis results - scrollable */}
-                  {fix && fix._deep ? (
-                    <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1">
-                      <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
-                        <Activity className="w-3.5 h-3.5" />
-                        AI Djupanalys
-                        <Badge variant="outline" className="text-[9px] ml-auto">Risk: {fix.overall_risk}</Badge>
-                        {fix.is_recurring && <Badge variant="destructive" className="text-[9px]">Återkommande</Badge>}
-                      </div>
-
-                      {fix.diagnosis && (
-                        <div className="bg-muted/50 rounded-md p-2 space-y-1">
-                          <p className="text-xs font-medium">Diagnos (konfidens: {fix.diagnosis.confidence}%)</p>
-                          <p className="text-xs">{fix.diagnosis.summary}</p>
-                          <p className="text-xs text-muted-foreground"><strong>Trolig orsak:</strong> {fix.diagnosis.likely_cause}</p>
-                          {fix.diagnosis.evidence?.length > 0 && (
-                            <div className="text-xs space-y-0.5 mt-1">
-                              <span className="text-muted-foreground font-medium">Bevis:</span>
-                              {fix.diagnosis.evidence.map((e: string, i: number) => (
-                                <p key={i} className="text-[11px] text-muted-foreground pl-2">• {e}</p>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {fix.log_analysis && (
-                        <div className="space-y-1">
-                          <p className="text-xs font-medium flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Logganalys</p>
-                          {fix.log_analysis.error_pattern && <p className="text-xs text-muted-foreground">{fix.log_analysis.error_pattern}</p>}
-                          {fix.log_analysis.relevant_errors?.length > 0 && (
-                            <div className="text-[11px] bg-muted rounded p-1.5 space-y-0.5 font-mono max-h-32 overflow-y-auto">
-                              {fix.log_analysis.relevant_errors.slice(0, 10).map((e: string, i: number) => <p key={i}>{e}</p>)}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {fix.historical_matches?.length > 0 && (
-                        <div className="space-y-1">
-                          <p className="text-xs font-medium flex items-center gap-1"><Clock className="w-3 h-3" /> Historiska matchningar</p>
-                          {fix.historical_matches.slice(0, 3).map((m: any, i: number) => (
-                            <div key={i} className="text-xs border border-border rounded p-1.5">
-                              <div className="flex items-center gap-1.5">
-                                <Badge variant="outline" className="text-[9px]">{m.similarity}% match</Badge>
-                                {m.was_resolved ? <CheckCircle className="w-3 h-3 text-green-600" /> : <XCircle className="w-3 h-3 text-destructive" />}
-                                <span className="truncate">{m.bug_summary}</span>
-                              </div>
-                              {m.lesson && <p className="text-[11px] text-muted-foreground mt-0.5">💡 {m.lesson}</p>}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {fix.is_recurring && fix.recurring_info && (
-                        <div className="bg-destructive/5 border border-destructive/20 rounded-md p-2 space-y-1">
-                          <p className="text-xs font-medium text-destructive">⚠️ Återkommande problem</p>
-                          <p className="text-xs">{fix.recurring_info.pattern}</p>
-                          {fix.recurring_info.prevention && (
-                            <p className="text-xs text-muted-foreground"><strong>Förebyggande:</strong> {fix.recurring_info.prevention}</p>
-                          )}
-                        </div>
-                      )}
-
-                      {fix.fix_suggestions?.length > 0 && (
-                        <div className="space-y-1.5">
-                          <p className="text-xs font-medium">Fix-förslag</p>
-                          {fix.fix_suggestions.map((f: any, i: number) => (
-                            <div key={i} className="border border-border rounded p-2 space-y-1">
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-xs font-medium">{f.title}</span>
-                                <Badge variant="outline" className="text-[9px]">Effort: {f.effort}</Badge>
-                                <Badge variant="outline" className="text-[9px]">Risk: {f.risk}</Badge>
-                              </div>
-                              <p className="text-[11px] text-muted-foreground">{f.description}</p>
-                              {f.based_on && <p className="text-[10px] text-muted-foreground italic">Baserat på: {f.based_on}</p>}
-                              <Button size="sm" variant="ghost" className="h-5 text-[10px] gap-1 p-0 px-1" onClick={() => copyToClipboard(f.lovable_prompt)}>
-                                <Copy className="w-2.5 h-2.5" /> Kopiera prompt
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Action row after deep analysis */}
-                      <div className="flex gap-1.5 pt-1 border-t border-border">
-                        <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1 flex-1" onClick={() => copyToClipboard(fix.fix_suggestions?.[0]?.lovable_prompt || fix.lovable_prompt || '')}>
-                          <Copy className="w-2.5 h-2.5" /> Kopiera prompt
-                        </Button>
-                        <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1 flex-1" onClick={async () => {
-                          const topFix = fix.fix_suggestions?.[0];
-                          const res = await callAI('create_action', {
-                            title: `Fix: ${bug.ai_summary || bug.description.substring(0, 80)}`,
-                            description: topFix ? `${topFix.title}\n${topFix.description}\n\n${topFix.lovable_prompt}` : fix.diagnosis?.summary,
-                            priority: bug.ai_severity === 'critical' ? 'critical' : bug.ai_severity === 'high' ? 'high' : 'medium',
-                            category: bug.ai_category || 'bug',
-                            source_type: 'bug_fix',
-                            source_id: bug.id,
-                          });
-                          if (res?.created) toast.success('Uppgift skapad i Workbench');
-                        }}>
-                          <Zap className="w-2.5 h-2.5" /> Skapa uppgift
-                        </Button>
-                      </div>
-                    </div>
-                  ) : fix ? (
-                    <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1">
+                  {fix && (
+                    <div className="space-y-2 pr-1">
                       <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
                         <Sparkles className="w-3.5 h-3.5" />
-                        AI Fix-förslag
-                        <Badge variant="outline" className="text-[9px] ml-auto">Risk: {fix.overall_risk}</Badge>
-                        {fix.is_recurring && <Badge variant="destructive" className="text-[9px]">Återkommande</Badge>}
+                        {fix._deep ? 'AI Djupanalys' : 'AI Fix-förslag'}
                       </div>
-                      {fix.log_insights && (
-                        <p className="text-[11px] text-muted-foreground bg-muted/50 rounded p-1.5">📊 {fix.log_insights}</p>
+
+                      {fix.diagnosis?.summary && (
+                        <div className="text-xs border rounded-md p-2 bg-muted/30">{fix.diagnosis.summary}</div>
                       )}
-                      {fix.root_causes?.map((rc: any, i: number) => (
-                        <div key={i} className="border border-border rounded p-2 space-y-1">
-                          <div className="flex items-center gap-1.5">
-                            <Badge variant="outline" className="text-[9px]">{rc.confidence}%</Badge>
-                            <span className="text-xs font-medium">{rc.cause}</span>
-                            <Badge variant="outline" className="text-[9px] ml-auto">{rc.risk_level}</Badge>
-                          </div>
-                          <p className="text-[11px] text-muted-foreground">{rc.fix_strategy}</p>
-                          {rc.historical_match && <p className="text-[10px] text-muted-foreground italic">📜 {rc.historical_match}</p>}
-                          <div className="flex gap-1 flex-wrap">{rc.affected_areas?.map((a: string) => <span key={a} className="text-[9px] bg-muted px-1.5 py-0.5 rounded-full">{a}</span>)}</div>
-                          <Button size="sm" variant="ghost" className="h-5 text-[10px] gap-1 p-0 px-1" onClick={() => copyToClipboard(rc.lovable_prompt)}>
-                            <Copy className="w-2.5 h-2.5" /> Kopiera prompt
-                          </Button>
-                        </div>
-                      )) || (
-                        <div className="space-y-1.5 text-xs">
-                          <div><span className="text-muted-foreground font-medium">Trolig orsak:</span><p>{fix.possible_cause}</p></div>
-                          <div><span className="text-muted-foreground font-medium">Fix-strategi:</span><p>{fix.fix_strategy}</p></div>
-                        </div>
+
+                      {fix.summary && !fix.diagnosis?.summary && (
+                        <div className="text-xs border rounded-md p-2 bg-muted/30">{fix.summary}</div>
                       )}
-                      <div className="flex gap-1.5 pt-1 border-t border-border">
-                        <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1 flex-1" onClick={() => copyToClipboard(fix.lovable_prompt || fix.root_causes?.[0]?.lovable_prompt || '')}>
-                          <Copy className="w-2.5 h-2.5" /> Kopiera prompt
+
+                      {(fix.lovable_prompt || fix.fix_suggestions?.[0]?.lovable_prompt) && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs gap-1"
+                          onClick={() => copyToClipboard(fix.lovable_prompt || fix.fix_suggestions?.[0]?.lovable_prompt || '')}
+                        >
+                          <Copy className="w-3 h-3" /> Kopiera prompt
                         </Button>
-                        <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1 flex-1" onClick={async () => {
-                          const topCause = fix.root_causes?.[0];
-                          const res = await callAI('create_action', {
-                            title: `Fix: ${bug.ai_summary || bug.description.substring(0, 80)}`,
-                            description: topCause ? `Orsak: ${topCause.cause}\nStrategi: ${topCause.fix_strategy}\n\n${topCause.lovable_prompt}` : fix.summary,
-                            priority: bug.ai_severity === 'critical' ? 'critical' : bug.ai_severity === 'high' ? 'high' : 'medium',
-                            category: bug.ai_category || 'bug',
-                            source_type: 'bug_fix',
-                            source_id: bug.id,
-                          });
-                          if (res?.created) toast.success('Uppgift skapad i Workbench');
-                        }}>
-                          <Zap className="w-2.5 h-2.5" /> Skapa uppgift
-                        </Button>
-                      </div>
+                      )}
                     </div>
-                  ) : null}
+                  )}
                 </div>
               )}
             </div>
