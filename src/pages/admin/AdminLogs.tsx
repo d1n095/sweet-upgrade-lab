@@ -2,6 +2,7 @@ import AdminActivityLog from '@/components/admin/AdminActivityLog';
 import AdminBugReports from '@/components/admin/AdminBugReports';
 import AdminObservabilityLog from '@/components/admin/AdminObservabilityLog';
 import DeepDebugPanel from '@/components/admin/DeepDebugPanel';
+import ActionVerificationPanel from '@/components/admin/ActionVerificationPanel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const AdminLogs = () => {
@@ -14,9 +15,10 @@ const AdminLogs = () => {
         </p>
       </div>
       <Tabs defaultValue="activity" className="flex min-h-0 flex-1 flex-col">
-        <TabsList>
+        <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="activity">Aktivitetslogg</TabsTrigger>
           <TabsTrigger value="observability">Observability</TabsTrigger>
+          <TabsTrigger value="verification">Verification</TabsTrigger>
           <TabsTrigger value="deep-debug">Deep Debug</TabsTrigger>
           <TabsTrigger value="bugs">Buggrapporter</TabsTrigger>
         </TabsList>
@@ -25,6 +27,9 @@ const AdminLogs = () => {
         </TabsContent>
         <TabsContent value="observability" className="min-h-0 flex-1 overflow-y-auto">
           <AdminObservabilityLog />
+        </TabsContent>
+        <TabsContent value="verification" className="min-h-0 flex-1 overflow-y-auto">
+          <ActionVerificationPanel />
         </TabsContent>
         <TabsContent value="deep-debug" className="min-h-0 flex-1 overflow-y-auto">
           <DeepDebugPanel />

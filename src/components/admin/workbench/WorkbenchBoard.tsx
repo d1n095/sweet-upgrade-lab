@@ -26,6 +26,7 @@ import { useNavigate } from 'react-router-dom';
 import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
 import { createAndVerify } from '@/utils/createVerifyLoop';
 import { trace, newTraceId, traceUIFetch } from '@/utils/deepDebugTrace';
+import { verifyAction } from '@/utils/actionVerificationEngine';
 
 interface WorkItem {
   id: string;
@@ -535,51 +536,76 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     if (!newTitle.trim() || !user) return;
     setCreating(true);
     const createTraceId = newTraceId('create');
-    trace('work_item_creating', 'WorkbenchBoard', `Creating: ${newTitle.trim()}`, { traceId: createTraceId, details: { type: newType, priority: newPriority } });
-    try {
-      const { data: bestUser } = await supabase.rpc('auto_assign_work_item', { p_item_type: newType });
-      const insertPayload = {
-        title: newTitle.trim(),
-        description: newDesc.trim() || null,
-        priority: newPriority,
-        item_type: newType,
-        source_type: 'manual',
-        created_by: user.id,
-        ...(bestUser ? { assigned_to: bestUser, status: 'claimed', claimed_by: bestUser, claimed_at: new Date().toISOString() } : {}),
-      };
-      trace('db_insert_sent', 'WorkbenchBoard', 'Sending INSERT to work_items', { traceId: createTraceId });
-      const result = await createAndVerify({
-        table: 'work_items',
-        payload: insertPayload,
-        selectColumns: '*',
-        maxRetries: 2,
-        traceContext: { component: 'WorkbenchBoard' },
-      });
 
-      if (!result.success) {
-        trace('db_insert_failed', 'WorkbenchBoard', `CREATE-VERIFY FAILED: ${result.error}`, { traceId: createTraceId, details: { attempts: result.attempts } });
-        console.error('[WorkbenchBoard] CREATE-VERIFY FAILED:', result.error);
-        toast.error(`Kunde inte skapa: ${result.error}`);
-        return;
-      }
+    const result = await verifyAction({
+      action: `Create work item: ${newTitle.trim().slice(0, 40)}`,
+      component: 'WorkbenchBoard',
+      entityType: 'work_item',
+      steps: [
+        {
+          step: 'action_start',
+          run: async () => {
+            trace('work_item_creating', 'WorkbenchBoard', `Creating: ${newTitle.trim()}`, { traceId: createTraceId, details: { type: newType, priority: newPriority } });
+            const { data: bestUser } = await supabase.rpc('auto_assign_work_item', { p_item_type: newType });
+            return { bestUser };
+          },
+        },
+        {
+          step: 'db_write',
+          run: async (prev: any) => {
+            trace('db_insert_sent', 'WorkbenchBoard', 'Sending INSERT to work_items', { traceId: createTraceId });
+            const insertPayload = {
+              title: newTitle.trim(),
+              description: newDesc.trim() || null,
+              priority: newPriority,
+              item_type: newType,
+              source_type: 'manual',
+              created_by: user!.id,
+              ...(prev.bestUser ? { assigned_to: prev.bestUser, status: 'claimed', claimed_by: prev.bestUser, claimed_at: new Date().toISOString() } : {}),
+            };
+            const cvResult = await createAndVerify({
+              table: 'work_items',
+              payload: insertPayload,
+              selectColumns: '*',
+              maxRetries: 2,
+              traceContext: { component: 'WorkbenchBoard' },
+            });
+            if (!cvResult.success) throw new Error(cvResult.error || 'Insert failed');
+            return { ...prev, item: cvResult.data };
+          },
+        },
+        {
+          step: 'db_confirm',
+          run: async (prev: any) => {
+            const id = (prev.item as any)?.id;
+            if (!id) throw new Error('No ID returned from insert');
+            const { data, error } = await supabase.from('work_items' as any).select('id, title, status').eq('id', id).maybeSingle();
+            if (error || !data) throw new Error(`Verify failed: ${error?.message || 'not found'}`);
+            trace('db_verify_confirmed', 'WorkbenchBoard', `Verified in DB: ${id}`, { traceId: createTraceId, entityId: id });
+            return prev;
+          },
+        },
+        {
+          step: 'ui_update',
+          run: async (prev: any) => {
+            trace('cache_invalidated', 'WorkbenchBoard', 'Invalidating work-items cache', { traceId: createTraceId, entityId: (prev.item as any)?.id });
+            await queryClient.invalidateQueries({ queryKey: ['work-items'] });
+            await queryClient.invalidateQueries({ queryKey: ['admin-work-items'] });
+            return prev;
+          },
+        },
+      ],
+    });
 
-      const entityId = (result.data as any)?.id;
-      trace('db_verify_confirmed', 'WorkbenchBoard', `Verified in DB: ${entityId}`, { traceId: createTraceId, entityId });
-      console.log('[WorkbenchBoard] CREATED & VERIFIED:', result.data);
+    if (result.ok) {
+      const bestUser = result.data?.bestUser;
       toast.success(bestUser ? `Skapad & verifierad → tilldelad ${getStaffName(bestUser as string)}` : 'Skapad & verifierad ✓');
       setNewTitle(''); setNewDesc(''); setShowCreate(false);
-
-      trace('cache_invalidated', 'WorkbenchBoard', 'Invalidating work-items cache', { traceId: createTraceId, entityId });
-      // Force refetch from DB — don't rely on cache
-      await queryClient.invalidateQueries({ queryKey: ['work-items'] });
-      await queryClient.invalidateQueries({ queryKey: ['admin-work-items'] });
-    } catch (err: any) {
-      trace('db_insert_failed', 'WorkbenchBoard', `CREATE ERROR: ${err?.message}`, { traceId: createTraceId });
-      console.error('[WorkbenchBoard] CREATE ERROR:', err);
-      toast.error(err?.message || 'Fel');
-    } finally {
-      setCreating(false);
+    } else {
+      console.error('[WorkbenchBoard] CREATE FAILED at', result.failedStep, result.failReason);
+      toast.error(`Kunde inte skapa: ${result.failReason}`);
     }
+    setCreating(false);
   };
 
   const unclaimItem = async (itemId: string) => {
@@ -630,13 +656,51 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
       }
     }
 
-    const now = new Date().toISOString();
-    const updates: Record<string, any> = { status: newStatus, updated_at: now };
-    if (newStatus === 'claimed') { updates.claimed_by = user.id; updates.claimed_at = now; }
-    if (newStatus === 'in_progress') { updates.claimed_by = user.id; if (!updates.claimed_at) updates.claimed_at = now; }
-    if (newStatus === 'done') updates.completed_at = now;
-    await supabase.from('work_items' as any).update(updates).eq('id', itemId);
-    queryClient.invalidateQueries({ queryKey: ['work-items'] });
+    const moveResult = await verifyAction({
+      action: `Move work item → ${newStatus}`,
+      component: 'WorkbenchBoard',
+      entityType: 'work_item',
+      steps: [
+        {
+          step: 'action_start',
+          run: async () => ({ itemId, newStatus }),
+        },
+        {
+          step: 'db_write',
+          run: async () => {
+            const now = new Date().toISOString();
+            const updates: Record<string, any> = { status: newStatus, updated_at: now };
+            if (newStatus === 'claimed') { updates.claimed_by = user!.id; updates.claimed_at = now; }
+            if (newStatus === 'in_progress') { updates.claimed_by = user!.id; if (!updates.claimed_at) updates.claimed_at = now; }
+            if (newStatus === 'done') updates.completed_at = now;
+            const { error } = await supabase.from('work_items' as any).update(updates).eq('id', itemId);
+            if (error) throw new Error(error.message);
+            return { itemId, newStatus };
+          },
+        },
+        {
+          step: 'db_confirm',
+          run: async () => {
+            const { data, error } = await supabase.from('work_items' as any).select('id, status').eq('id', itemId).maybeSingle();
+            if (error || !data) throw new Error('Verify fetch failed');
+            if ((data as any).status !== newStatus) throw new Error(`Status mismatch: expected ${newStatus}, got ${(data as any).status}`);
+            return data;
+          },
+        },
+        {
+          step: 'ui_update',
+          run: async () => {
+            queryClient.invalidateQueries({ queryKey: ['work-items'] });
+            return null;
+          },
+        },
+      ],
+    });
+
+    if (!moveResult.ok) {
+      toast.error(`Statusändring misslyckades vid ${moveResult.failedStep}: ${moveResult.failReason}`);
+      return;
+    }
 
     if (newStatus === 'done') {
       setCompletedCount(prev => prev + 1);
