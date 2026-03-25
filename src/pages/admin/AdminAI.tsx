@@ -3113,6 +3113,10 @@ const AdminAI = () => {
               <Database className="w-3.5 h-3.5" />
               Cleanup
             </TabsTrigger>
+            <TabsTrigger value="auto-fix" className="gap-1.5 text-xs">
+              <Wrench className="w-3.5 h-3.5" />
+              Auto-Fix
+            </TabsTrigger>
           </TabsList>
         </ScrollableTabs>
 
