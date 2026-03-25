@@ -4804,7 +4804,14 @@ const AiAutopilotTab = () => {
         <Card className="border-border">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-sm">Orkestreringsresultat</CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-sm">Orkestreringsresultat</CardTitle>
+                {orchestrator.unifiedResult?.system_stage && (
+                  <Badge variant={orchestrator.unifiedResult.system_stage === 'production' ? 'destructive' : 'secondary'} className="text-[9px] uppercase tracking-wider">
+                    {orchestrator.unifiedResult.system_stage === 'production' ? '🟢 Production' : orchestrator.unifiedResult.system_stage === 'staging' ? '🟡 Staging' : '🔧 Development'}
+                  </Badge>
+                )}
+              </div>
               {orchestrator.unifiedResult && (
                 <div className={cn(
                   'w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold border-2',
@@ -4814,22 +4821,35 @@ const AiAutopilotTab = () => {
                 </div>
               )}
             </div>
-            {orchestrator.unifiedResult && (
-              <div className="flex gap-3 text-[10px] text-muted-foreground mt-1 flex-wrap">
-                <span>✅ {orchCompleted} klara</span>
-                {orchErrors > 0 && <span>❌ {orchErrors} fel</span>}
-                <span>🔴 {orchestrator.unifiedResult.broken_flows.length} broken flows</span>
-                <span>👻 {orchestrator.unifiedResult.fake_features.length} fake features</span>
-                <span>⚡ {orchestrator.unifiedResult.interaction_failures.length} interaction fails</span>
-                <span>📊 {orchestrator.unifiedResult.data_issues.length} data issues</span>
-                {(orchestrator.unifiedResult as any).integrity_issues?.length > 0 && (
-                  <span>🛡️ {(orchestrator.unifiedResult as any).integrity_issues.length} integrity issues</span>
-                )}
-                {(orchestrator.unifiedResult as any).behavior_failures?.length > 0 && (
-                  <span>⚡ {(orchestrator.unifiedResult as any).behavior_failures.length} behavior fails</span>
-                )}
-              </div>
-            )}
+            {orchestrator.unifiedResult && (() => {
+              const r = orchestrator.unifiedResult;
+              const brokenFlows = filterRelevantIssues(r.broken_flows);
+              const dataIssues = filterRelevantIssues(r.data_issues);
+              const interactionFails = filterRelevantIssues(r.interaction_failures);
+              const integrityIssues = filterRelevantIssues(r.integrity_issues || []);
+              const behaviorFails = filterRelevantIssues(r.behavior_failures || []);
+              const devSuppressed = r.data_issues.length - dataIssues.length + r.broken_flows.length - brokenFlows.length;
+
+              return (
+                <div className="flex gap-3 text-[10px] text-muted-foreground mt-1 flex-wrap">
+                  <span>✅ {orchCompleted} klara</span>
+                  {orchErrors > 0 && <span>❌ {orchErrors} fel</span>}
+                  <span>🔴 {brokenFlows.length} broken flows</span>
+                  <span>👻 {r.fake_features.length} fake features</span>
+                  <span>⚡ {interactionFails.length} interaction fails</span>
+                  <span>📊 {dataIssues.length} data issues</span>
+                  {integrityIssues.length > 0 && (
+                    <span>🛡️ {integrityIssues.length} integrity issues</span>
+                  )}
+                  {behaviorFails.length > 0 && (
+                    <span>⚡ {behaviorFails.length} behavior fails</span>
+                  )}
+                  {devSuppressed > 0 && (
+                    <span className="text-muted-foreground/50">🔇 {devSuppressed} dev-förväntade</span>
+                  )}
+                </div>
+              );
+            })()}
             {/* Adaptive scan metadata */}
             {orchestrator.unifiedResult?.adaptive_scan && (
               <div className="mt-2 p-2 rounded-lg bg-muted/40 border border-border">
