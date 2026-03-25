@@ -2749,6 +2749,120 @@ const VerificationEngineTab = () => {
   );
 };
 
+// ── Data Cleanup Tab ──
+const DataCleanupTab = () => {
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<any>(null);
+
+  const run = async () => {
+    setLoading(true);
+    const r = await callAI('data_cleanup');
+    if (r) {
+      setResult(r);
+      toast.success(`Cleanup klar – ${r.total_cleaned || 0} objekt rensade`);
+    }
+    setLoading(false);
+  };
+
+  const scoreColor = (s: number) => s >= 70 ? 'text-green-700' : s >= 40 ? 'text-yellow-700' : 'text-red-700';
+
+  return (
+    <div className="space-y-4">
+      <Card className="p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <Database className="w-5 h-5 text-primary" />
+          <h3 className="font-semibold">AI Data Cleanup & Deduplication</h3>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Hittar duplicat, testdata, föräldralösa uppgifter och föråldrade tasks — rensar automatiskt.
+        </p>
+        <Button onClick={run} disabled={loading} className="gap-2">
+          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wrench className="w-4 h-4" />}
+          Kör Cleanup
+        </Button>
+      </Card>
+
+      {result && (
+        <div className="space-y-4">
+          {/* Score */}
+          <Card className="p-4">
+            <div className="flex items-center gap-4">
+              <div className={cn('text-3xl font-bold', scoreColor(result.cleanliness_score || 0))}>
+                {result.cleanliness_score || 0}
+              </div>
+              <div>
+                <p className="font-medium">Renhetsscore</p>
+                <p className="text-xs text-muted-foreground">{result.summary}</p>
+              </div>
+            </div>
+          </Card>
+
+          {/* Stats */}
+          <div className="grid grid-cols-4 gap-3">
+            <Card className="p-3 text-center">
+              <p className="text-2xl font-bold text-destructive">{result.orphans_cleaned || 0}</p>
+              <p className="text-[10px] text-muted-foreground">Föräldralösa</p>
+            </Card>
+            <Card className="p-3 text-center">
+              <p className="text-2xl font-bold text-primary">{result.duplicates_merged || 0}</p>
+              <p className="text-[10px] text-muted-foreground">Duplicat</p>
+            </Card>
+            <Card className="p-3 text-center">
+              <p className="text-2xl font-bold">{result.test_data_removed || 0}</p>
+              <p className="text-[10px] text-muted-foreground">Testdata</p>
+            </Card>
+            <Card className="p-3 text-center">
+              <p className="text-2xl font-bold">{result.outdated_removed || 0}</p>
+              <p className="text-[10px] text-muted-foreground">Föråldrade</p>
+            </Card>
+          </div>
+
+          {/* Duplicate groups */}
+          {result.duplicate_groups?.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><GitMerge className="w-4 h-4" /> Hittade duplicat</CardTitle></CardHeader>
+              <CardContent className="space-y-2">
+                {result.duplicate_groups.map((g: any, i: number) => (
+                  <div key={i} className="text-sm border-b border-border pb-2">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="text-[9px]">{g.item_indices.length} st</Badge>
+                      <span className="text-muted-foreground">{g.reason}</span>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Test data */}
+          {result.test_data?.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><AlertCircle className="w-4 h-4 text-destructive" /> Testdata borttagen</CardTitle></CardHeader>
+              <CardContent className="space-y-1">
+                {result.test_data.map((t: any, i: number) => (
+                  <p key={i} className="text-sm text-muted-foreground">• {t.reason}</p>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Outdated */}
+          {result.outdated?.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Clock className="w-4 h-4" /> Föråldrade borttagna</CardTitle></CardHeader>
+              <CardContent className="space-y-1">
+                {result.outdated.map((o: any, i: number) => (
+                  <p key={i} className="text-sm text-muted-foreground">• {o.reason}</p>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const AdminAI = () => {
   return (
     <div className="space-y-6">
@@ -2833,6 +2947,10 @@ const AdminAI = () => {
               <CheckCircle className="w-3.5 h-3.5" />
               Verifiering
             </TabsTrigger>
+            <TabsTrigger value="cleanup" className="gap-1.5 text-xs">
+              <Database className="w-3.5 h-3.5" />
+              Cleanup
+            </TabsTrigger>
           </TabsList>
         </ScrollableTabs>
 
@@ -2886,6 +3004,9 @@ const AdminAI = () => {
         </TabsContent>
         <TabsContent value="verification" className="mt-4">
           <VerificationEngineTab />
+        </TabsContent>
+        <TabsContent value="cleanup" className="mt-4">
+          <DataCleanupTab />
         </TabsContent>
       </Tabs>
     </div>
