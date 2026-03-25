@@ -255,7 +255,7 @@ const AdminLayout = () => {
         <header className="hidden md:flex h-14 items-center justify-between px-8 border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-20">
           <div className="flex items-center gap-4">
             <AdminGlobalSearch />
-            <h2 className="text-sm font-semibold">{currentPage?.label || 'Admin'}</h2>
+            <h2 className="text-sm font-semibold">Översikt — {currentPage?.label || 'Admin'}</h2>
           </div>
           <div className="flex items-center gap-2">
             <AiControlBar />
