@@ -601,7 +601,7 @@ export const useAiQueueStore = create<AiQueueState>((set, get) => ({
 
               // Release lock after post-checks (success or failure handled inside runPostChecks)
               useExecutionLockStore.getState().release(nextTask.id);
-              set({ _isProcessing: false });
+              set({ _isProcessing: false, _processingStartedAt: null });
               get().processQueue();
             })
             .catch((err) => {
@@ -628,7 +628,7 @@ export const useAiQueueStore = create<AiQueueState>((set, get) => ({
 
               // Release lock on failure
               useExecutionLockStore.getState().release(nextTask.id);
-              set({ _isProcessing: false });
+              set({ _isProcessing: false, _processingStartedAt: null });
               get().processQueue();
             });
         } else {
