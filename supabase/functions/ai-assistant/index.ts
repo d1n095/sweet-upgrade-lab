@@ -257,6 +257,12 @@ serve(async (req) => {
         break;
       }
 
+      case "double_pass": {
+        const { context } = body;
+        result = await handleDoublePass(supabase, lovableKey, context || "general");
+        break;
+      }
+
       default:
         return new Response(JSON.stringify({ error: "Unknown type" }), { status: 400, headers: corsHeaders });
     }
@@ -5123,4 +5129,158 @@ async function handleGovernorExecute(supabase: any, apiKey: string, actionId: st
   });
 
   return { executed, action_taken: action_taken || "No safe action available for this item" };
+}
+
+// ── Double-Pass Multi-AI Orchestration ──
+async function handleDoublePass(supabase: any, apiKey: string, context: string) {
+  const snapshot = await gatherSystemSnapshot(supabase);
+
+  const systemContext = `
+Current system state:
+- Work items: ${snapshot.workItems?.length || 0} open
+- Bug reports: ${snapshot.bugReports?.length || 0} open  
+- Recent scans: ${snapshot.scanResults?.length || 0}
+- Products: ${snapshot.products?.length || 0}
+- Orders (7d): ${snapshot.recentOrders?.length || 0}
+
+Focus area: ${context}
+`;
+
+  // ── PASS 1: Generate + Validate ──
+  const pass1Generator = await callAI(apiKey, "google/gemini-2.5-flash", [
+    { role: "system", content: `Du är en systemarkitekt (Generator). Analysera systemet och skapa en lösningsplan.
+Returnera JSON:
+{
+  "solution_v1": { "title": "string", "analysis": "string", "recommendations": ["string"], "priority_actions": [{"action": "string", "priority": "high|medium|low", "type": "auto_fix|assist|lovable_required"}] },
+  "confidence": 0-100,
+  "areas_analyzed": ["string"]
+}` },
+    { role: "user", content: `Analysera systemet och skapa förbättringsplan.\n${systemContext}` }
+  ]);
+
+  let generatorResult: any;
+  try { generatorResult = JSON.parse(pass1Generator); } catch { generatorResult = { solution_v1: { title: "Analys", analysis: pass1Generator, recommendations: [], priority_actions: [] }, confidence: 50, areas_analyzed: [] }; }
+
+  const pass1Validator = await callAI(apiKey, "openai/gpt-5-mini", [
+    { role: "system", content: `Du är en kodgranskare (Validator). Granska lösningsförslaget och hitta problem.
+Returnera JSON:
+{
+  "issues_found": [{"issue": "string", "severity": "critical|high|medium|low", "suggestion": "string"}],
+  "approval_score": 0-100,
+  "missing_considerations": ["string"],
+  "risk_assessment": "low|medium|high"
+}` },
+    { role: "user", content: `Granska detta förslag:\n${JSON.stringify(generatorResult.solution_v1)}\n\nSystemkontext:\n${systemContext}` }
+  ]);
+
+  let validatorResult: any;
+  try { validatorResult = JSON.parse(pass1Validator); } catch { validatorResult = { issues_found: [], approval_score: 70, missing_considerations: [], risk_assessment: "medium" }; }
+
+  const pass1Refiner = await callAI(apiKey, "google/gemini-2.5-flash-lite", [
+    { role: "system", content: `Du är en optimerare (Executor). Ta lösningen och valideringen, förfina till en bättre lösning.
+Returnera JSON:
+{
+  "improvements": [{"area": "string", "before": "string", "after": "string"}],
+  "refined_actions": [{"action": "string", "priority": "high|medium|low", "type": "auto_fix|assist|lovable_required", "rationale": "string"}],
+  "optimization_notes": "string"
+}` },
+    { role: "user", content: `Originalförslag:\n${JSON.stringify(generatorResult.solution_v1)}\n\nValideringsresultat:\n${JSON.stringify(validatorResult)}` }
+  ]);
+
+  let refinerResult: any;
+  try { refinerResult = JSON.parse(pass1Refiner); } catch { refinerResult = { improvements: [], refined_actions: [], optimization_notes: pass1Refiner }; }
+
+  // ── PASS 2: Refine + Final Review ──
+  const pass2Generator = await callAI(apiKey, "google/gemini-2.5-flash", [
+    { role: "system", content: `Du är systemarkitekten igen (Generator Pass 2). Förbättra lösningen baserat på feedback. BYGG VIDARE — starta inte om.
+Returnera JSON:
+{
+  "solution_v2": { "title": "string", "final_analysis": "string", "final_recommendations": ["string"], "final_actions": [{"action": "string", "priority": "high|medium|low", "type": "auto_fix|assist|lovable_required", "confidence": 0-100}] },
+  "improvement_delta": "string",
+  "pass2_confidence": 0-100
+}` },
+    { role: "user", content: `Pass 1 lösning:\n${JSON.stringify(generatorResult.solution_v1)}\n\nValideringsproblem:\n${JSON.stringify(validatorResult.issues_found)}\n\nFörfiningar:\n${JSON.stringify(refinerResult)}\n\nFörbättra lösningen.` }
+  ]);
+
+  let pass2GenResult: any;
+  try { pass2GenResult = JSON.parse(pass2Generator); } catch { pass2GenResult = { solution_v2: { title: "Förbättrad analys", final_analysis: pass2Generator, final_recommendations: [], final_actions: [] }, improvement_delta: "N/A", pass2_confidence: 60 }; }
+
+  const pass2Validator = await callAI(apiKey, "openai/gpt-5-mini", [
+    { role: "system", content: `Du är den slutgiltiga granskaren (Final Validator). Gör kritisk granskning av den förbättrade lösningen.
+Returnera JSON:
+{
+  "final_approval_score": 0-100,
+  "remaining_issues": [{"issue": "string", "severity": "string"}],
+  "ready_for_execution": true/false,
+  "final_verdict": "string"
+}` },
+    { role: "user", content: `Slutgiltig lösning:\n${JSON.stringify(pass2GenResult.solution_v2)}\n\nUrsprungliga problem:\n${JSON.stringify(validatorResult.issues_found)}\n\nGör slutgiltig bedömning.` }
+  ]);
+
+  let pass2ValResult: any;
+  try { pass2ValResult = JSON.parse(pass2Validator); } catch { pass2ValResult = { final_approval_score: 65, remaining_issues: [], ready_for_execution: true, final_verdict: pass2Validator }; }
+
+  // ── Governor Decision ──
+  const significantImprovement = (pass2GenResult.pass2_confidence || 0) > (generatorResult.confidence || 0);
+  const governorDecision = {
+    use_pass: significantImprovement ? 2 : 1,
+    reason: significantImprovement ? "Pass 2 visade signifikant förbättring" : "Pass 1 var redan tillräckligt bra",
+    final_score: pass2ValResult.final_approval_score || 0,
+    ready: pass2ValResult.ready_for_execution ?? true,
+  };
+
+  // Save prompt_queue entries for lovable_required actions
+  const finalActions = governorDecision.use_pass === 2
+    ? (pass2GenResult.solution_v2?.final_actions || [])
+    : (refinerResult.refined_actions || generatorResult.solution_v1?.priority_actions || []);
+
+  const lovableActions = finalActions.filter((a: any) => a.type === "lovable_required");
+  for (const action of lovableActions.slice(0, 5)) {
+    await supabase.from("prompt_queue").insert({
+      title: (action.action || "").substring(0, 200),
+      implementation: `Genererat av Double-Pass Orchestration.\n\nÅtgärd: ${action.action}\nPrioritet: ${action.priority}\nRationale: ${action.rationale || "AI-genererad"}\nKonfidenspoäng: ${action.confidence || "N/A"}`,
+      priority: action.priority || "medium",
+      source_type: "ai_orchestration",
+    });
+  }
+
+  // Log
+  await supabase.from("activity_logs").insert({
+    log_type: "ai_orchestration",
+    category: "ai",
+    message: `Double-Pass Orchestration slutförd. Score: ${governorDecision.final_score}/100. Använde Pass ${governorDecision.use_pass}.`,
+    details: { governor_decision: governorDecision, pass1_confidence: generatorResult.confidence, pass2_confidence: pass2GenResult.pass2_confidence },
+  });
+
+  return {
+    pass1: {
+      generator: generatorResult,
+      validator: validatorResult,
+      refiner: refinerResult,
+    },
+    pass2: {
+      generator: pass2GenResult,
+      validator: pass2ValResult,
+    },
+    governor_decision: governorDecision,
+    prompts_queued: lovableActions.length,
+  };
+}
+
+// Helper to call AI with specific model
+async function callAI(apiKey: string, model: string, messages: { role: string; content: string }[]): Promise<string> {
+  const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ model, messages, temperature: 0.3 }),
+  });
+  if (!resp.ok) {
+    if (resp.status === 429) throw Object.assign(new Error("Rate limited"), { status: 429 });
+    if (resp.status === 402) throw Object.assign(new Error("Credits exhausted"), { status: 402 });
+    throw new Error(`AI call failed: ${resp.status}`);
+  }
+  const data = await resp.json();
+  const content = data.choices?.[0]?.message?.content || "";
+  // Strip markdown code fences
+  return content.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
 }
