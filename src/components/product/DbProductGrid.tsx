@@ -91,7 +91,7 @@ const DbProductGrid = () => {
       }
     });
     return counts;
-  }, [products]);
+  }, [products, categories]);
 
   const categoryFiltered = useMemo(() => {
     let filtered = products;
