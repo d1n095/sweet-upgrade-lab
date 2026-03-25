@@ -1720,7 +1720,7 @@ const SystemScanTab = () => {
     queryKey: ['scan-dismissals'],
     queryFn: async () => {
       const { data } = await supabase.from('scan_dismissals' as any).select('*').eq('scan_type', 'system_scan');
-      return (data || []) as { id: string; issue_key: string; issue_title: string; reason: string; dismissed_by: string; created_at: string }[];
+      return (data || []) as any[];
     },
   });
 
