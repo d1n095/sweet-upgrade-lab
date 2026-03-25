@@ -4879,6 +4879,23 @@ const AiAutopilotTab = () => {
                     ))}
                   </div>
                 )}
+                {/* Focus Memory — learned hotspots */}
+                {(orchestrator.unifiedResult.adaptive_scan.focus_memory?.length || 0) > 0 && (
+                  <div className="mt-2 space-y-1">
+                    <span className="text-[9px] font-semibold text-primary flex items-center gap-1">
+                      <Brain className="w-3 h-3" /> Fokusminne (inlärda hotspots):
+                    </span>
+                    {orchestrator.unifiedResult.adaptive_scan.focus_memory!.slice(0, 8).map((fm: any, i: number) => (
+                      <div key={i} className="flex items-center gap-1.5 text-[9px] text-muted-foreground ml-2">
+                        <Badge variant={fm.severity === 'critical' ? 'destructive' : 'secondary'} className="text-[7px] h-3.5 px-1">
+                          {fm.focus_type}
+                        </Badge>
+                        <span className="font-medium">{fm.label}</span>
+                        <span className="text-muted-foreground/60">({fm.issue_count} problem i {fm.scan_count} skanningar)</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </CardHeader>
