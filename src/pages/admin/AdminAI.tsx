@@ -1951,10 +1951,35 @@ const SystemScanTab = () => {
       source_type: 'scan',
       source_id: currentScanId || lastScan?.id || null,
       created_by: session.user.id,
-    } as any).select('id').single();
-    const wiId = (wiRow as any)?.id || null;
+    } as any).select('id, title, status, priority, item_type, ai_detected, ai_category, ai_type_classification, ai_confidence, execution_order, depends_on, blocks, conflict_flag, duplicate_of, created_at, ai_type_reason').single();
+    const newItem = wiRow as any;
+    const wiId = newItem?.id || null;
     logChange({ change_type: 'task_created', description: `Work item skapat från scan: ${issue.title}`, source: 'ai', affected_components: ['work_items', 'scan'], scan_id: currentScanId || lastScan?.id || null, work_item_id: wiId });
-    toast.success('Ärende skapat i Workbench');
+
+    // Remove issue from detected list and add to master list
+    setScanResult((prev: any) => {
+      if (!prev) return prev;
+      const updatedIssues = (prev.issues || []).filter((i: any) => i.title !== issue.title);
+
+      // Add the new work item into master list
+      const masterList = prev.master_list || { must_do: [], next_up: [], optional: [], total: 0 };
+      const prio = issue.severity === 'critical' ? 'critical' : issue.severity === 'high' ? 'high' : 'medium';
+      const target = prio === 'critical' ? 'must_do' : prio === 'high' ? 'next_up' : 'optional';
+
+      return {
+        ...prev,
+        issues: updatedIssues,
+        issues_found: updatedIssues.length,
+        master_list: {
+          ...masterList,
+          [target]: [...(masterList[target] || []), newItem || { id: wiId, title: `[Scan] ${issue.title}`, priority: prio, status: 'open' }],
+          total: (masterList.total || 0) + 1,
+        },
+      };
+    });
+
+    setExpandedIssue(null);
+    toast.success('Ärende skapat och flyttat till Master Task List');
   };
 
   // Load last scan on mount
