@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import {
   Bot, Copy, Play, TrendingUp, Radar, Activity, Monitor, Compass,
