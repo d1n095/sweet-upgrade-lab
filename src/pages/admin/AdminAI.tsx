@@ -404,8 +404,10 @@ const TaskAITab = () => {
             {!loadingItems && activeItems.length === 0 && (
               <p className="text-sm text-muted-foreground py-4 text-center">Inga aktiva AI-uppgifter</p>
             )}
-            {activeItems.map(item => (
-              <div key={item.id} className="border rounded-lg p-3 space-y-2">
+            {activeItems.map(item => {
+              const { openDetail } = useDetailContext();
+              return (
+              <div key={item.id} className="border rounded-lg p-3 space-y-2 cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => openDetail(item.id)}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
