@@ -97,6 +97,7 @@ const AdminSettingsPage = () => {
             <TabsTrigger value="shipping">🚚 Frakt</TabsTrigger>
             <TabsTrigger value="pages">📄 Sidor</TabsTrigger>
             <TabsTrigger value="homepage">🏠 Startsida</TabsTrigger>
+            <TabsTrigger value="social">📱 Sociala medier</TabsTrigger>
             <TabsTrigger value="advanced">⚙️ System</TabsTrigger>
           </TabsList>
         </ScrollableTabs>
