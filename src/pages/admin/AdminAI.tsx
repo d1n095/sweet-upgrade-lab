@@ -5079,12 +5079,67 @@ const OrchestrationTab = () => {
                   </div>
                   <Separator />
                   <div>
-                    <p className="text-xs font-semibold mb-1">✅ Final Validator — Score: {result.pass2?.validator?.final_approval_score}/100</p>
+                    <p className="text-xs font-semibold mb-1">🔴 Critical Validator — Score: {result.pass2?.validator?.final_approval_score}/100</p>
                     <p className="text-xs text-muted-foreground">{result.pass2?.validator?.final_verdict}</p>
+                    {result.pass2?.validator?.must_fix_before_deploy?.length > 0 && (
+                      <div className="mt-2 p-2 rounded border border-destructive/30 bg-destructive/5">
+                        <p className="text-[10px] font-semibold text-destructive mb-1">⚠️ Måste fixas före deploy:</p>
+                        {result.pass2?.validator?.must_fix_before_deploy?.map((fix: string, i: number) => (
+                          <p key={i} className="text-[10px] text-destructive/80">• {fix}</p>
+                        ))}
+                      </div>
+                    )}
                     {result.pass2?.validator?.remaining_issues?.map((issue: any, i: number) => (
-                      <Badge key={i} variant="outline" className="text-[10px] mr-1 mt-1">{issue.severity}: {issue.issue}</Badge>
+                      <div key={i} className="flex items-center gap-1 mt-1">
+                        <Badge variant="outline" className={cn("text-[10px]",
+                          issue.severity === 'critical' ? 'border-red-500 text-red-600' :
+                          issue.severity === 'high' ? 'border-orange-500 text-orange-600' : ''
+                        )}>{issue.severity}</Badge>
+                        <Badge variant="outline" className="text-[10px]">{issue.category}</Badge>
+                        <span className="text-[10px] text-muted-foreground">{issue.issue}</span>
+                      </div>
                     ))}
                   </div>
+                  {result.pass2?.validator?.edge_cases_tested?.length > 0 && (
+                    <>
+                      <Separator />
+                      <div>
+                        <p className="text-xs font-semibold mb-1">🧪 Edge Cases</p>
+                        {result.pass2?.validator?.edge_cases_tested?.map((ec: any, i: number) => (
+                          <div key={i} className="flex items-center gap-1 mt-1">
+                            <Badge variant="outline" className={cn("text-[10px]",
+                              ec.result === 'fail' ? 'border-red-500 text-red-600' :
+                              ec.result === 'pass' ? 'border-green-500 text-green-600' : ''
+                            )}>{ec.result}</Badge>
+                            <span className="text-[10px] text-muted-foreground">{ec.scenario}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                  {result.pass2?.validator?.security_audit && (
+                    <>
+                      <Separator />
+                      <div>
+                        <p className="text-xs font-semibold mb-1">🔒 Säkerhetsaudit — Risk: {result.pass2?.validator?.security_audit?.risk_level}</p>
+                        {result.pass2?.validator?.security_audit?.vulnerabilities?.map((v: string, i: number) => (
+                          <p key={i} className="text-[10px] text-muted-foreground">• {v}</p>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                  {result.pass2?.validator?.stress_test_results && (
+                    <>
+                      <Separator />
+                      <div>
+                        <p className="text-xs font-semibold mb-1">📈 Stress Test — Scalability: {result.pass2?.validator?.stress_test_results?.scalability_score}/100</p>
+                        <p className="text-[10px] text-muted-foreground">Breaking point: {result.pass2?.validator?.stress_test_results?.breaking_point}</p>
+                        {result.pass2?.validator?.stress_test_results?.bottlenecks?.map((b: string, i: number) => (
+                          <Badge key={i} variant="outline" className="text-[10px] mr-1 mt-1">{b}</Badge>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
               </ScrollArea>
             </CardContent>

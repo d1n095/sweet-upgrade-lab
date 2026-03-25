@@ -5205,16 +5205,29 @@ Returnera JSON:
   let pass2GenResult: any;
   try { pass2GenResult = JSON.parse(pass2Generator); } catch { pass2GenResult = { solution_v2: { title: "Förbättrad analys", final_analysis: pass2Generator, final_recommendations: [], final_actions: [] }, improvement_delta: "N/A", pass2_confidence: 60 }; }
 
-  const pass2Validator = await callAI(apiKey, "openai/gpt-5-mini", [
-    { role: "system", content: `Du är den slutgiltiga granskaren (Final Validator). Gör kritisk granskning av den förbättrade lösningen.
+  const pass2Validator = await callAI(apiKey, "openai/gpt-5", [
+    { role: "system", content: `Du är en KRITISK säkerhetsgranskare (Critical Validator Pass 2). Din uppgift är att STRESS-TESTA lösningen. Var aggressivt kritisk.
+
+Du MÅSTE:
+1. EDGE CASES — Hitta extremfall som kan krascha systemet (tom data, stora volymer, samtidiga anrop, ogiltiga inputs, unicode, SQL injection, XSS)
+2. HIDDEN BUGS — Identifiera race conditions, minnesläckor, oändliga loopar, felaktig felhantering, saknade null-checks
+3. CHALLENGE ASSUMPTIONS — Ifrågasätt varje antagande. Vad händer om DB är nere? Om API svarar långsamt? Om användaren är offline?
+4. SCALABILITY — Kan detta hantera 10x, 100x nuvarande last? Var finns flaskhalsarna?
+5. SECURITY — Identifiera privilege escalation, data exposure, missing auth checks, insecure defaults
+6. DATA INTEGRITY — Kan data bli inkonsistent? Saknas transaktioner? Finns orphaned records-risker?
+
 Returnera JSON:
 {
   "final_approval_score": 0-100,
-  "remaining_issues": [{"issue": "string", "severity": "string"}],
+  "remaining_issues": [{"issue": "string", "severity": "critical|high|medium|low", "category": "edge_case|hidden_bug|assumption|scalability|security|data_integrity"}],
+  "edge_cases_tested": [{"scenario": "string", "result": "pass|fail|unknown", "risk": "string"}],
+  "stress_test_results": {"scalability_score": 0-100, "bottlenecks": ["string"], "breaking_point": "string"},
+  "security_audit": {"vulnerabilities": ["string"], "risk_level": "low|medium|high|critical"},
   "ready_for_execution": true/false,
-  "final_verdict": "string"
+  "final_verdict": "string",
+  "must_fix_before_deploy": ["string"]
 }` },
-    { role: "user", content: `Slutgiltig lösning:\n${JSON.stringify(pass2GenResult.solution_v2)}\n\nUrsprungliga problem:\n${JSON.stringify(validatorResult.issues_found)}\n\nGör slutgiltig bedömning.` }
+    { role: "user", content: `Slutgiltig lösning att STRESS-TESTA:\n${JSON.stringify(pass2GenResult.solution_v2)}\n\nUrsprungliga problem (Pass 1):\n${JSON.stringify(validatorResult.issues_found)}\n\nPass 1 Validator Score: ${validatorResult.approval_score}/100\nPass 1 Risk: ${validatorResult.risk_assessment}\n\nGör DJUPGÅENDE kritisk granskning. Var hård.` }
   ]);
 
   let pass2ValResult: any;
