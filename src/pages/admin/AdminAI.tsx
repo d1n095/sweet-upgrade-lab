@@ -6839,6 +6839,7 @@ const OrchestrationTab = () => {
         <div data-value="cleanup"><DataCleanupTab /></div>
         <div data-value="insights"><DataInsightsTab /></div>
         <div data-value="change-log"><ChangeLogTab /></div>
+        <div data-value="ai-reads"><AdminAiReadLog /></div>
       </AiCenterTabs>
 
       <WorkItemDetail
