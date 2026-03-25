@@ -153,6 +153,87 @@ const copyToClipboard = (text: string, buttonId?: string) => {
   toast.success('Kopierat till urklipp');
 };
 
+const applyFix = async (
+  fixText: string,
+  issueTitle: string,
+  opts?: { category?: string; severity?: string; workItemId?: string; bugId?: string; buttonId?: string }
+): Promise<boolean> => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) { toast.error('Ej inloggad'); return false; }
+
+  // UI feedback: show loading
+  if (opts?.buttonId) {
+    const el = document.getElementById(opts.buttonId);
+    if (el) { el.textContent = '⏳ Analyserar...'; el.setAttribute('disabled', 'true'); }
+  }
+
+  try {
+    const resp = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/apply-fix`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          fix_text: fixText,
+          issue_title: issueTitle,
+          issue_category: opts?.category,
+          issue_severity: opts?.severity,
+          source_work_item_id: opts?.workItemId,
+          source_bug_id: opts?.bugId,
+        }),
+      }
+    );
+
+    const data = await resp.json();
+
+    if (opts?.buttonId) {
+      const el = document.getElementById(opts.buttonId);
+      if (el) el.removeAttribute('disabled');
+    }
+
+    if (!resp.ok) {
+      toast.error(data.error || 'Apply fix misslyckades');
+      if (opts?.buttonId) {
+        const el = document.getElementById(opts.buttonId);
+        if (el) { el.textContent = '❌ Misslyckades'; setTimeout(() => { el.textContent = '⚡ Apply Fix'; }, 2000); }
+      }
+      return false;
+    }
+
+    if (data.executed && data.success) {
+      toast.success(data.message || '✅ Fix applicerad!');
+      if (opts?.buttonId) {
+        const el = document.getElementById(opts.buttonId);
+        if (el) { el.textContent = '✅ Applicerad'; el.classList.add('text-green-600'); setTimeout(() => { el.textContent = '⚡ Apply Fix'; el.classList.remove('text-green-600'); }, 3000); }
+      }
+      return true;
+    } else if (data.executed && !data.success) {
+      toast.warning(data.message || '⚠️ Delvis applicerad');
+      return false;
+    } else {
+      // Not executable — fallback to copy
+      const reason = data.plan?.fix_type === 'code_change' ? 'Kräver kodändring — kopierad till urklipp' : (data.message || 'Kan inte auto-appliceras');
+      toast.info(`📋 ${reason}`);
+      copyToClipboard(fixText);
+      if (opts?.buttonId) {
+        const el = document.getElementById(opts.buttonId);
+        if (el) { el.textContent = '📋 Kopierad'; setTimeout(() => { el.textContent = '⚡ Apply Fix'; }, 2000); }
+      }
+      return false;
+    }
+  } catch (e: any) {
+    toast.error('Apply fix fel: ' + (e.message || 'okänt'));
+    if (opts?.buttonId) {
+      const el = document.getElementById(opts.buttonId);
+      if (el) { el.removeAttribute('disabled'); el.textContent = '⚡ Apply Fix'; }
+    }
+    return false;
+  }
+};
+
 // ── Lova 0.5 Chat Tab ──
 interface ChatMessage {
   id: string;
@@ -1304,9 +1385,22 @@ const BugAITab = () => {
                       <div className="text-xs border rounded-md p-2 bg-muted/30">{selectedFix.summary}</div>
                     )}
                     {(selectedFix.lovable_prompt || selectedFix.fix_suggestions?.[0]?.lovable_prompt) && (
-                      <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => copyToClipboard(selectedFix.lovable_prompt || selectedFix.fix_suggestions?.[0]?.lovable_prompt || '')}>
-                        <Copy className="w-3 h-3" /> Kopiera prompt
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="default" className="h-7 text-xs gap-1" onClick={() => {
+                          const fixText = selectedFix.lovable_prompt || selectedFix.fix_suggestions?.[0]?.lovable_prompt || '';
+                          applyFix(fixText, selectedBug?.description?.slice(0, 80) || 'Bug fix', {
+                            severity: selectedBug?.ai_severity,
+                            category: selectedBug?.ai_category,
+                            bugId: selectedBug?.id,
+                            buttonId: 'apply-fix-bug',
+                          });
+                        }} id="apply-fix-bug">
+                          <Zap className="w-3 h-3" /> Apply Fix
+                        </Button>
+                        <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => copyToClipboard(selectedFix.lovable_prompt || selectedFix.fix_suggestions?.[0]?.lovable_prompt || '')}>
+                          <Copy className="w-3 h-3" /> Kopiera prompt
+                        </Button>
+                      </div>
                     )}
                   </div>
                 )}
@@ -2236,20 +2330,38 @@ const SystemScanTab = () => {
                         <div className="pt-2 border-t space-y-2 text-xs" onClick={(e) => e.stopPropagation()}>
                           <p className="text-muted-foreground">{issue.description}</p>
                           <div>
-                            <div className="flex items-center justify-between">
+                             <div className="flex items-center justify-between">
                               <span className="font-medium text-muted-foreground">🔧 Fix-förslag:</span>
-                              <Button
-                                size="sm"
-                                variant="default"
-                                className="h-6 text-[10px] gap-1"
-                                id={`copy-fix-${i}`}
-                                onClick={() => {
-                                  const fixText = issue.lovable_prompt || issue.fix_suggestion || '';
-                                  copyToClipboard(fixText, `copy-fix-${i}`);
-                                }}
-                              >
-                                📋 Copy Fix
-                              </Button>
+                              <div className="flex gap-1">
+                                <Button
+                                  size="sm"
+                                  variant="default"
+                                  className="h-6 text-[10px] gap-1"
+                                  id={`apply-fix-${i}`}
+                                  onClick={() => {
+                                    const fixText = issue.lovable_prompt || issue.fix_suggestion || '';
+                                    applyFix(fixText, issue.title, {
+                                      category: issue.category,
+                                      severity: issue.severity,
+                                      buttonId: `apply-fix-${i}`,
+                                    });
+                                  }}
+                                >
+                                  ⚡ Apply Fix
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-6 text-[10px] gap-1"
+                                  id={`copy-fix-${i}`}
+                                  onClick={() => {
+                                    const fixText = issue.lovable_prompt || issue.fix_suggestion || '';
+                                    copyToClipboard(fixText, `copy-fix-${i}`);
+                                  }}
+                                >
+                                  📋 Copy Fix
+                                </Button>
+                              </div>
                             </div>
                             <p className="mt-1">{issue.fix_suggestion}</p>
                           </div>
