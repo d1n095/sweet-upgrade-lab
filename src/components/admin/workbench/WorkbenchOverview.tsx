@@ -13,7 +13,7 @@ const WorkbenchOverview = ({ onNavigate }: Props) => {
     queryKey: ['workbench-stats'],
     queryFn: async () => {
       const [itemsRes, ordersRes] = await Promise.all([
-        supabase.from('work_items' as any).select('status, priority, item_type, source_type').neq('status', 'cancelled'),
+        supabase.from('work_items' as any).select('status, priority, item_type, source_type, ignored').neq('status', 'cancelled'),
         supabase
           .from('orders')
           .select('status, payment_status, fulfillment_status')
@@ -22,7 +22,7 @@ const WorkbenchOverview = ({ onNavigate }: Props) => {
           .eq('payment_status', 'paid'),
       ]);
 
-      const items = (itemsRes.data || []) as any[];
+      const items = ((itemsRes.data || []) as any[]).filter(t => !t.ignored);
       const orders = ordersRes.data || [];
 
       return {
