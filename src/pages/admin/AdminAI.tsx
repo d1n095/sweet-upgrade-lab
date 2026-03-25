@@ -2657,6 +2657,10 @@ const AdminAI = () => {
               <ShieldCheck className="w-3.5 h-3.5" />
               Guardian
             </TabsTrigger>
+            <TabsTrigger value="interaction-qa" className="gap-1.5 text-xs">
+              <Zap className="w-3.5 h-3.5" />
+              Interaction QA
+            </TabsTrigger>
           </TabsList>
         </ScrollableTabs>
 
