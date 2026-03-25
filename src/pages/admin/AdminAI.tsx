@@ -3399,15 +3399,17 @@ const NavBugScanTab = () => {
           {/* Route status */}
           <Card className="p-4">
             <h4 className="text-xs font-semibold mb-2">Route-status</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
-              {navResult.route_status?.map((r: any, i: number) => (
-                <div key={i} className="flex items-center gap-2 p-1.5 rounded text-xs">
-                  {routeIcon(r.status)}
-                  <span className="font-mono text-[10px] text-muted-foreground w-32 shrink-0">{r.path}</span>
-                  <span className="truncate">{r.notes}</span>
-                </div>
-              ))}
-            </div>
+            <ScrollArea className="max-h-[30vh]">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5 pr-2">
+                {navResult.route_status?.map((r: any, i: number) => (
+                  <div key={i} className="flex items-center gap-2 p-1.5 rounded text-xs">
+                    {routeIcon(r.status)}
+                    <span className="font-mono text-[10px] text-muted-foreground w-32 shrink-0">{r.path}</span>
+                    <span className="truncate">{r.notes}</span>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
           </Card>
 
           {/* Nav issues */}
@@ -3501,14 +3503,18 @@ const NavBugScanTab = () => {
           {bugResult.duplicates?.length > 0 && (
             <Card className="p-4">
               <h4 className="text-xs font-semibold mb-2">Dubbletter ({bugResult.duplicates.length})</h4>
-              {bugResult.duplicates.map((d: any, i: number) => (
-                <div key={i} className="border rounded-md p-2 mb-1.5 text-xs">
-                  <div className="flex gap-1 flex-wrap mb-0.5">
-                    {d.bug_ids.map((id: string) => <span key={id} className="font-mono text-[9px] bg-muted px-1.5 py-0.5 rounded">{id.slice(0, 8)}</span>)}
-                  </div>
-                  <p className="text-[10px] text-muted-foreground">{d.reason}</p>
+              <ScrollArea className="max-h-[20vh]">
+                <div className="space-y-1.5 pr-2">
+                  {bugResult.duplicates.map((d: any, i: number) => (
+                    <div key={i} className="border rounded-md p-2 text-xs">
+                      <div className="flex gap-1 flex-wrap mb-0.5">
+                        {d.bug_ids.map((id: string) => <span key={id} className="font-mono text-[9px] bg-muted px-1.5 py-0.5 rounded">{id.slice(0, 8)}</span>)}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">{d.reason}</p>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </ScrollArea>
             </Card>
           )}
 
@@ -3516,12 +3522,16 @@ const NavBugScanTab = () => {
           {bugResult.missing_work_items?.length > 0 && (
             <Card className="p-4">
               <h4 className="text-xs font-semibold mb-2">Skapade saknade uppgifter ({bugResult.missing_work_items.length})</h4>
-              {bugResult.missing_work_items.map((m: any, i: number) => (
-                <div key={i} className="border rounded-md p-2 mb-1.5 flex items-center gap-2 text-xs">
-                  <Badge variant={m.priority === 'critical' || m.priority === 'high' ? 'destructive' : 'secondary'} className="text-[8px]">{m.priority}</Badge>
-                  <span>{m.title}</span>
+              <ScrollArea className="max-h-[20vh]">
+                <div className="space-y-1.5 pr-2">
+                  {bugResult.missing_work_items.map((m: any, i: number) => (
+                    <div key={i} className="border rounded-md p-2 flex items-center gap-2 text-xs">
+                      <Badge variant={m.priority === 'critical' || m.priority === 'high' ? 'destructive' : 'secondary'} className="text-[8px]">{m.priority}</Badge>
+                      <span>{m.title}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </ScrollArea>
             </Card>
           )}
         </div>
