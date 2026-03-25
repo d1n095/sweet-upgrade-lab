@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Bug, CheckCircle2, Loader2, Clock, MapPin, User, ChevronDown, ChevronUp, AlertCircle, Sparkles, Tag, Search, RefreshCw, BookOpen, Copy, Filter } from 'lucide-react';
+import { Bug, CheckCircle2, Loader2, Clock, MapPin, User, ChevronDown, ChevronUp, AlertCircle, Sparkles, Tag, Search, RefreshCw, BookOpen, Copy, Filter, Crosshair, Wrench, FileCode, ClipboardCopy } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -14,6 +14,19 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
+
+interface ActionableFix {
+  blocker_statement?: string;
+  root_cause_exact?: string;
+  location?: { file_path: string; function_name: string; system_area: string };
+  fix_steps?: string[];
+  copy_prompt?: string;
+  root_causes?: { cause: string; confidence: number; affected_area: string }[];
+  is_reproducible?: boolean;
+  reproducibility_reasoning?: string;
+  fix_suggestions?: { suggestion: string; effort: string; risk: string }[];
+  affected_components?: string[];
+}
 
 interface BugReport {
   id: string;
@@ -32,6 +45,7 @@ interface BugReport {
   ai_clean_prompt: string | null;
   ai_processed_at: string | null;
   ai_approved: boolean;
+  ai_actionable_fix: ActionableFix | null;
   work_item_status?: string;
   reporter_name?: string;
 }
@@ -72,7 +86,7 @@ const AdminBugReports = () => {
   const [processingAI, setProcessingAI] = useState<string | null>(null);
   const [promptSearch, setPromptSearch] = useState('');
   const [promptTagFilter, setPromptTagFilter] = useState<string | null>(null);
-  const [diagnostics, setDiagnostics] = useState<Record<string, any>>({});
+  
 
   const fetchBugs = async (): Promise<BugReport[]> => {
     const { data: bugs } = await supabase
@@ -214,24 +228,23 @@ const AdminBugReports = () => {
               ai_category: result.category,
               ai_severity: result.severity,
               ai_tags: result.tags,
-              ai_clean_prompt: result.clean_prompt,
+              ai_clean_prompt: result.copy_prompt,
               ai_processed_at: new Date().toISOString(),
+              ai_actionable_fix: {
+                blocker_statement: result.blocker_statement,
+                root_cause_exact: result.root_cause_exact,
+                location: result.location,
+                fix_steps: result.fix_steps,
+                copy_prompt: result.copy_prompt,
+                root_causes: result.root_causes,
+                is_reproducible: result.is_reproducible,
+                reproducibility_reasoning: result.reproducibility_reasoning,
+                fix_suggestions: result.fix_suggestions,
+                affected_components: result.affected_components || [],
+              },
             }
           : r
       ));
-      // Store extended diagnostics
-      if (result.root_causes || result.fix_suggestions) {
-        setDiagnostics(prev => ({
-          ...prev,
-          [bugId]: {
-            root_causes: result.root_causes || [],
-            is_reproducible: result.is_reproducible,
-            reproducibility_reasoning: result.reproducibility_reasoning,
-            fix_suggestions: result.fix_suggestions || [],
-            affected_components: result.affected_components || [],
-          },
-        }));
-      }
       toast.success('AI-analys klar ✓');
     } catch {
       toast.error('Något gick fel');
@@ -403,13 +416,13 @@ const AdminBugReports = () => {
               <div className="text-sm bg-muted/50 rounded-md p-2.5 whitespace-pre-wrap leading-relaxed">{r.description}</div>
             </div>
 
-            {/* AI Section */}
+            {/* AI Actionable Fix Section */}
             {r.ai_processed_at ? (
-              <div className="space-y-2 border border-primary/20 rounded-lg p-3 bg-primary/5">
+              <div className="space-y-3 border border-primary/20 rounded-lg p-3 bg-primary/5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
                     <Sparkles className="w-3.5 h-3.5" />
-                    AI-analys
+                    AI Actionable Fix
                   </div>
                   <div className="flex gap-1">
                     {!r.ai_approved && (
@@ -422,24 +435,124 @@ const AdminBugReports = () => {
                     </Button>
                   </div>
                 </div>
-                {r.ai_summary && (
-                  <div><span className="text-[10px] text-muted-foreground">Sammanfattning</span><p className="text-xs font-medium">{r.ai_summary}</p></div>
-                )}
-              {(r as any).ai_repro_steps && (
-                  <div>
-                    <span className="text-[10px] text-muted-foreground">Reproduktionssteg</span>
-                    <div className="text-xs bg-background rounded-md p-2 whitespace-pre-wrap border mt-0.5">{(r as any).ai_repro_steps}</div>
+
+                {/* BLOCKER */}
+                {(r.ai_actionable_fix?.blocker_statement || r.ai_summary) && (
+                  <div className="bg-destructive/10 border border-destructive/20 rounded-md p-2.5">
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-destructive mb-1">🔴 BLOCKER</div>
+                    <p className="text-xs font-medium">{r.ai_actionable_fix?.blocker_statement || r.ai_summary}</p>
                   </div>
                 )}
-                {r.ai_clean_prompt && (
-                  <div>
-                    <div className="flex items-center justify-between mb-0.5">
-                      <span className="text-[10px] text-muted-foreground">Strukturerad prompt</span>
-                      <Button size="sm" variant="ghost" className="h-5 text-[9px] gap-0.5 px-1" onClick={() => copyToClipboard(r.ai_clean_prompt!)}>
-                        <Copy className="w-2.5 h-2.5" /> Kopiera
+
+                {/* ROOT CAUSE */}
+                {r.ai_actionable_fix?.root_cause_exact && (
+                  <div className="bg-muted/50 border rounded-md p-2.5">
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-foreground mb-1">🧠 ROOT CAUSE</div>
+                    <p className="text-xs">{r.ai_actionable_fix.root_cause_exact}</p>
+                  </div>
+                )}
+
+                {/* LOCATION */}
+                {r.ai_actionable_fix?.location && (
+                  <div className="bg-muted/50 border rounded-md p-2.5">
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-foreground mb-1">
+                      <Crosshair className="w-3 h-3" /> LOCATION
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 text-xs">
+                        <FileCode className="w-3 h-3 text-muted-foreground shrink-0" />
+                        <code className="bg-background px-1.5 py-0.5 rounded font-mono text-[11px]">{r.ai_actionable_fix.location.file_path}</code>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="text-muted-foreground">→</span>
+                        <span className="font-medium">{r.ai_actionable_fix.location.function_name}</span>
+                        <span className="text-[9px] bg-muted px-1.5 py-0.5 rounded-full">{r.ai_actionable_fix.location.system_area}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* FIX STEPS */}
+                {r.ai_actionable_fix?.fix_steps && r.ai_actionable_fix.fix_steps.length > 0 && (
+                  <div className="bg-muted/50 border rounded-md p-2.5">
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-foreground mb-1.5">
+                      <Wrench className="w-3 h-3" /> FIX (EXACT)
+                    </div>
+                    <ol className="space-y-1.5 ml-0.5">
+                      {r.ai_actionable_fix.fix_steps.map((step, i) => (
+                        <li key={i} className="flex items-start gap-2 text-xs">
+                          <span className="shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary font-bold text-[10px] flex items-center justify-center mt-0.5">{i + 1}</span>
+                          <span className="flex-1">{step}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
+
+                {/* COPY PROMPT */}
+                {(r.ai_actionable_fix?.copy_prompt || r.ai_clean_prompt) && (
+                  <div className="bg-background border-2 border-primary/30 rounded-md p-2.5">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-foreground">
+                        <ClipboardCopy className="w-3 h-3" /> COPY PROMPT
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="default"
+                        className="h-6 text-[10px] gap-1"
+                        onClick={() => copyToClipboard(r.ai_actionable_fix?.copy_prompt || r.ai_clean_prompt!)}
+                      >
+                        <Copy className="w-2.5 h-2.5" /> Kopiera Fix
                       </Button>
                     </div>
-                    <div className="text-xs bg-background rounded-md p-2 whitespace-pre-wrap border">{r.ai_clean_prompt}</div>
+                    <div className="text-xs bg-muted rounded-md p-2.5 whitespace-pre-wrap font-mono leading-relaxed border max-h-48 overflow-y-auto">
+                      {r.ai_actionable_fix?.copy_prompt || r.ai_clean_prompt}
+                    </div>
+                  </div>
+                )}
+
+                {/* Root causes with confidence */}
+                {r.ai_actionable_fix?.root_causes && r.ai_actionable_fix.root_causes.length > 0 && (
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] text-muted-foreground font-semibold block">Möjliga orsaker (rankat)</span>
+                    {r.ai_actionable_fix.root_causes.map((rc, i) => (
+                      <div key={i} className="flex items-start gap-2 text-xs bg-background rounded-md p-2 border">
+                        <div className={cn(
+                          'shrink-0 w-8 h-5 rounded text-[10px] font-bold flex items-center justify-center',
+                          rc.confidence >= 70 ? 'bg-destructive/15 text-destructive' : rc.confidence >= 40 ? 'bg-amber-500/15 text-amber-700' : 'bg-muted text-muted-foreground'
+                        )}>
+                          {rc.confidence}%
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium">{rc.cause}</p>
+                          <span className="text-[10px] text-muted-foreground">{rc.affected_area}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Reproducibility */}
+                {r.ai_actionable_fix?.is_reproducible !== undefined && (
+                  <div className="text-xs space-y-0.5">
+                    <Badge variant={r.ai_actionable_fix.is_reproducible ? 'destructive' : 'secondary'} className="text-[9px]">
+                      {r.ai_actionable_fix.is_reproducible ? 'Reproducerbar' : 'Ej säkert reproducerbar'}
+                    </Badge>
+                    {r.ai_actionable_fix.reproducibility_reasoning && (
+                      <p className="text-muted-foreground mt-1">{r.ai_actionable_fix.reproducibility_reasoning}</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Affected components */}
+                {r.ai_actionable_fix?.affected_components && r.ai_actionable_fix.affected_components.length > 0 && (
+                  <div>
+                    <span className="text-[10px] text-muted-foreground block mb-1">Berörda filer</span>
+                    <div className="flex gap-1 flex-wrap">
+                      {r.ai_actionable_fix.affected_components.map((c, i) => (
+                        <code key={i} className="text-[9px] bg-muted px-1.5 py-0.5 rounded font-mono">{c}</code>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -454,73 +567,6 @@ const AdminBugReports = () => {
                 {isProcessing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
                 Bearbeta med AI
               </Button>
-            )}
-
-            {/* AI Diagnostics Panel */}
-            {diagnostics[r.id] && (
-              <div className="space-y-3 border border-amber-300/30 rounded-lg p-3 bg-amber-50/5">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-700">
-                  <AlertCircle className="w-3.5 h-3.5" />
-                  AI Diagnostik
-                </div>
-                <div className="text-xs space-y-0.5">
-                  <Badge variant={diagnostics[r.id].is_reproducible ? 'destructive' : 'secondary'} className="text-[9px]">
-                    {diagnostics[r.id].is_reproducible ? 'Reproducerbar' : 'Ej säkert reproducerbar'}
-                  </Badge>
-                  <p className="text-muted-foreground mt-1">{diagnostics[r.id].reproducibility_reasoning}</p>
-                </div>
-                {diagnostics[r.id].root_causes?.length > 0 && (
-                  <div>
-                    <span className="text-[10px] text-muted-foreground block mb-1">Möjliga orsaker</span>
-                    <div className="space-y-1.5">
-                      {diagnostics[r.id].root_causes.map((rc: any, i: number) => (
-                        <div key={i} className="flex items-start gap-2 text-xs bg-background rounded-md p-2 border">
-                          <div className={cn(
-                            'shrink-0 w-8 h-5 rounded text-[10px] font-bold flex items-center justify-center',
-                            rc.confidence >= 70 ? 'bg-destructive/15 text-destructive' : rc.confidence >= 40 ? 'bg-amber-500/15 text-amber-700' : 'bg-muted text-muted-foreground'
-                          )}>
-                            {rc.confidence}%
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium">{rc.cause}</p>
-                            <span className="text-[10px] text-muted-foreground">{rc.affected_area}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {diagnostics[r.id].fix_suggestions?.length > 0 && (
-                  <div>
-                    <span className="text-[10px] text-muted-foreground block mb-1">Föreslagna åtgärder</span>
-                    <div className="space-y-1.5">
-                      {diagnostics[r.id].fix_suggestions.map((fs: any, i: number) => (
-                        <div key={i} className="text-xs bg-background rounded-md p-2 border flex items-start justify-between gap-2">
-                          <p className="flex-1">{fs.suggestion}</p>
-                          <div className="flex gap-1 shrink-0">
-                            <span className={cn('text-[9px] px-1.5 py-0.5 rounded-full border',
-                              fs.effort === 'low' ? 'bg-green-500/10 text-green-700 border-green-200' : fs.effort === 'high' ? 'bg-destructive/10 text-destructive border-destructive/20' : 'bg-amber-500/10 text-amber-700 border-amber-200'
-                            )}>Insats: {fs.effort}</span>
-                            <span className={cn('text-[9px] px-1.5 py-0.5 rounded-full border',
-                              fs.risk === 'low' ? 'bg-green-500/10 text-green-700 border-green-200' : fs.risk === 'high' ? 'bg-destructive/10 text-destructive border-destructive/20' : 'bg-amber-500/10 text-amber-700 border-amber-200'
-                            )}>Risk: {fs.risk}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {diagnostics[r.id].affected_components?.length > 0 && (
-                  <div>
-                    <span className="text-[10px] text-muted-foreground block mb-1">Troligen berörda filer</span>
-                    <div className="flex gap-1 flex-wrap">
-                      {diagnostics[r.id].affected_components.map((c: string, i: number) => (
-                        <code key={i} className="text-[9px] bg-muted px-1.5 py-0.5 rounded font-mono">{c}</code>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
             )}
 
             {r.status === 'resolved' && (
@@ -674,13 +720,32 @@ const AdminBugReports = () => {
                             {r.status === 'open' ? 'Öppen' : 'Löst'}
                           </Badge>
                         </div>
-                        <p className="text-xs font-medium mb-1">{r.ai_summary}</p>
+                        <p className="text-xs font-medium mb-1">{r.ai_actionable_fix?.blocker_statement || r.ai_summary}</p>
+                        {r.ai_actionable_fix?.location && (
+                          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mb-1">
+                            <FileCode className="w-3 h-3" />
+                            <code className="font-mono">{r.ai_actionable_fix.location.file_path}</code>
+                            <span>→ {r.ai_actionable_fix.location.function_name}</span>
+                          </div>
+                        )}
                       </div>
-                      <Button size="sm" variant="outline" className="h-6 text-[10px] gap-0.5 shrink-0" onClick={() => copyToClipboard(r.ai_clean_prompt!)}>
-                        <Copy className="w-2.5 h-2.5" /> Kopiera
+                      <Button size="sm" variant="default" className="h-6 text-[10px] gap-0.5 shrink-0" onClick={() => copyToClipboard(r.ai_actionable_fix?.copy_prompt || r.ai_clean_prompt!)}>
+                        <Copy className="w-2.5 h-2.5" /> Kopiera Fix
                       </Button>
                     </div>
-                    <div className="text-xs bg-muted/50 rounded-md p-2 whitespace-pre-wrap border font-mono leading-relaxed">{r.ai_clean_prompt}</div>
+                    {r.ai_actionable_fix?.fix_steps && r.ai_actionable_fix.fix_steps.length > 0 && (
+                      <div className="text-xs space-y-1 bg-muted/30 rounded-md p-2 border">
+                        {r.ai_actionable_fix.fix_steps.map((step, i) => (
+                          <div key={i} className="flex items-start gap-1.5">
+                            <span className="shrink-0 text-primary font-bold text-[10px]">{i + 1}.</span>
+                            <span>{step}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div className="text-xs bg-muted/50 rounded-md p-2 whitespace-pre-wrap border font-mono leading-relaxed max-h-32 overflow-y-auto">
+                      {r.ai_actionable_fix?.copy_prompt || r.ai_clean_prompt}
+                    </div>
                     {r.ai_tags && r.ai_tags.length > 0 && (
                       <div className="flex gap-1 flex-wrap">
                         {r.ai_tags.map(tag => (
