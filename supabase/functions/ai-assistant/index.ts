@@ -4735,3 +4735,174 @@ Basera analysen på verklig data — inte spekulationer.`;
 
   return { ...analysis, tasks_created: tasksCreated };
 }
+
+// ── Sync Scanner ──
+async function handleSyncScan(supabase: any, lovableKey: string) {
+  // 1. Categories: DB vs product_categories links
+  const { data: allCats } = await supabase.from("categories").select("id, name_sv, slug, is_visible, parent_id").limit(200);
+  const { data: pcLinks } = await supabase.from("product_categories").select("product_id, category_id").limit(2000);
+  const { data: allProducts } = await supabase.from("products").select("id, title_sv, is_visible, is_sellable, category, status, handle, stock, image_urls").limit(500);
+  const { data: recentOrders } = await supabase.from("orders").select("id, status, payment_status, total_amount, items, deleted_at, created_at").order("created_at", { ascending: false }).limit(50);
+  const { data: workItems } = await supabase.from("work_items").select("id, title, status, source_type, source_id, related_order_id").in("status", ["open", "claimed", "in_progress"]).limit(200);
+  const { data: bugReports } = await supabase.from("bug_reports").select("id, status, description").in("status", ["open", "investigating"]).limit(50);
+
+  // Build sync checks
+  const checks: any[] = [];
+
+  // Check: orphan product_categories (category_id not in categories)
+  const catIds = new Set((allCats || []).map((c: any) => c.id));
+  const productIds = new Set((allProducts || []).map((p: any) => p.id));
+  const orphanLinks = (pcLinks || []).filter((l: any) => !catIds.has(l.category_id));
+  const orphanProductLinks = (pcLinks || []).filter((l: any) => !productIds.has(l.product_id));
+  if (orphanLinks.length > 0) checks.push({ type: "orphan_category_link", count: orphanLinks.length, detail: `${orphanLinks.length} product_categories pekar till raderade kategorier` });
+  if (orphanProductLinks.length > 0) checks.push({ type: "orphan_product_link", count: orphanProductLinks.length, detail: `${orphanProductLinks.length} product_categories pekar till raderade produkter` });
+
+  // Check: categories with parent_id pointing to missing parent
+  const orphanParents = (allCats || []).filter((c: any) => c.parent_id && !catIds.has(c.parent_id));
+  if (orphanParents.length > 0) checks.push({ type: "orphan_parent", count: orphanParents.length, detail: `${orphanParents.length} kategorier pekar till raderad föräldrakategori`, items: orphanParents.map((c: any) => c.name_sv) });
+
+  // Check: visible products without any category
+  const productsWithCat = new Set((pcLinks || []).map((l: any) => l.product_id));
+  const visibleNoCat = (allProducts || []).filter((p: any) => p.is_visible && p.is_sellable && !productsWithCat.has(p.id));
+  if (visibleNoCat.length > 0) checks.push({ type: "product_no_category", count: visibleNoCat.length, detail: `${visibleNoCat.length} synliga produkter saknar kategoritilldelning`, items: visibleNoCat.slice(0, 10).map((p: any) => p.title_sv) });
+
+  // Check: products with missing images
+  const noImages = (allProducts || []).filter((p: any) => p.is_visible && (!p.image_urls || p.image_urls.length === 0));
+  if (noImages.length > 0) checks.push({ type: "product_no_image", count: noImages.length, detail: `${noImages.length} synliga produkter saknar bilder`, items: noImages.slice(0, 10).map((p: any) => p.title_sv) });
+
+  // Check: products with missing handle
+  const noHandle = (allProducts || []).filter((p: any) => p.is_visible && !p.handle);
+  if (noHandle.length > 0) checks.push({ type: "product_no_handle", count: noHandle.length, detail: `${noHandle.length} produkter saknar URL-handle` });
+
+  // Check: work_items linked to deleted/cancelled orders
+  const deletedOrderIds = new Set((recentOrders || []).filter((o: any) => o.deleted_at || o.status === "cancelled").map((o: any) => o.id));
+  const staleWorkItems = (workItems || []).filter((w: any) => w.related_order_id && deletedOrderIds.has(w.related_order_id));
+  if (staleWorkItems.length > 0) checks.push({ type: "stale_work_items", count: staleWorkItems.length, detail: `${staleWorkItems.length} aktiva uppgifter kopplade till raderade/avbrutna ordrar` });
+
+  // Check: bug_reports with open status but linked work_item is done
+  const bugSourceIds = new Set((workItems || []).filter((w: any) => w.source_type === "bug_report" && w.status === "done").map((w: any) => w.source_id));
+  // Not straightforward without matching, but check open bugs count
+  const openBugs = (bugReports || []).length;
+
+  // Send to AI for analysis
+  const prompt = `Du är en systemintegritetsexpert. Analysera dessa synkroniseringskontroller för en svensk e-handelsplattform.
+
+KONTROLLER:
+${JSON.stringify(checks, null, 2)}
+
+STATS:
+- Kategorier: ${(allCats || []).length}
+- Produkter: ${(allProducts || []).length}
+- Kategori-kopplingar: ${(pcLinks || []).length}
+- Aktiva uppgifter: ${(workItems || []).length}
+- Öppna buggar: ${openBugs}
+
+Analysera synkroniseringsproblem mellan frontend och backend. Klassificera varje problem.`;
+
+  const analysis = await callAIWithTools(lovableKey, prompt, [{
+    type: "function",
+    function: {
+      name: "sync_scan_results",
+      description: "Return sync scan findings",
+      parameters: {
+        type: "object",
+        properties: {
+          sync_score: { type: "number", description: "Sync health score 0-100" },
+          executive_summary: { type: "string" },
+          issues: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                title: { type: "string" },
+                type: { type: "string", enum: ["category_mismatch", "product_mismatch", "orphan_data", "stale_reference", "missing_data", "status_desync"] },
+                severity: { type: "string", enum: ["critical", "high", "medium", "low"] },
+                affected_count: { type: "number" },
+                description: { type: "string" },
+                fix_action: { type: "string" },
+                can_auto_fix: { type: "boolean" },
+              },
+              required: ["title", "type", "severity", "affected_count", "description", "fix_action", "can_auto_fix"],
+            },
+          },
+          auto_fixed: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: { action: { type: "string" }, count: { type: "number" } },
+              required: ["action", "count"],
+            },
+          },
+          issues_found: { type: "number" },
+        },
+        required: ["sync_score", "executive_summary", "issues", "auto_fixed", "issues_found"],
+        additionalProperties: false,
+      },
+    },
+  }], { type: "function", function: { name: "sync_scan_results" } });
+
+  // Auto-fix safe issues
+  let autoFixCount = 0;
+  // Fix orphan product_categories
+  if (orphanLinks.length > 0) {
+    for (const link of orphanLinks) {
+      await supabase.from("product_categories").delete().eq("category_id", link.category_id).eq("product_id", link.product_id);
+      autoFixCount++;
+    }
+  }
+  if (orphanProductLinks.length > 0) {
+    for (const link of orphanProductLinks) {
+      await supabase.from("product_categories").delete().eq("product_id", link.product_id).eq("category_id", link.category_id);
+      autoFixCount++;
+    }
+  }
+  // Fix orphan parent references
+  if (orphanParents.length > 0) {
+    for (const cat of orphanParents) {
+      await supabase.from("categories").update({ parent_id: null }).eq("id", cat.id);
+      autoFixCount++;
+    }
+  }
+
+  // Create work items for issues that can't be auto-fixed
+  let tasksCreated = 0;
+  if (analysis?.issues) {
+    for (const issue of analysis.issues) {
+      if (!["critical", "high"].includes(issue.severity) || issue.can_auto_fix) continue;
+      const { data: existing } = await supabase
+        .from("work_items")
+        .select("id")
+        .ilike("title", `%${issue.title.substring(0, 25)}%`)
+        .in("status", ["open", "claimed", "in_progress"])
+        .limit(1);
+      if (!existing?.length) {
+        await supabase.from("work_items").insert({
+          title: `Sync: ${issue.title}`.substring(0, 200),
+          description: `Typ: ${issue.type}\nAntal påverkade: ${issue.affected_count}\n\n${issue.description}\n\nÅtgärd: ${issue.fix_action}`,
+          status: "open",
+          priority: issue.severity === "critical" ? "critical" : "high",
+          item_type: "bug",
+          source_type: "ai_detection",
+          ai_detected: true,
+          ai_confidence: "high",
+          ai_category: "data_integrity",
+          ai_type_classification: "sync_issue",
+        });
+        tasksCreated++;
+      }
+    }
+  }
+
+  // Store scan result
+  await supabase.from("ai_scan_results").insert({
+    scan_type: "sync_scan",
+    overall_score: analysis?.sync_score || 0,
+    overall_status: (analysis?.sync_score || 0) >= 80 ? "healthy" : (analysis?.sync_score || 0) >= 50 ? "warning" : "critical",
+    executive_summary: analysis?.executive_summary || "",
+    results: { ...analysis, auto_fixed_count: autoFixCount },
+    issues_count: analysis?.issues_found || 0,
+    tasks_created: tasksCreated,
+  });
+
+  return { ...analysis, tasks_created: tasksCreated, auto_fixed_count: autoFixCount };
+}

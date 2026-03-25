@@ -4567,6 +4567,10 @@ const AdminAI = () => {
               <Eye className="w-3.5 h-3.5" />
               UX Scanner
             </TabsTrigger>
+            <TabsTrigger value="sync-scan" className="gap-1.5 text-xs">
+              <ArrowRightLeft className="w-3.5 h-3.5" />
+              Sync Scanner
+            </TabsTrigger>
           </TabsList>
         </ScrollableTabs>
 
@@ -4644,6 +4648,9 @@ const AdminAI = () => {
         </TabsContent>
         <TabsContent value="ux-scanner" className="mt-4">
           <UxScannerTab />
+        </TabsContent>
+        <TabsContent value="sync-scan" className="mt-4">
+          <SyncScannerTab />
         </TabsContent>
       </Tabs>
 
