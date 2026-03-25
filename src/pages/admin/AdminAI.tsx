@@ -3411,7 +3411,7 @@ const AiAutopilotTab = () => {
           <div className="grid grid-cols-3 gap-1.5">
             {SCAN_STEPS.map(step => {
               const active = selectedSteps.has(step.type);
-              const Icon = step.icon;
+              const Icon = SCAN_STEP_ICONS[step.type] || Radar;
               return (
                 <button
                   key={step.type}
@@ -3470,7 +3470,7 @@ const AiAutopilotTab = () => {
             <div className="space-y-1.5">
               {steps.map((step, i) => {
                 const stepConfig = SCAN_STEPS.find(s => s.type === step.type);
-                const Icon = stepConfig?.icon || Radar;
+                const Icon = SCAN_STEP_ICONS[step.type] || Radar;
                 const score = step.result?.system_score || step.result?.score || step.result?.interaction_score || step.result?.overall_score;
 
                 return (
