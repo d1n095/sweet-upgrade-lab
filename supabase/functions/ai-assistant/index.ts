@@ -5461,6 +5461,13 @@ ${recentScans.map((s: any) => `${s.scan_type}: ${s.overall_status} (${s.overall_
 
 === ÖPPNA BUGGAR (${openBugs.length}) ===
 ${openBugs.map((b: any) => `[${b.ai_severity || "?"}] ${b.ai_summary || b.description.substring(0, 80)}`).join("\n")}
+
+=== PROMPT-KÖ ===
+Väntande: ${pendingPrompts.length} | Klara (7d): ${recentlyDone.length}
+${pendingPrompts.map((p: any) => `⏳ [${p.priority}] ${p.title}`).join("\n")}
+${recentlyDone.length > 0 ? `\nNyligen avklarade:\n${recentlyDone.map((p: any) => `✅ ${p.title}`).join("\n")}` : ""}
+
+VIKTIGT: Om användaren markerat prompts som klara, identifiera PROAKTIVT nästa problem/förbättring att ta itu med baserat på skanningar och buggar. Föreslå aldrig samma prompt igen.
 `;
 
   const messages = [
