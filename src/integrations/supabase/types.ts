@@ -3579,6 +3579,7 @@ export type Database = {
           ignored: boolean | null
           ignored_at: string | null
           ignored_reason: string | null
+          issue_fingerprint: string | null
           item_type: string
           orchestrator_result: Json | null
           priority: string
@@ -3627,6 +3628,7 @@ export type Database = {
           ignored?: boolean | null
           ignored_at?: string | null
           ignored_reason?: string | null
+          issue_fingerprint?: string | null
           item_type?: string
           orchestrator_result?: Json | null
           priority?: string
@@ -3675,6 +3677,7 @@ export type Database = {
           ignored?: boolean | null
           ignored_at?: string | null
           ignored_reason?: string | null
+          issue_fingerprint?: string | null
           item_type?: string
           orchestrator_result?: Json | null
           priority?: string
