@@ -287,6 +287,7 @@ const TaskAITab = () => {
   const [running, setRunning] = useState<string | null>(null);
   const [lastResults, setLastResults] = useState<any>(null);
   const queryClient = useQueryClient();
+  const { openDetail } = useDetailContext();
 
   const { data: aiItems, isLoading: loadingItems, refetch: refetchItems } = useQuery({
     queryKey: ['ai-managed-items'],
