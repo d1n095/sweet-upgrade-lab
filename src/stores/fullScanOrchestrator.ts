@@ -4,6 +4,7 @@ import { useExecutionLockStore } from './executionLockStore';
 import { useFeedbackLoopStore } from './feedbackLoopStore';
 import { toast } from 'sonner';
 import { QueryClient } from '@tanstack/react-query';
+import { runUnifiedPipeline } from '@/lib/unifiedPipeline';
 
 export type OrchestratorStepStatus = 'pending' | 'running' | 'done' | 'error' | 'skipped';
 
