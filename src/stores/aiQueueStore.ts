@@ -326,6 +326,13 @@ async function runPostChecks(
       ),
       failureLog: [...s.failureLog, report],
     }));
+    // Feedback loop — evaluate after action for degraded tasks
+    const qState = get();
+    await useFeedbackLoopStore.getState().evaluateAfterAction('fix', task.title, {
+      failed: qState.tasks.filter(t => t.status === 'failed').length,
+      regressed: qState.tasks.filter(t => t.status === 'regressed').length + 1,
+      errors: qState.failureLog.length,
+    });
     return;
   }
 
@@ -336,6 +343,14 @@ async function runPostChecks(
         : t
     ),
   }));
+
+  // Feedback loop — evaluate after successful fix
+  const qState2 = get();
+  await useFeedbackLoopStore.getState().evaluateAfterAction('fix', task.title, {
+    failed: qState2.tasks.filter(t => t.status === 'failed').length,
+    regressed: qState2.tasks.filter(t => t.status === 'regressed').length,
+    errors: qState2.failureLog.length,
+  });
 }
 
 export const useAiQueueStore = create<AiQueueState>((set, get) => ({
