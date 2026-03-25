@@ -1,12 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '@/integrations/supabase/client';
-import { useExecutionLockStore } from './executionLockStore';
-import { useFeedbackLoopStore } from './feedbackLoopStore';
 import { toast } from 'sonner';
 import { QueryClient } from '@tanstack/react-query';
-import { runUnifiedPipeline } from '@/lib/unifiedPipeline';
-import { runCriticalPathCheck } from '@/lib/criticalPathProtection';
-import { runCriticalEscalation } from '@/lib/criticalEscalation';
 
 export type OrchestratorStepStatus = 'pending' | 'running' | 'done' | 'error' | 'skipped';
 
@@ -35,7 +30,6 @@ export interface UnifiedScanResult {
 
 /**
  * The 10 scanners in exact execution order.
- * Each maps to an existing edge function scan type.
  */
 const ORCHESTRATED_STEPS: { id: string; label: string; scanType: string; progressLabel: string }[] = [
   { id: 'data_flow_validation', label: 'Data Flow Validation', scanType: 'data_integrity', progressLabel: 'Validerar dataflöden...' },
@@ -52,148 +46,39 @@ const ORCHESTRATED_STEPS: { id: string; label: string; scanType: string; progres
 
 export { ORCHESTRATED_STEPS };
 
-const callScan = async (scanType: string, extraPayload: Record<string, any> = {}): Promise<any> => {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error('Ej inloggad');
+/** Build OrchestratorStep[] from a scan_runs row */
+function buildStepsFromScanRun(scanRun: any): OrchestratorStep[] {
+  const stepsResults = scanRun.steps_results || {};
+  const currentStep = scanRun.current_step || 0;
+  const isDone = scanRun.status === 'done';
+  const isError = scanRun.status === 'error';
 
-  const resp = await fetch(
-    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ type: scanType, ...extraPayload }),
+  return ORCHESTRATED_STEPS.map((def, i) => {
+    const result = stepsResults[def.id];
+    let status: OrchestratorStepStatus = 'pending';
+
+    if (result && !result.failed) {
+      status = 'done';
+    } else if (result?.failed) {
+      status = 'error';
+    } else if (i === currentStep && !isDone && !isError) {
+      status = 'running';
+    } else if (i < currentStep) {
+      // Step was processed but no result — might have been skipped
+      status = result ? 'error' : 'done';
     }
-  );
 
-  if (!resp.ok) {
-    if (resp.status === 429) throw new Error('AI är överbelastad — vänta och försök igen');
-    if (resp.status === 402) throw new Error('AI-krediter slut');
-    const err = await resp.json().catch(() => ({}));
-    throw new Error(err.error || `AI-fel (${resp.status})`);
-  }
-
-  const data = await resp.json();
-  return data.result;
-};
-
-/** Build the unified result from all step results */
-function buildUnifiedResult(stepResults: Record<string, any>, totalDuration: number): UnifiedScanResult {
-  const blocker = stepResults.blocker_detection?.primary_blocker || stepResults.blocker_detection?.detected_blockers?.[0] || null;
-
-  const broken_flows: any[] = [];
-  if (stepResults.data_flow_validation?.issues) broken_flows.push(...stepResults.data_flow_validation.issues);
-  if (stepResults.data_flow_validation?.broken_links) broken_flows.push(...stepResults.data_flow_validation.broken_links);
-  if (stepResults.navigation_verification?.issues) broken_flows.push(...stepResults.navigation_verification.issues);
-  if (stepResults.navigation_verification?.broken_routes) broken_flows.push(...stepResults.navigation_verification.broken_routes);
-
-  const fake_features: any[] = [];
-  if (stepResults.feature_detection?.features) {
-    fake_features.push(
-      ...stepResults.feature_detection.features.filter((f: any) => f.status === 'fake' || f.classification === 'fake')
-    );
-  }
-
-  const interaction_failures: any[] = [];
-  if (stepResults.interaction_qa?.issues) interaction_failures.push(...stepResults.interaction_qa.issues);
-  if (stepResults.human_test?.issues) interaction_failures.push(...stepResults.human_test.issues);
-  if (stepResults.human_test?.test_failures) interaction_failures.push(...stepResults.human_test.test_failures);
-
-  const data_issues: any[] = [];
-  if (stepResults.ui_data_binding?.issues) data_issues.push(...stepResults.ui_data_binding.issues);
-  if (stepResults.ui_data_binding?.mismatches) data_issues.push(...stepResults.ui_data_binding.mismatches);
-
-  const scores: number[] = [];
-  for (const key of Object.keys(stepResults)) {
-    const r = stepResults[key];
-    if (r?.overall_score != null) scores.push(r.overall_score);
-    if (r?.system_score != null) scores.push(r.system_score);
-    if (r?.health_score != null) scores.push(r.health_score);
-    if (r?.score != null) scores.push(r.score);
-  }
-  const system_health_score = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
-
-  return {
-    blocker,
-    broken_flows,
-    fake_features,
-    interaction_failures,
-    data_issues,
-    system_health_score,
-    step_results: stepResults,
-    completed_at: new Date().toISOString(),
-    total_duration_ms: totalDuration,
-  };
-}
-
-/** Auto-generate prioritized work items from scan findings */
-async function autoGenerateWorkItems(unified: UnifiedScanResult): Promise<number> {
-  let created = 0;
-  const allIssues: { title: string; priority: string; item_type: string; source: string }[] = [];
-
-  if (unified.blocker) {
-    allIssues.push({
-      title: `BLOCKER: ${unified.blocker.description || unified.blocker.title || 'Critical blocker detected'}`.slice(0, 120),
-      priority: 'critical',
-      item_type: 'bug',
-      source: 'blocker_detection',
-    });
-  }
-
-  for (const flow of unified.broken_flows.slice(0, 5)) {
-    allIssues.push({
-      title: `Broken flow: ${flow.description || flow.route || flow.issue || 'unknown'}`.slice(0, 120),
-      priority: 'high',
-      item_type: 'bug',
-      source: 'data_flow_validation',
-    });
-  }
-
-  for (const fake of unified.fake_features.slice(0, 5)) {
-    allIssues.push({
-      title: `Fake feature: ${fake.name || fake.component || fake.description || 'unknown'}`.slice(0, 120),
-      priority: 'high',
-      item_type: 'improvement',
-      source: 'feature_detection',
-    });
-  }
-
-  for (const fail of unified.interaction_failures.slice(0, 3)) {
-    allIssues.push({
-      title: `Interaction failure: ${fail.description || fail.element || 'unknown'}`.slice(0, 120),
-      priority: 'medium',
-      item_type: 'bug',
-      source: 'interaction_qa',
-    });
-  }
-
-  for (const issue of allIssues) {
-    // Dedup check
-    const { data: existing } = await supabase
-      .from('work_items' as any)
-      .select('id')
-      .eq('title', issue.title)
-      .in('status', ['open', 'in_progress'])
-      .limit(1);
-
-    if (existing && existing.length > 0) continue;
-
-    const { error } = await (supabase.from('work_items' as any) as any).insert({
-      title: issue.title,
-      description: `Auto-generated from full orchestrated scan`,
-      status: 'open',
-      priority: issue.priority,
-      item_type: issue.item_type,
-      source_type: 'ai_scan',
-      source_id: issue.source,
-    });
-
-    if (!error) created++;
-  }
-
-  return created;
+    return {
+      id: def.id,
+      label: def.label,
+      scanType: def.scanType,
+      status,
+      progressLabel: def.progressLabel,
+      result: result?.failed ? undefined : result,
+      error: result?.error,
+      duration_ms: result?._duration_ms,
+    };
+  });
 }
 
 interface FullScanOrchestratorState {
@@ -203,7 +88,18 @@ interface FullScanOrchestratorState {
   unifiedResult: UnifiedScanResult | null;
   postScanStatus: 'idle' | 'generating_items' | 'running_pipeline' | 'done';
   workItemsCreated: number;
+  scanRunId: string | null;
+  pollInterval: ReturnType<typeof setInterval> | null;
+  lockedBy: string | null;
+
+  /** Start a server-side scan */
   runOrchestrated: (queryClient?: QueryClient) => Promise<void>;
+
+  /** Load the latest scan run from the DB (e.g. on page load) */
+  loadLatestScanRun: () => Promise<void>;
+
+  /** Stop polling */
+  stopPolling: () => void;
 }
 
 export const useFullScanOrchestrator = create<FullScanOrchestratorState>((set, get) => ({
@@ -213,21 +109,72 @@ export const useFullScanOrchestrator = create<FullScanOrchestratorState>((set, g
   unifiedResult: null,
   postScanStatus: 'idle' as const,
   workItemsCreated: 0,
+  scanRunId: null,
+  pollInterval: null,
+  lockedBy: null,
+
+  stopPolling: () => {
+    const interval = get().pollInterval;
+    if (interval) {
+      clearInterval(interval);
+      set({ pollInterval: null });
+    }
+  },
+
+  loadLatestScanRun: async () => {
+    try {
+      const { data } = await supabase
+        .from('scan_runs' as any)
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!data) return;
+
+      const scanRun = data as any;
+
+      if (scanRun.status === 'running') {
+        // A scan is in progress — start polling
+        const steps = buildStepsFromScanRun(scanRun);
+        set({
+          running: true,
+          scanRunId: scanRun.id,
+          steps,
+          currentStepIndex: scanRun.current_step || 0,
+          unifiedResult: null,
+        });
+        get().stopPolling();
+        const interval = setInterval(() => pollScanRun(scanRun.id, set, get), 3000);
+        set({ pollInterval: interval });
+      } else if (scanRun.status === 'done' && scanRun.unified_result) {
+        // Show the completed result
+        const steps = buildStepsFromScanRun(scanRun);
+        set({
+          running: false,
+          scanRunId: scanRun.id,
+          steps,
+          currentStepIndex: ORCHESTRATED_STEPS.length,
+          unifiedResult: scanRun.unified_result as UnifiedScanResult,
+          postScanStatus: 'done',
+          workItemsCreated: scanRun.work_items_created || 0,
+        });
+      }
+    } catch (e) {
+      console.warn('Failed to load latest scan run:', e);
+    }
+  },
 
   runOrchestrated: async (queryClient?: QueryClient) => {
     if (get().running) return;
 
-    const lockStore = useExecutionLockStore.getState();
-    const lockId = `orchestrator-${Date.now()}`;
-    const acquired = lockStore.acquire('scans', lockId, 'Full Orchestrated Scan');
-    if (!acquired) {
-      const holder = lockStore.getHolder('scans');
-      toast.error(`Skanningar blockerade — låst av ${holder?.description || 'annan uppgift'}`);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast.error('Du måste vara inloggad');
       return;
     }
 
-    await useFeedbackLoopStore.getState().captureBeforeAction();
-
+    // Initialize steps as pending
     const initialSteps: OrchestratorStep[] = ORCHESTRATED_STEPS.map(s => ({
       id: s.id,
       label: s.label,
@@ -236,124 +183,108 @@ export const useFullScanOrchestrator = create<FullScanOrchestratorState>((set, g
       progressLabel: s.progressLabel,
     }));
 
-    set({ running: true, steps: initialSteps, currentStepIndex: -1, unifiedResult: null });
+    set({ running: true, steps: initialSteps, currentStepIndex: 0, unifiedResult: null, postScanStatus: 'idle', workItemsCreated: 0 });
 
-    const stepResults: Record<string, any> = {};
-    const globalStart = Date.now();
-
-    for (let i = 0; i < initialSteps.length; i++) {
-      const step = initialSteps[i];
-
-      set(s => ({
-        currentStepIndex: i,
-        steps: s.steps.map((st, idx) => idx === i ? { ...st, status: 'running' as const } : st),
-      }));
-
-      const stepStart = Date.now();
-
-      try {
-        const previousContext: Record<string, any> = {};
-        if (Object.keys(stepResults).length > 0) {
-          for (const [key, val] of Object.entries(stepResults)) {
-            if (val?.overall_score != null) previousContext[key] = { score: val.overall_score };
-            if (val?.issues_count != null) previousContext[key] = { ...previousContext[key], issues: val.issues_count };
-          }
+    try {
+      // Call the server-side edge function to start the scan
+      const resp = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/run-full-scan`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ action: 'start' }),
         }
+      );
 
-        const result = await callScan(step.scanType, {
-          orchestrated: true,
-          step_index: i,
-          previous_context: Object.keys(previousContext).length > 0 ? previousContext : undefined,
-        });
-
-        stepResults[step.id] = result;
-        const duration_ms = Date.now() - stepStart;
-
-        set(s => ({
-          steps: s.steps.map((st, idx) => idx === i ? { ...st, status: 'done' as const, result, duration_ms } : st),
-        }));
-      } catch (err: any) {
-        const duration_ms = Date.now() - stepStart;
-        stepResults[step.id] = { error: err?.message, failed: true };
-
-        set(s => ({
-          steps: s.steps.map((st, idx) => idx === i ? { ...st, status: 'error' as const, error: err?.message, duration_ms } : st),
-        }));
+      if (resp.status === 409) {
+        const err = await resp.json();
+        toast.error(err.error || 'En skanning körs redan');
+        set({ running: false, steps: [] });
+        return;
       }
-    }
 
-    const totalDuration = Date.now() - globalStart;
-    const unified = buildUnifiedResult(stepResults, totalDuration);
-
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      await supabase.from('ai_scan_results' as any).insert({
-        scan_type: 'full_orchestrated',
-        results: unified as any,
-        overall_score: unified.system_health_score,
-        overall_status: unified.system_health_score >= 75 ? 'healthy' : unified.system_health_score >= 50 ? 'warning' : 'critical',
-        executive_summary: `Full scan: ${unified.system_health_score}/100 | ${unified.broken_flows.length} broken flows | ${unified.fake_features.length} fake features | ${unified.interaction_failures.length} interaction failures | ${unified.data_issues.length} data issues | Blocker: ${unified.blocker ? 'YES' : 'none'}`,
-        issues_count: unified.broken_flows.length + unified.fake_features.length + unified.interaction_failures.length + unified.data_issues.length,
-        scanned_by: session?.user?.id || null,
-      });
-    } catch (e) {
-      console.warn('Failed to persist orchestrated scan result:', e);
-    }
-
-    // ── POST-SCAN: Auto-generate work items ──
-    set({ postScanStatus: 'generating_items' });
-    let workItemsCreated = 0;
-    try {
-      workItemsCreated = await autoGenerateWorkItems(unified);
-      if (workItemsCreated > 0) {
-        toast.info(`${workItemsCreated} arbetsuppgifter skapade från skanning`, { duration: 4000 });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.error || `Fel ${resp.status}`);
       }
-    } catch (e) {
-      console.warn('Failed to auto-generate work items:', e);
+
+      const result = await resp.json();
+      const scanRunId = result.scan_run_id;
+
+      set({ scanRunId });
+
+      // Start polling for progress
+      get().stopPolling();
+      const interval = setInterval(() => pollScanRun(scanRunId, set, get, queryClient), 3000);
+      set({ pollInterval: interval });
+
+      toast.info('Skanning startad i bakgrunden — du kan navigera bort', { duration: 5000 });
+    } catch (err: any) {
+      toast.error(err.message || 'Kunde inte starta skanning');
+      set({ running: false, steps: [] });
     }
-
-    // ── POST-SCAN: Run unified pipeline (links bugs → work items → change log → verification) ──
-    set({ postScanStatus: 'running_pipeline' });
-    try {
-      await runUnifiedPipeline();
-    } catch (e) {
-      console.warn('Post-scan pipeline failed:', e);
-    }
-
-    // ── POST-SCAN: Critical Path Protection check ──
-    try {
-      const pathReport = await runCriticalPathCheck();
-      if (!pathReport.healthy) {
-        console.warn(`[CriticalPath] ${pathReport.brokenStages.length} broken stages detected`);
-      }
-    } catch (e) {
-      console.warn('Critical path check failed:', e);
-    }
-
-    // ── POST-SCAN: Auto-assign, escalate & dedup critical items ──
-    try {
-      const escReport = await runCriticalEscalation();
-      console.log(`[Escalation] assigned=${escReport.assigned} escalated=${escReport.escalated} dedup=${escReport.deduplicated}`);
-    } catch (e) {
-      console.warn('Critical escalation failed:', e);
-    }
-
-    if (queryClient) {
-      for (const key of ['admin-scan-results', 'admin-work-items', 'admin-bugs', 'mini-workbench-items', 'autopilot-scan-runs', 'last-scan-result', 'scan-history', 'work-items']) {
-        queryClient.invalidateQueries({ queryKey: [key] });
-      }
-    }
-
-    const errorCount = get().steps.filter(s => s.status === 'error').length;
-    const fbEntry = await useFeedbackLoopStore.getState().evaluateAfterAction(
-      'scan', `Full Orchestrated Scan (10 steg)`, { failed: errorCount, regressed: 0, errors: errorCount }
-    );
-
-    const verdictLabel = fbEntry?.verdict === 'improved' ? '📈 Förbättrat' :
-      fbEntry?.verdict === 'degraded' ? '📉 Försämrat' : '➡️ Stabilt';
-    toast.success(`Full skanning klar — ${unified.system_health_score}/100 — ${verdictLabel} — ${workItemsCreated} nya uppgifter`, { duration: 6000 });
-
-    lockStore.release(lockId);
-    set({ running: false, unifiedResult: unified, postScanStatus: 'done', workItemsCreated });
   },
 }));
+
+/** Poll a scan run for progress */
+async function pollScanRun(
+  scanRunId: string,
+  set: any,
+  get: any,
+  queryClient?: QueryClient
+) {
+  try {
+    const { data } = await supabase
+      .from('scan_runs' as any)
+      .select('*')
+      .eq('id', scanRunId)
+      .single();
+
+    if (!data) return;
+    const scanRun = data as any;
+
+    const steps = buildStepsFromScanRun(scanRun);
+
+    if (scanRun.status === 'done') {
+      // Scan completed!
+      get().stopPolling();
+
+      set({
+        running: false,
+        steps,
+        currentStepIndex: ORCHESTRATED_STEPS.length,
+        unifiedResult: scanRun.unified_result as UnifiedScanResult,
+        postScanStatus: 'done',
+        workItemsCreated: scanRun.work_items_created || 0,
+      });
+
+      const score = scanRun.system_health_score || 0;
+      toast.success(`Skanning klar — ${score}/100 — ${scanRun.work_items_created || 0} nya uppgifter`, { duration: 6000 });
+
+      if (queryClient) {
+        for (const key of ['admin-scan-results', 'admin-work-items', 'admin-bugs', 'mini-workbench-items', 'autopilot-scan-runs', 'last-scan-result', 'scan-history', 'work-items']) {
+          queryClient.invalidateQueries({ queryKey: [key] });
+        }
+      }
+    } else if (scanRun.status === 'error') {
+      get().stopPolling();
+      set({
+        running: false,
+        steps,
+        postScanStatus: 'idle',
+      });
+      toast.error(`Skanning avbröts: ${scanRun.error_message || 'Okänt fel'}`);
+    } else {
+      // Still running — update progress
+      set({
+        steps,
+        currentStepIndex: scanRun.current_step || 0,
+      });
+    }
+  } catch (e) {
+    console.warn('Poll error:', e);
+  }
+}
