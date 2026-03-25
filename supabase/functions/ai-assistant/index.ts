@@ -5397,23 +5397,25 @@ async function handleLovaChat(supabase: any, lovableKey: string, userId: string,
   // Gather system snapshot for context
   const snapshot = await gatherSystemSnapshot(supabase);
 
-  // Get open work items, recent scans, bugs, and prompt queue for awareness
-  const [workRes, scanRes, bugsRes, promptRes] = await Promise.all([
+  // Get open work items, recent scans, bugs, prompt queue, and dismissed issues for awareness
+  const [workRes, scanRes, bugsRes, promptRes, dismissRes] = await Promise.all([
     supabase.from("work_items").select("id, title, status, priority, item_type").in("status", ["open", "claimed", "in_progress"]).order("created_at", { ascending: false }).limit(15),
     supabase.from("ai_scan_results").select("scan_type, overall_score, overall_status, executive_summary, created_at").order("created_at", { ascending: false }).limit(5),
     supabase.from("bug_reports").select("id, description, ai_summary, ai_severity, status").eq("status", "open").order("created_at", { ascending: false }).limit(10),
     supabase.from("prompt_queue").select("id, title, status, priority, created_at").order("created_at", { ascending: false }).limit(20),
+    supabase.from("scan_dismissals").select("issue_key, issue_title, reason, created_at").limit(100),
   ]);
 
   const openWork = workRes.data || [];
   const recentScans = scanRes.data || [];
   const openBugs = bugsRes.data || [];
   const allPrompts = promptRes.data || [];
+  const dismissedIssues = dismissRes.data || [];
   const pendingPrompts = allPrompts.filter((p: any) => p.status === "pending");
   const donePrompts = allPrompts.filter((p: any) => p.status === "done");
   const recentlyDone = donePrompts.filter((p: any) => {
     const age = Date.now() - new Date(p.created_at).getTime();
-    return age < 7 * 24 * 60 * 60 * 1000; // last 7 days
+    return age < 7 * 24 * 60 * 60 * 1000;
   });
 
   const capabilityContext = `
