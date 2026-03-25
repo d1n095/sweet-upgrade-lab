@@ -128,8 +128,9 @@ export const useAdminWorkItems = (options?: { enabled?: boolean }) =>
   useQuery({
     queryKey: ['admin-work-items'],
     queryFn: async () => {
-      // Run cleanup first to remove orphan/stale tasks
-      await supabase.rpc('cleanup_orphan_work_items');
+      // NOTE: Removed cleanup_orphan_work_items from here — running it before every fetch
+      // was deleting newly created items due to race conditions. Cleanup should only run
+      // on explicit user action or scheduled automation, not on every query.
 
       const { data, error } = await supabase
         .from('work_items' as any)
@@ -138,6 +139,7 @@ export const useAdminWorkItems = (options?: { enabled?: boolean }) =>
         .order('created_at', { ascending: false })
         .limit(500);
       if (error) throw error;
+      console.log('[useAdminWorkItems] DB ITEMS:', (data || []).length, 'items fetched');
       return (data || []) as any[];
     },
     staleTime: 0, // Always fresh — no stale cached tasks
