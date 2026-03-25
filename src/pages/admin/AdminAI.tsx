@@ -5485,6 +5485,8 @@ const InteractionQATab = () => {
             </Card>
           )}
 
+          {/* Failure Memory — Known Hotspots */}
+          <FailureMemoryPanel />
 
           {result.route_issues?.length > 0 && (
             <Card className="border-border">
