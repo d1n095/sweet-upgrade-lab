@@ -126,11 +126,81 @@ function buildUnifiedResult(stepResults: Record<string, any>, totalDuration: num
   };
 }
 
+/** Auto-generate prioritized work items from scan findings */
+async function autoGenerateWorkItems(unified: UnifiedScanResult): Promise<number> {
+  let created = 0;
+  const allIssues: { title: string; priority: string; item_type: string; source: string }[] = [];
+
+  if (unified.blocker) {
+    allIssues.push({
+      title: `BLOCKER: ${unified.blocker.description || unified.blocker.title || 'Critical blocker detected'}`.slice(0, 120),
+      priority: 'critical',
+      item_type: 'bug',
+      source: 'blocker_detection',
+    });
+  }
+
+  for (const flow of unified.broken_flows.slice(0, 5)) {
+    allIssues.push({
+      title: `Broken flow: ${flow.description || flow.route || flow.issue || 'unknown'}`.slice(0, 120),
+      priority: 'high',
+      item_type: 'bug',
+      source: 'data_flow_validation',
+    });
+  }
+
+  for (const fake of unified.fake_features.slice(0, 5)) {
+    allIssues.push({
+      title: `Fake feature: ${fake.name || fake.component || fake.description || 'unknown'}`.slice(0, 120),
+      priority: 'high',
+      item_type: 'improvement',
+      source: 'feature_detection',
+    });
+  }
+
+  for (const fail of unified.interaction_failures.slice(0, 3)) {
+    allIssues.push({
+      title: `Interaction failure: ${fail.description || fail.element || 'unknown'}`.slice(0, 120),
+      priority: 'medium',
+      item_type: 'bug',
+      source: 'interaction_qa',
+    });
+  }
+
+  for (const issue of allIssues) {
+    // Dedup check
+    const { data: existing } = await supabase
+      .from('work_items' as any)
+      .select('id')
+      .eq('title', issue.title)
+      .in('status', ['open', 'in_progress'])
+      .limit(1);
+
+    if (existing && existing.length > 0) continue;
+
+    const { error } = await (supabase.from('work_items' as any) as any).insert({
+      title: issue.title,
+      description: `Auto-generated from full orchestrated scan`,
+      status: 'open',
+      priority: issue.priority,
+      item_type: issue.item_type,
+      source_type: 'ai_scan',
+      source_id: issue.source,
+    });
+
+    if (!error) created++;
+  }
+
+  return created;
+}
+
 interface FullScanOrchestratorState {
   running: boolean;
   steps: OrchestratorStep[];
   currentStepIndex: number;
   unifiedResult: UnifiedScanResult | null;
+  postScanStatus: 'idle' | 'generating_items' | 'running_pipeline' | 'done';
+  workItemsCreated: number;
   runOrchestrated: (queryClient?: QueryClient) => Promise<void>;
 }
 
