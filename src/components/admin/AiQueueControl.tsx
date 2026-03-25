@@ -1,4 +1,4 @@
-import { useAiQueueStore, type QueueTask, type QueueTaskPriority, type QueueTaskStatus, type FailureReport } from '@/stores/aiQueueStore';
+import { useAiQueueStore, type QueueTask, type QueueTaskPriority, type QueueTaskStatus, type FailureReport, type RegressionEntry } from '@/stores/aiQueueStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,7 @@ import { Progress } from '@/components/ui/progress';
 import {
   Play, Pause, RotateCcw, Trash2, AlertTriangle, CheckCircle,
   XCircle, Clock, Zap, ArrowUp, Loader2, Ban, Layers,
-  ShieldCheck, FileWarning, ChevronDown, ChevronUp,
+  ShieldCheck, FileWarning, ChevronDown, ChevronUp, Undo2, GitBranch,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -20,6 +20,7 @@ const statusConfig: Record<QueueTaskStatus, { label: string; color: string; icon
   completed: { label: 'Klar', color: 'bg-green-500/15 text-green-600', icon: CheckCircle },
   failed: { label: 'Misslyckad', color: 'bg-destructive/15 text-destructive', icon: XCircle },
   blocked: { label: 'Blockerad', color: 'bg-orange-500/15 text-orange-600', icon: Ban },
+  regressed: { label: 'Regression', color: 'bg-purple-500/15 text-purple-600', icon: Undo2 },
 };
 
 const priorityConfig: Record<QueueTaskPriority, { label: string; color: string; icon: React.ElementType }> = {
@@ -93,6 +94,51 @@ const FailureReportCard = ({ report }: { report: FailureReport }) => {
   );
 };
 
+const RegressionCard = ({ entry }: { entry: RegressionEntry }) => {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="border border-purple-500/30 rounded-lg p-3 bg-purple-500/5 space-y-1">
+      <button onClick={() => setExpanded(!expanded)} className="w-full text-left">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Undo2 className="w-3.5 h-3.5 text-purple-500 shrink-0" />
+            <span className="text-sm font-medium truncate">{entry.taskTitle}</span>
+            <Badge variant="outline" className="text-[10px] bg-purple-500/10 text-purple-600 border-purple-500/20 shrink-0">
+              {entry.affectedKey}
+            </Badge>
+            {entry.reopened && (
+              <Badge variant="outline" className="text-[10px] bg-destructive/10 text-destructive border-destructive/20 shrink-0">
+                Återöppnad
+              </Badge>
+            )}
+          </div>
+          {expanded ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
+        </div>
+      </button>
+      {expanded && (
+        <div className="space-y-2 pt-2 border-t border-purple-500/10 mt-1">
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Före</p>
+              <pre className="text-[11px] bg-muted/50 p-1.5 rounded text-foreground overflow-x-auto max-h-20">
+                {JSON.stringify(entry.previousValue, null, 2)?.slice(0, 200)}
+              </pre>
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Efter</p>
+              <pre className="text-[11px] bg-muted/50 p-1.5 rounded text-foreground overflow-x-auto max-h-20">
+                {JSON.stringify(entry.currentValue, null, 2)?.slice(0, 200)}
+              </pre>
+            </div>
+          </div>
+          <p className="text-[10px] text-muted-foreground/60">{new Date(entry.detectedAt).toLocaleString('sv-SE')}</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const TaskRow = ({ task }: { task: QueueTask }) => {
   const { retryTask, removeTask, cancelTask } = useAiQueueStore();
   const [showReport, setShowReport] = useState(false);
@@ -102,7 +148,10 @@ const TaskRow = ({ task }: { task: QueueTask }) => {
 
   return (
     <div className="space-y-0">
-      <div className="flex items-start gap-3 p-3 rounded-lg border border-border bg-card hover:bg-accent/30 transition-colors">
+      <div className={cn(
+        'flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-accent/30 transition-colors',
+        task.status === 'regressed' ? 'border-purple-500/30' : 'border-border'
+      )}>
         <div className={cn('mt-0.5 w-7 h-7 rounded-md flex items-center justify-center shrink-0', sc.color)}>
           <StatusIcon className={cn('w-4 h-4', (task.status === 'running' || task.status === 'validating') && 'animate-spin')} />
         </div>
@@ -139,12 +188,12 @@ const TaskRow = ({ task }: { task: QueueTask }) => {
               onClick={() => setShowReport(!showReport)}
             >
               <FileWarning className="w-3 h-3" />
-              {showReport ? 'Dölj rapport' : 'Visa felrapport'}
+              {showReport ? 'Dölj rapport' : task.status === 'regressed' ? 'Visa regressionsrapport' : 'Visa felrapport'}
             </Button>
           )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          {(task.status === 'failed' || task.status === 'blocked') && (
+          {(task.status === 'failed' || task.status === 'blocked' || task.status === 'regressed') && (
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => retryTask(task.id)}>
               <RotateCcw className="w-3.5 h-3.5" />
             </Button>
@@ -154,7 +203,7 @@ const TaskRow = ({ task }: { task: QueueTask }) => {
               <Pause className="w-3.5 h-3.5" />
             </Button>
           )}
-          {(task.status === 'completed' || task.status === 'failed' || task.status === 'blocked') && (
+          {(task.status === 'completed' || task.status === 'failed' || task.status === 'blocked' || task.status === 'regressed') && (
             <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={() => removeTask(task.id)}>
               <Trash2 className="w-3.5 h-3.5" />
             </Button>
@@ -171,20 +220,23 @@ const TaskRow = ({ task }: { task: QueueTask }) => {
 };
 
 const AiQueueControl = () => {
-  const { tasks, maxConcurrent, clearCompleted, addTask, processQueue, failureLog, clearFailureLog } = useAiQueueStore();
+  const { tasks, maxConcurrent, clearCompleted, addTask, processQueue, failureLog, clearFailureLog, regressionLog, clearRegressionLog } = useAiQueueStore();
 
   const running = tasks.filter((t) => t.status === 'running' || t.status === 'validating');
   const queued = tasks.filter((t) => t.status === 'queued');
   const blocked = tasks.filter((t) => t.status === 'blocked');
   const completed = tasks.filter((t) => t.status === 'completed');
   const failed = tasks.filter((t) => t.status === 'failed');
+  const regressed = tasks.filter((t) => t.status === 'regressed');
 
-  const totalDone = completed.length + failed.length;
+  const totalDone = completed.length + failed.length + regressed.length;
   const totalAll = tasks.length;
   const progress = totalAll > 0 ? Math.round((totalDone / totalAll) * 100) : 0;
 
   const addDemoTasks = () => {
-    // Demo with validators that simulate failure detection
+    // Simulated state for regression detection
+    let simulatedState = { userCount: 42, errorRate: 0.02, uiLoaded: true, dataIntact: true };
+
     const id1 = addTask({
       title: 'Systemhälsoskanning',
       priority: 'critical',
@@ -193,48 +245,58 @@ const AiQueueControl = () => {
       validator: async (result) => [
         { name: 'Resultat finns', passed: !!result },
         { name: 'Hälsopoäng > 50', passed: result?.score > 50 },
-        { name: 'Inga kritiska fel', passed: result?.status !== 'critical' },
       ],
     });
+
     const id2 = addTask({
-      title: 'Databasintegritet',
+      title: 'Buggfix: Felhantering',
       priority: 'high',
-      description: 'Verifiera datakonsistens',
+      description: 'Fixar error-rate i checkout',
       dependsOn: [id1],
-      executor: async () => ({ data: [], error: 'Simulated empty result' }),
+      executor: async () => {
+        // Simulate: fix reduces error rate but accidentally breaks userCount
+        simulatedState = { ...simulatedState, errorRate: 0.001, userCount: 0 };
+        return { fixed: true };
+      },
+      snapshotBefore: async () => ({ ...simulatedState }),
+      snapshotAfter: async () => ({ ...simulatedState }),
+      guardKeys: ['userCount', 'uiLoaded', 'dataIntact'],
+      expectChangedKeys: ['errorRate'],
       validator: async (result) => [
-        { name: 'Resultat finns', passed: !!result },
-        { name: 'Data finns', passed: Array.isArray(result?.data) && result.data.length > 0, detail: 'Tom datamängd returnerad' },
-        { name: 'Inga fel', passed: !result?.error, detail: result?.error },
+        { name: 'Fix applicerad', passed: !!result?.fixed },
       ],
     });
-    addTask({
-      title: 'UX-analys',
-      priority: 'normal',
-      description: 'Analysera användarupplevelse',
-      executor: async () => ({ insights: ['Bra mobilanpassning'] }),
-    });
+
     addTask({
       title: 'Prestandaoptimering',
       priority: 'normal',
-      description: 'Optimera långsamma frågor',
+      description: 'Optimera databas-frågor',
       dependsOn: [id2],
       executor: async () => ({ optimized: true }),
     });
-    toast.success('4 demo-uppgifter med validering tillagda');
+
+    addTask({
+      title: 'UX-förbättring',
+      priority: 'normal',
+      description: 'Förbättra mobilvy',
+      executor: async () => ({ improved: true }),
+    });
+
+    toast.success('4 demo-uppgifter med regressionsdetektering tillagda');
   };
 
   return (
     <div className="space-y-4">
       {/* Status overview */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
         {[
           { label: 'Körs', count: running.length, max: maxConcurrent, color: 'text-primary', icon: Play },
           { label: 'Köade', count: queued.length, color: 'text-muted-foreground', icon: Clock },
           { label: 'Blockerade', count: blocked.length, color: 'text-orange-500', icon: Ban },
           { label: 'Klara', count: completed.length, color: 'text-green-500', icon: CheckCircle },
           { label: 'Misslyckade', count: failed.length, color: 'text-destructive', icon: XCircle },
-          { label: 'Felloggar', count: failureLog.length, color: 'text-destructive', icon: FileWarning },
+          { label: 'Regressioner', count: regressed.length, color: 'text-purple-500', icon: Undo2 },
+          { label: 'Felloggar', count: failureLog.length + regressionLog.length, color: 'text-destructive', icon: FileWarning },
         ].map((s) => (
           <Card key={s.label}>
             <CardContent className="p-3 flex items-center gap-2">
@@ -267,8 +329,8 @@ const AiQueueControl = () => {
       {/* Controls */}
       <div className="flex items-center gap-2 flex-wrap">
         <Button size="sm" variant="outline" onClick={addDemoTasks} className="gap-1.5 text-xs">
-          <Zap className="w-3.5 h-3.5" />
-          Demo (med validering)
+          <GitBranch className="w-3.5 h-3.5" />
+          Demo (med regression)
         </Button>
         <Button size="sm" variant="outline" onClick={() => processQueue()} className="gap-1.5 text-xs">
           <Play className="w-3.5 h-3.5" />
@@ -281,7 +343,7 @@ const AiQueueControl = () => {
           </Button>
         )}
         <div className="ml-auto text-[10px] text-muted-foreground">
-          Max {maxConcurrent} parallella · Validering aktiv
+          Max {maxConcurrent} parallella · Validering + Regression aktiv
         </div>
       </div>
 
@@ -300,7 +362,26 @@ const AiQueueControl = () => {
         </Card>
       )}
 
-      {/* Failed tasks with reports */}
+      {/* Regressed tasks */}
+      {regressed.length > 0 && (
+        <Card className="border-purple-500/30">
+          <CardHeader className="pb-2 pt-3 px-4">
+            <CardTitle className="text-sm flex items-center gap-2 text-purple-600">
+              <Undo2 className="w-4 h-4" />
+              Regressioner ({regressed.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-3">
+            <ScrollArea className="max-h-[35vh]">
+              <div className="space-y-2 pr-2">
+                {regressed.map((t) => <TaskRow key={t.id} task={t} />)}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Failed tasks */}
       {failed.length > 0 && (
         <Card className="border-destructive/30">
           <CardHeader className="pb-2 pt-3 px-4">
@@ -357,6 +438,31 @@ const AiQueueControl = () => {
         </Card>
       )}
 
+      {/* Regression Log */}
+      {regressionLog.length > 0 && (
+        <Card className="border-purple-500/20">
+          <CardHeader className="pb-2 pt-3 px-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm flex items-center gap-2 text-purple-600">
+                <GitBranch className="w-4 h-4" />
+                Regressionslogg ({regressionLog.length})
+              </CardTitle>
+              <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" onClick={clearRegressionLog}>
+                <Trash2 className="w-3 h-3 mr-1" />
+                Rensa
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="px-4 pb-3">
+            <ScrollArea className="max-h-[40vh]">
+              <div className="space-y-2 pr-2">
+                {[...regressionLog].reverse().map((r, i) => <RegressionCard key={i} entry={r} />)}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Failure Log */}
       {failureLog.length > 0 && (
         <Card className="border-destructive/20">
@@ -407,12 +513,13 @@ const AiQueueControl = () => {
           <CardContent className="py-12 text-center">
             <Layers className="w-10 h-10 mx-auto text-muted-foreground/40 mb-3" />
             <p className="text-sm font-medium text-muted-foreground">Kön är tom</p>
-            <p className="text-xs text-muted-foreground/70 mt-1 max-w-sm mx-auto">
-              Uppgifter valideras automatiskt efter exekvering. Om UI inte laddar, data saknas eller krascher upptäcks markeras uppgiften som misslyckad och beroende uppgifter stoppas.
+            <p className="text-xs text-muted-foreground/70 mt-1 max-w-md mx-auto">
+              Varje uppgift valideras och jämförs mot sitt tidigare tillstånd efter exekvering.
+              Om en fix bryter något annat detekteras det som regression — uppgiften återöppnas och beroende uppgifter stoppas.
             </p>
             <Button size="sm" variant="outline" onClick={addDemoTasks} className="mt-4 gap-1.5 text-xs">
-              <Zap className="w-3.5 h-3.5" />
-              Testa med demo-uppgifter
+              <GitBranch className="w-3.5 h-3.5" />
+              Testa med regressionsdetektering
             </Button>
           </CardContent>
         </Card>
