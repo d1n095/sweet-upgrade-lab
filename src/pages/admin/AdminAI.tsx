@@ -4745,7 +4745,7 @@ const AiAutopilotTab = () => {
         <CardContent className="space-y-3">
           {scanMode === 'orchestrated' ? (
             <>
-              <p className="text-[10px] text-muted-foreground">Kör alla 10 skanners i korrekt ordning med resultatöverföring mellan steg.</p>
+              <p className="text-[10px] text-muted-foreground">Körs på servern — du kan navigera bort, logga ut eller stänga fliken. Synkad mellan alla med åtkomst.</p>
               <Button onClick={() => orchestrator.runOrchestrated(queryClient)} disabled={isAnyScanRunning} className="w-full gap-2" size="lg">
                 {orchestrator.running ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
                 {orchestrator.running
@@ -4759,7 +4759,7 @@ const AiAutopilotTab = () => {
                     <span className="font-bold text-primary">{orchPct}%</span>
                   </div>
                   <Progress value={orchPct} className="h-2.5" />
-                  <p className="text-[10px] text-muted-foreground text-center">{orchCompleted + orchErrors} av {orchestrator.steps.length} klara</p>
+                  <p className="text-[10px] text-muted-foreground text-center">{orchCompleted + orchErrors} av {orchestrator.steps.length} klara — körs på servern 🖥️</p>
                 </div>
               )}
             </>
