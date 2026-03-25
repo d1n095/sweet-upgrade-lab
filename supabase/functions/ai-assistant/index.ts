@@ -1866,6 +1866,17 @@ Ge tydliga statusändringar. Svara på svenska.`,
     }
   }
 
+  // Persist scan result
+  await supabase.from("ai_scan_results").insert({
+    scan_type: "bug_rescan",
+    results: analysis || {},
+    overall_score: analysis?.health_score || 0,
+    overall_status: (analysis?.health_score || 0) >= 80 ? "good" : (analysis?.health_score || 0) >= 50 ? "warning" : "critical",
+    issues_count: (analysis?.status_changes?.length || 0) + (analysis?.missing_work_items?.length || 0),
+    tasks_created: tasksCreated,
+    executive_summary: analysis?.summary || "",
+  });
+
   return {
     ...analysis,
     applied: { bugs_updated: bugsUpdated, work_items_updated: workItemsUpdated, tasks_created: tasksCreated },
