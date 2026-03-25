@@ -20,6 +20,7 @@ import { logAuthEvent } from '@/utils/activityLogger';
 import AdminGlobalSearch from '@/components/admin/AdminGlobalSearch';
 import AdminNotificationBell from '@/components/admin/AdminNotificationBell';
 import BugReportButton from '@/components/admin/BugReportButton';
+import AiControlBar from '@/components/admin/AiControlBar';
 import { AnimatePresence, motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useAdminRealtime } from '@/hooks/useAdminRealtime';
@@ -257,6 +258,7 @@ const AdminLayout = () => {
             <h2 className="text-sm font-semibold">{currentPage?.label || 'Admin'}</h2>
           </div>
           <div className="flex items-center gap-2">
+            <AiControlBar />
             <BugReportButton />
             <AdminNotificationBell />
             {!siteActive && (

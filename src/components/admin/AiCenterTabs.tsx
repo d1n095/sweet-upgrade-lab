@@ -1,5 +1,6 @@
 import * as React from 'react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import {
   Bot, Play, TrendingUp, Radar, Activity, Monitor,
@@ -12,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { AnimatePresence, motion } from 'framer-motion';
+import AiControlBar from '@/components/admin/AiControlBar';
 
 // ── Tab & Group definitions ──
 
@@ -168,9 +170,13 @@ interface AiCenterTabsProps {
 }
 
 const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsProps) => {
-  const [activeTab, setActiveTab] = useState(defaultValue);
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const initialTab = (tabParam && ALL_TABS.some(t => t.value === tabParam)) ? tabParam : defaultValue;
+
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [expandedGroup, setExpandedGroup] = useState<string | null>(() => findGroupForTab(defaultValue)?.id || 'dashboard');
+  const [expandedGroup, setExpandedGroup] = useState<string | null>(() => findGroupForTab(initialTab)?.id || 'dashboard');
 
   const handleNavigate = (tab: string) => {
     setActiveTab(tab);
@@ -178,6 +184,25 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
     if (group) setExpandedGroup(group.id);
     setMobileNavOpen(false);
   };
+
+  // Listen for external navigation events (from AiControlBar)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const tab = (e as CustomEvent).detail;
+      if (tab && ALL_TABS.some(t => t.value === tab)) {
+        handleNavigate(tab);
+      }
+    };
+    window.addEventListener('ai-center-navigate', handler);
+    return () => window.removeEventListener('ai-center-navigate', handler);
+  }, []);
+
+  // Sync with URL param changes
+  useEffect(() => {
+    if (tabParam && ALL_TABS.some(t => t.value === tabParam) && tabParam !== activeTab) {
+      handleNavigate(tabParam);
+    }
+  }, [tabParam]);
 
   const activeTabDef = ALL_TABS.find(t => t.value === activeTab);
 
@@ -249,11 +274,12 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
     <div className="flex gap-0 lg:gap-4 -mx-4 md:-mx-8">
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex w-52 flex-col shrink-0 border-r border-border bg-card/50 sticky top-0 self-start max-h-screen">
-        <div className="px-4 py-3 border-b border-border">
+        <div className="px-4 py-3 border-b border-border space-y-2">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-primary" />
             <span className="text-sm font-semibold">AI Center</span>
           </div>
+          <AiControlBar onNavigateTab={handleNavigate} compact />
         </div>
         <ScrollArea className="flex-1 py-2">
           {sidebarContent}
