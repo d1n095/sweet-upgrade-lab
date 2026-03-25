@@ -2275,6 +2275,7 @@ const SystemScanTab = () => {
                 <span>⏱ {Math.round(scanResult.scan_duration_ms / 1000)}s</span>
                 <span>🔍 {scanResult.issues_found} issues</span>
                 {scanResult.dismissed_count > 0 && <span>🚫 {scanResult.dismissed_count} ignorerade</span>}
+                {scanResult.escalated_dismissed?.length > 0 && <span className="text-destructive font-bold">⚠️ {scanResult.escalated_dismissed.length} eskalerade (var ignorerade)</span>}
                 <span>✅ {scanResult.tasks_created} skapade</span>
                 <span>📎 {scanResult.tasks_skipped_duplicate} dubbletter</span>
               </div>
