@@ -302,6 +302,12 @@ serve(async (req) => {
         break;
       }
 
+      case "human_test": {
+        await logAiRead(supabase, { action_type: "scan", target_type: "human_test", result: "inspected", summary: "AI ran automated human-like test", triggered_by: user.id });
+        result = await handleHumanTest(supabase, lovableKey);
+        break;
+      }
+
       case "action_governor": {
         result = await handleActionGovernor(supabase, lovableKey);
         break;
