@@ -1347,15 +1347,45 @@ Du MÅSTE använda system_scan-funktionen.`,
     },
   }], { type: "function", function: { name: "system_scan" } });
 
-  // 2b. Load dismissed issues and filter them out
+  // 2b. Load dismissed issues — filter them out BUT re-surface if severity escalated
   const { data: dismissedRows } = await supabase
     .from("scan_dismissals")
-    .select("issue_key")
+    .select("issue_key, dismissed_severity")
     .eq("scan_type", "system_scan");
-  const dismissedKeys = new Set((dismissedRows || []).map((d: any) => (d.issue_key || "").toLowerCase().trim()));
+  const dismissedMap = new Map<string, string>();
+  for (const d of (dismissedRows || [])) {
+    dismissedMap.set((d.issue_key || "").toLowerCase().trim(), d.dismissed_severity || "unknown");
+  }
 
+  const severityRank: Record<string, number> = { low: 1, medium: 2, high: 3, critical: 4 };
   const allIssues = analysis?.issues || [];
-  const activeIssues = allIssues.filter((issue: any) => !dismissedKeys.has((issue.title || "").toLowerCase().trim()));
+  const activeIssues: any[] = [];
+  const escalatedDismissals: any[] = [];
+
+  for (const issue of allIssues) {
+    const key = (issue.title || "").toLowerCase().trim();
+    const dismissedSev = dismissedMap.get(key);
+    if (dismissedSev !== undefined) {
+      // Check if severity has escalated since dismissal
+      const oldRank = severityRank[dismissedSev] || 0;
+      const newRank = severityRank[issue.severity] || 0;
+      if (newRank > oldRank) {
+        // Re-surface: severity escalated
+        issue._escalated_from_dismissed = true;
+        issue._previous_severity = dismissedSev;
+        activeIssues.push(issue);
+        escalatedDismissals.push({ key, from: dismissedSev, to: issue.severity, title: issue.title });
+        // Update the dismissal record with escalation note
+        await supabase.from("scan_dismissals").update({
+          escalation_note: `Severity escalated: ${dismissedSev} → ${issue.severity}`,
+          escalated_at: new Date().toISOString(),
+        }).eq("issue_key", key).eq("scan_type", "system_scan");
+      }
+      // Otherwise stays dismissed
+    } else {
+      activeIssues.push(issue);
+    }
+  }
 
   // 3. Auto-create work_items for detected issues (with dedup) — only non-dismissed
   let created = 0;
