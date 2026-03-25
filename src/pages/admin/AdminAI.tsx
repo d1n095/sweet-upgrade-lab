@@ -1107,7 +1107,7 @@ const BugAITab = () => {
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState<string | null>(null);
   const [fixes, setFixes] = useState<Record<string, any>>({});
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [selectedBugId, setSelectedBugId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<'open' | 'resolved' | 'all'>('open');
   const [matching, setMatching] = useState(false);
   const [matchResult, setMatchResult] = useState<any>(null);
