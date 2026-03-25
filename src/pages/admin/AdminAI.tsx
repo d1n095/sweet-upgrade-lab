@@ -3399,15 +3399,17 @@ const NavBugScanTab = () => {
           {/* Route status */}
           <Card className="p-4">
             <h4 className="text-xs font-semibold mb-2">Route-status</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
-              {navResult.route_status?.map((r: any, i: number) => (
-                <div key={i} className="flex items-center gap-2 p-1.5 rounded text-xs">
-                  {routeIcon(r.status)}
-                  <span className="font-mono text-[10px] text-muted-foreground w-32 shrink-0">{r.path}</span>
-                  <span className="truncate">{r.notes}</span>
-                </div>
-              ))}
-            </div>
+            <ScrollArea className="max-h-[30vh]">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5 pr-2">
+                {navResult.route_status?.map((r: any, i: number) => (
+                  <div key={i} className="flex items-center gap-2 p-1.5 rounded text-xs">
+                    {routeIcon(r.status)}
+                    <span className="font-mono text-[10px] text-muted-foreground w-32 shrink-0">{r.path}</span>
+                    <span className="truncate">{r.notes}</span>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
           </Card>
 
           {/* Nav issues */}
@@ -3501,14 +3503,18 @@ const NavBugScanTab = () => {
           {bugResult.duplicates?.length > 0 && (
             <Card className="p-4">
               <h4 className="text-xs font-semibold mb-2">Dubbletter ({bugResult.duplicates.length})</h4>
-              {bugResult.duplicates.map((d: any, i: number) => (
-                <div key={i} className="border rounded-md p-2 mb-1.5 text-xs">
-                  <div className="flex gap-1 flex-wrap mb-0.5">
-                    {d.bug_ids.map((id: string) => <span key={id} className="font-mono text-[9px] bg-muted px-1.5 py-0.5 rounded">{id.slice(0, 8)}</span>)}
-                  </div>
-                  <p className="text-[10px] text-muted-foreground">{d.reason}</p>
+              <ScrollArea className="max-h-[20vh]">
+                <div className="space-y-1.5 pr-2">
+                  {bugResult.duplicates.map((d: any, i: number) => (
+                    <div key={i} className="border rounded-md p-2 text-xs">
+                      <div className="flex gap-1 flex-wrap mb-0.5">
+                        {d.bug_ids.map((id: string) => <span key={id} className="font-mono text-[9px] bg-muted px-1.5 py-0.5 rounded">{id.slice(0, 8)}</span>)}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">{d.reason}</p>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </ScrollArea>
             </Card>
           )}
 
@@ -3516,12 +3522,16 @@ const NavBugScanTab = () => {
           {bugResult.missing_work_items?.length > 0 && (
             <Card className="p-4">
               <h4 className="text-xs font-semibold mb-2">Skapade saknade uppgifter ({bugResult.missing_work_items.length})</h4>
-              {bugResult.missing_work_items.map((m: any, i: number) => (
-                <div key={i} className="border rounded-md p-2 mb-1.5 flex items-center gap-2 text-xs">
-                  <Badge variant={m.priority === 'critical' || m.priority === 'high' ? 'destructive' : 'secondary'} className="text-[8px]">{m.priority}</Badge>
-                  <span>{m.title}</span>
+              <ScrollArea className="max-h-[20vh]">
+                <div className="space-y-1.5 pr-2">
+                  {bugResult.missing_work_items.map((m: any, i: number) => (
+                    <div key={i} className="border rounded-md p-2 flex items-center gap-2 text-xs">
+                      <Badge variant={m.priority === 'critical' || m.priority === 'high' ? 'destructive' : 'secondary'} className="text-[8px]">{m.priority}</Badge>
+                      <span>{m.title}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </ScrollArea>
             </Card>
           )}
         </div>
@@ -4295,7 +4305,7 @@ const StructureAnalysisTab = () => {
                   <AlertTriangle className="w-4 h-4 text-warning" /> Strukturproblem ({result.issues.length})
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent><ScrollArea className="max-h-[50vh]"><div className="space-y-3 pr-2">
                 {result.issues.map((issue: any, i: number) => (
                   <div key={i} className="border rounded-lg p-3 space-y-2">
                     <div className="flex items-start gap-2">
@@ -4328,7 +4338,7 @@ const StructureAnalysisTab = () => {
                     </Button>
                   </div>
                 ))}
-              </CardContent>
+              </div></ScrollArea></CardContent>
             </Card>
           )}
 
@@ -5203,7 +5213,7 @@ const VerificationEngineTab = () => {
           {result.false_done_items?.length > 0 && (
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><XCircle className="w-4 h-4 text-destructive" /> Falska "done" (återöppnade)</CardTitle></CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent><ScrollArea className="max-h-[30vh]"><div className="space-y-2 pr-2">
                 {result.false_done_items.map((item: any, i: number) => (
                   <div key={i} className="flex items-center gap-2 text-sm border-b border-border pb-2">
                     <Badge variant="destructive" className="text-[9px]">Återöppnad</Badge>
@@ -5211,7 +5221,7 @@ const VerificationEngineTab = () => {
                     <span className="text-muted-foreground text-xs">— {item.reason}</span>
                   </div>
                 ))}
-              </CardContent>
+              </div></ScrollArea></CardContent>
             </Card>
           )}
 
@@ -5219,7 +5229,7 @@ const VerificationEngineTab = () => {
           {result.auto_closed_items?.length > 0 && (
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><CheckCircle className="w-4 h-4 text-primary" /> Auto-stängda</CardTitle></CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent><ScrollArea className="max-h-[30vh]"><div className="space-y-2 pr-2">
                 {result.auto_closed_items.map((item: any, i: number) => (
                   <div key={i} className="flex items-center gap-2 text-sm border-b border-border pb-2">
                     <Badge variant="secondary" className="text-[9px]">Stängd</Badge>
@@ -5227,7 +5237,7 @@ const VerificationEngineTab = () => {
                     <span className="text-muted-foreground text-xs">— {item.reason}</span>
                   </div>
                 ))}
-              </CardContent>
+              </div></ScrollArea></CardContent>
             </Card>
           )}
 
@@ -5235,7 +5245,7 @@ const VerificationEngineTab = () => {
           {result.post_fix_suggestions?.length > 0 && (
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Lightbulb className="w-4 h-4 text-yellow-500" /> Post-fix förbättringar</CardTitle></CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent><ScrollArea className="max-h-[40vh]"><div className="space-y-3 pr-2">
                 {result.post_fix_suggestions.map((s: any, i: number) => (
                   <div key={i} className="border border-border rounded-lg p-3 space-y-2">
                     <div className="flex items-center gap-2">
@@ -5257,7 +5267,7 @@ const VerificationEngineTab = () => {
                     )}
                   </div>
                 ))}
-              </CardContent>
+              </div></ScrollArea></CardContent>
             </Card>
           )}
 
@@ -5265,7 +5275,7 @@ const VerificationEngineTab = () => {
           {result.recategorizations?.length > 0 && (
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><ArrowRightLeft className="w-4 h-4" /> Omkategoriseringar</CardTitle></CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent><ScrollArea className="max-h-[30vh]"><div className="space-y-2 pr-2">
                 {result.recategorizations.map((r: any, i: number) => (
                   <div key={i} className="text-sm border-b border-border pb-2">
                     <span className="font-medium">{r.task_title}</span>
@@ -5277,7 +5287,7 @@ const VerificationEngineTab = () => {
                     </div>
                   </div>
                 ))}
-              </CardContent>
+              </div></ScrollArea></CardContent>
             </Card>
           )}
 
@@ -5285,14 +5295,14 @@ const VerificationEngineTab = () => {
           {result.merge_suggestions?.length > 0 && (
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><GitMerge className="w-4 h-4" /> Merge-förslag</CardTitle></CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent><ScrollArea className="max-h-[30vh]"><div className="space-y-2 pr-2">
                 {result.merge_suggestions.map((m: any, i: number) => (
                   <div key={i} className="text-sm border-b border-border pb-2 space-y-1">
                     {m.tasks.map((t: string, j: number) => <p key={j} className="text-xs">• {t}</p>)}
                     <p className="text-xs text-muted-foreground">{m.reason}</p>
                   </div>
                 ))}
-              </CardContent>
+              </div></ScrollArea></CardContent>
             </Card>
           )}
         </div>
@@ -5373,7 +5383,7 @@ const DataCleanupTab = () => {
           {result.duplicate_groups?.length > 0 && (
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><GitMerge className="w-4 h-4" /> Hittade duplicat</CardTitle></CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent><ScrollArea className="max-h-[30vh]"><div className="space-y-2 pr-2">
                 {result.duplicate_groups.map((g: any, i: number) => (
                   <div key={i} className="text-sm border-b border-border pb-2">
                     <div className="flex items-center gap-2">
@@ -5382,7 +5392,7 @@ const DataCleanupTab = () => {
                     </div>
                   </div>
                 ))}
-              </CardContent>
+              </div></ScrollArea></CardContent>
             </Card>
           )}
 
@@ -5390,11 +5400,11 @@ const DataCleanupTab = () => {
           {result.test_data?.length > 0 && (
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><AlertCircle className="w-4 h-4 text-destructive" /> Testdata borttagen</CardTitle></CardHeader>
-              <CardContent className="space-y-1">
+              <CardContent><ScrollArea className="max-h-[20vh]"><div className="space-y-1 pr-2">
                 {result.test_data.map((t: any, i: number) => (
                   <p key={i} className="text-sm text-muted-foreground">• {t.reason}</p>
                 ))}
-              </CardContent>
+              </div></ScrollArea></CardContent>
             </Card>
           )}
 
@@ -5402,11 +5412,11 @@ const DataCleanupTab = () => {
           {result.outdated?.length > 0 && (
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Clock className="w-4 h-4" /> Föråldrade borttagna</CardTitle></CardHeader>
-              <CardContent className="space-y-1">
+              <CardContent><ScrollArea className="max-h-[20vh]"><div className="space-y-1 pr-2">
                 {result.outdated.map((o: any, i: number) => (
                   <p key={i} className="text-sm text-muted-foreground">• {o.reason}</p>
                 ))}
-              </CardContent>
+              </div></ScrollArea></CardContent>
             </Card>
           )}
         </div>
