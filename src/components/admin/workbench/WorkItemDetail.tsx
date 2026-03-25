@@ -590,6 +590,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                 {item.ai_pre_verify_at && (
                   <p className="text-[10px] text-muted-foreground">{fmtFull(item.ai_pre_verify_at).relative}</p>
                 )}
+                {isOpen && !['confirmed', 'rejected'].includes(item.ai_pre_verify_status || '') && (
                 <div className="flex gap-2 pt-1">
                   <Button size="sm" variant="default" className="flex-1 gap-1 h-7 text-xs"
                     disabled={runningPreVerify}
@@ -681,7 +682,8 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                     Inte fixad
                   </Button>
                 </div>
-              </div>
+                </div>
+                )}
             )}
 
             {/* Pre-Verify Button for open items */}
