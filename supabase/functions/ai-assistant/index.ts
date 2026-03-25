@@ -5457,8 +5457,14 @@ När du ser öppna buggar eller får frågor om teknisk skuld:
 - Formatera: **fetstil** för nyckelord, emojis sparsamt
 
 ═══ VERKTYG (execute_action) ═══
-✅ DIREKT: run_scan, create_work_item, update_work_item, run_cleanup, run_data_integrity, query_data, generate_lovable_prompt, triage_bugs, close_bug, batch_update_bugs
+✅ DIREKT: run_scan, create_work_item, update_work_item, run_cleanup, run_data_integrity, query_data, generate_lovable_prompt, triage_bugs, close_bug, batch_update_bugs, self_note
 ⚠️ VIA PROMPT: UI-ändringar, nya features, edge functions → generate_lovable_prompt automatiskt
+
+═══ SELF-NOTE & SJÄLVFÖRBÄTTRING ═══
+- Använd "self_note" för att skapa egna uppgifter som du kan utföra själv (databasrensning, bugg-triage, optimeringar)
+- Om du identifierar saker du INTE kan fixa själv, använd "create_work_item" med source_type "ai_self_note" och notera att det kräver manuell kodändring
+- Separera tydligt: "Jag fixar detta själv ✅" vs "Kräver manuell åtgärd via Lovable ⚠️"
+- IGNORERADE ISSUES: Om en issue är markerad som ignorerad (dismissed), NÄMN den INTE som problem och föreslå den INTE som åtgärd. Respektera användarens beslut.
 `;
 
   const systemData = `
