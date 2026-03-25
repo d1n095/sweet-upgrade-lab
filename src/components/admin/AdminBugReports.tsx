@@ -167,7 +167,7 @@ const AdminBugReports = () => {
       }
     }
     // Reload to show enriched data
-    load();
+    refetch();
   };
 
   const openBug = useCallback((id: string) => {
@@ -572,7 +572,7 @@ const AdminBugReports = () => {
           <Badge variant={openCount > 0 ? 'destructive' : 'secondary'} className="text-xs">{openCount} öppna</Badge>
           <Badge variant="outline" className="text-xs">{reports.length} totalt</Badge>
         </div>
-        <Button size="sm" variant="ghost" className="gap-1.5 h-7 text-xs" onClick={load}>
+        <Button size="sm" variant="ghost" className="gap-1.5 h-7 text-xs" onClick={() => refetch()}>
           <RefreshCw className="w-3 h-3" /> Uppdatera
         </Button>
       </div>
