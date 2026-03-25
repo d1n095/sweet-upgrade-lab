@@ -340,7 +340,12 @@ export type Database = {
           action_type: string
           affected_components: string[] | null
           created_at: string
+          endpoints: string[] | null
+          file_paths: string[] | null
           id: string
+          linked_bug_id: string | null
+          linked_scan_id: string | null
+          linked_work_item_id: string | null
           metadata: Json | null
           result: string
           summary: string | null
@@ -352,7 +357,12 @@ export type Database = {
           action_type?: string
           affected_components?: string[] | null
           created_at?: string
+          endpoints?: string[] | null
+          file_paths?: string[] | null
           id?: string
+          linked_bug_id?: string | null
+          linked_scan_id?: string | null
+          linked_work_item_id?: string | null
           metadata?: Json | null
           result?: string
           summary?: string | null
@@ -364,7 +374,12 @@ export type Database = {
           action_type?: string
           affected_components?: string[] | null
           created_at?: string
+          endpoints?: string[] | null
+          file_paths?: string[] | null
           id?: string
+          linked_bug_id?: string | null
+          linked_scan_id?: string | null
+          linked_work_item_id?: string | null
           metadata?: Json | null
           result?: string
           summary?: string | null
