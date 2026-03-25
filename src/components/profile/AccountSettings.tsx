@@ -142,12 +142,14 @@ const AccountSettings = () => {
           </div>
         </div>
 
-        <form onSubmit={handleEmailUpdate} className="space-y-4">
+        <form onSubmit={handleEmailUpdate} className="space-y-4" autoComplete="off">
           <div>
             <Label htmlFor="newEmail">{t.emailLabel}</Label>
             <Input
               id="newEmail"
               type="email"
+              name="settings_new_email"
+              autoComplete="off"
               value={newEmail}
               onChange={(e) => setNewEmail(e.target.value)}
               placeholder={t.emailPlaceholder}
@@ -184,12 +186,14 @@ const AccountSettings = () => {
           <h3 className="font-semibold">{t.passwordSection}</h3>
         </div>
 
-        <form onSubmit={handlePasswordUpdate} className="space-y-4">
+        <form onSubmit={handlePasswordUpdate} className="space-y-4" autoComplete="off">
           <div>
             <Label htmlFor="newPassword">{t.newPasswordLabel}</Label>
             <Input
               id="newPassword"
               type="password"
+              name="settings_new_pass"
+              autoComplete="new-password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               className="mt-1.5"
@@ -200,6 +204,8 @@ const AccountSettings = () => {
             <Input
               id="confirmPassword"
               type="password"
+              name="settings_confirm_pass"
+              autoComplete="new-password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               className="mt-1.5"
