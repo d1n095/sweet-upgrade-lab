@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
 type CheckVerdict = 'working' | 'fake_done' | 'partially_working' | 'broken';
-type CheckCategory = 'buttons' | 'data' | 'modals' | 'scroll' | 'forms' | 'navigation';
+type CheckCategory = 'buttons' | 'data' | 'modals' | 'scroll' | 'forms' | 'navigation' | 'layout';
 
 interface UICheck {
   id: string;
@@ -41,6 +41,7 @@ const categoryConfig: Record<CheckCategory, { label: string; icon: React.Element
   scroll: { label: 'Scroll', icon: ScrollText },
   forms: { label: 'Formulär', icon: Activity },
   navigation: { label: 'Navigation', icon: Eye },
+  layout: { label: 'Layout', icon: Layers },
 };
 
 const CheckCard = ({ check }: { check: UICheck }) => {
@@ -340,6 +341,103 @@ const UiRealityCheck = () => {
       results.push(makeCheck('navigation', `${allLinks.length} länkar`, 'a[href]', 'working', 'Alla synliga länkar har giltiga destinationer.'));
     }
 
+    // ─── 7. LAYOUT BUG DETECTION ───
+    setProgress(95);
+
+    // 7a. Content overflow / no-scroll detection
+    const allContainers = document.querySelectorAll('div, section, main, aside, article, [role="tabpanel"]');
+    allContainers.forEach((el) => {
+      const htmlEl = el as HTMLElement;
+      if (htmlEl.offsetWidth < 30 || htmlEl.offsetHeight < 30) return;
+      const style = getComputedStyle(htmlEl);
+      if (style.display === 'none' || style.visibility === 'hidden') return;
+
+      const overflowY = style.overflowY;
+      const overflowX = style.overflowX;
+      const contentH = htmlEl.scrollHeight;
+      const containerH = htmlEl.clientHeight;
+      const contentW = htmlEl.scrollWidth;
+      const containerW = htmlEl.clientWidth;
+      const overflow = contentH - containerH;
+      const overflowHoriz = contentW - containerW;
+
+      // no_scroll: content overflows vertically but overflow is hidden and not scrollable
+      if (overflow > 20 && overflowY === 'hidden' && containerH > 50 && containerH < 2000) {
+        // Skip if parent is a known scroll container
+        const parentScrollable = htmlEl.closest('[data-radix-scroll-area-viewport], [class*="overflow-y-auto"], [class*="overflow-auto"]');
+        if (!parentScrollable) {
+          results.push(makeCheck(
+            'layout',
+            `no_scroll: ${buildSelector(htmlEl).slice(0, 50)}`,
+            buildSelector(htmlEl),
+            'broken',
+            `Innehåll (${contentH}px) överstiger container (${containerH}px) med ${overflow}px men overflow-y:hidden blockerar scroll. Fix: ändra till overflow-y:auto och lägg till min-height:0 på flex-förälder.`
+          ));
+        }
+      }
+
+      // content_cut: fixed height with overflow hidden and significant content clipped
+      const hasFixedH = style.height !== 'auto' && !style.height.includes('%') && style.maxHeight !== 'none';
+      if (hasFixedH && overflow > 50 && (overflowY === 'hidden' || overflowY === 'visible') && containerH > 40) {
+        const isInsideScrollArea = !!htmlEl.closest('[data-radix-scroll-area-viewport]');
+        if (!isInsideScrollArea) {
+          results.push(makeCheck(
+            'layout',
+            `content_cut: ${buildSelector(htmlEl).slice(0, 50)}`,
+            buildSelector(htmlEl),
+            'broken',
+            `Container har fast höjd (${containerH}px) men innehållet är ${contentH}px — ${overflow}px klipps bort. Fix: ta bort fixed height eller lägg till overflow-y:auto.`
+          ));
+        }
+      }
+
+      // overflow_hidden_issue: horizontal content clipped
+      if (overflowHoriz > 30 && overflowX === 'hidden' && containerW > 50) {
+        const isTable = !!htmlEl.closest('table') || htmlEl.querySelector('table');
+        if (!isTable) {
+          results.push(makeCheck(
+            'layout',
+            `overflow_hidden_issue (horiz): ${buildSelector(htmlEl).slice(0, 50)}`,
+            buildSelector(htmlEl),
+            'partially_working',
+            `Horisontellt innehåll (${contentW}px) klipps i container (${containerW}px). ${overflowHoriz}px dolt. Fix: overflow-x:auto eller bredda containern.`
+          ));
+        }
+      }
+    });
+
+    // 7b. modal_overflow_bug: open dialogs/sheets with clipped content
+    const openModals = document.querySelectorAll('[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]');
+    openModals.forEach((modal) => {
+      const htmlModal = modal as HTMLElement;
+      const innerScrollable = htmlModal.querySelector('[data-radix-scroll-area-viewport], [class*="overflow-y-auto"], [class*="overflow-auto"]');
+
+      if (!innerScrollable) {
+        const mContentH = htmlModal.scrollHeight;
+        const mContainerH = htmlModal.clientHeight;
+        if (mContentH > mContainerH + 30) {
+          results.push(makeCheck(
+            'layout',
+            `modal_overflow_bug: ${buildSelector(htmlModal).slice(0, 50)}`,
+            buildSelector(htmlModal),
+            'broken',
+            `Öppen modal har ${mContentH}px innehåll i ${mContainerH}px container utan scroll-wrapper. Fix: wrappa innehållet i ScrollArea eller lägg till overflow-y:auto med flex-1 min-h-0.`
+          ));
+        }
+      } else {
+        const scrollEl = innerScrollable as HTMLElement;
+        if (scrollEl.scrollHeight > scrollEl.clientHeight + 20 && getComputedStyle(scrollEl).overflowY === 'hidden') {
+          results.push(makeCheck(
+            'layout',
+            `modal_overflow_bug (blocked scroll): ${buildSelector(htmlModal).slice(0, 50)}`,
+            buildSelector(htmlModal),
+            'broken',
+            `Modal har ScrollArea men overflow-y:hidden blockerar scroll. Fix: kontrollera flex-chain — säkerställ min-height:0 på alla flex-föräldrar.`
+          ));
+        }
+      }
+    });
+
     setProgress(100);
 
     // Sort: issues first
@@ -426,7 +524,7 @@ const UiRealityCheck = () => {
           </Button>
         )}
         <div className="ml-auto text-[10px] text-muted-foreground">
-          Kontrollerar: knappar · data · modaler · scroll · formulär · navigation
+          Kontrollerar: knappar · data · modaler · scroll · formulär · navigation · layout
         </div>
       </div>
 
