@@ -95,6 +95,7 @@ serve(async (req) => {
       }
 
       case "data_insights": {
+        await logAiRead(supabase, { action_type: "scan", target_type: "data_insights", result: "inspected", summary: "AI ran data insights analysis", triggered_by: user.id });
         result = await handleDataInsights(supabase, lovableKey, body);
         break;
       }
@@ -110,11 +111,13 @@ serve(async (req) => {
       }
 
       case "system_health": {
+        await logAiRead(supabase, { action_type: "scan", target_type: "system_health", result: "inspected", summary: "AI ran system health check", triggered_by: user.id });
         result = await handleSystemHealth(supabase, lovableKey);
         break;
       }
 
       case "system_scan": {
+        await logAiRead(supabase, { action_type: "scan", target_type: "system_scan", result: "inspected", summary: "AI ran full system scan", triggered_by: user.id });
         result = await handleSystemScan(supabase, lovableKey, supabaseUrl, serviceKey);
         break;
       }
@@ -135,6 +138,7 @@ serve(async (req) => {
       }
 
       case "bug_rescan": {
+        await logAiRead(supabase, { action_type: "scan", target_type: "bug_rescan", result: "inspected", summary: "AI rescanned all bugs", triggered_by: user.id });
         result = await handleBugRescan(supabase, lovableKey);
         break;
       }
