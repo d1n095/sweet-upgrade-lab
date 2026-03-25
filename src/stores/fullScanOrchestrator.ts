@@ -16,6 +16,15 @@ export interface OrchestratorStep {
   duration_ms?: number;
 }
 
+export interface AdaptiveScanMeta {
+  iterations: number;
+  new_issues_found: number;
+  pattern_discoveries: any[];
+  high_risk_areas: any[];
+  coverage_score: number;
+  iteration_results: any[];
+}
+
 export interface UnifiedScanResult {
   blocker: any | null;
   broken_flows: any[];
@@ -26,6 +35,7 @@ export interface UnifiedScanResult {
   step_results: Record<string, any>;
   completed_at: string;
   total_duration_ms: number;
+  adaptive_scan?: AdaptiveScanMeta;
 }
 
 /**
@@ -91,6 +101,8 @@ interface FullScanOrchestratorState {
   scanRunId: string | null;
   pollInterval: ReturnType<typeof setInterval> | null;
   lockedBy: string | null;
+  currentIteration: number;
+  currentStepLabel: string;
 
   /** Start a server-side scan */
   runOrchestrated: (queryClient?: QueryClient) => Promise<void>;
@@ -112,6 +124,8 @@ export const useFullScanOrchestrator = create<FullScanOrchestratorState>((set, g
   scanRunId: null,
   pollInterval: null,
   lockedBy: null,
+  currentIteration: 1,
+  currentStepLabel: '',
 
   stopPolling: () => {
     const interval = get().pollInterval;
