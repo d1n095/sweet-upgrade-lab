@@ -203,16 +203,6 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
 
   const activeTabDef = ALL_TABS.find(t => t.value === activeTab);
 
-  // Render only the active TabsContent child
-  const activeContent = useMemo(() => {
-    if (activeTab === 'ai-dashboard') return <DashboardOverview onNavigate={handleNavigate} />;
-
-    const childArray = React.Children.toArray(children);
-    return childArray.find((child) => {
-      if (React.isValidElement(child) && child.props.value === activeTab) return true;
-      return false;
-    }) || null;
-  }, [activeTab, children]);
 
   const sidebarContent = (
     <nav className="space-y-1 px-2">
