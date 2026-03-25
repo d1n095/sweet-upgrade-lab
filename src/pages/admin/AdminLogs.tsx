@@ -1,5 +1,6 @@
 import AdminActivityLog from '@/components/admin/AdminActivityLog';
 import AdminBugReports from '@/components/admin/AdminBugReports';
+import AdminObservabilityLog from '@/components/admin/AdminObservabilityLog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const AdminLogs = () => {
@@ -14,10 +15,14 @@ const AdminLogs = () => {
       <Tabs defaultValue="activity" className="flex min-h-0 flex-1 flex-col">
         <TabsList>
           <TabsTrigger value="activity">Aktivitetslogg</TabsTrigger>
+          <TabsTrigger value="observability">Observability</TabsTrigger>
           <TabsTrigger value="bugs">Buggrapporter</TabsTrigger>
         </TabsList>
         <TabsContent value="activity" className="min-h-0 flex-1 overflow-y-auto">
           <AdminActivityLog />
+        </TabsContent>
+        <TabsContent value="observability" className="min-h-0 flex-1 overflow-y-auto">
+          <AdminObservabilityLog />
         </TabsContent>
         <TabsContent value="bugs" className="min-h-0 flex-1 overflow-y-auto">
           <AdminBugReports />
