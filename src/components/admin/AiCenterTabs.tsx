@@ -47,12 +47,10 @@ const TAB_GROUPS: TabGroup[] = [
     icon: Wrench,
     tabs: [
       { value: 'lova-chat', label: 'Lova Chat', icon: Bot },
-      { value: 'lova-prompts', label: 'Prompts', icon: Copy },
       { value: 'autopilot', label: 'Autopilot', icon: Play },
-      { value: 'actions', label: 'Actions', icon: TrendingUp },
+      { value: 'actions', label: 'Åtgärder', icon: TrendingUp },
       { value: 'tasks', label: 'Uppgifter', icon: Bot },
       { value: 'bugs', label: 'Buggar', icon: Bug },
-      { value: 'prompt-queue', label: 'Prompt-kö', icon: Layers },
     ],
   },
   {
@@ -71,20 +69,6 @@ const TAB_GROUPS: TabGroup[] = [
     ],
   },
   {
-    id: 'ai-lab',
-    label: 'AI Lab',
-    icon: Sparkles,
-    tabs: [
-      { value: 'prompts', label: 'Prompt Generator', icon: Sparkles },
-      { value: 'products', label: 'Produktförslag', icon: Package },
-      { value: 'auto-fix', label: 'Auto-fix', icon: Wrench },
-      { value: 'governor', label: 'Governor', icon: Gavel },
-      { value: 'orchestration', label: 'Orkestrering', icon: GitMerge },
-      { value: 'guardian', label: 'Guardian', icon: ShieldCheck },
-      { value: 'verification', label: 'Verifiering', icon: CheckCircle },
-    ],
-  },
-  {
     id: 'system',
     label: 'System',
     icon: Database,
@@ -93,8 +77,6 @@ const TAB_GROUPS: TabGroup[] = [
       { value: 'data-integrity', label: 'Dataintegritet', icon: ShieldCheck },
       { value: 'content-validation', label: 'Innehållskontroll', icon: Eye },
       { value: 'cleanup', label: 'Rensning', icon: Database },
-      { value: 'structure', label: 'Struktur', icon: LayoutGrid },
-      { value: 'patterns', label: 'Mönster', icon: GitMerge },
     ],
   },
 ];
