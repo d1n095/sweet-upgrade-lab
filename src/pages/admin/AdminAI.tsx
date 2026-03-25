@@ -1606,7 +1606,7 @@ const SystemHealthTab = () => {
           {data.critical_issues?.length > 0 && (
             <div className="space-y-2">
               <h4 className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5 text-destructive" /> Kritiska problem ({data.critical_issues.length})</h4>
-              <ScrollArea className="max-h-[40vh]">
+              <ScrollArea className="max-h-[50vh]">
                 <div className="space-y-2 pr-2">
                   {data.critical_issues.map((issue: any, i: number) => (
                     <div key={i} className={cn('border rounded-lg p-3 space-y-1', severityColor(issue.severity))}>
@@ -1638,7 +1638,7 @@ const SystemHealthTab = () => {
           {data.duplicate_bugs?.length > 0 && (
             <div className="space-y-2">
               <h4 className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><Bug className="w-3.5 h-3.5" /> Duplicerade buggar ({data.duplicate_bugs.length})</h4>
-              <ScrollArea className="max-h-[30vh]">
+              <ScrollArea className="max-h-[50vh]">
                 <div className="space-y-2 pr-2">
                   {data.duplicate_bugs.map((d: any, i: number) => (
                     <div key={i} className="border rounded-lg p-3 space-y-1">
@@ -1670,7 +1670,7 @@ const SystemHealthTab = () => {
           {data.improvements?.length > 0 && (
             <div className="space-y-2">
               <h4 className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><Lightbulb className="w-3.5 h-3.5" /> Förbättringsförslag</h4>
-              <ScrollArea className="max-h-[30vh]">
+              <ScrollArea className="max-h-[50vh]">
                 <div className="space-y-2 pr-2">
                   {data.improvements.map((imp: any, i: number) => (
                     <div key={i} className="border rounded-lg p-3 space-y-1">
@@ -2156,7 +2156,7 @@ const SystemScanTab = () => {
           {scanHistory.length === 0 && (
             <p className="text-xs text-muted-foreground text-center py-3">Ingen historik ännu</p>
           )}
-          <div className="max-h-[30vh] overflow-y-auto space-y-1.5 pr-1">
+          <div className="max-h-[50vh] overflow-y-auto space-y-1.5 pr-1">
               {scanHistory.map((scan: any) => (
                 <div
                   key={scan.id}
@@ -2300,7 +2300,7 @@ const SystemScanTab = () => {
                 </div>
               )}
 
-              <ScrollArea className="max-h-[40vh]">
+              <ScrollArea className="max-h-[50vh]">
                 <div className="space-y-1.5 pr-2">
                   {scanResult.issues.filter((i: any) => !isDismissed(i)).map((issue: any, i: number) => (
                     <div key={i} className="border rounded-lg p-2.5 space-y-1.5 cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => setExpandedIssue(expandedIssue === i ? null : i)}>
@@ -3130,7 +3130,7 @@ const DataHealthTab = () => {
           {results.details?.length > 0 && (
             <div className="space-y-2">
               <h4 className="text-xs font-semibold text-muted-foreground">Detaljer ({results.details.length})</h4>
-              <ScrollArea className="max-h-[40vh]">
+              <ScrollArea className="max-h-[50vh]">
                 <div className="space-y-1.5 pr-2">
                   {results.details.map((d: any, i: number) => (
                     <div key={i} className={cn(
@@ -3417,7 +3417,7 @@ const NavBugScanTab = () => {
           {/* Route status */}
           <Card className="p-4">
             <h4 className="text-xs font-semibold mb-2">Route-status</h4>
-            <ScrollArea className="max-h-[30vh]">
+            <ScrollArea className="max-h-[50vh]">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5 pr-2">
                 {navResult.route_status?.map((r: any, i: number) => (
                   <div key={i} className="flex items-center gap-2 p-1.5 rounded text-xs">
@@ -3434,7 +3434,7 @@ const NavBugScanTab = () => {
           {navResult.issues?.length > 0 && (
             <Card className="p-4">
               <h4 className="text-xs font-semibold mb-2">Navigationsproblem ({navResult.issues.length})</h4>
-              <ScrollArea className="max-h-[40vh]">
+              <ScrollArea className="max-h-[50vh]">
                 <div className="space-y-2 pr-2">
                   {navResult.issues.map((issue: any, i: number) => (
                     <div key={i} className="border rounded-lg p-3 space-y-1.5">
@@ -3490,7 +3490,7 @@ const NavBugScanTab = () => {
           {bugResult.status_changes?.length > 0 && (
             <Card className="p-4">
               <h4 className="text-xs font-semibold mb-2">Statusändringar ({bugResult.status_changes.length})</h4>
-              <ScrollArea className="max-h-[30vh]">
+              <ScrollArea className="max-h-[50vh]">
                 <div className="space-y-1.5 pr-2">
                   {bugResult.status_changes.map((c: any, i: number) => (
                     <div key={i} className={cn(
@@ -4368,7 +4368,7 @@ const StructureAnalysisTab = () => {
                   <GitMerge className="w-4 h-4 text-primary" /> Sammanslagningsförslag ({result.merge_suggestions.length})
                 </CardTitle>
               </CardHeader>
-              <CardContent><ScrollArea className="max-h-[40vh]"><div className="space-y-3 pr-2">
+              <CardContent><ScrollArea className="max-h-[50vh]"><div className="space-y-3 pr-2">
                 {result.merge_suggestions.map((ms: any, i: number) => (
                   <div key={i} className="border rounded-lg p-3 space-y-2">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -4494,7 +4494,7 @@ const DevGuardianTab = () => {
                   <Zap className="w-4 h-4 text-warning" /> Top prioriteringar
                 </CardTitle>
               </CardHeader>
-              <CardContent><ScrollArea className="max-h-[30vh]"><div className="space-y-2 pr-2">
+              <CardContent><ScrollArea className="max-h-[50vh]"><div className="space-y-2 pr-2">
                 {result.top_priorities.map((p: any, i: number) => (
                   <div key={i} className="flex items-start gap-2 border rounded-lg p-2.5">
                     <Badge variant={urgencyBadge(p.urgency)} className="text-[9px] shrink-0 mt-0.5">
@@ -4918,7 +4918,7 @@ const AiAutopilotTab = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="max-h-[30vh]">
+            <ScrollArea className="max-h-[50vh]">
               <div className="space-y-1 pr-2">
                 {scanRuns.slice(0, 30).map((run: any) => (
                   <div key={run.id} className="flex items-center gap-2 p-1.5 rounded hover:bg-muted/30 text-xs">
@@ -5026,7 +5026,7 @@ const InteractionQATab = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <ScrollArea className="max-h-[40vh]">
+                <ScrollArea className="max-h-[50vh]">
                   <div className="space-y-2 pr-2">
                     {result.dead_elements.map((el: any, i: number) => (
                       <div key={i} className="border border-border rounded-lg p-3 space-y-1.5">
@@ -5057,7 +5057,7 @@ const InteractionQATab = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <ScrollArea className="max-h-[40vh]">
+                <ScrollArea className="max-h-[50vh]">
                   <div className="space-y-2 pr-2">
                     {result.broken_flows.map((flow: any, i: number) => (
                       <div key={i} className="border border-border rounded-lg p-3 space-y-1.5">
@@ -5120,7 +5120,7 @@ const InteractionQATab = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <ScrollArea className="max-h-[30vh]"><div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pr-2">
+                <ScrollArea className="max-h-[50vh]"><div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pr-2">
                   {result.route_issues.map((ri: any, i: number) => (
                     <div key={i} className="flex items-center gap-2 text-xs p-2 rounded bg-muted/50">
                       {ri.status === 'ok' ? <CheckCircle className="w-3.5 h-3.5 text-green-600 shrink-0" /> :
@@ -5144,7 +5144,7 @@ const InteractionQATab = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <ScrollArea className="max-h-[30vh]"><div className="space-y-1.5 pr-2">
+                <ScrollArea className="max-h-[50vh]"><div className="space-y-1.5 pr-2">
                   {result.bug_reevaluation.map((br: any, i: number) => (
                     <div key={i} className="flex items-start gap-2 text-xs p-2 rounded bg-muted/50">
                       <Badge variant={br.recommended_status === 'likely_fixed' ? 'secondary' : br.recommended_status === 'still_open' ? 'destructive' : 'outline'} className="text-[10px] shrink-0">
@@ -5231,7 +5231,7 @@ const VerificationEngineTab = () => {
           {result.false_done_items?.length > 0 && (
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><XCircle className="w-4 h-4 text-destructive" /> Falska "done" (återöppnade)</CardTitle></CardHeader>
-              <CardContent><ScrollArea className="max-h-[30vh]"><div className="space-y-2 pr-2">
+              <CardContent><ScrollArea className="max-h-[50vh]"><div className="space-y-2 pr-2">
                 {result.false_done_items.map((item: any, i: number) => (
                   <div key={i} className="flex items-center gap-2 text-sm border-b border-border pb-2">
                     <Badge variant="destructive" className="text-[9px]">Återöppnad</Badge>
@@ -5247,7 +5247,7 @@ const VerificationEngineTab = () => {
           {result.auto_closed_items?.length > 0 && (
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><CheckCircle className="w-4 h-4 text-primary" /> Auto-stängda</CardTitle></CardHeader>
-              <CardContent><ScrollArea className="max-h-[30vh]"><div className="space-y-2 pr-2">
+              <CardContent><ScrollArea className="max-h-[50vh]"><div className="space-y-2 pr-2">
                 {result.auto_closed_items.map((item: any, i: number) => (
                   <div key={i} className="flex items-center gap-2 text-sm border-b border-border pb-2">
                     <Badge variant="secondary" className="text-[9px]">Stängd</Badge>
@@ -5263,7 +5263,7 @@ const VerificationEngineTab = () => {
           {result.post_fix_suggestions?.length > 0 && (
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Lightbulb className="w-4 h-4 text-yellow-500" /> Post-fix förbättringar</CardTitle></CardHeader>
-              <CardContent><ScrollArea className="max-h-[40vh]"><div className="space-y-3 pr-2">
+              <CardContent><ScrollArea className="max-h-[50vh]"><div className="space-y-3 pr-2">
                 {result.post_fix_suggestions.map((s: any, i: number) => (
                   <div key={i} className="border border-border rounded-lg p-3 space-y-2">
                     <div className="flex items-center gap-2">
@@ -5293,7 +5293,7 @@ const VerificationEngineTab = () => {
           {result.recategorizations?.length > 0 && (
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><ArrowRightLeft className="w-4 h-4" /> Omkategoriseringar</CardTitle></CardHeader>
-              <CardContent><ScrollArea className="max-h-[30vh]"><div className="space-y-2 pr-2">
+              <CardContent><ScrollArea className="max-h-[50vh]"><div className="space-y-2 pr-2">
                 {result.recategorizations.map((r: any, i: number) => (
                   <div key={i} className="text-sm border-b border-border pb-2">
                     <span className="font-medium">{r.task_title}</span>
@@ -5313,7 +5313,7 @@ const VerificationEngineTab = () => {
           {result.merge_suggestions?.length > 0 && (
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><GitMerge className="w-4 h-4" /> Merge-förslag</CardTitle></CardHeader>
-              <CardContent><ScrollArea className="max-h-[30vh]"><div className="space-y-2 pr-2">
+              <CardContent><ScrollArea className="max-h-[50vh]"><div className="space-y-2 pr-2">
                 {result.merge_suggestions.map((m: any, i: number) => (
                   <div key={i} className="text-sm border-b border-border pb-2 space-y-1">
                     {m.tasks.map((t: string, j: number) => <p key={j} className="text-xs">• {t}</p>)}
