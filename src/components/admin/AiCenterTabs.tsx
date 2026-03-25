@@ -170,9 +170,13 @@ interface AiCenterTabsProps {
 }
 
 const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsProps) => {
-  const [activeTab, setActiveTab] = useState(defaultValue);
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const initialTab = (tabParam && ALL_TABS.some(t => t.value === tabParam)) ? tabParam : defaultValue;
+
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [expandedGroup, setExpandedGroup] = useState<string | null>(() => findGroupForTab(defaultValue)?.id || 'dashboard');
+  const [expandedGroup, setExpandedGroup] = useState<string | null>(() => findGroupForTab(initialTab)?.id || 'dashboard');
 
   const handleNavigate = (tab: string) => {
     setActiveTab(tab);
@@ -180,6 +184,25 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
     if (group) setExpandedGroup(group.id);
     setMobileNavOpen(false);
   };
+
+  // Listen for external navigation events (from AiControlBar)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const tab = (e as CustomEvent).detail;
+      if (tab && ALL_TABS.some(t => t.value === tab)) {
+        handleNavigate(tab);
+      }
+    };
+    window.addEventListener('ai-center-navigate', handler);
+    return () => window.removeEventListener('ai-center-navigate', handler);
+  }, []);
+
+  // Sync with URL param changes
+  useEffect(() => {
+    if (tabParam && ALL_TABS.some(t => t.value === tabParam) && tabParam !== activeTab) {
+      handleNavigate(tabParam);
+    }
+  }, [tabParam]);
 
   const activeTabDef = ALL_TABS.find(t => t.value === activeTab);
 
