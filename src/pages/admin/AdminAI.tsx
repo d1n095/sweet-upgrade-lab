@@ -267,8 +267,8 @@ const LovaChatTab = () => {
               <Bot className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
             </div>
             <div className="min-w-0">
-              <h3 className="font-semibold text-xs sm:text-sm truncate">Lova 0.5</h3>
-              <p className="text-[10px] sm:text-xs text-muted-foreground truncate hidden sm:block">AI-operatör · full systemåtkomst</p>
+              <h3 className="font-semibold text-xs sm:text-sm truncate">Lova</h3>
+              <p className="text-[10px] sm:text-xs text-muted-foreground truncate hidden sm:block">AI-assistent · systemanalys</p>
             </div>
           </div>
           <Button variant="outline" size="sm" onClick={startNewConversation} className="gap-1 sm:gap-1.5 text-xs h-7 sm:h-8 px-2 sm:px-3 shrink-0">
@@ -315,11 +315,9 @@ const LovaChatTab = () => {
           <div className="text-center py-12 space-y-3">
             <Bot className="w-12 h-12 mx-auto text-muted-foreground/40" />
             <div>
-              <p className="font-medium text-foreground">Hej! Jag är Lova 0.5</p>
+              <p className="font-medium text-foreground">Hej! Jag är Lova</p>
               <p className="text-sm text-muted-foreground mt-1">
-                Jag kan analysera data, köra skanningar, skapa uppgifter, fixa databasfel, ge tillväxtförslag och mycket mer.
-                <br />
-                Om något kräver kodändringar genererar jag en prompt till Lovable.
+                Jag kan analysera data, köra skanningar, skapa uppgifter, ge tillväxtförslag och mycket mer.
               </p>
             </div>
             <div className="grid grid-cols-2 gap-2 max-w-md mx-auto mt-4">
