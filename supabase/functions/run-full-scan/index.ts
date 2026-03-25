@@ -912,6 +912,20 @@ serve(async (req) => {
       stepResult._step_id = step.id;
       stepResult._iteration = currentIteration;
 
+      // Observability: log each scan step
+      await supabase.from("system_observability_log").insert({
+        event_type: "scan_step",
+        severity: stepResult.failed ? "error" : "info",
+        source: "scanner",
+        message: stepResult.failed ? `Steg misslyckades: ${step.label}` : `Steg klart: ${step.label}`,
+        details: { step_id: step.id, iteration: currentIteration, failed: !!stepResult.failed },
+        scan_id: scan_run_id,
+        trace_id: `full-scan-${scan_run_id.slice(0, 8)}`,
+        component: step.scanType,
+        duration_ms,
+        error_code: stepResult.failed ? stepResult.error?.slice(0, 100) : undefined,
+      }).catch(() => {});
+
       // Save step result
       const updatedResults = { ...(scanRun.steps_results || {}), [step.id]: stepResult };
 
@@ -1185,6 +1199,27 @@ serve(async (req) => {
         current_step: STEPS.length,
         current_step_label: `Klar ✓ (${iterationsCompleted} iterationer)`,
       }).eq("id", scan_run_id);
+
+      // Observability: log full scan completion
+      await supabase.from("system_observability_log").insert({
+        event_type: "action",
+        severity: unified.system_health_score < 50 ? "warning" : "info",
+        source: "scanner",
+        message: `Full skanning klar: ${execSummary}`,
+        details: {
+          iterations: iterationsCompleted,
+          health_score: unified.system_health_score,
+          issues_count: issuesCount,
+          work_items_created: workItemsCreated,
+          predictions_count: predictions.length,
+          coverage_score: coverageScore,
+        },
+        scan_id: scan_run_id,
+        trace_id: `full-scan-${scan_run_id.slice(0, 8)}`,
+        component: "run-full-scan",
+        duration_ms: totalDuration,
+        user_id: scanRun.started_by,
+      });
 
       return new Response(JSON.stringify({ ok: true, action: "finalized", iterations: iterationsCompleted, work_items_created: workItemsCreated }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
