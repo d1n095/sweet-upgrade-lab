@@ -268,7 +268,11 @@ const AdminBugReports = () => {
       setExpandedId(null);
       toast.success('Bugg markerad som löst ✓');
     } catch { toast.error('Något gick fel'); }
-    finally { setResolving(null); }
+    finally {
+      setResolving(null);
+      queryClient.invalidateQueries({ queryKey: ['bug-reports'] });
+      queryClient.invalidateQueries({ queryKey: ['work-items'] });
+    }
   };
 
   const fmtDateTime = (d: string) => {
