@@ -657,7 +657,7 @@ serve(async (req) => {
         .order("recurrence_count", { ascending: false })
         .limit(50);
 
-      const { patterns, highRiskAreas } = extractPatterns(unified, rootCauseData || []);
+      const { patterns, highRiskAreas, systemicIssues } = extractPatterns(unified, rootCauseData || []);
 
       // Build previous issue keys from all iterations
       const previousIssueKeys = new Set<string>();
@@ -686,6 +686,7 @@ serve(async (req) => {
         total_issues: unified.broken_flows.length + unified.fake_features.length + unified.interaction_failures.length + unified.data_issues.length,
         patterns_discovered: patterns.length,
         high_risk_areas: highRiskAreas.length,
+        systemic_issues: systemicIssues.length,
         health_score: unified.system_health_score,
         issue_keys: [...newKeys],
         completed_at: new Date().toISOString(),
@@ -773,6 +774,14 @@ serve(async (req) => {
       const highRiskAreas = scanRun.high_risk_areas || [];
       const coverageScore = scanRun.coverage_score || 0;
 
+      // Run cross-pattern detection on final results
+      const { data: finalRootCause } = await supabase
+        .from("root_cause_memory")
+        .select("pattern_key, affected_system, root_cause, recurrence_count, severity")
+        .order("recurrence_count", { ascending: false })
+        .limit(50);
+      const { systemicIssues } = extractPatterns(unified, finalRootCause || []);
+
       // Enrich unified result with adaptive scan metadata
       const adaptiveResult = {
         ...unified,
@@ -781,6 +790,7 @@ serve(async (req) => {
           new_issues_found: scanRun.total_new_issues || 0,
           pattern_discoveries: patternDiscoveries,
           high_risk_areas: highRiskAreas,
+          systemic_issues: systemicIssues,
           coverage_score: coverageScore,
           iteration_results: scanRun.iteration_results || [],
         },
