@@ -721,6 +721,40 @@ const UiRealityCheck = () => {
           }
           return true;
         }
+        case 'layout_conflict': {
+          // Add min-height:0 and overflow-y:auto
+          const s = getComputedStyle(el);
+          const isCol = s.flexDirection === 'column' || s.flexDirection === 'column-reverse';
+          if (isCol) {
+            el.style.minHeight = '0';
+            el.style.overflowY = 'auto';
+          } else {
+            el.style.minWidth = '0';
+            el.style.overflowX = 'auto';
+          }
+          return true;
+        }
+        case 'overlay_block': {
+          el.style.pointerEvents = 'none';
+          return true;
+        }
+        case 'overflow_chain': {
+          // Walk up flex chain and fix min-height:0
+          let p = el.parentElement;
+          let d2 = 0;
+          while (p && d2 < 8) {
+            const ps = getComputedStyle(p);
+            const isFlex = ps.display === 'flex' || ps.display === 'inline-flex';
+            const isFlexCol = isFlex && (ps.flexDirection === 'column' || ps.flexDirection === 'column-reverse');
+            if (isFlexCol && ps.flexGrow === '1' && ps.minHeight !== '0px') {
+              p.style.minHeight = '0';
+            }
+            if (ps.overflow === 'auto' || ps.overflowY === 'auto') break;
+            p = p.parentElement;
+            d2++;
+          }
+          return true;
+        }
         default:
           return false;
       }
