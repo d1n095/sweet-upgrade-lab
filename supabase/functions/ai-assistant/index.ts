@@ -1416,18 +1416,31 @@ Du MÅSTE använda system_scan-funktionen.`,
   }
 
   // 3. Auto-create work_items for detected issues (with dedup) — only non-dismissed
+  // Also filter activeIssues against existing work items (fuzzy) to avoid showing already-handled items
+  const existingTitleSet = new Set((existingWorkItemsRes.data || []).map((w: any) => (w.title || "").toLowerCase().trim()));
+  const filteredActiveIssues = activeIssues.filter((issue: any) => {
+    const key = (issue.title || "").toLowerCase().trim();
+    // Check if any existing work item title contains this issue title or vice versa
+    for (const existing of existingTitleSet) {
+      if (existing.includes(key) || key.includes(existing) ||
+          existing.includes(key.substring(0, 30)) || key.includes(existing.substring(0, 30))) {
+        return false;
+      }
+    }
+    return true;
+  });
+
   let created = 0;
   let skipped = 0;
   const createdIds: string[] = [];
 
-  for (const issue of activeIssues) {
-    // Dedup: check if similar task already exists
+  for (const issue of filteredActiveIssues) {
+    // Dedup: check if similar task already exists (including done)
     const searchTitle = issue.title.substring(0, 40);
     const { data: existing } = await supabase
       .from("work_items")
       .select("id")
       .ilike("title", `%${searchTitle}%`)
-      .in("status", ["open", "claimed", "in_progress", "escalated"])
       .limit(1);
 
     if (existing?.length) {
