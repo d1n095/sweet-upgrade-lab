@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Settings, ShoppingCart, Wrench, Home, AlertTriangle, Eye, EyeOff, Globe, Shield, Database, RefreshCw, UserPlus, CreditCard, User } from 'lucide-react';
+import { Settings, ShoppingCart, Wrench, Home, AlertTriangle, Eye, EyeOff, Globe, Shield, Database, RefreshCw, UserPlus, CreditCard, User, Instagram, Facebook } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -42,6 +42,7 @@ const AdminSettingsPage = () => {
     setSiteActive, setCheckoutEnabled, setRegistrationEnabled, setHomepageSetting,
     homepageBestsellers, homepageReviews, homepagePhilosophy, homepageAbout,
     requirePhone, requireAddress, guestCheckout, autoSaveProfile, setProfileSetting,
+    socialInstagram, socialFacebook, setSocialSetting,
   } = useStoreSettings();
   const { isVisible, setVisibility } = usePageVisibility();
   const { methods, isLoaded: paymentLoaded, load: loadPayments, toggle: togglePayment } = usePaymentMethodsStore();
