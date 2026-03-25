@@ -3284,6 +3284,66 @@ export type Database = {
         }
         Relationships: []
       }
+      system_observability_log: {
+        Row: {
+          bug_id: string | null
+          component: string | null
+          created_at: string
+          details: Json | null
+          duration_ms: number | null
+          endpoint: string | null
+          error_code: string | null
+          event_type: string
+          id: string
+          message: string
+          scan_id: string | null
+          severity: string
+          source: string
+          stack_trace: string | null
+          trace_id: string | null
+          user_id: string | null
+          work_item_id: string | null
+        }
+        Insert: {
+          bug_id?: string | null
+          component?: string | null
+          created_at?: string
+          details?: Json | null
+          duration_ms?: number | null
+          endpoint?: string | null
+          error_code?: string | null
+          event_type?: string
+          id?: string
+          message: string
+          scan_id?: string | null
+          severity?: string
+          source?: string
+          stack_trace?: string | null
+          trace_id?: string | null
+          user_id?: string | null
+          work_item_id?: string | null
+        }
+        Update: {
+          bug_id?: string | null
+          component?: string | null
+          created_at?: string
+          details?: Json | null
+          duration_ms?: number | null
+          endpoint?: string | null
+          error_code?: string | null
+          event_type?: string
+          id?: string
+          message?: string
+          scan_id?: string | null
+          severity?: string
+          source?: string
+          stack_trace?: string | null
+          trace_id?: string | null
+          user_id?: string | null
+          work_item_id?: string | null
+        }
+        Relationships: []
+      }
       timeline_entries: {
         Row: {
           created_at: string
@@ -3687,6 +3747,7 @@ export type Database = {
           message: string
         }[]
       }
+      cleanup_old_observability_logs: { Args: never; Returns: number }
       cleanup_orphan_work_items: { Args: never; Returns: Json }
       delete_email: {
         Args: { message_id: number; queue_name: string }

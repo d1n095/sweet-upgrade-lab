@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { useExecutionLockStore } from './executionLockStore';
 import { useFeedbackLoopStore } from './feedbackLoopStore';
 import { QueryClient } from '@tanstack/react-query';
+import { createTraceId, observeScanStep, observeError, observeAction, flushObservabilityBuffer } from '@/utils/observabilityLogger';
 
 export type ScanStepStatus = 'pending' | 'running' | 'done' | 'error';
 
@@ -125,6 +126,9 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
     }));
 
     // Run all scans in parallel for speed
+    const traceId = createTraceId('quick-scan');
+    observeAction(`Startar snabbskanning (${toRun.length} steg)`, { trace_id: traceId, source: 'scanner' });
+
     await Promise.allSettled(
       toRun.map(async (step, i) => {
         const start = Date.now();
@@ -136,21 +140,27 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
 
           if (res) {
             const duration_ms = Date.now() - start;
+            observeScanStep(`Steg klart: ${step.label}`, { trace_id: traceId, component: step.type, duration_ms });
             set(state => ({
               steps: state.steps.map((s, idx) => idx === i ? { ...s, status: 'done' as const, result: res, duration_ms } : s),
             }));
           } else {
+            observeError(`Inget resultat: ${step.label}`, undefined, { trace_id: traceId, component: step.type, duration_ms: Date.now() - start });
             set(state => ({
               steps: state.steps.map((s, idx) => idx === i ? { ...s, status: 'error' as const, error: 'Inget resultat', duration_ms: Date.now() - start } : s),
             }));
           }
         } catch (err: any) {
+          observeError(`Skanningsfel: ${step.label}`, err, { trace_id: traceId, component: step.type, duration_ms: Date.now() - start });
           set(state => ({
             steps: state.steps.map((s, idx) => idx === i ? { ...s, status: 'error' as const, error: err?.message || 'Fel', duration_ms: Date.now() - start } : s),
           }));
         }
       })
     );
+
+    observeAction(`Snabbskanning klar (${toRun.length} steg)`, { trace_id: traceId, source: 'scanner' });
+    flushObservabilityBuffer();
 
     // Invalidate relevant queries so UI reflects new scan results + work items
     if (queryClient) {
