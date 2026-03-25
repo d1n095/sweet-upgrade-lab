@@ -80,6 +80,7 @@ const navGroups: NavGroup[] = [
     label: 'EKONOMI',
     items: [
       { to: '/admin/finance', label: 'Ekonomi', icon: Wallet, role: 'admin' },
+      { to: '/admin/donations', label: 'Donationer', icon: Heart, role: 'admin' },
       { to: '/admin/partners', label: 'Partners', icon: Handshake, role: 'admin' },
     ],
   },
