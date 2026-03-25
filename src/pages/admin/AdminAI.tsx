@@ -462,7 +462,7 @@ const TaskAITab = () => {
           <h4 className="text-xs font-semibold text-muted-foreground">Nyligen AI-lösta ({resolvedItems.length})</h4>
           <div className="space-y-1">
             {resolvedItems.slice(0, 5).map(item => (
-              <div key={item.id} className="border rounded-md p-2 flex items-center justify-between gap-2 opacity-60">
+              <div key={item.id} className="border rounded-md p-2 flex items-center justify-between gap-2 opacity-60 cursor-pointer hover:opacity-80" onClick={() => openDetail(item.id)}>
                 <div className="min-w-0">
                   <p className="text-xs truncate">{item.title}</p>
                   <p className="text-[9px] text-muted-foreground">{item.ai_resolution_notes?.substring(0, 80)}</p>
