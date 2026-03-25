@@ -86,7 +86,7 @@ const AdminHistory = () => {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="flex h-full min-h-0 flex-col space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">Historik</h1>
         <p className="text-sm text-muted-foreground mt-1">
@@ -137,7 +137,7 @@ const AdminHistory = () => {
       </div>
 
       {/* Timeline */}
-      <ScrollArea className="max-h-[70vh]">
+      <ScrollArea className="flex-1 min-h-0">
         <div className="space-y-2">
           {isLoading ? (
             <p className="text-sm text-muted-foreground text-center py-12">Laddar historik...</p>
