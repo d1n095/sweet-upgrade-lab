@@ -233,6 +233,11 @@ serve(async (req) => {
         break;
       }
 
+      case "ux_scan": {
+        result = await handleUxScan(supabase, lovableKey);
+        break;
+      }
+
       default:
         return new Response(JSON.stringify({ error: "Unknown type" }), { status: 400, headers: corsHeaders });
     }
