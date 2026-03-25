@@ -5960,6 +5960,9 @@ const OrchestrationTab = () => {
         <TabsContent value="lova-chat" className="mt-4">
           <LovaChatTab />
         </TabsContent>
+        <TabsContent value="lova-prompts" className="mt-4">
+          <LovaPromptsTab />
+        </TabsContent>
         <TabsContent value="autopilot" className="mt-4">
           <AiAutopilotTab />
         </TabsContent>
