@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Bug, CheckCircle2, Loader2, Clock, MapPin, User, ChevronDown, ChevronUp, AlertCircle, Sparkles, Tag, Search, RefreshCw, BookOpen, Copy, Filter } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -62,8 +63,8 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 const AdminBugReports = () => {
   const { user } = useAuth();
-  const [reports, setReports] = useState<BugReport[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const [localReports, setLocalReports] = useState<BugReport[] | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [checklist, setChecklist] = useState<Record<string, boolean>>({});
   const [resolutionNotes, setResolutionNotes] = useState('');
@@ -73,8 +74,7 @@ const AdminBugReports = () => {
   const [promptTagFilter, setPromptTagFilter] = useState<string | null>(null);
   const [diagnostics, setDiagnostics] = useState<Record<string, any>>({});
 
-  const load = async () => {
-    setLoading(true);
+  const fetchBugs = async (): Promise<BugReport[]> => {
     const { data: bugs } = await supabase
       .from('bug_reports')
       .select('*')
@@ -95,23 +95,47 @@ const AdminBugReports = () => {
         profiles?.map(p => [p.user_id, p.first_name ? `${p.first_name} ${p.last_name || ''}`.trim() : (p.username || 'Okänd')]) || []
       );
 
-      setReports(bugs.map(b => ({
+      const mapped = bugs.map(b => ({
         ...b,
         ai_tags: (b as any).ai_tags || [],
         ai_approved: (b as any).ai_approved || false,
         work_item_status: wiMap.get(b.id) || null,
         reporter_name: profileMap.get(b.user_id) || 'Okänd',
-      })) as BugReport[]);
+      })) as BugReport[];
+      return mapped;
     }
-    setLoading(false);
+    return [];
   };
 
-  useEffect(() => {
-    load().then(() => {
-      // Auto-trigger AI enrichment for unprocessed bugs
-      autoEnrichBugs();
+  const { data: queryReports = [], isLoading: loading, refetch } = useQuery({
+    queryKey: ['bug-reports'],
+    queryFn: fetchBugs,
+    refetchOnWindowFocus: true,
+    staleTime: 30_000,
+  });
+
+  // Use local optimistic state when set, otherwise use query data
+  const reports = localReports ?? queryReports;
+  const setReports = (updater: BugReport[] | ((prev: BugReport[]) => BugReport[])) => {
+    setLocalReports(prev => {
+      const current = prev ?? queryReports;
+      return typeof updater === 'function' ? updater(current) : updater;
     });
-  }, []);
+  };
+
+  // Sync local state when query data changes
+  useEffect(() => {
+    setLocalReports(null); // Reset optimistic state on fresh data
+  }, [queryReports]);
+
+  // Auto-enrich on mount
+  const enrichedRef = useRef(false);
+  useEffect(() => {
+    if (!loading && queryReports.length > 0 && !enrichedRef.current) {
+      enrichedRef.current = true;
+      autoEnrichBugs();
+    }
+  }, [loading, queryReports]);
 
   const autoEnrichBugs = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -143,7 +167,7 @@ const AdminBugReports = () => {
       }
     }
     // Reload to show enriched data
-    load();
+    refetch();
   };
 
   const openBug = useCallback((id: string) => {
@@ -244,7 +268,11 @@ const AdminBugReports = () => {
       setExpandedId(null);
       toast.success('Bugg markerad som löst ✓');
     } catch { toast.error('Något gick fel'); }
-    finally { setResolving(null); }
+    finally {
+      setResolving(null);
+      queryClient.invalidateQueries({ queryKey: ['bug-reports'] });
+      queryClient.invalidateQueries({ queryKey: ['work-items'] });
+    }
   };
 
   const fmtDateTime = (d: string) => {
@@ -548,7 +576,7 @@ const AdminBugReports = () => {
           <Badge variant={openCount > 0 ? 'destructive' : 'secondary'} className="text-xs">{openCount} öppna</Badge>
           <Badge variant="outline" className="text-xs">{reports.length} totalt</Badge>
         </div>
-        <Button size="sm" variant="ghost" className="gap-1.5 h-7 text-xs" onClick={load}>
+        <Button size="sm" variant="ghost" className="gap-1.5 h-7 text-xs" onClick={() => refetch()}>
           <RefreshCw className="w-3 h-3" /> Uppdatera
         </Button>
       </div>
