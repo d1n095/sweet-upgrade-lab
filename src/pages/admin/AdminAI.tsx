@@ -467,7 +467,7 @@ const TaskAITab = () => {
                   <p className="text-xs truncate">{item.title}</p>
                   <p className="text-[9px] text-muted-foreground">{item.ai_resolution_notes?.substring(0, 80)}</p>
                 </div>
-                <Button size="sm" variant="ghost" className="h-5 text-[9px] shrink-0" onClick={() => overrideItem(item.id, { status: 'open', completed_at: null })}>
+                <Button size="sm" variant="ghost" className="h-5 text-[9px] shrink-0" onClick={(e) => { e.stopPropagation(); overrideItem(item.id, { status: 'open', completed_at: null }); }}>
                   Återöppna
                 </Button>
               </div>
