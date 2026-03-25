@@ -1658,15 +1658,28 @@ serve(async (req) => {
       // Create work items with context awareness and fingerprint dedup
       let workItemsCreated = await createWorkItems(supabase, unified, systemStage);
 
-      // Systemic issues → work items
+      // Systemic issues → work items (with consistency guard)
       for (const si of systemicIssues) {
         const fp = generateFingerprint({ component: si.pattern, type: "systemic", route: "global" });
-        const { data: existingByFp } = await supabase.from("work_items").select("id").eq("issue_fingerprint", fp).in("status", ["open", "claimed", "in_progress", "escalated"]).limit(1);
-        // if (existingByFp?.length) continue; // TEMPORARILY DISABLED
 
+        // Check existing by fingerprint
+        const { data: existingByFp } = await supabase.from("work_items").select("id, priority").eq("issue_fingerprint", fp).in("status", ["open", "claimed", "in_progress", "escalated", "new", "pending", "detected"]).limit(1);
+        if (existingByFp?.length) {
+          const newPriority = si.severity === "critical" ? "critical" : "high";
+          if (existingByFp[0].priority !== newPriority) {
+            await supabase.from("work_items").update({ priority: newPriority, updated_at: new Date().toISOString() }).eq("id", existingByFp[0].id);
+            console.log(`[consistency-guard] SYSTEMIC severity updated: ${existingByFp[0].id.slice(0, 8)}`);
+          }
+          continue;
+        }
+
+        // Check existing by title
         const searchTitle = si.label.substring(0, 40);
-        const { data: existing } = await supabase.from("work_items").select("id").ilike("title", `%${searchTitle}%`).in("status", ["open", "claimed", "in_progress", "escalated"]).limit(1);
-        // if (existing?.length) continue; // TEMPORARILY DISABLED
+        const { data: existingByTitle } = await supabase.from("work_items").select("id").ilike("title", `%${searchTitle}%`).in("status", ["open", "claimed", "in_progress", "escalated", "new", "pending", "detected"]).limit(1);
+        if (existingByTitle?.length) {
+          await supabase.from("work_items").update({ issue_fingerprint: fp, updated_at: new Date().toISOString() }).eq("id", existingByTitle[0].id);
+          continue;
+        }
 
         const { error } = await supabase.from("work_items").insert({
           title: `🔗 ${si.label}`.slice(0, 120),
