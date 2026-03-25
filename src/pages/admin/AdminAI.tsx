@@ -5732,6 +5732,10 @@ const OrchestrationTab = () => {
               <Bot className="w-3.5 h-3.5" />
               Lova 0.5
             </TabsTrigger>
+            <TabsTrigger value="lova-prompts" className="gap-1.5 text-xs">
+              <Copy className="w-3.5 h-3.5" />
+              Lova Prompts
+            </TabsTrigger>
             <TabsTrigger value="autopilot" className="gap-1.5 text-xs">
               <Play className="w-3.5 h-3.5" />
               AI Autopilot
