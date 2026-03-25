@@ -540,9 +540,10 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
               description: newDesc.trim() || null,
               priority: newPriority,
               item_type: newType,
+              status: 'open',
               source_type: 'manual',
               created_by: user!.id,
-              ...(prev.bestUser ? { assigned_to: prev.bestUser, status: 'claimed', claimed_by: prev.bestUser, claimed_at: new Date().toISOString() } : {}),
+              ...(prev.bestUser ? { assigned_to: prev.bestUser } : {}),
             };
             const cvResult = await createAndVerify({
               table: 'work_items',
