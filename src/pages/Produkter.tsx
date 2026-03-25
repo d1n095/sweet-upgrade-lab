@@ -36,13 +36,32 @@ const Produkter = () => {
   const [showFilters, setShowFilters] = useState(false);
   const searchQuery = useSearchStore(state => state.searchQuery);
 
+  // Load product→category mappings to accurately filter categories
+  const [productCategoryMap, setProductCategoryMap] = useState<Record<string, Set<string>>>({});
+  const [slugToUuid, setSlugToUuid] = useState<Record<string, string>>({});
+
   useEffect(() => {
     const load = async () => {
       try {
         setIsLoading(true);
         setError(null);
-        const data = await fetchDbProducts(false);
+        const [data, { data: pcData }, { data: rawCats }] = await Promise.all([
+          fetchDbProducts(false),
+          supabase.from('product_categories').select('product_id, category_id'),
+          supabase.from('categories').select('id, slug'),
+        ]);
         setProducts(data);
+        // Build category UUID → product IDs map
+        const catMap: Record<string, Set<string>> = {};
+        (pcData || []).forEach((r: any) => {
+          if (!catMap[r.category_id]) catMap[r.category_id] = new Set();
+          catMap[r.category_id].add(r.product_id);
+        });
+        setProductCategoryMap(catMap);
+        // Build slug → UUID map
+        const s2u: Record<string, string> = {};
+        (rawCats || []).forEach((c: any) => { s2u[c.slug] = c.id; });
+        setSlugToUuid(s2u);
         if (data.length > 0) {
           const max = Math.ceil(Math.max(...data.map(p => p.price)) / 100) * 100;
           setMaxPrice(max);
@@ -72,16 +91,21 @@ const Produkter = () => {
   }, [selectedTagId]);
 
   const categoriesWithProducts = useMemo(() => {
-    return categories.filter(cat => {
+    const visibleProductIds = new Set(products.map(p => p.id));
+    return categories.filter((cat) => {
       if (cat.id === 'all') return true;
       if (cat.parent_id) return false;
       if (cat.isBestsellerFilter) return products.some(p => p.badge === 'bestseller');
-      const match = cat.query?.match(/product_type:"?([^"&\s]+)"?/);
-      if (!match) return false;
-      const type = match[1].toLowerCase();
-      return products.some(p => (p.category || '').toLowerCase() === type);
+      // Resolve category slug → UUID, then check junction table
+      const uuid = slugToUuid[cat.slug || cat.id];
+      if (uuid && productCategoryMap[uuid]) {
+        for (const pid of productCategoryMap[uuid]) {
+          if (visibleProductIds.has(pid)) return true;
+        }
+      }
+      return false;
     });
-  }, [products, categories]);
+  }, [products, categories, productCategoryMap, slugToUuid]);
 
   const filtered = useMemo(() => {
     let result = products;
@@ -91,11 +115,18 @@ const Produkter = () => {
       const cat = categories.find(c => c.id === activeCategory);
       if (cat?.isBestsellerFilter) {
         result = result.filter(p => p.badge === 'bestseller');
-      } else if (cat?.query) {
-        const match = cat.query.match(/product_type:"?([^"&\s]+)"?/);
-        if (match) {
-          const type = match[1].toLowerCase();
-          result = result.filter(p => (p.category || '').toLowerCase() === type);
+      } else if (cat) {
+        const uuid = slugToUuid[cat.slug || cat.id];
+        const catProductIds = uuid ? productCategoryMap[uuid] : null;
+        if (catProductIds) {
+          result = result.filter(p => catProductIds.has(p.id));
+        } else {
+          // Fallback to category field match
+          const match = cat.query?.match(/product_type:"?([^"&\s]+)"?/);
+          if (match) {
+            const type = match[1].toLowerCase();
+            result = result.filter(p => (p.category || '').toLowerCase() === type);
+          }
         }
       }
     }
@@ -120,7 +151,7 @@ const Produkter = () => {
     }
 
     return result;
-  }, [products, activeCategory, tagProductIds, priceRange, searchQuery, categories]);
+  }, [products, activeCategory, tagProductIds, priceRange, searchQuery, categories, slugToUuid, productCategoryMap]);
 
   const sortedProducts = useMemo(() => {
     const sorted = [...filtered];
