@@ -1514,15 +1514,19 @@ const DataIntegrityTab = () => {
 // ── Content Validation Tab ──
 const ContentValidationTab = () => {
   const [loading, setLoading] = useState(false);
+  const [fixing, setFixing] = useState(false);
   const [result, setResult] = useState<any>(null);
 
-  const runScan = async () => {
-    setLoading(true);
+  const runScan = async (autoFix = false) => {
+    if (autoFix) setFixing(true); else setLoading(true);
     try {
-      const data = await callAI('content_validation');
-      if (data) setResult(data);
+      const data = await callAI('content_validation', { auto_fix: autoFix });
+      if (data) {
+        setResult(data);
+        if (autoFix && data.auto_fixed > 0) toast.success(`${data.auto_fixed} problem åtgärdade automatiskt`);
+      }
     } catch { toast.error('Content validation misslyckades'); }
-    finally { setLoading(false); }
+    finally { setLoading(false); setFixing(false); }
   };
 
   const sevColor = (s: string) => {
@@ -1531,6 +1535,8 @@ const ContentValidationTab = () => {
     return 'bg-yellow-500/10 text-yellow-700 border-yellow-500/20';
   };
 
+  const fixableCount = result?.mismatches?.filter((m: any) => m.auto_fixable && !m.fixed)?.length || 0;
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -1538,15 +1544,23 @@ const ContentValidationTab = () => {
           <h3 className="font-semibold flex items-center gap-2"><Eye className="w-5 h-5 text-primary" /> Content Validation Engine</h3>
           <p className="text-sm text-muted-foreground">Verifierar att alla påståenden i UI:t matchar verklig systemdata.</p>
         </div>
-        <Button onClick={runScan} disabled={loading} size="sm">
-          {loading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Radar className="w-4 h-4 mr-1" />}
-          Validera innehåll
-        </Button>
+        <div className="flex gap-2">
+          {fixableCount > 0 && (
+            <Button onClick={() => runScan(true)} disabled={fixing} size="sm" variant="default">
+              {fixing ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Wrench className="w-4 h-4 mr-1" />}
+              Auto-fix ({fixableCount})
+            </Button>
+          )}
+          <Button onClick={() => runScan(false)} disabled={loading} size="sm" variant="outline">
+            {loading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Radar className="w-4 h-4 mr-1" />}
+            Validera
+          </Button>
+        </div>
       </div>
 
       {result && (
         <>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-4 gap-3">
             <Card className="border-border">
               <CardContent className="pt-4 pb-4 text-center">
                 <p className="text-3xl font-bold" style={{ color: result.score >= 80 ? 'hsl(var(--primary))' : result.score >= 50 ? 'hsl(45,100%,40%)' : 'hsl(var(--destructive))' }}>{result.score}</p>
@@ -1561,11 +1575,34 @@ const ContentValidationTab = () => {
             </Card>
             <Card className="border-border">
               <CardContent className="pt-4 pb-4 text-center">
-                <p className="text-3xl font-bold text-primary">{result.tasks_created || 0}</p>
+                <p className="text-3xl font-bold text-primary">{result.auto_fixed || 0}</p>
+                <p className="text-xs text-muted-foreground">Auto-fixade</p>
+              </CardContent>
+            </Card>
+            <Card className="border-border">
+              <CardContent className="pt-4 pb-4 text-center">
+                <p className="text-3xl font-bold">{result.tasks_created || 0}</p>
                 <p className="text-xs text-muted-foreground">Tasks skapade</p>
               </CardContent>
             </Card>
           </div>
+
+          {result.fixes?.length > 0 && (
+            <Card className="border-border">
+              <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><CheckCircle className="w-4 h-4 text-primary" /> Automatiskt åtgärdat</CardTitle></CardHeader>
+              <CardContent>
+                <div className="space-y-1">
+                  {result.fixes.map((f: any, i: number) => (
+                    <div key={i} className="flex items-center gap-2 text-sm p-2 rounded bg-primary/5 border border-primary/10">
+                      <CheckCircle className="w-3.5 h-3.5 text-primary shrink-0" />
+                      <span className="font-medium">{f.target}</span>
+                      <span className="text-muted-foreground">— {f.result}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {result.mismatches?.length > 0 && (
             <Card className="border-border">
@@ -1574,9 +1611,11 @@ const ContentValidationTab = () => {
                 <ScrollArea className="max-h-[400px]">
                   <div className="space-y-2">
                     {result.mismatches.map((m: any, i: number) => (
-                      <div key={i} className="p-3 rounded-lg border border-border bg-card space-y-1">
+                      <div key={i} className={cn('p-3 rounded-lg border border-border bg-card space-y-1', m.fixed && 'opacity-50')}>
                         <div className="flex items-start gap-2">
                           <Badge variant="outline" className={cn('text-[10px] shrink-0', sevColor(m.severity))}>{m.severity}</Badge>
+                          {m.fixed && <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/20">Fixad</Badge>}
+                          {m.auto_fixable && !m.fixed && <Badge variant="outline" className="text-[10px] bg-accent/10 text-accent-foreground border-accent/20">Auto-fixbar</Badge>}
                           <p className="text-sm font-medium">{m.claim}</p>
                         </div>
                         <p className="text-xs text-muted-foreground"><span className="font-medium">Verklighet:</span> {m.reality}</p>
