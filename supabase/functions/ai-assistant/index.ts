@@ -6960,6 +6960,352 @@ INSTRUKTIONER:
   }
 }
 
+// ── AI Decision Engine ──
+async function handleDecisionEngine(supabase: any, lovableKey: string) {
+  // 1. Gather ALL issue sources in parallel
+  const [bugsRes, workRes, scansRes, changesRes, incidentsRes, ordersRes, prodsRes, analyticsRes] = await Promise.all([
+    supabase.from("bug_reports").select("id, description, ai_summary, ai_severity, ai_category, ai_tags, status, page_url, created_at").in("status", ["open", "in_progress"]).order("created_at", { ascending: false }).limit(50),
+    supabase.from("work_items").select("id, title, description, status, priority, item_type, source_type, source_id, ai_detected, ai_confidence, ai_category, ai_type_classification, tags, created_at, related_order_id, related_incident_id").in("status", ["open", "claimed", "in_progress", "escalated"]).order("created_at", { ascending: false }).limit(100),
+    supabase.from("ai_scan_results").select("id, scan_type, overall_score, overall_status, issues_count, executive_summary, results, created_at").order("created_at", { ascending: false }).limit(20),
+    supabase.from("change_log").select("id, description, change_type, source, affected_components, created_at, bug_report_id, work_item_id").order("created_at", { ascending: false }).limit(30),
+    supabase.from("order_incidents").select("id, title, status, priority, type, order_id, sla_status, sla_deadline, created_at").in("status", ["open", "investigating", "in_progress", "escalated"]).order("created_at", { ascending: false }).limit(30),
+    supabase.from("orders").select("id, status, payment_status, fulfillment_status, total_amount, created_at").is("deleted_at", null).order("created_at", { ascending: false }).limit(30),
+    supabase.from("products").select("id, title_sv, is_visible, is_sellable, stock, price, handle").eq("is_visible", true).limit(100),
+    supabase.from("analytics_events").select("event_type, event_data, created_at").order("created_at", { ascending: false }).limit(100),
+  ]);
+
+  const bugs = bugsRes.data || [];
+  const workItems = workRes.data || [];
+  const scans = scansRes.data || [];
+  const changes = changesRes.data || [];
+  const incidents = incidentsRes.data || [];
+  const orders = ordersRes.data || [];
+  const products = prodsRes.data || [];
+  const analytics = analyticsRes.data || [];
+
+  // 2. Pre-compute impact signals
+  const impactSignals = {
+    // Checkout/conversion blockers
+    checkout_events: analytics.filter((a: any) => ["checkout_start", "checkout_complete", "checkout_abandon"].includes(a.event_type)),
+    checkout_abandons: analytics.filter((a: any) => a.event_type === "checkout_abandon").length,
+    checkout_starts: analytics.filter((a: any) => a.event_type === "checkout_start").length,
+    // Revenue at risk
+    pending_orders: orders.filter((o: any) => o.payment_status === "unpaid" && o.status === "pending"),
+    failed_orders: orders.filter((o: any) => o.payment_status === "failed"),
+    // Stock issues
+    zero_stock_sellable: products.filter((p: any) => p.stock <= 0 && p.is_sellable),
+    no_handle_products: products.filter((p: any) => !p.handle),
+    // SLA breaches
+    sla_overdue: incidents.filter((i: any) => i.sla_status === "overdue"),
+    sla_warning: incidents.filter((i: any) => i.sla_status === "warning"),
+    // Scan degradation
+    scan_scores: scans.reduce((acc: any, s: any) => {
+      if (!acc[s.scan_type]) acc[s.scan_type] = [];
+      acc[s.scan_type].push({ score: s.overall_score, date: s.created_at });
+      return acc;
+    }, {} as Record<string, any[]>),
+    // Regression detection
+    recent_changes_with_bugs: changes.filter((c: any) => c.bug_report_id),
+    // Work item age (stale items)
+    stale_items: workItems.filter((w: any) => {
+      const age = Date.now() - new Date(w.created_at).getTime();
+      return age > 3 * 24 * 60 * 60 * 1000 && ["open"].includes(w.status); // > 3 days old, still open
+    }),
+  };
+
+  // 3. Detect regressions: recent changes that may have introduced new bugs
+  const regressions: any[] = [];
+  for (const change of changes.slice(0, 15)) {
+    const affectedComps = change.affected_components || [];
+    const relatedBugs = bugs.filter((b: any) =>
+      new Date(b.created_at) > new Date(change.created_at) &&
+      affectedComps.some((comp: string) => b.page_url?.includes(comp.toLowerCase()) || b.ai_category?.includes(comp.toLowerCase()))
+    );
+    if (relatedBugs.length > 0) {
+      regressions.push({
+        change_id: change.id,
+        change_desc: change.description,
+        components: affectedComps,
+        related_bugs: relatedBugs.map((b: any) => ({ id: b.id, summary: b.ai_summary || b.description?.substring(0, 80) })),
+      });
+    }
+  }
+
+  // 4. Build context for AI
+  const context = JSON.stringify({
+    bugs: bugs.map((b: any) => ({
+      id: b.id, summary: b.ai_summary || b.description?.substring(0, 100),
+      severity: b.ai_severity, category: b.ai_category, tags: b.ai_tags,
+      page: b.page_url, status: b.status, age_hours: Math.round((Date.now() - new Date(b.created_at).getTime()) / 3600000),
+    })),
+    work_items: workItems.map((w: any) => ({
+      id: w.id, title: w.title?.substring(0, 100), status: w.status, priority: w.priority,
+      type: w.item_type, source: w.source_type, ai_category: w.ai_category,
+      classification: w.ai_type_classification, has_order: !!w.related_order_id,
+      has_incident: !!w.related_incident_id, age_hours: Math.round((Date.now() - new Date(w.created_at).getTime()) / 3600000),
+    })),
+    scan_results: scans.slice(0, 10).map((s: any) => ({
+      type: s.scan_type, score: s.overall_score, status: s.overall_status,
+      issues: s.issues_count, summary: s.executive_summary?.substring(0, 200),
+    })),
+    incidents: incidents.map((i: any) => ({
+      id: i.id, title: i.title, priority: i.priority, status: i.status,
+      sla: i.sla_status, type: i.type, has_order: !!i.order_id,
+    })),
+    impact_signals: {
+      checkout_abandon_rate: impactSignals.checkout_starts > 0
+        ? Math.round((impactSignals.checkout_abandons / impactSignals.checkout_starts) * 100) : 0,
+      pending_orders: impactSignals.pending_orders.length,
+      failed_orders: impactSignals.failed_orders.length,
+      zero_stock_sellable: impactSignals.zero_stock_sellable.length,
+      no_handle_products: impactSignals.no_handle_products.length,
+      sla_overdue: impactSignals.sla_overdue.length,
+      sla_warning: impactSignals.sla_warning.length,
+      stale_items_3d: impactSignals.stale_items.length,
+    },
+    regressions,
+    recent_changes: changes.slice(0, 10).map((c: any) => ({
+      desc: c.description, type: c.change_type, components: c.affected_components,
+    })),
+  });
+
+  const prompt = `Du är Lovas AI Decision Engine — en strategisk prioriteringsmotor för 4thepeople.se.
+
+SYSTEMDATA:
+${context}
+
+═══ UPPDRAG ═══
+Analysera ALLA öppna problem och beräkna en IMPACT SCORE för varje baserat på:
+
+POÄNGMODELL (max 26 poäng):
+1. Blockerar användaraktion? (klick, navigering, checkout) → +5
+2. Bryter dataflöde? (state → DB → render kedja bruten) → +5
+3. Regression? (nytt problem orsakat av senaste ändring) → +5
+4. Påverkar flera system? (t.ex. checkout + orders + email) → +4
+5. SLA-överträdelse eller tidskritiskt? → +3
+6. UI-only issue? (visuellt men ej funktionellt) → +2
+7. Intäktspåverkan? (blockerar köp, betalning, order) → +2
+
+KLASSIFICERING:
+- critical (≥18): Systemblockering — fixas OMEDELBART
+- high (12-17): Stor påverkan — fixas idag
+- medium (6-11): Moderat — kan planeras
+- low (≤5): Minimal — kan vänta
+
+═══ REGLER ═══
+1. Konsolideringsregel: Om 3+ problem har samma grundorsak → gruppera som ETT item
+2. Dupliceringsregel: Identifiera dubbletter bland buggar och work items
+3. Beroendesregel: Om fix A krävs före fix B → markera ordningen
+4. Intäktsregel: Problem som direkt påverkar intäkter prioriteras alltid högre
+5. Regressionsregel: Regressioner får alltid +5 extra oavsett annan poäng
+
+═══ OUTPUT ═══
+- Prioriterad lista sorterad efter impact_score (högst först)
+- Tydlig "fix NOW" vs "can wait" uppdelning
+- Grupperingsförslag där tillämpligt
+- Dubbletter att stänga
+- Beroendeordning för fixar`;
+
+  const analysis = await callAIWithTools(lovableKey, prompt, [{
+    type: "function",
+    function: {
+      name: "decision_engine_results",
+      description: "AI Decision Engine prioritization results",
+      parameters: {
+        type: "object",
+        properties: {
+          system_health_score: { type: "number", description: "Overall system health 0-100" },
+          total_issues_analyzed: { type: "number" },
+          executive_summary: { type: "string" },
+          fix_now: {
+            type: "array",
+            description: "Issues that must be fixed IMMEDIATELY (critical/high)",
+            items: {
+              type: "object",
+              properties: {
+                id: { type: "string", description: "bug_report or work_item ID" },
+                source_type: { type: "string", enum: ["bug_report", "work_item", "incident", "scan_finding", "regression"] },
+                title: { type: "string" },
+                impact_score: { type: "number", description: "Calculated 0-26" },
+                classification: { type: "string", enum: ["critical", "high"] },
+                impact_factors: {
+                  type: "object",
+                  properties: {
+                    blocks_user_action: { type: "boolean" },
+                    breaks_data_flow: { type: "boolean" },
+                    is_regression: { type: "boolean" },
+                    multi_system: { type: "boolean" },
+                    sla_breach: { type: "boolean" },
+                    ui_only: { type: "boolean" },
+                    revenue_impact: { type: "boolean" },
+                  },
+                },
+                affected_systems: { type: "array", items: { type: "string" } },
+                estimated_effort: { type: "string", enum: ["quick_fix", "moderate", "complex"] },
+                dependency: { type: "string", description: "Must be fixed after this ID (or 'none')" },
+                lovable_prompt: { type: "string" },
+              },
+              required: ["id", "source_type", "title", "impact_score", "classification", "impact_factors", "affected_systems", "estimated_effort", "lovable_prompt"],
+            },
+          },
+          can_wait: {
+            type: "array",
+            description: "Issues that can be planned (medium/low)",
+            items: {
+              type: "object",
+              properties: {
+                id: { type: "string" },
+                source_type: { type: "string", enum: ["bug_report", "work_item", "incident", "scan_finding"] },
+                title: { type: "string" },
+                impact_score: { type: "number" },
+                classification: { type: "string", enum: ["medium", "low"] },
+                reason_to_wait: { type: "string" },
+              },
+              required: ["id", "source_type", "title", "impact_score", "classification", "reason_to_wait"],
+            },
+          },
+          duplicates_to_close: {
+            type: "array",
+            description: "Duplicate items that should be consolidated",
+            items: {
+              type: "object",
+              properties: {
+                keep_id: { type: "string" },
+                close_ids: { type: "array", items: { type: "string" } },
+                reason: { type: "string" },
+              },
+              required: ["keep_id", "close_ids", "reason"],
+            },
+          },
+          consolidation_groups: {
+            type: "array",
+            description: "Issues with same root cause that should be grouped",
+            items: {
+              type: "object",
+              properties: {
+                root_cause: { type: "string" },
+                related_ids: { type: "array", items: { type: "string" } },
+                unified_fix: { type: "string" },
+                lovable_prompt: { type: "string" },
+              },
+              required: ["root_cause", "related_ids", "unified_fix", "lovable_prompt"],
+            },
+          },
+          fix_order: {
+            type: "array",
+            description: "Optimal fix sequence respecting dependencies",
+            items: {
+              type: "object",
+              properties: {
+                step: { type: "number" },
+                id: { type: "string" },
+                title: { type: "string" },
+                depends_on: { type: "string", description: "ID of prerequisite fix or 'none'" },
+                reason: { type: "string" },
+              },
+              required: ["step", "id", "title", "depends_on", "reason"],
+            },
+          },
+          regressions_detected: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                change_description: { type: "string" },
+                caused_issues: { type: "array", items: { type: "string" } },
+                severity: { type: "string", enum: ["critical", "high", "medium"] },
+                rollback_recommended: { type: "boolean" },
+              },
+              required: ["change_description", "caused_issues", "severity", "rollback_recommended"],
+            },
+          },
+          revenue_at_risk: {
+            type: "object",
+            properties: {
+              checkout_blocked: { type: "boolean" },
+              payment_issues: { type: "boolean" },
+              estimated_impact: { type: "string" },
+              affected_orders: { type: "number" },
+            },
+          },
+          positive_findings: { type: "array", items: { type: "string" } },
+        },
+        required: ["system_health_score", "total_issues_analyzed", "executive_summary", "fix_now", "can_wait", "duplicates_to_close", "consolidation_groups", "fix_order", "regressions_detected", "positive_findings"],
+        additionalProperties: false,
+      },
+    },
+  }], { type: "function", function: { name: "decision_engine_results" } });
+
+  // Persist scan result
+  const healthScore = analysis?.system_health_score || 0;
+  const totalIssues = (analysis?.fix_now?.length || 0) + (analysis?.can_wait?.length || 0);
+  const scanId = await persistScanResult(supabase, {
+    scan_type: "decision_engine",
+    results: analysis || {},
+    overall_score: healthScore,
+    overall_status: healthScore >= 80 ? "healthy" : healthScore >= 50 ? "warning" : "critical",
+    issues_count: totalIssues,
+    executive_summary: analysis?.executive_summary || "",
+  });
+
+  // Auto-update work item priorities based on decision engine output
+  let itemsUpdated = 0;
+  if (analysis?.fix_now) {
+    for (const item of analysis.fix_now) {
+      if (item.source_type === "work_item") {
+        const newPriority = item.classification === "critical" ? "critical" : "high";
+        const { error } = await supabase.from("work_items").update({
+          priority: newPriority,
+          tags: [`impact_score:${item.impact_score}`, `decision_engine`],
+        }).eq("id", item.id).in("status", ["open", "claimed", "in_progress"]);
+        if (!error) itemsUpdated++;
+      }
+    }
+  }
+
+  // Auto-close duplicates
+  let duplicatesClosed = 0;
+  if (analysis?.duplicates_to_close) {
+    for (const dup of analysis.duplicates_to_close) {
+      for (const closeId of dup.close_ids) {
+        const { error } = await supabase.from("work_items").update({
+          status: "done",
+          completed_at: new Date().toISOString(),
+          tags: [`duplicate_of:${dup.keep_id}`, "closed_by_decision_engine"],
+        }).eq("id", closeId).in("status", ["open", "claimed"]);
+        if (!error) duplicatesClosed++;
+      }
+    }
+  }
+
+  // Log decision to ai_read_log
+  await supabase.from("ai_read_log").insert({
+    action_type: "decision",
+    target_type: "decision_engine",
+    result: "completed",
+    summary: `Decision Engine: ${analysis?.fix_now?.length || 0} fix now, ${analysis?.can_wait?.length || 0} can wait, ${duplicatesClosed} duplicates closed`,
+    metadata: {
+      health_score: healthScore,
+      fix_now_count: analysis?.fix_now?.length || 0,
+      can_wait_count: analysis?.can_wait?.length || 0,
+      duplicates_closed: duplicatesClosed,
+      items_reprioritized: itemsUpdated,
+      regressions: analysis?.regressions_detected?.length || 0,
+    },
+  });
+
+  if (scanId) await updateScanTaskCount(supabase, scanId, itemsUpdated + duplicatesClosed);
+
+  return {
+    ...analysis,
+    scan_id: scanId,
+    actions_taken: {
+      items_reprioritized: itemsUpdated,
+      duplicates_closed: duplicatesClosed,
+    },
+  };
+}
+
 // ── Component Link Mapping ──
 async function handleComponentMap(supabase: any, lovableKey: string) {
   // Gather data about the system's components, state stores, routes, and DB tables
