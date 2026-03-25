@@ -198,6 +198,16 @@ async function runPostChecks(
 
   if (anyFailed) {
     const report = buildFailureReport(task, checks);
+    // Log failed confidence
+    const failedConf = evaluateFixConfidence({
+      taskId: task.id, taskTitle: task.title,
+      validationPassed: false, checksTotal: checks.length,
+      checksPassed: checks.filter(c => c.passed).length,
+      regressionsDetected: 0, resultHasData: result != null,
+    });
+    await applyConfidenceAction(failedConf, (task as any).source_type, (task as any).source_id);
+    useFixConfidenceStore.getState().addResult(failedConf);
+
     useExecutionLockStore.getState().release(task.id);
     set((s) => ({
       tasks: blockDependents(
@@ -210,7 +220,6 @@ async function runPostChecks(
       ),
       failureLog: [...s.failureLog, report],
     }));
-    // Evaluate safe mode
     const st = get();
     useSafeModeStore.getState().evaluateThreshold(
       st.tasks.filter(t => t.status === 'failed').length,
