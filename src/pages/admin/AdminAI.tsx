@@ -2709,6 +2709,9 @@ const AdminAI = () => {
         <TabsContent value="guardian" className="mt-4">
           <DevGuardianTab />
         </TabsContent>
+        <TabsContent value="interaction-qa" className="mt-4">
+          <InteractionQATab />
+        </TabsContent>
       </Tabs>
     </div>
   );
