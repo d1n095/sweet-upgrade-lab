@@ -571,6 +571,9 @@ async function callAIWithTools(apiKey: string, prompt: string, systemPromptOrToo
   ], tools);
 }
 
+// Alias for backward compat
+const callLovableAI = callAIWithTools;
+
 async function generatePrompt(apiKey: string, input: string) {
   return callAI(apiKey, [
     {
