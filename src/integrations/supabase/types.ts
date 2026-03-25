@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_audit_log: {
+        Row: {
+          action: string
+          actor_email: string | null
+          created_at: string
+          detail: string | null
+          id: string
+          permission_changes: Json | null
+          role_after: string[] | null
+          role_before: string[] | null
+          source: string
+          target_email: string | null
+          target_user_id: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          actor_email?: string | null
+          created_at?: string
+          detail?: string | null
+          id?: string
+          permission_changes?: Json | null
+          role_after?: string[] | null
+          role_before?: string[] | null
+          source?: string
+          target_email?: string | null
+          target_user_id?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          actor_email?: string | null
+          created_at?: string
+          detail?: string | null
+          id?: string
+          permission_changes?: Json | null
+          role_after?: string[] | null
+          role_before?: string[] | null
+          source?: string
+          target_email?: string | null
+          target_user_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       activity_logs: {
         Row: {
           category: string

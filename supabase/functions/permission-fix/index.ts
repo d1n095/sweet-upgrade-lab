@@ -52,6 +52,22 @@ serve(async (req) => {
 
     console.log(`[permission-fix] Action: ${body.action}`, body);
 
+    const logAudit = async (targetUserId: string | null, auditAction: string, detail: string, roleBefore?: string[], roleAfter?: string[], permChanges?: any) => {
+      try {
+        await sb.from("access_audit_log").insert({
+          user_id: user.id,
+          target_user_id: targetUserId,
+          action: auditAction,
+          role_before: roleBefore || null,
+          role_after: roleAfter || null,
+          permission_changes: permChanges || null,
+          detail,
+          actor_email: user.email,
+          source: "permission-fix",
+        });
+      } catch (e) { console.error("[audit] Failed:", e); }
+    };
+
     // ── Least-privilege permission defaults per role ──
     const roleDefaults: Record<string, Record<string, { can_read: boolean; can_create: boolean; can_update: boolean; can_delete: boolean }>> = {
       support: {
@@ -118,6 +134,7 @@ serve(async (req) => {
         }
         if (toDelete.length > 0) {
           await sb.from("user_roles").delete().in("id", toDelete);
+          await logAudit(body.user_id!, "duplicate_role_removed", `Removed ${toDelete.length} duplicate role entries`);
           results.push({ action: "fix_duplicate_role", success: true, detail: `Removed ${toDelete.length} duplicate role entries` });
         } else {
           results.push({ action: "fix_duplicate_role", success: true, detail: "No duplicates found" });
@@ -139,6 +156,7 @@ serve(async (req) => {
             .update({ can_delete: false })
             .eq("role", body.role)
             .eq("module", body.module);
+          await logAudit(null, "insecure_delete_fixed", `Removed DELETE on "${body.module}" for role "${body.role}"`, null, null, { role: body.role, module: body.module, removed: "can_delete" });
           results.push({ action: "fix_insecure_delete", success: true, detail: `Removed DELETE on "${body.module}" for role "${body.role}"` });
         }
         break;
@@ -162,6 +180,8 @@ serve(async (req) => {
         for (const r of toRemove) {
           await sb.from("user_roles").delete().eq("id", r.id);
         }
+        const keptRoles = (userRoles || []).map(r => r.role).filter(r => !toRemove.map(tr => tr.role).includes(r));
+        await logAudit(body.user_id!, "over_permissioned_fixed", `Kept "${highRoles[0].role}", removed: ${toRemove.map(r => r.role).join(", ")}`, (userRoles || []).map(r => r.role), keptRoles);
         results.push({
           action: "fix_over_permissioned",
           success: true,
@@ -187,6 +207,7 @@ serve(async (req) => {
           ...perms,
         }));
         await sb.from("role_module_permissions").insert(rows);
+        await logAudit(null, "role_permissions_reset", `Reset "${body.role}" to ${rows.length} module permissions (least-privilege)`, null, null, { role: body.role, modules: Object.keys(defaults) });
         results.push({
           action: "fix_role_permissions",
           success: true,
@@ -204,6 +225,7 @@ serve(async (req) => {
           break;
         }
         await sb.from("role_module_permissions").delete().eq("role", body.role);
+        await logAudit(null, "orphan_role_removed", `Removed permissions for orphan role "${body.role}"`, null, null, { role: body.role });
         results.push({ action: "fix_orphan_role", success: true, detail: `Removed permissions for orphan role "${body.role}"` });
         break;
       }
@@ -212,6 +234,7 @@ serve(async (req) => {
       case "fix_role_conflict": {
         if (!body.user_id || !body.role) throw new Error("user_id and role (to remove) required");
         await sb.from("user_roles").delete().eq("user_id", body.user_id).eq("role", body.role);
+        await logAudit(body.user_id!, "role_conflict_fixed", `Removed conflicting role "${body.role}"`, null, null, { removed_role: body.role });
         results.push({ action: "fix_role_conflict", success: true, detail: `Removed role "${body.role}" from user` });
         break;
       }

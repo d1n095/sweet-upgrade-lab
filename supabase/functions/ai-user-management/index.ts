@@ -40,6 +40,23 @@ serve(async (req) => {
 
     const validRoles = ["admin", "moderator", "founder", "it", "support", "manager", "marketing", "finance", "warehouse"];
 
+    const logAudit = async (targetUserId: string | null, auditAction: string, detail: string, roleBefore?: string[], roleAfter?: string[], permChanges?: any, targetEmail?: string) => {
+      try {
+        await sb.from("access_audit_log").insert({
+          user_id: user.id,
+          target_user_id: targetUserId,
+          action: auditAction,
+          role_before: roleBefore || null,
+          role_after: roleAfter || null,
+          permission_changes: permChanges || null,
+          detail,
+          actor_email: user.email,
+          target_email: targetEmail || null,
+          source: "ai-user-management",
+        });
+      } catch (e) { console.error("[audit] Failed:", e); }
+    };
+
     switch (action) {
       // ── List all users with roles ──
       case "list_users": {
@@ -94,7 +111,13 @@ serve(async (req) => {
           });
         }
 
+        // Get current roles before change
+        const { data: beforeRoles } = await sb.from("user_roles").select("role").eq("user_id", user_id);
+        const rolesBefore = (beforeRoles || []).map((r: any) => r.role);
+
         await sb.from("user_roles").insert({ user_id, role });
+
+        await logAudit(user_id, "role_assigned", `Tilldelade rollen "${role}"`, rolesBefore, [...rolesBefore, role], null, body.target_email);
 
         await sb.from("ai_read_log").insert({
           action_type: "user_role_assign",
@@ -119,7 +142,12 @@ serve(async (req) => {
         // Prevent removing own founder role
         if (user_id === user.id && role === "founder") throw new Error("Cannot remove your own founder role");
 
+        const { data: beforeRolesRm } = await sb.from("user_roles").select("role").eq("user_id", user_id);
+        const rolesBeforeRm = (beforeRolesRm || []).map((r: any) => r.role);
+
         await sb.from("user_roles").delete().eq("user_id", user_id).eq("role", role);
+
+        await logAudit(user_id, "role_removed", `Tog bort rollen "${role}"`, rolesBeforeRm, rolesBeforeRm.filter((r: string) => r !== role));
 
         await sb.from("ai_read_log").insert({
           action_type: "user_role_remove",
@@ -146,9 +174,9 @@ serve(async (req) => {
         const { data: targetRoles } = await sb.from("user_roles").select("role").eq("user_id", user_id);
         if ((targetRoles || []).some((r: any) => r.role === "founder")) throw new Error("Cannot deactivate a founder");
 
-        // Ban for 100 years (effectively permanent)
-        const banUntil = new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000).toISOString();
         await sb.auth.admin.updateUserById(user_id, { ban_duration: "876000h" });
+
+        await logAudit(user_id, "user_deactivated", "Användare inaktiverad", (targetRoles || []).map((r: any) => r.role), (targetRoles || []).map((r: any) => r.role));
 
         await sb.from("ai_read_log").insert({
           action_type: "user_deactivate",
@@ -171,6 +199,8 @@ serve(async (req) => {
         if (!isFounder) throw new Error("Only founders can reactivate users");
 
         await sb.auth.admin.updateUserById(user_id, { ban_duration: "none" });
+
+        await logAudit(user_id, "user_reactivated", "Användare återaktiverad");
 
         await sb.from("ai_read_log").insert({
           action_type: "user_reactivate",
