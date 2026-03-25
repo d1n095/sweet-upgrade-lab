@@ -1,0 +1,115 @@
+import { create } from 'zustand';
+
+export type LockArea = 'bugs' | 'scans' | 'ui' | 'pipeline';
+
+export interface AreaLock {
+  area: LockArea;
+  lockedBy: string; // task id
+  lockedAt: string;
+  description?: string;
+}
+
+export interface LockConflict {
+  taskId: string;
+  taskTitle: string;
+  requestedArea: LockArea;
+  blockedBy: string; // task id holding the lock
+  detectedAt: string;
+  resolved: boolean;
+}
+
+/** Maps a task item_type / source_type / scan_type to a lock area */
+export function resolveArea(hint?: string): LockArea | null {
+  if (!hint) return null;
+  const h = hint.toLowerCase();
+  if (['bug', 'bug_report', 'bug_fix'].includes(h)) return 'bugs';
+  if (['scan', 'system_scan', 'data_integrity', 'content_validation', 'sync_scan', 'feature_detection', 'visual_qa', 'nav_scan', 'ux_scan', 'human_test'].includes(h)) return 'scans';
+  if (['ui', 'interaction_qa', 'ui_fix', 'visual'].includes(h)) return 'ui';
+  if (['pipeline', 'action_governor', 'verification', 'work_item', 'change_log'].includes(h)) return 'pipeline';
+  return null;
+}
+
+interface ExecutionLockState {
+  locks: AreaLock[];
+  conflicts: LockConflict[];
+
+  /** Try to acquire a lock. Returns true if acquired, false if conflict. */
+  acquire: (area: LockArea, taskId: string, description?: string) => boolean;
+
+  /** Release a lock held by a task. */
+  release: (taskId: string) => void;
+
+  /** Release all locks for a specific area. */
+  releaseArea: (area: LockArea) => void;
+
+  /** Check if an area is currently locked. */
+  isLocked: (area: LockArea) => boolean;
+
+  /** Get the lock holder for an area. */
+  getHolder: (area: LockArea) => AreaLock | undefined;
+
+  /** Log a conflict when a task is blocked. */
+  logConflict: (taskId: string, taskTitle: string, area: LockArea, blockedBy: string) => void;
+
+  /** Clear resolved conflicts. */
+  clearConflicts: () => void;
+
+  /** Get all active locks. */
+  getActiveLocks: () => AreaLock[];
+}
+
+export const useExecutionLockStore = create<ExecutionLockState>((set, get) => ({
+  locks: [],
+  conflicts: [],
+
+  acquire: (area, taskId, description) => {
+    const existing = get().locks.find(l => l.area === area);
+    if (existing && existing.lockedBy !== taskId) {
+      // Conflict — area is locked by another task
+      return false;
+    }
+    if (existing && existing.lockedBy === taskId) {
+      // Already holds the lock
+      return true;
+    }
+    set(s => ({
+      locks: [...s.locks, { area, lockedBy: taskId, lockedAt: new Date().toISOString(), description }],
+    }));
+    return true;
+  },
+
+  release: (taskId) => {
+    set(s => ({
+      locks: s.locks.filter(l => l.lockedBy !== taskId),
+      conflicts: s.conflicts.map(c =>
+        c.blockedBy === taskId ? { ...c, resolved: true } : c
+      ),
+    }));
+  },
+
+  releaseArea: (area) => {
+    set(s => ({
+      locks: s.locks.filter(l => l.area !== area),
+      conflicts: s.conflicts.map(c =>
+        c.requestedArea === area ? { ...c, resolved: true } : c
+      ),
+    }));
+  },
+
+  isLocked: (area) => !!get().locks.find(l => l.area === area),
+
+  getHolder: (area) => get().locks.find(l => l.area === area),
+
+  logConflict: (taskId, taskTitle, area, blockedBy) => {
+    set(s => ({
+      conflicts: [...s.conflicts, {
+        taskId, taskTitle, requestedArea: area, blockedBy,
+        detectedAt: new Date().toISOString(), resolved: false,
+      }],
+    }));
+  },
+
+  clearConflicts: () => set(s => ({ conflicts: s.conflicts.filter(c => !c.resolved) })),
+
+  getActiveLocks: () => get().locks,
+}));
