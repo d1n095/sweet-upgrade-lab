@@ -246,7 +246,7 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
   );
 
   return (
-    <div className="flex gap-0 lg:gap-4 -mx-4 md:-mx-8 h-full min-h-0">
+    <div className="flex gap-0 lg:gap-4 -mx-4 md:-mx-8">
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex w-52 flex-col shrink-0 border-r border-border bg-card/50 min-h-0">
         <div className="px-4 py-3 border-b border-border">
