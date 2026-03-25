@@ -8056,9 +8056,9 @@ const OrchestrationTab = () => {
 
   return (
     <DetailContext.Provider value={{ openDetail }}>
-    <div className="flex h-full min-h-0 flex-col space-y-3">
+    <div className="flex flex-col min-h-0 h-full">
       <SafeModeBanner />
-      <div className="min-h-0 flex-1">
+      <div className="min-h-0 flex-1 flex flex-col">
         <AiCenterTabs defaultValue="ai-dashboard">
           {/* Dashboard */}
           <div data-value="system-state"><SystemStateDashboard /></div>
