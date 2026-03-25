@@ -226,7 +226,7 @@ const Header = () => {
               <Button
                 variant="ghost"
                 size="icon"
-                className="hidden md:flex h-11 w-11 rounded-full hover:bg-secondary"
+                className="hidden md:flex h-11 w-11 rounded-full hover:bg-secondary md:hidden"
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               >
                 {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
