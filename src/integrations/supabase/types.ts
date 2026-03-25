@@ -2600,6 +2600,72 @@ export type Database = {
         }
         Relationships: []
       }
+      root_cause_memory: {
+        Row: {
+          affected_system: string
+          bug_report_id: string | null
+          change_log_id: string | null
+          created_at: string
+          created_by: string | null
+          first_seen_at: string
+          fix_applied: string
+          id: string
+          last_seen_at: string
+          pattern_key: string
+          recurrence_count: number
+          root_cause: string
+          severity: string
+          work_item_id: string | null
+        }
+        Insert: {
+          affected_system: string
+          bug_report_id?: string | null
+          change_log_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          first_seen_at?: string
+          fix_applied: string
+          id?: string
+          last_seen_at?: string
+          pattern_key: string
+          recurrence_count?: number
+          root_cause: string
+          severity?: string
+          work_item_id?: string | null
+        }
+        Update: {
+          affected_system?: string
+          bug_report_id?: string | null
+          change_log_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          first_seen_at?: string
+          fix_applied?: string
+          id?: string
+          last_seen_at?: string
+          pattern_key?: string
+          recurrence_count?: number
+          root_cause?: string
+          severity?: string
+          work_item_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "root_cause_memory_bug_report_id_fkey"
+            columns: ["bug_report_id"]
+            isOneToOne: false
+            referencedRelation: "bug_reports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "root_cause_memory_change_log_id_fkey"
+            columns: ["change_log_id"]
+            isOneToOne: false
+            referencedRelation: "change_log"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scan_dismissals: {
         Row: {
           created_at: string

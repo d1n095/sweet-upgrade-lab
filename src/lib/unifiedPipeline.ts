@@ -2,6 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { logChange } from '@/utils/changeLogger';
 import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
 import { useSafeModeStore } from '@/stores/safeModeStore';
+import { recordRootCause, checkKnownPatterns } from '@/lib/rootCauseMemory';
 
 export type PipelineStage = 'scan' | 'issues' | 'work_items' | 'change_log' | 'verification';
 
@@ -121,14 +122,21 @@ export const runUnifiedPipeline = async (
         .limit(1);
 
       if (!existingWI || existingWI.length === 0) {
-        // Auto-create work item for unlinked bug
+        // Check known patterns for smarter priority/context
+        const patterns = await checkKnownPatterns(bug.description || '');
+        const knownFix = patterns.matches.length > 0 ? patterns.matches[0] : null;
+
         const priority = bug.ai_severity === 'critical' ? 'critical' :
           bug.ai_severity === 'high' ? 'high' : 'medium';
+
+        const description = knownFix
+          ? `${bug.description}\n\n🧠 Känt mönster (sett ${knownFix.recurrence_count}x): ${knownFix.root_cause}\n💡 Tidigare fix: ${knownFix.fix_applied}`
+          : bug.description;
 
         const { data: newWI, error } = await (supabase.from('work_items' as any) as any)
           .insert({
             title: `Bug: ${(bug.description || '').slice(0, 80)}`,
-            description: bug.description,
+            description,
             status: 'open',
             priority,
             item_type: 'bug',
@@ -140,7 +148,8 @@ export const runUnifiedPipeline = async (
 
         if (newWI && !error) {
           emit(makeEvent('issues', 'auto_linked', bug.id, 'bug_report', true,
-            `Skapade work item för bugg`, { bug_id: bug.id, work_item_id: (newWI as any).id }));
+            `Skapade work item${knownFix ? ` (känt mönster: ${knownFix.recurrence_count}x)` : ''}`,
+            { bug_id: bug.id, work_item_id: (newWI as any).id }));
         } else {
           emit(makeEvent('issues', 'link_failed', bug.id, 'bug_report', false,
             `Kunde inte skapa work item: ${error?.message || 'okänt fel'}`));
@@ -213,8 +222,19 @@ export const runUnifiedPipeline = async (
           resolution_notes: `Auto-löst via pipeline: ${change.description?.slice(0, 100)}`,
         }).eq('id', bug.id);
 
+        // Record root cause memory
+        await recordRootCause({
+          bug_report_id: bug.id,
+          work_item_id: change.work_item_id || undefined,
+          change_log_id: change.id,
+          root_cause: change.description || 'Unknown root cause',
+          affected_system: 'pipeline',
+          fix_applied: change.description || 'Auto-resolved via change log',
+          severity: 'medium',
+        });
+
         emit(makeEvent('change_log', 'bug_resolved', change.id, 'change_log', true,
-          `Bugg auto-löst via ändringslogg`, { bug_id: bug.id, change_id: change.id }));
+          `Bugg auto-löst + root cause registrerad`, { bug_id: bug.id, change_id: change.id }));
       } else if (bug) {
         emit(makeEvent('change_log', 'bug_already_resolved', change.id, 'change_log', true,
           'Bugg redan löst'));
