@@ -3117,6 +3117,10 @@ const AdminAI = () => {
               <Wrench className="w-3.5 h-3.5" />
               Auto-Fix
             </TabsTrigger>
+            <TabsTrigger value="data-integrity" className="gap-1.5 text-xs">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              Integritet
+            </TabsTrigger>
           </TabsList>
         </ScrollableTabs>
 
@@ -3176,6 +3180,9 @@ const AdminAI = () => {
         </TabsContent>
         <TabsContent value="auto-fix" className="mt-4">
           <AutoFixTab />
+        </TabsContent>
+        <TabsContent value="data-integrity" className="mt-4">
+          <DataIntegrityTab />
         </TabsContent>
       </Tabs>
 
