@@ -21,6 +21,116 @@ const STEPS = [
 
 const MAX_ITERATIONS = 3;
 
+// ── Helper: Load scan focus memory (historical hotspots) ──
+async function loadFocusMemory(supabase: any): Promise<any[]> {
+  const { data } = await supabase
+    .from("scan_focus_memory")
+    .select("*")
+    .order("issue_count", { ascending: false })
+    .limit(50);
+  return data || [];
+}
+
+// ── Helper: Save/update focus memory after scan ──
+async function saveFocusMemory(supabase: any, unified: any, highRiskAreas: any[], patterns: any[]) {
+  const hotspots: Record<string, { focus_type: string; label: string; issues: number; severity: string; scan_types: Set<string> }> = {};
+
+  // Extract from high-risk areas
+  for (const area of highRiskAreas) {
+    const key = `component::${(area.component || "unknown").toLowerCase()}`;
+    if (!hotspots[key]) hotspots[key] = { focus_type: "component", label: area.component || "unknown", issues: 0, severity: "medium", scan_types: new Set() };
+    hotspots[key].issues += area.issue_count || 1;
+    if (area.risk_level === "critical") hotspots[key].severity = "critical";
+    else if (area.risk_level === "high" && hotspots[key].severity !== "critical") hotspots[key].severity = "high";
+  }
+
+  // Extract from broken flows (pages/routes)
+  for (const flow of (unified.broken_flows || [])) {
+    const route = flow.route || flow.page || flow.path || "";
+    if (!route) continue;
+    const key = `page::${route.toLowerCase()}`;
+    if (!hotspots[key]) hotspots[key] = { focus_type: "page", label: route, issues: 0, severity: "medium", scan_types: new Set() };
+    hotspots[key].issues += 1;
+    hotspots[key].scan_types.add("data_integrity");
+  }
+
+  // Extract from interaction failures
+  for (const fail of (unified.interaction_failures || [])) {
+    const comp = fail.component || fail.element || fail.page || "";
+    if (!comp) continue;
+    const key = `flow::${comp.toLowerCase()}`;
+    if (!hotspots[key]) hotspots[key] = { focus_type: "flow", label: comp, issues: 0, severity: "medium", scan_types: new Set() };
+    hotspots[key].issues += 1;
+    hotspots[key].scan_types.add("interaction_qa");
+    if (fail.severity === "critical") hotspots[key].severity = "critical";
+  }
+
+  // Extract from data issues
+  for (const issue of (unified.data_issues || [])) {
+    const comp = issue.component || issue.table || issue.field || "";
+    if (!comp) continue;
+    const key = `component::${comp.toLowerCase()}`;
+    if (!hotspots[key]) hotspots[key] = { focus_type: "component", label: comp, issues: 0, severity: "medium", scan_types: new Set() };
+    hotspots[key].issues += 1;
+    hotspots[key].scan_types.add("sync_scan");
+  }
+
+  // Upsert into scan_focus_memory
+  for (const [focusKey, data] of Object.entries(hotspots)) {
+    const { data: existing } = await supabase
+      .from("scan_focus_memory")
+      .select("id, issue_count, scan_count, related_scan_types")
+      .eq("focus_key", focusKey)
+      .limit(1)
+      .single();
+
+    if (existing) {
+      const mergedTypes = new Set([...(existing.related_scan_types || []), ...data.scan_types]);
+      await supabase.from("scan_focus_memory").update({
+        issue_count: existing.issue_count + data.issues,
+        scan_count: existing.scan_count + 1,
+        severity: data.severity === "critical" ? "critical" : existing.severity || data.severity,
+        last_seen_at: new Date().toISOString(),
+        related_scan_types: [...mergedTypes],
+        updated_at: new Date().toISOString(),
+      }).eq("id", existing.id);
+    } else {
+      await supabase.from("scan_focus_memory").insert({
+        focus_key: focusKey,
+        focus_type: data.focus_type,
+        label: data.label,
+        issue_count: data.issues,
+        severity: data.severity,
+        related_scan_types: [...data.scan_types],
+        last_seen_at: new Date().toISOString(),
+        first_seen_at: new Date().toISOString(),
+      });
+    }
+  }
+}
+
+// ── Helper: Prioritize scan steps based on focus memory ──
+function prioritizeSteps(steps: typeof STEPS, focusMemory: any[]): typeof STEPS {
+  if (!focusMemory.length) return steps;
+
+  // Build a relevance score per scan type from focus memory
+  const scanTypeScores: Record<string, number> = {};
+  for (const mem of focusMemory) {
+    for (const st of (mem.related_scan_types || [])) {
+      scanTypeScores[st] = (scanTypeScores[st] || 0) + mem.issue_count;
+    }
+  }
+
+  // Sort steps: high-issue scan types first, preserve order for ties
+  const scored = steps.map((s, i) => ({
+    step: s,
+    score: scanTypeScores[s.scanType] || 0,
+    originalIndex: i,
+  }));
+  scored.sort((a, b) => b.score - a.score || a.originalIndex - b.originalIndex);
+  return scored.map(s => s.step);
+}
+
 // ── Helper: Build unified result from step results ──
 function buildUnifiedResult(stepResults: Record<string, any>, totalDuration: number) {
   const blocker = stepResults.blocker_detection?.primary_blocker || stepResults.blocker_detection?.detected_blockers?.[0] || null;
