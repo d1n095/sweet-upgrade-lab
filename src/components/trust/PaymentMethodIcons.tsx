@@ -43,9 +43,23 @@ const SwishIcon = ({ size = 'sm' }: IconProps) => (
 );
 
 const ApplePayIcon = ({ size = 'sm' }: IconProps) => (
-  <div className={`${sizeClasses[size]} rounded-md bg-black flex items-center justify-center gap-0.5`}>
-    <span className="text-white" style={{ fontSize: size === 'sm' ? 13 : 15 }}>&#63743;</span>
-    <span className="font-semibold text-white" style={{ fontSize: size === 'sm' ? 10 : 12 }}>Pay</span>
+  <div className={`${sizeClasses[size]} rounded-md bg-black flex items-center justify-center`}>
+    <svg viewBox="0 0 165.521 46.836" className={size === 'sm' ? 'h-4 w-auto' : 'h-5 w-auto'} aria-label="Apple Pay">
+      <path
+        d="M20.382 7.428c-1.584 1.872-4.104 3.312-6.624 3.096-.312-2.52 
+        .912-5.184 2.352-6.84C17.694 1.812 20.43.228 22.614 0c.264 2.616-.744 
+        5.208-2.232 7.428zM22.566 11.1c-3.672-.216-6.792 2.088-8.544 
+        2.088-1.776 0-4.44-1.968-7.344-1.92A10.87 10.87 0 0 0 
+        .222 14.964c-3.792 6.552-9.72 18.552-.048 25.896 1.392 
+        3.648 5.064 4.248 7.92 4.248 1.656 0 4.08-.936 6.408-.936 
+        2.328 0 4.464.936 6.408.888 3.408-.048 5.016-3.648 
+        6.408-7.296 2.064-4.752 2.856-9.312 2.904-9.552-.072-.048-5.664-2.184-5.712-8.592-.048-5.376 
+        4.392-7.944 4.584-8.088-2.496-3.696-6.408-4.104-7.776-4.2z"
+        fill="white"
+        transform="scale(0.45) translate(2, 10)"
+      />
+      <text x="55" y="34" fill="white" fontFamily="system-ui, -apple-system, sans-serif" fontWeight="600" fontSize={size === 'sm' ? '26' : '28'}>Pay</text>
+    </svg>
   </div>
 );
 
@@ -70,15 +84,15 @@ const PayPalIcon = ({ size = 'sm' }: IconProps) => (
   </div>
 );
 
-const GenericIcon = ({ name, size = 'sm' }: { name: string } & IconProps) => (
-  <div className={`${sizeClasses[size]} rounded-md bg-muted border border-border flex items-center justify-center`}>
-    <span className="font-semibold text-muted-foreground" style={{ fontSize: size === 'sm' ? 8 : 9 }}>{name}</span>
-  </div>
-);
-
 const RevolutIcon = ({ size = 'sm' }: IconProps) => (
   <div className={`${sizeClasses[size]} rounded-md bg-[#0075EB] flex items-center justify-center`}>
     <span className="font-bold text-white" style={{ fontSize: size === 'sm' ? 9 : 11 }}>Revolut</span>
+  </div>
+);
+
+const GenericIcon = ({ name, size = 'sm' }: { name: string } & IconProps) => (
+  <div className={`${sizeClasses[size]} rounded-md bg-muted border border-border flex items-center justify-center`}>
+    <span className="font-semibold text-muted-foreground" style={{ fontSize: size === 'sm' ? 8 : 9 }}>{name}</span>
   </div>
 );
 
@@ -86,6 +100,7 @@ export const PAYMENT_ICON_MAP: Record<string, React.FC<IconProps>> = {
   visa: VisaIcon,
   mastercard: MastercardIcon,
   klarna: KlarnaIcon,
+  swish: SwishIcon,
   applepay: ApplePayIcon,
   googlepay: GooglePayIcon,
   paypal: PayPalIcon,
