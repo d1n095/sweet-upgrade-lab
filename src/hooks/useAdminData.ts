@@ -59,7 +59,7 @@ export const useAdminOrders = (options?: { enabled?: boolean }) =>
       if (error) throw error;
       return data || [];
     },
-    staleTime: 30_000,
+    staleTime: 5_000,
     enabled: options?.enabled ?? true,
   });
 
@@ -143,7 +143,7 @@ export const useAdminBugs = (options?: { enabled?: boolean }) =>
       if (error) throw error;
       return data || [];
     },
-    staleTime: 30_000,
+    staleTime: 10_000,
     enabled: options?.enabled ?? true,
   });
 
@@ -161,7 +161,7 @@ export const useAdminProducts = (options?: { enabled?: boolean }) =>
       if (error) throw error;
       return data || [];
     },
-    staleTime: 60_000,
+    staleTime: 10_000,
     enabled: options?.enabled ?? true,
   });
 
@@ -198,7 +198,7 @@ export const useAdminAnalytics = (days = 30, options?: { enabled?: boolean }) =>
       if (error) throw error;
       return data || [];
     },
-    staleTime: 60_000,
+    staleTime: 15_000,
     enabled: options?.enabled ?? true,
   });
 

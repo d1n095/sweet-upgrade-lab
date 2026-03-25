@@ -22,6 +22,7 @@ import AdminNotificationBell from '@/components/admin/AdminNotificationBell';
 import BugReportButton from '@/components/admin/BugReportButton';
 import { AnimatePresence, motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
+import { useAdminRealtime } from '@/hooks/useAdminRealtime';
 
 
 // role: 'all' = everyone with admin/employee access, 'admin' = admin only, 'founder' = founder only
@@ -110,6 +111,9 @@ const AdminLayout = () => {
   const location = useLocation();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [recentErrorCount, setRecentErrorCount] = useState(0);
+
+  // Centralized realtime sync for all admin queries
+  useAdminRealtime();
   const [errorBannerDismissed, setErrorBannerDismissed] = useState(false);
   const hasAccess = isAdmin || isEmployee;
   const combinedLoading = isLoading || employeeLoading || founderLoading;
