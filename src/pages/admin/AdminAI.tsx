@@ -1723,7 +1723,7 @@ const TrendAnalysisPanel = () => {
           </div>
 
           {/* Metric trends */}
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {[
               { label: 'Systempoäng', data: trends.score_trend, extra: trends.score_trend?.change != null ? `${trends.score_trend.change > 0 ? '+' : ''}${trends.score_trend.change}` : '' },
               { label: 'Buggar', data: trends.bug_trend },
@@ -2087,7 +2087,7 @@ const SystemScanTab = () => {
             Stäng
           </Button>
         </div>
-        <div className="grid grid-cols-3 gap-3 text-center">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
           <div>
             <p className="text-[10px] text-muted-foreground">Nuvarande</p>
             <p className={cn('text-2xl font-bold', (scanResult.system_score || 0) >= 70 ? 'text-green-700' : (scanResult.system_score || 0) >= 40 ? 'text-yellow-700' : 'text-destructive')}>
@@ -2715,7 +2715,7 @@ const DataIntegrityTab = () => {
 
       {result && (
         <>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Card className="border-border">
               <CardContent className="pt-4 pb-4 text-center">
                 <p className="text-3xl font-bold" style={{ color: result.score >= 80 ? 'hsl(var(--primary))' : result.score >= 50 ? 'hsl(45,100%,40%)' : 'hsl(var(--destructive))' }}>{result.score}</p>
@@ -2832,7 +2832,7 @@ const ContentValidationTab = () => {
 
       {result && (
         <>
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <Card className="border-border">
               <CardContent className="pt-4 pb-4 text-center">
                 <p className="text-3xl font-bold" style={{ color: result.score >= 80 ? 'hsl(var(--primary))' : result.score >= 50 ? 'hsl(45,100%,40%)' : 'hsl(var(--destructive))' }}>{result.score}</p>
@@ -2967,7 +2967,7 @@ const PatternDetectionTab = () => {
 
       {result && (
         <>
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <Card className="border-border">
               <CardContent className="pt-4 pb-4 text-center">
                 <p className="text-3xl font-bold">{result.total_items_analyzed || 0}</p>
@@ -4516,7 +4516,7 @@ const DevGuardianTab = () => {
 
           {/* Category breakdown */}
           {result.category_counts && (
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {Object.entries(result.category_counts).map(([key, count]) => (
                 <Card key={key} className="border-border">
                   <CardContent className="py-2 px-3 text-center">
@@ -4762,7 +4762,7 @@ const AiAutopilotTab = () => {
                 <Button size="sm" variant="ghost" className="h-6 text-[10px]" onClick={selectAll}>Alla</Button>
                 <Button size="sm" variant="ghost" className="h-6 text-[10px]" onClick={selectNone}>Ingen</Button>
               </div>
-              <div className="grid grid-cols-3 gap-1.5">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
                 {SCAN_STEPS.map(step => {
                   const active = selectedSteps.has(step.type);
                   const Icon = SCAN_STEP_ICONS[step.type] || Radar;
@@ -5088,7 +5088,7 @@ const AiAutopilotTab = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {(Object.entries(modeConfig) as [AiMode, typeof modeConfig.manual][]).map(([key, cfg]) => (
               <button
                 key={key}
@@ -5553,7 +5553,7 @@ const VerificationEngineTab = () => {
           </Card>
 
           {/* Stats row */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Card className="p-3 text-center">
               <p className="text-2xl font-bold text-destructive">{result.false_done_items?.length || 0}</p>
               <p className="text-xs text-muted-foreground">Falska "done" återöppnade</p>
