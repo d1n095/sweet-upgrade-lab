@@ -1166,6 +1166,25 @@ const BugAITab = () => {
           {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
           Uppdatera
         </Button>
+        <Button
+          onClick={async () => {
+            setMatching(true);
+            setMatchResult(null);
+            const res = await callAI('bug_fix_match');
+            if (res) {
+              setMatchResult(res);
+              if (res.matched > 0) loadBugs();
+            }
+            setMatching(false);
+          }}
+          disabled={matching}
+          variant="outline"
+          size="sm"
+          className="h-7 gap-1 text-xs"
+        >
+          {matching ? <Loader2 className="w-3 h-3 animate-spin" /> : <GitMerge className="w-3 h-3" />}
+          Auto-matcha
+        </Button>
         <Badge variant="secondary" className="text-xs">{bugs.length} buggar</Badge>
       </div>
 
