@@ -4765,7 +4765,17 @@ Ge konkreta CSS/Tailwind-fixar. Svara på svenska.`,
     },
   }], { type: "function", function: { name: "ui_overflow_scan" } });
 
-  // Auto-create work items for critical/high overflow issues
+  // Persist scan result FIRST
+  const overflowScore = analysis?.overflow_score || 0;
+  const scanId = await persistScanResult(supabase, {
+    scan_type: "ui_overflow_scan",
+    results: analysis || {},
+    overall_score: overflowScore,
+    overall_status: overflowScore >= 80 ? "healthy" : overflowScore >= 50 ? "warning" : "critical",
+    issues_count: analysis?.issues_found || 0,
+    executive_summary: analysis?.executive_summary || "",
+  });
+
   let tasksCreated = 0;
   if (analysis?.issues) {
     for (const issue of analysis.issues) {
@@ -4783,7 +4793,8 @@ Ge konkreta CSS/Tailwind-fixar. Svara på svenska.`,
           status: "open",
           priority: issue.severity === "critical" ? "critical" : "high",
           item_type: "bug",
-          source_type: "ai_detection",
+          source_type: "ai_scan",
+          source_id: scanId || undefined,
           ai_detected: true,
           ai_confidence: "high",
           ai_category: "frontend",
@@ -4794,18 +4805,8 @@ Ge konkreta CSS/Tailwind-fixar. Svara på svenska.`,
     }
   }
 
-  // Store scan result
-  await supabase.from("ai_scan_results").insert({
-    scan_type: "ui_overflow_scan",
-    overall_score: analysis?.overflow_score || 0,
-    overall_status: (analysis?.overflow_score || 0) >= 80 ? "healthy" : (analysis?.overflow_score || 0) >= 50 ? "warning" : "critical",
-    executive_summary: analysis?.executive_summary || "",
-    results: analysis || {},
-    issues_count: analysis?.issues_found || 0,
-    tasks_created: tasksCreated,
-  });
-
-  return { ...analysis, tasks_created: tasksCreated };
+  if (scanId && tasksCreated > 0) await updateScanTaskCount(supabase, scanId, tasksCreated);
+  return { ...analysis, tasks_created: tasksCreated, scan_id: scanId };
 }
 
 // ── UX Scanner ──
