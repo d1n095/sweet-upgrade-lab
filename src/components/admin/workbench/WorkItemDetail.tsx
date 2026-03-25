@@ -38,6 +38,9 @@ interface WorkItemDetailProps {
     ai_review_status?: string;
     ai_review_result?: any;
     ai_review_at?: string;
+    ai_pre_verify_status?: string;
+    ai_pre_verify_result?: any;
+    ai_pre_verify_at?: string;
     resolution_notes?: string;
     ignored?: boolean;
     ignored_reason?: string;
@@ -82,6 +85,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
   const [fixSuggestion, setFixSuggestion] = useState<any>(null);
   const [analyzingFix, setAnalyzingFix] = useState(false);
   const [runningReview, setRunningReview] = useState(false);
+  const [runningPreVerify, setRunningPreVerify] = useState(false);
   const [expandedCause, setExpandedCause] = useState<number | null>(null);
   const [showIgnoreForm, setShowIgnoreForm] = useState(false);
   const [ignoreReason, setIgnoreReason] = useState('');
