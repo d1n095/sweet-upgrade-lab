@@ -42,17 +42,24 @@ const ALL_CATEGORY: FrontendCategory = {
 export const useDbCategories = (adminView = false) => {
   const [categories, setCategories] = useState<FrontendCategory[]>([ALL_CATEGORY]);
   const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const refetch = () => setRefreshKey(k => k + 1);
 
   useEffect(() => {
+    let cancelled = false;
+
     const load = async () => {
+      setLoading(true);
+
       const { data, error } = await supabase
         .from('categories')
         .select('*')
         .eq('is_visible', true)
         .order('display_order', { ascending: true });
 
-      if (error) {
-        console.error('Failed to load categories:', error);
+      if (error || cancelled) {
+        if (error) console.error('Failed to load categories:', error);
         setLoading(false);
         return;
       }
@@ -60,7 +67,6 @@ export const useDbCategories = (adminView = false) => {
       // Fetch product counts per category — only count visible+sellable products
       let productCountMap: Record<string, number> = {};
       if (!adminView) {
-        // Get IDs of visible, sellable products
         const { data: visibleProducts } = await supabase
           .from('products')
           .select('id')
@@ -68,7 +74,6 @@ export const useDbCategories = (adminView = false) => {
           .eq('is_sellable', true);
         const visibleIds = new Set((visibleProducts || []).map((p: any) => p.id));
 
-        // Get category links and only count those pointing to visible products
         const { data: pcData } = await supabase
           .from('product_categories')
           .select('category_id, product_id');
@@ -81,10 +86,10 @@ export const useDbCategories = (adminView = false) => {
         }
       }
 
+      if (cancelled) return;
+
       const dbCats: FrontendCategory[] = (data || [])
         .filter((c: any) => {
-          // In admin view show all; on frontend hide categories with 0 products
-          // Bestseller categories are always shown (they use a different data source)
           if (adminView || c.slug === 'bestsaljare') return true;
           return (productCountMap[c.id] || 0) > 0;
         })
@@ -104,7 +109,20 @@ export const useDbCategories = (adminView = false) => {
     };
 
     load();
-  }, [adminView]);
 
-  return { categories, loading };
+    return () => { cancelled = true; };
+  }, [adminView, refreshKey]);
+
+  // Subscribe to realtime changes on categories & product_categories
+  useEffect(() => {
+    const channel = supabase
+      .channel('category-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, () => refetch())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'product_categories' }, () => refetch())
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
+  return { categories, loading, refetch };
 };
