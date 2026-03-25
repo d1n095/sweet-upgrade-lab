@@ -5513,12 +5513,29 @@ ${dismissedIssues.map((d: any) => `❌ ${d.issue_title} — "${d.reason}"`).join
 === SENASTE HISTORIK (avslutade uppgifter) ===
 ${recentHistory.map((h: any) => `[${h.ai_review_status}] ${h.title} (${h.item_type}) — ${h.resolution_notes || 'Ingen notering'}`).join("\n") || "Ingen historik"}
 
+=== ÄNDRINGSLOGG (senaste ${recentChanges.length} ändringar) ===
+${recentChanges.map((c: any) => {
+  const components = c.affected_components?.length ? ` [${c.affected_components.join(', ')}]` : '';
+  const linkedBug = c.bug_report_id ? ` 🐛bug:${c.bug_report_id.substring(0, 8)}` : '';
+  const linkedWork = c.work_item_id ? ` 📋task:${c.work_item_id.substring(0, 8)}` : '';
+  return `[${c.change_type}/${c.source}] ${c.description}${components}${linkedBug}${linkedWork} (${c.created_at?.substring(0, 16)})`;
+}).join("\n") || "Inga ändringar loggade"}
+
 VIKTIGT: Du har tillgång till ALL skanningshistorik per typ med trender. Använd detta för att:
 - Identifiera FÖRSÄMRINGAR (📉) och agera proaktivt
 - Korrelera problem mellan olika skannrar (t.ex. overflow + UX)
 - Undvika att rapportera redan fixade eller ignorerade issues
 - Referera till specifika skanningsresultat när du diskuterar problem
 Föreslå ALDRIG ignorerade issues.
+
+═══ ÄNDRINGSMEDVETENHET (KRITISKT) ═══
+Du har FULL tillgång till ändringsloggen ovan. Använd den AKTIVT:
+1. **Redan fixat?** — Innan du föreslår en fix, SÖK igenom ändringsloggen. Om problemet redan åtgärdats, säg: "Det fixades redan [datum] via [change_type]: [beskrivning]"
+2. **Relaterade ändringar** — Om ett problem kan kopplas till en tidigare ändring, nämn det: "Det kan vara relaterat till ändringen [beskrivning] den [datum]"
+3. **Regressioner** — Om en 'reopen'-ändring finns i loggen, prioritera den och nämn att den redan misslyckats en gång
+4. **Komponenter** — Matcha affected_components mot buggar/problem för att snabbt identifiera riskområden
+5. **Dubbletter** — Om en bugg beskriver samma sak som en nyligen gjord fix, flagga det som potentiell dubblett
+6. **SÄGA ALDRIG** "jag har ingen information om detta" om det finns relevant data i ändringsloggen
 `;
 
   const messages = [
