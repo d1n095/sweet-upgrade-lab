@@ -2285,13 +2285,13 @@ const FocusedScanTab = () => {
 
   // Load last scan on mount
   useEffect(() => {
-    supabase.from('ai_scan_results' as any)
+    (supabase.from('ai_scan_results') as any)
       .select('results, created_at, overall_score, overall_status, executive_summary')
       .eq('scan_type', 'focused_scan')
       .order('created_at', { ascending: false })
       .limit(1)
-      .then(({ data }) => {
-        if (data?.[0]) setResult({ ...data[0].results, _stored_at: data[0].created_at, _score: data[0].overall_score });
+      .then(({ data }: any) => {
+        if (data?.[0]) setResult({ ...(data[0].results as any), _stored_at: data[0].created_at, _score: data[0].overall_score });
       });
   }, []);
 
