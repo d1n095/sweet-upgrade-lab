@@ -5397,23 +5397,25 @@ async function handleLovaChat(supabase: any, lovableKey: string, userId: string,
   // Gather system snapshot for context
   const snapshot = await gatherSystemSnapshot(supabase);
 
-  // Get open work items, recent scans, bugs, and prompt queue for awareness
-  const [workRes, scanRes, bugsRes, promptRes] = await Promise.all([
+  // Get open work items, recent scans, bugs, prompt queue, and dismissed issues for awareness
+  const [workRes, scanRes, bugsRes, promptRes, dismissRes] = await Promise.all([
     supabase.from("work_items").select("id, title, status, priority, item_type").in("status", ["open", "claimed", "in_progress"]).order("created_at", { ascending: false }).limit(15),
     supabase.from("ai_scan_results").select("scan_type, overall_score, overall_status, executive_summary, created_at").order("created_at", { ascending: false }).limit(5),
     supabase.from("bug_reports").select("id, description, ai_summary, ai_severity, status").eq("status", "open").order("created_at", { ascending: false }).limit(10),
     supabase.from("prompt_queue").select("id, title, status, priority, created_at").order("created_at", { ascending: false }).limit(20),
+    supabase.from("scan_dismissals").select("issue_key, issue_title, reason, created_at").limit(100),
   ]);
 
   const openWork = workRes.data || [];
   const recentScans = scanRes.data || [];
   const openBugs = bugsRes.data || [];
   const allPrompts = promptRes.data || [];
+  const dismissedIssues = dismissRes.data || [];
   const pendingPrompts = allPrompts.filter((p: any) => p.status === "pending");
   const donePrompts = allPrompts.filter((p: any) => p.status === "done");
   const recentlyDone = donePrompts.filter((p: any) => {
     const age = Date.now() - new Date(p.created_at).getTime();
-    return age < 7 * 24 * 60 * 60 * 1000; // last 7 days
+    return age < 7 * 24 * 60 * 60 * 1000;
   });
 
   const capabilityContext = `
@@ -5455,8 +5457,14 @@ När du ser öppna buggar eller får frågor om teknisk skuld:
 - Formatera: **fetstil** för nyckelord, emojis sparsamt
 
 ═══ VERKTYG (execute_action) ═══
-✅ DIREKT: run_scan, create_work_item, update_work_item, run_cleanup, run_data_integrity, query_data, generate_lovable_prompt, triage_bugs, close_bug, batch_update_bugs
+✅ DIREKT: run_scan, create_work_item, update_work_item, run_cleanup, run_data_integrity, query_data, generate_lovable_prompt, triage_bugs, close_bug, batch_update_bugs, self_note
 ⚠️ VIA PROMPT: UI-ändringar, nya features, edge functions → generate_lovable_prompt automatiskt
+
+═══ SELF-NOTE & SJÄLVFÖRBÄTTRING ═══
+- Använd "self_note" för att skapa egna uppgifter som du kan utföra själv (databasrensning, bugg-triage, optimeringar)
+- Om du identifierar saker du INTE kan fixa själv, använd "create_work_item" med source_type "ai_self_note" och notera att det kräver manuell kodändring
+- Separera tydligt: "Jag fixar detta själv ✅" vs "Kräver manuell åtgärd via Lovable ⚠️"
+- IGNORERADE ISSUES: Om en issue är markerad som ignorerad (dismissed), NÄMN den INTE som problem och föreslå den INTE som åtgärd. Respektera användarens beslut.
 `;
 
   const systemData = `
@@ -5476,7 +5484,10 @@ Väntande: ${pendingPrompts.length} | Klara (7d): ${recentlyDone.length}
 ${pendingPrompts.map((p: any) => `⏳ [${p.priority}] ${p.title}`).join("\n")}
 ${recentlyDone.length > 0 ? `\nNyligen avklarade:\n${recentlyDone.map((p: any) => `✅ ${p.title}`).join("\n")}` : ""}
 
-VIKTIGT: Om användaren markerat prompts som klara, identifiera PROAKTIVT nästa problem/förbättring att ta itu med baserat på skanningar och buggar. Föreslå aldrig samma prompt igen.
+=== IGNORERADE ISSUES (${dismissedIssues.length}) ===
+${dismissedIssues.map((d: any) => `❌ ${d.issue_title} — "${d.reason}"`).join("\n") || "Inga ignorerade issues"}
+
+VIKTIGT: Om användaren markerat prompts som klara, identifiera PROAKTIVT nästa problem/förbättring att ta itu med baserat på skanningar och buggar. Föreslå aldrig samma prompt igen. Föreslå ALDRIG ignorerade issues.
 `;
 
   const messages = [
@@ -5502,12 +5513,12 @@ VIKTIGT: Om användaren markerat prompts som klara, identifiera PROAKTIVT nästa
               properties: {
                 action_type: {
                   type: "string",
-                  enum: ["run_scan", "create_work_item", "update_work_item", "run_double_pass", "generate_lovable_prompt", "run_cleanup", "run_data_integrity", "query_data", "triage_bugs", "close_bug", "batch_update_bugs"],
-                  description: "Type of action to execute. triage_bugs: autonomously sort/prioritize/group all open bugs. close_bug: close a specific bug by id. batch_update_bugs: update multiple bugs at once.",
+                  enum: ["run_scan", "create_work_item", "update_work_item", "run_double_pass", "generate_lovable_prompt", "run_cleanup", "run_data_integrity", "query_data", "triage_bugs", "close_bug", "batch_update_bugs", "self_note"],
+                  description: "Type of action to execute. self_note: create a task that AI will handle itself or flag for manual work. triage_bugs: autonomously sort/prioritize/group all open bugs. close_bug: close a specific bug by id. batch_update_bugs: update multiple bugs at once.",
                 },
                 params: {
                   type: "object",
-                  description: "Parameters for the action. For triage_bugs: {} (no params needed, analyzes all open bugs). For close_bug: { bug_id, resolution_notes }. For batch_update_bugs: { bug_ids: string[], status, resolution_notes }. For generate_lovable_prompt: { title, prompt (min 100 chars), goal }. For create_work_item: { title, description, priority }.",
+                  description: "Parameters for the action. For self_note: { title, description, can_self_fix: boolean, priority }. If can_self_fix=true, AI will auto-handle. If false, creates a work item flagged for manual Lovable prompt. For triage_bugs: {} (no params needed). For close_bug: { bug_id, resolution_notes }. For batch_update_bugs: { bug_ids: string[], status, resolution_notes }. For generate_lovable_prompt: { title, prompt (min 100 chars), goal }. For create_work_item: { title, description, priority }.",
                 },
               },
               required: ["action_type", "params"],
@@ -5822,6 +5833,54 @@ Return ONLY valid JSON.`,
         .in("id", bug_ids);
       if (error) throw new Error(error.message);
       return { updated: bug_ids.length, status: newStatus };
+    }
+
+    case "self_note": {
+      const canSelfFix = params.can_self_fix === true;
+      const noteTitle = (params.title || "AI-notering").substring(0, 200);
+      const noteDesc = params.description || "";
+      const notePriority = params.priority || "medium";
+
+      if (canSelfFix) {
+        // AI marks it as something it will handle autonomously
+        const { data, error } = await supabase.from("work_items").insert({
+          title: `🤖 ${noteTitle}`,
+          description: `[AI Self-Fix]\n${noteDesc}\n\nDetta hanteras automatiskt av Lova.`,
+          status: "in_progress",
+          priority: notePriority,
+          item_type: "ai_self_fix",
+          source_type: "ai_self_note",
+          ai_detected: true,
+          ai_confidence: "high",
+        }).select("id").single();
+        if (error) throw new Error(error.message);
+        return { created: true, self_fix: true, work_item_id: data.id };
+      } else {
+        // Needs manual intervention - create work item + prompt
+        const { data, error } = await supabase.from("work_items").insert({
+          title: `⚠️ ${noteTitle}`,
+          description: `[Manuellt ärende]\n${noteDesc}\n\nKräver kodändring via Lovable.`,
+          status: "open",
+          priority: notePriority,
+          item_type: "manual",
+          source_type: "ai_self_note",
+          ai_detected: true,
+          ai_confidence: "medium",
+        }).select("id").single();
+        if (error) throw new Error(error.message);
+
+        // Also generate a prompt for it
+        await supabase.from("prompt_queue").insert({
+          title: noteTitle,
+          implementation: noteDesc,
+          goal: `Fix: ${noteTitle}`,
+          priority: notePriority,
+          status: "pending",
+          source_type: "ai_self_note",
+        });
+
+        return { created: true, self_fix: false, work_item_id: data.id, prompt_queued: true };
+      }
     }
 
     default:

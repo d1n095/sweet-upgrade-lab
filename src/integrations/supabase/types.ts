@@ -2472,6 +2472,36 @@ export type Database = {
         }
         Relationships: []
       }
+      scan_dismissals: {
+        Row: {
+          created_at: string
+          dismissed_by: string
+          id: string
+          issue_key: string
+          issue_title: string
+          reason: string
+          scan_type: string
+        }
+        Insert: {
+          created_at?: string
+          dismissed_by: string
+          id?: string
+          issue_key: string
+          issue_title: string
+          reason?: string
+          scan_type?: string
+        }
+        Update: {
+          created_at?: string
+          dismissed_by?: string
+          id?: string
+          issue_key?: string
+          issue_title?: string
+          reason?: string
+          scan_type?: string
+        }
+        Relationships: []
+      }
       search_logs: {
         Row: {
           created_at: string
