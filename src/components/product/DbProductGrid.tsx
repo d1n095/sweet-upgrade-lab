@@ -111,7 +111,7 @@ const DbProductGrid = () => {
       filtered = filtered.filter(p => tagProductIds.has(p.id));
     }
     return filtered;
-  }, [products, activeCategory, tagProductIds]);
+  }, [products, activeCategory, tagProductIds, categories]);
 
   const searchFiltered = useMemo(() => {
     let filtered = categoryFiltered;
