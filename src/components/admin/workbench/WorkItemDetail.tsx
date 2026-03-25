@@ -558,19 +558,24 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
             </div>
 
             {/* AI Pre-Verification Suggestion */}
-            {item.ai_pre_verify_status && item.ai_pre_verify_status !== 'not_fixed' && isOpen && (
+            {item.ai_pre_verify_status && item.ai_pre_verify_status !== 'not_fixed' && item.ai_pre_verify_status !== 'dismissed' && (isOpen || item.ai_pre_verify_status === 'confirmed' || item.ai_pre_verify_status === 'rejected') && (
               <div className={cn('rounded-lg p-3 space-y-2.5 border', {
-                'bg-accent/10 border-accent/30': item.ai_pre_verify_status === 'appears_fixed',
+                'bg-accent/10 border-accent/30': item.ai_pre_verify_status === 'appears_fixed' || item.ai_pre_verify_status === 'confirmed',
                 'bg-primary/5 border-primary/20': item.ai_pre_verify_status === 'possibly_fixed',
+                'bg-destructive/5 border-destructive/20': item.ai_pre_verify_status === 'rejected',
               })}>
                 <div className="flex items-center gap-1.5 text-xs font-semibold">
                   <Sparkles className="w-3.5 h-3.5 text-primary" />
-                  AI förslag: Verkar löst
+                  {item.ai_pre_verify_status === 'confirmed' ? 'AI-förslag bekräftat' :
+                   item.ai_pre_verify_status === 'rejected' ? 'AI-förslag avvisat' : 'AI förslag: Verkar löst'}
                   <Badge variant="outline" className={cn('text-[9px] ml-auto', {
-                    'border-accent/40 text-accent': item.ai_pre_verify_status === 'appears_fixed',
+                    'border-accent/40 text-accent': item.ai_pre_verify_status === 'appears_fixed' || item.ai_pre_verify_status === 'confirmed',
                     'border-primary/30 text-primary': item.ai_pre_verify_status === 'possibly_fixed',
+                    'border-destructive/30 text-destructive': item.ai_pre_verify_status === 'rejected',
                   })}>
-                    {item.ai_pre_verify_status === 'appears_fixed' ? '✅ Verkar fixat' : '🔍 Möjligen fixat'}
+                    {item.ai_pre_verify_status === 'confirmed' ? '✅ Bekräftad av användare' :
+                     item.ai_pre_verify_status === 'rejected' ? '❌ Avvisad — djupanalys körd' :
+                     item.ai_pre_verify_status === 'appears_fixed' ? '✅ Verkar fixat' : '🔍 Möjligen fixat'}
                     {item.ai_pre_verify_result?.confidence != null && ` (${item.ai_pre_verify_result.confidence}%)`}
                   </Badge>
                 </div>
