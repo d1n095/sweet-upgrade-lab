@@ -1151,7 +1151,42 @@ const REAL_DB_SCANNERS: Record<string, (supabase: any, scanRunId: string) => Pro
   interaction_qa: runRealInteractionQA,
 };
 
-// ── Create work items with FINGERPRINT DEDUP ──
+// ── SCAN CONSISTENCY GUARD ──
+// Compares current scan fingerprints against existing work_items from previous scans.
+// - Reappearing issue (same fingerprint, active): update existing, do NOT create new
+// - Severity changed: update priority on existing item, log change
+// - Issue disappeared (active work_item fingerprint not in current scan): mark resolved
+
+async function runConsistencyGuard(supabase: any, currentFingerprints: Map<string, { title: string; priority: string; item_type: string; description?: string }>) {
+  // Fetch all active scan-sourced work_items with fingerprints
+  const { data: activeItems } = await supabase
+    .from("work_items")
+    .select("id, title, status, priority, issue_fingerprint")
+    .eq("source_type", "ai_scan")
+    .not("issue_fingerprint", "is", null)
+    .in("status", ["open", "claimed", "in_progress", "escalated", "new", "pending", "detected"])
+    .limit(500);
+
+  const existingByFp = new Map<string, any>();
+  for (const item of activeItems || []) {
+    if (item.issue_fingerprint) existingByFp.set(item.issue_fingerprint, item);
+  }
+
+  let resolved = 0;
+  // Issues that disappeared: active work_item fingerprint not in current scan
+  for (const [fp, item] of existingByFp) {
+    if (!currentFingerprints.has(fp)) {
+      await supabase.from("work_items").update({ status: "done", updated_at: new Date().toISOString() }).eq("id", item.id);
+      console.log(`[consistency-guard] RESOLVED (disappeared): ${item.id.slice(0, 8)} "${item.title.slice(0, 40)}"`);
+      resolved++;
+    }
+  }
+  if (resolved > 0) console.log(`[consistency-guard] Marked ${resolved} disappeared issues as resolved`);
+
+  return existingByFp;
+}
+
+// ── Create work items with CONSISTENCY GUARD ──
 async function createWorkItems(supabase: any, unified: any, stage: SystemStage): Promise<number> {
   let workItemsCreated = 0;
   const allWorkIssues: { title: string; priority: string; item_type: string; description?: string; fingerprint: string }[] = [];
@@ -1211,35 +1246,62 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     });
   }
 
-  // ── FINGERPRINT DEDUP: Check existing work items by fingerprint ──
+  // ── CONSISTENCY GUARD: Build fingerprint map of current scan issues ──
+  const currentFingerprints = new Map<string, { title: string; priority: string; item_type: string; description?: string }>();
   for (const issue of allWorkIssues) {
-    // Check by fingerprint first (exact match)
-    const { data: existingByFp } = await supabase
-      .from("work_items")
-      .select("id, title, status")
-      .eq("issue_fingerprint", issue.fingerprint)
-      .in("status", ["open", "claimed", "in_progress", "escalated"])
-      .limit(1);
+    currentFingerprints.set(issue.fingerprint, { title: issue.title, priority: issue.priority, item_type: issue.item_type, description: issue.description });
+  }
 
-    if (existingByFp?.length) {
-      // TEMPORARILY DISABLED: dedup skip
-      // Update existing instead of creating new
-      console.log(`[dedup] Fingerprint match (SKIPPING DISABLED): "${issue.title.slice(0, 40)}" → existing ${existingByFp[0].id.slice(0, 8)}`);
-      // await supabase.from("work_items").update({...}).eq("id", existingByFp[0].id);
-      // continue;
+  // Run guard: resolve disappeared issues, get existing map
+  const existingByFp = await runConsistencyGuard(supabase, currentFingerprints);
+
+  // ── PROCESS EACH ISSUE with consistency logic ──
+  for (const issue of allWorkIssues) {
+    const existingItem = existingByFp.get(issue.fingerprint);
+
+    if (existingItem) {
+      // REAPPEARING ISSUE — do NOT create new
+      // Check if severity/priority changed
+      if (existingItem.priority !== issue.priority) {
+        await supabase.from("work_items").update({
+          priority: issue.priority,
+          updated_at: new Date().toISOString(),
+        }).eq("id", existingItem.id);
+
+        // Log severity change
+        await supabase.from("system_observability_log").insert({
+          event_type: "action", severity: "info", source: "consistency_guard",
+          message: `Severity ändrad: "${issue.title.slice(0, 60)}" ${existingItem.priority} → ${issue.priority}`,
+          details: { work_item_id: existingItem.id, old_priority: existingItem.priority, new_priority: issue.priority },
+          component: "scan-consistency-guard",
+        });
+        console.log(`[consistency-guard] SEVERITY UPDATED: ${existingItem.id.slice(0, 8)} ${existingItem.priority} → ${issue.priority}`);
+      } else {
+        console.log(`[consistency-guard] LINKED (unchanged): ${existingItem.id.slice(0, 8)} "${issue.title.slice(0, 40)}"`);
+      }
+      continue; // Do NOT create new
     }
 
-    // Fallback: fuzzy title match
+    // Fallback: fuzzy title match (for items without fingerprint)
     const searchTitle = issue.title.substring(0, 40);
     const { data: existingByTitle } = await supabase
       .from("work_items")
-      .select("id")
+      .select("id, priority")
       .ilike("title", `%${searchTitle}%`)
-      .in("status", ["open", "claimed", "in_progress", "escalated"])
+      .in("status", ["open", "claimed", "in_progress", "escalated", "new", "pending", "detected"])
       .limit(1);
-    // if (existingByTitle?.length) continue; // TEMPORARILY DISABLED
 
-    // Create new with fingerprint
+    if (existingByTitle?.length) {
+      // Update fingerprint on existing item so future scans match by fp
+      await supabase.from("work_items").update({
+        issue_fingerprint: issue.fingerprint,
+        updated_at: new Date().toISOString(),
+      }).eq("id", existingByTitle[0].id);
+      console.log(`[consistency-guard] LINKED by title: ${existingByTitle[0].id.slice(0, 8)} "${issue.title.slice(0, 40)}"`);
+      continue;
+    }
+
+    // NEW ISSUE — create
     const insertPayload = {
       title: issue.title,
       description: issue.description || "Auto-generated from scan",
@@ -1596,15 +1658,28 @@ serve(async (req) => {
       // Create work items with context awareness and fingerprint dedup
       let workItemsCreated = await createWorkItems(supabase, unified, systemStage);
 
-      // Systemic issues → work items
+      // Systemic issues → work items (with consistency guard)
       for (const si of systemicIssues) {
         const fp = generateFingerprint({ component: si.pattern, type: "systemic", route: "global" });
-        const { data: existingByFp } = await supabase.from("work_items").select("id").eq("issue_fingerprint", fp).in("status", ["open", "claimed", "in_progress", "escalated"]).limit(1);
-        // if (existingByFp?.length) continue; // TEMPORARILY DISABLED
 
+        // Check existing by fingerprint
+        const { data: existingByFp } = await supabase.from("work_items").select("id, priority").eq("issue_fingerprint", fp).in("status", ["open", "claimed", "in_progress", "escalated", "new", "pending", "detected"]).limit(1);
+        if (existingByFp?.length) {
+          const newPriority = si.severity === "critical" ? "critical" : "high";
+          if (existingByFp[0].priority !== newPriority) {
+            await supabase.from("work_items").update({ priority: newPriority, updated_at: new Date().toISOString() }).eq("id", existingByFp[0].id);
+            console.log(`[consistency-guard] SYSTEMIC severity updated: ${existingByFp[0].id.slice(0, 8)}`);
+          }
+          continue;
+        }
+
+        // Check existing by title
         const searchTitle = si.label.substring(0, 40);
-        const { data: existing } = await supabase.from("work_items").select("id").ilike("title", `%${searchTitle}%`).in("status", ["open", "claimed", "in_progress", "escalated"]).limit(1);
-        // if (existing?.length) continue; // TEMPORARILY DISABLED
+        const { data: existingByTitle } = await supabase.from("work_items").select("id").ilike("title", `%${searchTitle}%`).in("status", ["open", "claimed", "in_progress", "escalated", "new", "pending", "detected"]).limit(1);
+        if (existingByTitle?.length) {
+          await supabase.from("work_items").update({ issue_fingerprint: fp, updated_at: new Date().toISOString() }).eq("id", existingByTitle[0].id);
+          continue;
+        }
 
         const { error } = await supabase.from("work_items").insert({
           title: `🔗 ${si.label}`.slice(0, 120),
