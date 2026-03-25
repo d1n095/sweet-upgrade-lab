@@ -5373,7 +5373,7 @@ const DataCleanupTab = () => {
           {result.duplicate_groups?.length > 0 && (
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><GitMerge className="w-4 h-4" /> Hittade duplicat</CardTitle></CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent><ScrollArea className="max-h-[30vh]"><div className="space-y-2 pr-2">
                 {result.duplicate_groups.map((g: any, i: number) => (
                   <div key={i} className="text-sm border-b border-border pb-2">
                     <div className="flex items-center gap-2">
@@ -5382,7 +5382,7 @@ const DataCleanupTab = () => {
                     </div>
                   </div>
                 ))}
-              </CardContent>
+              </div></ScrollArea></CardContent>
             </Card>
           )}
 
@@ -5390,11 +5390,11 @@ const DataCleanupTab = () => {
           {result.test_data?.length > 0 && (
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><AlertCircle className="w-4 h-4 text-destructive" /> Testdata borttagen</CardTitle></CardHeader>
-              <CardContent className="space-y-1">
+              <CardContent><ScrollArea className="max-h-[20vh]"><div className="space-y-1 pr-2">
                 {result.test_data.map((t: any, i: number) => (
                   <p key={i} className="text-sm text-muted-foreground">• {t.reason}</p>
                 ))}
-              </CardContent>
+              </div></ScrollArea></CardContent>
             </Card>
           )}
 
@@ -5402,11 +5402,11 @@ const DataCleanupTab = () => {
           {result.outdated?.length > 0 && (
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Clock className="w-4 h-4" /> Föråldrade borttagna</CardTitle></CardHeader>
-              <CardContent className="space-y-1">
+              <CardContent><ScrollArea className="max-h-[20vh]"><div className="space-y-1 pr-2">
                 {result.outdated.map((o: any, i: number) => (
                   <p key={i} className="text-sm text-muted-foreground">• {o.reason}</p>
                 ))}
-              </CardContent>
+              </div></ScrollArea></CardContent>
             </Card>
           )}
         </div>
