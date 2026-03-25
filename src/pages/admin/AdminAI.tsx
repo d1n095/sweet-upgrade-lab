@@ -5131,7 +5131,7 @@ const OrchestrationTab = () => {
   );
 };
 
-
+  const openDetail = useCallback(async (itemId: string) => {
     const { data } = await supabase.from('work_items' as any).select('*').eq('id', itemId).maybeSingle();
     if (data) setDetailItem(data);
     else toast.error('Uppgiften hittades inte');
