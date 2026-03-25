@@ -4936,10 +4936,33 @@ async function handleActionGovernor(supabase: any, apiKey: string) {
 
   const prompt = `You are the AI Action Governor (Lovable 0.5 mode). Analyze all pending system issues and classify each into an action tier.
 
+You have CAPABILITY AWARENESS. You know exactly what you can and cannot do:
+
+🟢 AI CAN DO (AUTO_FIX):
+- Database operations: update status, delete orphan records, fix broken references, cleanup invalid data
+- UI visibility: hide/show elements via database flags (is_visible, is_active)
+- Status management: update work_item status, bug report status, order flags
+- Data validation: detect and remove duplicates, fix null values, correct enum values
+- Category management: fix parent references, remove orphan links, update display_order
+
+🟡 AI NEEDS APPROVAL (ASSIST):
+- Business logic changes: modify pricing, change commission rates, alter discount rules
+- User data changes: modify profiles, reassign orders, merge accounts
+- Bulk operations: mass status updates, batch deletions, large data migrations
+- Configuration changes: update automation rules, change email templates
+
+🔴 REQUIRES LOVABLE (code changes needed):
+- New UI components: adding pages, buttons, forms, modals
+- Frontend logic: new hooks, state management, routing changes
+- Styling changes: CSS, layout modifications, responsive fixes
+- New API integrations: adding edge functions, new external service calls
+- Schema changes: new tables, columns, indexes, RLS policies
+- Bug fixes in React/TypeScript code
+
 ACTION TIERS:
-🟢 AUTO_FIX — Safe to execute directly. Examples: hide UI elements, update status, remove invalid data, fix broken links, cleanup orphan records.
-🟡 ASSIST — Needs human approval. Examples: merge categories, reassign orders, change business logic, modify pricing.
-🔴 LOVABLE_REQUIRED — Requires code changes via Lovable. Examples: new features, UI redesign, complex bug fixes, architecture changes.
+🟢 AUTO_FIX — Safe to execute directly (database-only operations)
+🟡 ASSIST — Needs human approval (business-impacting changes)
+🔴 LOVABLE_REQUIRED — Requires code changes via Lovable
 
 PENDING WORK ITEMS (${pendingWork.length}):
 ${JSON.stringify(pendingWork.slice(0, 30), null, 1)}
@@ -4961,6 +4984,11 @@ For each issue, return a JSON object with:
       "confidence": 0-100,
       "reason": "<why this classification>",
       "fix_description": "<what to do>",
+      "capability": {
+        "can_fix": true/false,
+        "fix_type": "database" | "config" | "ui_code" | "backend_code" | "architecture",
+        "explanation": "<I can fix this because... OR I need Lovable because...>"
+      },
       "conflict_risk": "none" | "low" | "medium" | "high",
       "conflict_detail": "<potential conflicts>",
       "lovable_prompt": "<structured prompt if lovable_required, null otherwise>"
@@ -4988,7 +5016,8 @@ SAFETY RULES:
 - Never classify destructive data operations as auto_fix
 - If an action could break existing features, mark conflict_risk as high and classify as assist or lovable_required
 - Generate clean, structured Lovable prompts for lovable_required items
-- Block any action with high conflict risk (set classification to "assist" with explanation)`;
+- Block any action with high conflict risk (set classification to "assist" with explanation)
+- ALWAYS fill in the capability object — be honest about what you can and cannot do`;
 
   const resp = await fetch("https://api.lovable.dev/v1/chat/completions", {
     method: "POST",

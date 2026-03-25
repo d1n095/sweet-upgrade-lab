@@ -4680,6 +4680,13 @@ const ActionGovernorTab = () => {
                         </div>
                         <p className="text-sm font-medium">{action.title}</p>
                         <p className="text-xs text-muted-foreground mt-0.5">{action.fix_description}</p>
+                        {action.capability && (
+                          <div className={cn("text-xs mt-1 flex items-center gap-1", action.capability.can_fix ? 'text-green-600' : 'text-destructive')}>
+                            {action.capability.can_fix ? <CheckCircle className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
+                            <span>{action.capability.explanation}</span>
+                            {action.capability.fix_type && <Badge variant="outline" className="text-[9px] h-4 ml-1">{action.capability.fix_type}</Badge>}
+                          </div>
+                        )}
                         {action.conflict_detail && action.conflict_risk !== 'none' && (
                           <p className="text-xs text-yellow-600 mt-1">Konfliktdetalj: {action.conflict_detail}</p>
                         )}
