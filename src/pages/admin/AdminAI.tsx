@@ -2241,6 +2241,7 @@ const AiAutopilotTab = () => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ExecutionResult | null>(null);
   const queryClient = useQueryClient();
+  const { openDetail } = useDetailContext();
 
   const runExecution = async () => {
     setLoading(true);
