@@ -1273,7 +1273,425 @@ async function runFunctionalBehaviorScan(supabase: any, scanRunId: string): Prom
 }
 
 
-async function createWorkItems(supabase: any, unified: any, startedBy: string): Promise<number> {
+// ── REAL DB SCAN: Sync Scanner — verify frontend data expectations match DB reality ──
+async function runRealSyncScan(supabase: any, scanRunId: string): Promise<any> {
+  const issues: any[] = [];
+  const startMs = Date.now();
+
+  try {
+    // 1. Products: check for products with missing critical fields
+    const { data: products } = await supabase
+      .from("products")
+      .select("id, title, price, status, image_url, slug, category_id")
+      .limit(500);
+
+    for (const p of products || []) {
+      if (!p.title || p.title.trim() === "") {
+        issues.push({ title: `Produkt utan titel (id: ${p.id?.slice(0, 8)})`, severity: "high", field: "title", component: "products" });
+      }
+      if (p.price == null || p.price <= 0) {
+        issues.push({ title: `Produkt utan giltigt pris: "${p.title}" (${p.price})`, severity: "high", field: "price", component: "products" });
+      }
+      if (p.status === "active" && !p.image_url) {
+        issues.push({ title: `Aktiv produkt utan bild: "${p.title}"`, severity: "medium", field: "image_url", component: "products" });
+      }
+      if (p.status === "active" && !p.slug) {
+        issues.push({ title: `Aktiv produkt utan slug: "${p.title}"`, severity: "high", field: "slug", component: "products" });
+      }
+      if (p.status === "active" && !p.category_id) {
+        issues.push({ title: `Aktiv produkt utan kategori: "${p.title}"`, severity: "medium", field: "category_id", component: "products" });
+      }
+    }
+
+    // 2. Categories: check for categories referenced by products but missing
+    const categoryIds = new Set((products || []).filter((p: any) => p.category_id).map((p: any) => p.category_id));
+    if (categoryIds.size > 0) {
+      const { data: categories } = await supabase.from("categories").select("id").in("id", [...categoryIds]);
+      const existingCatIds = new Set((categories || []).map((c: any) => c.id));
+      for (const catId of categoryIds) {
+        if (!existingCatIds.has(catId)) {
+          const affectedProducts = (products || []).filter((p: any) => p.category_id === catId);
+          issues.push({
+            title: `Kategori ${(catId as string).slice(0, 8)} finns ej men refereras av ${affectedProducts.length} produkter`,
+            severity: "critical", field: "category_id", component: "categories",
+          });
+        }
+      }
+    }
+
+    // 3. Orders: check status consistency
+    const { data: orders } = await supabase
+      .from("orders")
+      .select("id, status, payment_status, fulfillment_status, delivery_status, shipped_at, delivered_at, packed_at")
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(200);
+
+    for (const o of orders || []) {
+      if (o.fulfillment_status === "shipped" && !o.shipped_at) {
+        issues.push({ title: `Order ${o.id.slice(0, 8)} status=shipped men shipped_at saknas`, severity: "high", field: "shipped_at", component: "orders" });
+      }
+      if (o.fulfillment_status === "delivered" && !o.delivered_at) {
+        issues.push({ title: `Order ${o.id.slice(0, 8)} status=delivered men delivered_at saknas`, severity: "high", field: "delivered_at", component: "orders" });
+      }
+      if (o.fulfillment_status === "packed" && !o.packed_at) {
+        issues.push({ title: `Order ${o.id.slice(0, 8)} status=packed men packed_at saknas`, severity: "medium", field: "packed_at", component: "orders" });
+      }
+      if (o.payment_status === "paid" && o.status === "cancelled") {
+        issues.push({ title: `Order ${o.id.slice(0, 8)} betalad men avbruten — möjlig refund-miss`, severity: "critical", field: "status", component: "orders" });
+      }
+    }
+
+    // 4. Affiliates: active with invalid/empty codes
+    const { data: affiliates } = await supabase
+      .from("affiliates")
+      .select("id, name, code, is_active, email")
+      .eq("is_active", true)
+      .limit(100);
+
+    for (const a of affiliates || []) {
+      if (!a.code || a.code.trim() === "") {
+        issues.push({ title: `Aktiv affiliate utan kod: "${a.name}"`, severity: "high", field: "code", component: "affiliates" });
+      }
+      if (!a.email || a.email.trim() === "") {
+        issues.push({ title: `Aktiv affiliate utan e-post: "${a.name}"`, severity: "medium", field: "email", component: "affiliates" });
+      }
+    }
+
+    // 5. Duplicate affiliate/influencer codes
+    const { data: allCodes } = await supabase.from("affiliates").select("code").eq("is_active", true);
+    const { data: influencerCodes } = await supabase.from("influencers").select("code").eq("is_active", true);
+    const codeMap = new Map<string, number>();
+    for (const a of [...(allCodes || []), ...(influencerCodes || [])]) {
+      const c = (a.code || "").toLowerCase();
+      if (c) codeMap.set(c, (codeMap.get(c) || 0) + 1);
+    }
+    for (const [code, count] of codeMap) {
+      if (count > 1) {
+        issues.push({ title: `Duplikat rabattkod: "${code}" (${count} st)`, severity: "critical", field: "code", component: "affiliates/influencers" });
+      }
+    }
+
+    // 6. Reviews: check for reviews referencing non-existent products
+    const { data: reviews } = await supabase
+      .from("reviews")
+      .select("id, product_id, shopify_product_id")
+      .limit(200);
+
+    const reviewProductIds = new Set((reviews || []).filter((r: any) => r.product_id).map((r: any) => r.product_id));
+    if (reviewProductIds.size > 0) {
+      const { data: existingProducts } = await supabase.from("products").select("id").in("id", [...reviewProductIds]);
+      const existingProdIds = new Set((existingProducts || []).map((p: any) => p.id));
+      for (const pid of reviewProductIds) {
+        if (!existingProdIds.has(pid)) {
+          issues.push({ title: `Recension refererar borttagen produkt ${(pid as string).slice(0, 8)}`, severity: "medium", field: "product_id", component: "reviews" });
+        }
+      }
+    }
+
+  } catch (e: any) {
+    issues.push({ title: `Sync scan error: ${e.message}`, severity: "critical", component: "sync_scan" });
+  }
+
+  const durationMs = Date.now() - startMs;
+  const score = Math.max(0, 100 - issues.length * 5);
+
+  return {
+    issues,
+    mismatches: issues,
+    total_issues: issues.length,
+    sync_score: score,
+    overall_score: score,
+    issues_found: issues.length,
+    duration_ms: durationMs,
+    scanned_at: new Date().toISOString(),
+    real_db_scan: true,
+  };
+}
+
+// ── REAL DB SCAN: System scan — check for regressions and system health ──
+async function runRealSystemScan(supabase: any, scanRunId: string): Promise<any> {
+  const issues: any[] = [];
+  const metrics: Record<string, number> = {};
+  const startMs = Date.now();
+
+  try {
+    // Count key entities
+    const tables = [
+      { table: "orders", filter: { deleted_at: null }, key: "total_orders" },
+      { table: "products", filter: {}, key: "total_products" },
+      { table: "bug_reports", filter: { status: "open" }, key: "open_bugs" },
+      { table: "work_items", filter: {}, key: "total_work_items" },
+      { table: "affiliates", filter: { is_active: true }, key: "active_affiliates" },
+      { table: "reviews", filter: {}, key: "total_reviews" },
+      { table: "notifications", filter: { read: false }, key: "unread_notifications" },
+    ];
+
+    for (const t of tables) {
+      let query = supabase.from(t.table).select("*", { count: "exact", head: true });
+      for (const [k, v] of Object.entries(t.filter)) {
+        if (v === null) query = query.is(k, null);
+        else query = query.eq(k, v);
+      }
+      const { count } = await query;
+      metrics[t.key] = count || 0;
+    }
+
+    // Active work items by status
+    for (const status of ["open", "claimed", "in_progress", "escalated", "done"]) {
+      const { count } = await supabase.from("work_items").select("*", { count: "exact", head: true }).eq("status", status);
+      metrics[`work_items_${status}`] = count || 0;
+    }
+
+    // Orders by recent activity
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { count: recentOrders } = await supabase.from("orders").select("*", { count: "exact", head: true }).gte("created_at", oneDayAgo).is("deleted_at", null);
+    metrics.orders_last_24h = recentOrders || 0;
+
+    const { count: recentErrors } = await supabase.from("activity_logs").select("*", { count: "exact", head: true }).eq("log_type", "error").gte("created_at", oneDayAgo);
+    metrics.errors_last_24h = recentErrors || 0;
+
+    // Check for issues
+    if (metrics.open_bugs > 20) {
+      issues.push({ title: `${metrics.open_bugs} öppna buggar — hög bugg-skuld`, severity: "high", component: "bug_reports" });
+    }
+    if (metrics.work_items_escalated > 5) {
+      issues.push({ title: `${metrics.work_items_escalated} eskalerade ärenden`, severity: "critical", component: "work_items" });
+    }
+    if (metrics.errors_last_24h > 50) {
+      issues.push({ title: `${metrics.errors_last_24h} fel senaste 24h — systeminstabilitet`, severity: "high", component: "activity_logs" });
+    }
+    if (metrics.unread_notifications > 100) {
+      issues.push({ title: `${metrics.unread_notifications} olästa notiser — trolig notis-spam`, severity: "medium", component: "notifications" });
+    }
+
+    // Check for stale escalated items (>24h without update)
+    const { data: staleEscalated } = await supabase
+      .from("work_items")
+      .select("id, title, updated_at")
+      .eq("status", "escalated")
+      .lt("updated_at", oneDayAgo)
+      .limit(20);
+
+    for (const wi of staleEscalated || []) {
+      issues.push({ title: `Eskalerat ärende >24h utan uppdatering: "${wi.title}"`, severity: "high", component: "work_items", entity_id: wi.id });
+    }
+
+    // Check for recent scan results — compare health scores
+    const { data: recentScans } = await supabase
+      .from("ai_scan_results")
+      .select("overall_score, created_at, scan_type")
+      .eq("scan_type", "full_orchestrated")
+      .order("created_at", { ascending: false })
+      .limit(3);
+
+    if (recentScans?.length >= 2) {
+      const current = recentScans[0].overall_score || 0;
+      const previous = recentScans[1].overall_score || 0;
+      if (current < previous - 10) {
+        issues.push({ title: `Systempoäng sjunkit: ${previous} → ${current} (-${previous - current})`, severity: "high", component: "system_health" });
+      }
+      metrics.previous_score = previous;
+      metrics.score_delta = current - previous;
+    }
+
+  } catch (e: any) {
+    issues.push({ title: `System scan error: ${e.message}`, severity: "critical", component: "system_scan" });
+  }
+
+  const durationMs = Date.now() - startMs;
+  const score = Math.max(0, 100 - issues.length * 8);
+
+  return {
+    issues,
+    issues_found: issues.length,
+    metrics,
+    system_score: score,
+    overall_score: score,
+    duration_ms: durationMs,
+    scanned_at: new Date().toISOString(),
+    real_db_scan: true,
+  };
+}
+
+// ── REAL DB SCAN: Feature Detection — verify key CRUD operations work ──
+async function runRealFeatureDetection(supabase: any, scanRunId: string): Promise<any> {
+  const features: any[] = [];
+  const startMs = Date.now();
+
+  // Test actual table read access for key features
+  const featureTests = [
+    { name: "Produkter (läs)", table: "products", query: "id, title, status", classification: "real" },
+    { name: "Ordrar (läs)", table: "orders", query: "id, status, created_at", classification: "real" },
+    { name: "Kategorier (läs)", table: "categories", query: "id, name_sv, slug", classification: "real" },
+    { name: "Recensioner (läs)", table: "reviews", query: "id, rating, product_id", classification: "real" },
+    { name: "Affiliates (läs)", table: "affiliates", query: "id, name, code", classification: "real" },
+    { name: "Influencers (läs)", table: "influencers", query: "id, name, code", classification: "real" },
+    { name: "Bugrapporter (läs)", table: "bug_reports", query: "id, description, status", classification: "real" },
+    { name: "Work Items (läs)", table: "work_items", query: "id, title, status", classification: "real" },
+    { name: "Donationer (läs)", table: "donations", query: "id, amount, source", classification: "real" },
+    { name: "Donationsprojekt (läs)", table: "donation_projects", query: "id, name, is_active", classification: "real" },
+    { name: "E-postmallar (läs)", table: "email_templates", query: "id, template_type, is_active", classification: "real" },
+    { name: "Kampanjer (bundles)", table: "bundles", query: "id, name, is_active", classification: "real" },
+    { name: "Aktivitetsloggar", table: "activity_logs", query: "id, log_type, message", classification: "real" },
+    { name: "Notiser", table: "notifications", query: "id, type, read", classification: "real" },
+  ];
+
+  for (const ft of featureTests) {
+    try {
+      const { data, error, count } = await supabase.from(ft.table).select(ft.query, { count: "exact" }).limit(1);
+      if (error) {
+        features.push({ name: ft.name, status: "broken", classification: "broken", reason: error.message, component: ft.table });
+      } else {
+        features.push({ name: ft.name, status: "working", classification: "real", row_count: count || 0, component: ft.table });
+      }
+    } catch (e: any) {
+      features.push({ name: ft.name, status: "error", classification: "broken", reason: e.message, component: ft.table });
+    }
+  }
+
+  // Test write capability with probe
+  try {
+    const probeId = `__feature_probe_${Date.now()}`;
+    const { data: inserted, error: insertErr } = await supabase
+      .from("activity_logs")
+      .insert({ message: probeId, log_type: "probe", category: "feature_detection" })
+      .select("id")
+      .single();
+
+    if (insertErr) {
+      features.push({ name: "Skrivåtkomst (activity_logs)", status: "broken", classification: "broken", reason: insertErr.message });
+    } else {
+      // Verify and cleanup
+      const { data: fetched } = await supabase.from("activity_logs").select("id").eq("id", inserted.id).maybeSingle();
+      if (fetched) {
+        features.push({ name: "Skrivåtkomst (activity_logs)", status: "working", classification: "real" });
+        await supabase.from("activity_logs").delete().eq("id", inserted.id);
+      } else {
+        features.push({ name: "Skrivåtkomst (activity_logs)", status: "broken", classification: "broken", reason: "INSERT ok men SELECT returnerade inget" });
+      }
+    }
+  } catch (e: any) {
+    features.push({ name: "Skrivåtkomst (activity_logs)", status: "error", classification: "broken", reason: e.message });
+  }
+
+  const durationMs = Date.now() - startMs;
+  const working = features.filter(f => f.status === "working").length;
+  const broken = features.filter(f => f.status !== "working").length;
+  const score = Math.round((working / Math.max(1, features.length)) * 100);
+
+  return {
+    features,
+    working_count: working,
+    broken_count: broken,
+    total_features: features.length,
+    overall_score: score,
+    score,
+    issues_found: broken,
+    duration_ms: durationMs,
+    scanned_at: new Date().toISOString(),
+    real_db_scan: true,
+  };
+}
+
+// ── REAL DB SCAN: Interaction QA — check for dead references and broken links in data ──
+async function runRealInteractionQA(supabase: any, scanRunId: string): Promise<any> {
+  const issues: any[] = [];
+  const startMs = Date.now();
+
+  try {
+    // 1. Bundles referencing non-existent products
+    const { data: bundleItems } = await supabase.from("bundle_items").select("id, bundle_id, shopify_product_id").limit(200);
+    const { data: bundles } = await supabase.from("bundles").select("id, name, is_active").eq("is_active", true).limit(50);
+    const activeBundleIds = new Set((bundles || []).map((b: any) => b.id));
+
+    for (const bi of bundleItems || []) {
+      if (!activeBundleIds.has(bi.bundle_id)) {
+        // Check if bundle exists at all
+        const { data: b } = await supabase.from("bundles").select("id").eq("id", bi.bundle_id).maybeSingle();
+        if (!b) {
+          issues.push({ title: `Bundle item refererar borttaget bundle ${bi.bundle_id.slice(0, 8)}`, severity: "high", component: "bundles", element: "bundle_items" });
+        }
+      }
+    }
+
+    // 2. Notifications without valid user_id (orphan notifs)
+    const { data: recentNotifs } = await supabase
+      .from("notifications")
+      .select("id, user_id, type, created_at")
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    const userIds = new Set((recentNotifs || []).map((n: any) => n.user_id).filter(Boolean));
+    if (userIds.size > 0) {
+      const { data: profiles } = await supabase.from("profiles").select("id").in("id", [...userIds]);
+      const existingUserIds = new Set((profiles || []).map((p: any) => p.id));
+      for (const n of recentNotifs || []) {
+        if (n.user_id && !existingUserIds.has(n.user_id)) {
+          issues.push({ title: `Notis för borttagen användare ${n.user_id.slice(0, 8)}`, severity: "medium", component: "notifications", entity_id: n.id });
+        }
+      }
+    }
+
+    // 3. Incidents without valid orders
+    const { data: incidents } = await supabase
+      .from("order_incidents")
+      .select("id, title, order_id, status")
+      .in("status", ["open", "investigating", "in_progress"])
+      .limit(50);
+
+    for (const inc of incidents || []) {
+      const { data: order } = await supabase.from("orders").select("id").eq("id", inc.order_id).maybeSingle();
+      if (!order) {
+        issues.push({ title: `Ärende "${inc.title}" → order finns ej`, severity: "high", component: "order_incidents", entity_id: inc.id });
+      }
+    }
+
+    // 4. Automation rules: check for active rules with invalid config
+    const { data: rules } = await supabase.from("automation_rules").select("id, rule_key, config, is_active").eq("is_active", true).limit(50);
+    for (const r of rules || []) {
+      if (!r.config || (typeof r.config === "object" && Object.keys(r.config).length === 0)) {
+        issues.push({ title: `Aktiv automationsregel utan config: "${r.rule_key}"`, severity: "medium", component: "automation_rules", entity_id: r.id });
+      }
+    }
+
+    // 5. Email templates: check active templates have required fields
+    const { data: templates } = await supabase.from("email_templates").select("*").eq("is_active", true).limit(20);
+    for (const t of templates || []) {
+      if (!t.subject_sv || !t.intro_sv) {
+        issues.push({ title: `E-postmall "${t.template_type}" saknar ämne/intro (SV)`, severity: "high", component: "email_templates", entity_id: t.id });
+      }
+    }
+
+  } catch (e: any) {
+    issues.push({ title: `Interaction QA error: ${e.message}`, severity: "critical", component: "interaction_qa" });
+  }
+
+  const durationMs = Date.now() - startMs;
+  const score = Math.max(0, 100 - issues.length * 6);
+
+  return {
+    issues,
+    issues_found: issues.length,
+    dead_elements: issues,
+    interaction_score: score,
+    overall_score: score,
+    duration_ms: durationMs,
+    scanned_at: new Date().toISOString(),
+    real_db_scan: true,
+  };
+}
+
+// ── Map scan types to real DB functions ──
+const REAL_DB_SCANNERS: Record<string, (supabase: any, scanRunId: string) => Promise<any>> = {
+  data_integrity: runDataIntegrityScan,
+  sync_scan: runRealSyncScan,
+  system_scan: runRealSystemScan,
+  feature_detection: runRealFeatureDetection,
+  interaction_qa: runRealInteractionQA,
+};
+
+
   let workItemsCreated = 0;
   const allWorkIssues: { title: string; priority: string; item_type: string; description?: string }[] = [];
 
