@@ -38,24 +38,30 @@ const Produkter = () => {
 
   // Load product→category mappings to accurately filter categories
   const [productCategoryMap, setProductCategoryMap] = useState<Record<string, Set<string>>>({});
+  const [slugToUuid, setSlugToUuid] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const load = async () => {
       try {
         setIsLoading(true);
         setError(null);
-        const [data, { data: pcData }] = await Promise.all([
+        const [data, { data: pcData }, { data: rawCats }] = await Promise.all([
           fetchDbProducts(false),
           supabase.from('product_categories').select('product_id, category_id'),
+          supabase.from('categories').select('id, slug'),
         ]);
         setProducts(data);
-        // Build category_slug→product_ids map
+        // Build category UUID → product IDs map
         const catMap: Record<string, Set<string>> = {};
         (pcData || []).forEach((r: any) => {
           if (!catMap[r.category_id]) catMap[r.category_id] = new Set();
           catMap[r.category_id].add(r.product_id);
         });
         setProductCategoryMap(catMap);
+        // Build slug → UUID map
+        const s2u: Record<string, string> = {};
+        (rawCats || []).forEach((c: any) => { s2u[c.slug] = c.id; });
+        setSlugToUuid(s2u);
         if (data.length > 0) {
           const max = Math.ceil(Math.max(...data.map(p => p.price)) / 100) * 100;
           setMaxPrice(max);
@@ -90,25 +96,16 @@ const Produkter = () => {
       if (cat.id === 'all') return true;
       if (cat.parent_id) return false;
       if (cat.isBestsellerFilter) return products.some(p => p.badge === 'bestseller');
-      // Check via product_categories junction — find category UUID by slug
-      // Categories from useDbCategories use slug as id
-      const catSlug = cat.slug || cat.id;
-      // Find matching UUID keys in productCategoryMap
-      for (const [catId, productIds] of Object.entries(productCategoryMap)) {
-        // We can't match slug to UUID here, so fallback to product.category field too
-        for (const pid of productIds) {
+      // Resolve category slug → UUID, then check junction table
+      const uuid = slugToUuid[cat.slug || cat.id];
+      if (uuid && productCategoryMap[uuid]) {
+        for (const pid of productCategoryMap[uuid]) {
           if (visibleProductIds.has(pid)) return true;
         }
       }
-      // Fallback: check product.category field match
-      const match = cat.query?.match(/product_type:"?([^"&\s]+)"?/);
-      if (match) {
-        const type = match[1].toLowerCase();
-        return products.some(p => (p.category || '').toLowerCase() === type);
-      }
       return false;
     });
-  }, [products, categories, productCategoryMap]);
+  }, [products, categories, productCategoryMap, slugToUuid]);
 
   const filtered = useMemo(() => {
     let result = products;
