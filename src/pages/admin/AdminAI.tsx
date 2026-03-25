@@ -1138,6 +1138,7 @@ const BugAITab = () => {
     } as any).eq('id', bugId);
     if (!error) {
       toast.success('Bugg markerad som löst ✅');
+      if (expandedId === bugId) setExpandedId(null);
       setBugs(prev => prev.filter(b => b.id !== bugId));
     } else toast.error('Kunde inte uppdatera bugg');
   };
@@ -1149,6 +1150,7 @@ const BugAITab = () => {
     } as any).eq('id', bugId);
     if (!error) {
       toast.success('Bugg ignorerad');
+      if (expandedId === bugId) setExpandedId(null);
       setBugs(prev => prev.filter(b => b.id !== bugId));
     } else toast.error('Kunde inte ignorera bugg');
   };
@@ -1239,7 +1241,7 @@ const BugAITab = () => {
           const fix = fixes[bug.id];
 
           return (
-            <div key={bug.id} className="border rounded-lg overflow-hidden">
+            <div key={bug.id} className="border rounded-lg overflow-hidden" data-bug-id={bug.id}>
               {/* Header - always visible */}
               <div
                 className="p-3 flex items-start gap-3 cursor-pointer hover:bg-muted/30 transition-colors"
