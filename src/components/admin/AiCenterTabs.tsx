@@ -245,16 +245,16 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
   );
 
   return (
-    <div className="flex gap-0 lg:gap-4 -mx-4 md:-mx-8 min-h-[calc(100vh-200px)]">
+    <div className="flex gap-0 lg:gap-4 -mx-4 md:-mx-8 h-[calc(100vh-200px)] min-h-0">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex w-52 flex-col shrink-0 border-r border-border bg-card/50 sticky top-0 h-[calc(100vh-160px)] overflow-hidden">
+      <aside className="hidden lg:flex w-52 flex-col shrink-0 border-r border-border bg-card/50 min-h-0">
         <div className="px-4 py-3 border-b border-border">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-primary" />
             <span className="text-sm font-semibold">AI Center</span>
           </div>
         </div>
-        <ScrollArea className="flex-1 py-2">
+        <ScrollArea className="flex-1 min-h-0 py-2">
           {sidebarContent}
         </ScrollArea>
       </aside>
@@ -365,7 +365,7 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
       </AnimatePresence>
 
       {/* Main Content */}
-      <div className="flex-1 min-w-0 px-4 md:px-8 pb-20 lg:pb-4 overflow-y-auto">
+      <div className="flex-1 min-w-0 min-h-0 px-4 md:px-8 pb-20 lg:pb-4 overflow-y-auto">
         {activeTab !== 'ai-dashboard' && activeTabDef && (
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-4 pt-1">
             <button onClick={() => handleNavigate('ai-dashboard')} className="hover:text-foreground transition-colors">
@@ -376,7 +376,7 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
           </div>
         )}
 
-        <div className="min-h-[400px]">
+        <div className="min-h-0">
           {activeTab === 'ai-dashboard' ? (
             <DashboardOverview onNavigate={handleNavigate} />
           ) : (

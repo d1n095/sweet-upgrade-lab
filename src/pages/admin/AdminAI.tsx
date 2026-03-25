@@ -3523,7 +3523,7 @@ const NavBugScanTab = () => {
           {bugResult.duplicates?.length > 0 && (
             <Card className="p-4">
               <h4 className="text-xs font-semibold mb-2">Dubbletter ({bugResult.duplicates.length})</h4>
-              <ScrollArea className="max-h-[20vh]">
+              <ScrollArea className="max-h-[50vh]">
                 <div className="space-y-1.5 pr-2">
                   {bugResult.duplicates.map((d: any, i: number) => (
                     <div key={i} className="border rounded-md p-2 text-xs">
@@ -3542,7 +3542,7 @@ const NavBugScanTab = () => {
           {bugResult.missing_work_items?.length > 0 && (
             <Card className="p-4">
               <h4 className="text-xs font-semibold mb-2">Skapade saknade uppgifter ({bugResult.missing_work_items.length})</h4>
-              <ScrollArea className="max-h-[20vh]">
+              <ScrollArea className="max-h-[50vh]">
                 <div className="space-y-1.5 pr-2">
                   {bugResult.missing_work_items.map((m: any, i: number) => (
                     <div key={i} className="border rounded-md p-2 flex items-center gap-2 text-xs">
@@ -3865,7 +3865,7 @@ Förslag: ${issue.fix_suggestion}`,
       {showHistory && scanHistory.length > 0 && (
         <Card className="p-4">
           <h3 className="font-semibold text-sm mb-3 flex items-center gap-2"><History className="w-4 h-4" /> Skanningshistorik</h3>
-          <div className="max-h-[300px] overflow-y-auto space-y-1.5">
+          <div className="max-h-[50vh] overflow-y-auto space-y-1.5">
             {scanHistory.map((scan, i) => {
               const isCurrent = scanMeta?.id === scan.id;
               const isComparing = compareScanId === scan.id;
@@ -6881,7 +6881,7 @@ const OrchestrationTab = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="max-h-[300px]">
+              <ScrollArea className="max-h-[50vh]">
                 <div className="space-y-3">
                   <div>
                     <p className="text-xs font-semibold mb-1">🔧 Generator</p>
@@ -6932,7 +6932,7 @@ const OrchestrationTab = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="max-h-[300px]">
+              <ScrollArea className="max-h-[50vh]">
                 <div className="space-y-3">
                   <div>
                     <p className="text-xs font-semibold mb-1">🔧 Generator v2</p>
