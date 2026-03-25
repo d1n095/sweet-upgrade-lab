@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { QueryClient } from '@tanstack/react-query';
 
 export type ScanStepStatus = 'pending' | 'running' | 'done' | 'error';
 
@@ -27,6 +28,14 @@ const SCAN_STEPS = [
 
 export { SCAN_STEPS };
 
+/** Keys to invalidate after scans complete */
+const POST_SCAN_QUERY_KEYS = [
+  'admin-scan-results',
+  'admin-work-items',
+  'admin-bugs',
+  'mini-workbench-items',
+];
+
 interface ScannerState {
   scanning: boolean;
   steps: ScanStepResult[];
@@ -34,7 +43,7 @@ interface ScannerState {
   toggleStep: (type: string) => void;
   selectAll: () => void;
   selectNone: () => void;
-  runAllScans: () => Promise<void>;
+  runAllScans: (queryClient?: QueryClient) => Promise<void>;
 }
 
 const callAIForScan = async (type: string, payload: Record<string, any> = {}) => {
@@ -80,7 +89,7 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
   selectAll: () => set({ selectedSteps: new Set(SCAN_STEPS.map(s => s.type)) }),
   selectNone: () => set({ selectedSteps: new Set() }),
 
-  runAllScans: async () => {
+  runAllScans: async (queryClient?: QueryClient) => {
     const { scanning, selectedSteps } = get();
     if (scanning) return;
 
@@ -106,13 +115,9 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
             step.type,
             step.type === 'content_validation' ? { auto_fix: false } : {}
           );
-          const duration_ms = Date.now() - start;
 
           if (res) {
             const duration_ms = Date.now() - start;
-
-            // Edge function now persists scan results — no duplicate insert needed
-            // Just update local state
             set(state => ({
               steps: state.steps.map((s, idx) => idx === i ? { ...s, status: 'done' as const, result: res, duration_ms } : s),
             }));
@@ -128,6 +133,13 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
         }
       })
     );
+
+    // Invalidate relevant queries so UI reflects new scan results + work items
+    if (queryClient) {
+      for (const key of POST_SCAN_QUERY_KEYS) {
+        queryClient.invalidateQueries({ queryKey: [key] });
+      }
+    }
 
     toast.success(`Alla skanningar klara (${toRun.length} st)`);
     set({ scanning: false });
