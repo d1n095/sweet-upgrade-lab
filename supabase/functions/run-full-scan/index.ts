@@ -241,7 +241,7 @@ serve(async (req) => {
         const issuesCount = unified.broken_flows.length + unified.fake_features.length +
           unified.interaction_failures.length + unified.data_issues.length;
 
-        // Persist to ai_scan_results
+        // Persist unified result to ai_scan_results
         await supabase.from("ai_scan_results").insert({
           scan_type: "full_orchestrated",
           results: unified,
@@ -252,10 +252,32 @@ serve(async (req) => {
           scanned_by: scanRun.started_by,
         });
 
-        // Auto-generate work items from findings
-        let workItemsCreated = 0;
-        const allWorkIssues: { title: string; priority: string; item_type: string }[] = [];
+        // ── Save each step result as individual ai_scan_results entry ──
+        // This makes the data available in each scanner's overview tab
+        for (const stepDef of STEPS) {
+          const stepRes = updatedResults[stepDef.id];
+          if (!stepRes || stepRes.failed) continue;
 
+          const stepScore = stepRes.overall_score ?? stepRes.system_score ?? stepRes.score ?? stepRes.health_score ?? stepRes.sync_score ?? stepRes.ux_score ?? stepRes.interaction_score ?? null;
+          const stepIssues = stepRes.issues_found ?? stepRes.issues?.length ?? stepRes.dead_elements?.length ?? stepRes.mismatches?.length ?? 0;
+
+          await supabase.from("ai_scan_results").insert({
+            scan_type: stepDef.scanType,
+            results: stepRes,
+            overall_score: stepScore,
+            overall_status: stepScore != null ? (stepScore >= 75 ? "healthy" : stepScore >= 50 ? "warning" : "critical") : null,
+            executive_summary: stepRes.executive_summary || stepRes.summary || `${stepDef.id}: score ${stepScore ?? '?'}, ${stepIssues} issues`,
+            issues_count: stepIssues,
+            tasks_created: stepRes.tasks_created || 0,
+            scanned_by: scanRun.started_by,
+          });
+        }
+
+        // ── Auto-generate work items from ALL findings ──
+        let workItemsCreated = 0;
+        const allWorkIssues: { title: string; priority: string; item_type: string; description?: string }[] = [];
+
+        // Blocker
         if (unified.blocker) {
           allWorkIssues.push({
             title: `BLOCKER: ${unified.blocker.description || unified.blocker.title || "Critical blocker detected"}`.slice(0, 120),
@@ -263,21 +285,74 @@ serve(async (req) => {
             item_type: "bug",
           });
         }
-        for (const flow of unified.broken_flows.slice(0, 5)) {
+
+        // Broken flows
+        for (const flow of unified.broken_flows.slice(0, 8)) {
           allWorkIssues.push({
             title: `Broken flow: ${flow.description || flow.route || flow.issue || "unknown"}`.slice(0, 120),
             priority: "high",
             item_type: "bug",
+            description: flow.fix_suggestion || flow.detail || "",
           });
         }
-        for (const fake of unified.fake_features.slice(0, 5)) {
+
+        // Fake features
+        for (const fake of unified.fake_features.slice(0, 8)) {
           allWorkIssues.push({
             title: `Fake feature: ${fake.name || fake.component || fake.description || "unknown"}`.slice(0, 120),
             priority: "high",
             item_type: "improvement",
+            description: fake.reason || fake.detail || "",
           });
         }
 
+        // Interaction failures
+        for (const fail of unified.interaction_failures.slice(0, 8)) {
+          allWorkIssues.push({
+            title: `Interaction fail: ${fail.title || fail.element || fail.description || "unknown"}`.slice(0, 120),
+            priority: fail.severity === "critical" ? "critical" : "high",
+            item_type: "bug",
+            description: fail.fix_suggestion || fail.detail || fail.issue || "",
+          });
+        }
+
+        // Data issues
+        for (const issue of unified.data_issues.slice(0, 8)) {
+          allWorkIssues.push({
+            title: `Data issue: ${issue.title || issue.field || issue.description || "unknown"}`.slice(0, 120),
+            priority: issue.severity === "critical" ? "critical" : "medium",
+            item_type: "bug",
+            description: issue.fix_suggestion || issue.detail || "",
+          });
+        }
+
+        // Collect per-step issues not already covered by unified categories
+        for (const stepDef of STEPS) {
+          const stepRes = updatedResults[stepDef.id];
+          if (!stepRes || stepRes.failed) continue;
+
+          // Collect issues from various possible fields
+          const stepIssues = stepRes.issues || stepRes.critical_issues || stepRes.dead_elements || stepRes.mismatches || [];
+          for (const si of stepIssues.slice(0, 5)) {
+            const title = `[${stepDef.id}] ${si.title || si.element || si.field || si.description || "Issue"}`.slice(0, 120);
+            // Check if this issue is already in allWorkIssues (fuzzy match)
+            const titleLower = title.toLowerCase();
+            const isDupe = allWorkIssues.some(existing => {
+              const el = existing.title.toLowerCase();
+              return el.includes(titleLower.substring(0, 30)) || titleLower.includes(el.substring(0, 30));
+            });
+            if (isDupe) continue;
+
+            allWorkIssues.push({
+              title,
+              priority: si.severity === "critical" ? "critical" : si.severity === "high" ? "high" : "medium",
+              item_type: "bug",
+              description: si.fix_suggestion || si.description || si.detail || si.issue || "",
+            });
+          }
+        }
+
+        // Deduplicate against existing work items and insert
         for (const issue of allWorkIssues) {
           const searchTitle = issue.title.substring(0, 40);
           const { data: existing } = await supabase
@@ -290,7 +365,7 @@ serve(async (req) => {
 
           const { error } = await supabase.from("work_items").insert({
             title: issue.title,
-            description: "Auto-generated from full orchestrated scan",
+            description: issue.description || "Auto-generated from full orchestrated scan",
             status: "open",
             priority: issue.priority,
             item_type: issue.item_type,
