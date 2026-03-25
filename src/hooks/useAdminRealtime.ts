@@ -39,6 +39,12 @@ export function useAdminRealtime() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'analytics_events' }, () => {
         queryClient.invalidateQueries({ queryKey: ['admin-analytics'] });
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'change_log' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['admin-change-log'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ai_scan_results' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['admin-scan-results'] });
+      })
       .subscribe();
 
     return () => {
