@@ -26,6 +26,14 @@ export interface FocusMemoryItem {
   last_seen_at: string;
 }
 
+export interface PredictionItem {
+  problem: string;
+  area: string;
+  confidence: number;
+  reason: string;
+  type: "prediction";
+}
+
 export interface AdaptiveScanMeta {
   iterations: number;
   new_issues_found: number;
@@ -35,6 +43,7 @@ export interface AdaptiveScanMeta {
   coverage_score: number;
   iteration_results: any[];
   focus_memory?: FocusMemoryItem[];
+  predictions?: PredictionItem[];
 }
 
 export interface UnifiedScanResult {
