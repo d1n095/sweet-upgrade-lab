@@ -350,6 +350,12 @@ serve(async (req) => {
         break;
       }
 
+      case "auto_fix_order": {
+        await logAiRead(supabase, { action_type: "analyze", target_type: "auto_fix_order", result: "inspected", summary: "Auto Fix Ordering — dependency-aware task reordering", triggered_by: user.id });
+        result = await handleAutoFixOrder(supabase, lovableKey);
+        break;
+      }
+
       default:
         return new Response(JSON.stringify({ error: "Unknown type" }), { status: 400, headers: corsHeaders });
     }
@@ -7302,6 +7308,279 @@ KLASSIFICERING:
     actions_taken: {
       items_reprioritized: itemsUpdated,
       duplicates_closed: duplicatesClosed,
+    },
+  };
+}
+
+// ── Auto Fix Ordering ──
+async function handleAutoFixOrder(supabase: any, lovableKey: string) {
+  // 1. Get all open work items
+  const { data: workItems } = await supabase.from("work_items")
+    .select("id, title, description, status, priority, item_type, source_type, source_id, ai_category, ai_type_classification, tags, created_at, related_order_id")
+    .in("status", ["open", "claimed", "in_progress", "escalated"])
+    .order("created_at", { ascending: false })
+    .limit(100);
+
+  const items = workItems || [];
+  if (items.length === 0) {
+    return { message: "No open work items to reorder", fix_order: [], items_reordered: 0 };
+  }
+
+  // 2. Define the dependency layer hierarchy (lower = fix first)
+  const LAYER_ORDER: Record<string, number> = {
+    // Layer 0: Database & data integrity (foundation)
+    "database": 0, "data_integrity": 0, "migration": 0, "schema": 0,
+    // Layer 1: Backend functions & API
+    "backend": 1, "edge_function": 1, "api": 1, "webhook": 1, "auth": 1,
+    // Layer 2: State management
+    "state": 2, "store": 2, "context": 2, "hook": 2,
+    // Layer 3: Routing & navigation
+    "routing": 3, "navigation": 3, "route": 3,
+    // Layer 4: Component logic & handlers
+    "handler": 4, "logic": 4, "interaction": 4, "click": 4, "form": 4,
+    // Layer 5: UI rendering & display
+    "ui": 5, "frontend": 5, "render": 5, "display": 5, "style": 5, "layout": 5,
+    // Layer 6: Content & text
+    "content": 6, "text": 6, "translation": 6, "seo": 6,
+  };
+
+  // 3. Classify each work item into a dependency layer
+  function classifyLayer(item: any): number {
+    const text = `${item.title} ${item.description || ""} ${item.ai_category || ""} ${item.ai_type_classification || ""} ${(item.tags || []).join(" ")}`.toLowerCase();
+
+    // Check keywords in priority order
+    for (const [keyword, layer] of Object.entries(LAYER_ORDER)) {
+      if (text.includes(keyword)) return layer;
+    }
+
+    // Classify by item_type
+    const typeMap: Record<string, number> = {
+      "bug": 4, "incident": 1, "feature": 5, "improvement": 5,
+      "pack_order": 1, "packing": 1, "shipping": 1, "refund": 1,
+      "support_case": 3, "refund_request": 1,
+    };
+    return typeMap[item.item_type] ?? 4;
+  }
+
+  // 4. Classify and sort items
+  const classified = items.map((item: any) => ({
+    ...item,
+    layer: classifyLayer(item),
+    layer_name: Object.entries(LAYER_ORDER).find(([_, v]) => v === classifyLayer(item))?.[0] || "unknown",
+  }));
+
+  // Priority weight (critical=4, high=3, medium=2, low=1)
+  const priorityWeight: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 };
+
+  // Sort: layer ASC (foundation first), then priority DESC, then age DESC (oldest first within same layer)
+  classified.sort((a: any, b: any) => {
+    if (a.layer !== b.layer) return a.layer - b.layer;
+    const pa = priorityWeight[a.priority] || 1;
+    const pb = priorityWeight[b.priority] || 1;
+    if (pa !== pb) return pb - pa;
+    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+  });
+
+  // 5. Send to AI for deeper dependency analysis with cross-item relationships
+  const context = JSON.stringify({
+    items: classified.map((item: any, idx: number) => ({
+      id: item.id,
+      title: item.title?.substring(0, 120),
+      description: item.description?.substring(0, 200),
+      priority: item.priority,
+      type: item.item_type,
+      category: item.ai_category,
+      classification: item.ai_type_classification,
+      tags: item.tags,
+      layer: item.layer,
+      layer_name: item.layer_name,
+      pre_sort_position: idx + 1,
+      has_order: !!item.related_order_id,
+      age_hours: Math.round((Date.now() - new Date(item.created_at).getTime()) / 3600000),
+    })),
+    dependency_layers: {
+      "0_database": "Data schema, migrations, integrity",
+      "1_backend": "Edge functions, API, auth, webhooks",
+      "2_state": "Zustand stores, React context, hooks",
+      "3_routing": "Routes, navigation, redirects",
+      "4_handlers": "Click handlers, form logic, interactions",
+      "5_ui": "Rendering, layout, styles, display",
+      "6_content": "Text, translations, SEO, content",
+    },
+  });
+
+  const prompt = `Du är en teknisk projektledare som bestämmer fixordning för ${classified.length} öppna uppgifter.
+
+UPPGIFTER (förklassificerade i beroendelager):
+${context}
+
+═══ BEROENDEMODELL ═══
+Layer 0 (Database) → Layer 1 (Backend) → Layer 2 (State) → Layer 3 (Routing) → Layer 4 (Handlers) → Layer 5 (UI) → Layer 6 (Content)
+
+REGLER:
+1. FIX NEDÅT FÖRST: Om en knapp inte fungerar, kontrollera:
+   → Finns data? (Layer 0) → Finns edge function? (Layer 1) → Finns state? (Layer 2) → Finns route? (Layer 3) → Finns handler? (Layer 4) → Renderas UI? (Layer 5)
+
+2. BEROENDEN: Om fix A krävs före fix B → markera explicit
+3. CIRKULÄRA BEROENDEN: Identifiera och bryt genom att välja den mest grundläggande fixen
+4. GRUPPERING: Om 2+ uppgifter kan fixas med SAMMA ändring → gruppera dem
+5. PARALLELLA FIXAR: Uppgifter på samma lager utan inbördes beroende kan fixas parallellt
+
+═══ KONTROLLERA FÖR VARJE ITEM ═══
+- Är dess beroendelager korrekt klassificerat?
+- Finns det dolda beroenden till andra items?
+- Kan det fixas parallellt med andra?
+- Har det en cirkulär koppling?
+
+OUTPUT: Optimerad fixordning med explicita beroenden och parallelliseringsmöjligheter.`;
+
+  const analysis = await callAIWithTools(lovableKey, prompt, [{
+    type: "function",
+    function: {
+      name: "fix_order_results",
+      description: "Auto fix ordering with dependency analysis",
+      parameters: {
+        type: "object",
+        properties: {
+          total_items: { type: "number" },
+          layers_used: { type: "number", description: "How many dependency layers are active" },
+          executive_summary: { type: "string" },
+          fix_sequence: {
+            type: "array",
+            description: "Ordered list — position = fix order",
+            items: {
+              type: "object",
+              properties: {
+                position: { type: "number", description: "Fix order position (1 = first)" },
+                id: { type: "string" },
+                title: { type: "string" },
+                layer: { type: "number", description: "Dependency layer 0-6" },
+                layer_name: { type: "string" },
+                corrected_layer: { type: "number", description: "AI-corrected layer if misclassified" },
+                depends_on: { type: "array", items: { type: "string" }, description: "IDs this item depends on" },
+                blocks: { type: "array", items: { type: "string" }, description: "IDs blocked by this item" },
+                parallel_with: { type: "array", items: { type: "string" }, description: "IDs that can be fixed simultaneously" },
+                estimated_effort: { type: "string", enum: ["5min", "15min", "30min", "1h", "2h+"] },
+                fix_check: {
+                  type: "object",
+                  description: "Pre-fix dependency checklist",
+                  properties: {
+                    data_exists: { type: "string", enum: ["yes", "no", "unknown", "n/a"] },
+                    handler_exists: { type: "string", enum: ["yes", "no", "unknown", "n/a"] },
+                    route_exists: { type: "string", enum: ["yes", "no", "unknown", "n/a"] },
+                    ui_renders: { type: "string", enum: ["yes", "no", "unknown", "n/a"] },
+                    state_connected: { type: "string", enum: ["yes", "no", "unknown", "n/a"] },
+                  },
+                },
+              },
+              required: ["position", "id", "title", "layer", "layer_name", "depends_on", "blocks", "parallel_with", "estimated_effort", "fix_check"],
+            },
+          },
+          parallel_groups: {
+            type: "array",
+            description: "Groups of items that can be fixed simultaneously",
+            items: {
+              type: "object",
+              properties: {
+                group_name: { type: "string" },
+                item_ids: { type: "array", items: { type: "string" } },
+                layer: { type: "number" },
+                reason: { type: "string" },
+              },
+              required: ["group_name", "item_ids", "layer", "reason"],
+            },
+          },
+          circular_dependencies: {
+            type: "array",
+            description: "Detected circular dependencies",
+            items: {
+              type: "object",
+              properties: {
+                cycle: { type: "array", items: { type: "string" }, description: "IDs forming the cycle" },
+                break_point: { type: "string", description: "Which ID to fix first to break cycle" },
+                reason: { type: "string" },
+              },
+              required: ["cycle", "break_point", "reason"],
+            },
+          },
+          misclassifications: {
+            type: "array",
+            description: "Items whose layer was corrected by AI",
+            items: {
+              type: "object",
+              properties: {
+                id: { type: "string" },
+                original_layer: { type: "number" },
+                corrected_layer: { type: "number" },
+                reason: { type: "string" },
+              },
+              required: ["id", "original_layer", "corrected_layer", "reason"],
+            },
+          },
+          consolidation_opportunities: {
+            type: "array",
+            description: "Items that can be fixed with a single change",
+            items: {
+              type: "object",
+              properties: {
+                item_ids: { type: "array", items: { type: "string" } },
+                unified_fix: { type: "string" },
+                lovable_prompt: { type: "string" },
+              },
+              required: ["item_ids", "unified_fix", "lovable_prompt"],
+            },
+          },
+        },
+        required: ["total_items", "layers_used", "executive_summary", "fix_sequence", "parallel_groups", "circular_dependencies", "misclassifications", "consolidation_opportunities"],
+        additionalProperties: false,
+      },
+    },
+  }], { type: "function", function: { name: "fix_order_results" } });
+
+  // 6. Apply fix order to work items via tags
+  let itemsReordered = 0;
+  if (analysis?.fix_sequence) {
+    for (const seq of analysis.fix_sequence) {
+      const tags = [
+        `fix_order:${seq.position}`,
+        `layer:${seq.layer}:${seq.layer_name}`,
+        "auto_ordered",
+      ];
+      if (seq.depends_on?.length) tags.push(`depends_on:${seq.depends_on.join(",")}`);
+      if (seq.blocks?.length) tags.push(`blocks:${seq.blocks.join(",")}`);
+      if (seq.parallel_with?.length) tags.push(`parallel:${seq.parallel_with.join(",")}`);
+
+      const { error } = await supabase.from("work_items").update({
+        tags,
+      }).eq("id", seq.id).in("status", ["open", "claimed", "in_progress", "escalated"]);
+      if (!error) itemsReordered++;
+    }
+  }
+
+  // Persist scan
+  const scanId = await persistScanResult(supabase, {
+    scan_type: "auto_fix_order",
+    results: analysis || {},
+    overall_score: analysis?.fix_sequence ? Math.round((1 - (analysis.circular_dependencies?.length || 0) / Math.max(1, items.length)) * 100) : 0,
+    overall_status: (analysis?.circular_dependencies?.length || 0) > 0 ? "warning" : "healthy",
+    issues_count: items.length,
+    executive_summary: analysis?.executive_summary || "",
+  });
+
+  if (scanId) await updateScanTaskCount(supabase, scanId, itemsReordered);
+
+  return {
+    ...analysis,
+    scan_id: scanId,
+    items_reordered: itemsReordered,
+    dependency_model: {
+      "0": "Database / Data integrity",
+      "1": "Backend / Edge functions / Auth",
+      "2": "State management / Stores / Hooks",
+      "3": "Routing / Navigation",
+      "4": "Handlers / Interaction logic",
+      "5": "UI / Rendering / Layout",
+      "6": "Content / Translation / SEO",
     },
   };
 }
