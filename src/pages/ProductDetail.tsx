@@ -3,6 +3,8 @@ import { useParams, Link } from 'react-router-dom';
 import { trackProductView } from '@/utils/analyticsTracker';
 import { motion } from 'framer-motion';
 import { ShoppingCart, Check, Loader2, Minus, Plus, Shield, RotateCcw, Truck, Share2, Languages, Sparkles, Droplets, Heart, Users, Star, Eye, Clock, Package, AlertTriangle } from 'lucide-react';
+import { useProductVariants } from '@/hooks/useProductVariants';
+import VariantSelector from '@/components/product/VariantSelector';
 import { Button } from '@/components/ui/button';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -67,6 +69,7 @@ const ProductDetail = () => {
   const [isAdded, setIsAdded] = useState(false);
   const [viewerCount] = useState(() => Math.floor(Math.random() * 8) + 3);
   const { hasPurchased } = usePurchaseHistory();
+  const { variants, selectedVariant, setSelectedVariant, hasVariants } = useProductVariants(product?.id);
 
   const translated = useTranslatedProduct(product);
 
@@ -95,12 +98,17 @@ const ProductDetail = () => {
 
   const handleAddToCart = () => {
     if (!product) return;
-    const cartItem = cartItems.find(i => (i.product as any)?.dbId === product.id);
-    const quantityInCart = cartItem?.quantity || 0;
-    const availableStock = product.stock - (product.reserved_stock || 0);
+    const variantForCart = selectedVariant;
+    const effectivePrice = variantForCart ? variantForCart.price : product.price;
+    const effectiveStock = variantForCart ? variantForCart.stock : (product.stock - (product.reserved_stock || 0));
+    const variantId = variantForCart ? variantForCart.id : product.id + '-variant';
+    const variantTitle = variantForCart ? variantForCart.size : 'Default';
 
-    if (!product.allow_overselling && quantity + quantityInCart > availableStock) {
-      toast.error(lang === 'sv' ? `Max ${availableStock} st i lager` : `Max ${availableStock} in stock`);
+    const cartItem = cartItems.find(i => i.variantId === variantId);
+    const quantityInCart = cartItem?.quantity || 0;
+
+    if (!product.allow_overselling && quantity + quantityInCart > effectiveStock) {
+      toast.error(lang === 'sv' ? `Max ${effectiveStock} st i lager` : `Max ${effectiveStock} in stock`);
       return;
     }
     const cartTitle = translated.title || product.title_sv;
@@ -108,25 +116,27 @@ const ProductDetail = () => {
     const imageUrl = product.image_urls?.[0];
     const pHandle = product.handle || product.id;
 
+    const displayTitle = variantForCart ? `${cartTitle} – ${variantForCart.size}` : cartTitle;
+
     const cartProduct = {
       dbId: product.id,
       node: {
         id: product.id,
-        title: cartTitle,
+        title: displayTitle,
         handle: pHandle,
         description: cartDescription || '',
         productType: product.category || '',
         tags: product.tags || [],
-        priceRange: { minVariantPrice: { amount: product.price.toString(), currencyCode: 'SEK' } },
+        priceRange: { minVariantPrice: { amount: effectivePrice.toString(), currencyCode: 'SEK' } },
         images: { edges: imageUrl ? [{ node: { url: imageUrl, altText: cartTitle } }] : [] },
         variants: {
           edges: [{
             node: {
-              id: product.id + '-variant',
-              title: 'Default',
-              availableForSale: (product.stock - (product.reserved_stock || 0)) > 0 || product.allow_overselling,
-              price: { amount: product.price.toString(), currencyCode: 'SEK' },
-              selectedOptions: [],
+              id: variantId,
+              title: variantTitle,
+              availableForSale: effectiveStock > 0 || product.allow_overselling,
+              price: { amount: effectivePrice.toString(), currencyCode: 'SEK' },
+              selectedOptions: variantForCart ? [{ name: 'Size', value: variantForCart.size }] : [],
             }
           }]
         },
@@ -135,11 +145,11 @@ const ProductDetail = () => {
 
     addItem({
       product: cartProduct,
-      variantId: product.id + '-variant',
-      variantTitle: 'Default',
-      price: { amount: product.price.toString(), currencyCode: 'SEK' },
+      variantId,
+      variantTitle,
+      price: { amount: effectivePrice.toString(), currencyCode: 'SEK' },
       quantity,
-      selectedOptions: [],
+      selectedOptions: variantForCart ? [{ name: 'Size', value: variantForCart.size }] : [],
     });
 
     setIsAdded(true);
@@ -198,10 +208,12 @@ const ProductDetail = () => {
   const description = translated.description || product.description_sv;
   const images = product.image_urls || [];
   const imageUrl = images[selectedImage] || null;
-  const availableStock = product.stock - (product.reserved_stock || 0);
+  const activePrice = selectedVariant ? selectedVariant.price : product.price;
+  const activeStock = selectedVariant ? selectedVariant.stock : (product.stock - (product.reserved_stock || 0));
+  const availableStock = selectedVariant ? selectedVariant.stock : (product.stock - (product.reserved_stock || 0));
   const isOutOfStock = !product.allow_overselling && availableStock <= 0;
-  const hasDiscount = product.original_price && product.original_price > product.price;
-  const discountPercent = hasDiscount ? Math.round((1 - product.price / product.original_price!) * 100) : 0;
+  const hasDiscount = product.original_price && product.original_price > activePrice;
+  const discountPercent = hasDiscount ? Math.round((1 - activePrice / product.original_price!) * 100) : 0;
 
   const effects = parseBullets(lang === 'sv' ? product.effects_sv : (product.effects_en || product.effects_sv));
   const feeling = lang === 'sv' ? product.feeling_sv : (product.feeling_en || product.feeling_sv);
@@ -345,9 +357,17 @@ const ProductDetail = () => {
                 <p className="text-muted-foreground leading-relaxed mb-4 text-[15px]">{description}</p>
               )}
 
+              {/* VARIANT SELECTOR */}
+              <VariantSelector
+                variants={variants}
+                selectedVariant={selectedVariant}
+                onSelect={setSelectedVariant}
+                lang={lang}
+              />
+
               {/* 4. PRICE + SAVINGS */}
               <div className="flex items-baseline gap-3 mb-2">
-                <span className="text-3xl font-bold">{formatPrice(product.price)}</span>
+                <span className="text-3xl font-bold">{formatPrice(activePrice)}</span>
                 {hasDiscount && (
                   <>
                     <span className="text-lg text-muted-foreground line-through">{formatPrice(product.original_price!)}</span>
@@ -614,7 +634,7 @@ const ProductDetail = () => {
         setQuantity={setQuantity}
         isAdded={isAdded}
         isOutOfStock={isOutOfStock}
-        price={product.price}
+        price={activePrice}
         onAddToCart={handleAddToCart}
       />
 
