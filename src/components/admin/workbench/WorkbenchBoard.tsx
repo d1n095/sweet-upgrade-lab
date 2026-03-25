@@ -24,6 +24,7 @@ import { getOrderDisplayId } from '@/utils/orderDisplay';
 import WorkItemDetail from './WorkItemDetail';
 import { useNavigate } from 'react-router-dom';
 import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
+import { createAndVerify } from '@/utils/createVerifyLoop';
 
 interface WorkItem {
   id: string;
@@ -537,20 +538,22 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
         created_by: user.id,
         ...(bestUser ? { assigned_to: bestUser, status: 'claimed', claimed_by: bestUser, claimed_at: new Date().toISOString() } : {}),
       };
-      const { data: createdRow, error: insertError } = await supabase
-        .from('work_items' as any)
-        .insert(insertPayload)
-        .select('*')
-        .single();
+      const result = await createAndVerify({
+        table: 'work_items',
+        payload: insertPayload,
+        selectColumns: '*',
+        maxRetries: 2,
+        traceContext: { component: 'WorkbenchBoard' },
+      });
 
-      if (insertError) {
-        console.error('[WorkbenchBoard] INSERT FAILED:', insertError);
-        toast.error(`Kunde inte skapa: ${insertError.message}`);
+      if (!result.success) {
+        console.error('[WorkbenchBoard] CREATE-VERIFY FAILED:', result.error);
+        toast.error(`Kunde inte skapa: ${result.error}`);
         return;
       }
 
-      console.log('[WorkbenchBoard] CREATED ITEM:', createdRow);
-      toast.success(bestUser ? `Skapad → tilldelad ${getStaffName(bestUser as string)}` : 'Skapad (ingen tillgänglig)');
+      console.log('[WorkbenchBoard] CREATED & VERIFIED:', result.data);
+      toast.success(bestUser ? `Skapad & verifierad → tilldelad ${getStaffName(bestUser as string)}` : 'Skapad & verifierad ✓');
       setNewTitle(''); setNewDesc(''); setShowCreate(false);
 
       // Force refetch from DB — don't rely on cache
