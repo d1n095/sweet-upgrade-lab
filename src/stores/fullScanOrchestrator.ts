@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { QueryClient } from '@tanstack/react-query';
 import { runUnifiedPipeline } from '@/lib/unifiedPipeline';
 import { runCriticalPathCheck } from '@/lib/criticalPathProtection';
+import { runCriticalEscalation } from '@/lib/criticalEscalation';
 
 export type OrchestratorStepStatus = 'pending' | 'running' | 'done' | 'error' | 'skipped';
 
