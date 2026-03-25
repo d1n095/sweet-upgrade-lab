@@ -4,10 +4,12 @@ import { useLanguage } from '@/context/LanguageContext';
 import { storeConfig } from '@/config/storeConfig';
 import PaymentIcons from '@/components/trust/PaymentIcons';
 import { usePageVisibility } from '@/stores/pageVisibilityStore';
+import { useStoreSettings } from '@/stores/storeSettingsStore';
 
 const Footer = () => {
   const { t } = useLanguage();
   const { isVisible } = usePageVisibility();
+  const { socialInstagram, socialFacebook } = useStoreSettings();
   
   const quickLinks = [
     { href: '/produkter', label: t('nav.products') },
@@ -41,16 +43,22 @@ const Footer = () => {
             <p className="text-[11px] text-muted-foreground/80 leading-[1.7] mb-5 max-w-[200px]">
               {t('footer.description')}
             </p>
-            <div className="flex items-center gap-3">
-              <a href={storeConfig.social.instagram} target="_blank" rel="noopener noreferrer" aria-label="Instagram"
-                className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-all min-h-[44px] min-w-[44px]">
-                <Instagram className="w-5 h-5" />
-              </a>
-              <a href={storeConfig.social.facebook} target="_blank" rel="noopener noreferrer" aria-label="Facebook"
-                className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-all min-h-[44px] min-w-[44px]">
-                <Facebook className="w-5 h-5" />
-              </a>
-            </div>
+            {(socialInstagram || socialFacebook) && (
+              <div className="flex items-center gap-3">
+                {socialInstagram && (
+                  <a href={socialInstagram} target="_blank" rel="noopener noreferrer" aria-label="Instagram"
+                    className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-all min-h-[44px] min-w-[44px]">
+                    <Instagram className="w-5 h-5" />
+                  </a>
+                )}
+                {socialFacebook && (
+                  <a href={socialFacebook} target="_blank" rel="noopener noreferrer" aria-label="Facebook"
+                    className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-all min-h-[44px] min-w-[44px]">
+                    <Facebook className="w-5 h-5" />
+                  </a>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Quick Links */}

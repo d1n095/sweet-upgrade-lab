@@ -14,6 +14,8 @@ interface StoreSettingsState {
   requireAddress: boolean;
   guestCheckout: boolean;
   autoSaveProfile: boolean;
+  socialInstagram: string;
+  socialFacebook: string;
   isLoaded: boolean;
   fetchSettings: () => Promise<void>;
   setSiteActive: (enabled: boolean) => Promise<void>;
@@ -21,6 +23,7 @@ interface StoreSettingsState {
   setRegistrationEnabled: (enabled: boolean) => Promise<void>;
   setHomepageSetting: (key: string, enabled: boolean) => Promise<void>;
   setProfileSetting: (key: string, enabled: boolean) => Promise<void>;
+  setSocialSetting: (key: string, value: string) => Promise<void>;
 }
 
 const HOMEPAGE_KEYS = ['homepage_bestsellers', 'homepage_reviews', 'homepage_philosophy', 'homepage_about'];
@@ -44,6 +47,8 @@ export const useStoreSettings = create<StoreSettingsState>((set, get) => ({
   requireAddress: false,
   guestCheckout: true,
   autoSaveProfile: true,
+  socialInstagram: '',
+  socialFacebook: '',
   isLoaded: false,
 
   fetchSettings: async () => {
@@ -66,6 +71,13 @@ export const useStoreSettings = create<StoreSettingsState>((set, get) => ({
         guestCheckout: map['guest_checkout'] ?? true,
         autoSaveProfile: map['auto_save_profile'] ?? true,
         isLoaded: true,
+      });
+
+      // Fetch text-based settings separately
+      const textMap = Object.fromEntries(data.map(r => [r.key, (r as any).text_value]));
+      set({
+        socialInstagram: textMap['social_instagram'] ?? '',
+        socialFacebook: textMap['social_facebook'] ?? '',
       });
     } else {
       set({ isLoaded: true });
@@ -123,6 +135,16 @@ export const useStoreSettings = create<StoreSettingsState>((set, get) => ({
       .upsert({ key, value: enabled, updated_at: new Date().toISOString() }, { onConflict: 'key' });
     logSettingsChange(key, !enabled, enabled);
   },
+
+  setSocialSetting: async (key, value) => {
+    const stateKey = key === 'social_instagram' ? 'socialInstagram' : 'socialFacebook';
+    const old = get()[stateKey];
+    set({ [stateKey]: value } as any);
+    await supabase
+      .from('store_settings')
+      .upsert({ key, value: true, text_value: value, updated_at: new Date().toISOString() } as any, { onConflict: 'key' });
+    logSettingsChange(key, old, value);
+  },
 }));
 
 // Realtime subscription for instant sync across tabs/users
@@ -141,5 +163,8 @@ supabase
     if (key === 'require_address') useStoreSettings.setState({ requireAddress: value });
     if (key === 'guest_checkout') useStoreSettings.setState({ guestCheckout: value });
     if (key === 'auto_save_profile') useStoreSettings.setState({ autoSaveProfile: value });
+    const textVal = (payload.new as any).text_value;
+    if (key === 'social_instagram') useStoreSettings.setState({ socialInstagram: textVal ?? '' });
+    if (key === 'social_facebook') useStoreSettings.setState({ socialFacebook: textVal ?? '' });
   })
   .subscribe();

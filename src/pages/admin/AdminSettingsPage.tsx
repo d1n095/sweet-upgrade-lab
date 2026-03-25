@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Settings, ShoppingCart, Wrench, Home, AlertTriangle, Eye, EyeOff, Globe, Shield, Database, RefreshCw, UserPlus, CreditCard, User } from 'lucide-react';
+import { Settings, ShoppingCart, Wrench, Home, AlertTriangle, Eye, EyeOff, Globe, Shield, Database, RefreshCw, UserPlus, CreditCard, User, Instagram, Facebook } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -42,6 +42,7 @@ const AdminSettingsPage = () => {
     setSiteActive, setCheckoutEnabled, setRegistrationEnabled, setHomepageSetting,
     homepageBestsellers, homepageReviews, homepagePhilosophy, homepageAbout,
     requirePhone, requireAddress, guestCheckout, autoSaveProfile, setProfileSetting,
+    socialInstagram, socialFacebook, setSocialSetting,
   } = useStoreSettings();
   const { isVisible, setVisibility } = usePageVisibility();
   const { methods, isLoaded: paymentLoaded, load: loadPayments, toggle: togglePayment } = usePaymentMethodsStore();
@@ -96,6 +97,7 @@ const AdminSettingsPage = () => {
             <TabsTrigger value="shipping">🚚 Frakt</TabsTrigger>
             <TabsTrigger value="pages">📄 Sidor</TabsTrigger>
             <TabsTrigger value="homepage">🏠 Startsida</TabsTrigger>
+            <TabsTrigger value="social">📱 Sociala medier</TabsTrigger>
             <TabsTrigger value="advanced">⚙️ System</TabsTrigger>
           </TabsList>
         </ScrollableTabs>
@@ -335,6 +337,47 @@ const AdminSettingsPage = () => {
                 />
               </div>
             ))}
+          </div>
+        </TabsContent>
+
+        {/* Social Media */}
+        <TabsContent value="social" className="space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold flex items-center gap-2 mb-1">
+              <Globe className="w-4 h-4" />
+              Sociala medier
+            </h2>
+            <p className="text-muted-foreground text-sm mb-4">Ange länk för att visa ikonen i footern. Lämna tomt för att dölja.</p>
+          </div>
+          <div className="grid gap-3 max-w-xl">
+            <div className="p-4 rounded-xl border border-border bg-card space-y-2">
+              <div className="flex items-center gap-3">
+                <Instagram className="w-5 h-5 text-muted-foreground" />
+                <Label className="text-sm font-medium">Instagram</Label>
+              </div>
+              <input
+                type="url"
+                placeholder="https://instagram.com/..."
+                value={socialInstagram}
+                onChange={(e) => setSocialSetting('social_instagram', e.target.value)}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+              <p className="text-xs text-muted-foreground">{socialInstagram ? '✅ Visas i footern' : '❌ Dold i footern'}</p>
+            </div>
+            <div className="p-4 rounded-xl border border-border bg-card space-y-2">
+              <div className="flex items-center gap-3">
+                <Facebook className="w-5 h-5 text-muted-foreground" />
+                <Label className="text-sm font-medium">Facebook</Label>
+              </div>
+              <input
+                type="url"
+                placeholder="https://facebook.com/..."
+                value={socialFacebook}
+                onChange={(e) => setSocialSetting('social_facebook', e.target.value)}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+              <p className="text-xs text-muted-foreground">{socialFacebook ? '✅ Visas i footern' : '❌ Dold i footern'}</p>
+            </div>
           </div>
         </TabsContent>
 
