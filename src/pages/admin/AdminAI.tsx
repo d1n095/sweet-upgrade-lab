@@ -1102,6 +1102,8 @@ const BugAITab = () => {
   const [fixes, setFixes] = useState<Record<string, any>>({});
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<'open' | 'resolved' | 'all'>('open');
+  const [matching, setMatching] = useState(false);
+  const [matchResult, setMatchResult] = useState<any>(null);
 
   const loadBugs = useCallback(async () => {
     setLoading(true);
