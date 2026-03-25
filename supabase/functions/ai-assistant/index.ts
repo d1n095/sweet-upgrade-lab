@@ -6649,3 +6649,293 @@ INSTRUKTIONER:
       return { error: "Okänd åtgärdstyp" };
   }
 }
+
+// ── Human-Like Automated Test ──
+async function handleHumanTest(supabase: any, lovableKey: string) {
+  // 1. Gather full system snapshot for AI to analyze
+  const [
+    pagesRes, catsRes, prodsRes, bugsRes, workRes, changeRes,
+    ordersRes, profilesRes, settingsRes, scanHistRes
+  ] = await Promise.all([
+    supabase.from("page_sections").select("page, section_key, is_visible").limit(200),
+    supabase.from("categories").select("id, name_sv, slug, is_visible, parent_id").limit(100),
+    supabase.from("products").select("id, title_sv, is_visible, is_sellable, stock, price, handle, image_urls, low_stock_threshold").eq("is_visible", true).limit(100),
+    supabase.from("bug_reports").select("id, description, ai_summary, ai_severity, ai_category, status, page_url, created_at").order("created_at", { ascending: false }).limit(30),
+    supabase.from("work_items").select("id, title, status, priority, item_type, source_type, source_id, created_at, completed_at, ai_review_status").order("created_at", { ascending: false }).limit(50),
+    supabase.from("change_log").select("id, description, change_type, source, affected_components, bug_report_id, work_item_id, created_at").order("created_at", { ascending: false }).limit(30),
+    supabase.from("orders").select("id, status, payment_status, fulfillment_status, created_at, deleted_at").order("created_at", { ascending: false }).is("deleted_at", null).limit(20),
+    supabase.from("profiles").select("user_id, username, is_member, level").limit(5),
+    supabase.from("store_settings").select("key, value, text_value").limit(50),
+    supabase.from("ai_scan_results").select("scan_type, overall_score, overall_status, issues_count, created_at").order("created_at", { ascending: false }).limit(30),
+  ]);
+
+  const pages = pagesRes.data || [];
+  const categories = catsRes.data || [];
+  const products = prodsRes.data || [];
+  const bugs = bugsRes.data || [];
+  const workItems = workRes.data || [];
+  const changes = changeRes.data || [];
+  const orders = ordersRes.data || [];
+  const profiles = profilesRes.data || [];
+  const settings = settingsRes.data || [];
+  const scanHistory = scanHistRes.data || [];
+
+  // 2. Check data consistency issues programmatically
+  const dataChecks: any[] = [];
+
+  // Check: products with no images
+  const noImageProducts = products.filter((p: any) => !p.image_urls || p.image_urls.length === 0);
+  if (noImageProducts.length > 0) {
+    dataChecks.push({ test: "products_without_images", status: "broken", count: noImageProducts.length, details: noImageProducts.map((p: any) => p.title_sv) });
+  }
+
+  // Check: products with zero stock but visible
+  const zeroStockVisible = products.filter((p: any) => p.stock <= 0 && p.is_visible && p.is_sellable);
+  if (zeroStockVisible.length > 0) {
+    dataChecks.push({ test: "zero_stock_visible", status: "unstable", count: zeroStockVisible.length, details: zeroStockVisible.map((p: any) => p.title_sv) });
+  }
+
+  // Check: orphan work items (source_id pointing to non-existent bugs)
+  const bugSourcedItems = workItems.filter((w: any) => w.source_type === "bug_report" && w.source_id);
+  const bugIds = new Set(bugs.map((b: any) => b.id));
+  const orphanWorkItems = bugSourcedItems.filter((w: any) => !bugIds.has(w.source_id));
+  if (orphanWorkItems.length > 0) {
+    dataChecks.push({ test: "orphan_work_items", status: "broken", count: orphanWorkItems.length, details: orphanWorkItems.map((w: any) => w.title) });
+  }
+
+  // Check: done work items without change_log entry
+  const doneItems = workItems.filter((w: any) => w.status === "done");
+  const changeWorkIds = new Set(changes.filter((c: any) => c.work_item_id).map((c: any) => c.work_item_id));
+  const doneWithoutLog = doneItems.filter((w: any) => !changeWorkIds.has(w.id));
+  if (doneWithoutLog.length > 0) {
+    dataChecks.push({ test: "done_without_changelog", status: "unstable", count: doneWithoutLog.length, details: doneWithoutLog.map((w: any) => w.title) });
+  }
+
+  // Check: bugs marked resolved but work item still open
+  const resolvedBugs = bugs.filter((b: any) => b.status === "resolved");
+  const resolvedBugIds = resolvedBugs.map((b: any) => b.id);
+  const openItemsForResolvedBugs = workItems.filter((w: any) =>
+    w.source_type === "bug_report" && resolvedBugIds.includes(w.source_id) && w.status !== "done"
+  );
+  if (openItemsForResolvedBugs.length > 0) {
+    dataChecks.push({ test: "resolved_bug_open_task", status: "broken", count: openItemsForResolvedBugs.length, details: openItemsForResolvedBugs.map((w: any) => w.title) });
+  }
+
+  // Check: categories with no products
+  const { data: prodCats } = await supabase.from("product_categories").select("category_id").limit(1000);
+  const usedCatIds = new Set((prodCats || []).map((pc: any) => pc.category_id));
+  const emptyCats = categories.filter((c: any) => c.is_visible && !usedCatIds.has(c.id));
+  if (emptyCats.length > 0) {
+    dataChecks.push({ test: "empty_categories", status: "unstable", count: emptyCats.length, details: emptyCats.map((c: any) => c.name_sv) });
+  }
+
+  // Check: scan history degradation
+  const scansByType: Record<string, any[]> = {};
+  for (const s of scanHistory) {
+    if (!scansByType[s.scan_type]) scansByType[s.scan_type] = [];
+    scansByType[s.scan_type].push(s);
+  }
+  const degradations = Object.entries(scansByType)
+    .filter(([_, scans]) => scans.length >= 2 && (scans[0].overall_score || 0) < (scans[1].overall_score || 0) - 5)
+    .map(([type, scans]) => ({ type, current: scans[0].overall_score, previous: scans[1].overall_score }));
+  if (degradations.length > 0) {
+    dataChecks.push({ test: "scan_score_degradation", status: "unstable", count: degradations.length, details: degradations });
+  }
+
+  const routes = [
+    { path: "/", name: "Startsida", type: "public", critical: true },
+    { path: "/shop", name: "Butik", type: "public", critical: true },
+    { path: "/produkter", name: "Produkter", type: "public", critical: true },
+    { path: "/om-oss", name: "Om oss", type: "public", critical: false },
+    { path: "/kontakt", name: "Kontakt", type: "public", critical: false },
+    { path: "/checkout", name: "Kassa", type: "checkout", critical: true },
+    { path: "/donationer", name: "Donationer", type: "public", critical: false },
+    { path: "/profil", name: "Profil", type: "auth", critical: true },
+    { path: "/track-order", name: "Spåra order", type: "public", critical: false },
+    { path: "/admin", name: "Admin Overview", type: "admin", critical: true },
+    { path: "/admin/ai", name: "AI Center", type: "admin", critical: true },
+    { path: "/admin/orders", name: "Admin Ordrar", type: "admin", critical: true },
+    { path: "/admin/products", name: "Admin Produkter", type: "admin", critical: true },
+  ];
+
+  // 3. Send everything to AI for human-like test analysis
+  const context = JSON.stringify({
+    routes,
+    data_checks: dataChecks,
+    pages_count: pages.length,
+    categories: categories.slice(0, 20),
+    products_sample: products.slice(0, 15).map((p: any) => ({
+      title: p.title_sv, visible: p.is_visible, sellable: p.is_sellable,
+      stock: p.stock, has_images: (p.image_urls?.length || 0) > 0, handle: p.handle, price: p.price,
+    })),
+    open_bugs: bugs.filter((b: any) => b.status === "open").length,
+    resolved_bugs: bugs.filter((b: any) => b.status === "resolved").length,
+    work_items_open: workItems.filter((w: any) => ["open", "claimed", "in_progress"].includes(w.status)).length,
+    work_items_done: workItems.filter((w: any) => w.status === "done").length,
+    recent_changes: changes.slice(0, 10).map((c: any) => ({ type: c.change_type, desc: c.description, components: c.affected_components })),
+    store_settings: settings.slice(0, 20),
+    scan_trends: degradations,
+    orders_summary: { total: orders.length, paid: orders.filter((o: any) => o.payment_status === "paid").length },
+  });
+
+  const prompt = `Du är en erfaren QA-testare som simulerar en verklig användare av 4thepeople.se (svensk e-handel med CBD/wellness-produkter).
+
+KONTEXT (all tillgänglig data):
+${context}
+
+Utför en komplett human-like testning av hela systemet. Testa som en riktig användare:
+
+═══ TEST 1: NAVIGATION ═══
+Gå igenom alla routes. Identifiera:
+- Sidor som saknar kritiskt innehåll
+- Brutna navigeringsflöden (t.ex. checkout utan produkter)
+- Saknade breadcrumbs eller tillbaka-knappar
+
+═══ TEST 2: INTERAKTION ═══
+Simulera att:
+- Öppna en produkt → lägg i kundvagn → gå till checkout
+- Logga in → se profil → se ordrar
+- Öppna admin → skapa bugg → se i Workbench
+- Köra en skanning → se resultat → skapa work item
+Identifiera var flöden BRYTER.
+
+═══ TEST 3: UI KONSISTENS ═══
+Kontrollera:
+- Laddningstillstånd (loading states) — finns de överallt?
+- Tomma tillstånd (empty states) — vad visas utan data?
+- Scroll — kan man nå allt innehåll?
+- Knappar — alla synliga knappar bör ha funktion
+- Responsivitet — fungerar sidorna på mobil?
+
+═══ TEST 4: DATA VERIFIERING ═══
+Programmatiska data-kontroller redan utförda:
+${JSON.stringify(dataChecks, null, 2)}
+
+Analysera dessa resultat och identifiera ytterligare datainkonsistenser.
+
+═══ TEST 5: FLÖDESKONTINUITET ═══
+Verifiera end-to-end:
+scan → issue → work_item → change_log → bug_resolution → verification
+Identifiera var kedjan BRYTER baserat på existerande data.
+
+VIKTIGT: Basera ALL analys på verklig data ovan — inga spekulationer.`;
+
+  const analysis = await callAIWithTools(lovableKey, prompt, [{
+    type: "function",
+    function: {
+      name: "human_test_results",
+      description: "Return comprehensive human-like test results",
+      parameters: {
+        type: "object",
+        properties: {
+          test_score: { type: "number", description: "Overall test score 0-100" },
+          executive_summary: { type: "string", description: "One paragraph summary of system health" },
+          areas: {
+            type: "array",
+            description: "System areas with status assessment",
+            items: {
+              type: "object",
+              properties: {
+                name: { type: "string" },
+                status: { type: "string", enum: ["working", "unstable", "broken"] },
+                score: { type: "number" },
+                details: { type: "string" },
+                tests_passed: { type: "number" },
+                tests_failed: { type: "number" },
+              },
+              required: ["name", "status", "score", "details", "tests_passed", "tests_failed"],
+            },
+          },
+          broken_interactions: {
+            type: "array",
+            description: "Specific broken interactions found",
+            items: {
+              type: "object",
+              properties: {
+                flow: { type: "string", description: "Which user flow is broken" },
+                step: { type: "string", description: "Exact step where it breaks" },
+                severity: { type: "string", enum: ["critical", "high", "medium", "low"] },
+                expected: { type: "string" },
+                actual: { type: "string" },
+                fix_suggestion: { type: "string" },
+              },
+              required: ["flow", "step", "severity", "expected", "actual", "fix_suggestion"],
+            },
+          },
+          data_issues: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                test: { type: "string" },
+                status: { type: "string", enum: ["pass", "fail", "warning"] },
+                description: { type: "string" },
+                count: { type: "number" },
+              },
+              required: ["test", "status", "description"],
+            },
+          },
+          pipeline_status: {
+            type: "object",
+            description: "Status of each pipeline stage",
+            properties: {
+              scan_to_issues: { type: "string", enum: ["working", "unstable", "broken"] },
+              issues_to_work_items: { type: "string", enum: ["working", "unstable", "broken"] },
+              work_items_to_changelog: { type: "string", enum: ["working", "unstable", "broken"] },
+              changelog_to_resolution: { type: "string", enum: ["working", "unstable", "broken"] },
+              verification: { type: "string", enum: ["working", "unstable", "broken"] },
+            },
+          },
+          positive_findings: { type: "array", items: { type: "string" } },
+          issues_found: { type: "number" },
+        },
+        required: ["test_score", "executive_summary", "areas", "broken_interactions", "data_issues", "pipeline_status", "positive_findings", "issues_found"],
+        additionalProperties: false,
+      },
+    },
+  }], { type: "function", function: { name: "human_test_results" } });
+
+  // Persist scan result
+  const testScore = analysis?.test_score || 0;
+  const scanId = await persistScanResult(supabase, {
+    scan_type: "human_test",
+    results: analysis || {},
+    overall_score: testScore,
+    overall_status: testScore >= 80 ? "healthy" : testScore >= 50 ? "warning" : "critical",
+    issues_count: analysis?.issues_found || 0,
+    executive_summary: analysis?.executive_summary || "",
+  });
+
+  // Auto-create work items for critical/high broken interactions
+  let tasksCreated = 0;
+  if (analysis?.broken_interactions) {
+    for (const bi of analysis.broken_interactions) {
+      if (!["critical", "high"].includes(bi.severity)) continue;
+      const { data: existing } = await supabase
+        .from("work_items")
+        .select("id")
+        .ilike("title", `%${bi.flow.substring(0, 20)}%`)
+        .in("status", ["open", "claimed", "in_progress"])
+        .limit(1);
+      if (!existing?.length) {
+        await supabase.from("work_items").insert({
+          title: `Test: ${bi.flow} — ${bi.step}`.substring(0, 200),
+          description: `Flöde: ${bi.flow}\nSteg: ${bi.step}\nFörväntat: ${bi.expected}\nFaktiskt: ${bi.actual}\n\nFix: ${bi.fix_suggestion}`,
+          status: "open",
+          priority: bi.severity === "critical" ? "critical" : "high",
+          item_type: "bug",
+          source_type: "ai_scan",
+          source_id: scanId || undefined,
+          ai_detected: true,
+          ai_confidence: "high",
+          ai_category: "frontend",
+          ai_type_classification: "human_test",
+        });
+        tasksCreated++;
+      }
+    }
+  }
+
+  if (scanId && tasksCreated > 0) await updateScanTaskCount(supabase, scanId, tasksCreated);
+  return { ...analysis, tasks_created: tasksCreated, scan_id: scanId, data_checks_automated: dataChecks };
+}
