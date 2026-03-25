@@ -5037,6 +5037,17 @@ SAFETY RULES:
     });
   }
 
+  // Save lovable_required prompts to prompt_queue
+  for (const p of (analysis.prompt_queue || []).slice(0, 10)) {
+    await supabase.from("prompt_queue").insert({
+      title: (p.title || "AI-genererad prompt").substring(0, 200),
+      goal: p.related_ids?.length ? `Relaterade: ${p.related_ids.join(", ")}` : null,
+      implementation: p.prompt || "",
+      priority: p.priority || "medium",
+      source_type: "ai_governor",
+    });
+  }
+
   return analysis;
 }
 
