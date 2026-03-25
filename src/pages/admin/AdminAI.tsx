@@ -25,6 +25,7 @@ import AiQueueControl from '@/components/admin/AiQueueControl';
 import DataFlowValidator from '@/components/admin/DataFlowValidator';
 import UiRealityCheck from '@/components/admin/UiRealityCheck';
 import SystemTrustScore from '@/components/admin/SystemTrustScore';
+import SafeModePanel, { SafeModeBanner } from '@/components/admin/SafeModePanel';
 
 // Context to allow any tab to open a work item detail view
 const DetailContext = createContext<{

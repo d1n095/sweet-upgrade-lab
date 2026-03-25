@@ -74,6 +74,7 @@ const TAB_GROUPS: TabGroup[] = [
     label: 'System',
     icon: Database,
     tabs: [
+      { value: 'safe-mode', label: 'Safe Mode', icon: Shield },
       { value: 'trust-score', label: 'Trust Score', icon: Shield },
       { value: 'queue-control', label: 'Köhantering', icon: Layers },
       { value: 'data-flow', label: 'Dataflöde', icon: ArrowRightLeft },
