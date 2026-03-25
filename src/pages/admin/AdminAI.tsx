@@ -4,6 +4,7 @@ import { Sparkles, Bug, BarChart3, Copy, Loader2, Send, AlertTriangle, Lightbulb
 import { Tabs, TabsContent, TabsList, TabsTrigger, ScrollableTabs } from '@/components/ui/tabs';
 import AiCenterTabs from '@/components/admin/AiCenterTabs';
 import { createAndVerify } from '@/utils/createVerifyLoop';
+import { createWorkItemWithDedup } from '@/utils/workItemDedup';
 import { trace, newTraceId } from '@/utils/deepDebugTrace';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
