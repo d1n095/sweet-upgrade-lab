@@ -58,6 +58,17 @@ export interface IntegrityIssue {
   root_cause: string;
 }
 
+export interface BehaviorFailure {
+  chain: string;
+  action: string;
+  expected: string;
+  actual: string;
+  failure_type: "action_failed" | "partial_execution" | "silent_failure" | "lost_state" | "stale_state";
+  step: string;
+  severity: string;
+  entity_id?: string;
+}
+
 export interface UnifiedScanResult {
   blocker: any | null;
   broken_flows: any[];
@@ -66,6 +77,8 @@ export interface UnifiedScanResult {
   data_issues: any[];
   integrity_issues?: IntegrityIssue[];
   integrity_summary?: Record<string, number>;
+  behavior_failures?: BehaviorFailure[];
+  behavior_summary?: Record<string, number>;
   system_health_score: number;
   step_results: Record<string, any>;
   completed_at: string;

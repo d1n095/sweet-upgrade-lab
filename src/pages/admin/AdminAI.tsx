@@ -4859,6 +4859,9 @@ const AiAutopilotTab = () => {
                 {(orchestrator.unifiedResult as any).integrity_issues?.length > 0 && (
                   <span>🛡️ {(orchestrator.unifiedResult as any).integrity_issues.length} integrity issues</span>
                 )}
+                {(orchestrator.unifiedResult as any).behavior_failures?.length > 0 && (
+                  <span>⚡ {(orchestrator.unifiedResult as any).behavior_failures.length} behavior fails</span>
+                )}
               </div>
             )}
             {/* Adaptive scan metadata */}
@@ -5428,7 +5431,61 @@ const InteractionQATab = () => {
             </Card>
           )}
 
-          {/* Route issues */}
+          {/* Functional Behavior Failures */}
+          {(result as any).behavior_failures?.length > 0 && (
+            <Card className="border-orange-500/30 bg-orange-500/5">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-orange-600" /> Funktionella beteendefel ({(result as any).behavior_failures.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-1.5 mb-3">
+                  {Object.entries((result as any).behavior_summary || {}).map(([type, count]: [string, any]) => (
+                    count > 0 && (
+                      <Badge key={type} variant="outline" className="text-[10px] mr-1">
+                        {type === 'action_failed' ? '🚫 Action failed' : type === 'partial_execution' ? '⚡ Partial exec' : type === 'silent_failure' ? '🤫 Silent fail' : type === 'lost_state' ? '💀 Lost state' : '⏳ Stale'}: {count}
+                      </Badge>
+                    )
+                  ))}
+                </div>
+                <ScrollArea className="max-h-[50vh]">
+                  <div className="space-y-2 pr-2">
+                    {(result as any).behavior_failures.map((failure: any, i: number) => (
+                      <div key={i} className="border border-border rounded-lg p-3 space-y-1.5">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge variant={failure.severity === 'critical' ? 'destructive' : failure.severity === 'high' ? 'default' : 'secondary'} className="text-[10px]">
+                            {failure.severity}
+                          </Badge>
+                          <Badge variant="outline" className="text-[10px]">{failure.failure_type}</Badge>
+                          <span className="text-[10px] text-muted-foreground font-mono">{failure.chain}</span>
+                        </div>
+                        <p className="text-xs font-semibold">{failure.action}</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-[10px]">
+                          <div className="bg-green-500/10 rounded p-1.5">
+                            <span className="text-green-700 dark:text-green-400 font-medium">✓ Förväntat:</span>
+                            <p className="text-foreground mt-0.5">{failure.expected}</p>
+                          </div>
+                          <div className="bg-red-500/10 rounded p-1.5">
+                            <span className="text-red-700 dark:text-red-400 font-medium">✗ Faktiskt:</span>
+                            <p className="text-foreground mt-0.5">{failure.actual}</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-3 text-[10px] text-muted-foreground">
+                          <span>📍 Steg: <code className="bg-muted px-1 rounded">{failure.step}</code></span>
+                        </div>
+                        {failure.entity_id && (
+                          <p className="text-[8px] font-mono text-muted-foreground/60">ID: {failure.entity_id}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          )}
+
+
           {result.route_issues?.length > 0 && (
             <Card className="border-border">
               <CardHeader className="pb-2">
