@@ -209,6 +209,8 @@ export const useFullScanOrchestrator = create<FullScanOrchestratorState>((set, g
   steps: [],
   currentStepIndex: -1,
   unifiedResult: null,
+  postScanStatus: 'idle' as const,
+  workItemsCreated: 0,
 
   runOrchestrated: async (queryClient?: QueryClient) => {
     if (get().running) return;
