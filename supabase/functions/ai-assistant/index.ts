@@ -5397,25 +5397,42 @@ async function handleLovaChat(supabase: any, lovableKey: string, userId: string,
   // Gather system snapshot for context
   const snapshot = await gatherSystemSnapshot(supabase);
 
-  // Get open work items, recent scans, bugs, prompt queue, and dismissed issues for awareness
-  const [workRes, scanRes, bugsRes, promptRes, dismissRes] = await Promise.all([
+  // Get open work items, recent scans (ALL types with latest per type), bugs, prompt queue, and dismissed issues
+  const [workRes, scanRes, bugsRes, promptRes, dismissRes, historyRes] = await Promise.all([
     supabase.from("work_items").select("id, title, status, priority, item_type").in("status", ["open", "claimed", "in_progress"]).order("created_at", { ascending: false }).limit(15),
-    supabase.from("ai_scan_results").select("scan_type, overall_score, overall_status, executive_summary, created_at").order("created_at", { ascending: false }).limit(5),
+    supabase.from("ai_scan_results").select("scan_type, overall_score, overall_status, executive_summary, issues_count, tasks_created, created_at, results").order("created_at", { ascending: false }).limit(50),
     supabase.from("bug_reports").select("id, description, ai_summary, ai_severity, status").eq("status", "open").order("created_at", { ascending: false }).limit(10),
     supabase.from("prompt_queue").select("id, title, status, priority, created_at").order("created_at", { ascending: false }).limit(20),
     supabase.from("scan_dismissals").select("issue_key, issue_title, reason, created_at").limit(100),
+    supabase.from("system_history").select("title, item_type, resolution_notes, ai_review_status, archived_at").order("archived_at", { ascending: false }).limit(20),
   ]);
 
   const openWork = workRes.data || [];
-  const recentScans = scanRes.data || [];
+  const allScans = scanRes.data || [];
   const openBugs = bugsRes.data || [];
   const allPrompts = promptRes.data || [];
   const dismissedIssues = dismissRes.data || [];
+  const recentHistory = historyRes.data || [];
   const pendingPrompts = allPrompts.filter((p: any) => p.status === "pending");
   const donePrompts = allPrompts.filter((p: any) => p.status === "done");
   const recentlyDone = donePrompts.filter((p: any) => {
     const age = Date.now() - new Date(p.created_at).getTime();
     return age < 7 * 24 * 60 * 60 * 1000;
+  });
+
+  // Group scans by type — latest per scan_type for overview + trends
+  const scansByType: Record<string, any[]> = {};
+  for (const s of allScans) {
+    if (!scansByType[s.scan_type]) scansByType[s.scan_type] = [];
+    scansByType[s.scan_type].push(s);
+  }
+  const latestPerType = Object.entries(scansByType).map(([type, scans]) => {
+    const latest = scans[0];
+    const prev = scans[1];
+    const trend = prev ? (latest.overall_score || 0) - (prev.overall_score || 0) : 0;
+    // Extract issue summaries from results for deeper context
+    const issuesSummary = latest.results?.issues?.slice?.(0, 5)?.map?.((i: any) => i.title || i.description || i.message)?.filter?.(Boolean) || [];
+    return { type, score: latest.overall_score, status: latest.overall_status, summary: latest.executive_summary, issues_count: latest.issues_count, trend, scanned_at: latest.created_at, top_issues: issuesSummary, scan_count: scans.length };
   });
 
   const capabilityContext = `
@@ -5473,8 +5490,12 @@ ${snapshot.summary}
 === ÖPPNA UPPGIFTER (${openWork.length}) ===
 ${openWork.map((w: any) => `[${w.priority}] ${w.title} (${w.status})`).join("\n")}
 
-=== SENASTE SKANNINGAR ===
-${recentScans.map((s: any) => `${s.scan_type}: ${s.overall_status} (${s.overall_score}/100) - ${s.executive_summary || "Ingen sammanfattning"}`).join("\n")}
+=== SENASTE SKANNINGAR PER TYP (${latestPerType.length} typer, ${allScans.length} totalt) ===
+${latestPerType.map((s: any) => {
+  const trendStr = s.trend > 0 ? `📈+${s.trend}` : s.trend < 0 ? `📉${s.trend}` : '→';
+  const issuesStr = s.top_issues.length > 0 ? `\n  Issues: ${s.top_issues.join('; ')}` : '';
+  return `${s.type}: ${s.status} (${s.score}/100) ${trendStr} — ${s.summary || "Ingen sammanfattning"} [${s.issues_count} issues, ${s.scan_count} skanningar]${issuesStr}`;
+}).join("\n")}
 
 === ÖPPNA BUGGAR (${openBugs.length}) ===
 ${openBugs.map((b: any) => `[${b.ai_severity || "?"}] ${b.ai_summary || b.description.substring(0, 80)}`).join("\n")}
@@ -5487,7 +5508,15 @@ ${recentlyDone.length > 0 ? `\nNyligen avklarade:\n${recentlyDone.map((p: any) =
 === IGNORERADE ISSUES (${dismissedIssues.length}) ===
 ${dismissedIssues.map((d: any) => `❌ ${d.issue_title} — "${d.reason}"`).join("\n") || "Inga ignorerade issues"}
 
-VIKTIGT: Om användaren markerat prompts som klara, identifiera PROAKTIVT nästa problem/förbättring att ta itu med baserat på skanningar och buggar. Föreslå aldrig samma prompt igen. Föreslå ALDRIG ignorerade issues.
+=== SENASTE HISTORIK (avslutade uppgifter) ===
+${recentHistory.map((h: any) => `[${h.ai_review_status}] ${h.title} (${h.item_type}) — ${h.resolution_notes || 'Ingen notering'}`).join("\n") || "Ingen historik"}
+
+VIKTIGT: Du har tillgång till ALL skanningshistorik per typ med trender. Använd detta för att:
+- Identifiera FÖRSÄMRINGAR (📉) och agera proaktivt
+- Korrelera problem mellan olika skannrar (t.ex. overflow + UX)
+- Undvika att rapportera redan fixade eller ignorerade issues
+- Referera till specifika skanningsresultat när du diskuterar problem
+Föreslå ALDRIG ignorerade issues.
 `;
 
   const messages = [

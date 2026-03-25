@@ -2470,6 +2470,16 @@ const DataIntegrityTab = () => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
 
+  // Load last scan on mount
+  useEffect(() => {
+    (supabase.from('ai_scan_results') as any)
+      .select('results, created_at')
+      .eq('scan_type', 'data_integrity')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .then(({ data }: any) => { if (data?.[0]) setResult(data[0].results); });
+  }, []);
+
   const runScan = async () => {
     setLoading(true);
     try {
@@ -2563,6 +2573,16 @@ const ContentValidationTab = () => {
   const [loading, setLoading] = useState(false);
   const [fixing, setFixing] = useState(false);
   const [result, setResult] = useState<any>(null);
+
+  // Load last scan on mount
+  useEffect(() => {
+    (supabase.from('ai_scan_results') as any)
+      .select('results, created_at')
+      .eq('scan_type', 'content_validation')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .then(({ data }: any) => { if (data?.[0]) setResult(data[0].results); });
+  }, []);
 
   const runScan = async (autoFix = false) => {
     if (autoFix) setFixing(true); else setLoading(true);
@@ -2700,6 +2720,16 @@ const PatternDetectionTab = () => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const { openDetail } = useDetailContext();
+
+  // Load last scan on mount
+  useEffect(() => {
+    (supabase.from('ai_scan_results') as any)
+      .select('results, created_at')
+      .eq('scan_type', 'pattern_detection')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .then(({ data }: any) => { if (data?.[0]) setResult(data[0].results); });
+  }, []);
 
   const runScan = async () => {
     setLoading(true);
@@ -3358,6 +3388,16 @@ const VisualQATab = () => {
   const [result, setResult] = useState<VisualQAResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<string>('all');
+
+  // Load last scan on mount
+  useEffect(() => {
+    (supabase.from('ai_scan_results') as any)
+      .select('results, created_at')
+      .eq('scan_type', 'visual_qa')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .then(({ data }: any) => { if (data?.[0]) setResult(data[0].results); });
+  }, []);
 
   const run = async () => {
     setLoading(true);
@@ -4239,6 +4279,16 @@ const InteractionQATab = () => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
 
+  // Load last scan on mount
+  useEffect(() => {
+    (supabase.from('ai_scan_results') as any)
+      .select('results, created_at')
+      .eq('scan_type', 'interaction_qa')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .then(({ data }: any) => { if (data?.[0]) setResult(data[0].results); });
+  }, []);
+
   const run = async () => {
     setLoading(true);
     const r = await callAI('interaction_qa');
@@ -4871,6 +4921,16 @@ const OverflowScanTab = () => {
   const [result, setResult] = useState<OverflowResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<string>('all');
+
+  // Load last scan on mount
+  useEffect(() => {
+    (supabase.from('ai_scan_results') as any)
+      .select('results, created_at')
+      .eq('scan_type', 'ui_overflow_scan')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .then(({ data }: any) => { if (data?.[0]) setResult(data[0].results); });
+  }, []);
 
   const run = async () => {
     setLoading(true);
