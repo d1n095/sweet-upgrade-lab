@@ -5203,7 +5203,7 @@ const VerificationEngineTab = () => {
           {result.false_done_items?.length > 0 && (
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><XCircle className="w-4 h-4 text-destructive" /> Falska "done" (återöppnade)</CardTitle></CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent><ScrollArea className="max-h-[30vh]"><div className="space-y-2 pr-2">
                 {result.false_done_items.map((item: any, i: number) => (
                   <div key={i} className="flex items-center gap-2 text-sm border-b border-border pb-2">
                     <Badge variant="destructive" className="text-[9px]">Återöppnad</Badge>
@@ -5211,7 +5211,7 @@ const VerificationEngineTab = () => {
                     <span className="text-muted-foreground text-xs">— {item.reason}</span>
                   </div>
                 ))}
-              </CardContent>
+              </div></ScrollArea></CardContent>
             </Card>
           )}
 
@@ -5219,7 +5219,7 @@ const VerificationEngineTab = () => {
           {result.auto_closed_items?.length > 0 && (
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><CheckCircle className="w-4 h-4 text-primary" /> Auto-stängda</CardTitle></CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent><ScrollArea className="max-h-[30vh]"><div className="space-y-2 pr-2">
                 {result.auto_closed_items.map((item: any, i: number) => (
                   <div key={i} className="flex items-center gap-2 text-sm border-b border-border pb-2">
                     <Badge variant="secondary" className="text-[9px]">Stängd</Badge>
@@ -5227,7 +5227,7 @@ const VerificationEngineTab = () => {
                     <span className="text-muted-foreground text-xs">— {item.reason}</span>
                   </div>
                 ))}
-              </CardContent>
+              </div></ScrollArea></CardContent>
             </Card>
           )}
 
@@ -5235,7 +5235,7 @@ const VerificationEngineTab = () => {
           {result.post_fix_suggestions?.length > 0 && (
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Lightbulb className="w-4 h-4 text-yellow-500" /> Post-fix förbättringar</CardTitle></CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent><ScrollArea className="max-h-[40vh]"><div className="space-y-3 pr-2">
                 {result.post_fix_suggestions.map((s: any, i: number) => (
                   <div key={i} className="border border-border rounded-lg p-3 space-y-2">
                     <div className="flex items-center gap-2">
@@ -5257,7 +5257,7 @@ const VerificationEngineTab = () => {
                     )}
                   </div>
                 ))}
-              </CardContent>
+              </div></ScrollArea></CardContent>
             </Card>
           )}
 
@@ -5265,7 +5265,7 @@ const VerificationEngineTab = () => {
           {result.recategorizations?.length > 0 && (
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><ArrowRightLeft className="w-4 h-4" /> Omkategoriseringar</CardTitle></CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent><ScrollArea className="max-h-[30vh]"><div className="space-y-2 pr-2">
                 {result.recategorizations.map((r: any, i: number) => (
                   <div key={i} className="text-sm border-b border-border pb-2">
                     <span className="font-medium">{r.task_title}</span>
@@ -5277,7 +5277,7 @@ const VerificationEngineTab = () => {
                     </div>
                   </div>
                 ))}
-              </CardContent>
+              </div></ScrollArea></CardContent>
             </Card>
           )}
 
@@ -5285,14 +5285,14 @@ const VerificationEngineTab = () => {
           {result.merge_suggestions?.length > 0 && (
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><GitMerge className="w-4 h-4" /> Merge-förslag</CardTitle></CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent><ScrollArea className="max-h-[30vh]"><div className="space-y-2 pr-2">
                 {result.merge_suggestions.map((m: any, i: number) => (
                   <div key={i} className="text-sm border-b border-border pb-2 space-y-1">
                     {m.tasks.map((t: string, j: number) => <p key={j} className="text-xs">• {t}</p>)}
                     <p className="text-xs text-muted-foreground">{m.reason}</p>
                   </div>
                 ))}
-              </CardContent>
+              </div></ScrollArea></CardContent>
             </Card>
           )}
         </div>
