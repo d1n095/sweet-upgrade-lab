@@ -274,12 +274,11 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
     <div className="flex gap-0 lg:gap-4 -mx-4 md:-mx-8">
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex w-52 flex-col shrink-0 border-r border-border bg-card/50 sticky top-0 self-start max-h-screen">
-        <div className="px-4 py-3 border-b border-border space-y-2">
+        <div className="px-4 py-3 border-b border-border">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-primary" />
             <span className="text-sm font-semibold">AI Center</span>
           </div>
-          <AiControlBar onNavigateTab={handleNavigate} compact />
         </div>
         <ScrollArea className="flex-1 py-2">
           {sidebarContent}
