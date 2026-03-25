@@ -2343,6 +2343,32 @@ const VisualQATab = () => {
 
   const filteredIssues = result?.issues?.filter(i => filter === 'all' || i.severity === filter || i.breakpoint === filter || i.category === filter) || [];
 
+  const createTaskFromIssue = async (issue: QAIssue) => {
+    try {
+      const { error } = await supabase.from('work_items' as any).insert({
+        title: `[Visual QA] ${issue.title}`,
+        description: `${issue.description}\n\nSida: ${issue.page}\nBreakpoint: ${issue.breakpoint}\nFix: ${issue.fix_suggestion}`,
+        type: 'visual_qa_issue',
+        priority: issue.severity === 'critical' ? 'urgent' : issue.severity === 'high' ? 'high' : 'medium',
+        status: 'todo',
+        source: 'ai_visual_qa',
+        ai_review_status: 'needs_review',
+        ai_review_result: { lovable_prompt: issue.lovable_prompt, category: issue.category, breakpoint: issue.breakpoint },
+      } as any);
+      if (error) throw error;
+      toast.success(`Uppgift skapad: ${issue.title}`);
+    } catch (err: any) {
+      toast.error('Kunde inte skapa uppgift');
+    }
+  };
+
+  const impactText = (sev: string) => {
+    if (sev === 'critical') return 'Blockerar användare eller skapar förlorad konvertering';
+    if (sev === 'high') return 'Påverkar användarupplevelsen negativt';
+    if (sev === 'medium') return 'Märkbart men inte kritiskt';
+    return 'Mindre förbättringsmöjlighet';
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -2355,6 +2381,21 @@ const VisualQATab = () => {
           {loading ? 'Analyserar...' : 'Kör Visual QA'}
         </Button>
       </div>
+
+      {!result && !loading && (
+        <Card className="p-8 flex flex-col items-center justify-center text-center gap-3">
+          <Monitor className="w-10 h-10 text-muted-foreground/40" />
+          <h3 className="font-semibold text-muted-foreground">Ingen skanning har körts ännu</h3>
+          <p className="text-sm text-muted-foreground/70 max-w-md">Klicka på "Kör Visual QA" för att analysera alla sidor, responsivitet, tillgänglighet och användarflöden.</p>
+        </Card>
+      )}
+
+      {loading && (
+        <Card className="p-8 flex flex-col items-center justify-center text-center gap-3">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Analyserar UI, flöden och breakpoints...</p>
+        </Card>
+      )}
 
       {result && (
         <>
@@ -2384,38 +2425,42 @@ const VisualQATab = () => {
           </Card>
 
           {/* Flow tests */}
-          <Card className="p-4">
-            <h3 className="font-semibold text-sm mb-3">Flödestester</h3>
-            <div className="space-y-2">
-              {result.flow_tests?.map((ft, i) => (
-                <div key={i} className="flex items-start gap-3 p-2 rounded-lg bg-secondary/30">
-                  {flowIcon(ft.status)}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">{ft.flow_name}</p>
-                    {ft.issues.length > 0 && <ul className="text-xs text-muted-foreground mt-1 space-y-0.5">{ft.issues.map((iss, j) => <li key={j}>• {iss}</li>)}</ul>}
+          {result.flow_tests?.length > 0 && (
+            <Card className="p-4">
+              <h3 className="font-semibold text-sm mb-3">Flödestester</h3>
+              <div className="space-y-2">
+                {result.flow_tests.map((ft: FlowTest, i: number) => (
+                  <div key={i} className="flex items-start gap-3 p-2 rounded-lg bg-secondary/30">
+                    {flowIcon(ft.status)}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">{ft.flow_name}</p>
+                      {ft.issues.length > 0 && <ul className="text-xs text-muted-foreground mt-1 space-y-0.5">{ft.issues.map((iss, j) => <li key={j}>• {iss}</li>)}</ul>}
+                    </div>
+                    <Badge variant={ft.status === 'pass' ? 'secondary' : ft.status === 'warning' ? 'outline' : 'destructive'} className="text-[10px] shrink-0">{ft.status}</Badge>
                   </div>
-                  <Badge variant={ft.status === 'pass' ? 'secondary' : ft.status === 'warning' ? 'outline' : 'destructive'} className="text-[10px] shrink-0">{ft.status}</Badge>
-                </div>
-              ))}
-            </div>
-          </Card>
+                ))}
+              </div>
+            </Card>
+          )}
 
           {/* Page scores */}
-          <Card className="p-4">
-            <h3 className="font-semibold text-sm mb-3">Sidbetyg</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {result.page_scores?.map((ps, i) => (
-                <div key={i} className="flex items-center gap-3 p-2 rounded-lg bg-secondary/20">
-                  <span className={cn('text-lg font-bold w-10 text-center', scoreColor(ps.score))}>{ps.score}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{ps.page}</p>
-                    <p className="text-xs text-muted-foreground truncate">{ps.notes}</p>
+          {result.page_scores?.length > 0 && (
+            <Card className="p-4">
+              <h3 className="font-semibold text-sm mb-3">Sidbetyg</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {result.page_scores.map((ps: PageScore, i: number) => (
+                  <div key={i} className="flex items-center gap-3 p-2 rounded-lg bg-secondary/20">
+                    <span className={cn('text-lg font-bold w-10 text-center', scoreColor(ps.score))}>{ps.score}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{ps.page}</p>
+                      <p className="text-xs text-muted-foreground truncate">{ps.notes}</p>
+                    </div>
+                    <Badge variant={ps.status === 'good' ? 'secondary' : ps.status === 'warning' ? 'outline' : 'destructive'} className="text-[10px]">{ps.status}</Badge>
                   </div>
-                  <Badge variant={ps.status === 'good' ? 'secondary' : ps.status === 'warning' ? 'outline' : 'destructive'} className="text-[10px]">{ps.status}</Badge>
-                </div>
-              ))}
-            </div>
-          </Card>
+                ))}
+              </div>
+            </Card>
+          )}
 
           {/* Issues */}
           <Card className="p-4">
@@ -2429,30 +2474,45 @@ const VisualQATab = () => {
                 ))}
               </div>
             </div>
-            <ScrollArea className="max-h-[500px]">
-              <div className="space-y-3">
-                {filteredIssues.map((issue, i) => (
-                  <div key={i} className="p-3 rounded-lg border border-border/50 space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        {breakpointIcon(issue.breakpoint)}
-                        <span className="text-sm font-medium">{issue.title}</span>
+
+            {filteredIssues.length === 0 ? (
+              <div className="flex flex-col items-center py-8 gap-2 text-center">
+                <CheckCircle className="w-8 h-8 text-accent" />
+                <p className="font-medium text-sm">Inga problem hittades!</p>
+                <p className="text-xs text-muted-foreground">Alla sidor och flöden ser bra ut med vald filtrering.</p>
+              </div>
+            ) : (
+              <ScrollArea className="max-h-[500px]">
+                <div className="space-y-3">
+                  {filteredIssues.map((issue, i) => (
+                    <div key={i} className="p-3 rounded-lg border border-border/50 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          {breakpointIcon(issue.breakpoint)}
+                          <span className="text-sm font-medium">{issue.title}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <Badge variant="outline" className="text-[10px]">{issue.category}</Badge>
+                          <Badge variant={issue.severity === 'critical' ? 'destructive' : 'outline'} className={cn('text-[10px]', sevColor(issue.severity))}>{issue.severity}</Badge>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <Badge variant="outline" className="text-[10px]">{issue.category}</Badge>
-                        <Badge variant={issue.severity === 'critical' ? 'destructive' : 'outline'} className={cn('text-[10px]', sevColor(issue.severity))}>{issue.severity}</Badge>
+                      <p className="text-xs text-muted-foreground">{issue.description}</p>
+                      <div className="text-xs"><span className="font-medium">Sida:</span> {issue.page} · <span className="font-medium">Breakpoint:</span> {issue.breakpoint}</div>
+                      <div className="text-xs text-muted-foreground italic flex items-center gap-1"><AlertTriangle className="w-3 h-3 shrink-0" /> {impactText(issue.severity)}</div>
+                      <div className="text-xs text-accent"><span className="font-medium">Fix:</span> {issue.fix_suggestion}</div>
+                      <div className="flex items-center gap-2 pt-1">
+                        <Button variant="outline" size="sm" className="text-xs gap-1.5 h-7" onClick={() => createTaskFromIssue(issue)}>
+                          <Wrench className="w-3 h-3" /> Skapa uppgift
+                        </Button>
+                        <Button variant="ghost" size="sm" className="text-xs gap-1.5 h-7" onClick={() => { navigator.clipboard.writeText(issue.lovable_prompt); toast.success('Prompt kopierad'); }}>
+                          <Copy className="w-3 h-3" /> Kopiera prompt
+                        </Button>
                       </div>
                     </div>
-                    <p className="text-xs text-muted-foreground">{issue.description}</p>
-                    <div className="text-xs"><span className="font-medium">Sida:</span> {issue.page} · <span className="font-medium">Breakpoint:</span> {issue.breakpoint}</div>
-                    <div className="text-xs text-accent"><span className="font-medium">Fix:</span> {issue.fix_suggestion}</div>
-                    <Button variant="ghost" size="sm" className="text-xs gap-1.5 h-7" onClick={() => { navigator.clipboard.writeText(issue.lovable_prompt); toast.success('Prompt kopierad'); }}>
-                      <Copy className="w-3 h-3" /> Kopiera prompt
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
+                  ))}
+                </div>
+              </ScrollArea>
+            )}
           </Card>
         </>
       )}
