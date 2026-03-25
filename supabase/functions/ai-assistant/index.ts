@@ -184,6 +184,16 @@ serve(async (req) => {
         break;
       }
 
+      case "rejection_reanalysis": {
+        const { work_item_id: rejectWiId } = body;
+        if (!rejectWiId) {
+          result = { error: "work_item_id required" };
+          break;
+        }
+        result = await handleRejectionReanalysis(supabase, lovableKey, rejectWiId, user.id);
+        break;
+      }
+
       case "auto_fix": {
         result = await handleAutoFix(supabase, lovableKey, supabaseUrl, serviceKey, authHeader);
         break;
@@ -6307,6 +6317,202 @@ REGLER:
   });
 
   return { pre_verify: preVerify };
+}
+
+// ── Rejection Re-analysis: deeper scan when user rejects AI suggestion ──
+async function handleRejectionReanalysis(supabase: any, apiKey: string, workItemId: string, triggeredBy: string) {
+  const { data: item } = await supabase.from("work_items").select("*").eq("id", workItemId).maybeSingle();
+  if (!item) throw new Error("Work item not found");
+
+  const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+
+  // Gather extensive context in parallel
+  const [sourceRes, changesRes, logsRes, scansRes, relatedBugsRes, readLogRes] = await Promise.all([
+    // Source data (bug or incident)
+    item.source_type === "bug_report" && item.source_id
+      ? supabase.from("bug_reports").select("*").eq("id", item.source_id).maybeSingle()
+      : item.source_type === "order_incident" && item.source_id
+        ? supabase.from("order_incidents").select("*").eq("id", item.source_id).maybeSingle()
+        : Promise.resolve({ data: null }),
+    // All recent changes
+    supabase.from("change_log")
+      .select("description, change_type, affected_components, source, metadata, created_at")
+      .gte("created_at", twoWeeksAgo)
+      .order("created_at", { ascending: false }).limit(50),
+    // Error/warning logs
+    supabase.from("activity_logs")
+      .select("log_type, category, message, details, created_at")
+      .in("log_type", ["error", "warning"])
+      .gte("created_at", twoWeeksAgo)
+      .order("created_at", { ascending: false }).limit(50),
+    // Recent AI scan results
+    supabase.from("ai_scan_results")
+      .select("scan_type, overall_score, overall_status, executive_summary, issues_count, created_at")
+      .order("created_at", { ascending: false }).limit(10),
+    // Related bugs in same category
+    supabase.from("bug_reports")
+      .select("id, description, ai_summary, ai_category, ai_severity, status, resolution_notes, ai_tags, page_url")
+      .order("created_at", { ascending: false }).limit(50),
+    // Previous AI reads on this item
+    supabase.from("ai_read_log")
+      .select("action_type, result, summary, created_at")
+      .eq("linked_work_item_id", workItemId)
+      .order("created_at", { ascending: false }).limit(10),
+  ]);
+
+  const source = sourceRes.data;
+  const changes = changesRes.data || [];
+  const errorLogs = logsRes.data || [];
+  const scans = scansRes.data || [];
+  const allBugs = relatedBugsRes.data || [];
+  const aiReadHistory = readLogRes.data || [];
+
+  // Previous pre-verify result for context
+  const prevResult = item.ai_pre_verify_result || {};
+
+  // Find bugs in same category
+  const bugCategory = source?.ai_category || (item as any).ai_category;
+  const sameCatBugs = bugCategory ? allBugs.filter((b: any) => b.ai_category === bugCategory) : [];
+  const resolvedSameCat = sameCatBugs.filter((b: any) => b.status === "resolved");
+
+  const prompt = `Du fick en AVVISNING från en användare. Din förra bedömning ("${prevResult.status}", ${prevResult.confidence}% konfidens) var FEL.
+Användaren säger att problemet INTE är löst. Du måste nu göra en DJUPARE analys.
+
+=== UPPGIFT ===
+Titel: ${item.title}
+Typ: ${item.item_type}
+Beskrivning: ${item.description || "Ingen"}
+Prioritet: ${item.priority}
+
+${source ? `=== KÄLLA (${item.source_type}) ===
+Beskrivning: ${source.description || source.title || "?"}
+${source.page_url ? `Sida: ${source.page_url}` : ""}
+${source.ai_summary ? `AI-sammanfattning: ${source.ai_summary}` : ""}
+${source.ai_category ? `Kategori: ${source.ai_category}` : ""}
+${source.ai_repro_steps ? `Reproduktionssteg: ${source.ai_repro_steps}` : ""}
+${source.ai_tags?.length ? `Taggar: ${source.ai_tags.join(", ")}` : ""}` : ""}
+
+=== FÖRRA AI-BEDÖMNINGEN (AVVISAD) ===
+Status: ${prevResult.status || "?"}
+Konfidens: ${prevResult.confidence || "?"}%
+Motivering: ${prevResult.reasoning || "?"}
+Relaterad ändring: ${prevResult.related_change || "Ingen"}
+
+=== AI-HISTORIK FÖR DENNA UPPGIFT ===
+${aiReadHistory.map((r: any) => `[${r.action_type}] ${r.result}: ${r.summary} (${r.created_at})`).join("\n") || "Ingen historik"}
+
+=== SYSTEMÄNDRINGAR (2 veckor, ${changes.length} st) ===
+${changes.slice(0, 30).map((c: any) => `[${c.change_type}/${c.source}] ${c.description} — komponenter: ${c.affected_components?.join(", ") || "?"}`).join("\n") || "Inga"}
+
+=== FELLOGGAR (${errorLogs.length} st) ===
+${errorLogs.slice(0, 20).map((l: any) => `[${l.category}/${l.log_type}] ${l.message}`).join("\n") || "Inga"}
+
+=== SENASTE SKANNINGSRESULTAT ===
+${scans.map((s: any) => `[${s.scan_type}] Score: ${s.overall_score}, Status: ${s.overall_status}, Issues: ${s.issues_count} — ${s.executive_summary || ""}`).join("\n") || "Inga"}
+
+=== LIKNANDE BUGGAR (${sameCatBugs.length} totalt, ${resolvedSameCat.length} lösta) ===
+${resolvedSameCat.slice(0, 5).map((b: any) => `- ${b.ai_summary || b.description?.substring(0, 80)}\n  Lösning: ${b.resolution_notes || "ej dokumenterad"}`).join("\n") || "Inga"}
+
+INSTRUKTIONER:
+1. Din förra bedömning var FEL — gräv djupare
+2. Analysera ALLA felloggar för ledtrådar
+3. Analysera relaterade komponenter som KAN påverkas
+4. Titta på skanningsresultat för systemhälsa
+5. Lär av liknande lösta buggar
+6. Ge en NY, mer noggrann diagnos och konkreta fixförslag`;
+
+  const analysis = await callAI(apiKey, [
+    { role: "system", content: `Du är en senior QA-ingenjör som gör en fördjupad analys efter att din förra bedömning avvisades. Var extra noggrann och grundlig. Svara via tool call.` },
+    { role: "user", content: prompt },
+  ], [{
+    type: "function",
+    function: {
+      name: "rejection_reanalysis",
+      description: "Deep re-analysis after user rejected AI suggestion",
+      parameters: {
+        type: "object",
+        properties: {
+          refined_diagnosis: {
+            type: "object",
+            properties: {
+              summary: { type: "string", description: "Ny förfinad diagnos" },
+              confidence: { type: "number", description: "0-100" },
+              likely_cause: { type: "string" },
+              why_previous_was_wrong: { type: "string", description: "Varför förra bedömningen var felaktig" },
+              evidence: { type: "array", items: { type: "string" } },
+            },
+            required: ["summary", "confidence", "likely_cause", "why_previous_was_wrong", "evidence"],
+          },
+          log_findings: {
+            type: "object",
+            properties: {
+              relevant_errors: { type: "array", items: { type: "string" } },
+              error_pattern: { type: "string" },
+              affected_components: { type: "array", items: { type: "string" } },
+            },
+            required: ["relevant_errors", "affected_components"],
+          },
+          component_analysis: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                component: { type: "string" },
+                status: { type: "string", enum: ["healthy", "suspicious", "broken"] },
+                findings: { type: "string" },
+              },
+              required: ["component", "status", "findings"],
+            },
+            description: "Analysis of related system components",
+          },
+          new_fix_suggestions: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                title: { type: "string" },
+                description: { type: "string" },
+                effort: { type: "string", enum: ["low", "medium", "high"] },
+                risk: { type: "string", enum: ["low", "medium", "high"] },
+                lovable_prompt: { type: "string" },
+              },
+              required: ["title", "description", "effort", "risk", "lovable_prompt"],
+            },
+          },
+          severity_assessment: { type: "string", enum: ["low", "medium", "high", "critical"] },
+        },
+        required: ["refined_diagnosis", "log_findings", "component_analysis", "new_fix_suggestions", "severity_assessment"],
+      },
+    },
+  }], { type: "function", function: { name: "rejection_reanalysis" } });
+
+  const now = new Date().toISOString();
+
+  // Save re-analysis results to work item
+  await supabase.from("work_items").update({
+    ai_root_causes: analysis,
+    ai_pre_verify_result: {
+      ...prevResult,
+      rejection_reanalysis: analysis,
+      reanalyzed_at: now,
+    },
+  }).eq("id", workItemId);
+
+  // Log the re-analysis
+  await logAiRead(supabase, {
+    action_type: "rejection_reanalysis",
+    target_type: "work_item",
+    target_ids: [workItemId],
+    result: "possible_issue",
+    summary: `Re-analysis after rejection: ${item.title} — severity: ${analysis?.severity_assessment || "?"}`,
+    triggered_by: triggeredBy,
+    linked_work_item_id: workItemId,
+    linked_bug_id: item.source_type === "bug_report" ? item.source_id : null,
+    affected_components: analysis?.log_findings?.affected_components || [item.item_type],
+    endpoints: ["change_log", "activity_logs", "ai_scan_results", "bug_reports", "ai_read_log"],
+  });
+
+  return { reanalysis: analysis };
 }
 
     default:
