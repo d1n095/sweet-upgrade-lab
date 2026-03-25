@@ -68,90 +68,67 @@ const AdminOverview = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { siteActive, setSiteActive } = useStoreSettings();
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    totalProducts: 0, lowStockProducts: 0, totalOrders: 0, pendingOrders: 0,
-    totalMembers: 0, pendingReviews: 0, ordersToday: 0, revenueToday: 0,
-    aov: 0, conversionRate: 0,
-  });
-  const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
-  const [lowStockItems, setLowStockItems] = useState<LowStockProduct[]>([]);
-  const [focusItems, setFocusItems] = useState<FocusWorkItem[]>([]);
-  const [ordersToPack, setOrdersToPack] = useState(0);
+  const queryClient = useQueryClient();
 
-  const load = async () => {
-    try {
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  // Central data hooks — single source of truth
+  const { data: orders = [], isLoading: ordersLoading } = useAdminOrders();
+  const { data: workItems = [] } = useAdminWorkItems();
+  const { data: products = [] } = useAdminProducts();
+  const { data: analyticsEvents = [] } = useAdminAnalytics(30);
 
-      const [products, orders, todayOrders, members, reviews, workItems, packOrders, analytics] = await Promise.all([
-        supabase.from('products').select('id, title_sv, stock, reserved_stock, allow_overselling'),
-        supabase.from('orders').select('id, status, total_amount, payment_status').is('deleted_at', null),
-        supabase.from('orders').select('id, total_amount, payment_status').is('deleted_at', null).gte('created_at', todayStart.toISOString()),
-        supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('is_member', true),
-        supabase.from('reviews').select('id', { count: 'exact', head: true }).eq('is_approved', false),
-        supabase.from('work_items' as any).select('id, title, priority, item_type, status, due_at, related_order_id, source_type')
-          .neq('status', 'done').neq('status', 'cancelled').order('created_at', { ascending: false }).limit(10),
-        supabase.from('orders').select('id', { count: 'exact', head: true }).is('deleted_at', null).eq('payment_status', 'paid').in('fulfillment_status', ['pending', 'unfulfilled']),
-        supabase.from('analytics_events').select('event_type').in('event_type', ['product_view', 'checkout_start', 'checkout_complete']).gte('created_at', thirtyDaysAgo.toISOString()),
-      ]);
-
-      const prods = products.data || [];
-      const ords = orders.data || [];
-      const todayOrdsList = todayOrders.data || [];
-      const lowStock = prods.filter(p => !p.allow_overselling && p.stock <= 5 && p.stock >= 0);
-      const paidOrders = ords.filter(o => o.payment_status === 'paid');
-      const revenueToday = todayOrdsList.filter(o => o.payment_status === 'paid').reduce((sum, o) => sum + (o.total_amount || 0), 0);
-      const aov = paidOrders.length > 0 ? paidOrders.reduce((s, o) => s + (o.total_amount || 0), 0) / paidOrders.length : 0;
-
-      const events = analytics.data || [];
-      const views = events.filter(e => e.event_type === 'product_view').length;
-      const completes = events.filter(e => e.event_type === 'checkout_complete').length;
-      const conversionRate = views > 0 ? Math.round((completes / views) * 100) : 0;
-
-      setStats({
-        totalProducts: prods.length,
-        lowStockProducts: lowStock.length,
-        totalOrders: ords.length,
-        pendingOrders: ords.filter(o => o.status === 'pending').length,
-        totalMembers: members.count || 0,
-        pendingReviews: reviews.count || 0,
-        ordersToday: todayOrdsList.length,
-        revenueToday,
-        aov,
-        conversionRate,
-      });
-
-      setLowStockItems(lowStock.slice(0, 5) as LowStockProduct[]);
-      const allWorkItems = (workItems.data || []) as unknown as FocusWorkItem[];
-      setFocusItems(allWorkItems);
-      setOrdersToPack(packOrders.count || 0);
-
-      const { data: recent } = await supabase
-        .from('orders')
-        .select('id, order_email, total_amount, status, payment_status, fulfillment_status, created_at, order_number, payment_intent_id')
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false })
-        .limit(8);
-      setRecentOrders((recent || []) as RecentOrder[]);
-    } catch (e) {
-      console.error('Failed to load dashboard:', e);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Additional queries not in central layer
+  const [totalMembers, setTotalMembers] = useState(0);
+  const [pendingReviews, setPendingReviews] = useState(0);
 
   useEffect(() => {
-    load();
+    Promise.all([
+      supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('is_member', true),
+      supabase.from('reviews').select('id', { count: 'exact', head: true }).eq('is_approved', false),
+    ]).then(([members, reviews]) => {
+      setTotalMembers(members.count || 0);
+      setPendingReviews(reviews.count || 0);
+    });
+  }, []);
+
+  // Derived metrics from central data
+  const revenueMetrics = useMemo(() => computeRevenueMetrics(orders), [orders]);
+  const productMetrics = useMemo(() => computeProductMetrics(products), [products]);
+  const funnelMetrics = useMemo(() => computeFunnelMetrics(analyticsEvents), [analyticsEvents]);
+
+  const loading = ordersLoading;
+
+  const stats = useMemo(() => ({
+    totalProducts: productMetrics.total,
+    lowStockProducts: productMetrics.lowStock,
+    totalOrders: revenueMetrics.totalOrders,
+    pendingOrders: revenueMetrics.pendingCount,
+    totalMembers,
+    pendingReviews,
+    ordersToday: revenueMetrics.todayOrderCount,
+    revenueToday: revenueMetrics.revenueToday,
+    aov: revenueMetrics.aov,
+    conversionRate: funnelMetrics.conversionRate,
+  }), [revenueMetrics, productMetrics, funnelMetrics, totalMembers, pendingReviews]);
+
+  const lowStockItems = useMemo(() => productMetrics.lowStockItems.slice(0, 5) as LowStockProduct[], [productMetrics]);
+  const focusItems = useMemo(() => workItems.slice(0, 10) as unknown as FocusWorkItem[], [workItems]);
+  const ordersToPack = revenueMetrics.ordersToPackCount;
+
+  const recentOrders = useMemo(() => orders.slice(0, 8) as RecentOrder[], [orders]);
+
+  // Realtime invalidation
+  useEffect(() => {
     const channel = supabase
       .channel('dashboard-orders')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => load())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'work_items' }, () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'work_items' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['admin-work-items'] });
+      })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, []);
+  }, [queryClient]);
 
   const fmt = (n: number) => new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK', minimumFractionDigits: 0 }).format(n);
 
