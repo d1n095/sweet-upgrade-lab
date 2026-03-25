@@ -3504,8 +3504,29 @@ const VisualQATab = () => {
   const [ignoreNote, setIgnoreNote] = useState('');
   const [scanMeta, setScanMeta] = useState<{ id: string; created_at: string } | null>(null);
   const [triaging, setTriaging] = useState(false);
+  const [scanHistory, setScanHistory] = useState<{ id: string; created_at: string; overall_ui_score: number; issues_count: number; executive_summary: string }[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [compareScanId, setCompareScanId] = useState<string | null>(null);
+  const [compareResult, setCompareResult] = useState<VisualQAResult | null>(null);
 
-  // Load last scan on mount
+  const loadHistory = async () => {
+    const { data } = await (supabase.from('ai_scan_results') as any)
+      .select('id, results, created_at, overall_score, issues_count, executive_summary')
+      .eq('scan_type', 'visual_qa')
+      .order('created_at', { ascending: false })
+      .limit(20);
+    if (data) {
+      setScanHistory(data.map((d: any) => ({
+        id: d.id,
+        created_at: d.created_at,
+        overall_ui_score: d.results?.overall_ui_score || d.overall_score || 0,
+        issues_count: d.results?.issues?.length || d.issues_count || 0,
+        executive_summary: d.executive_summary || d.results?.executive_summary || '',
+      })));
+    }
+  };
+
+  // Load last scan + history on mount
   useEffect(() => {
     (supabase.from('ai_scan_results') as any)
       .select('id, results, created_at')
@@ -3518,6 +3539,7 @@ const VisualQATab = () => {
           setScanMeta({ id: data[0].id, created_at: data[0].created_at });
         }
       });
+    loadHistory();
   }, []);
 
   const run = async () => {
