@@ -115,11 +115,18 @@ const Produkter = () => {
       const cat = categories.find(c => c.id === activeCategory);
       if (cat?.isBestsellerFilter) {
         result = result.filter(p => p.badge === 'bestseller');
-      } else if (cat?.query) {
-        const match = cat.query.match(/product_type:"?([^"&\s]+)"?/);
-        if (match) {
-          const type = match[1].toLowerCase();
-          result = result.filter(p => (p.category || '').toLowerCase() === type);
+      } else if (cat) {
+        const uuid = slugToUuid[cat.slug || cat.id];
+        const catProductIds = uuid ? productCategoryMap[uuid] : null;
+        if (catProductIds) {
+          result = result.filter(p => catProductIds.has(p.id));
+        } else {
+          // Fallback to category field match
+          const match = cat.query?.match(/product_type:"?([^"&\s]+)"?/);
+          if (match) {
+            const type = match[1].toLowerCase();
+            result = result.filter(p => (p.category || '').toLowerCase() === type);
+          }
         }
       }
     }
@@ -144,7 +151,7 @@ const Produkter = () => {
     }
 
     return result;
-  }, [products, activeCategory, tagProductIds, priceRange, searchQuery, categories]);
+  }, [products, activeCategory, tagProductIds, priceRange, searchQuery, categories, slugToUuid, productCategoryMap]);
 
   const sortedProducts = useMemo(() => {
     const sorted = [...filtered];
