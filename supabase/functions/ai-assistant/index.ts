@@ -5490,8 +5490,12 @@ ${snapshot.summary}
 === ÖPPNA UPPGIFTER (${openWork.length}) ===
 ${openWork.map((w: any) => `[${w.priority}] ${w.title} (${w.status})`).join("\n")}
 
-=== SENASTE SKANNINGAR ===
-${recentScans.map((s: any) => `${s.scan_type}: ${s.overall_status} (${s.overall_score}/100) - ${s.executive_summary || "Ingen sammanfattning"}`).join("\n")}
+=== SENASTE SKANNINGAR PER TYP (${latestPerType.length} typer, ${allScans.length} totalt) ===
+${latestPerType.map((s: any) => {
+  const trendStr = s.trend > 0 ? `📈+${s.trend}` : s.trend < 0 ? `📉${s.trend}` : '→';
+  const issuesStr = s.top_issues.length > 0 ? `\n  Issues: ${s.top_issues.join('; ')}` : '';
+  return `${s.type}: ${s.status} (${s.score}/100) ${trendStr} — ${s.summary || "Ingen sammanfattning"} [${s.issues_count} issues, ${s.scan_count} skanningar]${issuesStr}`;
+}).join("\n")}
 
 === ÖPPNA BUGGAR (${openBugs.length}) ===
 ${openBugs.map((b: any) => `[${b.ai_severity || "?"}] ${b.ai_summary || b.description.substring(0, 80)}`).join("\n")}
@@ -5504,7 +5508,15 @@ ${recentlyDone.length > 0 ? `\nNyligen avklarade:\n${recentlyDone.map((p: any) =
 === IGNORERADE ISSUES (${dismissedIssues.length}) ===
 ${dismissedIssues.map((d: any) => `❌ ${d.issue_title} — "${d.reason}"`).join("\n") || "Inga ignorerade issues"}
 
-VIKTIGT: Om användaren markerat prompts som klara, identifiera PROAKTIVT nästa problem/förbättring att ta itu med baserat på skanningar och buggar. Föreslå aldrig samma prompt igen. Föreslå ALDRIG ignorerade issues.
+=== SENASTE HISTORIK (avslutade uppgifter) ===
+${recentHistory.map((h: any) => `[${h.ai_review_status}] ${h.title} (${h.item_type}) — ${h.resolution_notes || 'Ingen notering'}`).join("\n") || "Ingen historik"}
+
+VIKTIGT: Du har tillgång till ALL skanningshistorik per typ med trender. Använd detta för att:
+- Identifiera FÖRSÄMRINGAR (📉) och agera proaktivt
+- Korrelera problem mellan olika skannrar (t.ex. overflow + UX)
+- Undvika att rapportera redan fixade eller ignorerade issues
+- Referera till specifika skanningsresultat när du diskuterar problem
+Föreslå ALDRIG ignorerade issues.
 `;
 
   const messages = [
