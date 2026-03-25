@@ -4905,128 +4905,36 @@ const AiAutopilotTab = () => {
             )}
           </CardHeader>
           <CardContent>
+          <CardContent>
             <div className="space-y-1.5">
               {steps.map((step, i) => {
                 const stepConfig = SCAN_STEPS.find(s => s.type === step.type);
                 const Icon = SCAN_STEP_ICONS[step.type] || Radar;
                 const score = step.result?.system_score || step.result?.score || step.result?.interaction_score || step.result?.overall_score;
-
                 return (
                   <div key={step.type}>
-                    <div
-                      className={cn(
-                        'flex items-center gap-2 p-2 rounded-lg transition-colors',
-                        step.status === 'running' && 'bg-primary/5 border border-primary/20',
-                        step.status === 'done' && 'bg-muted/30 cursor-pointer hover:bg-muted/50',
-                        step.status === 'error' && 'bg-destructive/5',
-                      )}
-                      onClick={() => step.status === 'done' && setShowResults(showResults === step.type ? null : step.type)}
-                    >
+                    <div className={cn(
+                      'flex items-center gap-2 p-2 rounded-lg transition-colors',
+                      step.status === 'running' && 'bg-primary/5 border border-primary/20',
+                      step.status === 'done' && 'bg-muted/30 cursor-pointer hover:bg-muted/50',
+                      step.status === 'error' && 'bg-destructive/5',
+                    )} onClick={() => step.status === 'done' && setShowResults(showResults === step.type ? null : step.type)}>
                       {step.status === 'pending' && <div className="w-4 h-4 rounded-full border-2 border-muted-foreground/20 shrink-0" />}
                       {step.status === 'running' && <Loader2 className="w-4 h-4 animate-spin text-primary shrink-0" />}
                       {step.status === 'done' && <CheckCircle className="w-4 h-4 text-green-600 shrink-0" />}
                       {step.status === 'error' && <XCircle className="w-4 h-4 text-destructive shrink-0" />}
-
                       <Icon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                      <span className={cn('text-xs font-medium flex-1', step.status === 'pending' && 'text-muted-foreground')}>
-                        {step.label}
-                      </span>
-
-                      {step.duration_ms != null && (
-                        <span className="text-[9px] text-muted-foreground">{(step.duration_ms / 1000).toFixed(1)}s</span>
-                      )}
-
-                      {score != null && (
-                        <span className={cn(
-                          'text-[10px] font-bold',
-                          score >= 70 ? 'text-green-700' : score >= 40 ? 'text-yellow-700' : 'text-red-700'
-                        )}>
-                          {score}
-                        </span>
-                      )}
-
-                      {step.result && (
-                        <span className="text-[9px] text-muted-foreground">
-                          {step.result.issues_found || step.result.issues?.length || step.result.dead_elements?.length || step.result.mismatches?.length || 0} issues
-                        </span>
-                      )}
-
-                      {step.status === 'done' && (
-                        <ArrowRight className={cn('w-3 h-3 text-muted-foreground transition-transform', showResults === step.type && 'rotate-90')} />
-                      )}
+                      <span className={cn('text-xs font-medium flex-1', step.status === 'pending' && 'text-muted-foreground')}>{step.label}</span>
+                      {step.duration_ms != null && <span className="text-[9px] text-muted-foreground">{(step.duration_ms / 1000).toFixed(1)}s</span>}
+                      {score != null && <span className={cn('text-[10px] font-bold', score >= 70 ? 'text-green-700' : score >= 40 ? 'text-yellow-700' : 'text-red-700')}>{score}</span>}
+                      {step.result && <span className="text-[9px] text-muted-foreground">{step.result.issues_found || step.result.issues?.length || step.result.dead_elements?.length || step.result.mismatches?.length || 0} issues</span>}
+                      {step.status === 'done' && <ArrowRight className={cn('w-3 h-3 text-muted-foreground transition-transform', showResults === step.type && 'rotate-90')} />}
                     </div>
-
-                    {/* Expanded result preview */}
                     {showResults === step.type && step.result && (
                       <div className="ml-8 mt-1 mb-2 border rounded-lg p-3 bg-card space-y-2 text-xs">
-                        {step.result.executive_summary && (
-                          <p className="text-muted-foreground">{step.result.executive_summary}</p>
+                        {(step.result.executive_summary || step.result.summary) && (
+                          <p className="text-muted-foreground">{step.result.executive_summary || (typeof step.result.summary === 'string' ? step.result.summary : '')}</p>
                         )}
-                        {step.result.summary && !step.result.executive_summary && (
-                          <p className="text-muted-foreground">{typeof step.result.summary === 'string' ? step.result.summary : ''}</p>
-                        )}
-
-                        {/* Human Test: Areas status grid */}
-                        {step.type === 'human_test' && step.result.areas?.length > 0 && (
-                          <div className="space-y-1">
-                            <p className="font-semibold text-[11px]">Systemområden</p>
-                            <div className="grid grid-cols-2 gap-1">
-                              {step.result.areas.map((area: any, j: number) => (
-                                <div key={area.name || j} className={cn(
-                                  'p-1.5 rounded border text-[10px]',
-                                  area.status === 'working' ? 'border-green-500/30 bg-green-50 dark:bg-green-950/20' :
-                                  area.status === 'unstable' ? 'border-yellow-500/30 bg-yellow-50 dark:bg-yellow-950/20' :
-                                  'border-red-500/30 bg-red-50 dark:bg-red-950/20'
-                                )}>
-                                  <div className="flex items-center gap-1">
-                                    <span>{area.status === 'working' ? '✅' : area.status === 'unstable' ? '⚠️' : '❌'}</span>
-                                    <span className="font-medium truncate">{area.name}</span>
-                                    {area.score != null && <span className="ml-auto font-bold">{area.score}</span>}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Human Test: Pipeline status */}
-                        {step.type === 'human_test' && step.result.pipeline_status && (
-                          <div className="space-y-1">
-                            <p className="font-semibold text-[11px]">Pipeline-status</p>
-                            <div className="flex gap-1 flex-wrap">
-                              {Object.entries(step.result.pipeline_status).map(([key, val]: [string, any]) => (
-                                <Badge key={key} variant="outline" className={cn(
-                                  'text-[8px]',
-                                  val === 'working' ? 'border-green-500 text-green-700' :
-                                  val === 'unstable' ? 'border-yellow-500 text-yellow-700' :
-                                  'border-red-500 text-red-700'
-                                )}>
-                                  {val === 'working' ? '✅' : val === 'unstable' ? '⚠️' : '❌'} {key.replace(/_/g, ' → ')}
-                                </Badge>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Human Test: Broken interactions */}
-                        {step.type === 'human_test' && step.result.broken_interactions?.length > 0 && (
-                          <div className="space-y-1">
-                            <p className="font-semibold text-[11px]">Trasiga interaktioner</p>
-                            {step.result.broken_interactions.slice(0, 5).map((bi: any, j: number) => (
-                              <div key={j} className="flex items-start gap-2 p-1.5 rounded bg-destructive/5 border border-destructive/20">
-                                <AlertTriangle className="w-3 h-3 text-destructive shrink-0 mt-0.5" />
-                                <div className="min-w-0">
-                                  <p className="text-[11px] font-medium">{bi.flow}: {bi.step}</p>
-                                  <p className="text-[10px] text-muted-foreground">Förväntat: {bi.expected}</p>
-                                  <p className="text-[10px] text-destructive">Faktiskt: {bi.actual}</p>
-                                </div>
-                                <Badge variant="destructive" className="text-[8px] shrink-0">{bi.severity}</Badge>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Generic issues list */}
                         {(step.result.issues || step.result.dead_elements || step.result.mismatches || step.result.critical_issues)?.slice(0, 5).map((issue: any, j: number) => (
                           <div key={j} className="flex items-start gap-2 p-1.5 rounded bg-muted/30">
                             <AlertTriangle className="w-3 h-3 text-destructive shrink-0 mt-0.5" />
@@ -5036,28 +4944,7 @@ const AiAutopilotTab = () => {
                             </div>
                           </div>
                         ))}
-
-                        {/* Positive findings */}
-                        {step.result.positive_findings?.length > 0 && step.type === 'human_test' && (
-                          <div className="space-y-1">
-                            <p className="font-semibold text-[11px] text-green-700">Positivt</p>
-                            {step.result.positive_findings.slice(0, 3).map((p: string, j: number) => (
-                              <p key={j} className="text-[10px] text-muted-foreground">✅ {p}</p>
-                            ))}
-                          </div>
-                        )}
-
-                        {step.result.tasks_created > 0 && (
-                          <Badge variant="default" className="bg-green-600 text-[9px]">{step.result.tasks_created} uppgifter skapade</Badge>
-                        )}
-
-                        {step.result.risk_areas?.length > 0 && (
-                          <div className="flex gap-1 flex-wrap">
-                            {step.result.risk_areas.map((r: string, j: number) => (
-                              <Badge key={j} variant="destructive" className="text-[8px]">{r}</Badge>
-                            ))}
-                          </div>
-                        )}
+                        {step.result.tasks_created > 0 && <Badge variant="default" className="bg-green-600 text-[9px]">{step.result.tasks_created} uppgifter skapade</Badge>}
                       </div>
                     )}
                   </div>
