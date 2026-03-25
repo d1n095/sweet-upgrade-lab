@@ -116,19 +116,7 @@ const AdminOverview = () => {
 
   const recentOrders = useMemo(() => orders.slice(0, 8) as RecentOrder[], [orders]);
 
-  // Realtime invalidation
-  useEffect(() => {
-    const channel = supabase
-      .channel('dashboard-orders')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'work_items' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['admin-work-items'] });
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [queryClient]);
+  // Realtime is handled by useAdminRealtime in AdminLayout — no duplicate subscriptions needed
 
   const fmt = (n: number) => new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK', minimumFractionDigits: 0 }).format(n);
 
