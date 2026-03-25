@@ -7437,6 +7437,7 @@ const OrchestrationTab = () => {
 
           {/* Scanners */}
           <div data-value="scan"><SystemScanTab /></div>
+          <div data-value="access-control"><AccessControlTab /></div>
           <div data-value="visual-qa"><VisualQATab /></div>
           <div data-value="ux-scanner"><UxScannerTab /></div>
           <div data-value="sync-scan"><SyncScannerTab /></div>
