@@ -68,6 +68,7 @@ import AdminOps from "./pages/admin/AdminOps";
 import AdminGrowth from "./pages/admin/AdminGrowth";
 import AdminAI from "./pages/admin/AdminAI";
 import AdminHistory from "./pages/admin/AdminHistory";
+import AdminPOS from "./pages/admin/AdminPOS";
 import ScanPackingMode from "./components/admin/warehouse/ScanPackingMode";
 
 const queryClient = new QueryClient();
@@ -125,6 +126,7 @@ const App = () => (
                 <Route path="ops" element={<AdminOps />} />
                 <Route path="growth" element={<AdminGrowth />} />
                 <Route path="orders" element={<AdminOrders />} />
+                <Route path="pos" element={<AdminPOS />} />
                 <Route path="products" element={<AdminProducts />} />
                 <Route path="categories" element={<AdminCategories />} />
                 <Route path="members" element={<AdminMembers />} />
