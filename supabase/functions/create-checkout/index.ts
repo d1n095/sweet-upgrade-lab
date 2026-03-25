@@ -145,7 +145,7 @@ serve(async (req) => {
             });
             usedDb = true;
           } else {
-            console.warn(`Product ${productId} not found in DB, using client price`);
+            console.warn(`Product ${productId} not found in DB — will be rejected`);
           }
         } catch (dbErr) {
           console.warn(`DB lookup failed for ${productId}:`, dbErr);
