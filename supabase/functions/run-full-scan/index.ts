@@ -1962,51 +1962,93 @@ serve(async (req) => {
         iteration: currentIteration,
       }).eq("id", scan_run_id);
 
-      // Call ai-assistant
+      // Execute scan step — prefer real DB scanners, fallback to AI
       let stepResult: any = { error: "unknown", failed: true };
       const stepStart = Date.now();
 
       try {
-        const previousContext: Record<string, any> = {};
-        const existingResults = scanRun.steps_results || {};
-        for (const [key, val] of Object.entries(existingResults)) {
-          const v = val as any;
-          if (v?.overall_score != null) previousContext[key] = { score: v.overall_score };
-          if (v?.issues_count != null) previousContext[key] = { ...previousContext[key], issues: v.issues_count };
-        }
+        const realScanner = REAL_DB_SCANNERS[step.scanType];
 
-        // For re-scans, include previous findings as context
-        let deepScanContext: any = undefined;
-        if (currentIteration > 1) {
-          deepScanContext = {
-            iteration: currentIteration,
-            previous_patterns: scanRun.pattern_discoveries || [],
-            high_risk_areas: scanRun.high_risk_areas || [],
-            instruction: "This is a DEEP RE-SCAN iteration. Focus specifically on the high_risk_areas and patterns provided. Look for issues that were MISSED in previous scans. Check related components, similar UI patterns, and adjacent flows. Be more thorough than a standard scan.",
+        if (realScanner) {
+          // ── REAL DB SCAN: Run actual database queries ──
+          console.log(`[scan] Running REAL DB scanner for ${step.scanType}`);
+          const dbResult = await realScanner(supabase, scan_run_id);
+
+          // Also run AI analysis for richer insights, but don't block on it
+          let aiEnrichment: any = null;
+          try {
+            const resp = await fetch(`${supabaseUrl}/functions/v1/ai-assistant`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${serviceKey}`,
+              },
+              body: JSON.stringify({
+                type: step.scanType,
+                orchestrated: true,
+                step_index,
+                real_db_findings: {
+                  issues_count: dbResult.issues_found || dbResult.total_issues || 0,
+                  score: dbResult.overall_score,
+                  sample_issues: (dbResult.issues || dbResult.mismatches || dbResult.features || []).slice(0, 5).map((i: any) => i.title || i.name || ""),
+                },
+              }),
+            });
+            if (resp.ok) {
+              const data = await resp.json();
+              aiEnrichment = data.result || data;
+            }
+          } catch (_) { /* AI enrichment is optional */ }
+
+          // Merge: DB results are the source of truth, AI adds suggestions
+          stepResult = {
+            ...dbResult,
+            ai_suggestions: aiEnrichment?.suggestions || aiEnrichment?.recommendations || [],
+            ai_summary: aiEnrichment?.summary || aiEnrichment?.executive_summary || null,
           };
-        }
-
-        const resp = await fetch(`${supabaseUrl}/functions/v1/ai-assistant`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${serviceKey}`,
-          },
-          body: JSON.stringify({
-            type: step.scanType,
-            orchestrated: true,
-            step_index,
-            previous_context: Object.keys(previousContext).length > 0 ? previousContext : undefined,
-            deep_scan_context: deepScanContext,
-          }),
-        });
-
-        if (resp.ok) {
-          const data = await resp.json();
-          stepResult = data.result || data;
         } else {
-          const errBody = await resp.text().catch(() => "");
-          stepResult = { error: `HTTP ${resp.status}: ${errBody.substring(0, 200)}`, failed: true };
+          // ── AI-ONLY SCAN: No real DB scanner available for this type ──
+          console.log(`[scan] Running AI-only scanner for ${step.scanType}`);
+          const previousContext: Record<string, any> = {};
+          const existingResults = scanRun.steps_results || {};
+          for (const [key, val] of Object.entries(existingResults)) {
+            const v = val as any;
+            if (v?.overall_score != null) previousContext[key] = { score: v.overall_score };
+            if (v?.issues_count != null) previousContext[key] = { ...previousContext[key], issues: v.issues_count };
+          }
+
+          let deepScanContext: any = undefined;
+          if (currentIteration > 1) {
+            deepScanContext = {
+              iteration: currentIteration,
+              previous_patterns: scanRun.pattern_discoveries || [],
+              high_risk_areas: scanRun.high_risk_areas || [],
+              instruction: "This is a DEEP RE-SCAN iteration. Focus specifically on the high_risk_areas and patterns provided. Look for issues that were MISSED in previous scans. Check related components, similar UI patterns, and adjacent flows. Be more thorough than a standard scan.",
+            };
+          }
+
+          const resp = await fetch(`${supabaseUrl}/functions/v1/ai-assistant`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${serviceKey}`,
+            },
+            body: JSON.stringify({
+              type: step.scanType,
+              orchestrated: true,
+              step_index,
+              previous_context: Object.keys(previousContext).length > 0 ? previousContext : undefined,
+              deep_scan_context: deepScanContext,
+            }),
+          });
+
+          if (resp.ok) {
+            const data = await resp.json();
+            stepResult = data.result || data;
+          } else {
+            const errBody = await resp.text().catch(() => "");
+            stepResult = { error: `HTTP ${resp.status}: ${errBody.substring(0, 200)}`, failed: true };
+          }
         }
       } catch (e: any) {
         stepResult = { error: e.message, failed: true };
