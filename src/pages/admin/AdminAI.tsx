@@ -3354,6 +3354,10 @@ const AdminAI = () => {
               <Eye className="w-3.5 h-3.5" />
               Innehåll QA
             </TabsTrigger>
+            <TabsTrigger value="patterns" className="gap-1.5 text-xs">
+              <GitMerge className="w-3.5 h-3.5" />
+              Mönster
+            </TabsTrigger>
           </TabsList>
         </ScrollableTabs>
 
@@ -3419,6 +3423,9 @@ const AdminAI = () => {
         </TabsContent>
         <TabsContent value="content-validation" className="mt-4">
           <ContentValidationTab />
+        </TabsContent>
+        <TabsContent value="patterns" className="mt-4">
+          <PatternDetectionTab />
         </TabsContent>
       </Tabs>
 
