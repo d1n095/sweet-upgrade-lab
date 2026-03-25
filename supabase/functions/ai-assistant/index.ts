@@ -453,6 +453,21 @@ Errors: ${errorLogs} | Warnings: ${warningLogs}`,
       slaRate, errorLogs, warningLogs, totalDonations,
     },
   };
+
+  // Log the read action
+  if (triggeredBy) {
+    const hasIssues = criticalBugs > 0 || overdue > 0 || slaOverdue > 0 || outOfStock.length > 0;
+    await logAiRead(supabase, {
+      action_type: "snapshot",
+      target_type: "system",
+      affected_components: ["orders", "bugs", "work_items", "incidents", "products", "staff_performance"],
+      result: hasIssues ? "possible_issue" : "no_issues",
+      summary: `System snapshot: ${paidOrders.length} orders, ${openBugs} open bugs, ${criticalBugs} critical, ${overdue} overdue tasks, ${outOfStock.length} OOS products`,
+      triggered_by: triggeredBy,
+    });
+  }
+
+  return snap;
 }
 
 // ── Handle data_insights ──
