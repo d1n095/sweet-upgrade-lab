@@ -184,6 +184,16 @@ serve(async (req) => {
         break;
       }
 
+      case "rejection_reanalysis": {
+        const { work_item_id: rejectWiId } = body;
+        if (!rejectWiId) {
+          result = { error: "work_item_id required" };
+          break;
+        }
+        result = await handleRejectionReanalysis(supabase, lovableKey, rejectWiId, user.id);
+        break;
+      }
+
       case "auto_fix": {
         result = await handleAutoFix(supabase, lovableKey, supabaseUrl, serviceKey, authHeader);
         break;
