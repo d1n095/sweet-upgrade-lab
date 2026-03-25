@@ -62,7 +62,7 @@ serve(async (req) => {
     let user = { id: "system", email: "system@internal" };
 
     if (!isServiceCall) {
-      const anonClient = createClient(supabaseUrl2, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
         global: { headers: { Authorization: authHeader } },
       });
       const { data: claimsData, error: claimsError } = await anonClient.auth.getClaims(token);
