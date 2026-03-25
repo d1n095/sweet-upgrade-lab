@@ -2705,6 +2705,60 @@ export type Database = {
         }
         Relationships: []
       }
+      scan_runs: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          current_step: number | null
+          current_step_label: string | null
+          error_message: string | null
+          executive_summary: string | null
+          id: string
+          started_at: string | null
+          started_by: string | null
+          status: string
+          steps_results: Json | null
+          system_health_score: number | null
+          total_steps: number | null
+          unified_result: Json | null
+          work_items_created: number | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          current_step?: number | null
+          current_step_label?: string | null
+          error_message?: string | null
+          executive_summary?: string | null
+          id?: string
+          started_at?: string | null
+          started_by?: string | null
+          status?: string
+          steps_results?: Json | null
+          system_health_score?: number | null
+          total_steps?: number | null
+          unified_result?: Json | null
+          work_items_created?: number | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          current_step?: number | null
+          current_step_label?: string | null
+          error_message?: string | null
+          executive_summary?: string | null
+          id?: string
+          started_at?: string | null
+          started_by?: string | null
+          status?: string
+          steps_results?: Json | null
+          system_health_score?: number | null
+          total_steps?: number | null
+          unified_result?: Json | null
+          work_items_created?: number | null
+        }
+        Relationships: []
+      }
       search_logs: {
         Row: {
           created_at: string

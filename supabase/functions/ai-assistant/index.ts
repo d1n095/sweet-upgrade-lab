@@ -53,28 +53,34 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "AI not configured" }), { status: 500, headers: corsHeaders });
     }
 
-    const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
-      global: { headers: { Authorization: authHeader } },
-    });
-
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await anonClient.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims?.sub) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
-    }
-    const user = { id: claimsData.claims.sub as string, email: claimsData.claims.email as string };
-
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    const { data: roles } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id);
+    const token = authHeader.replace("Bearer ", "");
 
-    const staffRoles = ["admin", "founder", "it", "support", "moderator"];
-    const isStaff = roles?.some((r: any) => staffRoles.includes(r.role));
-    if (!isStaff) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 403, headers: corsHeaders });
+    // Allow service-role calls (from server-side edge functions like run-full-scan)
+    const isServiceCall = token === serviceKey;
+    let user = { id: "system", email: "system@internal" };
+
+    if (!isServiceCall) {
+      const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: claimsData, error: claimsError } = await anonClient.auth.getClaims(token);
+      if (claimsError || !claimsData?.claims?.sub) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
+      }
+      user = { id: claimsData.claims.sub as string, email: claimsData.claims.email as string };
+
+      const { data: roles } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id);
+
+      const staffRoles = ["admin", "founder", "it", "support", "moderator"];
+      const isStaff = roles?.some((r: any) => staffRoles.includes(r.role));
+      if (!isStaff) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 403, headers: corsHeaders });
+      }
     }
 
     const body = await req.json();
