@@ -5414,6 +5414,7 @@ async function handleLovaChat(supabase: any, lovableKey: string, userId: string,
   const allPrompts = promptRes.data || [];
   const dismissedIssues = dismissRes.data || [];
   const recentHistory = historyRes.data || [];
+  const recentChanges = changeLogRes.data || [];
   const pendingPrompts = allPrompts.filter((p: any) => p.status === "pending");
   const donePrompts = allPrompts.filter((p: any) => p.status === "done");
   const recentlyDone = donePrompts.filter((p: any) => {
