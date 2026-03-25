@@ -168,6 +168,11 @@ serve(async (req) => {
         break;
       }
 
+      case "pattern_detection": {
+        result = await handlePatternDetection(supabase, lovableKey);
+        break;
+      }
+
       case "create_action": {
         const { title, description, priority, category, source_type: srcType, source_id: srcId } = body;
         if (!title) {
