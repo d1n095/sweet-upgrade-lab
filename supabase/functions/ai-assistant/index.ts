@@ -5484,7 +5484,10 @@ Väntande: ${pendingPrompts.length} | Klara (7d): ${recentlyDone.length}
 ${pendingPrompts.map((p: any) => `⏳ [${p.priority}] ${p.title}`).join("\n")}
 ${recentlyDone.length > 0 ? `\nNyligen avklarade:\n${recentlyDone.map((p: any) => `✅ ${p.title}`).join("\n")}` : ""}
 
-VIKTIGT: Om användaren markerat prompts som klara, identifiera PROAKTIVT nästa problem/förbättring att ta itu med baserat på skanningar och buggar. Föreslå aldrig samma prompt igen.
+=== IGNORERADE ISSUES (${dismissedIssues.length}) ===
+${dismissedIssues.map((d: any) => `❌ ${d.issue_title} — "${d.reason}"`).join("\n") || "Inga ignorerade issues"}
+
+VIKTIGT: Om användaren markerat prompts som klara, identifiera PROAKTIVT nästa problem/förbättring att ta itu med baserat på skanningar och buggar. Föreslå aldrig samma prompt igen. Föreslå ALDRIG ignorerade issues.
 `;
 
   const messages = [
