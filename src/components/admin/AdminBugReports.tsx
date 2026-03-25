@@ -71,6 +71,7 @@ const AdminBugReports = () => {
   const [processingAI, setProcessingAI] = useState<string | null>(null);
   const [promptSearch, setPromptSearch] = useState('');
   const [promptTagFilter, setPromptTagFilter] = useState<string | null>(null);
+  const [diagnostics, setDiagnostics] = useState<Record<string, any>>({});
 
   const load = async () => {
     setLoading(true);
