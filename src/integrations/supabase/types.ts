@@ -2708,51 +2708,72 @@ export type Database = {
       scan_runs: {
         Row: {
           completed_at: string | null
+          coverage_score: number | null
           created_at: string | null
           current_step: number | null
           current_step_label: string | null
           error_message: string | null
           executive_summary: string | null
+          high_risk_areas: Json | null
           id: string
+          iteration: number
+          iteration_results: Json | null
+          max_iterations: number
+          pattern_discoveries: Json | null
           started_at: string | null
           started_by: string | null
           status: string
           steps_results: Json | null
           system_health_score: number | null
+          total_new_issues: number | null
           total_steps: number | null
           unified_result: Json | null
           work_items_created: number | null
         }
         Insert: {
           completed_at?: string | null
+          coverage_score?: number | null
           created_at?: string | null
           current_step?: number | null
           current_step_label?: string | null
           error_message?: string | null
           executive_summary?: string | null
+          high_risk_areas?: Json | null
           id?: string
+          iteration?: number
+          iteration_results?: Json | null
+          max_iterations?: number
+          pattern_discoveries?: Json | null
           started_at?: string | null
           started_by?: string | null
           status?: string
           steps_results?: Json | null
           system_health_score?: number | null
+          total_new_issues?: number | null
           total_steps?: number | null
           unified_result?: Json | null
           work_items_created?: number | null
         }
         Update: {
           completed_at?: string | null
+          coverage_score?: number | null
           created_at?: string | null
           current_step?: number | null
           current_step_label?: string | null
           error_message?: string | null
           executive_summary?: string | null
+          high_risk_areas?: Json | null
           id?: string
+          iteration?: number
+          iteration_results?: Json | null
+          max_iterations?: number
+          pattern_discoveries?: Json | null
           started_at?: string | null
           started_by?: string | null
           status?: string
           steps_results?: Json | null
           system_health_score?: number | null
+          total_new_issues?: number | null
           total_steps?: number | null
           unified_result?: Json | null
           work_items_created?: number | null
