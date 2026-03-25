@@ -720,13 +720,32 @@ const AdminBugReports = () => {
                             {r.status === 'open' ? 'Öppen' : 'Löst'}
                           </Badge>
                         </div>
-                        <p className="text-xs font-medium mb-1">{r.ai_summary}</p>
+                        <p className="text-xs font-medium mb-1">{r.ai_actionable_fix?.blocker_statement || r.ai_summary}</p>
+                        {r.ai_actionable_fix?.location && (
+                          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mb-1">
+                            <FileCode className="w-3 h-3" />
+                            <code className="font-mono">{r.ai_actionable_fix.location.file_path}</code>
+                            <span>→ {r.ai_actionable_fix.location.function_name}</span>
+                          </div>
+                        )}
                       </div>
-                      <Button size="sm" variant="outline" className="h-6 text-[10px] gap-0.5 shrink-0" onClick={() => copyToClipboard(r.ai_clean_prompt!)}>
-                        <Copy className="w-2.5 h-2.5" /> Kopiera
+                      <Button size="sm" variant="default" className="h-6 text-[10px] gap-0.5 shrink-0" onClick={() => copyToClipboard(r.ai_actionable_fix?.copy_prompt || r.ai_clean_prompt!)}>
+                        <Copy className="w-2.5 h-2.5" /> Kopiera Fix
                       </Button>
                     </div>
-                    <div className="text-xs bg-muted/50 rounded-md p-2 whitespace-pre-wrap border font-mono leading-relaxed">{r.ai_clean_prompt}</div>
+                    {r.ai_actionable_fix?.fix_steps && r.ai_actionable_fix.fix_steps.length > 0 && (
+                      <div className="text-xs space-y-1 bg-muted/30 rounded-md p-2 border">
+                        {r.ai_actionable_fix.fix_steps.map((step, i) => (
+                          <div key={i} className="flex items-start gap-1.5">
+                            <span className="shrink-0 text-primary font-bold text-[10px]">{i + 1}.</span>
+                            <span>{step}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div className="text-xs bg-muted/50 rounded-md p-2 whitespace-pre-wrap border font-mono leading-relaxed max-h-32 overflow-y-auto">
+                      {r.ai_actionable_fix?.copy_prompt || r.ai_clean_prompt}
+                    </div>
                     {r.ai_tags && r.ai_tags.length > 0 && (
                       <div className="flex gap-1 flex-wrap">
                         {r.ai_tags.map(tag => (
