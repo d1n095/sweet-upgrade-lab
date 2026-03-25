@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { ACTIVE_WORK_ITEM_STATUSES } from '@/hooks/useAdminData';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { ACTIVE_WORK_ITEM_STATUSES, useAdminWorkItems } from '@/hooks/useAdminData';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -300,25 +300,29 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     return p?.username || userId.slice(0, 6);
   };
 
-  const { data: items = [], isLoading } = useQuery({
-    queryKey: ['work-items'],
-    queryFn: async () => {
-      const fetchTraceId = newTraceId('fetch');
-      traceUIFetch('WorkbenchBoard', fetchTraceId, 'start');
-      const { data, error } = await supabase
-        .from('work_items' as any)
-        .select('*')
-        .in('status', [...ACTIVE_WORK_ITEM_STATUSES])
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      const allItems = (data || []) as unknown as WorkItem[];
-      traceUIFetch('WorkbenchBoard', fetchTraceId, 'complete', allItems.length);
-      console.log('[WorkbenchBoard] DB ITEMS:', allItems.length, 'fetched from database');
+  const { data: rawItems = [], isLoading } = useAdminWorkItems();
 
-      // ── Source validation: filter out ghost tasks ──
+  // ── Source validation: filter out ghost tasks (client-side post-processing) ──
+  const items = useMemo(() => {
+    const allItems = rawItems as unknown as WorkItem[];
+    if (!allItems.length) return allItems;
+
+    const sixtySecondsAgo = Date.now() - 60_000;
+
+    const validated = allItems.filter(item => {
+      if ((item as any).ignored) return false;
+      const createdAt = new Date(item.created_at).getTime();
+      if (createdAt > sixtySecondsAgo) return true;
+      return true;
+    });
+
+    // Async orphan detection (fire-and-forget, runs outside render)
+    void (async () => {
       const orderLinkedIds = [...new Set(allItems.filter(i => i.related_order_id).map(i => i.related_order_id!))];
       const bugLinkedIds = [...new Set(allItems.filter(i => i.source_type === 'bug_report' && i.source_id).map(i => i.source_id!))];
       const incidentLinkedIds = [...new Set(allItems.filter(i => i.source_type === 'order_incident' && i.source_id).map(i => i.source_id!))];
+
+      if (!orderLinkedIds.length && !bugLinkedIds.length && !incidentLinkedIds.length) return;
 
       const [ordersRes, bugsRes, incidentsRes] = await Promise.all([
         orderLinkedIds.length > 0
@@ -336,68 +340,44 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
       const validBugs = new Set((bugsRes.data || []).map((b: any) => b.id));
       const validIncidents = new Set((incidentsRes.data || []).map((i: any) => i.id));
 
-      // Auto-cancel orphan tasks in background (fire-and-forget)
       const orphanIds: string[] = [];
-
-      // ── Source validation: filter out ghost tasks ──
-      // IMPORTANT: Only filter out items that are clearly orphaned.
-      // Items with source_type='manual', 'ai_scan', or no source_id are always kept.
-      // Items created in the last 60 seconds are NEVER filtered (prevents race conditions).
-      const sixtySecondsAgo = Date.now() - 60_000;
-
-      const validated = allItems.filter(item => {
-        // Filter out ignored items
-        if ((item as any).ignored) return false;
-
-        // Never filter items created in last 60 seconds — prevents disappearing on create
+      allItems.forEach(item => {
         const createdAt = new Date(item.created_at).getTime();
-        if (createdAt > sixtySecondsAgo) return true;
+        if (createdAt > sixtySecondsAgo) return;
 
-        // Check order-linked tasks
         if (item.related_order_id) {
           const order = validOrders.get(item.related_order_id);
-          if (!order || order.deleted_at) {
-            if (['open', 'claimed', 'in_progress'].includes(item.status)) {
-              trace('filter_removed', 'WorkbenchBoard', `Orphan order task filtered: ${item.title}`, { traceId: fetchTraceId, entityId: item.id, details: { reason: 'order_deleted', orderId: item.related_order_id } });
-              orphanIds.push(item.id);
-            }
-            return false;
+          if ((!order || order.deleted_at) && ['open', 'claimed', 'in_progress'].includes(item.status)) {
+            orphanIds.push(item.id);
+            return;
           }
-          if (['delivered', 'completed'].includes(order.status) &&
+          if (order && ['delivered', 'completed'].includes(order.status) &&
               ['pack_order', 'packing', 'shipping'].includes(item.item_type) &&
               ['open', 'claimed', 'in_progress'].includes(item.status)) {
             orphanIds.push(item.id);
-            return false;
+            return;
           }
         }
-        // Check bug source — only filter if we actually queried for it
         if (item.source_type === 'bug_report' && item.source_id && bugLinkedIds.length > 0 && !validBugs.has(item.source_id) &&
             ['open', 'claimed', 'in_progress'].includes(item.status)) {
           orphanIds.push(item.id);
-          return false;
         }
-        // Check incident source — only filter if we actually queried for it
         if (item.source_type === 'order_incident' && item.source_id && incidentLinkedIds.length > 0 && !validIncidents.has(item.source_id) &&
             ['open', 'claimed', 'in_progress'].includes(item.status)) {
           orphanIds.push(item.id);
-          return false;
         }
-        return true;
       });
 
-      // Fire-and-forget cleanup of orphans
       if (orphanIds.length > 0) {
         supabase.from('work_items' as any)
           .update({ status: 'cancelled', updated_at: new Date().toISOString() } as any)
           .in('id', orphanIds)
-          .then(() => {
-            console.log(`[Workbench] Auto-cancelled ${orphanIds.length} orphan tasks`);
-          });
+          .then(() => console.log(`[Workbench] Auto-cancelled ${orphanIds.length} orphan tasks`));
       }
+    })();
 
-      return validated;
-    },
-  });
+    return validated;
+  }, [rawItems]);
 
   useEffect(() => {
     const channel = supabase
