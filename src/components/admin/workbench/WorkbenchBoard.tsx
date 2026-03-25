@@ -1084,7 +1084,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
         {STATUS_COLUMNS.map(col => {
           const colItems = sortedItems.filter(t => t.status === col.key);
           return (
-            <div key={col.key} className="space-y-2">
+            <div key={col.key} className="space-y-2 min-h-0">
               <div className="flex items-center gap-2 px-1">
                 <col.icon className={cn('w-4 h-4', col.color)} />
                 <span className="text-sm font-semibold">{col.label}</span>
@@ -1093,7 +1093,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
                 </Badge>
               </div>
               <div className={cn(
-                'space-y-2 min-h-[100px] rounded-lg p-2',
+                'space-y-2 min-h-[100px] max-h-[60vh] overflow-y-auto rounded-lg p-2',
                 col.key === 'escalated' && colItems.length > 0 ? 'bg-destructive/5' : 'bg-secondary/20'
               )}>
                 {colItems.length === 0 && (
