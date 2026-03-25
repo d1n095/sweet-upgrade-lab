@@ -256,7 +256,7 @@ export async function backfillChangeLog() {
 }
 
 
-  task: QueueTask,
+async function runPostChecks(
   result: any,
   set: (fn: (s: AiQueueState) => Partial<AiQueueState>) => void,
   get: () => AiQueueState
