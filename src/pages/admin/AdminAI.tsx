@@ -420,12 +420,26 @@ const LovaPromptsTab = () => {
   });
 
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const copyPrompt = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedId(id);
-    toast.success('Prompt kopierad!');
-    setTimeout(() => setCopiedId(null), 2000);
+  const buildPromptText = (p: any) => {
+    const implementation = (p.implementation || '').trim();
+    if (implementation) return implementation;
+
+    const title = (p.title || 'Kodändring').trim();
+    const goal = (p.goal || '').trim();
+    return `Implement the following change.\n\nTitle: ${title}\nGoal: ${goal || 'Improve the feature and ensure production-ready behavior.'}\n\nRequirements:\n1) Analyze existing flow and identify root cause\n2) Implement robust fix with clear edge-case handling\n3) Validate UX and error states\n4) Add/update tests where relevant\n\nExpected result:\nA stable, user-friendly and production-safe implementation.`;
+  };
+
+  const copyPrompt = async (text: string, id: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedId(id);
+      toast.success('Prompt kopierad!');
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch {
+      toast.error('Kunde inte kopiera prompten');
+    }
   };
 
   const priorityColor = (p: string) => {
@@ -458,55 +472,68 @@ const LovaPromptsTab = () => {
         </div>
       ) : (
         <div className="space-y-3">
-          {prompts.map((p: any) => (
-            <Card key={p.id} className="overflow-hidden">
-              <CardHeader className="pb-2 pt-3 px-4">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <CardTitle className="text-sm font-medium">{p.title}</CardTitle>
-                    {p.goal && <p className="text-xs text-muted-foreground mt-0.5">{p.goal}</p>}
+          {prompts.map((p: any) => {
+            const promptText = buildPromptText(p);
+            const isExpanded = expandedId === p.id;
+
+            return (
+              <Card key={p.id} className="overflow-hidden">
+                <CardHeader className="pb-2 pt-3 px-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <CardTitle className="text-sm font-medium">{p.title}</CardTitle>
+                      {p.goal && <p className="text-xs text-muted-foreground mt-0.5">{p.goal}</p>}
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Badge variant={priorityColor(p.priority)} className="text-[10px]">
+                        {p.priority}
+                      </Badge>
+                      <Badge variant={p.status === 'pending' ? 'outline' : p.status === 'done' ? 'secondary' : 'default'} className="text-[10px]">
+                        {p.status === 'pending' ? '⏳ Väntar' : p.status === 'done' ? '✅ Klar' : p.status}
+                      </Badge>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <Badge variant={priorityColor(p.priority)} className="text-[10px]">
-                      {p.priority}
-                    </Badge>
-                    <Badge variant={p.status === 'pending' ? 'outline' : p.status === 'done' ? 'secondary' : 'default'} className="text-[10px]">
-                      {p.status === 'pending' ? '⏳ Väntar' : p.status === 'done' ? '✅ Klar' : p.status}
-                    </Badge>
+                </CardHeader>
+                <CardContent className="px-4 pb-3 pt-0">
+                  <div className={cn(
+                    "bg-muted/50 rounded-lg p-3 text-xs font-mono whitespace-pre-wrap overflow-y-auto border border-border/50",
+                    isExpanded ? "max-h-[420px]" : "max-h-[120px]"
+                  )}>
+                    {promptText}
                   </div>
-                </div>
-              </CardHeader>
-              <CardContent className="px-4 pb-3 pt-0">
-                {(p.implementation || p.goal || p.title) ? (
-                  <div className="bg-muted/50 rounded-lg p-3 text-xs font-mono whitespace-pre-wrap max-h-[200px] overflow-y-auto border border-border/50">
-                    {p.implementation || p.goal || p.title}
+                  <div className="flex items-center justify-between mt-2 gap-2">
+                    <span className="text-[10px] text-muted-foreground">
+                      {new Date(p.created_at).toLocaleString('sv-SE')}
+                      {p.source_type && ` · ${p.source_type}`}
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 gap-1 text-xs"
+                        onClick={() => setExpandedId(isExpanded ? null : p.id)}
+                      >
+                        <Eye className="w-3 h-3" />
+                        {isExpanded ? 'Stäng' : 'Öppna'}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 gap-1.5 text-xs"
+                        onClick={() => copyPrompt(promptText, p.id)}
+                      >
+                        {copiedId === p.id ? (
+                          <><CheckCircle className="w-3 h-3" /> Kopierad!</>
+                        ) : (
+                          <><Copy className="w-3 h-3" /> Kopiera prompt</>
+                        )}
+                      </Button>
+                    </div>
                   </div>
-                ) : (
-                  <div className="bg-destructive/10 rounded-lg p-3 text-xs text-destructive border border-destructive/20">
-                    ⚠️ Tom prompt — Lova skickade ingen implementation-text
-                  </div>
-                )}
-                <div className="flex items-center justify-between mt-2">
-                  <span className="text-[10px] text-muted-foreground">
-                    {new Date(p.created_at).toLocaleString('sv-SE')}
-                    {p.source_type && ` · ${p.source_type}`}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 gap-1.5 text-xs"
-                    onClick={() => copyPrompt(p.implementation, p.id)}
-                  >
-                    {copiedId === p.id ? (
-                      <><CheckCircle className="w-3 h-3" /> Kopierad!</>
-                    ) : (
-                      <><Copy className="w-3 h-3" /> Kopiera prompt</>
-                    )}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>

@@ -5584,9 +5584,22 @@ async function executeLovaAction(supabase: any, lovableKey: string, args: any) {
   switch (action_type) {
     case "run_scan": {
       const scanType = params.scan_type || "system_scan";
-      // Delegate to existing scan handlers
-      const { summary } = await gatherSystemSnapshot(supabase);
-      return { executed: true, scan_type: scanType, summary: summary.substring(0, 500) };
+      if (scanType === "visual_qa") return await handleVisualQA(supabase, lovableKey);
+      if (scanType === "nav_scan") return await handleNavScan(supabase, lovableKey);
+      if (scanType === "bug_rescan") return await handleBugRescan(supabase, lovableKey);
+      if (scanType === "structure_analysis") return await handleStructureAnalysis(supabase, lovableKey);
+      if (scanType === "interaction_qa") return await handleInteractionQA(supabase, lovableKey);
+      if (scanType === "focused_scan") return await handleFocusedScan(supabase, lovableKey);
+      if (scanType === "ux_scan") return await handleUxScan(supabase, lovableKey);
+      if (scanType === "sync_scan") return await handleSyncScan(supabase, lovableKey);
+      if (scanType === "data_integrity") return await handleDataIntegrity(supabase);
+
+      // Default / system-level scan
+      return await handleSystemHealth(supabase, lovableKey);
+    }
+    case "run_double_pass": {
+      const context = params.context || "general";
+      return await handleDoublePass(supabase, lovableKey, context);
     }
     case "create_work_item": {
       const { data, error } = await supabase.from("work_items").insert({
@@ -5626,8 +5639,10 @@ async function executeLovaAction(supabase: any, lovableKey: string, args: any) {
     case "generate_lovable_prompt": {
       // Save to prompt_queue so it shows in Lova Prompts tab
       const promptTitle = (params.title || "Kodändring").substring(0, 200);
-      const promptImpl = params.prompt || params.description || "";
-      const promptGoal = params.goal || "";
+      const promptGoal = (params.goal || "").trim();
+      const rawPrompt = (params.prompt || params.description || "").trim();
+      const promptImpl = rawPrompt || `Implement the following change.\n\nTitle: ${promptTitle}\nGoal: ${promptGoal || "Improve functionality and user experience."}\n\nRequirements:\n1) Analyze existing implementation and root cause\n2) Implement robust fix with edge-case handling\n3) Validate UX and error states\n4) Ensure production-ready quality\n\nExpected result:\nA stable and maintainable implementation.`;
+
       const { error: pqErr } = await supabase.from("prompt_queue").insert({
         title: promptTitle,
         implementation: promptImpl,
@@ -5637,7 +5652,7 @@ async function executeLovaAction(supabase: any, lovableKey: string, args: any) {
         source_type: "ai_chat",
       });
       if (pqErr) throw new Error(pqErr.message);
-      return { queued: true, title: promptTitle };
+      return { queued: true, title: promptTitle, has_prompt_text: promptImpl.length > 0 };
     }
     case "query_data": {
       // Safe read-only queries
