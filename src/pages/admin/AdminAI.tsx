@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger, ScrollableTabs } from '@/comp
 import AiCenterTabs from '@/components/admin/AiCenterTabs';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
