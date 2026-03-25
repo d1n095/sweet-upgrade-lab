@@ -99,10 +99,11 @@ export const useDbCategories = (adminView = false) => {
           // Hide subcategories (with parent_id) from top-level display unless admin
           if (!adminView && c.parent_id) return false;
           if (adminView || c.slug === 'bestsaljare') return true;
+          // Use the DB UUID (c.id) to look up product counts — not the slug
           return (productCountMap[c.id] || 0) > 0;
         })
         .map((c: any) => ({
-          id: c.slug,
+          id: c.id,
           name: { sv: c.name_sv, en: c.name_en || c.name_sv },
           icon: resolveIcon(c.icon),
           slug: c.slug,
