@@ -106,7 +106,45 @@ const AdminBugReports = () => {
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load().then(() => {
+      // Auto-trigger AI enrichment for unprocessed bugs
+      autoEnrichBugs();
+    });
+  }, []);
+
+  const autoEnrichBugs = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    const { data: unprocessed } = await supabase
+      .from('bug_reports')
+      .select('id')
+      .is('ai_processed_at', null)
+      .eq('status', 'open')
+      .order('created_at', { ascending: false })
+      .limit(5);
+    if (!unprocessed?.length) return;
+    console.log(`[BugEnrich] Auto-processing ${unprocessed.length} bugs`);
+    for (const bug of unprocessed) {
+      try {
+        await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-bug-report`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({ bug_id: bug.id }),
+          }
+        );
+      } catch (e) {
+        console.warn(`[BugEnrich] Failed for ${bug.id}:`, e);
+      }
+    }
+    // Reload to show enriched data
+    load();
+  };
 
   const openBug = useCallback((id: string) => {
     setExpandedId(prev => {
