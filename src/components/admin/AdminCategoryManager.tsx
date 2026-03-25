@@ -44,6 +44,8 @@ const AdminCategoryManager = () => {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [form, setForm] = useState({ name_sv: '', name_en: '', slug: '', icon: 'Tag', parent_id: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [aiSyncing, setAiSyncing] = useState(false);
+  const [aiResult, setAiResult] = useState<any>(null);
 
   const { data: categories = [], isLoading } = useQuery({
     queryKey: ['admin-categories'],
