@@ -21,6 +21,7 @@ import { useNavigate } from 'react-router-dom';
 import { useScannerStore, SCAN_STEPS } from '@/stores/scannerStore';
 import type { ScanStepResult } from '@/stores/scannerStore';
 import AdminAiReadLog from '@/components/admin/AdminAiReadLog';
+import AiQueueControl from '@/components/admin/AiQueueControl';
 
 // Context to allow any tab to open a work item detail view
 const DetailContext = createContext<{
@@ -6855,6 +6856,7 @@ const OrchestrationTab = () => {
         <div data-value="focused-scan"><FocusedScanTab /></div>
         <div data-value="sync-scan"><SyncScannerTab /></div>
         <div data-value="interaction-qa"><InteractionQATab /></div>
+        <div data-value="queue-control"><AiQueueControl /></div>
         <div data-value="data-health"><DataHealthTab /></div>
         <div data-value="health"><SystemHealthTab /></div>
         <div data-value="data-integrity"><DataIntegrityTab /></div>
