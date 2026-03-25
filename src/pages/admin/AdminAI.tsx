@@ -6515,6 +6515,9 @@ const AccessControlTab = () => {
   const [fixing, setFixing] = useState<string | null>(null);
   const [autoFixing, setAutoFixing] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const [validating, setValidating] = useState(false);
+  const [flowResult, setFlowResult] = useState<any>(null);
+  const [flowFilter, setFlowFilter] = useState<string>('all');
 
   const getSession = async () => {
     const { data: { session } } = await supabase.auth.getSession();
