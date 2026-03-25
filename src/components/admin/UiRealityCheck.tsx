@@ -7,13 +7,14 @@ import { Progress } from '@/components/ui/progress';
 import {
   Activity, AlertTriangle, CheckCircle, XCircle, Loader2,
   Play, Trash2, MousePointer, Database, Layers, ScrollText,
-  ChevronDown, ChevronUp, Eye, Ghost,
+  ChevronDown, ChevronUp, Eye, Ghost, Wrench,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
-type CheckVerdict = 'working' | 'fake_done' | 'partially_working' | 'broken';
+type CheckVerdict = 'working' | 'fake_done' | 'partially_working' | 'broken' | 'auto_fixed';
 type CheckCategory = 'buttons' | 'data' | 'modals' | 'scroll' | 'forms' | 'navigation' | 'layout';
+type LayoutFixType = 'no_scroll' | 'content_cut' | 'overflow_hidden_horiz' | 'modal_overflow' | 'modal_blocked_scroll' | null;
 
 interface UICheck {
   id: string;
@@ -23,12 +24,15 @@ interface UICheck {
   verdict: CheckVerdict;
   detail: string;
   checkedAt: string;
+  fixType?: LayoutFixType;
+  fixTarget?: HTMLElement;
 }
 
 type ScanStatus = 'idle' | 'running' | 'done';
 
 const verdictConfig: Record<CheckVerdict, { label: string; color: string; icon: React.ElementType }> = {
   working: { label: 'Fungerar', color: 'text-green-500', icon: CheckCircle },
+  auto_fixed: { label: 'Auto-fixad', color: 'text-blue-500', icon: Wrench },
   fake_done: { label: 'Fejkad', color: 'text-purple-500', icon: Ghost },
   partially_working: { label: 'Delvis', color: 'text-orange-500', icon: AlertTriangle },
   broken: { label: 'Trasig', color: 'text-destructive', icon: XCircle },
@@ -44,16 +48,18 @@ const categoryConfig: Record<CheckCategory, { label: string; icon: React.Element
   layout: { label: 'Layout', icon: Layers },
 };
 
-const CheckCard = ({ check }: { check: UICheck }) => {
+const CheckCard = ({ check, onFix }: { check: UICheck; onFix?: (check: UICheck) => void }) => {
   const [expanded, setExpanded] = useState(false);
   const v = verdictConfig[check.verdict];
   const c = categoryConfig[check.category];
   const VIcon = v.icon;
+  const canFix = check.fixType && check.fixTarget && check.verdict !== 'auto_fixed' && check.verdict !== 'working';
 
   return (
     <div className={cn(
       'border rounded-lg p-3 space-y-1',
       check.verdict === 'working' ? 'border-green-500/20 bg-green-500/5' :
+      check.verdict === 'auto_fixed' ? 'border-blue-500/20 bg-blue-500/5' :
       check.verdict === 'fake_done' ? 'border-purple-500/30 bg-purple-500/5' :
       check.verdict === 'partially_working' ? 'border-orange-500/30 bg-orange-500/5' :
       'border-destructive/30 bg-destructive/5'
@@ -65,6 +71,16 @@ const CheckCard = ({ check }: { check: UICheck }) => {
             <span className="text-sm font-medium truncate">{check.element}</span>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
+            {canFix && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-5 px-1.5 text-[10px] gap-0.5"
+                onClick={(e) => { e.stopPropagation(); onFix?.(check); }}
+              >
+                <Wrench className="w-2.5 h-2.5" />Fixa
+              </Button>
+            )}
             <Badge variant="outline" className="text-[10px]">
               <c.icon className="w-2.5 h-2.5 mr-0.5" />{c.label}
             </Badge>
