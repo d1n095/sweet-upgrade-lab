@@ -425,12 +425,9 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
             <div>
               {React.Children.map(children, child => {
                 if (!React.isValidElement(child)) return null;
-                const isActive = child.props.value === activeTab;
-                return (
-                  <div className={isActive ? 'block' : 'hidden'}>
-                    {isActive ? child : null}
-                  </div>
-                );
+                const value = child.props['data-value'] || child.props.value;
+                const isActive = value === activeTab;
+                return isActive ? <div>{child}</div> : null;
               })}
             </div>
           )}
