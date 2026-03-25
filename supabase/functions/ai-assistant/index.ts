@@ -205,6 +205,11 @@ serve(async (req) => {
         break;
       }
 
+      case "category_validate": {
+        result = await handleCategoryValidate(supabase, lovableKey);
+        break;
+      }
+
       default:
         return new Response(JSON.stringify({ error: "Unknown type" }), { status: 400, headers: corsHeaders });
     }
@@ -3784,5 +3789,120 @@ Regler:
     already_exists: skipped.filter((s: any) => s.skip_reason === "already_exists"),
     total_products_analyzed: products.length,
     total_categories: existingCats.length,
+  };
+}
+
+// ── AI Category Validation & Cleanup ──
+async function handleCategoryValidate(supabase: any, _lovableKey: string) {
+  const [catRes, pcRes] = await Promise.all([
+    supabase.from("categories").select("id, name_sv, name_en, slug, parent_id, icon, display_order, is_visible"),
+    supabase.from("product_categories").select("category_id, product_id"),
+  ]);
+
+  const categories = catRes.data || [];
+  const productCategories = pcRes.data || [];
+
+  // Build product count per category
+  const countMap: Record<string, number> = {};
+  for (const pc of productCategories) {
+    countMap[pc.category_id] = (countMap[pc.category_id] || 0) + 1;
+  }
+
+  const catIds = new Set(categories.map((c: any) => c.id));
+  const issues: any[] = [];
+  const autoFixed: any[] = [];
+
+  // 1. Empty visible categories
+  for (const cat of categories) {
+    if ((countMap[cat.id] || 0) === 0 && cat.is_visible) {
+      issues.push({ type: "empty", category: cat.name_sv, slug: cat.slug, id: cat.id, severity: "medium" });
+    }
+  }
+
+  // 2. Duplicate slugs
+  const slugCount: Record<string, any[]> = {};
+  for (const cat of categories) {
+    (slugCount[cat.slug] = slugCount[cat.slug] || []).push(cat);
+  }
+  for (const [slug, cats] of Object.entries(slugCount)) {
+    if (cats.length > 1) {
+      issues.push({ type: "duplicate_slug", slug, count: cats.length, ids: cats.map((c: any) => c.id), severity: "high" });
+    }
+  }
+
+  // 3. Duplicate names
+  const nameCount: Record<string, any[]> = {};
+  for (const cat of categories) {
+    const key = cat.name_sv.toLowerCase().trim();
+    (nameCount[key] = nameCount[key] || []).push(cat);
+  }
+  for (const [name, cats] of Object.entries(nameCount)) {
+    if (cats.length > 1) {
+      issues.push({ type: "duplicate_name", name, count: cats.length, ids: cats.map((c: any) => c.id), severity: "high" });
+    }
+  }
+
+  // 4. Broken parent references
+  for (const cat of categories) {
+    if (cat.parent_id && !catIds.has(cat.parent_id)) {
+      issues.push({ type: "orphan_parent", category: cat.name_sv, slug: cat.slug, id: cat.id, severity: "high" });
+    }
+  }
+
+  // 5. Orphan product_category links
+  const orphanPcCatIds = new Set<string>();
+  for (const pc of productCategories) {
+    if (!catIds.has(pc.category_id)) orphanPcCatIds.add(pc.category_id);
+  }
+  if (orphanPcCatIds.size > 0) {
+    issues.push({ type: "orphan_product_links", missing_category_ids: [...orphanPcCatIds], count: orphanPcCatIds.size, severity: "high" });
+  }
+
+  // Auto-fix: hide empty visible categories
+  for (const issue of issues) {
+    if (issue.type === "empty") {
+      const { error } = await supabase.from("categories").update({ is_visible: false }).eq("id", issue.id);
+      if (!error) autoFixed.push({ action: "hidden_empty", category: issue.category, slug: issue.slug });
+    }
+  }
+
+  // Auto-fix: clear broken parent refs
+  for (const issue of issues) {
+    if (issue.type === "orphan_parent") {
+      const { error } = await supabase.from("categories").update({ parent_id: null }).eq("id", issue.id);
+      if (!error) autoFixed.push({ action: "cleared_broken_parent", category: issue.category, slug: issue.slug });
+    }
+  }
+
+  // Auto-fix: remove orphan product_category links
+  if (orphanPcCatIds.size > 0) {
+    const { error } = await supabase.from("product_categories").delete().in("category_id", [...orphanPcCatIds]);
+    if (!error) autoFixed.push({ action: "removed_orphan_links", count: orphanPcCatIds.size });
+  }
+
+  // Create tasks for duplicates (need manual review)
+  const tasksCreated: any[] = [];
+  for (const dup of issues.filter((i: any) => i.type === "duplicate_slug" || i.type === "duplicate_name")) {
+    const title = dup.type === "duplicate_slug"
+      ? `Duplicerad kategori-slug: ${dup.slug}`
+      : `Duplicerat kategorinamn: ${dup.name}`;
+    const { data: wi, error: wiErr } = await supabase.from("work_items").insert({
+      title,
+      description: `AI hittade ${dup.count} kategorier med samma ${dup.type === "duplicate_slug" ? "slug" : "namn"}. Manuell granskning krävs.`,
+      status: "open",
+      priority: "high",
+      item_type: "content_mismatch",
+      source_type: "ai_category_validate",
+    }).select("id").single();
+    if (!wiErr && wi) tasksCreated.push({ id: wi.id, title });
+  }
+
+  return {
+    total_categories: categories.length,
+    total_product_links: productCategories.length,
+    issues_found: issues.length,
+    issues,
+    auto_fixed: autoFixed,
+    tasks_created: tasksCreated,
   };
 }
