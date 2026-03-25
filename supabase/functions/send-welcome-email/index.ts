@@ -132,7 +132,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log(`Sending welcome email to: ${email} (language: ${language})`);
+    console.log(`[send-welcome-email] Sending (language: ${language})`);
 
     // Fetch template from database
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
