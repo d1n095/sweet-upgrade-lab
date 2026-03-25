@@ -4745,23 +4745,25 @@ const AiAutopilotTab = () => {
         <CardContent className="space-y-3">
           {scanMode === 'orchestrated' ? (
             <>
-              <p className="text-[10px] text-muted-foreground">Körs på servern — du kan navigera bort, logga ut eller stänga fliken. Synkad mellan alla med åtkomst.</p>
-              <Button onClick={() => orchestrator.runOrchestrated(queryClient)} disabled={isAnyScanRunning} className="w-full gap-2" size="lg">
-                {orchestrator.running ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-                {orchestrator.running
-                  ? `${orchCurrentStep?.progressLabel || 'Kör...'} (${orchCompleted + orchErrors}/${orchestrator.steps.length})`
-                  : 'Kör Full Orchestrated Scan (10 steg)'}
-              </Button>
-              {orchestrator.running && orchestrator.steps.length > 0 && (
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground truncate max-w-[60%]">{orchCurrentStep?.progressLabel || 'Väntar...'}</span>
-                    <span className="font-bold text-primary">{orchPct}%</span>
-                  </div>
-                  <Progress value={orchPct} className="h-2.5" />
-                  <p className="text-[10px] text-muted-foreground text-center">{orchCompleted + orchErrors} av {orchestrator.steps.length} klara — körs på servern 🖥️</p>
-                </div>
-              )}
+               <p className="text-[10px] text-muted-foreground">Adaptiv rekursiv skanning — lär sig mönster och djupskannar högriskområden (max 3 iterationer). Körs på servern.</p>
+               <Button onClick={() => orchestrator.runOrchestrated(queryClient)} disabled={isAnyScanRunning} className="w-full gap-2" size="lg">
+                 {orchestrator.running ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                 {orchestrator.running
+                   ? `${orchestrator.currentStepLabel || orchCurrentStep?.progressLabel || 'Kör...'}`
+                   : 'Kör Adaptiv Full Scan'}
+               </Button>
+               {orchestrator.running && orchestrator.steps.length > 0 && (
+                 <div className="space-y-1.5">
+                   <div className="flex items-center justify-between text-xs">
+                     <span className="text-muted-foreground truncate max-w-[60%]">{orchestrator.currentStepLabel || orchCurrentStep?.progressLabel || 'Väntar...'}</span>
+                     <span className="font-bold text-primary">{orchPct}%</span>
+                   </div>
+                   <Progress value={orchPct} className="h-2.5" />
+                   <p className="text-[10px] text-muted-foreground text-center">
+                     Iteration {orchestrator.currentIteration}/3 — {orchCompleted + orchErrors} av {orchestrator.steps.length} klara 🖥️
+                   </p>
+                 </div>
+               )}
             </>
           ) : (
             <>
