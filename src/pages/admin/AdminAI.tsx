@@ -4832,6 +4832,32 @@ const AiAutopilotTab = () => {
                 <span>📊 {orchestrator.unifiedResult.data_issues.length} data issues</span>
               </div>
             )}
+            {/* Adaptive scan metadata */}
+            {orchestrator.unifiedResult?.adaptive_scan && (
+              <div className="mt-2 p-2 rounded-lg bg-muted/40 border border-border">
+                <div className="flex items-center gap-2 mb-1">
+                  <Layers className="w-3 h-3 text-primary" />
+                  <span className="text-[10px] font-semibold">Adaptiv skanning</span>
+                </div>
+                <div className="flex gap-3 text-[10px] text-muted-foreground flex-wrap">
+                  <span>🔄 {orchestrator.unifiedResult.adaptive_scan.iterations} iterationer</span>
+                  <span>🔍 {orchestrator.unifiedResult.adaptive_scan.new_issues_found} nya problem</span>
+                  <span>🧠 {orchestrator.unifiedResult.adaptive_scan.pattern_discoveries.length} mönster</span>
+                  <span>⚠️ {orchestrator.unifiedResult.adaptive_scan.high_risk_areas.length} högrisk</span>
+                  <span>📈 {orchestrator.unifiedResult.adaptive_scan.coverage_score}% täckning</span>
+                </div>
+                {orchestrator.unifiedResult.adaptive_scan.high_risk_areas.length > 0 && (
+                  <div className="mt-1.5 space-y-0.5">
+                    <span className="text-[9px] font-medium text-destructive">Högriskområden:</span>
+                    {orchestrator.unifiedResult.adaptive_scan.high_risk_areas.slice(0, 5).map((area: any, i: number) => (
+                      <div key={i} className="text-[9px] text-muted-foreground ml-2">
+                        • {area.component} ({area.issue_count} problem, {area.risk_level})
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </CardHeader>
           <CardContent>
             {/* Unified blocker highlight */}
