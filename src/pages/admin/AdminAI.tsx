@@ -1243,6 +1243,9 @@ const SystemScanTab = () => {
       {/* Score Comparison */}
       {renderScoreComparison()}
 
+      {/* Trend Analysis */}
+      <TrendAnalysisPanel />
+
       {scanResult && (
         <div className="space-y-4">
           {/* Score + Summary */}
