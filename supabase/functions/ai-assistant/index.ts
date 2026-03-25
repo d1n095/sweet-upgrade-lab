@@ -5604,20 +5604,20 @@ async function executeLovaAction(supabase: any, lovableKey: string, args: any) {
       return { orphan_categories: orphanCats.data?.length || 0, products_without_price: emptyProds.data?.length || 0 };
     }
     case "generate_lovable_prompt": {
-      // Save to prompt queue
-      const { error } = await supabase.from("work_items").insert({
-        title: `Lovable: ${(params.title || "Kodändring").substring(0, 180)}`,
-        description: params.prompt || params.description || "",
-        status: "open",
+      // Save to prompt_queue so it shows in Lova Prompts tab
+      const promptTitle = (params.title || "Kodändring").substring(0, 200);
+      const promptImpl = params.prompt || params.description || "";
+      const promptGoal = params.goal || "";
+      const { error: pqErr } = await supabase.from("prompt_queue").insert({
+        title: promptTitle,
+        implementation: promptImpl,
+        goal: promptGoal,
         priority: params.priority || "medium",
-        item_type: "lovable_prompt",
+        status: "pending",
         source_type: "ai_chat",
-        ai_detected: true,
-        ai_confidence: "high",
-        ai_category: "code_change",
       });
-      if (error) throw new Error(error.message);
-      return { queued: true, title: params.title };
+      if (pqErr) throw new Error(pqErr.message);
+      return { queued: true, title: promptTitle };
     }
     case "query_data": {
       // Safe read-only queries
