@@ -155,6 +155,19 @@ const AdminBugReports = () => {
             }
           : r
       ));
+      // Store extended diagnostics
+      if (result.root_causes || result.fix_suggestions) {
+        setDiagnostics(prev => ({
+          ...prev,
+          [bugId]: {
+            root_causes: result.root_causes || [],
+            is_reproducible: result.is_reproducible,
+            reproducibility_reasoning: result.reproducibility_reasoning,
+            fix_suggestions: result.fix_suggestions || [],
+            affected_components: result.affected_components || [],
+          },
+        }));
+      }
       toast.success('AI-analys klar ✓');
     } catch {
       toast.error('Något gick fel');
