@@ -4846,6 +4846,9 @@ const AiAutopilotTab = () => {
                   <span>🔗 {orchestrator.unifiedResult.adaptive_scan.systemic_issues?.length || 0} systemiska</span>
                   <span>⚠️ {orchestrator.unifiedResult.adaptive_scan.high_risk_areas.length} högrisk</span>
                   <span>📈 {orchestrator.unifiedResult.adaptive_scan.coverage_score}% täckning</span>
+                  {(orchestrator.unifiedResult.adaptive_scan.predictions?.length || 0) > 0 && (
+                    <span>🔮 {orchestrator.unifiedResult.adaptive_scan.predictions!.length} förutsägelser</span>
+                  )}
                 </div>
                 {/* Systemic issues — cross-pattern detection */}
                 {(orchestrator.unifiedResult.adaptive_scan.systemic_issues?.length || 0) > 0 && (
