@@ -477,9 +477,15 @@ const LovaPromptsTab = () => {
                 </div>
               </CardHeader>
               <CardContent className="px-4 pb-3 pt-0">
-                <div className="bg-muted/50 rounded-lg p-3 text-xs font-mono whitespace-pre-wrap max-h-[200px] overflow-y-auto border border-border/50">
-                  {p.implementation}
-                </div>
+                {(p.implementation || p.goal || p.title) ? (
+                  <div className="bg-muted/50 rounded-lg p-3 text-xs font-mono whitespace-pre-wrap max-h-[200px] overflow-y-auto border border-border/50">
+                    {p.implementation || p.goal || p.title}
+                  </div>
+                ) : (
+                  <div className="bg-destructive/10 rounded-lg p-3 text-xs text-destructive border border-destructive/20">
+                    ⚠️ Tom prompt — Lova skickade ingen implementation-text
+                  </div>
+                )}
                 <div className="flex items-center justify-between mt-2">
                   <span className="text-[10px] text-muted-foreground">
                     {new Date(p.created_at).toLocaleString('sv-SE')}

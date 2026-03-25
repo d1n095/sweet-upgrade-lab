@@ -5426,7 +5426,7 @@ DU KAN GÖRA (via execute_action-verktyget):
 - update_work_item: Uppdatera befintliga uppgifter
 - run_cleanup: Städa upp orphan-data
 - run_data_integrity: Kontrollera dataintegritet
-- generate_lovable_prompt: Generera kodändringsprompts (sparas i kö)
+- generate_lovable_prompt: Generera kodändringsprompts (sparas i kö). VIKTIGT: Du MÅSTE alltid inkludera params.title (kort rubrik), params.prompt (fullständig, detaljerad prompt-text på engelska med steg, mål, och förväntat resultat), och params.goal (kort mål). Prompten måste vara komplett och användbar direkt i Lovable.
 - query_data: Fråga databasen (orders, products, profiles, work_items, bug_reports, donations, analytics_events)
 
 DU KAN INTE GÖRA (kräver kodändring via Lovable):
@@ -5468,7 +5468,7 @@ ${openBugs.map((b: any) => `[${b.ai_severity || "?"}] ${b.ai_summary || b.descri
           type: "function",
           function: {
             name: "execute_action",
-            description: "Execute a database action or trigger a scan/fix",
+            description: "Execute a database action or trigger a scan/fix. For generate_lovable_prompt: params MUST include 'title' (short name), 'prompt' (full detailed implementation prompt in English with steps, goal, expected result - at least 100 chars), and 'goal' (one-line goal).",
             parameters: {
               type: "object",
               properties: {
@@ -5479,10 +5479,10 @@ ${openBugs.map((b: any) => `[${b.ai_severity || "?"}] ${b.ai_summary || b.descri
                 },
                 params: {
                   type: "object",
-                  description: "Parameters for the action",
+                  description: "Parameters for the action. For generate_lovable_prompt: { title: string, prompt: string (full detailed prompt, min 100 chars), goal: string }. For create_work_item: { title, description, priority }.",
                 },
               },
-              required: ["action_type"],
+              required: ["action_type", "params"],
             },
           },
         },
