@@ -339,23 +339,23 @@ const LovaChatTab = () => {
             </div>
           </div>
         ) : (
-          <div className="flex flex-col-reverse gap-4">
-            {/* Follow-up suggestions - appears at top visually (rendered first in reverse) */}
-            {messages.length > 0 && !sending && (
-              <div className="flex flex-wrap gap-1.5 pt-3 border-t border-border/50">
-                {['📊 Analysera mer', '🔍 Skanna systemet', '🧹 Kör cleanup', '💡 Ge förslag'].map(q => (
-                  <Button key={q} variant="ghost" size="sm" className="text-xs h-7" onClick={() => sendMessage(q)}>
-                    {q}
-                  </Button>
-                ))}
-              </div>
-            )}
+          <div className="flex flex-col gap-4">
             {sending && (
               <div className="flex justify-start">
                 <div className="bg-muted rounded-xl px-4 py-2.5 flex items-center gap-2">
                   <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
                   <span className="text-sm text-muted-foreground">Lova tänker...</span>
                 </div>
+              </div>
+            )}
+            {/* Follow-up suggestions at top */}
+            {messages.length > 0 && !sending && (
+              <div className="flex flex-wrap gap-1.5 pb-2 border-b border-border/50">
+                {['📊 Analysera mer', '🔍 Skanna systemet', '🧹 Kör cleanup', '💡 Ge förslag'].map(q => (
+                  <Button key={q} variant="ghost" size="sm" className="text-xs h-7" onClick={() => sendMessage(q)}>
+                    {q}
+                  </Button>
+                ))}
               </div>
             )}
             {[...messages].reverse().map((msg) => (
