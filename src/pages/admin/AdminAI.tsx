@@ -3832,18 +3832,22 @@ Förslag: ${issue.fix_suggestion}`,
   const createTaskFromIssue = async (issue: QAIssue, idx: number) => {
     const state = getState(idx);
     try {
-      const { error } = await supabase.from('work_items' as any).insert({
+      const dedupResult = await createWorkItemWithDedup({
         title: `[Visual QA] ${issue.title}`,
         description: `${issue.description}\n\nSida: ${issue.page}\nBreakpoint: ${issue.breakpoint}\nFix: ${issue.fix_suggestion}${state.aiAnalysis ? `\n\nAI Root Cause: ${state.aiAnalysis.root_cause}\nAuto-fixable: ${state.aiAnalysis.auto_fixable ? 'Ja' : 'Nej'}\nSteg:\n${state.aiAnalysis.fix_steps.map((s, i) => `${i + 1}. ${s}`).join('\n')}` : ''}`,
         item_type: 'bug',
         priority: issue.severity === 'critical' ? 'critical' : issue.severity === 'high' ? 'high' : 'medium',
-        status: 'open',
         source_type: 'ai_visual_qa',
         source_id: scanMeta?.id || null,
-      } as any);
-      if (error) throw error;
-      setIssueStatus(idx, 'done');
-      toast.success(`Uppgift skapad: ${issue.title}`);
+      });
+      if (dedupResult.duplicate) {
+        toast.info(`Ärende finns redan i masterlistan`);
+      } else if (dedupResult.created) {
+        setIssueStatus(idx, 'done');
+        toast.success(`Uppgift skapad: ${issue.title}`);
+      } else {
+        toast.error(dedupResult.error || 'Kunde inte skapa uppgift');
+      }
     } catch {
       toast.error('Kunde inte skapa uppgift');
     }
