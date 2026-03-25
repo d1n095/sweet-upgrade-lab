@@ -263,7 +263,73 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
       {/* Mobile bottom bar */}
       <div className="lg:hidden sticky bottom-0 z-40 md:relative md:z-auto md:bottom-auto">
         <div className="md:hidden bg-card border-t border-border px-2 py-1.5 flex items-center justify-between safe-area-inset-bottom">
-...
+          <Button variant="ghost" size="sm" className="gap-1.5 text-xs h-9" onClick={() => setMobileNavOpen(true)}>
+            <Menu className="w-4 h-4" />
+            <span className="max-w-[120px] truncate">{activeTabDef?.label || 'Dashboard'}</span>
+          </Button>
+          <div className="flex items-center gap-1">
+            {quickActions.slice(0, 3).map(a => (
+              <Button
+                key={a.tab}
+                variant={activeTab === a.tab ? 'secondary' : 'ghost'}
+                size="icon"
+                className="h-9 w-9"
+                onClick={() => handleNavigate(a.tab)}
+              >
+                <a.icon className={cn('w-4 h-4', activeTab === a.tab ? 'text-primary' : 'text-muted-foreground')} />
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        {/* Tablet top bar */}
+        <div className="hidden md:flex lg:hidden items-center gap-2 px-4 py-2 border-b border-border bg-card/50 overflow-x-auto scrollbar-hide">
+          <Button
+            variant={activeTab === 'ai-dashboard' ? 'secondary' : 'ghost'}
+            size="sm"
+            className="gap-1.5 text-xs shrink-0 h-8"
+            onClick={() => handleNavigate('ai-dashboard')}
+          >
+            <Activity className="w-3.5 h-3.5" />
+            Dashboard
+          </Button>
+          {TAB_GROUPS.filter(g => g.id !== 'dashboard').map(group => (
+            <Button
+              key={group.id}
+              variant={group.tabs.some(t => t.value === activeTab) ? 'secondary' : 'ghost'}
+              size="sm"
+              className="gap-1.5 text-xs h-8 shrink-0"
+              onClick={() => {
+                setExpandedGroup(expandedGroup === group.id ? null : group.id);
+                if (!group.tabs.some(t => t.value === activeTab)) {
+                  handleNavigate(group.tabs[0].value);
+                }
+              }}
+            >
+              <group.icon className="w-3.5 h-3.5" />
+              {group.label}
+              <ChevronRight className={cn('w-3 h-3 transition-transform', expandedGroup === group.id && 'rotate-90')} />
+            </Button>
+          ))}
+        </div>
+        {expandedGroup && (
+          <div className="hidden md:flex lg:hidden items-center gap-1 px-4 py-1.5 border-b border-border/50 bg-muted/30 overflow-x-auto scrollbar-hide">
+            {TAB_GROUPS.find(g => g.id === expandedGroup)?.tabs.map(tab => (
+              <Button
+                key={tab.value}
+                variant={activeTab === tab.value ? 'secondary' : 'ghost'}
+                size="sm"
+                className="gap-1 text-[11px] h-7 shrink-0"
+                onClick={() => handleNavigate(tab.value)}
+              >
+                <tab.icon className="w-3 h-3" />
+                {tab.label}
+              </Button>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Main Content */}
       <div className="flex-1 min-w-0 min-h-0 flex flex-col px-4 md:px-8 pb-4">
         {activeTab !== 'ai-dashboard' && activeTabDef && (
