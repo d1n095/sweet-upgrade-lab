@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, createContext, useContext, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Sparkles, Bug, BarChart3, Copy, Loader2, Send, AlertTriangle, Lightbulb, Info, RefreshCw, Bot, CheckCircle, XCircle, Shield, Clock, Zap, Activity, TrendingUp, Package, AlertCircle, Database, Wrench, Radar, ArrowRight, Layers, Monitor, Smartphone, Tablet, Eye, Compass, LayoutGrid, GitMerge, ArrowRightLeft, ShieldCheck, Play, Settings2, ToggleRight, Maximize2, Gavel, ChevronDown } from 'lucide-react';
+import { Sparkles, Bug, BarChart3, Copy, Loader2, Send, AlertTriangle, Lightbulb, Info, RefreshCw, Bot, CheckCircle, XCircle, Shield, Clock, Zap, Activity, TrendingUp, Package, AlertCircle, Database, Wrench, Radar, ArrowRight, Layers, Monitor, Smartphone, Tablet, Eye, Compass, LayoutGrid, GitMerge, ArrowRightLeft, ShieldCheck, Play, Settings2, ToggleRight, Maximize2, Gavel, ChevronDown, History } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger, ScrollableTabs } from '@/components/ui/tabs';
 import AiCenterTabs from '@/components/admin/AiCenterTabs';
 import { Button } from '@/components/ui/button';
@@ -3504,8 +3504,29 @@ const VisualQATab = () => {
   const [ignoreNote, setIgnoreNote] = useState('');
   const [scanMeta, setScanMeta] = useState<{ id: string; created_at: string } | null>(null);
   const [triaging, setTriaging] = useState(false);
+  const [scanHistory, setScanHistory] = useState<{ id: string; created_at: string; overall_ui_score: number; issues_count: number; executive_summary: string }[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [compareScanId, setCompareScanId] = useState<string | null>(null);
+  const [compareResult, setCompareResult] = useState<VisualQAResult | null>(null);
 
-  // Load last scan on mount
+  const loadHistory = async () => {
+    const { data } = await (supabase.from('ai_scan_results') as any)
+      .select('id, results, created_at, overall_score, issues_count, executive_summary')
+      .eq('scan_type', 'visual_qa')
+      .order('created_at', { ascending: false })
+      .limit(20);
+    if (data) {
+      setScanHistory(data.map((d: any) => ({
+        id: d.id,
+        created_at: d.created_at,
+        overall_ui_score: d.results?.overall_ui_score || d.overall_score || 0,
+        issues_count: d.results?.issues?.length || d.issues_count || 0,
+        executive_summary: d.executive_summary || d.results?.executive_summary || '',
+      })));
+    }
+  };
+
+  // Load last scan + history on mount
   useEffect(() => {
     (supabase.from('ai_scan_results') as any)
       .select('id, results, created_at')
@@ -3518,25 +3539,55 @@ const VisualQATab = () => {
           setScanMeta({ id: data[0].id, created_at: data[0].created_at });
         }
       });
+    loadHistory();
   }, []);
 
   const run = async () => {
     setLoading(true);
     setIssueStates({});
     setExpandedIdx(null);
+    setCompareScanId(null);
+    setCompareResult(null);
     const r = await callAI('visual_qa');
     if (r) {
       setResult(r);
       toast.success(`QA klar – ${r.issues?.length || 0} problem`);
-      // Reload scan meta
       const { data } = await (supabase.from('ai_scan_results') as any)
         .select('id, created_at')
         .eq('scan_type', 'visual_qa')
         .order('created_at', { ascending: false })
         .limit(1);
       if (data?.[0]) setScanMeta({ id: data[0].id, created_at: data[0].created_at });
+      await loadHistory();
     }
     setLoading(false);
+  };
+
+  const loadScan = async (scanId: string) => {
+    const { data } = await (supabase.from('ai_scan_results') as any)
+      .select('id, results, created_at')
+      .eq('id', scanId)
+      .single();
+    if (data) {
+      setResult(data.results);
+      setScanMeta({ id: data.id, created_at: data.created_at });
+      setIssueStates({});
+      setExpandedIdx(null);
+      setShowHistory(false);
+      toast.success('Skanning laddad');
+    }
+  };
+
+  const loadCompare = async (scanId: string) => {
+    if (compareScanId === scanId) { setCompareScanId(null); setCompareResult(null); return; }
+    const { data } = await (supabase.from('ai_scan_results') as any)
+      .select('id, results')
+      .eq('id', scanId)
+      .single();
+    if (data) {
+      setCompareScanId(scanId);
+      setCompareResult(data.results);
+    }
   };
 
   const getState = (idx: number): IssueState => issueStates[idx] || { status: 'open', updatedAt: '' };
@@ -3701,7 +3752,7 @@ Förslag: ${issue.fix_suggestion}`,
             {scanMeta && <span className="ml-2 text-[10px] text-muted-foreground/60">Senast: {new Date(scanMeta.created_at).toLocaleString('sv-SE')}</span>}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button onClick={run} disabled={loading || triaging} className="gap-2">
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Radar className="w-4 h-4" />}
             {loading ? 'Analyserar...' : 'Kör Visual QA'}
@@ -3712,14 +3763,110 @@ Förslag: ${issue.fix_suggestion}`,
               {triaging ? 'Triagerar...' : 'Smart Triage'}
             </Button>
           )}
+          {scanHistory.length > 0 && (
+            <Button onClick={() => setShowHistory(!showHistory)} variant="ghost" className="gap-2">
+              <History className="w-4 h-4" />
+              Historik ({scanHistory.length})
+            </Button>
+          )}
         </div>
       </div>
+
+      {/* Scan History Panel */}
+      {showHistory && scanHistory.length > 0 && (
+        <Card className="p-4">
+          <h3 className="font-semibold text-sm mb-3 flex items-center gap-2"><History className="w-4 h-4" /> Skanningshistorik</h3>
+          <div className="max-h-[300px] overflow-y-auto space-y-1.5">
+            {scanHistory.map((scan, i) => {
+              const isCurrent = scanMeta?.id === scan.id;
+              const isComparing = compareScanId === scan.id;
+              return (
+                <div key={scan.id} className={cn(
+                  'flex items-center gap-3 p-2.5 rounded-lg border text-xs transition-colors',
+                  isCurrent && 'border-primary/40 bg-primary/5',
+                  isComparing && 'border-accent bg-accent/10',
+                  !isCurrent && !isComparing && 'hover:bg-secondary/30',
+                )}>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{new Date(scan.created_at).toLocaleString('sv-SE')}</span>
+                      {isCurrent && <Badge variant="default" className="text-[9px]">Aktiv</Badge>}
+                      {i === 0 && !isCurrent && <Badge variant="outline" className="text-[9px]">Senaste</Badge>}
+                    </div>
+                    <div className="flex items-center gap-3 mt-0.5 text-muted-foreground">
+                      <span className={cn('font-bold', scan.overall_ui_score >= 80 ? 'text-green-600' : scan.overall_ui_score >= 50 ? 'text-yellow-500' : 'text-destructive')}>
+                        {scan.overall_ui_score}/100
+                      </span>
+                      <span>{scan.issues_count} problem</span>
+                      {scan.executive_summary && <span className="truncate max-w-[200px]">{scan.executive_summary}</span>}
+                    </div>
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    {!isCurrent && (
+                      <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => loadScan(scan.id)}>
+                        Visa
+                      </Button>
+                    )}
+                    {result && !isCurrent && (
+                      <Button variant={isComparing ? 'default' : 'outline'} size="sm" className="h-6 text-[10px] px-2" onClick={() => loadCompare(scan.id)}>
+                        {isComparing ? '✓ Jämför' : 'Jämför'}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+
+      {/* Comparison view */}
+      {compareResult && result && (
+        <Card className="p-4 border-accent">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-sm flex items-center gap-2">
+              <GitMerge className="w-4 h-4 text-accent-foreground" /> Jämförelse
+            </h3>
+            <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => { setCompareScanId(null); setCompareResult(null); }}>
+              <XCircle className="w-3 h-3 mr-1" /> Stäng
+            </Button>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            {([
+              { label: 'UI Total', current: result.overall_ui_score, prev: compareResult.overall_ui_score },
+              { label: 'Mobil', current: result.mobile_score, prev: compareResult.mobile_score },
+              { label: 'Desktop', current: result.desktop_score, prev: compareResult.desktop_score },
+              { label: 'Användbarhet', current: result.usability_score, prev: compareResult.usability_score },
+              { label: 'Problem', current: result.issues?.length || 0, prev: compareResult.issues?.length || 0 },
+            ]).map(c => {
+              const diff = c.current - c.prev;
+              const isIssueCount = c.label === 'Problem';
+              const improved = isIssueCount ? diff < 0 : diff > 0;
+              return (
+                <div key={c.label} className="rounded-lg border p-2 text-center">
+                  <p className="text-[10px] text-muted-foreground mb-1">{c.label}</p>
+                  <div className="flex items-center justify-center gap-1.5">
+                    <span className="text-muted-foreground text-sm">{c.prev}</span>
+                    <ArrowRight className="w-3 h-3 text-muted-foreground" />
+                    <span className="text-sm font-bold">{c.current}</span>
+                  </div>
+                  {diff !== 0 && (
+                    <span className={cn('text-[10px] font-medium', improved ? 'text-green-600' : 'text-destructive')}>
+                      {improved ? '▲' : '▼'} {Math.abs(diff)}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
 
       {!result && !loading && (
         <Card className="p-8 flex flex-col items-center justify-center text-center gap-3">
           <Monitor className="w-10 h-10 text-muted-foreground/40" />
           <h3 className="font-semibold text-muted-foreground">Ingen skanning har körts ännu</h3>
-          <p className="text-sm text-muted-foreground/70 max-w-md">Klicka på "Kör Visual QA" för att analysera alla sidor.</p>
+          <p className="text-sm text-muted-foreground/70 max-w-md">Klicka på &quot;Kör Visual QA&quot; för att analysera alla sidor.</p>
         </Card>
       )}
 
