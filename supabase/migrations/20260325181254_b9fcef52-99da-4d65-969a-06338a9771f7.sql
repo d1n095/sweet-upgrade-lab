@@ -1,0 +1,2 @@
+ALTER TABLE public.work_items ADD COLUMN IF NOT EXISTS issue_fingerprint text;
+CREATE INDEX IF NOT EXISTS idx_work_items_fingerprint ON public.work_items (issue_fingerprint) WHERE issue_fingerprint IS NOT NULL;
