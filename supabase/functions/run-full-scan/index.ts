@@ -38,12 +38,16 @@ async function getSystemStage(supabase: any): Promise<SystemStage> {
   }
 }
 
-// ── Issue Fingerprint: deterministic key for dedup ──
+// ── Issue Fingerprint: deterministic identity key ──
+// Combines component, type, location, and description pattern for persistent identity across scans.
 function generateFingerprint(issue: any): string {
   const component = (issue.component || issue.element || issue.table || issue.entity || issue.chain || "unknown").toLowerCase().replace(/[^a-z0-9]/g, "_").slice(0, 30);
   const type = (issue.type || issue.failure_type || issue.category || issue.item_type || issue._source || "general").toLowerCase().replace(/[^a-z0-9]/g, "_").slice(0, 20);
   const location = (issue.route || issue.page || issue.field || issue.step || "global").toLowerCase().replace(/[^a-z0-9]/g, "_").slice(0, 30);
-  return `${component}::${type}::${location}`;
+  // Extract a stable description pattern: first 40 chars of normalized description/title
+  const descRaw = (issue.description || issue.title || issue.fix_suggestion || "").toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();
+  const descPattern = descRaw.split(/\s+/).slice(0, 5).join("_").slice(0, 30);
+  return `${component}::${type}::${location}::${descPattern}`;
 }
 
 // ── Group similar issues by fingerprint prefix ──

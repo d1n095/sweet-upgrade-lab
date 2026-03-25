@@ -54,7 +54,7 @@ function titleToFingerprint(title: string): string {
     .slice(0, 80);
 }
 
-const ACTIVE_STATUSES = ['open', 'claimed', 'in_progress', 'escalated'];
+const ACTIVE_STATUSES = ['open', 'claimed', 'in_progress', 'escalated', 'new', 'pending', 'detected'];
 
 export async function createWorkItemWithDedup(payload: WorkItemPayload): Promise<DedupResult> {
   const title = payload.title || '';
