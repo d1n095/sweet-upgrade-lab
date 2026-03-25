@@ -2524,15 +2524,19 @@ Return a structured execution plan.`, [{
 }
 
 async function handleInteractionQA(supabase: any, apiKey: string) {
-  // Gather comprehensive data about UI interactions, routes, and state
-  const [workItemsRes, bugsRes, eventsRes, productsRes, ordersRes, pagesRes, incidentsRes] = await Promise.all([
+  // ── Interaction Integrity System ──
+  // Gather comprehensive data about UI interactions, routes, state, and change history
+  const [workItemsRes, bugsRes, eventsRes, productsRes, ordersRes, pagesRes, incidentsRes, changeLogRes, categoriesRes, bundlesRes] = await Promise.all([
     supabase.from("work_items").select("id, title, description, status, priority, item_type, ai_category, source_type, source_id, created_at").limit(200),
     supabase.from("bug_reports").select("id, description, page_url, status, ai_category, ai_severity, ai_summary, created_at").limit(100),
-    supabase.from("analytics_events").select("event_type, event_data, created_at").in("event_type", ["page_error", "checkout_abandon", "checkout_start", "checkout_complete", "product_view", "add_to_cart", "remove_from_cart", "button_click", "navigation"]).order("created_at", { ascending: false }).limit(1000),
-    supabase.from("products").select("id, title_sv, handle, is_visible, is_sellable, stock, price").eq("is_visible", true).limit(200),
-    supabase.from("orders").select("id, status, payment_status, created_at").is("deleted_at", null).order("created_at", { ascending: false }).limit(50),
-    supabase.from("page_sections").select("page, section_key, is_visible, title_sv").limit(200),
+    supabase.from("analytics_events").select("event_type, event_data, created_at").in("event_type", ["page_error", "checkout_abandon", "checkout_start", "checkout_complete", "product_view", "add_to_cart", "remove_from_cart", "button_click", "navigation", "form_submit", "modal_open", "tab_change"]).order("created_at", { ascending: false }).limit(1500),
+    supabase.from("products").select("id, title_sv, handle, is_visible, is_sellable, stock, price, status").eq("is_visible", true).limit(300),
+    supabase.from("orders").select("id, status, payment_status, fulfillment_status, delivery_status, created_at").is("deleted_at", null).order("created_at", { ascending: false }).limit(50),
+    supabase.from("page_sections").select("page, section_key, is_visible, title_sv").limit(300),
     supabase.from("order_incidents").select("id, title, status, type, order_id").in("status", ["open", "in_progress"]).limit(50),
+    supabase.from("change_log").select("id, description, change_type, affected_components, source, created_at").order("created_at", { ascending: false }).limit(50),
+    supabase.from("categories").select("id, name_sv, slug, is_visible, parent_id").limit(100),
+    supabase.from("bundles").select("id, name, is_active, discount_percent").eq("is_active", true).limit(50),
   ]);
 
   const workItems = workItemsRes.data || [];
@@ -2542,6 +2546,9 @@ async function handleInteractionQA(supabase: any, apiKey: string) {
   const orders = ordersRes.data || [];
   const pages = pagesRes.data || [];
   const incidents = incidentsRes.data || [];
+  const changeLog = changeLogRes.data || [];
+  const categories = categoriesRes.data || [];
+  const bundles = bundlesRes.data || [];
 
   // Compute interaction metrics
   const checkoutStarts = events.filter((e: any) => e.event_type === "checkout_start").length;
@@ -2550,6 +2557,10 @@ async function handleInteractionQA(supabase: any, apiKey: string) {
   const cartAdds = events.filter((e: any) => e.event_type === "add_to_cart").length;
   const cartRemoves = events.filter((e: any) => e.event_type === "remove_from_cart").length;
   const pageErrors = events.filter((e: any) => e.event_type === "page_error");
+  const buttonClicks = events.filter((e: any) => e.event_type === "button_click");
+  const formSubmits = events.filter((e: any) => e.event_type === "form_submit");
+  const modalOpens = events.filter((e: any) => e.event_type === "modal_open");
+  const tabChanges = events.filter((e: any) => e.event_type === "tab_change");
 
   // Work items without valid source
   const orphanItems = workItems.filter((w: any) => w.source_id && !w.source_type);
@@ -2562,100 +2573,237 @@ async function handleInteractionQA(supabase: any, apiKey: string) {
     return age > 7 * 24 * 60 * 60 * 1000;
   });
 
-  // Routes with known components
-  const routes = [
-    { path: "/", name: "Startsida", buttons: ["Header nav", "Hero CTA", "Product cards", "Footer links"] },
-    { path: "/produkter", name: "Produkter", buttons: ["Category filters", "Product cards", "Add to cart", "Pagination"] },
-    { path: "/product/:handle", name: "Produktdetalj", buttons: ["Add to cart", "Quantity selector", "Review form", "Related products", "Wishlist"] },
-    { path: "/checkout", name: "Checkout", buttons: ["Address form", "Payment method", "Place order", "Cart items", "Discount code"] },
-    { path: "/profile", name: "Profil", buttons: ["Edit profile", "Order history", "Balance", "Settings", "Logout"] },
-    { path: "/about", name: "Om oss", buttons: ["Contact link", "Navigation"] },
-    { path: "/contact", name: "Kontakt", buttons: ["Contact form submit", "Map", "Phone link"] },
-    { path: "/track-order", name: "Spåra order", buttons: ["Order lookup", "Status display"] },
-    { path: "/affiliate", name: "Affiliate", buttons: ["Application form", "Code validation"] },
-    { path: "/business", name: "Företag", buttons: ["Business form submit"] },
-    { path: "/admin", name: "Admin", buttons: ["All admin nav items", "CRUD operations", "AI triggers", "Workbench actions"] },
-    { path: "/admin/ai", name: "AI Center", buttons: ["All tab triggers", "AI scan buttons", "Copy prompt", "Execute actions"] },
+  // Complete interactive element inventory per route
+  const interactiveElements = [
+    { path: "/", name: "Startsida", elements: [
+      { el: "Header: Logotyp-länk", type: "link", expects: "navigation to /" },
+      { el: "Header: Produkter-länk", type: "link", expects: "navigation to /produkter" },
+      { el: "Header: Om oss-länk", type: "link", expects: "navigation to /about" },
+      { el: "Header: Kontakt-länk", type: "link", expects: "navigation to /contact" },
+      { el: "Header: Sök-ikon", type: "button", expects: "opens search modal" },
+      { el: "Header: Kundvagn-ikon", type: "button", expects: "opens cart drawer" },
+      { el: "Header: Konto-ikon", type: "button", expects: "opens account drawer or auth modal" },
+      { el: "Header: Språkväljare", type: "dropdown", expects: "changes language" },
+      { el: "Header: Önskelista-ikon", type: "button", expects: "opens wishlist drawer" },
+      { el: "Hero: CTA-knapp", type: "button", expects: "scrolls to products or navigates" },
+      { el: "Bestsellers: Produktkort", type: "card", expects: "navigation to /product/:handle" },
+      { el: "Produktkort: Lägg i kundvagn", type: "button", expects: "adds item to cart, shows toast" },
+      { el: "Produktkort: Önskelista-hjärta", type: "button", expects: "toggles wishlist state" },
+      { el: "Newsletter: E-post input + Prenumerera", type: "form", expects: "submits email, shows success" },
+      { el: "Footer: Alla navigeringslänkar", type: "link", expects: "navigation to respective pages" },
+      { el: "Footer: Sociala medier-länkar", type: "link", expects: "opens external URL" },
+      { el: "Cookie-banner: Acceptera/Avvisa", type: "button", expects: "hides banner, saves preference" },
+      { el: "FloatingContactButton", type: "button", expects: "opens contact modal or navigates" },
+    ]},
+    { path: "/produkter", name: "Produkter", elements: [
+      { el: "Kategorifilterknappar", type: "button", expects: "filters product grid" },
+      { el: "UseCaseFilter tabs", type: "tab", expects: "filters by use case" },
+      { el: "Produktkort: Hela kortet", type: "card", expects: "navigation to /product/:handle" },
+      { el: "Produktkort: Lägg i kundvagn", type: "button", expects: "adds to cart" },
+      { el: "Produktkort: Önskelista", type: "button", expects: "toggles wishlist" },
+      { el: "Sortering dropdown", type: "dropdown", expects: "re-sorts products" },
+      { el: "LowStockBadge", type: "badge", expects: "displays correctly, no click needed" },
+    ]},
+    { path: "/product/:handle", name: "Produktdetalj", elements: [
+      { el: "QuantitySelector: +/- knappar", type: "button", expects: "changes quantity state" },
+      { el: "Lägg i kundvagn (huvud-CTA)", type: "button", expects: "adds to cart, shows toast/drawer" },
+      { el: "Önskelista-knapp", type: "button", expects: "toggles wishlist" },
+      { el: "ZoomableImage: Bildklick", type: "button", expects: "opens zoomed view" },
+      { el: "Bildgalleri: Tumnagelklick", type: "button", expects: "changes main image" },
+      { el: "Flikar: Ingredienser/Recensioner/Info", type: "tab", expects: "switches tab content" },
+      { el: "ReviewForm: Skicka recension", type: "form", expects: "submits review, shows in list" },
+      { el: "ReviewStars: Klick", type: "button", expects: "sets rating" },
+      { el: "RelatedProducts: Produktkort", type: "card", expects: "navigation" },
+      { el: "MobileBuyBar: Lägg i kundvagn", type: "button", expects: "adds to cart (mobile)" },
+      { el: "ProductBundles: Välj bundle", type: "button", expects: "adds bundle to cart" },
+      { el: "ProductCertifications: Badges", type: "badge", expects: "displays info, may have tooltip" },
+    ]},
+    { path: "/checkout", name: "Kassa", elements: [
+      { el: "AddressAutocomplete: Input", type: "form", expects: "suggests addresses on type" },
+      { el: "Betalningsmetod: Radiobuttons", type: "radio", expects: "selects payment method" },
+      { el: "Rabattkod: Input + Applicera", type: "form", expects: "validates and applies discount" },
+      { el: "Lägg order-knapp", type: "button", expects: "creates order, redirects to confirmation" },
+      { el: "Kundvagnsrader: Ändra antal", type: "button", expects: "updates quantity" },
+      { el: "Kundvagnsrader: Ta bort", type: "button", expects: "removes item" },
+      { el: "RoundUpDonation: Toggle", type: "switch", expects: "adds/removes donation amount" },
+      { el: "InfluencerCodeInput: Input", type: "form", expects: "validates influencer code" },
+    ]},
+    { path: "/profile", name: "Profil", elements: [
+      { el: "ProfileInfoForm: Spara", type: "form", expects: "updates profile in DB" },
+      { el: "AccountSettings: Alla toggles", type: "switch", expects: "saves preferences" },
+      { el: "OrderHistory: Visa order-knapp", type: "button", expects: "navigates to order detail" },
+      { el: "ReorderButton", type: "button", expects: "re-adds items to cart" },
+      { el: "BalanceOverview: Visa detaljer", type: "button", expects: "expands balance info" },
+      { el: "BusinessAccountForm: Ansök", type: "form", expects: "submits business application" },
+      { el: "ReferralDashboard: Kopiera länk", type: "button", expects: "copies referral URL" },
+    ]},
+    { path: "/cart-drawer", name: "Kundvagn (Drawer)", elements: [
+      { el: "Quantity +/- knappar", type: "button", expects: "updates item quantity" },
+      { el: "Ta bort-knapp (Trash)", type: "button", expects: "removes item from cart" },
+      { el: "Till kassan-knapp", type: "button", expects: "navigates to /checkout" },
+      { el: "Rekommenderade produkter: Lägg till", type: "button", expects: "adds recommended product" },
+      { el: "Stäng-knapp (X)", type: "button", expects: "closes drawer" },
+      { el: "LoginIncentives: Logga in", type: "button", expects: "opens auth modal" },
+    ]},
+    { path: "/admin", name: "Admin", elements: [
+      { el: "Sidebar: Alla navigeringslänkar", type: "link", expects: "navigates to admin sub-pages" },
+      { el: "Dashboard: Statistikkort (klickbara)", type: "card", expects: "navigates to filtered view" },
+      { el: "ProductManager: CRUD-knappar", type: "button", expects: "opens forms, saves to DB" },
+      { el: "OrderManager: Statusuppdatering", type: "button", expects: "updates order status in DB" },
+      { el: "AI Center: Skanningsknappar", type: "button", expects: "triggers AI scan" },
+      { el: "Workbench: Claim/Complete/Reject", type: "button", expects: "updates work item status" },
+      { el: "BugReports: Resolve-knapp", type: "button", expects: "resolves bug report" },
+    ]},
+    { path: "/about", name: "Om oss", elements: [
+      { el: "Navigeringslänkar", type: "link", expects: "navigates" },
+      { el: "Timeline: Interaktiva element", type: "card", expects: "displays info" },
+    ]},
+    { path: "/contact", name: "Kontakt", elements: [
+      { el: "Kontaktformulär: Skicka", type: "form", expects: "submits message" },
+      { el: "Telefon-länk", type: "link", expects: "opens tel: link" },
+      { el: "E-post-länk", type: "link", expects: "opens mailto: link" },
+    ]},
+    { path: "/track-order", name: "Spåra order", elements: [
+      { el: "Order-lookup: Sök", type: "form", expects: "looks up order by number/email" },
+      { el: "OrderTracker: Status display", type: "display", expects: "shows order timeline" },
+    ]},
+    { path: "/donations", name: "Donationer", elements: [
+      { el: "DonationImpact: Interaktiva kort", type: "card", expects: "shows impact details" },
+      { el: "LiveDonationFeed", type: "display", expects: "shows live donations" },
+    ]},
   ];
 
-  const context = `=== INTERACTION QA CONTEXT ===
+  // Detect elements with clicks but no subsequent state change from analytics
+  const clicksWithoutResult: string[] = [];
+  for (const click of buttonClicks) {
+    const clickTime = new Date(click.created_at).getTime();
+    const hasFollowup = events.some((e: any) => {
+      if (e === click) return false;
+      const t = new Date(e.created_at).getTime();
+      return t > clickTime && t < clickTime + 5000 && ["navigation", "add_to_cart", "modal_open", "form_submit", "tab_change", "checkout_start"].includes(e.event_type);
+    });
+    if (!hasFollowup && click.event_data) {
+      clicksWithoutResult.push(JSON.stringify(click.event_data).substring(0, 120));
+    }
+  }
 
-ROUTES & EXPECTED BUTTONS:
-${routes.map(r => `${r.path} (${r.name}): ${r.buttons.join(", ")}`).join("\n")}
+  // Recent changes that may have broken interactions
+  const recentChanges = changeLog.slice(0, 20).map((c: any) => `[${c.change_type}] ${c.description?.substring(0, 80)} (components: ${(c.affected_components || []).join(", ")})`);
 
-ANALYTICS (last 7 days):
-- Checkout starts: ${checkoutStarts}
-- Checkout completes: ${checkoutCompletes}
-- Checkout abandons: ${checkoutAbandons}
-- Cart adds: ${cartAdds}
-- Cart removes: ${cartRemoves}
+  const context = `=== INTERACTION INTEGRITY SYSTEM — FULL SCAN ===
+
+INTERACTIVE ELEMENT INVENTORY (per route):
+${interactiveElements.map(r => `\n📍 ${r.path} (${r.name}):\n${r.elements.map(el => `  • ${el.el} [${el.type}] → expects: ${el.expects}`).join("\n")}`).join("\n")}
+
+ANALYTICS (recent):
+- Checkout starts: ${checkoutStarts} | completes: ${checkoutCompletes} | abandons: ${checkoutAbandons}
+- Cart adds: ${cartAdds} | removes: ${cartRemoves}
 - Page errors: ${pageErrors.length}
+- Button clicks tracked: ${buttonClicks.length}
+- Form submits tracked: ${formSubmits.length}
+- Modal opens tracked: ${modalOpens.length}
+- Tab changes tracked: ${tabChanges.length}
 ${pageErrors.slice(0, 10).map((e: any) => `  Error: ${JSON.stringify(e.event_data)?.substring(0, 100)}`).join("\n")}
+
+CLICKS WITHOUT FOLLOWUP ACTION (${clicksWithoutResult.length}):
+${clicksWithoutResult.slice(0, 15).map(c => `  ⚠️ ${c}`).join("\n")}
 
 OPEN BUGS (${openBugs.length}):
 ${openBugs.slice(0, 20).map((b: any) => `- [${b.ai_severity || "?"}] ${b.page_url}: ${b.ai_summary || b.description?.substring(0, 80)}`).join("\n")}
 
 OPEN WORK ITEMS (${workItems.filter((w: any) => w.status !== "done").length}):
-${workItems.filter((w: any) => w.status !== "done").slice(0, 20).map((w: any) => `- [${w.priority}/${w.status}] ${w.title} (type: ${w.item_type})`).join("\n")}
+${workItems.filter((w: any) => w.status !== "done").slice(0, 20).map((w: any) => `- [${w.priority}/${w.status}] ${w.title} (${w.item_type})`).join("\n")}
 
-STUCK ITEMS (>7 days open): ${stuckItems.length}
-${stuckItems.slice(0, 10).map((w: any) => `- ${w.title}`).join("\n")}
+STUCK ITEMS (>7 days): ${stuckItems.length}
+ORPHAN ITEMS: ${orphanItems.length}
 
-ORPHAN ITEMS (no valid source): ${orphanItems.length}
-
-PRODUCTS: ${products.length} visible, ${products.filter((p: any) => p.stock <= 0).length} out of stock
-UNSELLABLE BUT VISIBLE: ${products.filter((p: any) => !p.is_sellable).length}
-
-OPEN INCIDENTS: ${incidents.length}
-
-PAGE SECTIONS: ${pages.length} configured, ${pages.filter((p: any) => !p.is_visible).length} hidden
-
-STATE CONSISTENCY:
+DATA STATE:
+- Products visible: ${products.length} | out of stock: ${products.filter((p: any) => p.stock <= 0).length} | inactive: ${products.filter((p: any) => p.status !== "active").length}
+- Categories: ${categories.length} (${categories.filter((c: any) => !c.is_visible).length} hidden)
+- Active bundles: ${bundles.length}
+- Unsellable but visible: ${products.filter((p: any) => !p.is_sellable).length}
 - Orders pending payment: ${orders.filter((o: any) => o.payment_status === "unpaid").length}
-- Work items done but source still open: ${workItems.filter((w: any) => w.status === "done" && w.source_type === "bug_report").length} (check if bugs are synced)`;
+- Open incidents: ${incidents.length}
+- Page sections: ${pages.length} configured, ${pages.filter((p: any) => !p.is_visible).length} hidden
+
+RECENT CHANGES (may affect interactions):
+${recentChanges.join("\n")}`;
 
   const analysis = await callAI(apiKey, [
     {
       role: "system",
-      content: `Du är en senior QA-ingenjör som specialiserar sig på interaktionstestning av en svensk e-handelsplattform (4thepeople).
+      content: `Du är en senior QA-ingenjör specialiserad på INTERACTION INTEGRITY för en svensk e-handelsplattform (4thepeople).
 
-Din uppgift:
-1. CLICK TESTING: Analysera alla knappar, formulär och interaktiva element per route. Identifiera element som sannolikt saknar funktion.
-2. DEAD ACTION DETECTION: Hitta knappar/element utan kopplad logik baserat på buggrapporter och analytics.
-3. ROUTE VALIDATION: Verifiera att alla routes laddar data korrekt.
-4. STATE CHANGE TEST: Identifiera fall där UI-state inte uppdateras efter en aktion.
-5. UI-BACKEND CONSISTENCY: Hitta mismatchar mellan UI-visning och databasdata.
-6. RE-SCAN EXISTING: Omvärdera alla öppna buggar — är de fortfarande relevanta?
+DIN UPPGIFT — Systematisk interaktionskontroll:
 
-Var EXTREMT SPECIFIK. Ge exakta komponent-/sidnamn. Prioritera efter användarimpakt. Svara på svenska.`,
+1. ELEMENT-SCANNING: Gå igenom VARJE interaktivt element i inventariet. Kontrollera:
+   a) Har elementet en click handler? (onClick / navigation / action)
+   b) Triggar klicket en state change eller navigation?
+   c) Finns målet? (route / modal / komponent)
+   d) Uppdateras UI efter klick?
+
+2. KLASSIFICERING — Flagga problem som:
+   → dead_click: Element med UI som ser klickbart ut men saknar handler
+   → broken_navigation: Länk/knapp pekar på route som inte finns eller ger 404
+   → no_state_change: Klick registreras men inget händer (ingen toast, modal, navigation, data-ändring)
+   → fake_button: Ser ut som en knapp/länk men är bara visuell (ingen interaktivitet)
+   → orphan_modal: Modal/drawer som aldrig öppnas av någon trigger
+   → dead_form: Formulär utan submit-handler eller med handler som inte gör något
+
+3. FLÖDESVALIDERING — Simulera användarflöden:
+   → Hem → Produkt → Lägg i kundvagn → Checkout → Bekräftelse
+   → Registrera → Logga in → Profil → Redigera
+   → Sök → Resultat → Produktsida
+   → Admin: Login → Dashboard → Hantera order → Statusändring
+
+4. STATE INTEGRITY — Kontrollera:
+   → Uppdateras kundvagn korrekt vid add/remove?
+   → Synkas önskelista-state mellan sidor?
+   → Sparas formulärdata vid submit?
+   → Uppdateras admin-listor efter CRUD?
+
+5. RECENT REGRESSION CHECK — Analysera senaste ändringar mot kända interaktioner.
+
+6. BUG RE-EVALUATION — Omvärdera öppna buggar.
+
+REGLER:
+- Var EXTREMT SPECIFIK — ge exakta komponent- och filnamn
+- Varje flaggat problem MÅSTE ha en lovable_prompt för fix
+- Prioritera efter ANVÄNDARIMPAKT (checkout-flöde > admin)
+- Svara på svenska`,
     },
-    { role: "user", content: `Kör full interaktions-QA-analys:\n\n${context}` },
+    { role: "user", content: `Kör FULL Interaction Integrity-skanning:\n\n${context}` },
   ], [{
     type: "function",
     function: {
       name: "interaction_qa",
-      description: "Generate Interaction QA report",
+      description: "Interaction Integrity System — full report",
       parameters: {
         type: "object",
         properties: {
-          interaction_score: { type: "number", description: "0-100 overall interaction quality" },
-          click_test_score: { type: "number", description: "0-100 button/click test" },
+          interaction_score: { type: "number", description: "0-100 overall interaction integrity" },
+          click_test_score: { type: "number", description: "0-100 click handler coverage" },
           state_sync_score: { type: "number", description: "0-100 state synchronization" },
-          route_health_score: { type: "number", description: "0-100 route health" },
+          route_health_score: { type: "number", description: "0-100 route/navigation health" },
+          elements_scanned: { type: "number", description: "Total interactive elements analyzed" },
+          elements_ok: { type: "number", description: "Elements that passed all checks" },
           executive_summary: { type: "string" },
           dead_elements: {
             type: "array",
             items: {
               type: "object",
               properties: {
-                element: { type: "string" },
-                page: { type: "string" },
+                element: { type: "string", description: "Exact element name" },
+                page: { type: "string", description: "Route/page" },
+                flag: { type: "string", enum: ["dead_click", "broken_navigation", "no_state_change", "fake_button", "orphan_modal", "dead_form"] },
                 issue: { type: "string" },
                 severity: { type: "string", enum: ["critical", "high", "medium", "low"] },
+                expected_behavior: { type: "string" },
+                actual_behavior: { type: "string" },
                 fix_suggestion: { type: "string" },
                 lovable_prompt: { type: "string" },
               },
-              required: ["element", "page", "issue", "severity", "fix_suggestion", "lovable_prompt"],
+              required: ["element", "page", "flag", "issue", "severity", "expected_behavior", "actual_behavior", "fix_suggestion", "lovable_prompt"],
               additionalProperties: false,
             },
           },
@@ -2668,10 +2816,11 @@ Var EXTREMT SPECIFIK. Ge exakta komponent-/sidnamn. Prioritera efter användarim
                 steps: { type: "array", items: { type: "string" } },
                 broken_at: { type: "string" },
                 severity: { type: "string", enum: ["critical", "high", "medium", "low"] },
+                simulation_result: { type: "string", description: "What would happen if user tried this flow" },
                 fix_suggestion: { type: "string" },
                 lovable_prompt: { type: "string" },
               },
-              required: ["flow_name", "steps", "broken_at", "severity", "fix_suggestion", "lovable_prompt"],
+              required: ["flow_name", "steps", "broken_at", "severity", "simulation_result", "fix_suggestion", "lovable_prompt"],
               additionalProperties: false,
             },
           },
@@ -2682,10 +2831,13 @@ Var EXTREMT SPECIFIK. Ge exakta komponent-/sidnamn. Prioritera efter användarim
               properties: {
                 description: { type: "string" },
                 affected_component: { type: "string" },
+                trigger_action: { type: "string", description: "What user action causes the issue" },
+                expected_state: { type: "string" },
+                actual_state: { type: "string" },
                 severity: { type: "string", enum: ["critical", "high", "medium", "low"] },
                 fix_suggestion: { type: "string" },
               },
-              required: ["description", "affected_component", "severity", "fix_suggestion"],
+              required: ["description", "affected_component", "trigger_action", "expected_state", "actual_state", "severity", "fix_suggestion"],
               additionalProperties: false,
             },
           },
@@ -2695,10 +2847,25 @@ Var EXTREMT SPECIFIK. Ge exakta komponent-/sidnamn. Prioritera efter användarim
               type: "object",
               properties: {
                 route: { type: "string" },
-                status: { type: "string", enum: ["ok", "warning", "broken", "empty"] },
+                status: { type: "string", enum: ["ok", "warning", "broken", "empty", "unreachable"] },
                 issue: { type: "string" },
+                linked_elements: { type: "array", items: { type: "string" }, description: "Elements that link to this route" },
               },
-              required: ["route", "status", "issue"],
+              required: ["route", "status", "issue", "linked_elements"],
+              additionalProperties: false,
+            },
+          },
+          regression_risks: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                change_description: { type: "string" },
+                at_risk_elements: { type: "array", items: { type: "string" } },
+                risk_level: { type: "string", enum: ["high", "medium", "low"] },
+                recommendation: { type: "string" },
+              },
+              required: ["change_description", "at_risk_elements", "risk_level", "recommendation"],
               additionalProperties: false,
             },
           },
@@ -2717,21 +2884,22 @@ Var EXTREMT SPECIFIK. Ge exakta komponent-/sidnamn. Prioritera efter användarim
             },
           },
         },
-        required: ["interaction_score", "click_test_score", "state_sync_score", "route_health_score", "executive_summary", "dead_elements", "broken_flows", "state_issues", "route_issues", "bug_reevaluation"],
+        required: ["interaction_score", "click_test_score", "state_sync_score", "route_health_score", "elements_scanned", "elements_ok", "executive_summary", "dead_elements", "broken_flows", "state_issues", "route_issues", "regression_risks", "bug_reevaluation"],
         additionalProperties: false,
       },
     },
   }], { type: "function", function: { name: "interaction_qa" } });
 
-  // Persist scan result FIRST
+  // Persist scan result
   const interScore = analysis?.interaction_score || 0;
+  const totalIssues = (analysis?.dead_elements?.length || 0) + (analysis?.broken_flows?.length || 0) + (analysis?.state_issues?.length || 0) + (analysis?.route_issues?.filter((r: any) => r.status !== "ok")?.length || 0);
   const scanId = await persistScanResult(supabase, {
     scan_type: "interaction_qa",
     results: analysis || {},
     overall_score: interScore,
     overall_status: interScore >= 80 ? "good" : interScore >= 50 ? "warning" : "critical",
-    issues_count: (analysis?.dead_elements?.length || 0) + (analysis?.broken_flows?.length || 0),
-    executive_summary: analysis?.executive_summary || analysis?.summary || "",
+    issues_count: totalIssues,
+    executive_summary: analysis?.executive_summary || "",
   });
 
   // Auto-create work items for critical/high issues, linked to scan
@@ -2748,8 +2916,8 @@ Var EXTREMT SPECIFIK. Ge exakta komponent-/sidnamn. Prioritera efter användarim
         .limit(1);
       if (!existing?.length) {
         await supabase.from("work_items").insert({
-          title: `Interaction: ${el.element} (${el.page})`.substring(0, 200),
-          description: `Element: ${el.element}\nSida: ${el.page}\n\nProblem: ${el.issue}\n\nFix: ${el.fix_suggestion}`,
+          title: `[${el.flag}] ${el.element} (${el.page})`.substring(0, 200),
+          description: `Element: ${el.element}\nSida: ${el.page}\nFlagg: ${el.flag}\n\nProblem: ${el.issue}\nFörväntat: ${el.expected_behavior}\nFaktiskt: ${el.actual_behavior}\n\nFix: ${el.fix_suggestion}\n\nLovable prompt:\n${el.lovable_prompt}`,
           status: "open",
           priority: el.severity === "critical" ? "critical" : "high",
           item_type: "bug",
@@ -2758,7 +2926,7 @@ Var EXTREMT SPECIFIK. Ge exakta komponent-/sidnamn. Prioritera efter användarim
           ai_detected: true,
           ai_confidence: "medium",
           ai_category: "interaction",
-          ai_type_classification: "interaction_bug",
+          ai_type_classification: el.flag,
         });
         tasksCreated++;
       }
@@ -2777,7 +2945,7 @@ Var EXTREMT SPECIFIK. Ge exakta komponent-/sidnamn. Prioritera efter användarim
       if (!existing?.length) {
         await supabase.from("work_items").insert({
           title: `Broken flow: ${flow.flow_name}`.substring(0, 200),
-          description: `Flöde: ${flow.flow_name}\nSteg: ${flow.steps.join(" → ")}\nBryter vid: ${flow.broken_at}\n\nFix: ${flow.fix_suggestion}`,
+          description: `Flöde: ${flow.flow_name}\nSteg: ${flow.steps.join(" → ")}\nBryter vid: ${flow.broken_at}\n\nSimulering: ${flow.simulation_result}\n\nFix: ${flow.fix_suggestion}\n\nLovable prompt:\n${flow.lovable_prompt}`,
           status: "open",
           priority: flow.severity === "critical" ? "critical" : "high",
           item_type: "bug",
