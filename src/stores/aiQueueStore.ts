@@ -472,6 +472,10 @@ export const useAiQueueStore = create<AiQueueState>((set, get) => ({
   processQueue: async () => {
     const state = get();
     if (state._isProcessing) return;
+
+    // Auto-release stale locks before processing to prevent deadlocks
+    useExecutionLockStore.getState().releaseStale();
+
     set({ _isProcessing: true });
 
     try {
