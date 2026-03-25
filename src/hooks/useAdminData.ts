@@ -15,7 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 export const ACTIVE_ORDER_STATUSES = ['pending', 'confirmed', 'processing', 'shipped'] as const;
 
 /** Work items with these statuses are considered "active" */
-export const ACTIVE_WORK_ITEM_STATUSES = ['open', 'claimed', 'in_progress', 'escalated'] as const;
+export const ACTIVE_WORK_ITEM_STATUSES = ['open', 'claimed', 'in_progress', 'escalated', 'new', 'pending', 'detected'] as const;
 
 /** Only orders with payment_status = 'paid' count toward revenue */
 export const PAID_STATUS = 'paid' as const;
