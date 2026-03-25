@@ -2664,6 +2664,10 @@ const AdminAI = () => {
               <Zap className="w-3.5 h-3.5" />
               Interaction QA
             </TabsTrigger>
+            <TabsTrigger value="verification" className="gap-1.5 text-xs">
+              <CheckCircle className="w-3.5 h-3.5" />
+              Verifiering
+            </TabsTrigger>
           </TabsList>
         </ScrollableTabs>
 
@@ -2714,6 +2718,9 @@ const AdminAI = () => {
         </TabsContent>
         <TabsContent value="interaction-qa" className="mt-4">
           <InteractionQATab />
+        </TabsContent>
+        <TabsContent value="verification" className="mt-4">
+          <VerificationEngineTab />
         </TabsContent>
       </Tabs>
     </div>
