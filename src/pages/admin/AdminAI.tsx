@@ -6724,7 +6724,7 @@ const ChangeLogTab = () => {
             <ScrollArea className="max-h-[500px]">
               <div className="space-y-2">
                 {entries.map((e: any) => (
-                  <div key={e.id} className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-accent/30 transition-colors">
+                  <div key={e.id} className={cn("flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-accent/30 transition-colors", e.work_item_id && "cursor-pointer")} onClick={() => e.work_item_id && openDetail(e.work_item_id)}>
                     <div className="mt-0.5">{sourceIcon(e.source)}</div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-1">
