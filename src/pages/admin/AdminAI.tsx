@@ -3972,38 +3972,42 @@ const AutoFixTab = () => {
       <Card className="p-4 space-y-3">
         <div className="flex items-center gap-2">
           <Wrench className="w-5 h-5 text-primary" />
-          <h3 className="font-semibold">AI Auto-Fix Engine</h3>
+          <h3 className="font-semibold">AI Direktfixar</h3>
         </div>
         <p className="text-sm text-muted-foreground">
-          Åtgärdar automatiskt säkra problem: dubbletter, föräldralösa tasks, felaktig status. 
-          Kräver ≥80% confidence för auto-fix, annars skapas uppgift istället.
+          AI åtgärdar säkra problem direkt i databasen utan extern byggprocess: 
+          dubbletter, föräldralösa kopplingar, felaktig status, tomma kategorier, inaktiva buggar.
+          Kräver ≥80% confidence för auto-fix, annars skapas uppgift.
         </p>
+        <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground">
+          {['Statussynk', 'Dubblettmerge', 'Felaktiga kopplingar', 'Tomma kategorier', 'Gamla buggar', 'Datasynk'].map(t => (
+            <span key={t} className="border rounded-full px-2 py-0.5">{t}</span>
+          ))}
+        </div>
         <Button onClick={run} disabled={loading} className="gap-2">
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-          Kör Auto-Fix
+          Kör Direktfixar
         </Button>
       </Card>
 
       {result && (
         <div className="space-y-4">
           {/* Summary stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <Card className="p-3 text-center">
-              <p className="text-2xl font-bold text-green-700">{result.total_fixed || 0}</p>
-              <p className="text-[10px] text-muted-foreground">Åtgärdade</p>
-            </Card>
-            <Card className="p-3 text-center">
-              <p className="text-2xl font-bold text-yellow-700">{result.total_flagged || 0}</p>
-              <p className="text-[10px] text-muted-foreground">Flaggade</p>
-            </Card>
-            <Card className="p-3 text-center">
-              <p className="text-2xl font-bold text-primary">{result.duplicates_merged || 0}</p>
-              <p className="text-[10px] text-muted-foreground">Dubbletter</p>
-            </Card>
-            <Card className="p-3 text-center">
-              <p className="text-2xl font-bold">{result.status_fixed || 0}</p>
-              <p className="text-[10px] text-muted-foreground">Statussynk</p>
-            </Card>
+          <div className="grid grid-cols-3 sm:grid-cols-7 gap-2">
+            {[
+              { key: 'total_fixed', label: 'Åtgärdade', color: 'text-green-700' },
+              { key: 'total_flagged', label: 'Flaggade', color: 'text-yellow-700' },
+              { key: 'status_fixed', label: 'Statussynk', color: 'text-foreground' },
+              { key: 'duplicates_merged', label: 'Dubbletter', color: 'text-primary' },
+              { key: 'orphan_links_fixed', label: 'Kopplingar', color: 'text-foreground' },
+              { key: 'categories_hidden', label: 'Kategorier', color: 'text-foreground' },
+              { key: 'stale_bugs_closed', label: 'Gamla buggar', color: 'text-foreground' },
+            ].map(s => (
+              <Card key={s.key} className="p-2 text-center">
+                <p className={cn('text-xl font-bold', s.color)}>{result[s.key] || 0}</p>
+                <p className="text-[9px] text-muted-foreground">{s.label}</p>
+              </Card>
+            ))}
           </div>
 
           {/* Data sync info */}

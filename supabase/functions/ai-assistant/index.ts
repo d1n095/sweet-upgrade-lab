@@ -3335,7 +3335,62 @@ async function handleAutoFix(supabase: any, apiKey: string, supabaseUrl: string,
     }
   }
 
-  // ─── 4. LOW-CONFIDENCE ITEMS → CREATE TASK INSTEAD ───
+  // ─── 4. ORPHAN PRODUCT-CATEGORY LINKS ───
+  let orphanLinksFixed = 0;
+  const { data: allPcLinks } = await supabase.from("product_categories").select("id, product_id, category_id").limit(1000);
+  if (allPcLinks) {
+    const { data: validProducts } = await supabase.from("products").select("id").limit(1000);
+    const { data: validCats } = await supabase.from("categories").select("id").limit(500);
+    const productIds = new Set((validProducts || []).map((p: any) => p.id));
+    const catIds = new Set((validCats || []).map((c: any) => c.id));
+    for (const link of allPcLinks) {
+      if (!productIds.has(link.product_id) || !catIds.has(link.category_id)) {
+        await supabase.from("product_categories").delete().eq("id", link.id);
+        fixes.push({ type: "orphan_link", action: `Borttagen felaktig produkt-kategori-koppling`, target_id: link.id, confidence: 99, fixed: true });
+        orphanLinksFixed++;
+      }
+    }
+  }
+
+  // ─── 5. HIDE EMPTY CATEGORIES (auto-visibility) ───
+  let catsHidden = 0;
+  const { data: visibleCats } = await supabase.from("categories").select("id, name_sv, is_visible, slug").eq("is_visible", true).limit(200);
+  if (visibleCats) {
+    for (const cat of visibleCats) {
+      if (cat.slug === "bestsaljare") continue; // special category
+      const { count } = await supabase.from("product_categories").select("id", { count: "exact", head: true }).eq("category_id", cat.id);
+      if ((count || 0) === 0) {
+        await supabase.from("categories").update({ is_visible: false }).eq("id", cat.id);
+        fixes.push({ type: "hide_empty", action: `"${cat.name_sv}" → tom kategori, dold`, target_id: cat.id, confidence: 95, fixed: true });
+        catsHidden++;
+      }
+    }
+  }
+
+  // ─── 6. CLOSE STALE IGNORED BUGS ───
+  let staleBugsClosed = 0;
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const { data: staleBugs } = await supabase.from("bug_reports").select("id, description").eq("status", "open").lt("created_at", thirtyDaysAgo).limit(50);
+  for (const bug of staleBugs || []) {
+    await supabase.from("bug_reports").update({ status: "stale", resolution_notes: "Auto-stängd: ingen aktivitet på 30 dagar" }).eq("id", bug.id);
+    // Also close linked work item
+    await supabase.from("work_items").update({ status: "done", completed_at: new Date().toISOString(), ai_review_status: "verified" }).eq("source_type", "bug_report").eq("source_id", bug.id).in("status", ["open", "claimed"]);
+    fixes.push({ type: "stale_bug", action: `Bug auto-stängd (30+ dagar utan aktivitet)`, target_id: bug.id, confidence: 85, fixed: true });
+    staleBugsClosed++;
+  }
+
+  // ─── 7. FIX INVISIBLE PRODUCTS WITH STOCK ───
+  let productsRevealed = 0;
+  const { data: hiddenWithStock } = await supabase.from("products").select("id, title_sv, stock, is_visible").eq("is_visible", false).gt("stock", 0).limit(50);
+  for (const prod of hiddenWithStock || []) {
+    if ((prod.stock || 0) > 5) {
+      // Only flag - don't auto-reveal since hiding may be intentional
+      fixes.push({ type: "hidden_product", action: `"${prod.title_sv}" → dold men har ${prod.stock} i lager`, target_id: prod.id, confidence: 60, fixed: false });
+      fallbackTasks.push(`Granska dold produkt: ${prod.title_sv} (${prod.stock} i lager)`);
+    }
+  }
+
+  // ─── 8. LOW-CONFIDENCE ITEMS → FLAG ───
   const { data: uncertainItems } = await supabase
     .from("work_items")
     .select("id, title, ai_confidence, ai_review_status")
@@ -3361,6 +3416,9 @@ async function handleAutoFix(supabase: any, apiKey: string, supabaseUrl: string,
       total_flagged: totalFlagged,
       status_fixed: statusFixed,
       duplicates_merged: duplicatesMerged,
+      orphan_links_fixed: orphanLinksFixed,
+      categories_hidden: catsHidden,
+      stale_bugs_closed: staleBugsClosed,
       data_sync_issues: dataSyncResult?.total_issues || 0,
       data_sync_fixed: dataSyncResult?.total_fixed || 0,
     },
@@ -3381,6 +3439,9 @@ async function handleAutoFix(supabase: any, apiKey: string, supabaseUrl: string,
     total_flagged: totalFlagged,
     status_fixed: statusFixed,
     duplicates_merged: duplicatesMerged,
+    orphan_links_fixed: orphanLinksFixed,
+    categories_hidden: catsHidden,
+    stale_bugs_closed: staleBugsClosed,
     data_sync: dataSyncResult ? { issues: dataSyncResult.total_issues, fixed: dataSyncResult.total_fixed } : null,
     fixes,
     fallback_tasks: fallbackTasks,
