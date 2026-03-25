@@ -307,7 +307,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
       const { data, error } = await supabase
         .from('work_items' as any)
         .select('*')
-        .neq('status', 'cancelled')
+        .in('status', [...ACTIVE_WORK_ITEM_STATUSES])
         .order('created_at', { ascending: false });
       if (error) throw error;
       const allItems = (data || []) as unknown as WorkItem[];
