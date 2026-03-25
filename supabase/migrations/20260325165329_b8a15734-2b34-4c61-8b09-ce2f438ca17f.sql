@@ -1,0 +1,1 @@
+UPDATE products SET is_visible = true WHERE status = 'active' AND is_visible = false
