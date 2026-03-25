@@ -25,6 +25,7 @@ import AiQueueControl from '@/components/admin/AiQueueControl';
 import DataFlowValidator from '@/components/admin/DataFlowValidator';
 import UiRealityCheck from '@/components/admin/UiRealityCheck';
 import SystemTrustScore from '@/components/admin/SystemTrustScore';
+import SafeModePanel, { SafeModeBanner } from '@/components/admin/SafeModePanel';
 
 // Context to allow any tab to open a work item detail view
 const DetailContext = createContext<{
@@ -7080,7 +7081,8 @@ const OrchestrationTab = () => {
 
   return (
     <DetailContext.Provider value={{ openDetail }}>
-    <div>
+    <div className="space-y-3">
+      <SafeModeBanner />
       <AiCenterTabs defaultValue="ai-dashboard">
 
         <div data-value="lova-chat"><LovaChatTab /></div>
@@ -7098,6 +7100,7 @@ const OrchestrationTab = () => {
         <div data-value="sync-scan"><SyncScannerTab /></div>
         <div data-value="interaction-qa"><InteractionQATab /></div>
         <div data-value="ui-reality"><UiRealityCheck /></div>
+        <div data-value="safe-mode"><SafeModePanel /></div>
         <div data-value="trust-score"><SystemTrustScore /></div>
         <div data-value="queue-control"><AiQueueControl /></div>
         <div data-value="data-flow"><DataFlowValidator /></div>

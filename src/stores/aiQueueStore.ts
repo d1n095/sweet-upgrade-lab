@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useSafeModeStore } from './safeModeStore';
 
 export type QueueTaskStatus = 'queued' | 'running' | 'completed' | 'failed' | 'blocked' | 'validating' | 'regressed';
 export type QueueTaskPriority = 'critical' | 'high' | 'normal';
@@ -204,6 +205,12 @@ async function runPostChecks(
       ),
       failureLog: [...s.failureLog, report],
     }));
+    // Evaluate safe mode
+    const st = get();
+    useSafeModeStore.getState().evaluateThreshold(
+      st.tasks.filter(t => t.status === 'failed').length,
+      st.regressionLog.length
+    );
     return;
   }
 
@@ -251,6 +258,11 @@ async function runPostChecks(
       failureLog: [...s.failureLog, report],
       regressionLog: [...s.regressionLog, ...regressions],
     }));
+    // Regression triggers safe mode evaluation
+    useSafeModeStore.getState().evaluateThreshold(
+      get().tasks.filter(t => t.status === 'failed').length,
+      get().regressionLog.length
+    );
     return;
   }
 
@@ -321,8 +333,15 @@ export const useAiQueueStore = create<AiQueueState>((set, get) => ({
         const priorityOrder: Record<QueueTaskPriority, number> = { critical: 0, high: 1, normal: 2 };
         const completedIds = new Set(updatedTasks.filter((t) => t.status === 'completed').map((t) => t.id));
 
+        // Safe Mode: skip non-critical tasks
+        const safeMode = useSafeModeStore.getState();
         const nextTask = updatedTasks
-          .filter((t) => t.status === 'queued' && (!t.dependsOn || t.dependsOn.every((dep) => completedIds.has(dep))))
+          .filter((t) => {
+            if (t.status !== 'queued') return false;
+            if (t.dependsOn && !t.dependsOn.every((dep) => completedIds.has(dep))) return false;
+            if (safeMode.active && t.priority !== 'critical') return false;
+            return true;
+          })
           .sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority])[0];
 
         if (!nextTask) {
@@ -397,6 +416,12 @@ export const useAiQueueStore = create<AiQueueState>((set, get) => ({
                 ),
                 failureLog: [...s.failureLog, report],
               }));
+              // Evaluate safe mode threshold
+              const st = get();
+              const recentFails = st.tasks.filter(t => t.status === 'failed').length;
+              const recentRegs = st.tasks.filter(t => t.status === 'regressed').length;
+              useSafeModeStore.getState().evaluateThreshold(recentFails, recentRegs);
+
               set({ _isProcessing: false });
               get().processQueue();
             });
