@@ -310,7 +310,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     const sixtySecondsAgo = Date.now() - 60_000;
 
     const validated = allItems.filter(item => {
-      if ((item as any).ignored) return false;
+      
       const createdAt = new Date(item.created_at).getTime();
       if (createdAt > sixtySecondsAgo) return true;
       return true;
