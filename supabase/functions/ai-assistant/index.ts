@@ -5397,14 +5397,15 @@ async function handleLovaChat(supabase: any, lovableKey: string, userId: string,
   // Gather system snapshot for context
   const snapshot = await gatherSystemSnapshot(supabase);
 
-  // Get open work items, recent scans (ALL types with latest per type), bugs, prompt queue, and dismissed issues
-  const [workRes, scanRes, bugsRes, promptRes, dismissRes, historyRes] = await Promise.all([
+  // Get open work items, recent scans (ALL types with latest per type), bugs, prompt queue, dismissed issues, and change log
+  const [workRes, scanRes, bugsRes, promptRes, dismissRes, historyRes, changeLogRes] = await Promise.all([
     supabase.from("work_items").select("id, title, status, priority, item_type").in("status", ["open", "claimed", "in_progress"]).order("created_at", { ascending: false }).limit(15),
     supabase.from("ai_scan_results").select("scan_type, overall_score, overall_status, executive_summary, issues_count, tasks_created, created_at, results").order("created_at", { ascending: false }).limit(50),
     supabase.from("bug_reports").select("id, description, ai_summary, ai_severity, status").eq("status", "open").order("created_at", { ascending: false }).limit(10),
     supabase.from("prompt_queue").select("id, title, status, priority, created_at").order("created_at", { ascending: false }).limit(20),
     supabase.from("scan_dismissals").select("issue_key, issue_title, reason, created_at").limit(100),
     supabase.from("system_history").select("title, item_type, resolution_notes, ai_review_status, archived_at").order("archived_at", { ascending: false }).limit(20),
+    supabase.from("change_log").select("id, description, change_type, source, affected_components, bug_report_id, work_item_id, created_at").order("created_at", { ascending: false }).limit(50),
   ]);
 
   const openWork = workRes.data || [];
