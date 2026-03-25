@@ -225,7 +225,7 @@ export async function backfillChangeLog() {
   let created = 0;
   let skipped = 0;
 
-  for (const wi of workItems) {
+  for (const wi of (workItems as any[])) {
     const { data: existing } = await supabase
       .from('change_log')
       .select('id')
@@ -239,7 +239,7 @@ export async function backfillChangeLog() {
 
     await logChange({
       change_type: 'fix',
-      description: (wi as any).title || 'Retroaktiv change_log',
+      description: wi.title || 'Retroaktiv change_log',
       source: 'system',
       work_item_id: wi.id,
       bug_report_id: (wi as any).source_type === 'bug' ? (wi as any).source_id : undefined,
