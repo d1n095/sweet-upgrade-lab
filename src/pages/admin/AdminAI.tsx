@@ -457,7 +457,7 @@ const LovaPromptsTab = () => {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="flex h-full min-h-0 flex-col space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h3 className="font-semibold">Lova-genererade Prompts</h3>
@@ -1235,14 +1235,14 @@ const BugAITab = () => {
         <p className="text-sm text-muted-foreground text-center py-6">Inga buggar hittade 🎉</p>
       )}
 
-      <div className="max-h-[65vh] overflow-y-auto space-y-2 pr-1">
+      <div className="min-h-0 flex-1 overflow-y-auto space-y-2 pr-1">
         {bugs.map(bug => {
           const selectedBug = bugs.find(b => b.id === selectedBugId);
           const isExpanded = selectedBugId === bug.id;
           const fix = fixes[bug.id];
 
           return (
-            <div key={bug.id} className="border rounded-lg overflow-hidden" data-bug-id={bug.id}>
+            <div key={bug.id} className="border rounded-lg" data-bug-id={bug.id}>
               {/* Header - always visible */}
               <div
                 className="p-3 flex items-start gap-3 cursor-pointer hover:bg-muted/30 transition-colors"
