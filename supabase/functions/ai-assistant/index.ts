@@ -228,6 +228,11 @@ serve(async (req) => {
         break;
       }
 
+      case "ui_overflow_scan": {
+        result = await handleUiOverflowScan(supabase, lovableKey);
+        break;
+      }
+
       default:
         return new Response(JSON.stringify({ error: "Unknown type" }), { status: 400, headers: corsHeaders });
     }
@@ -4399,4 +4404,185 @@ function inferAreaFromUrl(url: string): string {
   if (url.includes("/order")) return "orders";
   if (url.includes("/profil") || url.includes("/profile")) return "auth";
   return "UI";
+}
+
+// ── UI Overflow Detection Scanner ──
+async function handleUiOverflowScan(supabase: any, apiKey: string) {
+  // Gather data about known UI components, pages, and past overflow bugs
+  const [bugsRes, workItemsRes, pagesRes, productsRes] = await Promise.all([
+    supabase.from("bug_reports").select("id, description, ai_summary, ai_category, page_url, status").order("created_at", { ascending: false }).limit(100),
+    supabase.from("work_items").select("id, title, description, status, priority, ai_category").in("status", ["open", "claimed", "in_progress"]).limit(200),
+    supabase.from("page_sections").select("id, page, section_key, is_visible, content_sv").eq("is_visible", true),
+    supabase.from("products").select("id, title_sv, description_sv, is_visible").eq("is_visible", true).limit(100),
+  ]);
+
+  const bugs = bugsRes.data || [];
+  const workItems = workItemsRes.data || [];
+  const pages = pagesRes.data || [];
+  const products = productsRes.data || [];
+
+  const overflowBugs = bugs.filter((b: any) =>
+    ["overflow", "scroll", "hidden", "cut off", "truncat", "klippt", "dold", "scrollbar"].some(k =>
+      (b.description || "").toLowerCase().includes(k) || (b.ai_summary || "").toLowerCase().includes(k)
+    )
+  );
+
+  const adminRoutes = [
+    { path: "/admin", name: "Admin Dashboard", containers: ["stats grid", "chart cards", "recent orders list", "activity log"] },
+    { path: "/admin/orders", name: "Order Manager", containers: ["order table", "filter panel", "order detail sidebar"] },
+    { path: "/admin/products", name: "Product Manager", containers: ["product list", "product form modal", "variant list"] },
+    { path: "/admin/members", name: "Member Manager", containers: ["member table", "member detail panel"] },
+    { path: "/admin/ai", name: "AI Center", containers: ["tab content panels", "scan result lists", "issue cards"] },
+    { path: "/admin/content", name: "Content Manager", containers: ["section list", "timeline entries", "edit forms"] },
+    { path: "/admin/ops", name: "Workbench", containers: ["kanban columns", "task detail panel", "checklist"] },
+  ];
+
+  const publicRoutes = [
+    { path: "/", name: "Homepage", containers: ["hero section", "product grid", "review carousel", "newsletter"] },
+    { path: "/produkter", name: "Products", containers: ["product grid", "filter sidebar", "category tabs"] },
+    { path: "/product/:handle", name: "Product Detail", containers: ["image gallery", "description", "review list", "related products"] },
+    { path: "/checkout", name: "Checkout", containers: ["cart items", "address form", "payment section"] },
+    { path: "/profile", name: "Profile", containers: ["order history", "settings tabs", "balance overview"] },
+    { path: "/about", name: "About", containers: ["timeline section", "values grid", "team section"] },
+    { path: "/contact", name: "Contact", containers: ["contact form", "info cards"] },
+  ];
+
+  const longContentSections = pages.filter((p: any) => p.content_sv && p.content_sv.length > 500);
+  const longDescProducts = products.filter((p: any) => p.description_sv && p.description_sv.length > 800);
+
+  const context = `=== UI OVERFLOW DETECTION CONTEXT ===
+
+KNOWN OVERFLOW BUGS (${overflowBugs.length}):
+${overflowBugs.slice(0, 15).map((b: any) => `- [${b.status}] ${b.page_url}: ${b.ai_summary || b.description?.substring(0, 100)}`).join("\n") || "None"}
+
+OPEN UI WORK ITEMS:
+${workItems.filter((w: any) => ["ui", "frontend", "ux", "layout"].some(k => (w.ai_category || w.title || "").toLowerCase().includes(k))).slice(0, 15).map((w: any) => `- [${w.priority}] ${w.title}`).join("\n") || "None"}
+
+ADMIN ROUTES & CONTAINERS:
+${adminRoutes.map(r => `${r.path} (${r.name}): ${r.containers.join(", ")}`).join("\n")}
+
+PUBLIC ROUTES & CONTAINERS:
+${publicRoutes.map(r => `${r.path} (${r.name}): ${r.containers.join(", ")}`).join("\n")}
+
+LONG CONTENT SECTIONS (>500 chars): ${longContentSections.length}
+${longContentSections.slice(0, 10).map((s: any) => `- ${s.page}/${s.section_key}: ${s.content_sv?.length} chars`).join("\n")}
+
+PRODUCTS WITH LONG DESCRIPTIONS (>800 chars): ${longDescProducts.length}
+
+TOTAL VISIBLE PAGE SECTIONS: ${pages.length}
+TOTAL VISIBLE PRODUCTS: ${products.length}`;
+
+  const analysis = await callAI(apiKey, [
+    {
+      role: "system",
+      content: `Du är en expert på CSS layout, overflow och scroll-beteende i React/Tailwind-applikationer.
+Analysera alla kända routes och containers i systemet och identifiera platser där innehåll kan flöda över (overflow) utan scroll.
+
+Vanliga overflow-problem:
+1. Listor utan max-height och overflow-y: auto
+2. Flex-containers utan min-height: 0 (barn kan inte scrolla)
+3. Sidopaneler/drawers som expanderar oändligt
+4. Tabeller utan horisontell scroll på mobil
+5. Text som bryter ut ur sin container
+6. Modaler utan scroll för långt innehåll
+7. Grid-layouts som inte hanterar dynamiskt innehåll
+8. Dropdown-menyer som klipps av overflow: hidden på förälder
+
+Var SPECIFIK. Ange exakt vilken sida, container och breakpoint som har problem.
+Ge konkreta CSS/Tailwind-fixar. Svara på svenska.`,
+    },
+    { role: "user", content: `Kör full UI overflow-skanning:\n\n${context}` },
+  ], [{
+    type: "function",
+    function: {
+      name: "ui_overflow_scan",
+      description: "Generate UI overflow detection report",
+      parameters: {
+        type: "object",
+        properties: {
+          overflow_score: { type: "number", description: "0-100 how well overflow is handled (100=perfect)" },
+          total_containers_checked: { type: "number" },
+          issues_found: { type: "number" },
+          executive_summary: { type: "string" },
+          issues: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                title: { type: "string" },
+                page: { type: "string", description: "Route path" },
+                container: { type: "string", description: "Specific container element" },
+                severity: { type: "string", enum: ["critical", "high", "medium", "low"] },
+                breakpoint: { type: "string", enum: ["mobile", "tablet", "desktop", "all"] },
+                overflow_type: { type: "string", enum: ["vertical_clip", "horizontal_clip", "no_scroll", "flex_overflow", "modal_overflow", "table_overflow", "text_overflow", "dropdown_clip"] },
+                description: { type: "string" },
+                css_fix: { type: "string", description: "Exact Tailwind/CSS fix" },
+                auto_fixable: { type: "boolean" },
+                lovable_prompt: { type: "string" },
+              },
+              required: ["title", "page", "container", "severity", "breakpoint", "overflow_type", "description", "css_fix", "auto_fixable", "lovable_prompt"],
+              additionalProperties: false,
+            },
+          },
+          safe_containers: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                page: { type: "string" },
+                container: { type: "string" },
+                reason: { type: "string" },
+              },
+              required: ["page", "container", "reason"],
+              additionalProperties: false,
+            },
+          },
+        },
+        required: ["overflow_score", "total_containers_checked", "issues_found", "executive_summary", "issues", "safe_containers"],
+        additionalProperties: false,
+      },
+    },
+  }], { type: "function", function: { name: "ui_overflow_scan" } });
+
+  // Auto-create work items for critical/high overflow issues
+  let tasksCreated = 0;
+  if (analysis?.issues) {
+    for (const issue of analysis.issues) {
+      if (!["critical", "high"].includes(issue.severity)) continue;
+      const { data: existing } = await supabase
+        .from("work_items")
+        .select("id")
+        .ilike("title", `%${issue.title.substring(0, 25)}%`)
+        .in("status", ["open", "claimed", "in_progress"])
+        .limit(1);
+      if (!existing?.length) {
+        await supabase.from("work_items").insert({
+          title: `UI Overflow: ${issue.title}`.substring(0, 200),
+          description: `Sida: ${issue.page}\nContainer: ${issue.container}\nBreakpoint: ${issue.breakpoint}\nTyp: ${issue.overflow_type}\n\n${issue.description}\n\nCSS Fix: ${issue.css_fix}`,
+          status: "open",
+          priority: issue.severity === "critical" ? "critical" : "high",
+          item_type: "bug",
+          source_type: "ai_detection",
+          ai_detected: true,
+          ai_confidence: "high",
+          ai_category: "frontend",
+          ai_type_classification: "ui_overflow",
+        });
+        tasksCreated++;
+      }
+    }
+  }
+
+  // Store scan result
+  await supabase.from("ai_scan_results").insert({
+    scan_type: "ui_overflow_scan",
+    overall_score: analysis?.overflow_score || 0,
+    overall_status: (analysis?.overflow_score || 0) >= 80 ? "healthy" : (analysis?.overflow_score || 0) >= 50 ? "warning" : "critical",
+    executive_summary: analysis?.executive_summary || "",
+    results: analysis || {},
+    issues_count: analysis?.issues_found || 0,
+    tasks_created: tasksCreated,
+  });
+
+  return { ...analysis, tasks_created: tasksCreated };
 }
