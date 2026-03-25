@@ -243,6 +243,20 @@ serve(async (req) => {
         break;
       }
 
+      case "action_governor": {
+        result = await handleActionGovernor(supabase, lovableKey);
+        break;
+      }
+
+      case "governor_execute": {
+        const { action_id, action_classification } = body;
+        if (!action_id) {
+          return new Response(JSON.stringify({ error: "action_id required" }), { status: 400, headers: corsHeaders });
+        }
+        result = await handleGovernorExecute(supabase, lovableKey, action_id, action_classification);
+        break;
+      }
+
       default:
         return new Response(JSON.stringify({ error: "Unknown type" }), { status: 400, headers: corsHeaders });
     }
