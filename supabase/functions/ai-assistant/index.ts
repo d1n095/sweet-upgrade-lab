@@ -292,8 +292,35 @@ serve(async (req) => {
   }
 });
 
+// ── AI Read Log helper ──
+async function logAiRead(supabase: any, entry: {
+  action_type: string;
+  target_type: string;
+  target_ids?: string[];
+  affected_components?: string[];
+  result: string;
+  summary?: string;
+  metadata?: any;
+  triggered_by?: string;
+}) {
+  try {
+    await supabase.from("ai_read_log").insert({
+      action_type: entry.action_type,
+      target_type: entry.target_type,
+      target_ids: entry.target_ids || [],
+      affected_components: entry.affected_components || [],
+      result: entry.result,
+      summary: entry.summary || null,
+      metadata: entry.metadata || {},
+      triggered_by: entry.triggered_by || null,
+    });
+  } catch (e) {
+    console.warn("ai_read_log insert failed:", e);
+  }
+}
+
 // ── Gather all system data ──
-async function gatherSystemSnapshot(supabase: any) {
+async function gatherSystemSnapshot(supabase: any, triggeredBy?: string) {
   const now = new Date();
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
