@@ -5397,14 +5397,15 @@ async function handleLovaChat(supabase: any, lovableKey: string, userId: string,
   // Gather system snapshot for context
   const snapshot = await gatherSystemSnapshot(supabase);
 
-  // Get open work items, recent scans (ALL types with latest per type), bugs, prompt queue, and dismissed issues
-  const [workRes, scanRes, bugsRes, promptRes, dismissRes, historyRes] = await Promise.all([
+  // Get open work items, recent scans (ALL types with latest per type), bugs, prompt queue, dismissed issues, and change log
+  const [workRes, scanRes, bugsRes, promptRes, dismissRes, historyRes, changeLogRes] = await Promise.all([
     supabase.from("work_items").select("id, title, status, priority, item_type").in("status", ["open", "claimed", "in_progress"]).order("created_at", { ascending: false }).limit(15),
     supabase.from("ai_scan_results").select("scan_type, overall_score, overall_status, executive_summary, issues_count, tasks_created, created_at, results").order("created_at", { ascending: false }).limit(50),
     supabase.from("bug_reports").select("id, description, ai_summary, ai_severity, status").eq("status", "open").order("created_at", { ascending: false }).limit(10),
     supabase.from("prompt_queue").select("id, title, status, priority, created_at").order("created_at", { ascending: false }).limit(20),
     supabase.from("scan_dismissals").select("issue_key, issue_title, reason, created_at").limit(100),
     supabase.from("system_history").select("title, item_type, resolution_notes, ai_review_status, archived_at").order("archived_at", { ascending: false }).limit(20),
+    supabase.from("change_log").select("id, description, change_type, source, affected_components, bug_report_id, work_item_id, created_at").order("created_at", { ascending: false }).limit(50),
   ]);
 
   const openWork = workRes.data || [];
@@ -5413,6 +5414,7 @@ async function handleLovaChat(supabase: any, lovableKey: string, userId: string,
   const allPrompts = promptRes.data || [];
   const dismissedIssues = dismissRes.data || [];
   const recentHistory = historyRes.data || [];
+  const recentChanges = changeLogRes.data || [];
   const pendingPrompts = allPrompts.filter((p: any) => p.status === "pending");
   const donePrompts = allPrompts.filter((p: any) => p.status === "done");
   const recentlyDone = donePrompts.filter((p: any) => {
@@ -5511,12 +5513,29 @@ ${dismissedIssues.map((d: any) => `❌ ${d.issue_title} — "${d.reason}"`).join
 === SENASTE HISTORIK (avslutade uppgifter) ===
 ${recentHistory.map((h: any) => `[${h.ai_review_status}] ${h.title} (${h.item_type}) — ${h.resolution_notes || 'Ingen notering'}`).join("\n") || "Ingen historik"}
 
+=== ÄNDRINGSLOGG (senaste ${recentChanges.length} ändringar) ===
+${recentChanges.map((c: any) => {
+  const components = c.affected_components?.length ? ` [${c.affected_components.join(', ')}]` : '';
+  const linkedBug = c.bug_report_id ? ` 🐛bug:${c.bug_report_id.substring(0, 8)}` : '';
+  const linkedWork = c.work_item_id ? ` 📋task:${c.work_item_id.substring(0, 8)}` : '';
+  return `[${c.change_type}/${c.source}] ${c.description}${components}${linkedBug}${linkedWork} (${c.created_at?.substring(0, 16)})`;
+}).join("\n") || "Inga ändringar loggade"}
+
 VIKTIGT: Du har tillgång till ALL skanningshistorik per typ med trender. Använd detta för att:
 - Identifiera FÖRSÄMRINGAR (📉) och agera proaktivt
 - Korrelera problem mellan olika skannrar (t.ex. overflow + UX)
 - Undvika att rapportera redan fixade eller ignorerade issues
 - Referera till specifika skanningsresultat när du diskuterar problem
 Föreslå ALDRIG ignorerade issues.
+
+═══ ÄNDRINGSMEDVETENHET (KRITISKT) ═══
+Du har FULL tillgång till ändringsloggen ovan. Använd den AKTIVT:
+1. **Redan fixat?** — Innan du föreslår en fix, SÖK igenom ändringsloggen. Om problemet redan åtgärdats, säg: "Det fixades redan [datum] via [change_type]: [beskrivning]"
+2. **Relaterade ändringar** — Om ett problem kan kopplas till en tidigare ändring, nämn det: "Det kan vara relaterat till ändringen [beskrivning] den [datum]"
+3. **Regressioner** — Om en 'reopen'-ändring finns i loggen, prioritera den och nämn att den redan misslyckats en gång
+4. **Komponenter** — Matcha affected_components mot buggar/problem för att snabbt identifiera riskområden
+5. **Dubbletter** — Om en bugg beskriver samma sak som en nyligen gjord fix, flagga det som potentiell dubblett
+6. **SÄGA ALDRIG** "jag har ingen information om detta" om det finns relevant data i ändringsloggen
 `;
 
   const messages = [
