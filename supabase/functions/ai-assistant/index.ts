@@ -131,6 +131,11 @@ serve(async (req) => {
         break;
       }
 
+      case "interaction_qa": {
+        result = await handleInteractionQA(supabase, lovableKey);
+        break;
+      }
+
       case "ai_execute": {
         const { mode } = body;  // manual | assisted | autonomous
         result = await handleAiExecute(supabase, lovableKey, mode || "assisted");
@@ -2018,7 +2023,268 @@ Return a structured execution plan.`, [{
         });
       }
     }
+}
+
+// ── Interaction QA Engine ──
+async function handleInteractionQA(supabase: any, apiKey: string) {
+  // Gather comprehensive data about UI interactions, routes, and state
+  const [workItemsRes, bugsRes, eventsRes, productsRes, ordersRes, pagesRes, incidentsRes] = await Promise.all([
+    supabase.from("work_items").select("id, title, description, status, priority, item_type, ai_category, source_type, source_id, created_at").limit(200),
+    supabase.from("bug_reports").select("id, description, page_url, status, ai_category, ai_severity, ai_summary, created_at").limit(100),
+    supabase.from("analytics_events").select("event_type, event_data, created_at").in("event_type", ["page_error", "checkout_abandon", "checkout_start", "checkout_complete", "product_view", "add_to_cart", "remove_from_cart", "button_click", "navigation"]).order("created_at", { ascending: false }).limit(1000),
+    supabase.from("products").select("id, title_sv, handle, is_visible, is_sellable, stock, price").eq("is_visible", true).limit(200),
+    supabase.from("orders").select("id, status, payment_status, created_at").is("deleted_at", null).order("created_at", { ascending: false }).limit(50),
+    supabase.from("page_sections").select("page, section_key, is_visible, title_sv").limit(200),
+    supabase.from("order_incidents").select("id, title, status, type, order_id").in("status", ["open", "in_progress"]).limit(50),
+  ]);
+
+  const workItems = workItemsRes.data || [];
+  const bugs = bugsRes.data || [];
+  const events = eventsRes.data || [];
+  const products = productsRes.data || [];
+  const orders = ordersRes.data || [];
+  const pages = pagesRes.data || [];
+  const incidents = incidentsRes.data || [];
+
+  // Compute interaction metrics
+  const checkoutStarts = events.filter((e: any) => e.event_type === "checkout_start").length;
+  const checkoutCompletes = events.filter((e: any) => e.event_type === "checkout_complete").length;
+  const checkoutAbandons = events.filter((e: any) => e.event_type === "checkout_abandon").length;
+  const cartAdds = events.filter((e: any) => e.event_type === "add_to_cart").length;
+  const cartRemoves = events.filter((e: any) => e.event_type === "remove_from_cart").length;
+  const pageErrors = events.filter((e: any) => e.event_type === "page_error");
+
+  // Work items without valid source
+  const orphanItems = workItems.filter((w: any) => w.source_id && !w.source_type);
+  // Bugs still open
+  const openBugs = bugs.filter((b: any) => b.status !== "resolved" && b.status !== "closed");
+  // Items stuck (open > 7 days)
+  const stuckItems = workItems.filter((w: any) => {
+    if (!["open", "claimed"].includes(w.status)) return false;
+    const age = Date.now() - new Date(w.created_at).getTime();
+    return age > 7 * 24 * 60 * 60 * 1000;
+  });
+
+  // Routes with known components
+  const routes = [
+    { path: "/", name: "Startsida", buttons: ["Header nav", "Hero CTA", "Product cards", "Footer links"] },
+    { path: "/produkter", name: "Produkter", buttons: ["Category filters", "Product cards", "Add to cart", "Pagination"] },
+    { path: "/product/:handle", name: "Produktdetalj", buttons: ["Add to cart", "Quantity selector", "Review form", "Related products", "Wishlist"] },
+    { path: "/checkout", name: "Checkout", buttons: ["Address form", "Payment method", "Place order", "Cart items", "Discount code"] },
+    { path: "/profile", name: "Profil", buttons: ["Edit profile", "Order history", "Balance", "Settings", "Logout"] },
+    { path: "/about", name: "Om oss", buttons: ["Contact link", "Navigation"] },
+    { path: "/contact", name: "Kontakt", buttons: ["Contact form submit", "Map", "Phone link"] },
+    { path: "/track-order", name: "Spåra order", buttons: ["Order lookup", "Status display"] },
+    { path: "/affiliate", name: "Affiliate", buttons: ["Application form", "Code validation"] },
+    { path: "/business", name: "Företag", buttons: ["Business form submit"] },
+    { path: "/admin", name: "Admin", buttons: ["All admin nav items", "CRUD operations", "AI triggers", "Workbench actions"] },
+    { path: "/admin/ai", name: "AI Center", buttons: ["All tab triggers", "AI scan buttons", "Copy prompt", "Execute actions"] },
+  ];
+
+  const context = `=== INTERACTION QA CONTEXT ===
+
+ROUTES & EXPECTED BUTTONS:
+${routes.map(r => `${r.path} (${r.name}): ${r.buttons.join(", ")}`).join("\n")}
+
+ANALYTICS (last 7 days):
+- Checkout starts: ${checkoutStarts}
+- Checkout completes: ${checkoutCompletes}
+- Checkout abandons: ${checkoutAbandons}
+- Cart adds: ${cartAdds}
+- Cart removes: ${cartRemoves}
+- Page errors: ${pageErrors.length}
+${pageErrors.slice(0, 10).map((e: any) => `  Error: ${JSON.stringify(e.event_data)?.substring(0, 100)}`).join("\n")}
+
+OPEN BUGS (${openBugs.length}):
+${openBugs.slice(0, 20).map((b: any) => `- [${b.ai_severity || "?"}] ${b.page_url}: ${b.ai_summary || b.description?.substring(0, 80)}`).join("\n")}
+
+OPEN WORK ITEMS (${workItems.filter((w: any) => w.status !== "done").length}):
+${workItems.filter((w: any) => w.status !== "done").slice(0, 20).map((w: any) => `- [${w.priority}/${w.status}] ${w.title} (type: ${w.item_type})`).join("\n")}
+
+STUCK ITEMS (>7 days open): ${stuckItems.length}
+${stuckItems.slice(0, 10).map((w: any) => `- ${w.title}`).join("\n")}
+
+ORPHAN ITEMS (no valid source): ${orphanItems.length}
+
+PRODUCTS: ${products.length} visible, ${products.filter((p: any) => p.stock <= 0).length} out of stock
+UNSELLABLE BUT VISIBLE: ${products.filter((p: any) => !p.is_sellable).length}
+
+OPEN INCIDENTS: ${incidents.length}
+
+PAGE SECTIONS: ${pages.length} configured, ${pages.filter((p: any) => !p.is_visible).length} hidden
+
+STATE CONSISTENCY:
+- Orders pending payment: ${orders.filter((o: any) => o.payment_status === "unpaid").length}
+- Work items done but source still open: ${workItems.filter((w: any) => w.status === "done" && w.source_type === "bug_report").length} (check if bugs are synced)`;
+
+  const analysis = await callAI(apiKey, [
+    {
+      role: "system",
+      content: `Du är en senior QA-ingenjör som specialiserar sig på interaktionstestning av en svensk e-handelsplattform (4thepeople).
+
+Din uppgift:
+1. CLICK TESTING: Analysera alla knappar, formulär och interaktiva element per route. Identifiera element som sannolikt saknar funktion.
+2. DEAD ACTION DETECTION: Hitta knappar/element utan kopplad logik baserat på buggrapporter och analytics.
+3. ROUTE VALIDATION: Verifiera att alla routes laddar data korrekt.
+4. STATE CHANGE TEST: Identifiera fall där UI-state inte uppdateras efter en aktion.
+5. UI-BACKEND CONSISTENCY: Hitta mismatchar mellan UI-visning och databasdata.
+6. RE-SCAN EXISTING: Omvärdera alla öppna buggar — är de fortfarande relevanta?
+
+Var EXTREMT SPECIFIK. Ge exakta komponent-/sidnamn. Prioritera efter användarimpakt. Svara på svenska.`,
+    },
+    { role: "user", content: `Kör full interaktions-QA-analys:\n\n${context}` },
+  ], [{
+    type: "function",
+    function: {
+      name: "interaction_qa",
+      description: "Generate Interaction QA report",
+      parameters: {
+        type: "object",
+        properties: {
+          interaction_score: { type: "number", description: "0-100 overall interaction quality" },
+          click_test_score: { type: "number", description: "0-100 button/click test" },
+          state_sync_score: { type: "number", description: "0-100 state synchronization" },
+          route_health_score: { type: "number", description: "0-100 route health" },
+          executive_summary: { type: "string" },
+          dead_elements: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                element: { type: "string" },
+                page: { type: "string" },
+                issue: { type: "string" },
+                severity: { type: "string", enum: ["critical", "high", "medium", "low"] },
+                fix_suggestion: { type: "string" },
+                lovable_prompt: { type: "string" },
+              },
+              required: ["element", "page", "issue", "severity", "fix_suggestion", "lovable_prompt"],
+              additionalProperties: false,
+            },
+          },
+          broken_flows: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                flow_name: { type: "string" },
+                steps: { type: "array", items: { type: "string" } },
+                broken_at: { type: "string" },
+                severity: { type: "string", enum: ["critical", "high", "medium", "low"] },
+                fix_suggestion: { type: "string" },
+                lovable_prompt: { type: "string" },
+              },
+              required: ["flow_name", "steps", "broken_at", "severity", "fix_suggestion", "lovable_prompt"],
+              additionalProperties: false,
+            },
+          },
+          state_issues: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                description: { type: "string" },
+                affected_component: { type: "string" },
+                severity: { type: "string", enum: ["critical", "high", "medium", "low"] },
+                fix_suggestion: { type: "string" },
+              },
+              required: ["description", "affected_component", "severity", "fix_suggestion"],
+              additionalProperties: false,
+            },
+          },
+          route_issues: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                route: { type: "string" },
+                status: { type: "string", enum: ["ok", "warning", "broken", "empty"] },
+                issue: { type: "string" },
+              },
+              required: ["route", "status", "issue"],
+              additionalProperties: false,
+            },
+          },
+          bug_reevaluation: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                bug_id: { type: "string" },
+                original_status: { type: "string" },
+                recommended_status: { type: "string", enum: ["still_open", "likely_fixed", "duplicate", "wont_fix"] },
+                reason: { type: "string" },
+              },
+              required: ["bug_id", "original_status", "recommended_status", "reason"],
+              additionalProperties: false,
+            },
+          },
+        },
+        required: ["interaction_score", "click_test_score", "state_sync_score", "route_health_score", "executive_summary", "dead_elements", "broken_flows", "state_issues", "route_issues", "bug_reevaluation"],
+        additionalProperties: false,
+      },
+    },
+  }], { type: "function", function: { name: "interaction_qa" } });
+
+  // Auto-create work items for critical/high issues
+  let tasksCreated = 0;
+
+  if (analysis?.dead_elements) {
+    for (const el of analysis.dead_elements) {
+      if (!["critical", "high"].includes(el.severity)) continue;
+      const { data: existing } = await supabase
+        .from("work_items")
+        .select("id")
+        .ilike("title", `%${el.element.substring(0, 25)}%`)
+        .in("status", ["open", "claimed", "in_progress"])
+        .limit(1);
+      if (!existing?.length) {
+        await supabase.from("work_items").insert({
+          title: `Interaction: ${el.element} (${el.page})`.substring(0, 200),
+          description: `Element: ${el.element}\nSida: ${el.page}\n\nProblem: ${el.issue}\n\nFix: ${el.fix_suggestion}`,
+          status: "open",
+          priority: el.severity === "critical" ? "critical" : "high",
+          item_type: "bug",
+          source_type: "ai_detection",
+          ai_detected: true,
+          ai_confidence: "medium",
+          ai_category: "interaction",
+          ai_type_classification: "interaction_bug",
+        });
+        tasksCreated++;
+      }
+    }
   }
+
+  if (analysis?.broken_flows) {
+    for (const flow of analysis.broken_flows) {
+      if (!["critical", "high"].includes(flow.severity)) continue;
+      const { data: existing } = await supabase
+        .from("work_items")
+        .select("id")
+        .ilike("title", `%${flow.flow_name.substring(0, 25)}%`)
+        .in("status", ["open", "claimed", "in_progress"])
+        .limit(1);
+      if (!existing?.length) {
+        await supabase.from("work_items").insert({
+          title: `Broken flow: ${flow.flow_name}`.substring(0, 200),
+          description: `Flöde: ${flow.flow_name}\nSteg: ${flow.steps.join(" → ")}\nBryter vid: ${flow.broken_at}\n\nFix: ${flow.fix_suggestion}`,
+          status: "open",
+          priority: flow.severity === "critical" ? "critical" : "high",
+          item_type: "bug",
+          source_type: "ai_detection",
+          ai_detected: true,
+          ai_confidence: "medium",
+          ai_category: "interaction",
+          ai_type_classification: "broken_flow",
+        });
+        tasksCreated++;
+      }
+    }
+  }
+
+  return { ...analysis, tasks_created: tasksCreated };
+}
 
   return {
     ...analysis,
