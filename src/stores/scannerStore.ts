@@ -92,55 +92,55 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
       steps: toRun.map(s => ({ type: s.type, label: s.label, status: 'pending' as const })),
     });
 
-    for (let i = 0; i < toRun.length; i++) {
-      const step = toRun[i];
+    // Mark all as running
+    set(state => ({
+      steps: state.steps.map(s => ({ ...s, status: 'running' as const })),
+    }));
 
-      // Update current step to running
-      set(state => ({
-        steps: state.steps.map((s, idx) => idx === i ? { ...s, status: 'running' as const } : s),
-      }));
+    // Run all scans in parallel for speed
+    await Promise.allSettled(
+      toRun.map(async (step, i) => {
+        const start = Date.now();
+        try {
+          const res = await callAIForScan(
+            step.type,
+            step.type === 'content_validation' ? { auto_fix: false } : {}
+          );
+          const duration_ms = Date.now() - start;
 
-      const start = Date.now();
-      try {
-        const res = await callAIForScan(
-          step.type,
-          step.type === 'content_validation' ? { auto_fix: false } : {}
-        );
-        const duration_ms = Date.now() - start;
+          if (res) {
+            const { data: { session } } = await supabase.auth.getSession();
+            const score = res.system_score || res.score || res.interaction_score || res.overall_score || null;
+            const issueCount = res.issues_found || res.issues?.length || res.dead_elements?.length || res.mismatches?.length || 0;
+            const tasksCreated = res.tasks_created || 0;
+            const summary = res.executive_summary || res.summary || res.overall_summary || `${step.label} slutförd`;
 
-        if (res) {
-          // Persist to DB
-          const { data: { session } } = await supabase.auth.getSession();
-          const score = res.system_score || res.score || res.interaction_score || res.overall_score || null;
-          const issueCount = res.issues_found || res.issues?.length || res.dead_elements?.length || res.mismatches?.length || 0;
-          const tasksCreated = res.tasks_created || 0;
-          const summary = res.executive_summary || res.summary || res.overall_summary || `${step.label} slutförd`;
+            await supabase.from('ai_scan_results' as any).insert({
+              scan_type: step.type,
+              results: res,
+              overall_score: score,
+              overall_status: score !== null ? (score >= 70 ? 'healthy' : score >= 40 ? 'warning' : 'critical') : null,
+              executive_summary: typeof summary === 'string' ? summary.substring(0, 500) : null,
+              issues_count: issueCount,
+              tasks_created: tasksCreated,
+              scanned_by: session?.user?.id || null,
+            } as any);
 
-          await supabase.from('ai_scan_results' as any).insert({
-            scan_type: step.type,
-            results: res,
-            overall_score: score,
-            overall_status: score !== null ? (score >= 70 ? 'healthy' : score >= 40 ? 'warning' : 'critical') : null,
-            executive_summary: typeof summary === 'string' ? summary.substring(0, 500) : null,
-            issues_count: issueCount,
-            tasks_created: tasksCreated,
-            scanned_by: session?.user?.id || null,
-          } as any);
-
+            set(state => ({
+              steps: state.steps.map((s, idx) => idx === i ? { ...s, status: 'done' as const, result: res, duration_ms } : s),
+            }));
+          } else {
+            set(state => ({
+              steps: state.steps.map((s, idx) => idx === i ? { ...s, status: 'error' as const, error: 'Inget resultat', duration_ms: Date.now() - start } : s),
+            }));
+          }
+        } catch (err: any) {
           set(state => ({
-            steps: state.steps.map((s, idx) => idx === i ? { ...s, status: 'done' as const, result: res, duration_ms } : s),
-          }));
-        } else {
-          set(state => ({
-            steps: state.steps.map((s, idx) => idx === i ? { ...s, status: 'error' as const, error: 'Inget resultat', duration_ms: Date.now() - start } : s),
+            steps: state.steps.map((s, idx) => idx === i ? { ...s, status: 'error' as const, error: err?.message || 'Fel', duration_ms: Date.now() - start } : s),
           }));
         }
-      } catch (err: any) {
-        set(state => ({
-          steps: state.steps.map((s, idx) => idx === i ? { ...s, status: 'error' as const, error: err?.message || 'Fel', duration_ms: Date.now() - start } : s),
-        }));
-      }
-    }
+      })
+    );
 
     toast.success(`Alla skanningar klara (${toRun.length} st)`);
     set({ scanning: false });
