@@ -1642,6 +1642,7 @@ serve(async (req) => {
       const adaptiveResult = {
         ...unified,
         system_overview: systemOverview,
+        system_stage: systemStage,
         adaptive_scan: {
           iterations: iterationsCompleted, new_issues_found: scanRun.total_new_issues || 0,
           pattern_discoveries: patternDiscoveries, high_risk_areas: highRiskAreas,
