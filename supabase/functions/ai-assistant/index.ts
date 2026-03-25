@@ -1303,6 +1303,25 @@ async function handleSystemScan(supabase: any, apiKey: string, supabaseUrl: stri
   // 1. Gather full snapshot
   const { summary, metrics } = await gatherSystemSnapshot(supabase);
 
+  // 1b. Load dismissed issues + existing work items to prevent AI from re-reporting them
+  const [dismissedRes, existingWorkItemsRes] = await Promise.all([
+    supabase.from("scan_dismissals").select("issue_key, issue_title, reason").eq("scan_type", "system_scan"),
+    supabase.from("work_items").select("title, status, priority, item_type")
+      .in("status", ["open", "claimed", "in_progress", "escalated", "done"])
+      .order("created_at", { ascending: false }).limit(200),
+  ]);
+  const dismissedTitles = (dismissedRes.data || []).map((d: any) => d.issue_title || d.issue_key).filter(Boolean);
+  const existingTitles = (existingWorkItemsRes.data || []).map((w: any) => w.title).filter(Boolean);
+
+  const excludeContext = `
+=== IGNORERADE ÄRENDEN (rapportera INTE dessa igen) ===
+${dismissedTitles.length > 0 ? dismissedTitles.map((t: string) => `- ${t}`).join("\n") : "(inga)"}
+
+=== BEFINTLIGA WORK ITEMS (rapportera INTE dessa igen, de hanteras redan) ===
+${existingTitles.slice(0, 80).map((t: string) => `- ${t}`).join("\n")}
+${existingTitles.length > 80 ? `\n... och ${existingTitles.length - 80} till` : ""}
+`;
+
   // 2. Deep AI analysis – detect ALL issues (bugs, improvements, features, upgrades)
   const analysis = await callAI(apiKey, [
     {
@@ -1310,9 +1329,12 @@ async function handleSystemScan(supabase: any, apiKey: string, supabaseUrl: stri
       content: `Du är en AI-systemanalytiker för en svensk e-handelsplattform (4thepeople).
 Skanna ALL systemdata och identifiera ALLA problem, förbättringsmöjligheter och saknade funktioner.
 Klassificera varje issue korrekt. Var specifik och handlingsbar. Svara på svenska.
+
+VIKTIGT: Rapportera INTE issues som redan är ignorerade eller redan finns som ärenden/work items.
+Se listan nedan och hoppa över allt som matchar eller liknar dessa titlar.
 Du MÅSTE använda system_scan-funktionen.`,
     },
-    { role: "user", content: `Genomför en fullständig systemskanning:\n\n${summary}` },
+    { role: "user", content: `Genomför en fullständig systemskanning:\n\n${summary}\n\n${excludeContext}` },
   ], [{
     type: "function",
     function: {
@@ -1394,18 +1416,31 @@ Du MÅSTE använda system_scan-funktionen.`,
   }
 
   // 3. Auto-create work_items for detected issues (with dedup) — only non-dismissed
+  // Also filter activeIssues against existing work items (fuzzy) to avoid showing already-handled items
+  const existingTitleSet = new Set((existingWorkItemsRes.data || []).map((w: any) => (w.title || "").toLowerCase().trim()));
+  const filteredActiveIssues = activeIssues.filter((issue: any) => {
+    const key = (issue.title || "").toLowerCase().trim();
+    // Check if any existing work item title contains this issue title or vice versa
+    for (const existing of existingTitleSet) {
+      if (existing.includes(key) || key.includes(existing) ||
+          existing.includes(key.substring(0, 30)) || key.includes(existing.substring(0, 30))) {
+        return false;
+      }
+    }
+    return true;
+  });
+
   let created = 0;
   let skipped = 0;
   const createdIds: string[] = [];
 
-  for (const issue of activeIssues) {
-    // Dedup: check if similar task already exists
+  for (const issue of filteredActiveIssues) {
+    // Dedup: check if similar task already exists (including done)
     const searchTitle = issue.title.substring(0, 40);
     const { data: existing } = await supabase
       .from("work_items")
       .select("id")
       .ilike("title", `%${searchTitle}%`)
-      .in("status", ["open", "claimed", "in_progress", "escalated"])
       .limit(1);
 
     if (existing?.length) {
@@ -1477,9 +1512,9 @@ Du MÅSTE använda system_scan-funktionen.`,
     system_score: analysis?.system_score || 0,
     executive_summary: analysis?.executive_summary || "",
     risk_areas: analysis?.risk_areas || [],
-    issues_found: activeIssues.length,
-    issues: activeIssues,
-    dismissed_count: allIssues.length - activeIssues.length + escalatedDismissals.length,
+    issues_found: filteredActiveIssues.length,
+    issues: filteredActiveIssues,
+    dismissed_count: allIssues.length - filteredActiveIssues.length,
     escalated_dismissed: escalatedDismissals,
     tasks_created: created,
     tasks_skipped_duplicate: skipped,
