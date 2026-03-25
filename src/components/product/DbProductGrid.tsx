@@ -26,7 +26,6 @@ const DbProductGrid = () => {
   const { language, t } = useLanguage();
   const lang = getContentLang(language);
   const { categories } = useDbCategories();
-  const lang = getContentLang(language);
   const [products, setProducts] = useState<DbProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
