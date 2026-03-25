@@ -973,6 +973,9 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
           <Button size="sm" variant="outline" className="gap-1.5" onClick={runOrchestrator} disabled={runningOrchestrator}>
             <Layers className="w-4 h-4" /> {runningOrchestrator ? 'Analyserar...' : 'AI Orchestrator'}
           </Button>
+          <Button size="sm" variant="outline" className="gap-1.5" onClick={runValidation} disabled={runningValidation}>
+            <CheckCircle2 className="w-4 h-4" /> {runningValidation ? 'Validerar...' : 'Validera & Städa'}
+          </Button>
           <Button size="sm" className="gap-1.5" onClick={() => setShowCreate(!showCreate)}>
             {showCreate ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
             {showCreate ? 'Stäng' : 'Ny uppgift'}
