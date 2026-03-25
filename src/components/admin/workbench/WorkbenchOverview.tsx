@@ -1,5 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { useMemo } from 'react';
+import { useAdminWorkItems, useAdminOrders } from '@/hooks/useAdminData';
 import { ClipboardList, AlertTriangle, Package, Clock, ArrowRight, Bug, ShieldAlert } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -9,34 +9,23 @@ interface Props {
 }
 
 const WorkbenchOverview = ({ onNavigate }: Props) => {
-  const { data: stats } = useQuery({
-    queryKey: ['workbench-stats'],
-    queryFn: async () => {
-      const [itemsRes, ordersRes] = await Promise.all([
-        supabase.from('work_items' as any).select('status, priority, item_type, source_type, ignored').neq('status', 'cancelled'),
-        supabase
-          .from('orders')
-          .select('status, payment_status, fulfillment_status')
-          .is('deleted_at', null)
-          .neq('status', 'cancelled')
-          .eq('payment_status', 'paid'),
-      ]);
+  const { data: rawItems = [] } = useAdminWorkItems();
+  const { data: allOrders = [] } = useAdminOrders();
 
-      const items = ((itemsRes.data || []) as any[]).filter(t => !t.ignored);
-      const orders = ordersRes.data || [];
+  const stats = useMemo(() => {
+    const items = (rawItems as any[]).filter(t => !t.ignored);
+    const orders = allOrders.filter(o => o.payment_status === 'paid');
 
-      return {
-        openItems: items.filter(t => !['done', 'cancelled'].includes(t.status)).length,
-        inProgressItems: items.filter(t => t.status === 'in_progress').length,
-        escalatedItems: items.filter(t => t.status === 'escalated' || t.priority === 'critical').length,
-        bugItems: items.filter(t => t.item_type === 'bug' && t.status !== 'done').length,
-        incidentItems: items.filter(t => t.item_type === 'incident' && t.status !== 'done').length,
-        ordersToPack: orders.filter(o => ['pending', 'unfulfilled', 'packing'].includes((o as any).fulfillment_status)).length,
-        readyToShip: orders.filter(o => ['ready_to_ship', 'packed'].includes((o as any).fulfillment_status)).length,
-      };
-    },
-    refetchInterval: 30000,
-  });
+    return {
+      openItems: items.filter(t => !['done', 'cancelled'].includes(t.status)).length,
+      inProgressItems: items.filter(t => t.status === 'in_progress').length,
+      escalatedItems: items.filter(t => t.status === 'escalated' || t.priority === 'critical').length,
+      bugItems: items.filter(t => t.item_type === 'bug' && t.status !== 'done').length,
+      incidentItems: items.filter(t => t.item_type === 'incident' && t.status !== 'done').length,
+      ordersToPack: orders.filter(o => ['pending', 'unfulfilled', 'packing'].includes((o as any).fulfillment_status)).length,
+      readyToShip: orders.filter(o => ['ready_to_ship', 'packed'].includes((o as any).fulfillment_status)).length,
+    };
+  }, [rawItems, allOrders]);
 
   const cards = [
     {
