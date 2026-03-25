@@ -8817,3 +8817,198 @@ REGLER:
     click_summary: summary,
   };
 }
+
+// ── Real vs Fake Feature Detection ──
+async function handleFeatureDetection(supabase: any, lovableKey: string) {
+  const [
+    workItemsRes, bugsRes, scanResultsRes, changeLogRes, productsRes, categoriesRes, readLogRes,
+  ] = await Promise.all([
+    supabase.from("work_items").select("id, title, description, status, priority, item_type, source_type, ai_detected, ai_category, ai_type_classification, metadata, created_at, completed_at").order("created_at", { ascending: false }).limit(200),
+    supabase.from("bug_reports").select("id, description, status, ai_summary, ai_severity, ai_category, ai_tags, page_url, created_at").order("created_at", { ascending: false }).limit(100),
+    supabase.from("ai_scan_results").select("id, scan_type, overall_score, overall_status, issues_count, executive_summary, created_at").order("created_at", { ascending: false }).limit(20),
+    supabase.from("change_log").select("id, description, change_type, source, affected_components, created_at").order("created_at", { ascending: false }).limit(100),
+    supabase.from("products").select("id, title_sv, handle, stock, price, is_visible, is_sellable, image_urls, description_sv, category_id, created_at").limit(200),
+    supabase.from("categories").select("id, name_sv, slug, is_visible, parent_id").limit(50),
+    supabase.from("ai_read_log").select("action_type, target_type, result, summary, created_at").order("created_at", { ascending: false }).limit(50),
+  ]);
+
+  const workItems = workItemsRes.data || [];
+  const bugs = bugsRes.data || [];
+  const scanResults = scanResultsRes.data || [];
+  const changeLog = changeLogRes.data || [];
+  const products = productsRes.data || [];
+  const categories = categoriesRes.data || [];
+  const readLog = readLogRes.data || [];
+
+  const evidenceSummary = `
+FEATURE DETECTION EVIDENCE
+==========================
+
+WORK ITEMS (${workItems.length}):
+- Done: ${workItems.filter((w: any) => w.status === "done").length}
+- Open/In-Progress: ${workItems.filter((w: any) => ["open", "claimed", "in_progress"].includes(w.status)).length}
+- Bug type: ${workItems.filter((w: any) => w.item_type === "bug").length}
+- AI-detected: ${workItems.filter((w: any) => w.ai_detected).length}
+- Recent completed: ${workItems.filter((w: any) => w.status === "done").slice(0, 15).map((w: any) => `"${w.title}" (${w.item_type})`).join("; ")}
+- Open items: ${workItems.filter((w: any) => w.status !== "done").slice(0, 15).map((w: any) => `"${w.title}" [${w.status}/${w.priority}]`).join("; ")}
+
+BUG REPORTS (${bugs.length}):
+- Open: ${bugs.filter((b: any) => b.status === "open" || b.status === "new").length}
+- Resolved: ${bugs.filter((b: any) => b.status === "resolved").length}
+- Critical/High: ${bugs.filter((b: any) => ["critical", "high"].includes(b.ai_severity)).length}
+- Unresolved: ${bugs.filter((b: any) => b.status !== "resolved").slice(0, 10).map((b: any) => `"${b.ai_summary || b.description?.substring(0, 60)}" [${b.ai_severity}] @ ${b.page_url || "?"}`).join("; ")}
+
+SCAN RESULTS (${scanResults.length}):
+${scanResults.slice(0, 10).map((s: any) => `- ${s.scan_type}: score=${s.overall_score}, status=${s.overall_status}, issues=${s.issues_count}`).join("\n")}
+
+CHANGE LOG (${changeLog.length}):
+${changeLog.slice(0, 15).map((c: any) => `- [${c.change_type}] ${c.description?.substring(0, 80)} (${(c.affected_components || []).join(",")})`).join("\n")}
+
+PRODUCTS (${products.length}):
+- Visible & sellable: ${products.filter((p: any) => p.is_visible && p.is_sellable).length}
+- No images: ${products.filter((p: any) => !p.image_urls?.length).length}
+- No description: ${products.filter((p: any) => !p.description_sv).length}
+- No price: ${products.filter((p: any) => !p.price || p.price <= 0).length}
+- Out of stock but sellable: ${products.filter((p: any) => p.stock <= 0 && p.is_sellable).length}
+- No category: ${products.filter((p: any) => !p.category_id).length}
+
+CATEGORIES (${categories.length}):
+- Visible: ${categories.filter((c: any) => c.is_visible).length}
+- Hidden: ${categories.filter((c: any) => !c.is_visible).length}
+
+AI ACTIVITY (${readLog.length}):
+${readLog.slice(0, 10).map((r: any) => `- ${r.action_type}/${r.target_type}: ${r.result}`).join("\n")}
+`;
+
+  const analysis = await callAI(lovableKey, [
+    {
+      role: "system",
+      content: `Du är en systemrevisor för en svensk e-handelsplattform (4thepeople).
+
+Din uppgift: Analysera ALLA features/funktioner i systemet och klassificera dem som:
+- real_feature: UI finns, klick fungerar, data laddas, resultat ändras korrekt
+- partial_feature: Delar fungerar men saknar komplett flöde (t.ex. UI finns men data sparas inte)
+- fake_feature: Ser klar ut men gör ingenting, eller kritiska delar saknas helt
+
+Var brutalt ärlig. En "fake feature" är FARLIGT — det ger falsk trygghet.
+
+Fokusera på:
+1. Features markerade "done" med öppna buggar
+2. Produkter synliga men ej köpbara (no price, no stock, no images)
+3. UI-element utan backend-logik
+4. Scan-resultat som visar problem i "klara" areas
+5. Work items done men aldrig verifierade
+
+Svara ALLTID på svenska.`,
+    },
+    { role: "user", content: evidenceSummary },
+  ], [
+    {
+      type: "function",
+      function: {
+        name: "feature_detection",
+        description: "Classify all features as real, partial, or fake",
+        parameters: {
+          type: "object",
+          properties: {
+            overall_score: { type: "number", description: "Feature reality score 0-100" },
+            overall_status: { type: "string", enum: ["healthy", "warning", "critical"] },
+            executive_summary: { type: "string", description: "2-3 sentence summary in Swedish" },
+            features: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  feature_name: { type: "string" },
+                  area: { type: "string" },
+                  classification: { type: "string", enum: ["real_feature", "partial_feature", "fake_feature"] },
+                  ui_exists: { type: "boolean" },
+                  click_works: { type: "boolean" },
+                  data_loads: { type: "boolean" },
+                  result_changes: { type: "boolean" },
+                  evidence: { type: "string" },
+                  impact: { type: "string", enum: ["critical", "high", "medium", "low"] },
+                  fix_description: { type: "string" },
+                  lovable_prompt: { type: "string" },
+                },
+                required: ["feature_name", "area", "classification", "ui_exists", "click_works", "data_loads", "result_changes", "evidence", "impact"],
+                additionalProperties: false,
+              },
+            },
+            fake_count: { type: "number" },
+            partial_count: { type: "number" },
+            real_count: { type: "number" },
+          },
+          required: ["overall_score", "overall_status", "executive_summary", "features", "fake_count", "partial_count", "real_count"],
+          additionalProperties: false,
+        },
+      },
+    },
+  ], { type: "function", function: { name: "feature_detection" } });
+
+  if (!analysis || !analysis.features) {
+    return { error: "AI returned no feature analysis", raw: analysis };
+  }
+
+  // Persist scan result
+  const scanId = await persistScanResult(supabase, {
+    scan_type: "feature_detection",
+    results: analysis,
+    overall_score: analysis.overall_score || 0,
+    overall_status: analysis.overall_status || "warning",
+    issues_count: (analysis.fake_count || 0) + (analysis.partial_count || 0),
+    executive_summary: analysis.executive_summary || "",
+  });
+
+  // Auto-create work items: fake → critical bug, partial → improvement task
+  let tasksCreated = 0;
+
+  for (const feature of analysis.features) {
+    if (feature.classification === "real_feature") continue;
+
+    const { data: existing } = await supabase
+      .from("work_items")
+      .select("id")
+      .ilike("title", `%${feature.feature_name.substring(0, 30)}%`)
+      .in("status", ["open", "claimed", "in_progress"])
+      .limit(1);
+
+    if (existing?.length) continue;
+
+    if (feature.classification === "fake_feature") {
+      await supabase.from("work_items").insert({
+        title: `🚨 Fake Feature: ${feature.feature_name}`.substring(0, 200),
+        description: `FEJKAD FUNKTION\n\nFeature: ${feature.feature_name}\nArea: ${feature.area}\nUI: ${feature.ui_exists ? "✅" : "❌"} | Klick: ${feature.click_works ? "✅" : "❌"} | Data: ${feature.data_loads ? "✅" : "❌"} | Resultat: ${feature.result_changes ? "✅" : "❌"}\n\nBevis: ${feature.evidence}\n\nFix: ${feature.fix_description || "N/A"}\n\nLovable prompt:\n${feature.lovable_prompt || ""}`,
+        status: "open",
+        priority: feature.impact === "critical" ? "critical" : "high",
+        item_type: "bug",
+        source_type: "ai_scan",
+        source_id: scanId || undefined,
+        ai_detected: true,
+        ai_confidence: "high",
+        ai_category: feature.area,
+        ai_type_classification: "fake_feature",
+      });
+      tasksCreated++;
+    } else {
+      await supabase.from("work_items").insert({
+        title: `⚠️ Partial: ${feature.feature_name}`.substring(0, 200),
+        description: `DELVIS FUNGERANDE\n\nFeature: ${feature.feature_name}\nArea: ${feature.area}\nUI: ${feature.ui_exists ? "✅" : "❌"} | Klick: ${feature.click_works ? "✅" : "❌"} | Data: ${feature.data_loads ? "✅" : "❌"} | Resultat: ${feature.result_changes ? "✅" : "❌"}\n\nBevis: ${feature.evidence}\n\nFörbättring: ${feature.fix_description || "N/A"}\n\nLovable prompt:\n${feature.lovable_prompt || ""}`,
+        status: "open",
+        priority: feature.impact === "critical" ? "high" : "medium",
+        item_type: "improvement",
+        source_type: "ai_scan",
+        source_id: scanId || undefined,
+        ai_detected: true,
+        ai_confidence: "medium",
+        ai_category: feature.area,
+        ai_type_classification: "partial_feature",
+      });
+      tasksCreated++;
+    }
+  }
+
+  if (scanId && tasksCreated > 0) await updateScanTaskCount(supabase, scanId, tasksCreated);
+
+  return { ...analysis, scan_id: scanId, tasks_created: tasksCreated };
+}
