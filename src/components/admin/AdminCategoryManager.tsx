@@ -201,7 +201,7 @@ const AdminCategoryManager = () => {
     }
   };
 
-
+  const renderCategoryRow = (cat: DbCategory, depth = 0) => {
     const Icon = getIcon(cat.icon);
     const hasChildren = cat.children && cat.children.length > 0;
     const isExpanded = expandedIds.has(cat.id);
