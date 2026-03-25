@@ -1138,7 +1138,7 @@ const BugAITab = () => {
     } as any).eq('id', bugId);
     if (!error) {
       toast.success('Bugg markerad som löst ✅');
-      if (expandedId === bugId) setExpandedId(null);
+      if (selectedBugId === bugId) setSelectedBugId(null);
       setBugs(prev => prev.filter(b => b.id !== bugId));
     } else toast.error('Kunde inte uppdatera bugg');
   };
@@ -1150,7 +1150,7 @@ const BugAITab = () => {
     } as any).eq('id', bugId);
     if (!error) {
       toast.success('Bugg ignorerad');
-      if (expandedId === bugId) setExpandedId(null);
+      if (selectedBugId === bugId) setSelectedBugId(null);
       setBugs(prev => prev.filter(b => b.id !== bugId));
     } else toast.error('Kunde inte ignorera bugg');
   };
@@ -1237,7 +1237,8 @@ const BugAITab = () => {
 
       <div className="max-h-[65vh] overflow-y-auto space-y-2 pr-1">
         {bugs.map(bug => {
-          const isExpanded = expandedId === bug.id;
+          const selectedBug = bugs.find(b => b.id === selectedBugId);
+          const isExpanded = selectedBugId === bug.id;
           const fix = fixes[bug.id];
 
           return (
@@ -1245,7 +1246,16 @@ const BugAITab = () => {
               {/* Header - always visible */}
               <div
                 className="p-3 flex items-start gap-3 cursor-pointer hover:bg-muted/30 transition-colors"
-                onClick={() => setExpandedId(isExpanded ? null : bug.id)}
+                onClick={() => {
+                  console.log("CLICK BUG:", bug.id);
+                  const newId = isExpanded ? null : bug.id;
+                  setSelectedBugId(newId);
+                  if (newId) {
+                    const found = bugs.find(b => b.id === newId);
+                    console.log("FOUND BUG:", found);
+                  }
+                }}
+              >
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium">{bug.ai_summary || bug.description?.substring(0, 100)}</p>
