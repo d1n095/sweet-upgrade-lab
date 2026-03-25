@@ -71,6 +71,7 @@ const AdminBugReports = () => {
   const [processingAI, setProcessingAI] = useState<string | null>(null);
   const [promptSearch, setPromptSearch] = useState('');
   const [promptTagFilter, setPromptTagFilter] = useState<string | null>(null);
+  const [diagnostics, setDiagnostics] = useState<Record<string, any>>({});
 
   const load = async () => {
     setLoading(true);
@@ -154,6 +155,19 @@ const AdminBugReports = () => {
             }
           : r
       ));
+      // Store extended diagnostics
+      if (result.root_causes || result.fix_suggestions) {
+        setDiagnostics(prev => ({
+          ...prev,
+          [bugId]: {
+            root_causes: result.root_causes || [],
+            is_reproducible: result.is_reproducible,
+            reproducibility_reasoning: result.reproducibility_reasoning,
+            fix_suggestions: result.fix_suggestions || [],
+            affected_components: result.affected_components || [],
+          },
+        }));
+      }
       toast.success('AI-analys klar ✓');
     } catch {
       toast.error('Något gick fel');
@@ -372,6 +386,73 @@ const AdminBugReports = () => {
                 {isProcessing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
                 Bearbeta med AI
               </Button>
+            )}
+
+            {/* AI Diagnostics Panel */}
+            {diagnostics[r.id] && (
+              <div className="space-y-3 border border-amber-300/30 rounded-lg p-3 bg-amber-50/5">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-700">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  AI Diagnostik
+                </div>
+                <div className="text-xs space-y-0.5">
+                  <Badge variant={diagnostics[r.id].is_reproducible ? 'destructive' : 'secondary'} className="text-[9px]">
+                    {diagnostics[r.id].is_reproducible ? 'Reproducerbar' : 'Ej säkert reproducerbar'}
+                  </Badge>
+                  <p className="text-muted-foreground mt-1">{diagnostics[r.id].reproducibility_reasoning}</p>
+                </div>
+                {diagnostics[r.id].root_causes?.length > 0 && (
+                  <div>
+                    <span className="text-[10px] text-muted-foreground block mb-1">Möjliga orsaker</span>
+                    <div className="space-y-1.5">
+                      {diagnostics[r.id].root_causes.map((rc: any, i: number) => (
+                        <div key={i} className="flex items-start gap-2 text-xs bg-background rounded-md p-2 border">
+                          <div className={cn(
+                            'shrink-0 w-8 h-5 rounded text-[10px] font-bold flex items-center justify-center',
+                            rc.confidence >= 70 ? 'bg-destructive/15 text-destructive' : rc.confidence >= 40 ? 'bg-amber-500/15 text-amber-700' : 'bg-muted text-muted-foreground'
+                          )}>
+                            {rc.confidence}%
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium">{rc.cause}</p>
+                            <span className="text-[10px] text-muted-foreground">{rc.affected_area}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {diagnostics[r.id].fix_suggestions?.length > 0 && (
+                  <div>
+                    <span className="text-[10px] text-muted-foreground block mb-1">Föreslagna åtgärder</span>
+                    <div className="space-y-1.5">
+                      {diagnostics[r.id].fix_suggestions.map((fs: any, i: number) => (
+                        <div key={i} className="text-xs bg-background rounded-md p-2 border flex items-start justify-between gap-2">
+                          <p className="flex-1">{fs.suggestion}</p>
+                          <div className="flex gap-1 shrink-0">
+                            <span className={cn('text-[9px] px-1.5 py-0.5 rounded-full border',
+                              fs.effort === 'low' ? 'bg-green-500/10 text-green-700 border-green-200' : fs.effort === 'high' ? 'bg-destructive/10 text-destructive border-destructive/20' : 'bg-amber-500/10 text-amber-700 border-amber-200'
+                            )}>Insats: {fs.effort}</span>
+                            <span className={cn('text-[9px] px-1.5 py-0.5 rounded-full border',
+                              fs.risk === 'low' ? 'bg-green-500/10 text-green-700 border-green-200' : fs.risk === 'high' ? 'bg-destructive/10 text-destructive border-destructive/20' : 'bg-amber-500/10 text-amber-700 border-amber-200'
+                            )}>Risk: {fs.risk}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {diagnostics[r.id].affected_components?.length > 0 && (
+                  <div>
+                    <span className="text-[10px] text-muted-foreground block mb-1">Troligen berörda filer</span>
+                    <div className="flex gap-1 flex-wrap">
+                      {diagnostics[r.id].affected_components.map((c: string, i: number) => (
+                        <code key={i} className="text-[9px] bg-muted px-1.5 py-0.5 rounded font-mono">{c}</code>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
 
             {r.status === 'resolved' && (
