@@ -305,10 +305,15 @@ async function logAiRead(supabase: any, entry: {
   target_type: string;
   target_ids?: string[];
   affected_components?: string[];
+  file_paths?: string[];
+  endpoints?: string[];
   result: string;
   summary?: string;
   metadata?: any;
   triggered_by?: string;
+  linked_bug_id?: string;
+  linked_work_item_id?: string;
+  linked_scan_id?: string;
 }) {
   try {
     await supabase.from("ai_read_log").insert({
@@ -316,10 +321,20 @@ async function logAiRead(supabase: any, entry: {
       target_type: entry.target_type,
       target_ids: entry.target_ids || [],
       affected_components: entry.affected_components || [],
+      file_paths: entry.file_paths || [],
+      endpoints: entry.endpoints || [],
       result: entry.result,
       summary: entry.summary || null,
       metadata: entry.metadata || {},
       triggered_by: entry.triggered_by || null,
+      linked_bug_id: entry.linked_bug_id || null,
+      linked_work_item_id: entry.linked_work_item_id || null,
+      linked_scan_id: entry.linked_scan_id || null,
+    });
+  } catch (e) {
+    console.warn("ai_read_log insert failed:", e);
+  }
+}
     });
   } catch (e) {
     console.warn("ai_read_log insert failed:", e);
