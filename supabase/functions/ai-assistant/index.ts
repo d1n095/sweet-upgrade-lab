@@ -1303,6 +1303,25 @@ async function handleSystemScan(supabase: any, apiKey: string, supabaseUrl: stri
   // 1. Gather full snapshot
   const { summary, metrics } = await gatherSystemSnapshot(supabase);
 
+  // 1b. Load dismissed issues + existing work items to prevent AI from re-reporting them
+  const [dismissedRes, existingWorkItemsRes] = await Promise.all([
+    supabase.from("scan_dismissals").select("issue_key, issue_title, reason").eq("scan_type", "system_scan"),
+    supabase.from("work_items").select("title, status, priority, item_type")
+      .in("status", ["open", "claimed", "in_progress", "escalated", "done"])
+      .order("created_at", { ascending: false }).limit(200),
+  ]);
+  const dismissedTitles = (dismissedRes.data || []).map((d: any) => d.issue_title || d.issue_key).filter(Boolean);
+  const existingTitles = (existingWorkItemsRes.data || []).map((w: any) => w.title).filter(Boolean);
+
+  const excludeContext = `
+=== IGNORERADE ÄRENDEN (rapportera INTE dessa igen) ===
+${dismissedTitles.length > 0 ? dismissedTitles.map((t: string) => `- ${t}`).join("\n") : "(inga)"}
+
+=== BEFINTLIGA WORK ITEMS (rapportera INTE dessa igen, de hanteras redan) ===
+${existingTitles.slice(0, 80).map((t: string) => `- ${t}`).join("\n")}
+${existingTitles.length > 80 ? `\n... och ${existingTitles.length - 80} till` : ""}
+`;
+
   // 2. Deep AI analysis – detect ALL issues (bugs, improvements, features, upgrades)
   const analysis = await callAI(apiKey, [
     {
@@ -1310,9 +1329,12 @@ async function handleSystemScan(supabase: any, apiKey: string, supabaseUrl: stri
       content: `Du är en AI-systemanalytiker för en svensk e-handelsplattform (4thepeople).
 Skanna ALL systemdata och identifiera ALLA problem, förbättringsmöjligheter och saknade funktioner.
 Klassificera varje issue korrekt. Var specifik och handlingsbar. Svara på svenska.
+
+VIKTIGT: Rapportera INTE issues som redan är ignorerade eller redan finns som ärenden/work items.
+Se listan nedan och hoppa över allt som matchar eller liknar dessa titlar.
 Du MÅSTE använda system_scan-funktionen.`,
     },
-    { role: "user", content: `Genomför en fullständig systemskanning:\n\n${summary}` },
+    { role: "user", content: `Genomför en fullständig systemskanning:\n\n${summary}\n\n${excludeContext}` },
   ], [{
     type: "function",
     function: {
