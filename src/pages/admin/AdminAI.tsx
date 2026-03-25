@@ -3752,7 +3752,7 @@ Förslag: ${issue.fix_suggestion}`,
             {scanMeta && <span className="ml-2 text-[10px] text-muted-foreground/60">Senast: {new Date(scanMeta.created_at).toLocaleString('sv-SE')}</span>}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button onClick={run} disabled={loading || triaging} className="gap-2">
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Radar className="w-4 h-4" />}
             {loading ? 'Analyserar...' : 'Kör Visual QA'}
@@ -3761,6 +3761,12 @@ Förslag: ${issue.fix_suggestion}`,
             <Button onClick={smartTriageAll} disabled={loading || triaging} variant="outline" className="gap-2">
               {triaging ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bot className="w-4 h-4" />}
               {triaging ? 'Triagerar...' : 'Smart Triage'}
+            </Button>
+          )}
+          {scanHistory.length > 0 && (
+            <Button onClick={() => setShowHistory(!showHistory)} variant="ghost" className="gap-2">
+              <History className="w-4 h-4" />
+              Historik ({scanHistory.length})
             </Button>
           )}
         </div>
