@@ -338,6 +338,12 @@ serve(async (req) => {
         break;
       }
 
+      case "component_map": {
+        await logAiRead(supabase, { action_type: "scan", target_type: "component_map", result: "inspected", summary: "AI ran component link mapping", triggered_by: user.id });
+        result = await handleComponentMap(supabase, lovableKey);
+        break;
+      }
+
       default:
         return new Response(JSON.stringify({ error: "Unknown type" }), { status: 400, headers: corsHeaders });
     }
@@ -6048,6 +6054,7 @@ async function executeLovaAction(supabase: any, lovableKey: string, args: any) {
       if (scanType === "sync_scan") return await handleSyncScan(supabase, lovableKey);
       if (scanType === "data_integrity") return await handleDataIntegrity(supabase);
       if (scanType === "human_test") return await handleHumanTest(supabase, lovableKey);
+      if (scanType === "component_map") return await handleComponentMap(supabase, lovableKey);
 
       // Default / system-level scan
       return await handleSystemHealth(supabase, lovableKey);
