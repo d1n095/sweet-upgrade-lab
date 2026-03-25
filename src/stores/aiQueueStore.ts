@@ -644,7 +644,7 @@ export const useAiQueueStore = create<AiQueueState>((set, get) => ({
         if (running.length + 1 >= current.maxConcurrent) break;
       }
     } finally {
-      set({ _isProcessing: false });
+      set({ _isProcessing: false, _processingStartedAt: null });
     }
   },
 }));
