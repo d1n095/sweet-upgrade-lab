@@ -150,6 +150,22 @@ serve(async (req) => {
       } catch (emailErr: any) {
         console.warn('[stripe-webhook] Failed to trigger order email:', emailErr?.message);
       }
+
+      // Store receipt in storage bucket
+      try {
+        const receiptFnUrl = `${supabaseUrl}/functions/v1/generate-receipt`;
+        await fetch(receiptFnUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseServiceKey}`,
+          },
+          body: JSON.stringify({ order_id: ensured.orderId }),
+        });
+        console.log('[stripe-webhook] Receipt stored for', ensured.order?.order_number);
+      } catch (receiptErr: any) {
+        console.warn('[stripe-webhook] Failed to store receipt:', receiptErr?.message);
+      }
     }
 
     return ok({
