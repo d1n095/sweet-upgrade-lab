@@ -75,7 +75,7 @@ serve(async (req) => {
         if (!bug) {
           return new Response(JSON.stringify({ error: "Bug not found" }), { status: 404, headers: corsHeaders });
         }
-        await logAiRead(supabase, { action_type: "analyze", target_type: "bug_report", target_ids: [bug_id], result: "inspected", summary: `AI analyzed bug: ${bug.ai_summary || bug.description?.substring(0, 80)}`, triggered_by: user.id });
+        await logAiRead(supabase, { action_type: "analyze", target_type: "bug_report", target_ids: [bug_id], result: "inspected", summary: `AI analyzed bug: ${bug.ai_summary || bug.description?.substring(0, 80)}`, triggered_by: user.id, linked_bug_id: bug_id, file_paths: bug.ai_tags || [], affected_components: [bug.ai_category || 'unknown', bug.page_url || ''] });
         result = await suggestBugFixEnhanced(supabase, lovableKey, bug);
         break;
       }
