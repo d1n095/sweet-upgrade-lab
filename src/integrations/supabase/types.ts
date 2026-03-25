@@ -1980,6 +1980,51 @@ export type Database = {
         }
         Relationships: []
       }
+      prompt_queue: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          goal: string | null
+          id: string
+          implementation: string
+          priority: string
+          source_id: string | null
+          source_type: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          goal?: string | null
+          id?: string
+          implementation: string
+          priority?: string
+          source_id?: string | null
+          source_type?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          goal?: string | null
+          id?: string
+          implementation?: string
+          priority?: string
+          source_id?: string | null
+          source_type?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       recipe_ingredients: {
         Row: {
           benefits_en: string[] | null
