@@ -3310,24 +3310,125 @@ interface ExecutionResult {
   executed_count: number;
 }
 
+const SCAN_STEPS = [
+  { type: 'system_scan', label: 'Systemskanning', icon: Radar, desc: 'Full skanning av alla datakällor' },
+  { type: 'data_integrity', label: 'Dataintegritet', icon: ShieldCheck, desc: 'Brutna relationer, felaktiga tillstånd' },
+  { type: 'content_validation', label: 'Innehåll QA', icon: Eye, desc: 'Verifierar UI-påståenden mot data' },
+  { type: 'sync_scan', label: 'Sync Scanner', icon: ArrowRightLeft, desc: 'Frontend-backend-inkonsekvenser' },
+  { type: 'interaction_qa', label: 'Interaction QA', icon: Zap, desc: 'Döda element, brutna flöden' },
+  { type: 'visual_qa', label: 'Visual QA', icon: Monitor, desc: 'Layout, responsivitet, overflow' },
+  { type: 'nav_scan', label: 'Navigation', icon: Compass, desc: 'Navigering, länkar, routing' },
+  { type: 'ux_scan', label: 'UX Scanner', icon: Eye, desc: 'Användarupplevelse, tillgänglighet' },
+  { type: 'action_governor', label: 'Governor', icon: Gavel, desc: 'Klassificerar åtgärder' },
+] as const;
+
+type ScanStepResult = {
+  type: string;
+  label: string;
+  status: 'pending' | 'running' | 'done' | 'error';
+  result?: any;
+  error?: string;
+  duration_ms?: number;
+};
+
 const AiAutopilotTab = () => {
   const [mode, setMode] = useState<AiMode>('assisted');
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<ExecutionResult | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
+  const [executionLoading, setExecutionLoading] = useState(false);
+  const [steps, setSteps] = useState<ScanStepResult[]>([]);
+  const [selectedSteps, setSelectedSteps] = useState<Set<string>>(new Set(SCAN_STEPS.map(s => s.type)));
+  const [showResults, setShowResults] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { openDetail } = useDetailContext();
 
+  // Load past full-scan runs
+  const { data: scanRuns = [] } = useQuery({
+    queryKey: ['autopilot-scan-runs'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('ai_scan_results' as any)
+        .select('id, scan_type, overall_score, overall_status, executive_summary, issues_count, tasks_created, created_at')
+        .order('created_at', { ascending: false })
+        .limit(50);
+      return (data || []) as any[];
+    },
+  });
+
+  const toggleStep = (type: string) => {
+    setSelectedSteps(prev => {
+      const next = new Set(prev);
+      if (next.has(type)) next.delete(type); else next.add(type);
+      return next;
+    });
+  };
+
+  const selectAll = () => setSelectedSteps(new Set(SCAN_STEPS.map(s => s.type)));
+  const selectNone = () => setSelectedSteps(new Set());
+
+  const runAllScans = async () => {
+    const toRun = SCAN_STEPS.filter(s => selectedSteps.has(s.type));
+    if (toRun.length === 0) { toast.error('Välj minst en skanning'); return; }
+
+    setScanning(true);
+    const initialSteps: ScanStepResult[] = toRun.map(s => ({ type: s.type, label: s.label, status: 'pending' }));
+    setSteps(initialSteps);
+
+    for (let i = 0; i < toRun.length; i++) {
+      const step = toRun[i];
+      setSteps(prev => prev.map((s, idx) => idx === i ? { ...s, status: 'running' } : s));
+      const start = Date.now();
+
+      try {
+        const res = await callAI(step.type, step.type === 'content_validation' ? { auto_fix: false } : {});
+        const duration_ms = Date.now() - start;
+
+        if (res) {
+          // Persist to ai_scan_results
+          const { data: { session } } = await supabase.auth.getSession();
+          const score = res.system_score || res.score || res.interaction_score || res.overall_score || null;
+          const issueCount = res.issues_found || res.issues?.length || res.dead_elements?.length || res.mismatches?.length || 0;
+          const tasksCreated = res.tasks_created || 0;
+          const summary = res.executive_summary || res.summary || res.overall_summary || `${step.label} slutförd`;
+
+          await supabase.from('ai_scan_results' as any).insert({
+            scan_type: step.type,
+            results: res,
+            overall_score: score,
+            overall_status: score !== null ? (score >= 70 ? 'healthy' : score >= 40 ? 'warning' : 'critical') : null,
+            executive_summary: typeof summary === 'string' ? summary.substring(0, 500) : null,
+            issues_count: issueCount,
+            tasks_created: tasksCreated,
+            scanned_by: session?.user?.id || null,
+          } as any);
+
+          setSteps(prev => prev.map((s, idx) => idx === i ? { ...s, status: 'done', result: res, duration_ms } : s));
+        } else {
+          setSteps(prev => prev.map((s, idx) => idx === i ? { ...s, status: 'error', error: 'Inget resultat', duration_ms: Date.now() - start } : s));
+        }
+      } catch (err: any) {
+        setSteps(prev => prev.map((s, idx) => idx === i ? { ...s, status: 'error', error: err?.message || 'Fel', duration_ms: Date.now() - start } : s));
+      }
+    }
+
+    queryClient.invalidateQueries({ queryKey: ['autopilot-scan-runs'] });
+    queryClient.invalidateQueries({ queryKey: ['last-scan-result'] });
+    queryClient.invalidateQueries({ queryKey: ['scan-history'] });
+    toast.success(`Alla skanningar klara (${toRun.length} st)`);
+    setScanning(false);
+  };
+
   const runExecution = async () => {
-    setLoading(true);
+    setExecutionLoading(true);
     const res = await callAI('ai_execute', { mode });
     if (res) {
-      setResult(res);
+      setExecutionResult(res);
       if (res.executed_count > 0) {
         toast.success(`AI utförde ${res.executed_count} åtgärder`);
         queryClient.invalidateQueries({ queryKey: ['work-items'] });
       }
     }
-    setLoading(false);
+    setExecutionLoading(false);
   };
 
   const modeConfig = {
@@ -3336,13 +3437,191 @@ const AiAutopilotTab = () => {
     autonomous: { label: 'Autonom', desc: 'AI utför allt utom raderingar', color: 'border-red-500 bg-red-50 text-red-800' },
   };
 
+  const completedCount = steps.filter(s => s.status === 'done').length;
+  const errorCount = steps.filter(s => s.status === 'error').length;
+  const totalIssues = steps.reduce((sum, s) => {
+    if (!s.result) return sum;
+    return sum + (s.result.issues_found || s.result.issues?.length || s.result.dead_elements?.length || s.result.mismatches?.length || 0);
+  }, 0);
+  const totalTasks = steps.reduce((sum, s) => sum + (s.result?.tasks_created || 0), 0);
+  const avgScore = (() => {
+    const scores = steps.filter(s => s.result).map(s => s.result.system_score || s.result.score || s.result.interaction_score || s.result.overall_score).filter(Boolean);
+    return scores.length > 0 ? Math.round(scores.reduce((a: number, b: number) => a + b, 0) / scores.length) : null;
+  })();
+
   return (
     <div className="space-y-4">
-      {/* Mode selector */}
+      {/* Scan Selector */}
+      <Card className="border-border">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Radar className="w-4 h-4 text-primary" /> Full AI-skanning
+            </CardTitle>
+            <div className="flex gap-1">
+              <Button size="sm" variant="ghost" className="h-6 text-[10px]" onClick={selectAll}>Alla</Button>
+              <Button size="sm" variant="ghost" className="h-6 text-[10px]" onClick={selectNone}>Ingen</Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-3 gap-1.5">
+            {SCAN_STEPS.map(step => {
+              const active = selectedSteps.has(step.type);
+              const Icon = step.icon;
+              return (
+                <button
+                  key={step.type}
+                  onClick={() => !scanning && toggleStep(step.type)}
+                  className={cn(
+                    'border rounded-lg p-2 text-left transition-all text-xs',
+                    active ? 'border-primary bg-primary/5' : 'border-border opacity-50',
+                    scanning && 'pointer-events-none'
+                  )}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <Icon className="w-3 h-3 shrink-0" />
+                    <span className="font-medium text-[10px] truncate">{step.label}</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          <Button onClick={runAllScans} disabled={scanning || selectedSteps.size === 0} className="w-full gap-2" size="lg">
+            {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+            {scanning ? `Skannar... (${completedCount}/${steps.length})` : `Kör ${selectedSteps.size} skanningar`}
+          </Button>
+
+          {scanning && steps.length > 0 && (
+            <Progress value={(completedCount + errorCount) / steps.length * 100} className="h-2" />
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Live scan progress */}
+      {steps.length > 0 && (
+        <Card className="border-border">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm">Skanningsresultat</CardTitle>
+              {avgScore !== null && (
+                <div className={cn(
+                  'w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold border-2',
+                  avgScore >= 70 ? 'border-green-500 text-green-700' : avgScore >= 40 ? 'border-yellow-500 text-yellow-700' : 'border-red-500 text-red-700'
+                )}>
+                  {avgScore}
+                </div>
+              )}
+            </div>
+            {(completedCount > 0 || errorCount > 0) && (
+              <div className="flex gap-3 text-[10px] text-muted-foreground mt-1">
+                <span>✅ {completedCount} klara</span>
+                {errorCount > 0 && <span>❌ {errorCount} fel</span>}
+                <span>🔍 {totalIssues} issues</span>
+                <span>📋 {totalTasks} uppgifter skapade</span>
+              </div>
+            )}
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1.5">
+              {steps.map((step, i) => {
+                const stepConfig = SCAN_STEPS.find(s => s.type === step.type);
+                const Icon = stepConfig?.icon || Radar;
+                const score = step.result?.system_score || step.result?.score || step.result?.interaction_score || step.result?.overall_score;
+
+                return (
+                  <div key={step.type}>
+                    <div
+                      className={cn(
+                        'flex items-center gap-2 p-2 rounded-lg transition-colors',
+                        step.status === 'running' && 'bg-primary/5 border border-primary/20',
+                        step.status === 'done' && 'bg-muted/30 cursor-pointer hover:bg-muted/50',
+                        step.status === 'error' && 'bg-destructive/5',
+                      )}
+                      onClick={() => step.status === 'done' && setShowResults(showResults === step.type ? null : step.type)}
+                    >
+                      {step.status === 'pending' && <div className="w-4 h-4 rounded-full border-2 border-muted-foreground/20 shrink-0" />}
+                      {step.status === 'running' && <Loader2 className="w-4 h-4 animate-spin text-primary shrink-0" />}
+                      {step.status === 'done' && <CheckCircle className="w-4 h-4 text-green-600 shrink-0" />}
+                      {step.status === 'error' && <XCircle className="w-4 h-4 text-destructive shrink-0" />}
+
+                      <Icon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                      <span className={cn('text-xs font-medium flex-1', step.status === 'pending' && 'text-muted-foreground')}>
+                        {step.label}
+                      </span>
+
+                      {step.duration_ms != null && (
+                        <span className="text-[9px] text-muted-foreground">{(step.duration_ms / 1000).toFixed(1)}s</span>
+                      )}
+
+                      {score != null && (
+                        <span className={cn(
+                          'text-[10px] font-bold',
+                          score >= 70 ? 'text-green-700' : score >= 40 ? 'text-yellow-700' : 'text-red-700'
+                        )}>
+                          {score}
+                        </span>
+                      )}
+
+                      {step.result && (
+                        <span className="text-[9px] text-muted-foreground">
+                          {step.result.issues_found || step.result.issues?.length || step.result.dead_elements?.length || step.result.mismatches?.length || 0} issues
+                        </span>
+                      )}
+
+                      {step.status === 'done' && (
+                        <ArrowRight className={cn('w-3 h-3 text-muted-foreground transition-transform', showResults === step.type && 'rotate-90')} />
+                      )}
+                    </div>
+
+                    {/* Expanded result preview */}
+                    {showResults === step.type && step.result && (
+                      <div className="ml-8 mt-1 mb-2 border rounded-lg p-3 bg-card space-y-2 text-xs">
+                        {step.result.executive_summary && (
+                          <p className="text-muted-foreground">{step.result.executive_summary}</p>
+                        )}
+                        {step.result.summary && !step.result.executive_summary && (
+                          <p className="text-muted-foreground">{typeof step.result.summary === 'string' ? step.result.summary : ''}</p>
+                        )}
+
+                        {/* Issues list */}
+                        {(step.result.issues || step.result.dead_elements || step.result.mismatches || step.result.critical_issues)?.slice(0, 5).map((issue: any, j: number) => (
+                          <div key={j} className="flex items-start gap-2 p-1.5 rounded bg-muted/30">
+                            <AlertTriangle className="w-3 h-3 text-destructive shrink-0 mt-0.5" />
+                            <div className="min-w-0">
+                              <p className="text-[11px] font-medium">{issue.title || issue.element || issue.field || 'Issue'}</p>
+                              <p className="text-[10px] text-muted-foreground line-clamp-1">{issue.description || issue.issue || issue.detail || ''}</p>
+                            </div>
+                          </div>
+                        ))}
+
+                        {step.result.tasks_created > 0 && (
+                          <Badge variant="default" className="bg-green-600 text-[9px]">{step.result.tasks_created} uppgifter skapade</Badge>
+                        )}
+
+                        {step.result.risk_areas?.length > 0 && (
+                          <div className="flex gap-1 flex-wrap">
+                            {step.result.risk_areas.map((r: string, j: number) => (
+                              <Badge key={j} variant="destructive" className="text-[8px]">{r}</Badge>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* AI Execution mode */}
       <Card className="border-border">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center gap-2">
-            <Settings2 className="w-4 h-4" /> AI-läge
+            <Settings2 className="w-4 h-4" /> AI Execution
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -3352,108 +3631,90 @@ const AiAutopilotTab = () => {
                 key={key}
                 onClick={() => setMode(key)}
                 className={cn(
-                  'border-2 rounded-lg p-3 text-left transition-all',
+                  'border-2 rounded-lg p-2.5 text-left transition-all',
                   mode === key ? cfg.color : 'border-border bg-background hover:border-muted-foreground/30'
                 )}
               >
-                <div className="font-semibold text-xs">{cfg.label}</div>
-                <div className="text-[10px] mt-1 opacity-80">{cfg.desc}</div>
+                <div className="font-semibold text-[11px]">{cfg.label}</div>
+                <div className="text-[9px] mt-0.5 opacity-80">{cfg.desc}</div>
               </button>
             ))}
           </div>
-          <Button onClick={runExecution} disabled={loading} className="w-full gap-2">
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+          <Button onClick={runExecution} disabled={executionLoading || scanning} className="w-full gap-2" variant="outline">
+            {executionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
             Kör AI Execution ({modeConfig[mode].label})
           </Button>
         </CardContent>
       </Card>
 
-      {result && (
-        <div className="space-y-4">
-          {/* Summary */}
-          <Card className="border-border">
-            <CardContent className="pt-4 space-y-2">
-              <p className="text-sm font-medium">{result.summary}</p>
-              <div className="flex gap-3 text-xs">
-                <Badge variant="outline">{result.total_actions} åtgärder</Badge>
-                <Badge variant="default" className="bg-green-600">{result.executed_count} utförda</Badge>
-                <Badge variant="secondary">{result.needs_approval} kräver godkännande</Badge>
+      {executionResult && (
+        <Card className="border-border">
+          <CardContent className="pt-4 space-y-3">
+            <p className="text-sm font-medium">{executionResult.summary}</p>
+            <div className="flex gap-3 text-xs flex-wrap">
+              <Badge variant="outline">{executionResult.total_actions} åtgärder</Badge>
+              <Badge variant="default" className="bg-green-600">{executionResult.executed_count} utförda</Badge>
+              <Badge variant="secondary">{executionResult.needs_approval} kräver godkännande</Badge>
+            </div>
+            {executionResult.execution_log.length > 0 && (
+              <div className="space-y-1">
+                {executionResult.execution_log.map((log, i) => (
+                  <div key={i} className="flex items-center gap-2 text-xs p-1.5 rounded bg-muted/50">
+                    {log.success ? <CheckCircle className="w-3 h-3 text-green-600 shrink-0" /> : <XCircle className="w-3 h-3 text-red-600 shrink-0" />}
+                    <span className="font-mono text-[10px] text-muted-foreground">{log.action}</span>
+                    <span className="truncate text-[11px]">{log.description}</span>
+                  </div>
+                ))}
               </div>
-              <p className="text-xs text-muted-foreground mt-2">{result.health_summary}</p>
-            </CardContent>
-          </Card>
-
-          {/* Execution log */}
-          {result.execution_log.length > 0 && (
-            <Card className="border-border">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Zap className="w-4 h-4 text-green-600" /> Utförda åtgärder
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-1.5">
-                  {result.execution_log.map((log, i) => (
-                    <div key={i} className="flex items-center gap-2 text-xs p-2 rounded bg-muted/50">
-                      {log.success ? <CheckCircle className="w-3.5 h-3.5 text-green-600 shrink-0" /> : <XCircle className="w-3.5 h-3.5 text-red-600 shrink-0" />}
-                      <span className="font-mono text-[10px] text-muted-foreground">{log.action}</span>
-                      <span className="truncate">{log.description}</span>
+            )}
+            {executionResult.actions.filter(a => !a.auto_executable).length > 0 && (
+              <div className="space-y-1.5 border-t pt-2">
+                <p className="text-[10px] font-semibold text-muted-foreground">Kräver godkännande:</p>
+                {executionResult.actions.filter(a => !a.auto_executable).map((action, i) => (
+                  <div key={i} className="border rounded-lg p-2 space-y-0.5 cursor-pointer hover:bg-muted/30" onClick={() => action.target_id && openDetail(action.target_id)}>
+                    <div className="flex items-center gap-1.5">
+                      <Badge variant="outline" className="text-[9px]">{action.action_type}</Badge>
+                      <span className="text-[11px] font-medium truncate">{action.target_title || action.target_id}</span>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                    <p className="text-[10px] text-muted-foreground">{action.description}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
-          {/* Pending actions (need approval) */}
-          {result.actions.filter(a => !a.auto_executable).length > 0 && (
-            <Card className="border-border">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-yellow-600" /> Kräver godkännande
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {result.actions.filter(a => !a.auto_executable).map((action, i) => (
-                    <div key={i} className="border border-border rounded-lg p-3 space-y-1 cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => action.target_id && openDetail(action.target_id)}>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-[10px]">{action.action_type}</Badge>
-                        <span className="text-xs font-medium truncate">{action.target_title || action.target_id}</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground">{action.description}</p>
-                      {action.reason && <p className="text-[10px] text-muted-foreground italic">{action.reason}</p>}
+      {/* Recent scan history */}
+      {scanRuns.length > 0 && (
+        <Card className="border-border">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Clock className="w-4 h-4" /> Skanningshistorik
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="max-h-[30vh]">
+              <div className="space-y-1 pr-2">
+                {scanRuns.slice(0, 30).map((run: any) => (
+                  <div key={run.id} className="flex items-center gap-2 p-1.5 rounded hover:bg-muted/30 text-xs">
+                    <div className={cn(
+                      'w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold border shrink-0',
+                      (run.overall_score || 0) >= 70 ? 'border-green-400 text-green-700 bg-green-50' :
+                      (run.overall_score || 0) >= 40 ? 'border-yellow-400 text-yellow-700 bg-yellow-50' :
+                      run.overall_score ? 'border-red-400 text-red-700 bg-red-50' : 'border-border text-muted-foreground bg-muted'
+                    )}>
+                      {run.overall_score || '—'}
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Duplicates */}
-          {result.duplicates.length > 0 && (
-            <Card className="border-border">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <GitMerge className="w-4 h-4" /> Dubbletter
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {result.duplicates.map((dup, i) => (
-                    <div key={i} className="border border-border rounded-lg p-3">
-                      <p className="text-xs">{dup.reason}</p>
-                      <p className="text-[10px] text-muted-foreground mt-1">Förslag: {dup.suggested_action}</p>
-                      <div className="flex gap-1 mt-1">
-                        {dup.ids.map(id => <Badge key={id} variant="outline" className="text-[10px] font-mono">{id.slice(0, 8)}</Badge>)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+                    <Badge variant="outline" className="text-[8px] shrink-0">{run.scan_type.replace(/_/g, ' ')}</Badge>
+                    <span className="truncate text-muted-foreground flex-1">{run.executive_summary || '—'}</span>
+                    <span className="text-[9px] text-muted-foreground shrink-0">{new Date(run.created_at).toLocaleDateString('sv-SE')}</span>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
       )}
     </div>
   );
