@@ -5990,7 +5990,7 @@ const OrchestrationTab = () => {
         <TabsContent value="orchestration" className="mt-4">
           <OrchestrationTab />
         </TabsContent>
-      </Tabs>
+      </AiCenterTabs>
 
       <WorkItemDetail
         item={detailItem}
