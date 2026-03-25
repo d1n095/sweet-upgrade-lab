@@ -306,6 +306,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
         .order('created_at', { ascending: false });
       if (error) throw error;
       const allItems = (data || []) as unknown as WorkItem[];
+      console.log('[WorkbenchBoard] DB ITEMS:', allItems.length, 'fetched from database');
 
       // ── Source validation: filter out ghost tasks ──
       const orderLinkedIds = [...new Set(allItems.filter(i => i.related_order_id).map(i => i.related_order_id!))];
