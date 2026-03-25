@@ -4905,7 +4905,17 @@ Basera analysen på verklig data — inte spekulationer.`;
     },
   }], { type: "function", function: { name: "ux_scan_results" } });
 
-  // Create work items for critical/high issues
+  // Persist scan result FIRST
+  const uxScore = analysis?.ux_score || 0;
+  const scanId = await persistScanResult(supabase, {
+    scan_type: "ux_scan",
+    results: analysis || {},
+    overall_score: uxScore,
+    overall_status: uxScore >= 80 ? "healthy" : uxScore >= 50 ? "warning" : "critical",
+    issues_count: analysis?.issues_found || 0,
+    executive_summary: analysis?.executive_summary || "",
+  });
+
   let tasksCreated = 0;
   if (analysis?.issues) {
     for (const issue of analysis.issues) {
@@ -4923,7 +4933,8 @@ Basera analysen på verklig data — inte spekulationer.`;
           status: "open",
           priority: issue.severity === "critical" ? "critical" : "high",
           item_type: "bug",
-          source_type: "ai_detection",
+          source_type: "ai_scan",
+          source_id: scanId || undefined,
           ai_detected: true,
           ai_confidence: "high",
           ai_category: "frontend",
@@ -4934,18 +4945,8 @@ Basera analysen på verklig data — inte spekulationer.`;
     }
   }
 
-  // Store scan result
-  await supabase.from("ai_scan_results").insert({
-    scan_type: "ux_scan",
-    overall_score: analysis?.ux_score || 0,
-    overall_status: (analysis?.ux_score || 0) >= 80 ? "healthy" : (analysis?.ux_score || 0) >= 50 ? "warning" : "critical",
-    executive_summary: analysis?.executive_summary || "",
-    results: analysis || {},
-    issues_count: analysis?.issues_found || 0,
-    tasks_created: tasksCreated,
-  });
-
-  return { ...analysis, tasks_created: tasksCreated };
+  if (scanId && tasksCreated > 0) await updateScanTaskCount(supabase, scanId, tasksCreated);
+  return { ...analysis, tasks_created: tasksCreated, scan_id: scanId };
 }
 
 // ── Sync Scanner ──
@@ -5076,7 +5077,17 @@ Analysera synkroniseringsproblem mellan frontend och backend. Klassificera varje
     }
   }
 
-  // Create work items for issues that can't be auto-fixed
+  // Persist scan result FIRST
+  const syncScore = analysis?.sync_score || 0;
+  const scanId = await persistScanResult(supabase, {
+    scan_type: "sync_scan",
+    results: { ...analysis, auto_fixed_count: autoFixCount },
+    overall_score: syncScore,
+    overall_status: syncScore >= 80 ? "healthy" : syncScore >= 50 ? "warning" : "critical",
+    issues_count: analysis?.issues_found || 0,
+    executive_summary: analysis?.executive_summary || "",
+  });
+
   let tasksCreated = 0;
   if (analysis?.issues) {
     for (const issue of analysis.issues) {
@@ -5094,7 +5105,8 @@ Analysera synkroniseringsproblem mellan frontend och backend. Klassificera varje
           status: "open",
           priority: issue.severity === "critical" ? "critical" : "high",
           item_type: "bug",
-          source_type: "ai_detection",
+          source_type: "ai_scan",
+          source_id: scanId || undefined,
           ai_detected: true,
           ai_confidence: "high",
           ai_category: "data_integrity",
@@ -5105,18 +5117,8 @@ Analysera synkroniseringsproblem mellan frontend och backend. Klassificera varje
     }
   }
 
-  // Store scan result
-  await supabase.from("ai_scan_results").insert({
-    scan_type: "sync_scan",
-    overall_score: analysis?.sync_score || 0,
-    overall_status: (analysis?.sync_score || 0) >= 80 ? "healthy" : (analysis?.sync_score || 0) >= 50 ? "warning" : "critical",
-    executive_summary: analysis?.executive_summary || "",
-    results: { ...analysis, auto_fixed_count: autoFixCount },
-    issues_count: analysis?.issues_found || 0,
-    tasks_created: tasksCreated,
-  });
-
-  return { ...analysis, tasks_created: tasksCreated, auto_fixed_count: autoFixCount };
+  if (scanId && tasksCreated > 0) await updateScanTaskCount(supabase, scanId, tasksCreated);
+  return { ...analysis, tasks_created: tasksCreated, auto_fixed_count: autoFixCount, scan_id: scanId };
 }
 
 // ── Action Governor (Lovable 0.5) ──
