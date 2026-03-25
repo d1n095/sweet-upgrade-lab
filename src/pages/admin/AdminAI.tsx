@@ -7480,7 +7480,7 @@ const OrchestrationTab = () => {
           <div data-value="autopilot"><AiAutopilotTab /></div>
           <div data-value="actions"><ActionEngineTab /></div>
           <div data-value="tasks"><TaskAITab /></div>
-          <div data-value="bugs"><BugAITab /></div>
+          <div data-value="bugs" className="flex flex-col min-h-0 h-full"><BugAITab /></div>
 
           {/* Scanners */}
           <div data-value="scan"><SystemScanTab /></div>
