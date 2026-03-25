@@ -16,7 +16,7 @@ import { toast } from 'sonner';
 
 type CheckVerdict = 'working' | 'fake_done' | 'partially_working' | 'broken' | 'auto_fixed';
 type CheckCategory = 'buttons' | 'data' | 'modals' | 'scroll' | 'forms' | 'navigation' | 'layout';
-type LayoutFixType = 'no_scroll' | 'content_cut' | 'overflow_hidden_horiz' | 'modal_overflow' | 'modal_blocked_scroll' | null;
+type LayoutFixType = 'no_scroll' | 'content_cut' | 'overflow_hidden_horiz' | 'modal_overflow' | 'modal_blocked_scroll' | 'layout_conflict' | 'overlay_block' | 'overflow_chain' | null;
 
 interface UICheck {
   id: string;
@@ -468,6 +468,168 @@ const UiRealityCheck = () => {
           check.fixTarget = htmlModal;
           results.push(check);
         }
+      }
+    });
+
+    // ─── 8. LAYOUT HIERARCHY VALIDATION ───
+
+    // 8a. layout_conflict: flex containers where children have conflicting sizing
+    const flexContainers = document.querySelectorAll('div, section, main, aside');
+    flexContainers.forEach((el) => {
+      const htmlEl = el as HTMLElement;
+      const style = getComputedStyle(htmlEl);
+      if (style.display !== 'flex' && style.display !== 'inline-flex') return;
+      if (htmlEl.offsetWidth < 30 || htmlEl.offsetHeight < 30) return;
+      if (style.visibility === 'hidden' || style.display === 'none') return;
+
+      const children = Array.from(htmlEl.children) as HTMLElement[];
+      if (children.length < 2) return;
+
+      const isColumn = style.flexDirection === 'column' || style.flexDirection === 'column-reverse';
+      const containerSize = isColumn ? htmlEl.clientHeight : htmlEl.clientWidth;
+
+      // Check: children total size exceeds container without scroll or wrap
+      let totalChildSize = 0;
+      children.forEach(child => {
+        if (getComputedStyle(child).position === 'absolute' || getComputedStyle(child).position === 'fixed') return;
+        totalChildSize += isColumn ? child.offsetHeight : child.offsetWidth;
+      });
+
+      const overflow = totalChildSize - containerSize;
+      if (overflow > 30 && style.flexWrap === 'nowrap' && style.overflow !== 'auto' && style.overflow !== 'scroll') {
+        const overflowProp = isColumn ? style.overflowY : style.overflowX;
+        if (overflowProp === 'hidden' || overflowProp === 'visible') {
+          // Check if this is a flex-1 container missing min-height:0 / min-width:0
+          const needsMinH0 = isColumn && style.minHeight !== '0px' && style.minHeight !== '0' && style.flex.includes('1');
+          const needsMinW0 = !isColumn && style.minWidth !== '0px' && style.minWidth !== '0' && style.flex.includes('1');
+
+          const check = makeCheck(
+            'layout',
+            `layout_conflict: ${buildSelector(htmlEl).slice(0, 50)}`,
+            buildSelector(htmlEl),
+            'broken',
+            `Flex-container (${isColumn ? 'column' : 'row'}) har barn (${totalChildSize}px totalt) som överstiger containerns ${containerSize}px med ${overflow}px. flex-wrap:nowrap och ingen scroll. Fix: ${needsMinH0 || needsMinW0 ? 'lägg till min-height:0 (eller min-width:0) på flex-föräldern' : 'lägg till overflow-y:auto eller flex-wrap:wrap'}.`
+          );
+          check.fixType = 'layout_conflict';
+          check.fixTarget = htmlEl;
+          results.push(check);
+        }
+      }
+    });
+
+    // 8b. overlay_block: fixed/absolute elements with high z-index blocking clicks
+    const allElements = document.querySelectorAll('*');
+    const highZElements: { el: HTMLElement; z: number; rect: DOMRect }[] = [];
+
+    allElements.forEach((el) => {
+      const htmlEl = el as HTMLElement;
+      const style = getComputedStyle(htmlEl);
+      if (style.position !== 'fixed' && style.position !== 'absolute' && style.position !== 'sticky') return;
+      if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return;
+      if (htmlEl.offsetWidth < 10 || htmlEl.offsetHeight < 10) return;
+
+      const z = parseInt(style.zIndex, 10);
+      if (isNaN(z) || z < 10) return;
+
+      // Skip known safe elements (modals with data-state="closed", tooltips, etc.)
+      const isClosed = htmlEl.closest('[data-state="closed"]');
+      if (isClosed) return;
+      const isRadixOverlay = htmlEl.hasAttribute('data-radix-popper-content-wrapper');
+      if (isRadixOverlay) return;
+
+      highZElements.push({ el: htmlEl, z, rect: htmlEl.getBoundingClientRect() });
+    });
+
+    // Check if any high-z element covers interactive elements beneath it
+    const interactiveBelow = document.querySelectorAll('button:not([disabled]), a[href], input:not([disabled]), select, textarea, [role="button"]');
+
+    highZElements.forEach(({ el: overlay, z, rect: overlayRect }) => {
+      // Skip if the overlay is a Sheet/Dialog (expected behavior)
+      if (overlay.closest('[role="dialog"]') || overlay.closest('[role="alertdialog"]') || overlay.closest('[role="sheet"]')) return;
+      // Skip tiny overlays (badges, tooltips)
+      if (overlayRect.width < 100 && overlayRect.height < 100) return;
+
+      let blockedCount = 0;
+      interactiveBelow.forEach((btn) => {
+        const btnEl = btn as HTMLElement;
+        if (overlay.contains(btnEl)) return; // skip children of overlay itself
+        const btnRect = btnEl.getBoundingClientRect();
+        if (btnEl.offsetWidth < 5) return;
+
+        // Check overlap
+        const overlapX = Math.max(0, Math.min(overlayRect.right, btnRect.right) - Math.max(overlayRect.left, btnRect.left));
+        const overlapY = Math.max(0, Math.min(overlayRect.bottom, btnRect.bottom) - Math.max(overlayRect.top, btnRect.top));
+        if (overlapX > 5 && overlapY > 5) {
+          // Verify the overlay is actually on top via elementFromPoint
+          const centerX = btnRect.left + btnRect.width / 2;
+          const centerY = btnRect.top + btnRect.height / 2;
+          const topEl = document.elementFromPoint(centerX, centerY);
+          if (topEl && !btnEl.contains(topEl) && (overlay.contains(topEl) || topEl === overlay)) {
+            blockedCount++;
+          }
+        }
+      });
+
+      if (blockedCount > 0) {
+        const check = makeCheck(
+          'layout',
+          `overlay_block: ${buildSelector(overlay).slice(0, 50)}`,
+          buildSelector(overlay),
+          'broken',
+          `Element (z-index:${z}, ${Math.round(overlayRect.width)}×${Math.round(overlayRect.height)}px) blockerar ${blockedCount} interaktiva element bakom sig. Fix: ta bort overlay, sänk z-index, lägg till pointer-events:none, eller flytta till layout-flow.`
+        );
+        check.fixType = 'overlay_block';
+        check.fixTarget = overlay;
+        results.push(check);
+      }
+    });
+
+    // 8c. overflow_chain_error: broken flex→scroll chain (missing min-height:0)
+    const scrollables = document.querySelectorAll('[class*="overflow-y-auto"], [class*="overflow-auto"], [style*="overflow-y: auto"], [style*="overflow: auto"]');
+    scrollables.forEach((el) => {
+      const htmlEl = el as HTMLElement;
+      if (htmlEl.offsetWidth < 20 || htmlEl.offsetHeight < 20) return;
+      const style = getComputedStyle(htmlEl);
+      if (style.display === 'none') return;
+
+      // Walk up flex chain looking for broken min-height
+      let parent = htmlEl.parentElement;
+      let depth = 0;
+      const chainBreaks: string[] = [];
+
+      while (parent && depth < 8) {
+        const ps = getComputedStyle(parent);
+        const isFlex = ps.display === 'flex' || ps.display === 'inline-flex';
+        const isFlexCol = isFlex && (ps.flexDirection === 'column' || ps.flexDirection === 'column-reverse');
+
+        if (isFlexCol) {
+          const hasMinH0 = ps.minHeight === '0px' || ps.minHeight === '0';
+          const hasFlex1 = ps.flexGrow === '1' || ps.flex.startsWith('1');
+
+          if (hasFlex1 && !hasMinH0 && parent.scrollHeight > parent.clientHeight + 20) {
+            chainBreaks.push(buildSelector(parent).slice(0, 40));
+          }
+        }
+
+        // Stop if we hit a scroll container or fixed-position element
+        if (ps.overflow === 'auto' || ps.overflow === 'scroll' || ps.overflowY === 'auto' || ps.overflowY === 'scroll') break;
+        if (ps.position === 'fixed' || ps.position === 'absolute') break;
+
+        parent = parent.parentElement;
+        depth++;
+      }
+
+      if (chainBreaks.length > 0) {
+        const check = makeCheck(
+          'layout',
+          `overflow_chain_error: ${buildSelector(htmlEl).slice(0, 40)}`,
+          buildSelector(htmlEl),
+          'broken',
+          `Scroll-container har trasig flex-kedja. ${chainBreaks.length} förälder(ar) saknar min-height:0: [${chainBreaks.join(' → ')}]. Fix: lägg till min-h-0 (min-height:0) på varje flex-1 förälder i kedjan.`
+        );
+        check.fixType = 'overflow_chain';
+        check.fixTarget = htmlEl;
+        results.push(check);
       }
     });
 
