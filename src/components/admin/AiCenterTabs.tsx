@@ -53,6 +53,7 @@ const TAB_GROUPS: TabGroup[] = [
       { value: 'actions', label: 'Åtgärder', icon: TrendingUp },
       { value: 'tasks', label: 'Uppgifter', icon: Layers },
       { value: 'bugs', label: 'Buggar', icon: Bug },
+      { value: 'user-management', label: 'Användarhantering', icon: Shield },
     ],
   },
   {

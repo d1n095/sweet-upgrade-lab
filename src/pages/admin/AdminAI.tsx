@@ -7787,6 +7787,9 @@ const OrchestrationTab = () => {
           <div data-value="tasks"><TaskAITab /></div>
           <div data-value="bugs" className="flex flex-col min-h-0 h-full"><BugAITab /></div>
 
+          {/* User management */}
+          <div data-value="user-management"><AiUserManagementTab /></div>
+
           {/* Scanners */}
           <div data-value="scan"><SystemScanTab /></div>
           <div data-value="access-control"><AccessControlTab /></div>
