@@ -277,6 +277,7 @@ serve(async (req) => {
         if (!message || typeof message !== "string" || message.length < 1 || message.length > 5000) {
           return new Response(JSON.stringify({ error: "Invalid message" }), { status: 400, headers: corsHeaders });
         }
+        await logAiRead(supabase, { action_type: "chat", target_type: "lova_chat", result: "inspected", summary: `Lova chat: ${message.substring(0, 100)}`, triggered_by: user.id });
         result = await handleLovaChat(supabase, lovableKey, user.id, message, conversation_id);
         break;
       }
