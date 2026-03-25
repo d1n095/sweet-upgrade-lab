@@ -35,7 +35,9 @@ export function useProductVariants(productId: string | undefined) {
           price: Number(v.price),
         }));
         setVariants(mapped);
-        setSelectedVariant(mapped[0]);
+        // Auto-select first in-stock variant, fallback to first
+        const firstInStock = mapped.find((v) => v.stock > 0);
+        setSelectedVariant(firstInStock || mapped[0]);
       } else {
         setVariants([]);
         setSelectedVariant(null);
