@@ -70,6 +70,37 @@ serve(async (req) => {
     // Generate receipt HTML suitable for PDF rendering
     const receiptHtml = generateReceiptHtml(order, items, shipping);
 
+    // Store receipt in storage bucket (idempotent — overwrites if exists)
+    const displayId = getDisplayId(order);
+    const storagePath = `${order.user_id}/${order.id}-${displayId}.html`;
+    let receiptUrl: string | null = null;
+
+    try {
+      const encoder = new TextEncoder();
+      const htmlBytes = encoder.encode(receiptHtml);
+
+      const { error: uploadErr } = await supabase.storage
+        .from("receipts")
+        .upload(storagePath, htmlBytes, {
+          contentType: "text/html",
+          upsert: true,
+        });
+
+      if (uploadErr) {
+        console.warn("[generate-receipt] Storage upload failed:", uploadErr.message);
+      } else {
+        receiptUrl = `${supabaseUrl}/storage/v1/object/receipts/${storagePath}`;
+        // Save reference on order
+        await supabase
+          .from("orders")
+          .update({ receipt_url: receiptUrl })
+          .eq("id", order.id);
+        console.log("[generate-receipt] Receipt stored:", storagePath);
+      }
+    } catch (storageErr: any) {
+      console.warn("[generate-receipt] Storage error (non-blocking):", storageErr.message);
+    }
+
     if (action === "resend_email") {
       // Resend the receipt email to the customer
       const messageId = `receipt-resend-${order.id}-${Date.now()}`;
@@ -77,7 +108,7 @@ serve(async (req) => {
         to: order.order_email,
         from: "order@notify.4thepeople.se",
         sender_domain: "notify.4thepeople.se",
-        subject: `Kvitto — Order #${getDisplayId(order)}`,
+        subject: `Kvitto — Order #${displayId}`,
         html: receiptHtml,
         message_id: messageId,
         idempotency_key: messageId,
@@ -105,7 +136,7 @@ serve(async (req) => {
         metadata: { order_id: order.id, action: "resend" },
       });
 
-      return new Response(JSON.stringify({ success: true, action: "resend_email", message_id: messageId }), {
+      return new Response(JSON.stringify({ success: true, action: "resend_email", message_id: messageId, receipt_url: receiptUrl }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -116,7 +147,8 @@ serve(async (req) => {
       html: receiptHtml,
       order_id: order.id,
       order_email: order.order_email,
-      display_id: getDisplayId(order),
+      display_id: displayId,
+      receipt_url: receiptUrl,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
