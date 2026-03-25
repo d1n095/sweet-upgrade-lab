@@ -1442,6 +1442,7 @@ export type Database = {
           payment_intent_id: string | null
           payment_method: string | null
           payment_status: string
+          receipt_url: string | null
           refund_amount: number | null
           refund_status: string | null
           refunded_at: string | null
@@ -1479,6 +1480,7 @@ export type Database = {
           payment_intent_id?: string | null
           payment_method?: string | null
           payment_status?: string
+          receipt_url?: string | null
           refund_amount?: number | null
           refund_status?: string | null
           refunded_at?: string | null
@@ -1516,6 +1518,7 @@ export type Database = {
           payment_intent_id?: string | null
           payment_method?: string | null
           payment_status?: string
+          receipt_url?: string | null
           refund_amount?: number | null
           refund_status?: string | null
           refunded_at?: string | null
