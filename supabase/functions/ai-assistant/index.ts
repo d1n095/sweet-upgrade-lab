@@ -75,7 +75,7 @@ serve(async (req) => {
         if (!bug) {
           return new Response(JSON.stringify({ error: "Bug not found" }), { status: 404, headers: corsHeaders });
         }
-        await logAiRead(supabase, { action_type: "analyze", target_type: "bug_report", target_ids: [bug_id], result: "inspected", summary: `AI analyzed bug: ${bug.ai_summary || bug.description?.substring(0, 80)}`, triggered_by: user.id });
+        await logAiRead(supabase, { action_type: "analyze", target_type: "bug_report", target_ids: [bug_id], result: "inspected", summary: `AI analyzed bug: ${bug.ai_summary || bug.description?.substring(0, 80)}`, triggered_by: user.id, linked_bug_id: bug_id, file_paths: bug.ai_tags || [], affected_components: [bug.ai_category || 'unknown', bug.page_url || ''] });
         result = await suggestBugFixEnhanced(supabase, lovableKey, bug);
         break;
       }
@@ -89,7 +89,7 @@ serve(async (req) => {
         if (!deepBug) {
           return new Response(JSON.stringify({ error: "Bug not found" }), { status: 404, headers: corsHeaders });
         }
-        await logAiRead(supabase, { action_type: "deep_analysis", target_type: "bug_report", target_ids: [deepBugId], result: "inspected", summary: `Deep analysis of bug: ${deepBug.ai_summary || deepBug.description?.substring(0, 80)}`, triggered_by: user.id });
+        await logAiRead(supabase, { action_type: "deep_analysis", target_type: "bug_report", target_ids: [deepBugId], result: "inspected", summary: `Deep analysis of bug: ${deepBug.ai_summary || deepBug.description?.substring(0, 80)}`, triggered_by: user.id, linked_bug_id: deepBugId, file_paths: deepBug.ai_tags || [], affected_components: [deepBug.ai_category || 'unknown', deepBug.page_url || ''] });
         result = await handleBugDeepAnalysis(supabase, lovableKey, deepBug);
         break;
       }
@@ -305,10 +305,15 @@ async function logAiRead(supabase: any, entry: {
   target_type: string;
   target_ids?: string[];
   affected_components?: string[];
+  file_paths?: string[];
+  endpoints?: string[];
   result: string;
   summary?: string;
   metadata?: any;
   triggered_by?: string;
+  linked_bug_id?: string;
+  linked_work_item_id?: string;
+  linked_scan_id?: string;
 }) {
   try {
     await supabase.from("ai_read_log").insert({
@@ -316,15 +321,22 @@ async function logAiRead(supabase: any, entry: {
       target_type: entry.target_type,
       target_ids: entry.target_ids || [],
       affected_components: entry.affected_components || [],
+      file_paths: entry.file_paths || [],
+      endpoints: entry.endpoints || [],
       result: entry.result,
       summary: entry.summary || null,
       metadata: entry.metadata || {},
       triggered_by: entry.triggered_by || null,
+      linked_bug_id: entry.linked_bug_id || null,
+      linked_work_item_id: entry.linked_work_item_id || null,
+      linked_scan_id: entry.linked_scan_id || null,
     });
   } catch (e) {
     console.warn("ai_read_log insert failed:", e);
   }
 }
+
+
 
 // ── Gather all system data ──
 async function gatherSystemSnapshot(supabase: any, triggeredBy?: string) {
@@ -468,6 +480,7 @@ Errors: ${errorLogs} | Warnings: ${warningLogs}`,
       action_type: "snapshot",
       target_type: "system",
       affected_components: ["orders", "bugs", "work_items", "incidents", "products", "staff_performance"],
+      endpoints: ["orders", "analytics_events", "bug_reports", "work_items", "order_incidents", "refund_requests", "donations", "products", "staff_performance", "activity_logs"],
       result: hasIssues ? "possible_issue" : "no_issues",
       summary: `System snapshot: ${paidOrders.length} orders, ${openBugs} open bugs, ${criticalBugs} critical, ${overdue} overdue tasks, ${outOfStock.length} OOS products`,
       triggered_by: triggeredBy,
