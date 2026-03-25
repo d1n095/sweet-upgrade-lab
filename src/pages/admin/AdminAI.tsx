@@ -4842,6 +4842,9 @@ const AiAutopilotTab = () => {
                 <span>👻 {orchestrator.unifiedResult.fake_features.length} fake features</span>
                 <span>⚡ {orchestrator.unifiedResult.interaction_failures.length} interaction fails</span>
                 <span>📊 {orchestrator.unifiedResult.data_issues.length} data issues</span>
+                {(orchestrator.unifiedResult as any).integrity_issues?.length > 0 && (
+                  <span>🛡️ {(orchestrator.unifiedResult as any).integrity_issues.length} integrity issues</span>
+                )}
               </div>
             )}
             {/* Adaptive scan metadata */}
@@ -5361,6 +5364,52 @@ const InteractionQATab = () => {
                     </div>
                   ))}
                 </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Data Integrity Issues */}
+          {(result as any).integrity_issues?.length > 0 && (
+            <Card className="border-destructive/30 bg-destructive/5">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-destructive" /> Dataintegritet ({(result as any).integrity_issues.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-1.5 mb-3">
+                  {Object.entries((result as any).integrity_summary || {}).map(([type, count]: [string, any]) => (
+                    count > 0 && (
+                      <Badge key={type} variant="outline" className="text-[10px] mr-1">
+                        {type === 'data_loss' ? '💀 Data loss' : type === 'failed_insert' ? '❌ Failed insert' : type === 'stale_state' ? '⏳ Stale state' : '🔍 Incorrect filter'}: {count}
+                      </Badge>
+                    )
+                  ))}
+                </div>
+                <ScrollArea className="max-h-[50vh]">
+                  <div className="space-y-2 pr-2">
+                    {(result as any).integrity_issues.map((issue: any, i: number) => (
+                      <div key={i} className="border border-border rounded-lg p-3 space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge variant={issue.severity === 'critical' ? 'destructive' : issue.severity === 'high' ? 'default' : 'secondary'} className="text-[10px]">
+                            {issue.severity}
+                          </Badge>
+                          <Badge variant="outline" className="text-[10px]">{issue.type}</Badge>
+                          <span className="text-[10px] text-muted-foreground font-mono">{issue.entity}</span>
+                        </div>
+                        <p className="text-xs font-semibold">{issue.title}</p>
+                        {issue.description && <p className="text-[10px] text-muted-foreground">{issue.description}</p>}
+                        <div className="flex gap-3 text-[10px] text-muted-foreground">
+                          <span>📍 Steg: <code className="bg-muted px-1 rounded">{issue.step}</code></span>
+                          <span>🔬 Orsak: {issue.root_cause}</span>
+                        </div>
+                        {issue.entity_id && (
+                          <p className="text-[8px] font-mono text-muted-foreground/60">ID: {issue.entity_id}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
               </CardContent>
             </Card>
           )}
