@@ -4692,20 +4692,6 @@ const AiAutopilotTab = () => {
 
   return (
     <div className="space-y-4">
-      {/* Scan Selector */}
-      <Card className="border-border">
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Radar className="w-4 h-4 text-primary" /> Full AI-skanning
-            </CardTitle>
-            <div className="flex gap-1">
-              <Button size="sm" variant="ghost" className="h-6 text-[10px]" onClick={selectAll}>Alla</Button>
-              <Button size="sm" variant="ghost" className="h-6 text-[10px]" onClick={selectNone}>Ingen</Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3">
       {/* Scan Mode Toggle */}
       <Card className="border-border">
         <CardHeader className="pb-2">
@@ -4904,7 +4890,6 @@ const AiAutopilotTab = () => {
               </div>
             )}
           </CardHeader>
-          <CardContent>
           <CardContent>
             <div className="space-y-1.5">
               {steps.map((step, i) => {
