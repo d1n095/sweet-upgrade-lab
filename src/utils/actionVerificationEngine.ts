@@ -9,9 +9,11 @@
  * 5. ui_update     — cache invalidated / state updated
  * 
  * If any step fails the action is marked FAILED with the exact failure point.
+ * Failures are automatically recorded to Functional Failure Memory.
  */
 import { create } from 'zustand';
 import { trace } from '@/utils/deepDebugTrace';
+import { recordFailure } from '@/lib/failureMemory';
 
 // ── Types ──
 
@@ -197,6 +199,16 @@ export async function verifyAction<T = any>(config: VerifiedActionConfig<T>): Pr
       }
 
       console.error(`[AVE] Action "${config.action}" FAILED at step "${stepDef.step}":`, reason);
+
+      // Record to Functional Failure Memory (fire-and-forget)
+      recordFailure({
+        action: config.action,
+        component: config.component,
+        entityType: config.entityType,
+        failedStep: stepDef.step,
+        failReason: reason,
+        severity: 'high',
+      }).catch(() => {});
 
       return {
         ok: false,
