@@ -974,6 +974,7 @@ const SystemScanTab = () => {
   const [loading, setLoading] = useState(false);
   const [scanResult, setScanResult] = useState<any>(null);
   const [expandedIssue, setExpandedIssue] = useState<number | null>(null);
+  const { openDetail } = useDetailContext();
 
   const runScan = async () => {
     setLoading(true);
