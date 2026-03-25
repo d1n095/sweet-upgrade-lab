@@ -335,6 +335,45 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_read_log: {
+        Row: {
+          action_type: string
+          affected_components: string[] | null
+          created_at: string
+          id: string
+          metadata: Json | null
+          result: string
+          summary: string | null
+          target_ids: string[] | null
+          target_type: string
+          triggered_by: string | null
+        }
+        Insert: {
+          action_type?: string
+          affected_components?: string[] | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          result?: string
+          summary?: string | null
+          target_ids?: string[] | null
+          target_type: string
+          triggered_by?: string | null
+        }
+        Update: {
+          action_type?: string
+          affected_components?: string[] | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          result?: string
+          summary?: string | null
+          target_ids?: string[] | null
+          target_type?: string
+          triggered_by?: string | null
+        }
+        Relationships: []
+      }
       ai_scan_results: {
         Row: {
           created_at: string
