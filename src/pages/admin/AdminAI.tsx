@@ -3482,11 +3482,15 @@ interface VisualQAResult {
 }
 
 type IssueStatus = 'open' | 'done' | 'ignored';
+type AiDecision = 'auto_fix' | 'needs_prompt' | 'ignore';
 interface IssueState {
   status: IssueStatus;
   note?: string;
   updatedAt: string;
-  aiAnalysis?: { root_cause: string; auto_fixable: boolean; fix_steps: string[]; impact: string; confidence: string };
+  aiDecision?: AiDecision;
+  aiDecisionReason?: string;
+  generatedPrompt?: string;
+  aiAnalysis?: { root_cause: string; auto_fixable: boolean; fix_steps: string[]; impact: string; confidence: string; decision: AiDecision; decision_reason: string; lovable_prompt?: string };
 }
 
 const VisualQATab = () => {
