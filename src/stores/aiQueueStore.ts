@@ -3,6 +3,8 @@ import { useSafeModeStore } from './safeModeStore';
 import { useExecutionLockStore, resolveArea, type LockArea } from './executionLockStore';
 import { evaluateFixConfidence, applyConfidenceAction, useFixConfidenceStore } from './fixConfidenceStore';
 import { useFeedbackLoopStore } from './feedbackLoopStore';
+import { supabase } from '@/integrations/supabase/client';
+import { logChange } from '@/utils/changeLogger';
 
 export type QueueTaskStatus = 'queued' | 'running' | 'completed' | 'failed' | 'blocked' | 'validating' | 'regressed';
 export type QueueTaskPriority = 'critical' | 'high' | 'normal';
@@ -186,6 +188,74 @@ function detectRegressions(task: QueueTask, postSnapshot: Record<string, any>): 
   return regressions;
 }
 
+/** Create change_log entry for a completed task (with dedup check) */
+async function createChangeLogForTask(task: QueueTask) {
+  // Dedup: check if change_log already exists for this work_item_id
+  const { data: existing } = await supabase
+    .from('change_log')
+    .select('id')
+    .eq('work_item_id', task.id)
+    .limit(1);
+
+  if (existing && existing.length > 0) return;
+
+  await logChange({
+    change_type: 'fix',
+    description: task.title,
+    affected_components: [],
+    source: 'ai',
+    work_item_id: task.id,
+    metadata: {
+      priority: task.priority,
+      completedAt: new Date().toISOString(),
+      auto_generated: true,
+    },
+  });
+}
+
+/** Retroactive fix: create change_log for all completed work_items missing entries */
+export async function backfillChangeLog() {
+  const { data: workItems } = await supabase
+    .from('work_items' as any)
+    .select('id, title, source_type, source_id, completed_at')
+    .eq('status', 'done');
+
+  if (!workItems || workItems.length === 0) return { created: 0, skipped: 0 };
+
+  let created = 0;
+  let skipped = 0;
+
+  for (const wi of (workItems as any[])) {
+    const { data: existing } = await supabase
+      .from('change_log')
+      .select('id')
+      .eq('work_item_id', wi.id)
+      .limit(1);
+
+    if (existing && existing.length > 0) {
+      skipped++;
+      continue;
+    }
+
+    await logChange({
+      change_type: 'fix',
+      description: wi.title || 'Retroaktiv change_log',
+      source: 'system',
+      work_item_id: wi.id,
+      bug_report_id: wi.source_type === 'bug' ? wi.source_id : undefined,
+      metadata: {
+        auto_generated: true,
+        retroactive: true,
+        original_completed_at: wi.completed_at,
+      },
+    });
+    created++;
+  }
+
+  return { created, skipped };
+}
+
+
 async function runPostChecks(
   task: QueueTask,
   result: any,
@@ -343,6 +413,13 @@ async function runPostChecks(
         : t
     ),
   }));
+
+  // Auto-create change_log entry on completion (with dedup)
+  try {
+    await createChangeLogForTask(task);
+  } catch (e) {
+    console.warn('Auto change_log failed:', e);
+  }
 
   // Feedback loop — evaluate after successful fix
   const qState2 = get();
