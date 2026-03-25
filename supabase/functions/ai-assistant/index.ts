@@ -2737,3 +2737,189 @@ Svara på svenska. Använd data_cleanup-funktionen.`,
     total_cleaned: orphansCleaned + duplicatesMerged + testDataRemoved + outdatedRemoved,
   };
 }
+
+// ── Auto-Fix Engine ──
+async function handleAutoFix(supabase: any, apiKey: string, supabaseUrl: string, serviceKey: string, authHeader: string) {
+  const fixes: { type: string; action: string; target_id: string; confidence: number; fixed: boolean }[] = [];
+  const fallbackTasks: string[] = [];
+
+  // ─── 1. SAFE DATA FIXES via data-sync (repair mode) ───
+  let dataSyncResult: any = null;
+  try {
+    const syncResp = await fetch(`${supabaseUrl}/functions/v1/data-sync`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: authHeader,
+      },
+      body: JSON.stringify({ mode: "repair" }),
+    });
+    if (syncResp.ok) {
+      const syncData = await syncResp.json();
+      dataSyncResult = syncData.results;
+      if (dataSyncResult) {
+        for (const d of (dataSyncResult.details || [])) {
+          fixes.push({
+            type: d.type,
+            action: d.message,
+            target_id: "",
+            confidence: 95,
+            fixed: d.fixed,
+          });
+        }
+      }
+    }
+  } catch (e) {
+    console.error("data-sync call failed:", e);
+  }
+
+  // ─── 2. AI-DRIVEN STATUS FIXES ───
+  const { data: mismatchItems } = await supabase
+    .from("work_items")
+    .select("id, title, status, source_type, source_id, ai_review_status")
+    .in("status", ["open", "claimed", "in_progress"])
+    .limit(200);
+
+  let statusFixed = 0;
+  for (const wi of mismatchItems || []) {
+    // Auto-fix: bug resolved but task still open
+    if (wi.source_type === "bug_report" && wi.source_id) {
+      const { data: bug } = await supabase.from("bug_reports").select("id, status").eq("id", wi.source_id).single();
+      if (bug && ["resolved", "closed"].includes(bug.status)) {
+        await supabase.from("work_items").update({
+          status: "done",
+          completed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          ai_review_status: "verified",
+        }).eq("id", wi.id);
+        fixes.push({ type: "status_sync", action: `"${wi.title}" → bug redan löst, task stängd`, target_id: wi.id, confidence: 95, fixed: true });
+        statusFixed++;
+      }
+    }
+    // Auto-fix: incident resolved but task still open
+    if (wi.source_type === "order_incident" && wi.source_id) {
+      const { data: inc } = await supabase.from("order_incidents").select("id, status").eq("id", wi.source_id).single();
+      if (inc && ["resolved", "closed"].includes(inc.status)) {
+        await supabase.from("work_items").update({
+          status: "done",
+          completed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          ai_review_status: "verified",
+        }).eq("id", wi.id);
+        fixes.push({ type: "status_sync", action: `"${wi.title}" → incident löst, task stängd`, target_id: wi.id, confidence: 90, fixed: true });
+        statusFixed++;
+      }
+    }
+  }
+
+  // ─── 3. DUPLICATE MERGE (title similarity via AI) ───
+  const { data: activeItems } = await supabase
+    .from("work_items")
+    .select("id, title, description, item_type, source_type, source_id")
+    .in("status", ["open", "claimed", "in_progress"])
+    .limit(100);
+
+  let duplicatesMerged = 0;
+  if (activeItems && activeItems.length > 3) {
+    const titles = activeItems.map((i: any, idx: number) => `[${idx}] ${i.title}`).join("\n");
+    const dupResult = await callAI(apiKey, [
+      { role: "system", content: "Du identifierar duplicerade uppgifter. Returnera grupper av index som är dubbletter. Bara grupper med confidence >= 80." },
+      { role: "user", content: `Hitta dubbletter bland dessa uppgifter:\n${titles}` },
+    ], [{
+      type: "function",
+      function: {
+        name: "find_duplicates",
+        description: "Find duplicate task groups",
+        parameters: {
+          type: "object",
+          properties: {
+            groups: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  indices: { type: "array", items: { type: "number" } },
+                  confidence: { type: "number" },
+                  reason: { type: "string" },
+                },
+                required: ["indices", "confidence"],
+                additionalProperties: false,
+              },
+            },
+          },
+          required: ["groups"],
+          additionalProperties: false,
+        },
+      },
+    }], { type: "function", function: { name: "find_duplicates" } });
+
+    if (dupResult?.groups) {
+      for (const group of dupResult.groups) {
+        if (group.confidence < 80 || !group.indices || group.indices.length < 2) continue;
+        const keepIdx = group.indices[0];
+        for (const idx of group.indices.slice(1)) {
+          const item = activeItems[idx];
+          if (!item) continue;
+          await supabase.from("work_items").update({
+            status: "cancelled",
+            ai_review_result: { verdict: `Dubblett av ${activeItems[keepIdx]?.id}`, merged_into: activeItems[keepIdx]?.id },
+            updated_at: new Date().toISOString(),
+          }).eq("id", item.id);
+          fixes.push({ type: "duplicate_merge", action: `"${item.title}" → dubblett, sammanslagen`, target_id: item.id, confidence: group.confidence, fixed: true });
+          duplicatesMerged++;
+        }
+      }
+    }
+  }
+
+  // ─── 4. LOW-CONFIDENCE ITEMS → CREATE TASK INSTEAD ───
+  const { data: uncertainItems } = await supabase
+    .from("work_items")
+    .select("id, title, ai_confidence, ai_review_status")
+    .in("status", ["open"])
+    .eq("ai_detected", true)
+    .is("ai_review_status", null)
+    .limit(20);
+
+  for (const item of uncertainItems || []) {
+    fixes.push({ type: "flagged", action: `"${item.title}" → saknar AI-granskning, flaggad`, target_id: item.id, confidence: 50, fixed: false });
+    await supabase.from("work_items").update({ ai_review_status: "needs_review" }).eq("id", item.id);
+    fallbackTasks.push(item.title);
+  }
+
+  // ─── LOG ───
+  const totalFixed = fixes.filter(f => f.fixed).length;
+  const totalFlagged = fixes.filter(f => !f.fixed).length;
+
+  await supabase.from("system_history").insert({
+    event_type: "ai_auto_fix",
+    snapshot: {
+      total_fixes: totalFixed,
+      total_flagged: totalFlagged,
+      status_fixed: statusFixed,
+      duplicates_merged: duplicatesMerged,
+      data_sync_issues: dataSyncResult?.total_issues || 0,
+      data_sync_fixed: dataSyncResult?.total_fixed || 0,
+    },
+    resolution_notes: `Auto-fix: ${totalFixed} åtgärdade, ${totalFlagged} flaggade`,
+    ai_review_result: { fixes, fallback_tasks: fallbackTasks },
+  });
+
+  await supabase.from("automation_logs").insert({
+    action_type: "auto_fix",
+    target_type: "system",
+    target_id: "auto_fix_run",
+    reason: `${totalFixed} fixes, ${totalFlagged} flagged`,
+    details: { total_fixed: totalFixed, total_flagged: totalFlagged },
+  });
+
+  return {
+    total_fixed: totalFixed,
+    total_flagged: totalFlagged,
+    status_fixed: statusFixed,
+    duplicates_merged: duplicatesMerged,
+    data_sync: dataSyncResult ? { issues: dataSyncResult.total_issues, fixed: dataSyncResult.total_fixed } : null,
+    fixes,
+    fallback_tasks: fallbackTasks,
+  };
+}
