@@ -480,7 +480,7 @@ const UiRealityCheck = () => {
       const style = getComputedStyle(htmlEl);
       if (style.display !== 'flex' && style.display !== 'inline-flex') return;
       if (htmlEl.offsetWidth < 30 || htmlEl.offsetHeight < 30) return;
-      if (style.visibility === 'hidden' || style.display === 'none') return;
+      if (style.visibility === 'hidden') return;
 
       const children = Array.from(htmlEl.children) as HTMLElement[];
       if (children.length < 2) return;
