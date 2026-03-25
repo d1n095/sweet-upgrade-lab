@@ -6862,6 +6862,7 @@ const AccessControlTab = () => {
 };
 
 const SyncScannerTab = () => {
+  const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [filter, setFilter] = useState('all');
   const { openDetail } = useDetailContext();
