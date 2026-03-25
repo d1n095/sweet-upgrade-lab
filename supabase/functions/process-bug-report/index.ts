@@ -249,9 +249,21 @@ Your output MUST follow this exact structure:
       ai_category: result.category,
       ai_severity: result.severity,
       ai_tags: result.tags,
-      ai_clean_prompt: result.clean_prompt,
+      ai_clean_prompt: result.copy_prompt,
       ai_repro_steps: result.repro_steps || null,
       ai_processed_at: new Date().toISOString(),
+      ai_actionable_fix: {
+        blocker_statement: result.blocker_statement,
+        root_cause_exact: result.root_cause_exact,
+        location: result.location,
+        fix_steps: result.fix_steps,
+        copy_prompt: result.copy_prompt,
+        root_causes: result.root_causes,
+        is_reproducible: result.is_reproducible,
+        reproducibility_reasoning: result.reproducibility_reasoning,
+        fix_suggestions: result.fix_suggestions,
+        affected_components: result.affected_components || [],
+      },
     }).eq("id", bug_id);
 
     // Update linked work_item
