@@ -200,6 +200,11 @@ serve(async (req) => {
         break;
       }
 
+      case "category_sync": {
+        result = await handleCategorySync(supabase, lovableKey);
+        break;
+      }
+
       default:
         return new Response(JSON.stringify({ error: "Unknown type" }), { status: 400, headers: corsHeaders });
     }
