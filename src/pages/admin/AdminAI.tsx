@@ -4843,9 +4843,32 @@ const AiAutopilotTab = () => {
                   <span>🔄 {orchestrator.unifiedResult.adaptive_scan.iterations} iterationer</span>
                   <span>🔍 {orchestrator.unifiedResult.adaptive_scan.new_issues_found} nya problem</span>
                   <span>🧠 {orchestrator.unifiedResult.adaptive_scan.pattern_discoveries.length} mönster</span>
+                  <span>🔗 {orchestrator.unifiedResult.adaptive_scan.systemic_issues?.length || 0} systemiska</span>
                   <span>⚠️ {orchestrator.unifiedResult.adaptive_scan.high_risk_areas.length} högrisk</span>
                   <span>📈 {orchestrator.unifiedResult.adaptive_scan.coverage_score}% täckning</span>
                 </div>
+                {/* Systemic issues — cross-pattern detection */}
+                {(orchestrator.unifiedResult.adaptive_scan.systemic_issues?.length || 0) > 0 && (
+                  <div className="mt-2 space-y-1">
+                    <span className="text-[9px] font-semibold text-destructive flex items-center gap-1">
+                      <GitMerge className="w-3 h-3" /> Systemiska problem (korsmönster):
+                    </span>
+                    {orchestrator.unifiedResult.adaptive_scan.systemic_issues!.slice(0, 6).map((si: any, i: number) => (
+                      <div key={i} className="p-1.5 rounded border border-destructive/20 bg-destructive/5">
+                        <div className="flex items-center gap-1.5">
+                          <Badge variant="destructive" className="text-[8px] h-4 px-1">{si.severity}</Badge>
+                          <span className="text-[10px] font-medium">{si.label}</span>
+                        </div>
+                        <p className="text-[9px] text-muted-foreground mt-0.5 ml-1">{si.description}</p>
+                        {si.examples?.length > 0 && (
+                          <div className="text-[8px] text-muted-foreground mt-0.5 ml-1 italic">
+                            Ex: {si.examples.slice(0, 2).join(", ")}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
                 {orchestrator.unifiedResult.adaptive_scan.high_risk_areas.length > 0 && (
                   <div className="mt-1.5 space-y-0.5">
                     <span className="text-[9px] font-medium text-destructive">Högriskområden:</span>

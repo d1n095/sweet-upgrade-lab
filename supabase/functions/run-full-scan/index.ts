@@ -69,41 +69,151 @@ function buildUnifiedResult(stepResults: Record<string, any>, totalDuration: num
 }
 
 // ── Helper: Extract patterns from findings for re-scan targeting ──
-function extractPatterns(unified: any, rootCauseData: any[]): { patterns: any[]; highRiskAreas: any[] } {
+function extractPatterns(unified: any, rootCauseData: any[]): { patterns: any[]; highRiskAreas: any[]; systemicIssues: any[] } {
   const patterns: any[] = [];
   const highRiskAreas: any[] = [];
   const componentCounts: Record<string, number> = {};
   const failureTypes: Record<string, number> = {};
 
-  // Extract from broken flows
-  for (const flow of unified.broken_flows || []) {
-    const comp = flow.component || flow.route || flow.area || "unknown";
+  // ── Cross-pattern buckets ──
+  const componentTypeBucket: Record<string, any[]> = {};   // e.g. "modal" → [issues]
+  const interactionTypeBucket: Record<string, any[]> = {}; // e.g. "scroll", "click"
+  const layoutPatternBucket: Record<string, any[]> = {};   // e.g. "overflow", "z-index"
+
+  const COMPONENT_KEYWORDS = ["modal", "dialog", "drawer", "dropdown", "popover", "tooltip", "accordion", "tab", "form", "input", "select", "card", "table", "sidebar", "header", "footer", "nav", "menu", "carousel", "sheet"];
+  const INTERACTION_KEYWORDS = ["scroll", "click", "hover", "focus", "drag", "swipe", "submit", "toggle", "expand", "collapse", "close", "open", "resize"];
+  const LAYOUT_KEYWORDS = ["overflow", "z-index", "position", "sticky", "fixed", "absolute", "flex", "grid", "responsive", "mobile", "truncat", "clip", "hidden"];
+
+  function classifyIssue(issue: any) {
+    const text = JSON.stringify(issue).toLowerCase();
+
+    // Classify by component type
+    for (const kw of COMPONENT_KEYWORDS) {
+      if (text.includes(kw)) {
+        if (!componentTypeBucket[kw]) componentTypeBucket[kw] = [];
+        componentTypeBucket[kw].push(issue);
+      }
+    }
+
+    // Classify by interaction type
+    for (const kw of INTERACTION_KEYWORDS) {
+      if (text.includes(kw)) {
+        if (!interactionTypeBucket[kw]) interactionTypeBucket[kw] = [];
+        interactionTypeBucket[kw].push(issue);
+      }
+    }
+
+    // Classify by layout pattern
+    for (const kw of LAYOUT_KEYWORDS) {
+      if (text.includes(kw)) {
+        if (!layoutPatternBucket[kw]) layoutPatternBucket[kw] = [];
+        layoutPatternBucket[kw].push(issue);
+      }
+    }
+  }
+
+  // Collect all issues into a flat list and classify each
+  const allIssues = [
+    ...(unified.broken_flows || []).map((i: any) => ({ ...i, _source: "broken_flow" })),
+    ...(unified.interaction_failures || []).map((i: any) => ({ ...i, _source: "interaction_failure" })),
+    ...(unified.data_issues || []).map((i: any) => ({ ...i, _source: "data_issue" })),
+    ...(unified.fake_features || []).map((i: any) => ({ ...i, _source: "fake_feature" })),
+  ];
+
+  for (const issue of allIssues) {
+    classifyIssue(issue);
+    const comp = issue.component || issue.element || issue.route || issue.area || issue.page || issue.name || "unknown";
     componentCounts[comp] = (componentCounts[comp] || 0) + 1;
-    const ftype = flow.type || flow.category || "broken_flow";
+    const ftype = issue.type || issue.category || issue.interaction_type || issue._source;
     failureTypes[ftype] = (failureTypes[ftype] || 0) + 1;
   }
 
-  // Extract from interaction failures
-  for (const fail of unified.interaction_failures || []) {
-    const comp = fail.component || fail.element || fail.page || "unknown";
-    componentCounts[comp] = (componentCounts[comp] || 0) + 1;
-    const ftype = fail.type || fail.interaction_type || "interaction_failure";
-    failureTypes[ftype] = (failureTypes[ftype] || 0) + 1;
+  // ── Cross-Pattern Detection: find systemic issues ──
+  const systemicIssues: any[] = [];
+
+  // Detect systemic issues by component type (e.g. multiple modals broken)
+  for (const [compType, issues] of Object.entries(componentTypeBucket)) {
+    if (issues.length >= 2) {
+      // Check if issues come from different sources (cross-pattern)
+      const sources = new Set(issues.map((i: any) => i._source));
+      const uniqueComponents = new Set(issues.map((i: any) => i.component || i.element || i.title || "").filter(Boolean));
+
+      if (sources.size >= 2 || uniqueComponents.size >= 2) {
+        systemicIssues.push({
+          type: "component_type",
+          pattern: compType,
+          label: `Systemiskt problem: ${compType}-komponenter`,
+          description: `${issues.length} problem hittade i ${compType}-komponenter (${[...sources].join(", ")}). Trolig gemensam grundorsak.`,
+          affected_count: issues.length,
+          sources: [...sources],
+          affected_components: [...uniqueComponents].slice(0, 8),
+          severity: issues.length >= 4 ? "critical" : "high",
+          examples: issues.slice(0, 3).map((i: any) => i.title || i.description || i.element || "unknown"),
+        });
+      }
+    }
   }
 
-  // Extract from data issues
-  for (const issue of unified.data_issues || []) {
-    const comp = issue.component || issue.table || issue.field || "unknown";
-    componentCounts[comp] = (componentCounts[comp] || 0) + 1;
+  // Detect systemic issues by interaction type (e.g. scroll broken everywhere)
+  for (const [interType, issues] of Object.entries(interactionTypeBucket)) {
+    if (issues.length >= 2) {
+      const uniqueComponents = new Set(issues.map((i: any) => i.component || i.element || i.title || "").filter(Boolean));
+      if (uniqueComponents.size >= 2) {
+        systemicIssues.push({
+          type: "interaction_type",
+          pattern: interType,
+          label: `Systemiskt problem: ${interType}-interaktion`,
+          description: `${issues.length} ${interType}-relaterade problem i ${uniqueComponents.size} olika komponenter. Gemensamt interaktionsproblem.`,
+          affected_count: issues.length,
+          affected_components: [...uniqueComponents].slice(0, 8),
+          severity: issues.length >= 4 ? "critical" : "high",
+          examples: issues.slice(0, 3).map((i: any) => i.title || i.description || i.element || "unknown"),
+        });
+      }
+    }
   }
 
-  // Extract from fake features
-  for (const fake of unified.fake_features || []) {
-    const comp = fake.component || fake.name || "unknown";
-    componentCounts[comp] = (componentCounts[comp] || 0) + 1;
+  // Detect systemic issues by layout pattern (e.g. overflow problems everywhere)
+  for (const [layoutType, issues] of Object.entries(layoutPatternBucket)) {
+    if (issues.length >= 2) {
+      const uniqueComponents = new Set(issues.map((i: any) => i.component || i.element || i.title || "").filter(Boolean));
+      if (uniqueComponents.size >= 2) {
+        systemicIssues.push({
+          type: "layout_pattern",
+          pattern: layoutType,
+          label: `Systemiskt problem: ${layoutType}-layout`,
+          description: `${issues.length} ${layoutType}-relaterade layoutproblem i ${uniqueComponents.size} komponenter. Gemensamt CSS/layout-problem.`,
+          affected_count: issues.length,
+          affected_components: [...uniqueComponents].slice(0, 8),
+          severity: issues.length >= 3 ? "critical" : "high",
+          examples: issues.slice(0, 3).map((i: any) => i.title || i.description || i.element || "unknown"),
+        });
+      }
+    }
   }
 
-  // Identify high-risk areas (components with multiple issues)
+  // Cross-bucket detection: issues appearing in BOTH component+interaction buckets
+  for (const [compType, compIssues] of Object.entries(componentTypeBucket)) {
+    for (const [interType, interIssues] of Object.entries(interactionTypeBucket)) {
+      const overlap = compIssues.filter((ci: any) => interIssues.some((ii: any) => ci === ii));
+      if (overlap.length >= 2) {
+        const alreadyDetected = systemicIssues.some(s => s.pattern === `${compType}+${interType}`);
+        if (!alreadyDetected) {
+          systemicIssues.push({
+            type: "cross_pattern",
+            pattern: `${compType}+${interType}`,
+            label: `Korsmönster: ${compType} × ${interType}`,
+            description: `${overlap.length} problem där ${interType}-interaktion i ${compType}-komponenter misslyckas. Trolig delad bugg.`,
+            affected_count: overlap.length,
+            severity: "critical",
+            examples: overlap.slice(0, 3).map((i: any) => i.title || i.description || i.element || "unknown"),
+          });
+        }
+      }
+    }
+  }
+
+  // Identify high-risk areas
   for (const [comp, count] of Object.entries(componentCounts)) {
     if (count >= 2) {
       highRiskAreas.push({ component: comp, issue_count: count, risk_level: count >= 4 ? "critical" : "high" });
@@ -136,7 +246,7 @@ function extractPatterns(unified: any, rootCauseData: any[]): { patterns: any[];
     }
   }
 
-  return { patterns, highRiskAreas };
+  return { patterns, highRiskAreas, systemicIssues };
 }
 
 // ── Helper: Build targeted re-scan steps based on patterns ──
@@ -547,7 +657,7 @@ serve(async (req) => {
         .order("recurrence_count", { ascending: false })
         .limit(50);
 
-      const { patterns, highRiskAreas } = extractPatterns(unified, rootCauseData || []);
+      const { patterns, highRiskAreas, systemicIssues } = extractPatterns(unified, rootCauseData || []);
 
       // Build previous issue keys from all iterations
       const previousIssueKeys = new Set<string>();
@@ -576,6 +686,7 @@ serve(async (req) => {
         total_issues: unified.broken_flows.length + unified.fake_features.length + unified.interaction_failures.length + unified.data_issues.length,
         patterns_discovered: patterns.length,
         high_risk_areas: highRiskAreas.length,
+        systemic_issues: systemicIssues.length,
         health_score: unified.system_health_score,
         issue_keys: [...newKeys],
         completed_at: new Date().toISOString(),
@@ -663,6 +774,14 @@ serve(async (req) => {
       const highRiskAreas = scanRun.high_risk_areas || [];
       const coverageScore = scanRun.coverage_score || 0;
 
+      // Run cross-pattern detection on final results
+      const { data: finalRootCause } = await supabase
+        .from("root_cause_memory")
+        .select("pattern_key, affected_system, root_cause, recurrence_count, severity")
+        .order("recurrence_count", { ascending: false })
+        .limit(50);
+      const { systemicIssues } = extractPatterns(unified, finalRootCause || []);
+
       // Enrich unified result with adaptive scan metadata
       const adaptiveResult = {
         ...unified,
@@ -671,6 +790,7 @@ serve(async (req) => {
           new_issues_found: scanRun.total_new_issues || 0,
           pattern_discoveries: patternDiscoveries,
           high_risk_areas: highRiskAreas,
+          systemic_issues: systemicIssues,
           coverage_score: coverageScore,
           iteration_results: scanRun.iteration_results || [],
         },
@@ -682,7 +802,7 @@ serve(async (req) => {
         results: adaptiveResult,
         overall_score: unified.system_health_score,
         overall_status: unified.system_health_score >= 75 ? "healthy" : unified.system_health_score >= 50 ? "warning" : "critical",
-        executive_summary: `Adaptive scan (${iterationsCompleted} iterations): ${unified.system_health_score}/100 | ${issuesCount} issues | ${patternDiscoveries.length} patterns | Coverage: ${coverageScore}%`,
+        executive_summary: `Adaptive scan (${iterationsCompleted} iter): ${unified.system_health_score}/100 | ${issuesCount} issues | ${systemicIssues.length} systemic | ${patternDiscoveries.length} patterns | ${coverageScore}%`,
         issues_count: issuesCount,
         scanned_by: scanRun.started_by,
       });
@@ -690,8 +810,31 @@ serve(async (req) => {
       // Persist per-step results
       await persistStepResults(supabase, STEPS, updatedResults, scanRun.started_by);
 
-      // Create work items
-      const workItemsCreated = await createWorkItems(supabase, unified, scanRun.started_by);
+      // Create work items from findings + systemic issues
+      let workItemsCreated = await createWorkItems(supabase, unified, scanRun.started_by);
+
+      // Create work items from systemic issues
+      for (const si of systemicIssues) {
+        const searchTitle = si.label.substring(0, 40);
+        const { data: existing } = await supabase
+          .from("work_items")
+          .select("id")
+          .ilike("title", `%${searchTitle}%`)
+          .in("status", ["open", "claimed", "in_progress", "escalated"])
+          .limit(1);
+        if (existing?.length) continue;
+
+        const { error } = await supabase.from("work_items").insert({
+          title: `🔗 ${si.label}`.slice(0, 120),
+          description: `${si.description}\n\nExempel: ${si.examples?.join(", ") || "N/A"}\nPåverkade: ${si.affected_components?.join(", ") || "N/A"}`,
+          status: "open",
+          priority: si.severity === "critical" ? "critical" : "high",
+          item_type: "bug",
+          source_type: "ai_scan",
+          ai_detected: true,
+        });
+        if (!error) workItemsCreated++;
+      }
 
       // Finalize scan run
       const execSummary = `${unified.system_health_score}/100 — ${issuesCount} issues — ${iterationsCompleted} iterationer — ${patternDiscoveries.length} mönster — ${coverageScore}% täckning — ${workItemsCreated} uppgifter`;
