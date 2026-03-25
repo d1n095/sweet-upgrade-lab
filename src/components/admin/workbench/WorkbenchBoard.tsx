@@ -304,7 +304,19 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
 
   const { data: rawItems = [], isLoading } = useAdminWorkItems();
 
-  // ── Source validation: filter out ghost tasks (client-side post-processing) ──
+  // ── UI State Sync: validate UI matches DB ──
+  useUiStateSync({
+    selectedItem: detailItem,
+    clearSelection: () => setDetailItem(null),
+    updateSelection: (item) => setDetailItem(item as WorkItem),
+    listItems: rawItems as any[],
+    queryKey: ['admin-work-items'],
+    table: 'work_items',
+    intervalMs: 15_000,
+    enabled: true,
+  });
+
+
   const items = useMemo(() => {
     const allItems = rawItems as unknown as WorkItem[];
     if (!allItems.length) return allItems;
