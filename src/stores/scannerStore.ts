@@ -23,6 +23,7 @@ const SCAN_STEPS = [
   { type: 'visual_qa', label: 'Visual QA', desc: 'Layout, responsivitet, overflow' },
   { type: 'nav_scan', label: 'Navigation', desc: 'Navigering, länkar, routing' },
   { type: 'ux_scan', label: 'UX Scanner', desc: 'Användarupplevelse, tillgänglighet' },
+  { type: 'human_test', label: 'Användartest', desc: 'Simulerar användarbeteende end-to-end' },
   { type: 'action_governor', label: 'Governor', desc: 'Klassificerar åtgärder' },
 ] as const;
 
