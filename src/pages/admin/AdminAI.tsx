@@ -4563,6 +4563,10 @@ const AdminAI = () => {
               <Maximize2 className="w-3.5 h-3.5" />
               Overflow QA
             </TabsTrigger>
+            <TabsTrigger value="ux-scanner" className="gap-1.5 text-xs">
+              <Eye className="w-3.5 h-3.5" />
+              UX Scanner
+            </TabsTrigger>
           </TabsList>
         </ScrollableTabs>
 
