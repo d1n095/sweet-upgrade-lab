@@ -350,6 +350,12 @@ serve(async (req) => {
         break;
       }
 
+      case "auto_fix_order": {
+        await logAiRead(supabase, { action_type: "analyze", target_type: "auto_fix_order", result: "inspected", summary: "Auto Fix Ordering — dependency-aware task reordering", triggered_by: user.id });
+        result = await handleAutoFixOrder(supabase, lovableKey);
+        break;
+      }
+
       default:
         return new Response(JSON.stringify({ error: "Unknown type" }), { status: 400, headers: corsHeaders });
     }
