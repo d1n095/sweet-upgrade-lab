@@ -94,11 +94,15 @@ export const useDbCategories = (adminView = false) => {
 
       if (cancelled) return;
 
+      // Build a UUID→slug map so we can check counts by slug too
+      const uuidToSlug = new Map((data || []).map((c: any) => [c.id, c.slug]));
+
       const dbCats: FrontendCategory[] = (data || [])
         .filter((c: any) => {
           // Hide subcategories (with parent_id) from top-level display unless admin
           if (!adminView && c.parent_id) return false;
           if (adminView || c.slug === 'bestsaljare') return true;
+          // productCountMap is keyed by UUID (c.id), not slug
           return (productCountMap[c.id] || 0) > 0;
         })
         .map((c: any) => ({
