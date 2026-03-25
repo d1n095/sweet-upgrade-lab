@@ -4846,6 +4846,9 @@ const AiAutopilotTab = () => {
                   <span>🔗 {orchestrator.unifiedResult.adaptive_scan.systemic_issues?.length || 0} systemiska</span>
                   <span>⚠️ {orchestrator.unifiedResult.adaptive_scan.high_risk_areas.length} högrisk</span>
                   <span>📈 {orchestrator.unifiedResult.adaptive_scan.coverage_score}% täckning</span>
+                  {(orchestrator.unifiedResult.adaptive_scan.predictions?.length || 0) > 0 && (
+                    <span>🔮 {orchestrator.unifiedResult.adaptive_scan.predictions!.length} förutsägelser</span>
+                  )}
                 </div>
                 {/* Systemic issues — cross-pattern detection */}
                 {(orchestrator.unifiedResult.adaptive_scan.systemic_issues?.length || 0) > 0 && (
@@ -4892,6 +4895,28 @@ const AiAutopilotTab = () => {
                         </Badge>
                         <span className="font-medium">{fm.label}</span>
                         <span className="text-muted-foreground/60">({fm.issue_count} problem i {fm.scan_count} skanningar)</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {/* Predictive Issue Detection */}
+                {(orchestrator.unifiedResult.adaptive_scan.predictions?.length || 0) > 0 && (
+                  <div className="mt-2 space-y-1">
+                    <span className="text-[9px] font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                      <Lightbulb className="w-3 h-3" /> Förutsägda problem:
+                    </span>
+                    {orchestrator.unifiedResult.adaptive_scan.predictions!.map((pred: any, i: number) => (
+                      <div key={i} className="p-1.5 rounded border border-amber-500/20 bg-amber-500/5">
+                        <div className="flex items-center gap-1.5">
+                          <Badge variant="outline" className="text-[7px] h-3.5 px-1 border-amber-500/40 text-amber-700 dark:text-amber-300">
+                            {pred.confidence}% konfidens
+                          </Badge>
+                          <span className="text-[10px] font-medium">{pred.problem}</span>
+                        </div>
+                        <p className="text-[9px] text-muted-foreground mt-0.5 ml-1">
+                          <span className="font-medium">Område:</span> {pred.area}
+                        </p>
+                        <p className="text-[8px] text-muted-foreground/70 mt-0.5 ml-1 italic">{pred.reason}</p>
                       </div>
                     ))}
                   </div>
