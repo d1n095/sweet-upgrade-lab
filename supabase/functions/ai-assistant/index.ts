@@ -6,6 +6,36 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+/** Persist scan result first and return its ID for linking to work items */
+async function persistScanResult(supabase: any, opts: {
+  scan_type: string;
+  results: any;
+  overall_score: number;
+  overall_status: string;
+  issues_count: number;
+  executive_summary: string;
+  tasks_created?: number;
+  scanned_by?: string;
+}): Promise<string | null> {
+  const { data, error } = await supabase.from("ai_scan_results").insert({
+    scan_type: opts.scan_type,
+    results: opts.results || {},
+    overall_score: opts.overall_score,
+    overall_status: opts.overall_status,
+    issues_count: opts.issues_count,
+    tasks_created: opts.tasks_created || 0,
+    executive_summary: opts.executive_summary,
+    scanned_by: opts.scanned_by || null,
+  }).select("id").single();
+  if (error) { console.error("persistScanResult error:", error); return null; }
+  return data?.id || null;
+}
+
+/** Update tasks_created count on an existing scan result */
+async function updateScanTaskCount(supabase: any, scanId: string, tasksCreated: number) {
+  await supabase.from("ai_scan_results").update({ tasks_created: tasksCreated }).eq("id", scanId);
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
