@@ -3211,10 +3211,9 @@ export type Database = {
         Returns: number
       }
       generate_random_username: { Args: never; Returns: string }
-      get_dashboard_stats: {
-        Args: { p_from: string; p_to: string }
-        Returns: Json
-      }
+      get_dashboard_stats:
+        | { Args: { p_from: string; p_to: string }; Returns: Json }
+        | { Args: { p_from: string; p_to: string }; Returns: Json }
       get_order_shipping_profiles: {
         Args: { p_order_ids: string[] }
         Returns: {
