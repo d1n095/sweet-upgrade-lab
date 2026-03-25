@@ -332,14 +332,16 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
       const orphanIds: string[] = [];
 
       const validated = allItems.filter(item => {
+        // Filter out ignored items
+        if ((item as any).ignored) return false;
+
         // Check order-linked tasks
         if (item.related_order_id) {
           const order = validOrders.get(item.related_order_id);
           if (!order || order.deleted_at) {
             if (['open', 'claimed', 'in_progress'].includes(item.status)) orphanIds.push(item.id);
-            return false; // hide from UI
+            return false;
           }
-          // Order completed/delivered but task still active for pack/ship types
           if (['delivered', 'completed'].includes(order.status) &&
               ['pack_order', 'packing', 'shipping'].includes(item.item_type) &&
               ['open', 'claimed', 'in_progress'].includes(item.status)) {
