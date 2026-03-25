@@ -168,6 +168,11 @@ serve(async (req) => {
         break;
       }
 
+      case "pattern_detection": {
+        result = await handlePatternDetection(supabase, lovableKey);
+        break;
+      }
+
       case "create_action": {
         const { title, description, priority, category, source_type: srcType, source_id: srcId } = body;
         if (!title) {
@@ -3377,4 +3382,137 @@ async function handleContentValidation(supabase: any, lovableKey: string, autoFi
   });
 
   return { mismatches, score, tasks_created: tasksCreated, fixes, auto_fixed: fixes.length };
+}
+
+// ── Pattern Detection & Similarity Engine ──
+async function handlePatternDetection(supabase: any, lovableKey: string) {
+  // Fetch active work items and bug reports
+  const { data: workItems } = await supabase.from("work_items").select("id, title, description, item_type, priority, status, ai_category, source_type, group_id").in("status", ["open", "claimed", "in_progress"]);
+  const { data: bugs } = await supabase.from("bug_reports").select("id, description, ai_category, ai_severity, ai_summary, ai_tags, status").in("status", ["open", "in_progress"]);
+
+  const items = (workItems || []).map((w: any) => ({
+    id: w.id, type: "work_item", title: w.title, desc: w.description || "", category: w.ai_category || w.item_type, priority: w.priority, group_id: w.group_id,
+  }));
+  for (const b of (bugs || [])) {
+    items.push({ id: b.id, type: "bug_report", title: b.ai_summary || b.description?.substring(0, 80), desc: b.description || "", category: b.ai_category || "bug", priority: b.ai_severity || "medium", group_id: null });
+  }
+
+  if (items.length < 2) {
+    return { clusters: [], root_issues: [], links_created: 0, master_tasks_created: 0 };
+  }
+
+  // Use AI to cluster and find root causes
+  const prompt = `You are a system analyst. Given these ${items.length} issues from a work tracking system, analyze them for patterns.
+
+ISSUES:
+${items.map((it: any, i: number) => `${i+1}. [${it.type}] "${it.title}" — category: ${it.category}, priority: ${it.priority}\n   ${it.desc.substring(0, 150)}`).join("\n")}
+
+Respond in JSON with this exact structure:
+{
+  "clusters": [
+    {
+      "label": "short cluster name",
+      "category": "interaction_bug|navigation|data_mismatch|structure|ux|performance|content",
+      "issue_indices": [1, 3, 5],
+      "root_cause": "description of the underlying root problem",
+      "fix_suggestion": "how to fix the root problem",
+      "lovable_prompt": "ready-to-send implementation prompt",
+      "priority": "critical|high|medium|low"
+    }
+  ]
+}
+
+Rules:
+- Only group truly related issues (similar root cause)
+- Single-item clusters are OK if unique
+- Be specific about root causes
+- Generate actionable lovable_prompts`;
+
+  let clusters: any[] = [];
+  try {
+    const aiResp = await fetch("https://api.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${lovableKey}` },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+      }),
+    });
+    if (aiResp.ok) {
+      const aiData = await aiResp.json();
+      const text = aiData.choices?.[0]?.message?.content || "{}";
+      const parsed = JSON.parse(text);
+      clusters = parsed.clusters || [];
+    }
+  } catch (e) {
+    console.error("Pattern AI error:", e);
+  }
+
+  // Process clusters: link tasks and create master issues
+  let linksCreated = 0;
+  let masterTasksCreated = 0;
+  const rootIssues: any[] = [];
+
+  for (const cluster of clusters) {
+    if (!cluster.issue_indices || cluster.issue_indices.length < 2) continue;
+
+    const clusterItems = cluster.issue_indices.map((idx: number) => items[idx - 1]).filter(Boolean);
+    if (clusterItems.length < 2) continue;
+
+    // Check if master task already exists
+    const masterTitle = `[Root] ${cluster.label}`.substring(0, 200);
+    const { data: existing } = await supabase.from("work_items").select("id").eq("title", masterTitle).in("status", ["open", "claimed", "in_progress"]).maybeSingle();
+
+    let masterId = existing?.id;
+    if (!masterId) {
+      const { data: created } = await supabase.from("work_items").insert({
+        title: masterTitle,
+        description: `Root cause: ${cluster.root_cause}\n\nFix: ${cluster.fix_suggestion}\n\nAffected items: ${clusterItems.length}\n\nLovable prompt:\n${cluster.lovable_prompt}`,
+        status: "open",
+        priority: cluster.priority || "high",
+        item_type: "improvement",
+        source_type: "pattern_detection",
+        ai_detected: true,
+        ai_confidence: "high",
+        ai_category: cluster.category,
+      }).select("id").single();
+      masterId = created?.id;
+      masterTasksCreated++;
+    }
+
+    // Link child work_items to master via group_id
+    if (masterId) {
+      for (const ci of clusterItems) {
+        if (ci.type === "work_item" && ci.group_id !== masterId) {
+          await supabase.from("work_items").update({ group_id: masterId }).eq("id", ci.id);
+          linksCreated++;
+        }
+      }
+    }
+
+    // Boost priority if many linked
+    if (clusterItems.length >= 4 && masterId) {
+      await supabase.from("work_items").update({ priority: "critical" }).eq("id", masterId);
+    }
+
+    rootIssues.push({
+      label: cluster.label,
+      category: cluster.category,
+      root_cause: cluster.root_cause,
+      fix_suggestion: cluster.fix_suggestion,
+      lovable_prompt: cluster.lovable_prompt,
+      affected_count: clusterItems.length,
+      priority: clusterItems.length >= 4 ? "critical" : cluster.priority,
+      master_id: masterId,
+    });
+  }
+
+  await supabase.from("system_history").insert({
+    event_type: "pattern_detection",
+    snapshot: { clusters: clusters.length, root_issues: rootIssues.length, links_created: linksCreated, master_tasks: masterTasksCreated },
+    resolution_notes: `Pattern detection: ${clusters.length} clusters, ${rootIssues.length} root issues, ${linksCreated} links`,
+  });
+
+  return { clusters: rootIssues, total_items_analyzed: items.length, links_created: linksCreated, master_tasks_created: masterTasksCreated };
 }
