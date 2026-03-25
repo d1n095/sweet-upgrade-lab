@@ -532,6 +532,7 @@ export type Database = {
       }
       bug_reports: {
         Row: {
+          ai_actionable_fix: Json | null
           ai_approved: boolean | null
           ai_category: string | null
           ai_clean_prompt: string | null
@@ -552,6 +553,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          ai_actionable_fix?: Json | null
           ai_approved?: boolean | null
           ai_category?: string | null
           ai_clean_prompt?: string | null
@@ -572,6 +574,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          ai_actionable_fix?: Json | null
           ai_approved?: boolean | null
           ai_category?: string | null
           ai_clean_prompt?: string | null
