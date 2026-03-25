@@ -287,24 +287,21 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
 
       {/* Mobile bottom bar */}
       <div className="lg:hidden">
-        <div className="md:hidden bg-card border-t border-border px-2 py-1.5 flex items-center justify-between safe-area-inset-bottom">
+        <div className="md:hidden bg-card border-t border-border px-2 py-1.5 flex items-center gap-2 safe-area-inset-bottom">
+          <Button
+            variant={activeTab === 'ai-dashboard' ? 'secondary' : 'ghost'}
+            size="sm"
+            className="gap-1.5 text-xs h-9"
+            onClick={() => handleNavigate('ai-dashboard')}
+          >
+            <Activity className="w-4 h-4" />
+            Översikt
+          </Button>
+          <div className="h-4 w-px bg-border" />
           <Button variant="ghost" size="sm" className="gap-1.5 text-xs h-9" onClick={() => setMobileNavOpen(true)}>
             <Menu className="w-4 h-4" />
-            <span className="max-w-[120px] truncate">{activeTabDef?.label || 'Dashboard'}</span>
+            <span className="max-w-[120px] truncate">{activeTabDef?.label || 'Moduler'}</span>
           </Button>
-          <div className="flex items-center gap-1">
-            {quickActions.slice(0, 3).map(a => (
-              <Button
-                key={a.tab}
-                variant={activeTab === a.tab ? 'secondary' : 'ghost'}
-                size="icon"
-                className="h-9 w-9"
-                onClick={() => handleNavigate(a.tab)}
-              >
-                <a.icon className={cn('w-4 h-4', activeTab === a.tab ? 'text-primary' : 'text-muted-foreground')} />
-              </Button>
-            ))}
-          </div>
         </div>
 
         {/* Tablet top bar */}
