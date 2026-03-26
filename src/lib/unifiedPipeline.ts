@@ -133,6 +133,19 @@ export const runUnifiedPipeline = async (
           ? `${bug.description}\n\n🧠 Känt mönster (sett ${knownFix.recurrence_count}x): ${knownFix.root_cause}\n💡 Tidigare fix: ${knownFix.fix_applied}`
           : bug.description;
 
+        // Try match runtime_trace within 60s
+        let traceId: string | undefined;
+        try {
+          const cutoff = new Date(Date.now() - 60_000).toISOString();
+          const { data: traces } = await supabase
+            .from('runtime_traces')
+            .select('id')
+            .gte('created_at', cutoff)
+            .order('created_at', { ascending: false })
+            .limit(1);
+          if (traces?.length) traceId = traces[0].id;
+        } catch (_) {}
+
         const { data: newWI, error } = await (supabase.from('work_items' as any) as any)
           .insert({
             title: `Bug: ${(bug.description || '').slice(0, 80)}`,
@@ -142,6 +155,7 @@ export const runUnifiedPipeline = async (
             item_type: 'bug',
             source_type: 'bug_report',
             source_id: bug.id,
+            ...(traceId ? { runtime_trace_id: traceId } : {}),
           })
           .select('id')
           .single();
