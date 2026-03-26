@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { tracedInvoke } from "@/lib/tracedInvoke";
+import { useAiQueueStore } from "@/stores/aiQueueStore";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useFounderRole } from "@/hooks/useFounderRole";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -302,6 +303,7 @@ const SystemExplorer = () => {
 
   const handleRunFullScan = async () => {
     setIsScanning(true);
+    useAiQueueStore.getState().pauseQueue();
     try {
       const res = await tracedInvoke("run-full-scan", {
         body: { action: "start", scan_mode: "full" },
@@ -316,6 +318,7 @@ const SystemExplorer = () => {
     } catch (err) {
       console.error("[DEBUG] FULL SCAN CRASH:", err);
     } finally {
+      useAiQueueStore.getState().resumeQueue();
       setIsScanning(false);
     }
   };

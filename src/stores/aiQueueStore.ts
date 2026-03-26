@@ -78,6 +78,7 @@ interface AiQueueState {
   maxConcurrent: number;
   failureLog: FailureReport[];
   regressionLog: RegressionEntry[];
+  paused: boolean;
   addTask: (task: Omit<QueueTask, 'id' | 'status' | 'createdAt'> & { id?: string }) => string;
   removeTask: (id: string) => void;
   clearCompleted: () => void;
@@ -86,6 +87,8 @@ interface AiQueueState {
   processQueue: () => Promise<void>;
   retryTask: (id: string) => void;
   cancelTask: (id: string) => void;
+  pauseQueue: () => void;
+  resumeQueue: () => void;
   _isProcessing: boolean;
   _processingStartedAt: number | null;
 }
@@ -438,8 +441,15 @@ export const useAiQueueStore = create<AiQueueState>((set, get) => ({
   maxConcurrent: MAX_CONCURRENT,
   failureLog: [],
   regressionLog: [],
+  paused: false,
   _isProcessing: false,
   _processingStartedAt: null as number | null,
+
+  pauseQueue: () => set({ paused: true }),
+  resumeQueue: () => {
+    set({ paused: false });
+    setTimeout(() => get().processQueue(), 0);
+  },
 
   addTask: (input) => {
     const id = input.id || generateId();
@@ -475,6 +485,9 @@ export const useAiQueueStore = create<AiQueueState>((set, get) => ({
 
   processQueue: async () => {
     const state = get();
+
+    // Paused — skip processing
+    if (state.paused) return;
 
     // Deadlock protection: if _isProcessing has been stuck for too long, force-release
     if (state._isProcessing) {
