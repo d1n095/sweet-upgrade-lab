@@ -619,7 +619,7 @@ const SystemExplorer = () => {
                                   {scanner.executed ? '✓ RAN' : '✗ NO'}
                                 </span>
                                 <Badge
-                                  variant={scanner.health === "WORKING" ? "default" : (scanner.health === "DEAD" || scanner.health === "OVER-FILTERING") ? "destructive" : "secondary"}
+                                  variant={scanner.health === "WORKING" ? "default" : (scanner.health === "DEAD" || scanner.health === "OVER-FILTERING" || scanner.health === "NO_INPUT") ? "destructive" : "secondary"}
                                   className="text-[9px] px-1 py-0"
                                 >
                                   {scanner.health}
