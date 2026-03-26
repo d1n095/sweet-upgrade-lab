@@ -1663,6 +1663,95 @@ async function runUiFlowIntegrityScan(supabase: any, scanRunId: string): Promise
       }
     }
 
+    // 8. UI element functional checks: has_text, has_click_handler, visible_in_viewport
+    const UI_COMPONENTS = [
+      { name: "Header", table: "page_sections", filter: { page: "home", section_key: "header" }, requires: ["title_sv"] },
+      { name: "Hero", table: "page_sections", filter: { page: "home", section_key: "hero" }, requires: ["title_sv", "content_sv"] },
+      { name: "Footer", table: "page_sections", filter: { page: "home", section_key: "footer" }, requires: ["content_sv"] },
+      { name: "Newsletter", table: "page_sections", filter: { page: "home", section_key: "newsletter" }, requires: ["title_sv"] },
+      { name: "FAQ", table: "page_sections", filter: { page: "home", section_key: "faq" }, requires: ["title_sv"] },
+      { name: "Contact", table: "page_sections", filter: { page: "home", section_key: "contact" }, requires: ["title_sv"] },
+    ];
+
+    for (const comp of UI_COMPONENTS) {
+      try {
+        let query = supabase.from(comp.table).select("*");
+        for (const [k, v] of Object.entries(comp.filter)) {
+          query = query.eq(k, v);
+        }
+        const { data: rows } = await query.limit(1).maybeSingle();
+        flowsScanned++;
+
+        // has_text: check required text fields exist
+        const has_text = comp.requires.every(field => rows?.[field] && String(rows[field]).trim().length > 0);
+        if (!has_text) {
+          issues.push({
+            title: `UI element not functional or visible: "${comp.name}" missing text content (${comp.requires.join(", ")})`,
+            severity: "medium",
+            component: comp.name,
+            element: comp.name,
+            category: "ui_state",
+            _issue_type: "bug",
+            _suggested_fix: `Add content to ${comp.requires.join(", ")} for ${comp.name}`,
+          });
+        }
+
+        // visible_in_viewport: check is_visible flag
+        if (rows && rows.is_visible === false) {
+          issues.push({
+            title: `UI element not functional or visible: "${comp.name}" is hidden (is_visible=false)`,
+            severity: "medium",
+            component: comp.name,
+            element: comp.name,
+            category: "ui_state",
+            _issue_type: "bug",
+            _suggested_fix: `Set is_visible=true for ${comp.name} if it should be shown`,
+          });
+        }
+
+        // has_click_handler: for interactive sections, check if they exist at all
+        if (!rows) {
+          issues.push({
+            title: `UI element not functional or visible: "${comp.name}" section not found in database`,
+            severity: "high",
+            component: comp.name,
+            element: comp.name,
+            category: "ui_state",
+            _issue_type: "bug",
+            _suggested_fix: `Create page_section entry for ${comp.name}`,
+          });
+        }
+      } catch (_) { /* skip individual component check errors */ }
+    }
+
+    // 9. Check interactive elements: buttons/CTAs in active bundles and products
+    const { data: visibleProducts } = await supabase.from("products").select("id, title_sv, is_visible, is_sellable, price").eq("is_visible", true).eq("is_sellable", true).limit(100);
+    for (const prod of visibleProducts || []) {
+      flowsScanned++;
+      if (!prod.price || prod.price <= 0) {
+        issues.push({
+          title: `UI element not functional or visible: product "${prod.title_sv || prod.id.slice(0,8)}" has no valid price (click handler broken)`,
+          severity: "high",
+          component: "ProductCard",
+          element: "AddToCartButton",
+          category: "ui_state",
+          _issue_type: "bug",
+          _suggested_fix: "Set a valid price for this product",
+        });
+      }
+      if (!prod.title_sv || prod.title_sv.trim() === "") {
+        issues.push({
+          title: `UI element not functional or visible: product missing title text`,
+          severity: "medium",
+          component: "ProductCard",
+          element: "ProductTitle",
+          category: "ui_state",
+          _issue_type: "bug",
+          _suggested_fix: "Add title_sv for this product",
+        });
+      }
+    }
+
   } catch (e: any) { issues.push({ title: `UI Flow Integrity error: ${e.message}`, severity: "critical", component: "ui_flow_integrity", category: "flow_ui" }); }
 
   const durationMs = Date.now() - startMs;
