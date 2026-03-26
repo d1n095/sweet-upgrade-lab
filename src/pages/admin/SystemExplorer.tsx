@@ -300,6 +300,66 @@ const SystemExplorer = () => {
     return groups;
   }, [noIssueEntities]);
 
+  // Orphan Elements: entities with no flow connection, no recent issues, not referenced by any work_item
+  const orphanEntities = useMemo(() => {
+    // Collect all entity names referenced by flows (from scan results)
+    const flowConnected = new Set<string>();
+    const stepResults = (scanResults?.step_results ?? scanResults) as Record<string, any> | null;
+    if (stepResults) {
+      for (const [, val] of Object.entries(stepResults)) {
+        // Flows reference routes, components, etc.
+        if (Array.isArray(val?.flows)) {
+          for (const f of val.flows) {
+            [f.startRoute, f.endRoute, f.component, f.entity, ...(f.steps || [])].filter(Boolean).forEach((s: string) => flowConnected.add(String(s).toLowerCase()));
+          }
+        }
+        if (Array.isArray(val?.issues)) {
+          for (const iss of val.issues) {
+            [iss.route, iss.component, iss.element, iss.entity, iss.chain].filter(Boolean).forEach((s: string) => flowConnected.add(String(s).toLowerCase()));
+          }
+        }
+      }
+    }
+
+    // Collect all entity names referenced by work_items
+    const workItemRefs = new Set<string>();
+    for (const wi of workItems) {
+      const refs = [wi.title, (wi as any).source_component, (wi as any).source_path, (wi as any).source_file].filter(Boolean);
+      for (const r of refs) workItemRefs.add(String(r).toLowerCase());
+    }
+
+    // Collect issue targets from last 3 scans (reuse logic)
+    const issuedTargets = new Set<string>();
+    for (const scan of last3Scans) {
+      const res = scan.results as Record<string, any> | null;
+      if (!res) continue;
+      const issues = (res.issues ?? res.master_list?.items ?? []) as any[];
+      for (const issue of issues) {
+        [issue.target, issue.component, issue.entity_name, issue.title].filter(Boolean).forEach((t: any) => issuedTargets.add(String(t).toLowerCase()));
+      }
+    }
+
+    return structureMap.filter((entry: any) => {
+      const name = entry.entity_name?.toLowerCase() || "";
+      const type = entry.entity_type || "";
+      if (type === "flow") return false; // flows themselves are not orphans
+      const hasFlowConnection = Array.from(flowConnected).some(f => name.includes(f) || f.includes(name));
+      const hasRecentIssues = Array.from(issuedTargets).some(t => name.includes(t) || t.includes(name));
+      const hasWorkItemRef = Array.from(workItemRefs).some(r => r.includes(name) || name.includes(r));
+      return !hasFlowConnection && !hasRecentIssues && !hasWorkItemRef;
+    });
+  }, [structureMap, scanResults, workItems, last3Scans]);
+
+  const orphanByType = useMemo(() => {
+    const groups: Record<string, any[]> = { component: [], route: [], data: [] };
+    for (const entry of orphanEntities) {
+      const type = entry.entity_type || "data";
+      if (!groups[type]) groups[type] = [];
+      groups[type].push(entry);
+    }
+    return groups;
+  }, [orphanEntities]);
+
   // Scanner stats derived from scan results — organized by module groups
   const groupedScannerStats = useMemo(() => {
     const rawIssues = (scanResults?.issues as any[] | undefined) ?? [];
