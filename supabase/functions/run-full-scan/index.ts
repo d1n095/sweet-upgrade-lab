@@ -1165,7 +1165,7 @@ async function runConsistencyGuard(supabase: any, currentFingerprints: Map<strin
   // Fetch all active scan-sourced work_items with fingerprints
   const { data: activeItems } = await supabase
     .from("work_items")
-    .select("id, title, status, priority, issue_fingerprint")
+    .select("id, title, status, priority, issue_fingerprint, created_at")
     .eq("source_type", "ai_scan")
     .not("issue_fingerprint", "is", null)
     .in("status", ["open", "claimed", "in_progress", "escalated", "new", "pending", "detected"])
@@ -1264,26 +1264,33 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     const existingItem = existingByFp.get(issue.fingerprint);
 
     if (existingItem) {
-      // REAPPEARING ISSUE — do NOT create new
-      // Check if severity/priority changed
-      if (existingItem.priority !== issue.priority) {
-        await supabase.from("work_items").update({
-          priority: issue.priority,
-          updated_at: new Date().toISOString(),
-        }).eq("id", existingItem.id);
+      // 24h window: only block if created within last 24 hours
+      const itemAge = Date.now() - new Date(existingItem.created_at).getTime();
+      const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+      if (itemAge <= TWENTY_FOUR_HOURS) {
+        // REAPPEARING ISSUE within 24h — do NOT create new
+        // Check if severity/priority changed
+        if (existingItem.priority !== issue.priority) {
+          await supabase.from("work_items").update({
+            priority: issue.priority,
+            updated_at: new Date().toISOString(),
+          }).eq("id", existingItem.id);
 
-        // Log severity change
-        await supabase.from("system_observability_log").insert({
-          event_type: "action", severity: "info", source: "consistency_guard",
-          message: `Severity ändrad: "${issue.title.slice(0, 60)}" ${existingItem.priority} → ${issue.priority}`,
-          details: { work_item_id: existingItem.id, old_priority: existingItem.priority, new_priority: issue.priority },
-          component: "scan-consistency-guard",
-        });
-        console.log(`[consistency-guard] SEVERITY UPDATED: ${existingItem.id.slice(0, 8)} ${existingItem.priority} → ${issue.priority}`);
+          // Log severity change
+          await supabase.from("system_observability_log").insert({
+            event_type: "action", severity: "info", source: "consistency_guard",
+            message: `Severity ändrad: "${issue.title.slice(0, 60)}" ${existingItem.priority} → ${issue.priority}`,
+            details: { work_item_id: existingItem.id, old_priority: existingItem.priority, new_priority: issue.priority },
+            component: "scan-consistency-guard",
+          });
+          console.log(`[consistency-guard] SEVERITY UPDATED: ${existingItem.id.slice(0, 8)} ${existingItem.priority} → ${issue.priority}`);
+        } else {
+          console.log(`[consistency-guard] LINKED (unchanged, <24h): ${existingItem.id.slice(0, 8)} "${issue.title.slice(0, 40)}"`);
+        }
+        continue; // Do NOT create new
       } else {
-        console.log(`[consistency-guard] LINKED (unchanged): ${existingItem.id.slice(0, 8)} "${issue.title.slice(0, 40)}"`);
+        console.log(`[consistency-guard] ALLOW re-creation (>24h old): "${issue.title.slice(0, 40)}" (existing ${existingItem.id.slice(0, 8)})`);
       }
-      continue; // Do NOT create new
     }
 
     // Fallback: fuzzy title match — DEBUG: narrowed to first 20 chars for less aggressive dedup
@@ -1668,14 +1675,20 @@ serve(async (req) => {
         const fp = generateFingerprint({ component: si.pattern, type: "systemic", route: "global" });
 
         // Check existing by fingerprint
-        const { data: existingByFp } = await supabase.from("work_items").select("id, priority").eq("issue_fingerprint", fp).in("status", ["open", "claimed", "in_progress", "escalated", "new", "pending", "detected"]).limit(1);
+        const { data: existingByFp } = await supabase.from("work_items").select("id, priority, created_at").eq("issue_fingerprint", fp).in("status", ["open", "claimed", "in_progress", "escalated", "new", "pending", "detected"]).limit(1);
         if (existingByFp?.length) {
-          const newPriority = si.severity === "critical" ? "critical" : "high";
-          if (existingByFp[0].priority !== newPriority) {
-            await supabase.from("work_items").update({ priority: newPriority, updated_at: new Date().toISOString() }).eq("id", existingByFp[0].id);
-            console.log(`[consistency-guard] SYSTEMIC severity updated: ${existingByFp[0].id.slice(0, 8)}`);
+          const itemAge = Date.now() - new Date(existingByFp[0].created_at).getTime();
+          const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+          if (itemAge <= TWENTY_FOUR_HOURS) {
+            const newPriority = si.severity === "critical" ? "critical" : "high";
+            if (existingByFp[0].priority !== newPriority) {
+              await supabase.from("work_items").update({ priority: newPriority, updated_at: new Date().toISOString() }).eq("id", existingByFp[0].id);
+              console.log(`[consistency-guard] SYSTEMIC severity updated: ${existingByFp[0].id.slice(0, 8)}`);
+            }
+            continue;
+          } else {
+            console.log(`[consistency-guard] ALLOW systemic re-creation (>24h): "${si.label.slice(0, 40)}"`);
           }
-          continue;
         }
 
         // Check existing by title
