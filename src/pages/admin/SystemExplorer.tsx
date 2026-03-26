@@ -109,6 +109,7 @@ const SystemExplorer = () => {
   const [selectedItem, setSelectedItem] = useState<WorkItem | null>(null);
   const [detailTab, setDetailTab] = useState<"info" | "history">("info");
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
   const [aiQuery, setAiQuery] = useState("");
   const [aiAnswer, setAiAnswer] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
@@ -151,6 +152,21 @@ const SystemExplorer = () => {
       queryClient.invalidateQueries({ queryKey: ["admin-work-items"] }),
     ]);
     setIsRefreshing(false);
+  };
+
+  const handleRunFullScan = async () => {
+    setIsScanning(true);
+    try {
+      const { error } = await supabase.functions.invoke("run-full-scan", {
+        body: { scan_mode: "full" },
+      });
+      if (error) throw error;
+      await handleRefresh();
+    } catch (e) {
+      console.error("Full scan failed:", e);
+    } finally {
+      setIsScanning(false);
+    }
   };
 
   // 2. Latest scan
@@ -614,10 +630,18 @@ const SystemExplorer = () => {
           {isSystemAdmin && <Badge className="bg-primary/10 text-primary text-[10px]"><Shield className="h-3 w-3 mr-1" />SYSTEM ADMIN</Badge>}
           {isViewerAdmin && <Badge variant="secondary" className="text-[10px]"><Lock className="h-3 w-3 mr-1" />VIEWER</Badge>}
         </div>
-        <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing}>
-          <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing}>
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+          {isSystemAdmin && (
+            <Button variant="default" size="sm" onClick={handleRunFullScan} disabled={isScanning}>
+              {isScanning ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Radar className="h-4 w-4 mr-1" />}
+              {isScanning ? "Scanning..." : "Run Full Scan"}
+            </Button>
+          )}
+        </div>
 
         {/* AI ASSISTANT - System Admin only */}
         {isSystemAdmin && (
