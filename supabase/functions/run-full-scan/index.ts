@@ -1314,7 +1314,13 @@ function classifyIssueType(issue: any, category: string): "bug" | "improvement" 
 async function createWorkItems(supabase: any, unified: any, stage: SystemStage): Promise<{ created: number; createTrace: any[] }> {
   let workItemsCreated = 0;
   const createTrace: any[] = [];
-  const allWorkIssues: { title: string; priority: string; item_type: string; description?: string; fingerprint: string; source_path?: string; source_file?: string; source_component?: string; issue_type?: string }[] = [];
+  const allWorkIssues: { title: string; priority: string; item_type: string; description?: string; fingerprint: string; source_path?: string; source_file?: string; source_component?: string; issue_type?: string; suggested_fix?: string }[] = [];
+
+  function suggestedFixForType(issueType: string): string {
+    if (issueType === "improvement") return "Adjust UI/UX for clarity and usability";
+    if (issueType === "upgrade") return "Add or enhance feature based on expected behavior";
+    return "Fix broken logic or missing connection";
+  }
 
   // DEBUG MODE: Relaxed filter — only skip explicitly dev-expected issues
   const tagActionable = (issues: any[]) => issues.map(issue => {
@@ -1337,10 +1343,11 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     const similarNote = flow._similar_count ? ` (+${flow._similar_count} liknande)` : "";
     const issueType = classifyIssueType(flow, "broken_flows");
     flow._issue_type = issueType;
+    flow._suggested_fix = suggestedFixForType(issueType);
     allWorkIssues.push({
       title: `Broken flow: ${flow.description || flow.route || flow.issue || "unknown"}${similarNote}`.slice(0, 120),
       priority: "high", item_type: "bug", description: flow.fix_suggestion || flow.detail || "",
-      fingerprint: fp, issue_type: issueType,
+      fingerprint: fp, issue_type: issueType, suggested_fix: suggestedFixForType(issueType),
       source_path: flow.route || flow.page || null, source_file: flow.file || flow.source_file || null, source_component: flow.component || flow.element || null,
     });
   }
@@ -1351,10 +1358,11 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     const similarNote = fake._similar_count ? ` (+${fake._similar_count} liknande)` : "";
     const issueType = classifyIssueType(fake, "fake_features");
     fake._issue_type = issueType;
+    fake._suggested_fix = suggestedFixForType(issueType);
     allWorkIssues.push({
       title: `Fake feature: ${fake.name || fake.component || fake.description || "unknown"}${similarNote}`.slice(0, 120),
       priority: "high", item_type: "improvement", description: fake.reason || fake.detail || "",
-      fingerprint: fp, issue_type: issueType,
+      fingerprint: fp, issue_type: issueType, suggested_fix: suggestedFixForType(issueType),
       source_path: fake.route || fake.page || null, source_file: fake.file || fake.source_file || null, source_component: fake.component || fake.name || null,
     });
   }
@@ -1365,11 +1373,12 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     const similarNote = fail._similar_count ? ` (+${fail._similar_count} liknande)` : "";
     const issueType = classifyIssueType(fail, "interaction_failures");
     fail._issue_type = issueType;
+    fail._suggested_fix = suggestedFixForType(issueType);
     allWorkIssues.push({
       title: `Interaction: ${fail.title || fail.element || fail.description || "unknown"}${similarNote}`.slice(0, 120),
       priority: fail.severity === "critical" ? "critical" : "high", item_type: "bug",
       description: fail.fix_suggestion || fail.detail || fail.issue || "",
-      fingerprint: fp, issue_type: issueType,
+      fingerprint: fp, issue_type: issueType, suggested_fix: suggestedFixForType(issueType),
       source_path: fail.route || fail.page || null, source_file: fail.file || fail.source_file || null, source_component: fail.component || fail.element || null,
     });
   }
@@ -1380,11 +1389,12 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     const similarNote = issue._similar_count ? ` (+${issue._similar_count} liknande)` : "";
     const issueType = classifyIssueType(issue, "data_issues");
     issue._issue_type = issueType;
+    issue._suggested_fix = suggestedFixForType(issueType);
     allWorkIssues.push({
       title: `Data: ${issue.title || issue.field || issue.description || "unknown"}${similarNote}`.slice(0, 120),
       priority: issue.severity === "critical" ? "critical" : "medium", item_type: "bug",
       description: issue.fix_suggestion || issue.detail || "",
-      fingerprint: fp, issue_type: issueType,
+      fingerprint: fp, issue_type: issueType, suggested_fix: suggestedFixForType(issueType),
       source_path: issue.route || issue.page || null, source_file: issue.file || issue.source_file || null, source_component: issue.component || issue.table || issue.entity || null,
     });
   }
