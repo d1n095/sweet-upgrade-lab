@@ -2819,7 +2819,7 @@ serve(async (req) => {
         scan_id: scan_run_id, trace_id: `full-scan-${scan_run_id.slice(0, 8)}`, component: "run-full-scan", duration_ms: totalDuration, user_id: scanRun.started_by,
       });
 
-      return new Response(JSON.stringify({ ok: true, action: "finalized", iterations: iterationsCompleted, work_items_created: workItemsCreated, system_stage: systemStage }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ success: true, scan_id: scan_run_id, detected: issuesCount, created: workItemsCreated, filtered: issuesCount - workItemsCreated, skipped: 0, action: "finalized", iterations: iterationsCompleted, system_stage: systemStage }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
     }
 
     // ── STATUS ──
@@ -2828,14 +2828,14 @@ serve(async (req) => {
       if (scan_run_id) query = query.eq("id", scan_run_id);
       else query = query.order("created_at", { ascending: false }).limit(1);
       const { data } = await query.single();
-      return new Response(JSON.stringify(data || null), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ success: true, ...(data || {}) }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
     }
 
     console.log("INVALID ACTION RECEIVED:", body.action);
-    return new Response(JSON.stringify({ error: "Invalid action" }), { status: 400, headers: corsHeaders });
+    return new Response(JSON.stringify({ success: false, error: "Invalid action" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
     console.error("run-full-scan error:", e);
-    await logRuntimeTrace("api", "run-full-scan", "/run-full-scan", e?.message || "Unknown", { stack: e?.stack?.slice(0, 500) }, request_trace_id);
-    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    try { await logRuntimeTrace("api", "run-full-scan", "/run-full-scan", e?.message || "Unknown", { stack: e?.stack?.slice(0, 500) }); } catch (_) {}
+    return new Response(JSON.stringify({ success: false, error: e?.message || "Unknown error" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
