@@ -1735,6 +1735,7 @@ function classifyIssueType(issue: any, category: string): "bug" | "improvement" 
 }
 
 async function createWorkItems(supabase: any, unified: any, stage: SystemStage): Promise<{ created: number; createTrace: any[] }> {
+  console.log("[DEBUG] createWorkItems START", allWorkIssues?.length || 0, "unified keys:", Object.keys(unified || {}));
   let workItemsCreated = 0;
   const createTrace: any[] = [];
   const allWorkIssues: { title: string; priority: string; item_type: string; description?: string; fingerprint: string; source_path?: string; source_file?: string; source_component?: string; issue_type?: string; suggested_fix?: string; affected_area?: { type: string; target: string } }[] = [];
@@ -1889,6 +1890,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
 
   // ── PROCESS EACH ISSUE with consistency logic ──
   for (const issue of allWorkIssues) {
+    console.log("[DEBUG] processing issue:", (issue as any).fingerprint);
     // Validation checks
     if (!issue.title || issue.title.trim().length === 0) {
       createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'skipped_validation', _validation_reason: 'missing_title', issue_type: issue.issue_type || 'bug', affected_area: issue.affected_area });
@@ -1995,9 +1997,11 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
       ...(matchedTraceId ? { runtime_trace_id: matchedTraceId } : {}),
     };
 
+    console.log("[DEBUG] INSERT PAYLOAD:", insertPayload);
     let verified = false;
     for (let attempt = 1; attempt <= 2; attempt++) {
       const { data: created, error } = await supabase.from("work_items").insert(insertPayload).select("id, title, status").single();
+      console.log("[DEBUG] INSERT RESULT:", { data: created, error });
       if (error) {
         console.error(`[create-verify] INSERT failed (attempt ${attempt}):`, error.message);
         continue;
