@@ -272,11 +272,13 @@ const SystemExplorer = () => {
       const groupDetected = scannerResults.reduce((s, r) => s + r.detected, 0);
       const groupCreated = scannerResults.reduce((s, r) => s + r.created, 0);
       const groupSkipped = scannerResults.reduce((s, r) => s + r.skipped, 0);
-      const deadCount = scannerResults.filter(r => r.health === "DEAD" || r.health === "BLIND").length;
+      const deadCount = scannerResults.filter(r => r.health === "DEAD" || r.health === "BLIND" || r.health === "NO_INPUT").length;
       const blockedCount = scannerResults.filter(r => r.health === "OVER-FILTERING" || r.health === "DEDUP_BLOCKED").length;
-      let groupHealth: "WORKING" | "DEAD" | "BLIND" | "OVER-FILTERING" | "DEDUP_BLOCKED" = "WORKING";
+      const lowSignalCount = scannerResults.filter(r => r.health === "LOW_SIGNAL").length;
+      let groupHealth: "WORKING" | "DEAD" | "BLIND" | "OVER-FILTERING" | "DEDUP_BLOCKED" | "NO_INPUT" | "LOW_SIGNAL" = "WORKING";
       if (deadCount > scannerResults.length / 2) groupHealth = "DEAD";
       else if (blockedCount > scannerResults.length / 2) groupHealth = "OVER-FILTERING";
+      else if (lowSignalCount > scannerResults.length / 2) groupHealth = "LOW_SIGNAL";
 
       return { ...group, scanners: scannerResults, detected: groupDetected, created: groupCreated, skipped: groupSkipped, health: groupHealth };
     });
