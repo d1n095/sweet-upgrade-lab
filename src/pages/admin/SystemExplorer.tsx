@@ -1004,6 +1004,44 @@ const SystemExplorer = () => {
                 })()}
               </CardContent>
             </Card>
+
+            {/* Pipeline Summary */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2"><ArrowRight className="h-4 w-4" /> Pipeline Summary</CardTitle>
+              </CardHeader>
+              <CardContent className="p-3">
+                {(() => {
+                  const scanned = r?.detected_count ?? r?.scanned ?? latestBackendScan?.issues_count ?? 0;
+                  const afterFilter = r?.after_filter ?? r?.filtered_count ?? "—";
+                  const skippedDedup = r?.skipped_dedup ?? r?.skipped_count ?? r?.deduplicated ?? "—";
+                  const created = r?.created_count ?? latestBackendScan?.tasks_created ?? 0;
+                  return (
+                    <div className="flex items-center gap-1 text-[10px]">
+                      <div className="flex flex-col items-center px-3 py-2 rounded-md bg-muted/30 border border-border">
+                        <span className="text-muted-foreground">scanned</span>
+                        <span className="text-lg font-bold text-foreground">{scanned}</span>
+                      </div>
+                      <span className="text-muted-foreground">→</span>
+                      <div className="flex flex-col items-center px-3 py-2 rounded-md bg-muted/30 border border-border">
+                        <span className="text-muted-foreground">after_filter</span>
+                        <span className="text-lg font-bold text-foreground">{afterFilter}</span>
+                      </div>
+                      <span className="text-muted-foreground">→</span>
+                      <div className="flex flex-col items-center px-3 py-2 rounded-md bg-muted/30 border border-border">
+                        <span className="text-muted-foreground">skipped_dedup</span>
+                        <span className="text-lg font-bold text-foreground">{skippedDedup}</span>
+                      </div>
+                      <span className="text-muted-foreground">→</span>
+                      <div className="flex flex-col items-center px-3 py-2 rounded-md bg-green-500/10 border border-green-500/20">
+                        <span className="text-muted-foreground">created</span>
+                        <span className="text-lg font-bold text-green-500">{created}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </CardContent>
+            </Card>
             </div>
           );
         })()}
