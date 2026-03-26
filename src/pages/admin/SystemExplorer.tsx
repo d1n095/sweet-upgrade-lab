@@ -1136,8 +1136,12 @@ const SystemExplorer = () => {
             console.error("❌ NO BACKEND SCAN FOUND");
           }
           const r = latestBackendScan?.results as any;
+          const latestRun = r;
           return (
             <div className="space-y-3">
+            {latestBackendScan && latestRun && latestRun.work_items_created === 0 && (
+              <p className="text-[10px] text-yellow-500 font-mono">⚠ Scan produced no work_items (possible over-filtering / dedup block)</p>
+            )}
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2"><Radar className="h-4 w-4" /> Backend Scan <span className="text-[9px] text-green-500/80 font-mono ml-2">✔ Real scan (Supabase)</span></CardTitle>
