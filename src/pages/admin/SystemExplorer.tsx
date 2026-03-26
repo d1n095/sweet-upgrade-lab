@@ -1082,6 +1082,9 @@ const SystemExplorer = () => {
                     {t._fix_confidence != null && (
                       <span className="text-[9px] text-muted-foreground">🎯 Fix confidence: {t._fix_confidence}/5</span>
                     )}
+                    {t._source_file_path && (
+                      <span className="text-[9px] text-muted-foreground font-mono">📁 Source File: {t._source_file_path}</span>
+                    )}
                   </div>
                 ))}
               </div>
