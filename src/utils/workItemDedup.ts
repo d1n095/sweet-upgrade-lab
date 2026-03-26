@@ -83,6 +83,7 @@ export async function createWorkItemWithDedup(payload: WorkItemPayload): Promise
         item: byFp[0],
         error: null,
         existingId: (byFp[0] as any).id,
+        dedup_reason: 'fingerprint_match',
       };
     }
   }
@@ -109,6 +110,7 @@ export async function createWorkItemWithDedup(payload: WorkItemPayload): Promise
         item: byTitle[0],
         error: null,
         existingId: (byTitle[0] as any).id,
+        dedup_reason: 'title_match',
       };
     }
   }
