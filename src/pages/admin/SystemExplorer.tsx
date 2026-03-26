@@ -247,7 +247,27 @@ const SystemExplorer = () => {
     staleTime: 30_000,
   });
 
-  const handleRefresh = async () => {
+  // Debug Console logs (runtime_traces + observability)
+  const { data: debugConsoleLogs = [] } = useQuery({
+    queryKey: ["system-explorer-debug-console"],
+    queryFn: async () => {
+      const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+      const [tracesRes, obsRes] = await Promise.all([
+        supabase.from("runtime_traces" as any).select("id, function_name, endpoint, error_message, created_at, request_trace_id").gte("created_at", cutoff).order("created_at", { ascending: false }).limit(50),
+        supabase.from("system_observability_log" as any).select("id, event_type, source, message, created_at, component").gte("created_at", cutoff).order("created_at", { ascending: false }).limit(50),
+      ]);
+      const traces = ((tracesRes.data || []) as any[]).map((t: any) => ({
+        ts: t.created_at, source: `trace:${t.function_name || "unknown"}`, message: t.error_message || `${t.endpoint || ""} OK`, id: t.id,
+      }));
+      const obs = ((obsRes.data || []) as any[]).map((o: any) => ({
+        ts: o.created_at, source: `${o.source || o.component || "system"}`, message: o.message || o.event_type, id: o.id,
+      }));
+      return [...traces, ...obs].sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime()).slice(0, 100);
+    },
+    staleTime: 15_000,
+  });
+
+
     setIsRefreshing(true);
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["system-explorer-work-items"] }),
