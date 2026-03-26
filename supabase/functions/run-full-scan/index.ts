@@ -1346,6 +1346,52 @@ async function runUiFlowIntegrityScan(supabase: any, scanRunId: string): Promise
       }
     }
 
+    // 7. Flow chain analysis: check each known flow for complete chain coverage
+    const productHandles = new Set((products || []).filter((p: any) => p.handle).map((p: any) => p.handle));
+    const categorySlugs = new Set((categories || []).filter((c: any) => c.slug).map((c: any) => c.slug));
+    const hasDbWrites = eventTypes.has("checkout_complete") || eventTypes.has("payment") || eventTypes.has("confirmation");
+
+    for (const flow of KNOWN_FLOWS) {
+      const chain = {
+        has_ui: KNOWN_ROUTES.includes(flow.startRoute) || KNOWN_ROUTES.includes(flow.endRoute),
+        has_action: flow.steps.some(step => eventTypes.has(step) || eventTypes.has(`${step}_start`) || eventTypes.has(`${step}_complete`)),
+        has_flow: flow.steps.length >= 2,
+        has_data: eventTypes.has(flow.steps[0]) || eventTypes.has(`${flow.name.toLowerCase()}_${flow.steps[0]}`),
+        has_db: flow.name === "Checkout" ? hasDbWrites : eventTypes.has(flow.steps[flow.steps.length - 1]),
+      };
+
+      // Attach chain to existing issues for this flow
+      const flowIssues = issues.filter((i: any) => i.component === flow.name);
+      for (const fi of flowIssues) {
+        fi._flow_chain = chain;
+      }
+
+      // Detect broken chain links
+      const chainParts = [
+        { key: "UI", ok: chain.has_ui },
+        { key: "Action", ok: chain.has_action },
+        { key: "Flow", ok: chain.has_flow },
+        { key: "Data", ok: chain.has_data },
+        { key: "DB", ok: chain.has_db },
+      ];
+      const brokenLinks = chainParts.filter(p => !p.ok);
+      if (brokenLinks.length > 0 && brokenLinks.length < chainParts.length) {
+        const from = chainParts.find(p => p.ok)?.key || "UI";
+        const to = chainParts.find(p => !p.ok)?.key || "DATA";
+        issues.push({
+          title: `Broken chain: ${from} → ${to} in "${flow.name}" (missing: ${brokenLinks.map(b => b.key).join(", ")})`,
+          severity: brokenLinks.length >= 3 ? "high" : "medium",
+          component: flow.name,
+          element: "FlowChain",
+          category: "flow_ui",
+          _issue_type: "bug",
+          _suggested_fix: "Fix broken logic or missing connection",
+          route: flow.startRoute,
+          _flow_chain: chain,
+        });
+      }
+    }
+
   } catch (e: any) { issues.push({ title: `UI Flow Integrity error: ${e.message}`, severity: "critical", component: "ui_flow_integrity", category: "flow_ui" }); }
 
   const durationMs = Date.now() - startMs;
