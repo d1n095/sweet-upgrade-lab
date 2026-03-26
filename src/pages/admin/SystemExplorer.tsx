@@ -117,7 +117,7 @@ const SystemExplorer = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("work_items")
-        .select("id, title, status, source_type, source_id, created_by, item_type, priority, ai_detected, created_at, issue_fingerprint, ignored")
+        .select("id, title, status, source_type, source_id, created_by, item_type, priority, ai_detected, created_at, issue_fingerprint, ignored, source_path, source_file, source_component")
         .order("created_at", { ascending: false })
         .limit(200);
       if (error) throw error;
