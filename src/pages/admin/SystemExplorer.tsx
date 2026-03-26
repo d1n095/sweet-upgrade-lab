@@ -750,7 +750,17 @@ const SystemExplorer = () => {
           )}
         </div>
 
-        {/* AI ASSISTANT - System Admin only */}
+        {/* REGRESSION BANNER */}
+        {regressions.length > 0 && (
+          <div className="rounded-md border border-destructive bg-destructive/10 p-2">
+            <p className="text-xs font-bold text-destructive mb-1">⚠ Regression detected</p>
+            {regressions.slice(0, 5).map((r, idx) => (
+              <p key={idx} className="text-[10px] text-foreground">
+                • <strong>{r.target}</strong> — {r.reason === "increased_issues" ? "more issues than previous scan" : r.reason === "lost_coverage" ? "coverage dropped" : "scanner degraded (BLIND/DEAD)"}
+              </p>
+            ))}
+          </div>
+        )}
         {isSystemAdmin && (
         <Card>
           <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("aiAssistant")}>
