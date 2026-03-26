@@ -189,6 +189,7 @@ const SystemExplorer = () => {
   const [searchResults, setSearchResults] = useState<{ path: string; lineNumber: number; line: string }[]>([]);
   const [lastAction, setLastAction] = useState("");
   const [actionLogs, setActionLogs] = useState<{ time: string; [key: string]: any }[]>([]);
+  const [globalIssues, setGlobalIssues] = useState<{ type: string; message: string; file: string }[]>([]);
 
   function logAction(action: Record<string, any>) {
     setActionLogs(prev => [
