@@ -1927,6 +1927,21 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
 
     // NEW ISSUE — create
     const now = new Date().toISOString();
+    // Try match a recent runtime_trace (within 60s)
+    let matchedTraceId: string | null = null;
+    if (issue.issue_type === "bug" || issue.affected_area === "data" || issue.title?.toLowerCase().includes("missing") || issue.title?.toLowerCase().includes("mismatch") || issue.title?.toLowerCase().includes("null") || issue.title?.toLowerCase().includes("lost")) {
+      try {
+        const cutoff = new Date(Date.now() - 60_000).toISOString();
+        const keywords = (issue.title || "").split(/\s+/).filter((w: string) => w.length > 4).slice(0, 3);
+        let traceQuery = supabase.from("runtime_traces").select("id, error_message").gte("created_at", cutoff).order("created_at", { ascending: false }).limit(5);
+        const { data: traces } = await traceQuery;
+        if (traces?.length) {
+          const match = traces.find((t: any) => keywords.some((kw: string) => t.error_message?.toLowerCase().includes(kw.toLowerCase())));
+          matchedTraceId = match?.id || traces[0]?.id || null;
+        }
+      } catch (_) {}
+    }
+
     const insertPayload: Record<string, any> = {
       title: issue.title,
       description: issue.description || "Auto-generated from scan",
@@ -1942,6 +1957,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
       first_seen_at: now,
       last_seen_at: now,
       occurrence_count: 1,
+      ...(matchedTraceId ? { runtime_trace_id: matchedTraceId } : {}),
     };
 
     let verified = false;
@@ -2516,11 +2532,20 @@ serve(async (req) => {
           continue;
         }
 
+        // Try match runtime_trace for systemic issues
+        let sysTraceId: string | null = null;
+        try {
+          const cutoff = new Date(Date.now() - 60_000).toISOString();
+          const { data: traces } = await supabase.from("runtime_traces").select("id").gte("created_at", cutoff).order("created_at", { ascending: false }).limit(1);
+          if (traces?.length) sysTraceId = traces[0].id;
+        } catch (_) {}
+
         const { error } = await supabase.from("work_items").insert({
           title: `🔗 ${si.label}`.slice(0, 120),
           description: `${si.description}\n\nExempel: ${si.examples?.join(", ") || "N/A"}\nPåverkade: ${si.affected_components?.join(", ") || "N/A"}`,
           status: "open", priority: si.severity === "critical" ? "critical" : "high",
           item_type: "bug", source_type: "ai_scan", ai_detected: true, issue_fingerprint: fp,
+          ...(sysTraceId ? { runtime_trace_id: sysTraceId } : {}),
         });
         if (!error) workItemsCreated++;
       }
