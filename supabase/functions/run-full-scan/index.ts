@@ -1198,6 +1198,12 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
   const allWorkIssues: { title: string; priority: string; item_type: string; description?: string; fingerprint: string }[] = [];
 
   // DEBUG MODE: Relaxed filter — only skip explicitly dev-expected issues
+  const tagActionable = (issues: any[]) => issues.map(issue => {
+    if (issue._dev_expected) {
+      return { ...issue, _filter_decision: issue._filter_decision || "filtered_out", _filter_reason: issue._filter_reason || "not_actionable" };
+    }
+    return { ...issue, _filter_decision: issue._filter_decision || "passed" };
+  });
   const isActionable = (issue: any) => !issue._dev_expected;
 
   if (unified.blocker) {
