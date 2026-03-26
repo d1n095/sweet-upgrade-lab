@@ -2317,6 +2317,11 @@ serve(async (req) => {
         componentsCount: components?.length,
       });
 
+      if (!structure_map || structure_map.length === 0) {
+        console.error("❌ SCAN ABORT: NO STRUCTURE MAP");
+        return new Response(JSON.stringify({ success: false, error: "NO_INPUT_DATA" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
       console.log("[SCAN] running scanners — chaining first step");
       fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
