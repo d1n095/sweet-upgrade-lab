@@ -9165,7 +9165,7 @@ ${JSON.stringify(history.slice(0, 20).map((h: any) => ({ item: h.work_item_id.sl
     body: JSON.stringify({
       model: "google/gemini-2.5-flash",
       messages: [
-        { role: "system", content: `You are a read-only system analyst for a Swedish e-commerce platform. You analyze work items, scan results, bug reports, and system history. You NEVER suggest modifying data. Answer concisely in the same language as the question. Use markdown formatting.` },
+        { role: "system", content: `You are a read-only system analyst for a Swedish e-commerce platform. You analyze work items, scan results, bug reports, system history, system structure map, and high attention areas. You can identify where problems cluster, what areas are unstable, and what should be prioritized. You NEVER suggest modifying data. Answer concisely in the same language as the question. Use markdown formatting.` },
         { role: "user", content: `${context}\n\n---\nQUESTION: ${question}` },
       ],
     }),
