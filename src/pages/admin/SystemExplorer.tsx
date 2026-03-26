@@ -183,6 +183,7 @@ const SystemExplorer = () => {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [showBackendRaw, setShowBackendRaw] = useState(false);
   const [fileScanResult, setFileScanResult] = useState<{ total: number; emptyFiles: number; largeFiles: number } | null>(null);
+  const [codeScanResult, setCodeScanResult] = useState<{ filesWithApi: number; filesWithState: number; largeFiles: number } | null>(null);
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | null>(null);
   const [verifyingFix, setVerifyingFix] = useState(false);
   const [verifyResult, setVerifyResult] = useState<{ itemId: string; status: "confirmed" | "failed"; scanId?: string } | null>(null);
@@ -1097,7 +1098,31 @@ const SystemExplorer = () => {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2"><Layers className="h-4 w-4" /> Code Index ({index.length} files)</CardTitle>
+                <Button variant="outline" size="sm" className="text-[10px] h-6 ml-auto" onClick={() => {
+                  const result = {
+                    filesWithApi: index.filter(f => f.hasApiCall).length,
+                    filesWithState: index.filter(f => f.hasState).length,
+                    largeFiles: index.filter(f => f.lineCount > 300).length,
+                  };
+                  console.log("[CODE SCAN RESULT]:", result);
+                  setCodeScanResult(result);
+                }}>
+                  Scan Code
+                </Button>
               </CardHeader>
+              {codeScanResult && (
+                <div className="flex gap-3 text-[10px] px-3 pb-2">
+                  <div className="px-3 py-1.5 rounded-md bg-muted/30 border border-border">
+                    <span className="text-muted-foreground">API calls: </span><span className="font-bold text-foreground">{codeScanResult.filesWithApi}</span>
+                  </div>
+                  <div className="px-3 py-1.5 rounded-md bg-muted/30 border border-border">
+                    <span className="text-muted-foreground">useState: </span><span className="font-bold text-foreground">{codeScanResult.filesWithState}</span>
+                  </div>
+                  <div className="px-3 py-1.5 rounded-md bg-muted/30 border border-border">
+                    <span className="text-muted-foreground">Large (300+): </span><span className={`font-bold ${codeScanResult.largeFiles > 0 ? "text-yellow-500" : "text-foreground"}`}>{codeScanResult.largeFiles}</span>
+                  </div>
+                </div>
+              )}
               <CardContent className="p-0">
                 <div className="max-h-[500px] overflow-auto">
                   <table className="w-full text-[10px]">
