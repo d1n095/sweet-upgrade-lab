@@ -1289,7 +1289,7 @@ const SystemExplorer = () => {
               </Button>
             </div>
 
-            {(fileScanResult || fileScanResult === null) && (fileScanResult ? (
+            {fileScanResult ? (
               <div className="flex gap-3 text-[10px]">
                 <div className="px-3 py-1.5 rounded-md bg-muted/30 border border-border">
                   <span className="text-muted-foreground">Total: </span><span className="font-bold text-foreground">{fileScanResult.total}</span>
@@ -1299,6 +1299,18 @@ const SystemExplorer = () => {
                 </div>
                 <div className="px-3 py-1.5 rounded-md bg-muted/30 border border-border">
                   <span className="text-muted-foreground">Large (5k+): </span><span className={`font-bold ${fileScanResult.largeFiles > 0 ? "text-yellow-500" : "text-foreground"}`}>{fileScanResult.largeFiles}</span>
+                </div>
+              </div>
+            ) : (
+              <div className="flex gap-3 text-[10px]">
+                <div className="px-3 py-1.5 rounded-md bg-muted/30 border border-border">
+                  <span className="text-muted-foreground">Total: </span><span className="font-bold text-foreground">0</span>
+                </div>
+                <div className="px-3 py-1.5 rounded-md bg-muted/30 border border-border">
+                  <span className="text-muted-foreground">Empty: </span><span className="font-bold text-foreground">0</span>
+                </div>
+                <div className="px-3 py-1.5 rounded-md bg-muted/30 border border-border">
+                  <span className="text-muted-foreground">Large (5k+): </span><span className="font-bold text-foreground">0</span>
                 </div>
               </div>
             )}
