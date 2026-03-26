@@ -1478,6 +1478,20 @@ serve(async (req) => {
       } catch (e: any) { stepResult = { error: e.message, failed: true }; }
 
       const duration_ms = Date.now() - stepStart;
+
+      // ── Normalize scanner output ──
+      const didExecute = !stepResult.failed && !stepResult.error;
+      stepResult._executed = didExecute;
+      stepResult._scanner_name = step.id;
+      if (didExecute) {
+        // Ensure issues is always an array
+        if (!Array.isArray(stepResult.issues)) {
+          stepResult.issues = stepResult.issues ?? [];
+        }
+      } else {
+        stepResult.issues = stepResult.issues ?? [];
+      }
+
       stepResult._duration_ms = duration_ms;
       stepResult._step_id = step.id;
       stepResult._iteration = currentIteration;
