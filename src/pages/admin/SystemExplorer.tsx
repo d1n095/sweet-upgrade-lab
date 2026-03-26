@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAdminRole } from "@/hooks/useAdminRole";
@@ -1155,8 +1155,25 @@ const SystemExplorer = () => {
                                                 </span>
                                               ))}
                                             </div>
-                                          )}
-                                          {issue._suggested_fix && <div className="text-[9px] text-muted-foreground italic">💡 {issue._suggested_fix}</div>}
+                                           )}
+                                           {issue.data_trace && (
+                                             <div className="flex gap-1 flex-wrap mt-0.5">
+                                               {[
+                                                 { key: "Input", ok: issue.data_trace.input_detected },
+                                                 { key: "Mapped", ok: issue.data_trace.mapped },
+                                                 { key: "Transformed", ok: issue.data_trace.transformed },
+                                                 { key: "Saved", ok: issue.data_trace.saved_to_db },
+                                               ].map((step: any, idx: number, arr: any[]) => (
+                                                 <React.Fragment key={step.key}>
+                                                   <span className={`text-[8px] px-1 py-0 rounded border ${step.ok ? "border-primary/30 text-primary" : "border-destructive/30 text-destructive font-bold"}`}>
+                                                     {step.ok ? "✅" : "❌"} {step.key}
+                                                   </span>
+                                                   {idx < arr.length - 1 && <span className="text-[8px] text-muted-foreground">→</span>}
+                                                 </React.Fragment>
+                                               ))}
+                                             </div>
+                                           )}
+                                           {issue._suggested_fix && <div className="text-[9px] text-muted-foreground italic">💡 {issue._suggested_fix}</div>}
                                         {/* SCAN → FILTER → CREATE flow */}
                                         <div className="grid grid-cols-3 gap-1 text-[9px] border-t border-border/30 pt-1">
                                           {/* SCAN */}
