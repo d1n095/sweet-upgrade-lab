@@ -929,6 +929,21 @@ const SystemExplorer = () => {
           />
           <Button variant="outline" size="sm" className="text-[10px] h-7" onClick={handleSearch}>Search</Button>
         </div>
+        {searchResults.length > 0 && (
+          <Card className="border-primary/30">
+            <CardHeader className="py-2 px-3">
+              <CardTitle className="text-xs font-mono">Search Results ({searchResults.length})</CardTitle>
+            </CardHeader>
+            <CardContent className="py-1 px-3 space-y-1 max-h-[300px] overflow-y-auto">
+              {searchResults.map((r, i) => (
+                <div key={i} className="text-[10px] font-mono border-b border-border/50 pb-1">
+                  <div className="text-primary font-semibold">{r.path}</div>
+                  <div className="text-muted-foreground">Line {r.lineNumber}: <span className="text-foreground">{r.line}</span></div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
         <div className="flex items-center gap-2 flex-wrap">
           <Database className="h-6 w-6 text-primary" />
           <h1 className="text-2xl font-bold text-foreground">System Explorer</h1>
