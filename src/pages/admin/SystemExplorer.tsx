@@ -1475,7 +1475,18 @@ const SystemExplorer = () => {
                   {f === "all" ? `All (${fileSystemMap.length})` : f === "orphan" ? `Orphan (${fileSystemMap.filter(fi => fi.used_in.length === 0 && fi.type !== "page" && fi.type !== "edge_function").length})` : `Has Issues (${fileSystemMap.filter(fi => structureIssues.some(si => si.path === fi.path)).length})`}
                 </button>
               ))}
-              <Button variant="outline" size="sm" className="text-[10px] h-6 ml-auto" onClick={() => runSystemScan("files")}>
+              <Button variant="outline" size="sm" className="text-[10px] h-6 ml-auto" onClick={() =>
+                validateAction("SCAN_FILES", () => {
+                  const files = Object.keys(getRawSources() || {});
+                  if (!files.length) {
+                    throw new Error("No files available");
+                  }
+                  const result = files.length;
+                  console.log("[FILES FOUND]:", result);
+                  setFileScanResult({ total: result, emptyFiles: files.filter(f => !getRawSources()[f]?.trim()).length, largeFiles: 0 });
+                  return true;
+                })
+              }>
                 Scan Files
               </Button>
             </div>
