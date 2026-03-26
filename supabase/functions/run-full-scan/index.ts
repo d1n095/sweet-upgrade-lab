@@ -2122,11 +2122,64 @@ serve(async (req) => {
         }
       }
 
+      // ── SUSPICIOUS AREA DETECTION ──
+      const suspiciousAreas: { target: string; type: string; reason: string }[] = [];
+
+      // All structure map entities
+      const { data: allStructure } = await supabase.from("system_structure_map").select("entity_type, entity_name, scan_count, source_path").limit(200);
+      const allStructureEntries = allStructure || [];
+
+      // Collect all scanned targets from step results
+      const scannedTargets = new Set<string>();
+      for (const [, val] of Object.entries(updatedResults)) {
+        if (val?._scan_scope?.target) scannedTargets.add(val._scan_scope.target.toLowerCase());
+      }
+
+      // 1. Unscanned entity near area with known issues
+      for (const entry of allStructureEntries) {
+        const nameL = entry.entity_name?.toLowerCase() || "";
+        const isScanned = Array.from(scannedTargets).some(t => nameL.includes(t) || t.includes(nameL));
+        if (!isScanned && entry.scan_count > 0) {
+          const relatedHasIssues = Object.entries(targetIssueCounts).some(([key]) => key.split("::")[0] === entry.entity_type);
+          if (relatedHasIssues) {
+            suspiciousAreas.push({ target: entry.entity_name, type: entry.entity_type, reason: "Unscanned entity near area with known issues" });
+          }
+        }
+      }
+
+      // 2. flow_chain shows missing parts
+      for (const issue of actionableIssues) {
+        const chain = (issue as any)._flow_chain;
+        if (chain) {
+          const missing = [!chain.has_ui && "UI", !chain.has_action && "Action", !chain.has_flow && "Flow", !chain.has_data && "Data", !chain.has_db && "DB"].filter(Boolean);
+          if (missing.length > 0) {
+            const target = (issue as any).component || (issue as any).route || "unknown";
+            if (!suspiciousAreas.find(s => s.target === target && s.reason.includes("chain"))) {
+              suspiciousAreas.push({ target, type: "flow", reason: `Broken chain: missing ${missing.join(", ")}` });
+            }
+          }
+        }
+      }
+
+      // 3. High issues but low work item creation
+      const createTrace = createResult?.createTrace || [];
+      for (const [, entry] of Object.entries(targetIssueCounts)) {
+        if (entry.count >= 3) {
+          const createdForArea = createTrace.filter((t: any) => t._create_decision === "created" && t.affected_area?.target === entry.target).length;
+          if (createdForArea === 0) {
+            if (!suspiciousAreas.find(s => s.target === entry.target && s.reason.includes("issues but"))) {
+              suspiciousAreas.push({ target: entry.target, type: entry.type, reason: `${entry.count} issues but 0 work items created` });
+            }
+          }
+        }
+      }
+
       const adaptiveResult = {
         ...unified,
         system_overview: systemOverview,
         system_stage: systemStage,
         high_attention_areas: highAttentionAreas,
+        suspicious_areas: suspiciousAreas,
         adaptive_scan: {
           iterations: iterationsCompleted, new_issues_found: scanRun.total_new_issues || 0,
           pattern_discoveries: patternDiscoveries, high_risk_areas: highRiskAreas,
