@@ -786,6 +786,44 @@ async function runDataIntegrityScan(supabase: any, scanRunId: string): Promise<a
       issues.push({ type: "stale_state", severity: "medium", entity: "work_item", entity_id: wi.id, title: `"${wi.title}" claimad >30min utan progress`, step: "UI → database", root_cause: "Uppgift övergiven", component: "work_items" });
     }
 
+    // 7. Entity validation: check required fields on key entities
+    const ENTITY_VALIDATIONS: { table: string; entity: string; required: string[]; limit: number }[] = [
+      { table: "orders", entity: "order", required: ["id", "user_id", "order_email", "status", "payment_status", "total_amount"], limit: 200 },
+      { table: "profiles", entity: "user", required: ["id", "user_id"], limit: 200 },
+      { table: "products", entity: "product", required: ["id", "title_sv", "price", "status"], limit: 200 },
+    ];
+
+    for (const ev of ENTITY_VALIDATIONS) {
+      try {
+        const { data: rows } = await supabase.from(ev.table).select(ev.required.join(", ")).limit(ev.limit);
+        for (const row of rows || []) {
+          const missingFields: string[] = [];
+          const nullFields: string[] = [];
+          for (const field of ev.required) {
+            if (!(field in row)) missingFields.push(field);
+            else if (row[field] === null || row[field] === undefined) nullFields.push(field);
+          }
+          if (missingFields.length > 0 || nullFields.length > 0) {
+            issues.push({
+              type: "data_validation",
+              severity: missingFields.includes("id") ? "critical" : nullFields.length > 2 ? "high" : "medium",
+              entity: ev.entity,
+              entity_id: row.id || "unknown",
+              title: `${ev.entity} ${(row.id || "?").toString().slice(0, 8)}: ${missingFields.length > 0 ? `missing [${missingFields.join(",")}]` : ""} ${nullFields.length > 0 ? `null [${nullFields.join(",")}]` : ""}`.trim(),
+              step: "database → validation",
+              root_cause: "Required field missing or null",
+              component: ev.table,
+              validation_fields: {
+                id: row.id ? "present" : "missing",
+                required_fields_missing: missingFields,
+                null_fields: nullFields,
+              },
+            });
+          }
+        }
+      } catch (_) {}
+    }
+
   } catch (e: any) {
     console.error("Data integrity scan error:", e);
     issues.push({ type: "scan_error", severity: "critical", entity: "integrity_scan", title: `Integrity scan fel: ${e.message}`, step: "scan", root_cause: e.message, component: "integrity_scan" });
@@ -795,13 +833,13 @@ async function runDataIntegrityScan(supabase: any, scanRunId: string): Promise<a
   await supabase.from("system_observability_log").insert({
     event_type: "scan_step", severity: issues.filter(i => i.severity === "critical").length > 0 ? "warning" : "info",
     source: "scanner", message: `Data integrity scan: ${issues.length} problem`,
-    details: { total_issues: issues.length, by_type: { data_loss: issues.filter(i => i.type === "data_loss").length, failed_insert: issues.filter(i => i.type === "failed_insert").length, stale_state: issues.filter(i => i.type === "stale_state").length, incorrect_filtering: issues.filter(i => i.type === "incorrect_filtering").length } },
+    details: { total_issues: issues.length, by_type: { data_loss: issues.filter(i => i.type === "data_loss").length, failed_insert: issues.filter(i => i.type === "failed_insert").length, stale_state: issues.filter(i => i.type === "stale_state").length, incorrect_filtering: issues.filter(i => i.type === "incorrect_filtering").length, data_validation: issues.filter(i => i.type === "data_validation").length } },
     scan_id: scanRunId, trace_id: traceId, component: "data_integrity_scan", duration_ms: durationMs,
   }).catch(() => {});
 
   return {
     issues, total_issues: issues.length,
-    by_type: { data_loss: issues.filter(i => i.type === "data_loss").length, failed_insert: issues.filter(i => i.type === "failed_insert").length, stale_state: issues.filter(i => i.type === "stale_state").length, incorrect_filtering: issues.filter(i => i.type === "incorrect_filtering").length },
+    by_type: { data_loss: issues.filter(i => i.type === "data_loss").length, failed_insert: issues.filter(i => i.type === "failed_insert").length, stale_state: issues.filter(i => i.type === "stale_state").length, incorrect_filtering: issues.filter(i => i.type === "incorrect_filtering").length, data_validation: issues.filter(i => i.type === "data_validation").length },
     duration_ms: durationMs, scanned_at: new Date().toISOString(),
   };
 }
