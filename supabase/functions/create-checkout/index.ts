@@ -2,6 +2,16 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 
+async function logRuntimeTrace(source: string, function_name: string, endpoint: string, error_message: string, payload_snapshot: any) {
+  try {
+    const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    await sb.from("runtime_traces").insert({
+      source, function_name, endpoint, error_message,
+      payload_snapshot: typeof payload_snapshot === "object" ? JSON.parse(JSON.stringify(payload_snapshot, (_, v) => typeof v === "string" && v.length > 200 ? v.slice(0, 200) + "…" : v)) : {},
+    });
+  } catch (_) {}
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -282,12 +292,11 @@ serve(async (req) => {
     });
   } catch (error: any) {
     console.error("CHECKOUT FATAL ERROR:", error);
+    await logRuntimeTrace("api", "create-checkout", "/create-checkout", error?.message || "Unknown error", { stack: error?.stack?.slice(0, 500) });
 
     // Release reserved stock best-effort
     if (supabase) {
-      // inline release
       try {
-        // We don't have reservedItems in this scope easily, so just log
         console.warn("Could not release reserved stock from outer catch");
       } catch {}
     }

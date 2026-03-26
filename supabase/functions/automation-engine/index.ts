@@ -1,5 +1,15 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+async function logRuntimeTrace(source: string, function_name: string, endpoint: string, error_message: string, payload_snapshot: any) {
+  try {
+    const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    await sb.from("runtime_traces").insert({
+      source, function_name, endpoint, error_message,
+      payload_snapshot: typeof payload_snapshot === "object" ? JSON.parse(JSON.stringify(payload_snapshot, (_, v) => typeof v === "string" && v.length > 200 ? v.slice(0, 200) + "…" : v)) : {},
+    });
+  } catch (_) {}
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -362,8 +372,9 @@ Deno.serve(async (req) => {
       JSON.stringify({ success: true, results }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error("Automation engine error:", error);
+    await logRuntimeTrace("api", "automation-engine", "/automation-engine", error?.message || "Unknown", { stack: error?.stack?.slice(0, 500) });
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
