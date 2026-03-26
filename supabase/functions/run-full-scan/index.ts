@@ -1736,6 +1736,9 @@ function classifyIssueType(issue: any, category: string): "bug" | "improvement" 
 
 async function createWorkItems(supabase: any, unified: any, stage: SystemStage): Promise<{ created: number; createTrace: any[] }> {
   console.log("[DEBUG] createWorkItems START", allWorkIssues?.length || 0, "unified keys:", Object.keys(unified || {}));
+  console.log("[DEBUG] SUPABASE TEST START");
+  const test = await supabase.from("work_items").select("id").limit(1);
+  console.log("[DEBUG] SUPABASE TEST RESULT:", test);
   let workItemsCreated = 0;
   const createTrace: any[] = [];
   const allWorkIssues: { title: string; priority: string; item_type: string; description?: string; fingerprint: string; source_path?: string; source_file?: string; source_component?: string; issue_type?: string; suggested_fix?: string; affected_area?: { type: string; target: string } }[] = [];
