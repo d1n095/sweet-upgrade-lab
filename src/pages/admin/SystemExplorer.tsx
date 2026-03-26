@@ -2741,6 +2741,53 @@ const SystemExplorer = () => {
                   <p className="text-[9px] text-destructive">⚠️ Persistent problem — seen {(selectedItem as any).occurrence_count} times</p>
                 )}
               </div>
+              {/* Pipeline Trace */}
+              {(() => {
+                const traces = (scanResults?._create_trace ?? []) as any[];
+                const fp = selectedItem.issue_fingerprint;
+                const titleMatch = selectedItem.title;
+                const trace = traces.find((t: any) => t.fingerprint === fp || t.title === titleMatch);
+                
+                const scanOk = true; // always detected by scan
+                const filterOk = trace ? trace._create_decision !== "skipped_filter" : null;
+                const filterReason = trace?._filter_reason || trace?._validation_reason || null;
+                const dedupOk = trace ? trace._create_decision !== "skipped_dedup" : null;
+                const dedupReason = trace?._dedup_reason || null;
+                const createOk = trace ? (trace._create_decision === "created" && trace._insert_success === true) : null;
+                const createError = trace?._insert_error || null;
+                
+                const step = (label: string, ok: boolean | null) => {
+                  if (ok === null) return `${label} —`;
+                  return ok ? `${label} ✓` : `${label} ✗`;
+                };
+
+                return (
+                  <div className="border border-border rounded-md p-2 bg-muted/30 space-y-1">
+                    <span className="text-muted-foreground text-xs font-medium">Pipeline Trace</span>
+                    <div className="flex items-center gap-1 text-[10px] font-mono flex-wrap">
+                      <span className="text-green-500">{step("SCAN", scanOk)}</span>
+                      <span className="text-muted-foreground">→</span>
+                      <span className={filterOk === false ? "text-destructive" : filterOk === true ? "text-green-500" : "text-muted-foreground"}>{step("FILTER", filterOk)}</span>
+                      <span className="text-muted-foreground">→</span>
+                      <span className={dedupOk === false ? "text-destructive" : dedupOk === true ? "text-green-500" : "text-muted-foreground"}>{step("DEDUP", dedupOk)}</span>
+                      <span className="text-muted-foreground">→</span>
+                      <span className={createOk === false ? "text-destructive" : createOk === true ? "text-green-500" : "text-muted-foreground"}>{step("CREATE", createOk)}</span>
+                    </div>
+                    {filterReason && (
+                      <p className="text-[9px] text-destructive">Filter: {filterReason}</p>
+                    )}
+                    {dedupReason && (
+                      <p className="text-[9px] text-destructive">Dedup: {dedupReason}</p>
+                    )}
+                    {createError && (
+                      <p className="text-[9px] text-destructive">Error: {createError}</p>
+                    )}
+                    {!trace && (
+                      <p className="text-[9px] text-muted-foreground">No trace found — run a scan to populate</p>
+                    )}
+                  </div>
+                );
+              })()}
               {noEffectFixIds.has(selectedItem.id) && (
                 <div className="border border-destructive rounded-md p-2 bg-destructive/10 space-y-1">
                   <span className="text-destructive text-xs font-bold flex items-center gap-1">⚠️ no_effect_fix</span>
