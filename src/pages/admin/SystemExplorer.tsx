@@ -255,9 +255,13 @@ const SystemExplorer = () => {
         const uniqueRaw = [...new Map(allRaw.map(r => [r.title || JSON.stringify(r), r])).values()];
         detected = uniqueRaw.length;
         const skipped = Math.max(0, detected - created);
-        let health: "WORKING" | "DEAD" | "BLIND" | "OVER-FILTERING" | "DEDUP_BLOCKED" = "WORKING";
+        const scopeSize = scanScope?.size ?? inputSize ?? 0;
+        const coverageRatio = scopeSize > 0 ? detected / scopeSize : 0;
+        let health: "WORKING" | "DEAD" | "BLIND" | "OVER-FILTERING" | "DEDUP_BLOCKED" | "NO_INPUT" | "LOW_SIGNAL" = "WORKING";
         if (!executed) health = "DEAD";
-        else if (detected === 0 && (inputSize ?? 0) > 0) health = "BLIND";
+        else if (scopeSize === 0) health = "NO_INPUT";
+        else if (detected === 0 && scopeSize > 0) health = "BLIND";
+        else if (coverageRatio < 0.01 && detected > 0) health = "LOW_SIGNAL";
         else if (detected > 0 && created === 0 && skipped === detected) health = "OVER-FILTERING";
         else if (detected > 0 && created === 0) health = "DEDUP_BLOCKED";
         else if (created > 0) health = "WORKING";
