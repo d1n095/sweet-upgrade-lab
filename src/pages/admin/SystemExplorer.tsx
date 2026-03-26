@@ -440,7 +440,7 @@ const SystemExplorer = () => {
       const beforeCount = before.data?.length || 0;
       logAction({ type: "Full Scan", status: "started" });
       console.log("🚀 STARTING FULL SCAN");
-      const structure_map = Object.keys(rawSources || {}).map(path => ({
+      const structure_map = Object.keys(getRawSources() || {}).map(path => ({
         path
       }));
       const res = await tracedInvoke("run-full-scan", {
