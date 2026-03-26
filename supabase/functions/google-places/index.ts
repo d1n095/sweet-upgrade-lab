@@ -59,7 +59,7 @@ serve(async (req) => {
         });
       }
 
-      const apiUrl = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(input)}&types=address&components=country:se&language=sv&key=${apiKey}`;
+      const apiUrl = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(input)}&types=address&components=country:se&language=sv&key=${googleApiKey}`;
       const res = await fetch(apiUrl);
       const data = await res.json();
 
@@ -77,7 +77,7 @@ serve(async (req) => {
         });
       }
 
-      const apiUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${encodeURIComponent(placeId)}&fields=address_components,formatted_address&language=sv&key=${apiKey}`;
+      const apiUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${encodeURIComponent(placeId)}&fields=address_components,formatted_address&language=sv&key=${googleApiKey}`;
       const res = await fetch(apiUrl);
       const data = await res.json();
 
