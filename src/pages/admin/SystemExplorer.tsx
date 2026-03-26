@@ -1333,7 +1333,22 @@ const SystemExplorer = () => {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2"><Layers className="h-4 w-4" /> Code Index ({index.length} files)</CardTitle>
-                <Button variant="outline" size="sm" className="text-[10px] h-6 ml-auto" onClick={() => runSystemScan("code")}>
+                <Button variant="outline" size="sm" className="text-[10px] h-6 ml-auto" onClick={() =>
+                  validateAction("SCAN_CODE", () => {
+                    const sources = getRawSources() || {};
+                    const results: { type: string; message: string; file: string }[] = [];
+                    Object.entries(sources).forEach(([path, content]) => {
+                      const issues = scanFileContent(path, content as string);
+                      results.push(...issues);
+                    });
+                    if (!results || results.length === 0) {
+                      throw new Error("Code index empty");
+                    }
+                    console.log("[FILE ISSUES FOUND]:", results.length);
+                    setCodeScanResult(results);
+                    return true;
+                  })
+                }>
                   Scan Code
                 </Button>
               </CardHeader>
