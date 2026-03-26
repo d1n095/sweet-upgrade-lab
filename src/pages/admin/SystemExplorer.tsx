@@ -435,7 +435,21 @@ const SystemExplorer = () => {
       const obs = ((obsRes.data || []) as any[]).map((o: any) => ({
         ts: o.created_at, source: `${o.source || o.component || "system"}`, message: o.message || o.event_type, id: o.id,
       }));
-      return [...traces, ...obs].sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime()).slice(0, 100);
+      const combined = [...traces, ...obs].sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime()).slice(0, 100);
+      // Fallback: if no logs in last 2h, fetch from last scan snapshot
+      if (combined.length === 0) {
+        const { data: snapshot } = await supabase.from("scan_snapshots" as any).select("diagnosis_summary, created_at, scan_confidence_score, total_detected, total_created").order("created_at", { ascending: false }).limit(1).maybeSingle();
+        if (snapshot) {
+          const lines = (snapshot.diagnosis_summary || "").split("\n").filter(Boolean);
+          return lines.map((line: string, idx: number) => ({
+            ts: snapshot.created_at,
+            source: "scan-snapshot",
+            message: line,
+            id: `snapshot-${idx}`,
+          }));
+        }
+      }
+      return combined;
     },
     staleTime: 15_000,
   });
