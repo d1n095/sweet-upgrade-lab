@@ -70,21 +70,27 @@ export async function createWorkItemWithDedup(payload: WorkItemPayload): Promise
   if (payload.issue_fingerprint) {
     const { data: byFp } = await supabase
       .from('work_items' as any)
-      .select('id, title, status')
+      .select('id, title, status, created_at')
       .eq('issue_fingerprint', payload.issue_fingerprint)
       .in('status', ACTIVE_STATUSES)
       .limit(1);
 
     if (byFp?.length) {
-      console.log(`[dedup] Fingerprint match: "${title.slice(0, 40)}" → existing ${(byFp[0] as any).id.slice(0, 8)}`);
-      return {
-        created: false,
-        duplicate: true,
-        item: byFp[0],
-        error: null,
-        existingId: (byFp[0] as any).id,
-        dedup_reason: 'fingerprint_match',
-      };
+      const itemAge = Date.now() - new Date((byFp[0] as any).created_at).getTime();
+      const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+      if (itemAge <= TWENTY_FOUR_HOURS) {
+        console.log(`[dedup] Fingerprint match (<24h): "${title.slice(0, 40)}" → existing ${(byFp[0] as any).id.slice(0, 8)}`);
+        return {
+          created: false,
+          duplicate: true,
+          item: byFp[0],
+          error: null,
+          existingId: (byFp[0] as any).id,
+          dedup_reason: 'fingerprint_match',
+        };
+      } else {
+        console.log(`[dedup] Fingerprint match but >24h old, allowing re-creation: "${title.slice(0, 40)}"`);
+      }
     }
   }
 
