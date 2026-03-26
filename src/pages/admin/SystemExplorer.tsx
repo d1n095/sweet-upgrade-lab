@@ -171,6 +171,23 @@ const SystemExplorer = () => {
   const toggleSection = (key: string) => setExpandedSections((prev) => ({ ...prev, [key]: !prev[key] }));
   const toggleGroup = (key: string) => setExpandedGroups((prev) => ({ ...prev, [key]: !prev[key] }));
 
+  const handleAiAnalyze = async () => {
+    if (!aiQuery.trim() || aiLoading) return;
+    setAiLoading(true);
+    setAiAnswer(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-assistant", {
+        body: { type: "system_explorer_query", question: aiQuery.trim() },
+      });
+      if (error) throw error;
+      setAiAnswer(data?.result?.answer || "Inget svar.");
+    } catch (e: any) {
+      setAiAnswer(`Fel: ${e.message || "Kunde inte analysera."}`);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   const priorityColor = (p: string) => {
     switch (p) {
       case "critical": return "destructive";
