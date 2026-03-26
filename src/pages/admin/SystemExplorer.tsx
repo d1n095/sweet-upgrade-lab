@@ -3482,7 +3482,7 @@ const SystemExplorer = () => {
                     )}
                   </div>
                 );
-              })()
+              })()}
               {noEffectFixIds.has(selectedItem.id) && (
                 <div className="border border-destructive rounded-md p-2 bg-destructive/10 space-y-1">
                   <span className="text-destructive text-xs font-bold flex items-center gap-1">⚠️ no_effect_fix</span>
