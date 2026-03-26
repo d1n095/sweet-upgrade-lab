@@ -3496,6 +3496,36 @@ export type Database = {
         }
         Relationships: []
       }
+      system_structure_map: {
+        Row: {
+          created_at: string
+          entity_name: string
+          entity_type: string
+          id: string
+          last_seen_at: string
+          scan_count: number
+          source_path: string | null
+        }
+        Insert: {
+          created_at?: string
+          entity_name: string
+          entity_type: string
+          id?: string
+          last_seen_at?: string
+          scan_count?: number
+          source_path?: string | null
+        }
+        Update: {
+          created_at?: string
+          entity_name?: string
+          entity_type?: string
+          id?: string
+          last_seen_at?: string
+          scan_count?: number
+          source_path?: string | null
+        }
+        Relationships: []
+      }
       timeline_entries: {
         Row: {
           created_at: string
@@ -3996,6 +4026,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      increment_structure_map_scan: {
+        Args: { p_entity_name: string; p_entity_type: string }
+        Returns: undefined
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_founder: { Args: { _user_id: string }; Returns: boolean }

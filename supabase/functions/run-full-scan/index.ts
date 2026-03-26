@@ -1805,6 +1805,18 @@ serve(async (req) => {
       const scopeDef = SCAN_SCOPE_MAP[step.scanType] || { type: "edge", target: step.scanType };
       stepResult._scan_scope = { type: scopeDef.type, target: scopeDef.target, size: inputSize };
 
+      // ── Upsert system_structure_map ──
+      await supabase.from("system_structure_map").upsert({
+        entity_type: scopeDef.type,
+        entity_name: scopeDef.target,
+        source_path: step.scanType,
+        last_seen_at: new Date().toISOString(),
+        scan_count: 1,
+      }, { onConflict: "entity_type,entity_name" }).then(async () => {
+        // Increment scan_count for existing rows (upsert sets 1 for new)
+        await supabase.rpc("increment_structure_map_scan", { p_entity_type: scopeDef.type, p_entity_name: scopeDef.target }).catch(() => {});
+      }).catch(() => {});
+
       stepResult._duration_ms = duration_ms;
       stepResult._step_id = step.id;
       stepResult._iteration = currentIteration;
