@@ -1332,7 +1332,12 @@ const SystemExplorer = () => {
                                 <div key={f.path} className="flex items-center gap-1.5 py-0.5 pl-4">
                                   <span className="text-[10px]">{typeIcon(f.type)}</span>
                                   <span className="font-mono text-[10px] text-foreground truncate">{f.path.split("/").pop()}</span>
-                                  <Badge variant="secondary" className="text-[8px] px-1 py-0 ml-auto">{f.type}</Badge>
+                                  {f.used_in.length > 0 ? (
+                                    <Badge variant="outline" className="text-[8px] px-1 py-0 ml-auto" title={f.used_in.join(", ")}>{f.used_in.length} refs</Badge>
+                                  ) : (
+                                    <Badge variant="destructive" className="text-[8px] px-1 py-0 ml-auto opacity-60">0 refs</Badge>
+                                  )}
+                                  <Badge variant="secondary" className="text-[8px] px-1 py-0">{f.type}</Badge>
                                 </div>
                               ))}
                             </div>
