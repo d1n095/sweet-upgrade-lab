@@ -871,6 +871,7 @@ const SystemExplorer = () => {
     <div className="flex h-full min-h-0">
       {/* Main tree panel */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <p className="text-xs text-green-500 font-mono">TEST BUILD OK</p>
         <div className="flex items-center gap-2 flex-wrap">
           <Database className="h-6 w-6 text-primary" />
           <h1 className="text-2xl font-bold text-foreground">System Explorer</h1>
