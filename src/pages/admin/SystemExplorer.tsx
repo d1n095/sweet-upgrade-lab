@@ -922,7 +922,9 @@ const SystemExplorer = () => {
         {/* CODE INDEX TAB */}
         {mainTab === "codeindex" && (() => {
           const index = getCodeIndex();
+          const componentApiIssues = index.filter(f => f.hasApiCall && f.path.includes("/components"));
           return (
+            <div className="space-y-3">
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2"><Layers className="h-4 w-4" /> Code Index ({index.length} files)</CardTitle>
@@ -952,6 +954,30 @@ const SystemExplorer = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Structure Issues from scan aggregation */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                  Structure Issues ({componentApiIssues.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1 p-3">
+                {componentApiIssues.length === 0 ? (
+                  <p className="text-[10px] text-muted-foreground">No structure issues detected.</p>
+                ) : (
+                  componentApiIssues.map((f) => (
+                    <div key={f.path} className="flex items-center gap-2 p-2 rounded-md border border-yellow-500/20 bg-yellow-500/5">
+                      <Badge variant="outline" className="text-[8px] border-yellow-500/30 text-yellow-500">structure</Badge>
+                      <span className="font-mono text-[10px] text-foreground flex-1 truncate">{f.path.replace(/^\//, "")}</span>
+                      <span className="text-[9px] text-muted-foreground">API call inside component (bad practice)</span>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+            </div>
           );
         })()}
 
