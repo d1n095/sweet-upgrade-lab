@@ -172,6 +172,8 @@ const SystemExplorer = () => {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiFocusArea, setAiFocusArea] = useState<string | null>(null);
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | null>(null);
+  const [verifyingFix, setVerifyingFix] = useState(false);
+  const [verifyResult, setVerifyResult] = useState<{ itemId: string; status: "confirmed" | "failed"; scanId?: string } | null>(null);
 
   // 1. ALL work_items
   const { data: workItems = [], isLoading: wiLoading } = useQuery({
@@ -2415,7 +2417,84 @@ const SystemExplorer = () => {
                   )}
                 </div>
               )}
-              {/* Data Trace Section */}
+              {/* Mark as Fixed + Verification Re-scan */}
+              {selectedItem.status !== "done" && selectedItem.status !== "cancelled" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full text-[10px] h-7"
+                  disabled={verifyingFix}
+                  onClick={async () => {
+                    setVerifyingFix(true);
+                    setVerifyResult(null);
+                    try {
+                      // 1. Mark as done
+                      await supabase.from("work_items" as any).update({
+                        status: "done",
+                        completed_at: new Date().toISOString(),
+                      }).eq("id", selectedItem.id);
+
+                      // 2. Run partial scan targeting affected area
+                      const meta = (selectedItem as any).metadata ? (typeof (selectedItem as any).metadata === "string" ? JSON.parse((selectedItem as any).metadata) : (selectedItem as any).metadata) : {};
+                      const target = meta?.affected_area?.target || (selectedItem as any).source_component || (selectedItem as any).source_path || selectedItem.item_type;
+
+                      const { data: scanData } = await tracedInvoke("run-full-scan", {
+                        body: { action: "start", scan_mode: "partial", target_area: target, verification_for: selectedItem.id },
+                      });
+
+                      // 3. Check if issue still found
+                      const fp = selectedItem.issue_fingerprint;
+                      const title = selectedItem.title;
+                      let stillFound = false;
+
+                      if (scanData) {
+                        const raw = typeof scanData === "string" ? JSON.parse(scanData) : scanData;
+                        const allIssues = raw?.issues || raw?.results?.issues || [];
+                        stillFound = allIssues.some((i: any) =>
+                          (fp && i.issue_fingerprint === fp) || (i.title && i.title === title)
+                        );
+                      }
+
+                      const vStatus = stillFound ? "failed" : "confirmed";
+
+                      // 4. Update work item with verification result
+                      await supabase.from("work_items" as any).update({
+                        verification_status: vStatus,
+                        verified_at: new Date().toISOString(),
+                      }).eq("id", selectedItem.id);
+
+                      setVerifyResult({ itemId: selectedItem.id, status: vStatus });
+
+                      // 5. Refresh
+                      queryClient.invalidateQueries({ queryKey: ["system-explorer-work-items"] });
+                      queryClient.invalidateQueries({ queryKey: ["system-explorer-history", selectedItem.id] });
+
+                      // Update selected item locally
+                      setSelectedItem({ ...selectedItem, status: "done", verification_status: vStatus } as any);
+                    } catch (err) {
+                      console.error("Verification scan failed:", err);
+                      setVerifyResult({ itemId: selectedItem.id, status: "failed" });
+                    } finally {
+                      setVerifyingFix(false);
+                    }
+                  }}
+                >
+                  {verifyingFix ? <><Loader2 className="h-3 w-3 animate-spin mr-1" /> Verifying…</> : "✅ Mark as Fixed (+ Re-scan)"}
+                </Button>
+              )}
+              {/* Verification Re-scan Result */}
+              {verifyResult && verifyResult.itemId === selectedItem.id && (
+                <div className={`border rounded-md p-2 space-y-1 ${verifyResult.status === "confirmed" ? "border-primary/40 bg-primary/5" : "border-destructive/40 bg-destructive/5"}`}>
+                  <span className={`text-xs font-bold ${verifyResult.status === "confirmed" ? "text-primary" : "text-destructive"}`}>
+                    {verifyResult.status === "confirmed" ? "✅ Re-scan result: Fixed" : "❌ Re-scan result: Still broken"}
+                  </span>
+                  <p className="text-[9px] text-muted-foreground">
+                    {verifyResult.status === "confirmed"
+                      ? "Issue was NOT found in verification scan — fix confirmed."
+                      : "Issue was STILL found in verification scan — fix did not resolve the problem."}
+                  </p>
+                </div>
+              )}
               {(() => {
                 const meta = (selectedItem as any).metadata ? (typeof (selectedItem as any).metadata === "string" ? JSON.parse((selectedItem as any).metadata) : (selectedItem as any).metadata) : {};
                 const dt = meta?.data_trace;
