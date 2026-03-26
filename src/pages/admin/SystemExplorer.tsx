@@ -1119,19 +1119,29 @@ const SystemExplorer = () => {
           <span className="text-[9px] text-yellow-500/70 font-mono">⚠ Frontend scan (static / debug only)</span>
         </div>
         {searchResults.length > 0 && (
-          <Card className="border-primary/30">
-            <CardHeader className="py-2 px-3">
-              <CardTitle className="text-xs font-mono">Search Results ({searchResults.length})</CardTitle>
-            </CardHeader>
-            <CardContent className="py-1 px-3 space-y-1 max-h-[300px] overflow-y-auto">
-              {searchResults.map((r, i) => (
-                <div key={i} className="text-[10px] font-mono border-b border-border/50 pb-1">
-                  <div className="text-primary font-semibold">{r.path}</div>
-                  <div className="text-muted-foreground">Line {r.lineNumber}: <span className="text-foreground">{r.line}</span></div>
+          <div>
+            <h3 className="text-sm font-semibold mb-1">Search Results ({searchResults.length})</h3>
+            {searchResults.map((r, i) => (
+              <div
+                key={i}
+                style={{
+                  padding: "8px",
+                  borderBottom: "1px solid hsl(var(--border))",
+                  cursor: "pointer"
+                }}
+                onClick={() => {
+                  const entry = fileSystemMap.find(f => f.path === r.path);
+                  if (entry) setSelectedFile(entry);
+                }}
+              >
+                <div><strong>{r.path}</strong></div>
+                <div className="text-muted-foreground">Line {r.lineNumber}</div>
+                <div style={{ fontFamily: "monospace" }} className="text-xs">
+                  {r.line}
                 </div>
-              ))}
-            </CardContent>
-          </Card>
+              </div>
+            ))}
+          </div>
         )}
         <div className="flex items-center gap-2 flex-wrap">
           <Database className="h-6 w-6 text-primary" />
