@@ -1306,7 +1306,7 @@ const SystemExplorer = () => {
             {index.length === 0 && (
               <p className="text-[10px] text-yellow-500">⚠ Code Index empty — scanner not connected</p>
             )}
-            {codeScanResult && codeScanResult.filesWithApi === 0 && (
+            {codeScanResult && codeScanResult.filter(i => i.type === "structure").length === 0 && (
               <p className="text-[10px] text-yellow-500">⚠ No API calls detected — possible broken scan</p>
             )}
             <Card>
@@ -1317,15 +1317,18 @@ const SystemExplorer = () => {
                 </Button>
               </CardHeader>
               {codeScanResult && (
-                <div className="flex gap-3 text-[10px] px-3 pb-2">
+                <div className="flex gap-3 text-[10px] px-3 pb-2 flex-wrap">
                   <div className="px-3 py-1.5 rounded-md bg-muted/30 border border-border">
-                    <span className="text-muted-foreground">API calls: </span><span className="font-bold text-foreground">{codeScanResult.filesWithApi}</span>
+                    <span className="text-muted-foreground">Total issues: </span><span className="font-bold text-foreground">{codeScanResult.length}</span>
                   </div>
                   <div className="px-3 py-1.5 rounded-md bg-muted/30 border border-border">
-                    <span className="text-muted-foreground">useState: </span><span className="font-bold text-foreground">{codeScanResult.filesWithState}</span>
+                    <span className="text-muted-foreground">Structure: </span><span className="font-bold text-foreground">{codeScanResult.filter(i => i.type === "structure").length}</span>
                   </div>
                   <div className="px-3 py-1.5 rounded-md bg-muted/30 border border-border">
-                    <span className="text-muted-foreground">Large (300+): </span><span className={`font-bold ${codeScanResult.largeFiles > 0 ? "text-yellow-500" : "text-foreground"}`}>{codeScanResult.largeFiles}</span>
+                    <span className="text-muted-foreground">Bugs: </span><span className="font-bold text-foreground">{codeScanResult.filter(i => i.type === "bug").length}</span>
+                  </div>
+                  <div className="px-3 py-1.5 rounded-md bg-muted/30 border border-border">
+                    <span className="text-muted-foreground">Performance: </span><span className={`font-bold ${codeScanResult.filter(i => i.type === "performance").length > 0 ? "text-yellow-500" : "text-foreground"}`}>{codeScanResult.filter(i => i.type === "performance").length}</span>
                   </div>
                 </div>
               )}
