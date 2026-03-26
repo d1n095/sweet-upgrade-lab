@@ -2305,6 +2305,37 @@ serve(async (req) => {
       const highAttentionCount = (adaptiveResult?.issues ?? []).filter((i: any) => i._impact_score >= 4).length;
       const deadScannersCount = Object.values(updatedResults || {}).filter((s: any) => s?._executed === false || s?.failed === true).length;
       const blindScannersCount = Object.values(updatedResults || {}).filter((s: any) => s?._executed !== false && s?.failed !== true && (s?._scan_scope?.size > 0) && (!s?.issues || s.issues.length === 0)).length;
+
+      // Generate rule-based diagnosis summary (max 10 lines)
+      const diagLines: string[] = [];
+      diagLines.push(`Health: ${unified.system_health_score}/100 — ${systemStage} — ${iterationsCompleted} iteration(s)`);
+      diagLines.push(`Detected: ${totalDetected} issues → ${workItemsCreated} created, ${totalSkipped} skipped`);
+      if (highAttentionCount > 0) diagLines.push(`⚠️ ${highAttentionCount} high-attention issues (impact ≥ 4)`);
+      const impact5 = (adaptiveResult?.issues ?? []).filter((i: any) => i._impact_score >= 5);
+      if (impact5.length > 0) diagLines.push(`💥 ${impact5.length} CRITICAL (impact 5): ${impact5.slice(0, 3).map((i: any) => i.title || i.description || "unnamed").join(", ")}${impact5.length > 3 ? "…" : ""}`);
+      if (deadScannersCount > 0) {
+        const deadNames = Object.entries(updatedResults || {}).filter(([_, s]: any) => s?._executed === false || s?.failed === true).map(([k]) => k).slice(0, 3);
+        diagLines.push(`💀 ${deadScannersCount} dead scanner(s): ${deadNames.join(", ")}${deadScannersCount > 3 ? "…" : ""}`);
+      }
+      if (blindScannersCount > 0) {
+        const blindNames = Object.entries(updatedResults || {}).filter(([_, s]: any) => s?._executed !== false && s?.failed !== true && (s?._scan_scope?.size > 0) && (!s?.issues || s.issues.length === 0)).map(([k]) => k).slice(0, 3);
+        diagLines.push(`👁️ ${blindScannersCount} blind scanner(s): ${blindNames.join(", ")}${blindScannersCount > 3 ? "…" : ""}`);
+      }
+      // Largest cluster
+      const clusterMap: Record<string, number> = {};
+      for (const issue of (adaptiveResult?.issues ?? [])) {
+        const target = issue?.target || issue?.component || "unknown";
+        clusterMap[target] = (clusterMap[target] || 0) + 1;
+      }
+      const sortedClusters = Object.entries(clusterMap).sort((a, b) => b[1] - a[1]);
+      if (sortedClusters.length > 0 && sortedClusters[0][1] >= 2) {
+        diagLines.push(`📦 Largest cluster: "${sortedClusters[0][0]}" with ${sortedClusters[0][1]} issues`);
+      }
+      if (deadScannersCount === 0 && blindScannersCount === 0 && highAttentionCount === 0) {
+        diagLines.push("✅ No critical scanner or issue anomalies detected");
+      }
+      const diagnosisSummary = diagLines.slice(0, 10).join("\n");
+
       await supabase.from("scan_snapshots").insert({
         total_scanners: totalScanners,
         total_detected: totalDetected,
@@ -2314,6 +2345,7 @@ serve(async (req) => {
         high_attention_count: highAttentionCount,
         dead_scanners_count: deadScannersCount,
         blind_scanners_count: blindScannersCount,
+        diagnosis_summary: diagnosisSummary,
         payload: adaptiveResult,
       });
 

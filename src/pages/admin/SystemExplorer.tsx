@@ -1502,6 +1502,19 @@ const SystemExplorer = () => {
           </CardHeader>
           {expandedSections.systemDiagnosis && (
             <CardContent className="space-y-3 pt-0">
+              {/* DIAGNOSIS SUMMARY from snapshot */}
+              {(() => {
+                const summary = activeSnapshot?.diagnosis_summary as string | null | undefined;
+                if (!summary) return null;
+                return (
+                  <div className="rounded-md border border-muted bg-muted/30 p-2 mb-2">
+                    <h4 className="text-xs font-bold text-foreground mb-1">📋 Diagnosis Summary</h4>
+                    {summary.split("\n").map((line, idx) => (
+                      <p key={idx} className="text-[10px] text-foreground leading-relaxed">{line}</p>
+                    ))}
+                  </div>
+                );
+              })()}
               {/* 1. CRITICAL ISSUES */}
               {(() => {
                 const criticalIssues = priorityItems.filter((i: any) => i._sort_impact >= 5).slice(0, 10);
