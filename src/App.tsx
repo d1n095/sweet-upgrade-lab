@@ -72,6 +72,7 @@ import AdminHistory from "./pages/admin/AdminHistory";
 import AdminChangeHistory from "./pages/admin/AdminChangeHistory";
 import AdminPOS from "./pages/admin/AdminPOS";
 import ScanPackingMode from "./components/admin/warehouse/ScanPackingMode";
+import SystemExplorer from "./pages/admin/SystemExplorer";
 
 const queryClient = new QueryClient();
 
@@ -157,6 +158,7 @@ const App = () => (
                 <Route path="changes" element={<AdminChangeHistory />} />
                 <Route path="database" element={<AdminDatabase />} />
                 <Route path="warehouse" element={<ScanPackingMode />} />
+                <Route path="system-explorer" element={<SystemExplorer />} />
               </Route>
 
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
