@@ -120,3 +120,13 @@ export function getFileContent(path: string): string | null {
   const lines = content.split("\n");
   return lines.slice(0, 500).join("\n");
 }
+
+export function getCodeIndex() {
+  return Object.entries(rawSources).map(([path, content]) => ({
+    path,
+    hasApiCall: content.includes("fetch(") || content.includes("supabase"),
+    hasUseEffect: content.includes("useEffect"),
+    hasState: content.includes("useState"),
+    lineCount: content.split("\n").length
+  }));
+}
