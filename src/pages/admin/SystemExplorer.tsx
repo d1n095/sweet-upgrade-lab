@@ -228,6 +228,7 @@ const SystemExplorer = () => {
         let emptyReason: string | null = null;
         let scanStartedAt: string | null = null;
         let scanFinishedAt: string | null = null;
+        let scanScope: { type: string; target: string; size: number } | null = null;
         for (const mk of scanner.matchKeys) {
           const s = keyStats[mk.toLowerCase()];
           if (s) {

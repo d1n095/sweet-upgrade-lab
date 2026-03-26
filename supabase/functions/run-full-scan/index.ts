@@ -1544,6 +1544,24 @@ serve(async (req) => {
         }
       }
 
+      // ── Scan scope metadata ──
+      const SCAN_SCOPE_MAP: Record<string, { type: string; target: string }> = {
+        data_integrity: { type: "data", target: "orders" },
+        data_flow_validation: { type: "data", target: "orders" },
+        sync_scan: { type: "data", target: "products" },
+        component_map: { type: "ui", target: "components" },
+        ui_data_binding: { type: "ui", target: "components" },
+        interaction_qa: { type: "flow", target: "checkout_flow" },
+        human_test: { type: "flow", target: "checkout_flow" },
+        nav_scan: { type: "ui", target: "routes" },
+        feature_detection: { type: "business", target: "features" },
+        system_scan: { type: "business", target: "regressions" },
+        decision_engine: { type: "business", target: "rules" },
+        blocker_detection: { type: "edge", target: "blockers" },
+      };
+      const scopeDef = SCAN_SCOPE_MAP[step.scanType] || { type: "edge", target: step.scanType };
+      stepResult._scan_scope = { type: scopeDef.type, target: scopeDef.target, size: inputSize };
+
       stepResult._duration_ms = duration_ms;
       stepResult._step_id = step.id;
       stepResult._iteration = currentIteration;
