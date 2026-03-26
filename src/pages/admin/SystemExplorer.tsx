@@ -278,6 +278,50 @@ const SystemExplorer = () => {
   const scanResults = activeSnapshot ? (activeSnapshot.payload as Record<string, any> | null) : (latestScan?.results as Record<string, any> | null);
   const detectedIssues = scanResults?.master_list?.total ?? scanResults?.detected_issues?.length ?? (activeSnapshot ? activeSnapshot.total_detected : latestScan?.issues_count) ?? 0;
 
+  // Regression detection: compare last 2 snapshots
+  const regressions = useMemo(() => {
+    if (scanSnapshots.length < 2) return [];
+    const latest = scanSnapshots[0];
+    const previous = scanSnapshots[1];
+    const flags: { target: string; reason: string }[] = [];
+
+    // Compare issue clusters per target
+    const getClusterMap = (snap: any): Record<string, number> => {
+      const map: Record<string, number> = {};
+      const issues = snap?.payload?.issues ?? [];
+      for (const issue of issues) {
+        const t = issue?.target || issue?.component || "unknown";
+        map[t] = (map[t] || 0) + 1;
+      }
+      return map;
+    };
+    const latestClusters = getClusterMap(latest);
+    const prevClusters = getClusterMap(previous);
+
+    // 1. increased_issues: more issues in same target
+    for (const [target, count] of Object.entries(latestClusters)) {
+      const prevCount = prevClusters[target] || 0;
+      if (count > prevCount && prevCount > 0) {
+        flags.push({ target, reason: "increased_issues" });
+      }
+    }
+
+    // 2. lost_coverage: coverage dropped
+    if ((latest.coverage_unique_targets ?? 0) < (previous.coverage_unique_targets ?? 0)) {
+      flags.push({ target: "system", reason: "lost_coverage" });
+    }
+
+    // 3. scanner_degraded: dead/blind count increased
+    if ((latest.dead_scanners_count ?? 0) > (previous.dead_scanners_count ?? 0)) {
+      flags.push({ target: "scanners", reason: "scanner_degraded" });
+    }
+    if ((latest.blind_scanners_count ?? 0) > (previous.blind_scanners_count ?? 0)) {
+      flags.push({ target: "scanners", reason: "scanner_degraded" });
+    }
+
+    return flags;
+  }, [scanSnapshots]);
+
   // Compute unscanned areas: entities in structure map not covered by any scanner scope
   const unscannedAreas = useMemo(() => {
     // Collect all scan scope targets from scanner groups
