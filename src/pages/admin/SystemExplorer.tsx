@@ -988,8 +988,45 @@ const SystemExplorer = () => {
         </Card>
         )}
 
+        {/* INSERT RESULTS */}
+        {isSystemAdmin && (
+        <Card>
+          <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("insertResults")}>
+            <CardTitle className="text-sm flex items-center gap-2">
+              {expandedSections.insertResults ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <Activity className="h-4 w-4 text-primary" />
+              Insert Results ({(scanResults?._create_trace ?? []).length})
+            </CardTitle>
+          </CardHeader>
+          {expandedSections.insertResults && (
+            <CardContent className="pt-0">
+              <div className="max-h-[400px] overflow-y-auto space-y-1">
+                {(scanResults?._create_trace ?? []).length === 0 && (
+                  <p className="text-xs text-muted-foreground py-2">No insert trace available — run a scan first</p>
+                )}
+                {((scanResults?._create_trace ?? []) as any[]).slice(0, 50).map((t: any, i: number) => (
+                  <div key={i} className="border border-border rounded p-2 bg-muted/10 space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <Badge variant={t._insert_success === true || t._create_decision === "created" ? "default" : t._create_decision === "skipped_dedup" ? "secondary" : "destructive"} className="text-[9px] shrink-0">
+                        {t._insert_success === true || t._create_decision === "created" ? "✅ created" : t._create_decision === "skipped_dedup" ? "🔁 dedup" : t._create_decision === "skipped_validation" ? "❌ failed" : t._create_decision || "–"}
+                      </Badge>
+                      <span className="font-mono text-[10px] truncate text-foreground">{t.fingerprint?.slice(0, 30)}</span>
+                    </div>
+                    <p className="text-[10px] text-foreground truncate">{t.title}</p>
+                    {(t._insert_error || t._validation_reason || t._dedup_reason) && (
+                      <p className="font-mono text-[10px] text-destructive bg-destructive/10 rounded px-1 py-0.5 break-all">
+                        {t._insert_error || t._validation_reason || t._dedup_reason}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          )}
+        </Card>
+        )}
 
-        {isViewerAdmin && (
+
           <Card>
             <CardContent className="p-4 flex items-center gap-2 text-sm text-muted-foreground">
               <Lock className="h-4 w-4" />
