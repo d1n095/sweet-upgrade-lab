@@ -2038,10 +2038,40 @@ serve(async (req) => {
       // ── BUILD SYSTEM OVERVIEW ──
       const systemOverview = buildSystemOverview(updatedResults, unified, systemStage);
 
+      // ── HIGH ATTENTION AREA DETECTION ──
+      const highAttentionAreas: { type: string; target: string; reason: string }[] = [];
+      // Count issues per affected_area target
+      const targetIssueCounts: Record<string, { type: string; target: string; count: number }> = {};
+      for (const issue of actionableIssues) {
+        const area = (issue as any)._affected_area;
+        if (area?.target) {
+          const key = `${area.type}::${area.target}`;
+          if (!targetIssueCounts[key]) targetIssueCounts[key] = { type: area.type, target: area.target, count: 0 };
+          targetIssueCounts[key].count++;
+        }
+      }
+      for (const [, entry] of Object.entries(targetIssueCounts)) {
+        if (entry.count > 3) {
+          highAttentionAreas.push({ type: entry.type, target: entry.target, reason: `${entry.count} issues in single scan` });
+        }
+      }
+      // Check system_structure_map for targets with 3+ consecutive scans
+      const { data: structureEntries } = await supabase.from("system_structure_map").select("entity_type, entity_name, scan_count").gte("scan_count", 3);
+      if (structureEntries) {
+        for (const entry of structureEntries) {
+          const key = `${entry.entity_type}::${entry.entity_name}`;
+          // Only flag if this target also has issues in the current scan
+          if (targetIssueCounts[key] && !highAttentionAreas.find(h => h.type === entry.entity_type && h.target === entry.entity_name)) {
+            highAttentionAreas.push({ type: entry.entity_type, target: entry.entity_name, reason: `Issues in ${entry.scan_count} consecutive scans` });
+          }
+        }
+      }
+
       const adaptiveResult = {
         ...unified,
         system_overview: systemOverview,
         system_stage: systemStage,
+        high_attention_areas: highAttentionAreas,
         adaptive_scan: {
           iterations: iterationsCompleted, new_issues_found: scanRun.total_new_issues || 0,
           pattern_discoveries: patternDiscoveries, high_risk_areas: highRiskAreas,
