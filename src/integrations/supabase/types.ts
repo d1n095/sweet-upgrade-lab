@@ -2818,6 +2818,36 @@ export type Database = {
           },
         ]
       }
+      runtime_traces: {
+        Row: {
+          created_at: string
+          endpoint: string | null
+          error_message: string | null
+          function_name: string
+          id: string
+          payload_snapshot: Json | null
+          source: string
+        }
+        Insert: {
+          created_at?: string
+          endpoint?: string | null
+          error_message?: string | null
+          function_name: string
+          id?: string
+          payload_snapshot?: Json | null
+          source?: string
+        }
+        Update: {
+          created_at?: string
+          endpoint?: string | null
+          error_message?: string | null
+          function_name?: string
+          id?: string
+          payload_snapshot?: Json | null
+          source?: string
+        }
+        Relationships: []
+      }
       scan_dismissals: {
         Row: {
           created_at: string
