@@ -1284,16 +1284,27 @@ const SystemExplorer = () => {
                 </button>
               ))}
               <Button variant="outline" size="sm" className="text-[10px] h-6 ml-auto" onClick={() => {
-                setLastAction("Scan Files triggered");
-                console.log("🟢 Scan Files clicked");
+                logAction({ type: "Scan Files", status: "started" });
                 const sources = getRawSources();
-                const files = Object.keys(sources);
+                const files = Object.keys(sources || {});
+                if (files.length === 0) {
+                  logAction({
+                    type: "Scan Files",
+                    status: "no-data",
+                    message: "No files found in rawSources"
+                  });
+                  return;
+                }
                 const result = {
                   total: files.length,
-                  emptyFiles: files.filter(f => sources[f].trim() === "").length,
-                  largeFiles: files.filter(f => sources[f].length > 5000).length,
+                  emptyFiles: files.filter(f => !sources[f]?.trim()).length,
+                  largeFiles: files.filter(f => sources[f]?.length > 5000).length
                 };
-                console.log("[FILE SCAN RESULT]:", result);
+                logAction({
+                  type: "Scan Files",
+                  status: "success",
+                  result
+                });
                 setFileScanResult(result);
               }}>
                 Scan Files
