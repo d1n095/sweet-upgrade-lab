@@ -255,9 +255,13 @@ const SystemExplorer = () => {
         const uniqueRaw = [...new Map(allRaw.map(r => [r.title || JSON.stringify(r), r])).values()];
         detected = uniqueRaw.length;
         const skipped = Math.max(0, detected - created);
-        let health: "WORKING" | "DEAD" | "BLIND" | "OVER-FILTERING" | "DEDUP_BLOCKED" = "WORKING";
+        const scopeSize = scanScope?.size ?? inputSize ?? 0;
+        const coverageRatio = scopeSize > 0 ? detected / scopeSize : 0;
+        let health: "WORKING" | "DEAD" | "BLIND" | "OVER-FILTERING" | "DEDUP_BLOCKED" | "NO_INPUT" | "LOW_SIGNAL" = "WORKING";
         if (!executed) health = "DEAD";
-        else if (detected === 0 && (inputSize ?? 0) > 0) health = "BLIND";
+        else if (scopeSize === 0) health = "NO_INPUT";
+        else if (detected === 0 && scopeSize > 0) health = "BLIND";
+        else if (coverageRatio < 0.01 && detected > 0) health = "LOW_SIGNAL";
         else if (detected > 0 && created === 0 && skipped === detected) health = "OVER-FILTERING";
         else if (detected > 0 && created === 0) health = "DEDUP_BLOCKED";
         else if (created > 0) health = "WORKING";
@@ -268,11 +272,13 @@ const SystemExplorer = () => {
       const groupDetected = scannerResults.reduce((s, r) => s + r.detected, 0);
       const groupCreated = scannerResults.reduce((s, r) => s + r.created, 0);
       const groupSkipped = scannerResults.reduce((s, r) => s + r.skipped, 0);
-      const deadCount = scannerResults.filter(r => r.health === "DEAD" || r.health === "BLIND").length;
+      const deadCount = scannerResults.filter(r => r.health === "DEAD" || r.health === "BLIND" || r.health === "NO_INPUT").length;
       const blockedCount = scannerResults.filter(r => r.health === "OVER-FILTERING" || r.health === "DEDUP_BLOCKED").length;
-      let groupHealth: "WORKING" | "DEAD" | "BLIND" | "OVER-FILTERING" | "DEDUP_BLOCKED" = "WORKING";
+      const lowSignalCount = scannerResults.filter(r => r.health === "LOW_SIGNAL").length;
+      let groupHealth: "WORKING" | "DEAD" | "BLIND" | "OVER-FILTERING" | "DEDUP_BLOCKED" | "NO_INPUT" | "LOW_SIGNAL" = "WORKING";
       if (deadCount > scannerResults.length / 2) groupHealth = "DEAD";
       else if (blockedCount > scannerResults.length / 2) groupHealth = "OVER-FILTERING";
+      else if (lowSignalCount > scannerResults.length / 2) groupHealth = "LOW_SIGNAL";
 
       return { ...group, scanners: scannerResults, detected: groupDetected, created: groupCreated, skipped: groupSkipped, health: groupHealth };
     });
@@ -613,7 +619,7 @@ const SystemExplorer = () => {
                                   {scanner.executed ? '✓ RAN' : '✗ NO'}
                                 </span>
                                 <Badge
-                                  variant={scanner.health === "WORKING" ? "default" : (scanner.health === "DEAD" || scanner.health === "OVER-FILTERING") ? "destructive" : "secondary"}
+                                  variant={scanner.health === "WORKING" ? "default" : (scanner.health === "DEAD" || scanner.health === "OVER-FILTERING" || scanner.health === "NO_INPUT") ? "destructive" : "secondary"}
                                   className="text-[9px] px-1 py-0"
                                 >
                                   {scanner.health}
