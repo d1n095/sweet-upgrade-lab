@@ -208,6 +208,88 @@ const SystemExplorer = () => {
           </CardContent>
         </Card>
 
+        {/* AI FLOW */}
+        <Card>
+          <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("aiFlow")}>
+            <CardTitle className="text-sm flex items-center gap-2">
+              {expandedSections.aiFlow ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <Cpu className="h-4 w-4 text-primary" />
+              AI Flow
+            </CardTitle>
+          </CardHeader>
+          {expandedSections.aiFlow && (
+            <CardContent className="space-y-4">
+              {/* 1. Last Scan Info */}
+              <div>
+                <h3 className="text-xs font-semibold text-muted-foreground mb-1">Last Scan</h3>
+                <div className="grid grid-cols-3 gap-2 text-sm">
+                  <div>
+                    <span className="text-muted-foreground text-xs">Scan ID</span>
+                    <p className="font-mono text-xs">{latestScan?.id?.slice(0, 8) ?? "–"}…</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground text-xs">Created</span>
+                    <p className="text-xs">{latestScan ? format(new Date(latestScan.created_at), "MM-dd HH:mm") : "–"}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground text-xs">Detected</span>
+                    <p className="text-xs font-bold">{detectedIssues}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. Pipeline Counts */}
+              <div>
+                <h3 className="text-xs font-semibold text-muted-foreground mb-1">Pipeline Counts</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                  <div className="border border-border rounded-md p-2 text-center">
+                    <div className="text-lg font-bold">{detectedIssues}</div>
+                    <div className="text-[10px] text-muted-foreground">Detected</div>
+                  </div>
+                  <div className="border border-border rounded-md p-2 text-center">
+                    <div className="text-lg font-bold">{latestRun?.total_new_issues ?? detectedIssues}</div>
+                    <div className="text-[10px] text-muted-foreground">After Filter</div>
+                  </div>
+                  <div className="border border-border rounded-md p-2 text-center">
+                    <div className="text-lg font-bold">{Math.max(0, detectedIssues - (latestRun?.total_new_issues ?? detectedIssues))}</div>
+                    <div className="text-[10px] text-muted-foreground">Skipped (dedup)</div>
+                  </div>
+                  <div className="border border-border rounded-md p-2 text-center">
+                    <div className="text-lg font-bold">{latestRun?.work_items_created ?? latestScan?.tasks_created ?? 0}</div>
+                    <div className="text-[10px] text-muted-foreground">Created Items</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Data Flow Chain */}
+              <div>
+                <h3 className="text-xs font-semibold text-muted-foreground mb-1">Data Flow</h3>
+                <div className="flex items-center gap-1 flex-wrap text-xs">
+                  <Badge variant="outline" className="gap-1"><Cpu className="h-3 w-3" />SCAN</Badge>
+                  <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                  <Badge variant="outline" className="gap-1"><Filter className="h-3 w-3" />FILTER</Badge>
+                  <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                  <Badge variant="outline" className="gap-1"><Layers className="h-3 w-3" />CREATE</Badge>
+                  <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                  <Badge variant="outline" className="gap-1"><Database className="h-3 w-3" />DB</Badge>
+                  <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                  <Badge variant="outline" className="gap-1"><Activity className="h-3 w-3" />UI</Badge>
+                </div>
+              </div>
+
+              {/* 4. Flags */}
+              <div>
+                <h3 className="text-xs font-semibold text-muted-foreground mb-1">Flags</h3>
+                <div className="flex flex-wrap gap-3 text-sm">
+                  <div>Dedup: <Badge variant="outline">{workItems.some((w) => w.issue_fingerprint) ? "active" : "off"}</Badge></div>
+                  <div>Cleanup: <Badge variant="outline">available</Badge></div>
+                  <div>Mode: <Badge variant="secondary">{import.meta.env.MODE ?? "development"}</Badge></div>
+                </div>
+              </div>
+            </CardContent>
+          )}
+        </Card>
+
         {/* WORK ITEMS TREE */}
         <Card>
           <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("workItems")}>
