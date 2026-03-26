@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { tracedInvoke } from "@/lib/tracedInvoke";
 import { useAiQueueStore } from "@/stores/aiQueueStore";
-import { fileSystemMap, type FileEntry, getFileContent } from "@/lib/fileSystemMap";
+import { fileSystemMap, type FileEntry, getFileContent, getCodeIndex } from "@/lib/fileSystemMap";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useFounderRole } from "@/hooks/useFounderRole";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -173,7 +173,7 @@ const SystemExplorer = () => {
   const [aiAnswer, setAiAnswer] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiFocusArea, setAiFocusArea] = useState<string | null>(null);
-  const [mainTab, setMainTab] = useState<"system" | "files" | "patch">("system");
+  const [mainTab, setMainTab] = useState<"system" | "files" | "patch" | "codeindex">("system");
   const [filesFilter, setFilesFilter] = useState<"all" | "orphan" | "has_issues">("all");
   const [selectedFile, setSelectedFile] = useState<FileEntry | null>(null);
   const [patchInput, setPatchInput] = useState("");
@@ -914,7 +914,46 @@ const SystemExplorer = () => {
           <button onClick={() => setMainTab("patch")} className={`px-3 py-1.5 text-xs font-medium rounded-t-md transition-colors ${mainTab === "patch" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"}`}>
             Patch Controller
           </button>
+          <button onClick={() => setMainTab("codeindex")} className={`px-3 py-1.5 text-xs font-medium rounded-t-md transition-colors ${mainTab === "codeindex" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"}`}>
+            Code Index
+          </button>
         </div>
+
+        {/* CODE INDEX TAB */}
+        {mainTab === "codeindex" && (() => {
+          const index = getCodeIndex();
+          return (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2"><Layers className="h-4 w-4" /> Code Index ({index.length} files)</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="max-h-[500px] overflow-auto">
+                  <table className="w-full text-[10px]">
+                    <thead className="sticky top-0 bg-background border-b border-border">
+                      <tr>
+                        <th className="text-left p-2 text-muted-foreground font-medium">File</th>
+                        <th className="text-right p-2 text-muted-foreground font-medium">Lines</th>
+                        <th className="text-center p-2 text-muted-foreground font-medium">API Call</th>
+                        <th className="text-center p-2 text-muted-foreground font-medium">useEffect</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {index.map((f) => (
+                        <tr key={f.path} className="border-b border-border/50 hover:bg-muted/30">
+                          <td className="p-2 font-mono text-foreground truncate max-w-[300px]">{f.path.replace(/^\//, "")}</td>
+                          <td className="p-2 text-right text-muted-foreground">{f.lineCount}</td>
+                          <td className="p-2 text-center">{f.hasApiCall ? <Badge className="bg-yellow-500/20 text-yellow-500 border-yellow-500/30 text-[8px]">yes</Badge> : <span className="text-muted-foreground">no</span>}</td>
+                          <td className="p-2 text-center">{f.hasUseEffect ? <Badge className="bg-blue-500/20 text-blue-500 border-blue-500/30 text-[8px]">yes</Badge> : <span className="text-muted-foreground">no</span>}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })()}
 
         {/* FILES TAB */}
         {mainTab === "files" && (
