@@ -893,6 +893,24 @@ const SystemExplorer = () => {
                   <p className="font-mono text-xs break-all">{selectedItem.issue_fingerprint}</p>
                 </div>
               )}
+              {(selectedItem as any).source_path && (
+                <div>
+                  <span className="text-muted-foreground text-xs">Source Path</span>
+                  <p className="font-mono text-xs break-all">{(selectedItem as any).source_path}</p>
+                </div>
+              )}
+              {(selectedItem as any).source_file && (
+                <div>
+                  <span className="text-muted-foreground text-xs">Source File</span>
+                  <p className="font-mono text-xs break-all">{(selectedItem as any).source_file}</p>
+                </div>
+              )}
+              {(selectedItem as any).source_component && (
+                <div>
+                  <span className="text-muted-foreground text-xs">Source Component</span>
+                  <p className="font-mono text-xs break-all">{(selectedItem as any).source_component}</p>
+                </div>
+              )}
               {selectedItem.ignored && (
                 <Badge variant="outline" className="mt-2">Ignored</Badge>
               )}
