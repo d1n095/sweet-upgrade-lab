@@ -1420,7 +1420,16 @@ function classifyIssueType(issue: any, category: string): "bug" | "improvement" 
 async function createWorkItems(supabase: any, unified: any, stage: SystemStage): Promise<{ created: number; createTrace: any[] }> {
   let workItemsCreated = 0;
   const createTrace: any[] = [];
-  const allWorkIssues: { title: string; priority: string; item_type: string; description?: string; fingerprint: string; source_path?: string; source_file?: string; source_component?: string; issue_type?: string; suggested_fix?: string }[] = [];
+  const allWorkIssues: { title: string; priority: string; item_type: string; description?: string; fingerprint: string; source_path?: string; source_file?: string; source_component?: string; issue_type?: string; suggested_fix?: string; affected_area?: { type: string; target: string } }[] = [];
+
+  // Map issue categories to affected areas
+  const CATEGORY_AREA_MAP: Record<string, { type: string; target: string }> = {
+    broken_flows: { type: "flow", target: "checkout_flow" },
+    fake_features: { type: "business", target: "features" },
+    interaction_failures: { type: "flow", target: "checkout_flow" },
+    data_issues: { type: "data", target: "orders" },
+    blocker: { type: "edge", target: "blockers" },
+  };
 
   function suggestedFixForType(issueType: string): string {
     if (issueType === "improvement") return "Adjust UI/UX for clarity and usability";
@@ -1439,7 +1448,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
 
   if (unified.blocker) {
     const fp = generateFingerprint({ component: "blocker", type: "blocker", route: "global" });
-    allWorkIssues.push({ title: `BLOCKER: ${unified.blocker.description || unified.blocker.title || "Critical blocker"}`.slice(0, 120), priority: "critical", item_type: "bug", fingerprint: fp });
+    allWorkIssues.push({ title: `BLOCKER: ${unified.blocker.description || unified.blocker.title || "Critical blocker"}`.slice(0, 120), priority: "critical", item_type: "bug", fingerprint: fp, affected_area: CATEGORY_AREA_MAP.blocker });
   }
 
   // Group broken_flows before creating
@@ -1450,11 +1459,13 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     const issueType = classifyIssueType(flow, "broken_flows");
     flow._issue_type = issueType;
     flow._suggested_fix = suggestedFixForType(issueType);
+    flow._affected_area = flow.category === "flow_ui" ? { type: "flow", target: "ui_flows" } : CATEGORY_AREA_MAP.broken_flows;
     allWorkIssues.push({
       title: `Broken flow: ${flow.description || flow.route || flow.issue || "unknown"}${similarNote}`.slice(0, 120),
       priority: "high", item_type: "bug", description: flow.fix_suggestion || flow.detail || "",
       fingerprint: fp, issue_type: issueType, suggested_fix: suggestedFixForType(issueType),
       source_path: flow.route || flow.page || null, source_file: flow.file || flow.source_file || null, source_component: flow.component || flow.element || null,
+      affected_area: flow.category === "flow_ui" ? { type: "flow", target: "ui_flows" } : CATEGORY_AREA_MAP.broken_flows,
     });
   }
 
@@ -1465,11 +1476,13 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     const issueType = classifyIssueType(fake, "fake_features");
     fake._issue_type = issueType;
     fake._suggested_fix = suggestedFixForType(issueType);
+    fake._affected_area = CATEGORY_AREA_MAP.fake_features;
     allWorkIssues.push({
       title: `Fake feature: ${fake.name || fake.component || fake.description || "unknown"}${similarNote}`.slice(0, 120),
       priority: "high", item_type: "improvement", description: fake.reason || fake.detail || "",
       fingerprint: fp, issue_type: issueType, suggested_fix: suggestedFixForType(issueType),
       source_path: fake.route || fake.page || null, source_file: fake.file || fake.source_file || null, source_component: fake.component || fake.name || null,
+      affected_area: CATEGORY_AREA_MAP.fake_features,
     });
   }
 
@@ -1480,12 +1493,14 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     const issueType = classifyIssueType(fail, "interaction_failures");
     fail._issue_type = issueType;
     fail._suggested_fix = suggestedFixForType(issueType);
+    fail._affected_area = CATEGORY_AREA_MAP.interaction_failures;
     allWorkIssues.push({
       title: `Interaction: ${fail.title || fail.element || fail.description || "unknown"}${similarNote}`.slice(0, 120),
       priority: fail.severity === "critical" ? "critical" : "high", item_type: "bug",
       description: fail.fix_suggestion || fail.detail || fail.issue || "",
       fingerprint: fp, issue_type: issueType, suggested_fix: suggestedFixForType(issueType),
       source_path: fail.route || fail.page || null, source_file: fail.file || fail.source_file || null, source_component: fail.component || fail.element || null,
+      affected_area: CATEGORY_AREA_MAP.interaction_failures,
     });
   }
 
@@ -1496,12 +1511,14 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     const issueType = classifyIssueType(issue, "data_issues");
     issue._issue_type = issueType;
     issue._suggested_fix = suggestedFixForType(issueType);
+    issue._affected_area = issue.category === "ui_visual" ? { type: "ui", target: "components" } : CATEGORY_AREA_MAP.data_issues;
     allWorkIssues.push({
       title: `Data: ${issue.title || issue.field || issue.description || "unknown"}${similarNote}`.slice(0, 120),
       priority: issue.severity === "critical" ? "critical" : "medium", item_type: "bug",
       description: issue.fix_suggestion || issue.detail || "",
       fingerprint: fp, issue_type: issueType, suggested_fix: suggestedFixForType(issueType),
       source_path: issue.route || issue.page || null, source_file: issue.file || issue.source_file || null, source_component: issue.component || issue.table || issue.entity || null,
+      affected_area: issue.category === "ui_visual" ? { type: "ui", target: "components" } : CATEGORY_AREA_MAP.data_issues,
     });
   }
 
@@ -1518,11 +1535,11 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
   for (const issue of allWorkIssues) {
     // Validation checks
     if (!issue.title || issue.title.trim().length === 0) {
-      createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'skipped_validation', _validation_reason: 'missing_title', issue_type: issue.issue_type || 'bug' });
+      createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'skipped_validation', _validation_reason: 'missing_title', issue_type: issue.issue_type || 'bug', affected_area: issue.affected_area });
       continue;
     }
     if (!issue.item_type || issue.item_type.trim().length === 0) {
-      createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'skipped_validation', _validation_reason: 'missing_type', issue_type: issue.issue_type || 'bug' });
+      createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'skipped_validation', _validation_reason: 'missing_type', issue_type: issue.issue_type || 'bug', affected_area: issue.affected_area });
       continue;
     }
 
@@ -1550,7 +1567,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
         } else {
           console.log(`[consistency-guard] LINKED (unchanged, <24h): ${existingItem.id.slice(0, 8)} "${issue.title.slice(0, 40)}"`);
         }
-        createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'skipped_dedup', _dedup_reason: 'fingerprint_match', existing_item_id: existingItem.id, issue_type: issue.issue_type || 'bug' });
+        createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'skipped_dedup', _dedup_reason: 'fingerprint_match', existing_item_id: existingItem.id, issue_type: issue.issue_type || 'bug', affected_area: issue.affected_area });
         continue;
       } else {
         console.log(`[consistency-guard] ALLOW re-creation (>24h old): "${issue.title.slice(0, 40)}" (existing ${existingItem.id.slice(0, 8)})`);
@@ -1572,7 +1589,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
         updated_at: new Date().toISOString(),
       }).eq("id", existingByTitle[0].id);
       console.log(`[consistency-guard] LINKED by title: ${existingByTitle[0].id.slice(0, 8)} "${issue.title.slice(0, 40)}"`);
-      createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'skipped_dedup', _dedup_reason: 'title_match', existing_item_id: existingByTitle[0].id, issue_type: issue.issue_type || 'bug' });
+      createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'skipped_dedup', _dedup_reason: 'title_match', existing_item_id: existingByTitle[0].id, issue_type: issue.issue_type || 'bug', affected_area: issue.affected_area });
       continue;
     }
 
@@ -1606,11 +1623,11 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
       console.log(`[create-verify] ✅ VERIFIED: ${created.id} "${issue.title.slice(0, 40)}"`);
       workItemsCreated++;
       verified = true;
-      createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'created', created_id: created.id, issue_type: issue.issue_type || 'bug' });
+      createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'created', created_id: created.id, issue_type: issue.issue_type || 'bug', affected_area: issue.affected_area });
       break;
     }
     if (!verified) {
-      createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'skipped_validation', _validation_reason: 'invalid_payload', issue_type: issue.issue_type || 'bug' });
+      createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'skipped_validation', _validation_reason: 'invalid_payload', issue_type: issue.issue_type || 'bug', affected_area: issue.affected_area });
       console.error(`[create-verify] ❌ FAILED: "${issue.title.slice(0, 60)}"`);
     }
   }
@@ -1804,6 +1821,7 @@ serve(async (req) => {
       };
       const scopeDef = SCAN_SCOPE_MAP[step.scanType] || { type: "edge", target: step.scanType };
       stepResult._scan_scope = { type: scopeDef.type, target: scopeDef.target, size: inputSize };
+      stepResult._affected_area = { type: scopeDef.type, target: scopeDef.target };
 
       // ── Upsert system_structure_map ──
       await supabase.from("system_structure_map").upsert({
