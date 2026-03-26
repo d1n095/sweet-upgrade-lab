@@ -1066,17 +1066,33 @@ const SystemExplorer = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <pre className="bg-muted/30 border border-border rounded-md p-3 text-[10px] font-mono overflow-auto max-h-[500px] whitespace-pre-wrap text-foreground select-all">
-                {(() => {
-                  if (!scanResults) return "No scan results available";
-                  try {
-                    return JSON.stringify(scanResults, null, 2);
-                  } catch (e) {
-                    console.error("[DEBUG] JSON RENDER ERROR:", e);
-                    return "Error rendering scan results";
+              {(() => {
+                if (!scanResults) return <p className="text-xs text-muted-foreground">No scan results available</p>;
+                try {
+                  const limited = { ...scanResults };
+                  const allIssues = limited?.issues ?? limited?._create_trace ?? [];
+                  const totalCount = Array.isArray(allIssues) ? allIssues.length : 0;
+                  if (Array.isArray(limited?.issues) && limited.issues.length > 50) {
+                    limited.issues = limited.issues.slice(0, 50);
                   }
-                })()}
-              </pre>
+                  if (Array.isArray(limited?._create_trace) && limited._create_trace.length > 50) {
+                    limited._create_trace = limited._create_trace.slice(0, 50);
+                  }
+                  return (
+                    <>
+                      {totalCount > 50 && (
+                        <p className="text-[10px] text-muted-foreground mb-2">Showing 50 of {totalCount} issues</p>
+                      )}
+                      <pre className="bg-muted/30 border border-border rounded-md p-3 text-[10px] font-mono overflow-auto max-h-[500px] whitespace-pre-wrap text-foreground select-all">
+                        {JSON.stringify(limited, null, 2)}
+                      </pre>
+                    </>
+                  );
+                } catch (e) {
+                  console.error("[DEBUG] JSON RENDER ERROR:", e);
+                  return <p className="text-xs text-destructive">Error rendering scan results</p>;
+                }
+              })()}
             </CardContent>
           </Card>
         )}
