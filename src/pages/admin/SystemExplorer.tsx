@@ -375,6 +375,46 @@ const SystemExplorer = () => {
       .sort((a, b) => b.cluster_size - a.cluster_size);
   }, [scanResults]);
 
+  // No-effect fix detection: done items whose issue reappeared in last 2 scans
+  const noEffectFixIds = useMemo(() => {
+    const doneItems = workItems.filter(w => w.status === "done" || w.status === "completed");
+    const recentIssueFingerprints = new Set<string>();
+    const recentIssueTitles = new Set<string>();
+    const scansToCheck = last3Scans.slice(0, 2);
+    for (const scan of scansToCheck) {
+      const res = scan.results as Record<string, any> | null;
+      if (!res) continue;
+      const issues = (res.issues ?? res.detected_issues ?? []) as any[];
+      for (const issue of issues) {
+        if (issue.fingerprint) recentIssueFingerprints.add(issue.fingerprint.toLowerCase());
+        if (issue.title) recentIssueTitles.add(issue.title.toLowerCase().trim());
+      }
+      for (const [, val] of Object.entries(res)) {
+        if (Array.isArray(val)) {
+          for (const item of val) {
+            if (item?.fingerprint) recentIssueFingerprints.add(item.fingerprint.toLowerCase());
+            if (item?.title) recentIssueTitles.add(item.title.toLowerCase().trim());
+          }
+        }
+        if (val?.issues && Array.isArray(val.issues)) {
+          for (const item of val.issues) {
+            if (item?.fingerprint) recentIssueFingerprints.add(item.fingerprint.toLowerCase());
+            if (item?.title) recentIssueTitles.add(item.title.toLowerCase().trim());
+          }
+        }
+      }
+    }
+    const flagged = new Set<string>();
+    for (const item of doneItems) {
+      const fp = item.issue_fingerprint?.toLowerCase();
+      const title = item.title?.toLowerCase().trim();
+      if ((fp && recentIssueFingerprints.has(fp)) || (title && recentIssueTitles.has(title))) {
+        flagged.add(item.id);
+      }
+    }
+    return flagged;
+  }, [workItems, last3Scans]);
+
   // Scanner stats derived from scan results — organized by module groups
   const groupedScannerStats = useMemo(() => {
     const rawIssues = (scanResults?.issues as any[] | undefined) ?? [];
@@ -1604,6 +1644,12 @@ const SystemExplorer = () => {
                   <p className="text-[9px] text-destructive">⚠️ Persistent problem — seen {(selectedItem as any).occurrence_count} times</p>
                 )}
               </div>
+              {noEffectFixIds.has(selectedItem.id) && (
+                <div className="border border-destructive rounded-md p-2 bg-destructive/10 space-y-1">
+                  <span className="text-destructive text-xs font-bold flex items-center gap-1">⚠️ no_effect_fix</span>
+                  <p className="text-[9px] text-destructive/80">This item was marked as done, but the same issue reappeared within the last 2 scans. The fix may not have worked, or the assumption was wrong.</p>
+                </div>
+              )}
               <div>
                 <span className="text-muted-foreground text-xs">Created By</span>
                 <p className="font-mono text-xs break-all">{selectedItem.created_by ?? "–"}</p>
