@@ -189,8 +189,15 @@ const SystemExplorer = () => {
   const [lastAction, setLastAction] = useState("");
 
   function handleSearch() {
-    if (!searchQuery) return;
+    if (!searchQuery) {
+      console.warn("⚠ No search query");
+      return;
+    }
     const sources = getRawSources();
+    if (!sources) {
+      console.error("❌ rawSources missing");
+      return;
+    }
     const results: { path: string; lineNumber: number; line: string }[] = [];
     Object.entries(sources).forEach(([path, content]) => {
       if (!content) return;
