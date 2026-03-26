@@ -1148,6 +1148,106 @@ async function runRealInteractionQA(supabase: any, scanRunId: string): Promise<a
   return { issues, issues_found: issues.length, dead_elements: issues, interaction_score: score, overall_score: score, duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
 }
 
+// ── REAL DB SCAN: Component Map (UI Visual) ──
+async function runRealComponentMapScan(supabase: any, scanRunId: string): Promise<any> {
+  const issues: any[] = [];
+  const startMs = Date.now();
+  let componentsScanned = 0;
+
+  try {
+    // 1. Missing visible label: page_sections without title
+    const { data: sections } = await supabase.from("page_sections").select("id, section_key, page, title_sv, title_en, is_visible").eq("is_visible", true).limit(200);
+    componentsScanned += (sections || []).length;
+    for (const s of sections || []) {
+      if (!s.title_sv && !s.title_en) {
+        issues.push({ title: `Missing visible label: section "${s.section_key}" on ${s.page}`, severity: "medium", component: s.section_key, element: "page_sections", category: "ui_visual", page: s.page, entity_id: s.id });
+      }
+    }
+
+    // 2. Products missing title/description (label check)
+    const { data: products } = await supabase.from("products").select("id, title_sv, title_en, description_sv, description_en, is_visible, image_urls, handle").eq("is_visible", true).limit(200);
+    componentsScanned += (products || []).length;
+    for (const p of products || []) {
+      if (!p.title_sv && !p.title_en) {
+        issues.push({ title: `Missing visible label: product "${p.handle || p.id.slice(0,8)}"`, severity: "high", component: "products", element: "ProductCard", category: "ui_visual", entity_id: p.id });
+      }
+      if (!p.description_sv && !p.description_en) {
+        issues.push({ title: `Missing visible label: product description "${p.handle || p.id.slice(0,8)}"`, severity: "medium", component: "products", element: "ProductDetail", category: "ui_visual", entity_id: p.id });
+      }
+    }
+
+    // 3. Categories missing label
+    const { data: categories } = await supabase.from("categories").select("id, name_sv, name_en, slug, is_visible").eq("is_visible", true).limit(100);
+    componentsScanned += (categories || []).length;
+    for (const c of categories || []) {
+      if (!c.name_sv && !c.name_en) {
+        issues.push({ title: `Missing visible label: category "${c.slug}"`, severity: "high", component: "categories", element: "CategoryFilter", category: "ui_visual", entity_id: c.id });
+      }
+    }
+
+    // 4. Dead interaction: bundles active but no items (clickable but no handler)
+    const { data: activeBundles } = await supabase.from("bundles").select("id, name, is_active").eq("is_active", true).limit(50);
+    componentsScanned += (activeBundles || []).length;
+    for (const b of activeBundles || []) {
+      const { count } = await supabase.from("bundle_items").select("id", { count: "exact", head: true }).eq("bundle_id", b.id);
+      if (!count || count === 0) {
+        issues.push({ title: `Dead interaction: bundle "${b.name}" active but empty`, severity: "high", component: "bundles", element: "ProductBundles", category: "ui_visual", entity_id: b.id });
+      }
+    }
+
+    // 5. Inconsistent UI: products with mixed image counts (some have images, some don't)
+    if (products && products.length > 0) {
+      const withImages = products.filter((p: any) => p.image_urls && p.image_urls.length > 0).length;
+      const withoutImages = products.filter((p: any) => !p.image_urls || p.image_urls.length === 0).length;
+      if (withImages > 0 && withoutImages > 0) {
+        issues.push({ title: `Inconsistent UI: ${withoutImages} products without images vs ${withImages} with images`, severity: "medium", component: "products", element: "ProductGrid", category: "ui_visual" });
+      }
+    }
+
+    // 6. Layout compression: sections with same display_order (stacked/overlapping)
+    if (sections && sections.length > 1) {
+      const orderMap: Record<string, any[]> = {};
+      for (const s of sections) {
+        const pageKey = s.page;
+        if (!orderMap[pageKey]) orderMap[pageKey] = [];
+        orderMap[pageKey].push(s);
+      }
+      for (const [page, pageSections] of Object.entries(orderMap)) {
+        const orders = pageSections.map((s: any) => s.display_order);
+        const duplicateOrders = orders.filter((o: number, i: number) => orders.indexOf(o) !== i);
+        if (duplicateOrders.length > 0) {
+          issues.push({ title: `Layout compression: ${duplicateOrders.length} sections share display_order on "${page}"`, severity: "medium", component: "page_sections", element: "PageLayout", category: "ui_visual", page });
+        }
+      }
+    }
+
+    // 7. Dead interaction: email templates active but missing CTA
+    const { data: emailTemplates } = await supabase.from("email_templates").select("id, template_type, cta_text_sv, cta_text_en, is_active").eq("is_active", true).limit(20);
+    componentsScanned += (emailTemplates || []).length;
+    for (const t of emailTemplates || []) {
+      if (!t.cta_text_sv && !t.cta_text_en) {
+        issues.push({ title: `Dead interaction: email "${t.template_type}" has no CTA`, severity: "medium", component: "email_templates", element: "EmailTemplate", category: "ui_visual", entity_id: t.id });
+      }
+    }
+
+    // 8. Inconsistent UI: product_tags with mixed colors (some have color, some don't)
+    const { data: tags } = await supabase.from("product_tags").select("id, name_sv, color, tag_type").limit(100);
+    componentsScanned += (tags || []).length;
+    if (tags && tags.length > 1) {
+      const withColor = tags.filter((t: any) => t.color).length;
+      const withoutColor = tags.filter((t: any) => !t.color).length;
+      if (withColor > 0 && withoutColor > 0) {
+        issues.push({ title: `Inconsistent UI: ${withoutColor} tags without color vs ${withColor} with color`, severity: "low", component: "product_tags", element: "TagBadge", category: "ui_visual" });
+      }
+    }
+
+  } catch (e: any) { issues.push({ title: `Component map scan error: ${e.message}`, severity: "critical", component: "component_map", category: "ui_visual" }); }
+
+  const durationMs = Date.now() - startMs;
+  const score = Math.max(0, 100 - issues.length * 5);
+  return { issues, issues_found: issues.length, components_scanned: componentsScanned, overall_score: score, duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
+}
+
 // ── Map scan types to real DB functions ──
 const REAL_DB_SCANNERS: Record<string, (supabase: any, scanRunId: string) => Promise<any>> = {
   data_integrity: runDataIntegrityScan,
@@ -1155,6 +1255,7 @@ const REAL_DB_SCANNERS: Record<string, (supabase: any, scanRunId: string) => Pro
   system_scan: runRealSystemScan,
   feature_detection: runRealFeatureDetection,
   interaction_qa: runRealInteractionQA,
+  component_map: runRealComponentMapScan,
 };
 
 // ── SCAN CONSISTENCY GUARD ──
