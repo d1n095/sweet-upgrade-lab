@@ -214,6 +214,61 @@ export function scanFileContent(path: string, content: string) {
       file: path
     });
   }
+  // RULE 6 — RESPONSIVE LAYOUT ISSUES
+  const VIEWPORTS = [
+    { name: "desktop", width: 1440 },
+    { name: "tablet", width: 768 },
+    { name: "mobile", width: 375 },
+  ];
+  if (path.includes("/components/") || path.includes("/pages/")) {
+    for (const vp of VIEWPORTS) {
+      // OVERFLOW CHECK
+      if (content.includes("overflow-hidden") && content.includes("absolute") && !content.includes("overflow-auto")) {
+        issues.push({
+          type: "responsive",
+          message: `Responsive layout issue: overflow hidden + absolute without scroll fallback`,
+          file: path,
+          viewport: vp.name,
+        } as any);
+      }
+      // HIDDEN ELEMENTS — display:none / hidden without responsive guard
+      if (content.includes("hidden") && !content.includes("md:block") && !content.includes("lg:block") && !content.includes("sm:block") && vp.name === "mobile") {
+        issues.push({
+          type: "responsive",
+          message: `Responsive layout issue: element hidden without responsive breakpoint guard`,
+          file: path,
+          viewport: vp.name,
+        } as any);
+      }
+      // STACKED LAYOUT — flex-col without min-h-0 on mobile
+      if (content.includes("flex-col") && !content.includes("min-h-0") && vp.name === "mobile") {
+        issues.push({
+          type: "responsive",
+          message: `Responsive layout issue: flex-col without min-h-0 may cause stacking overflow`,
+          file: path,
+          viewport: vp.name,
+        } as any);
+      }
+      // FIXED/STICKY WITHOUT Z-INDEX
+      if ((content.includes("sticky") || content.includes("fixed")) && !content.includes("z-")) {
+        issues.push({
+          type: "responsive",
+          message: `Responsive layout issue: sticky/fixed element without z-index`,
+          file: path,
+          viewport: vp.name,
+        } as any);
+      }
+      // GRID WITHOUT RESPONSIVE COLS
+      if (content.includes("grid-cols-") && !content.includes("md:grid-cols") && !content.includes("lg:grid-cols") && vp.name !== "desktop") {
+        issues.push({
+          type: "responsive",
+          message: `Responsive layout issue: grid without responsive column breakpoints`,
+          file: path,
+          viewport: vp.name,
+        } as any);
+      }
+    }
+  }
   return issues;
 }
 
