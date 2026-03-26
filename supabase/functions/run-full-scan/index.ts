@@ -1277,11 +1277,13 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
   for (const issue of groupedData.slice(0, 15)) {
     const fp = generateFingerprint(issue);
     const similarNote = issue._similar_count ? ` (+${issue._similar_count} liknande)` : "";
+    const issueType = classifyIssueType(issue, "data_issues");
+    issue._issue_type = issueType;
     allWorkIssues.push({
       title: `Data: ${issue.title || issue.field || issue.description || "unknown"}${similarNote}`.slice(0, 120),
       priority: issue.severity === "critical" ? "critical" : "medium", item_type: "bug",
       description: issue.fix_suggestion || issue.detail || "",
-      fingerprint: fp,
+      fingerprint: fp, issue_type: issueType,
       source_path: issue.route || issue.page || null, source_file: issue.file || issue.source_file || null, source_component: issue.component || issue.table || issue.entity || null,
     });
   }
