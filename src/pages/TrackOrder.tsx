@@ -479,7 +479,7 @@ const TrackOrder = () => {
                     setIsRetrying(true);
                     try {
                       const items = Array.isArray(orderData.items) ? orderData.items : [];
-                      const { data, error } = await supabase.functions.invoke('create-checkout', {
+                      const { data, error } = await tracedInvoke('create-checkout', {
                         body: {
                           items: items.map((item: any) => ({
                             id: item.id,
