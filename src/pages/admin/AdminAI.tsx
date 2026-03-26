@@ -1972,12 +1972,45 @@ const SystemScanTab = () => {
     },
   });
 
-  // Set last scan as current if no active result
+  // Load work items created from scans to hydrate master list from DB
+  const { data: scanWorkItems = [] } = useQuery({
+    queryKey: ['scan-work-items', lastScan?.id],
+    queryFn: async () => {
+      if (!lastScan?.id) return [];
+      const { data } = await supabase
+        .from('work_items' as any)
+        .select('id, title, status, priority, item_type, ai_detected, ai_category, ai_type_classification, ai_confidence, execution_order, depends_on, blocks, conflict_flag, duplicate_of, created_at, ai_type_reason, source_type, source_id')
+        .or(`source_id.eq.${lastScan.id},source_type.eq.scan`)
+        .in('status', ['open', 'claimed', 'in_progress', 'escalated', 'new', 'pending', 'detected'])
+        .order('created_at', { ascending: false })
+        .limit(200);
+      return (data || []) as any[];
+    },
+    enabled: !!lastScan?.id,
+  });
+
+  // Set last scan as current if no active result — hydrate master_list from DB work items
   useEffect(() => {
     if (!scanResult && lastScan?.results) {
-      setScanResult(lastScan.results);
+      const results = { ...lastScan.results };
+
+      // Hydrate master_list from actual DB work items (not stale scan JSON)
+      if (scanWorkItems.length > 0) {
+        const must_do = scanWorkItems.filter((wi: any) => wi.priority === 'critical');
+        const next_up = scanWorkItems.filter((wi: any) => wi.priority === 'high');
+        const optional = scanWorkItems.filter((wi: any) => !['critical', 'high'].includes(wi.priority));
+        results.master_list = {
+          must_do,
+          next_up,
+          optional,
+          total: scanWorkItems.length,
+        };
+        console.log('[MasterList] Hydrated from DB:', scanWorkItems.length, 'items');
+      }
+
+      setScanResult(results);
     }
-  }, [lastScan, scanResult]);
+  }, [lastScan, scanResult, scanWorkItems]);
 
   const runScan = async () => {
     setLoading(true);
