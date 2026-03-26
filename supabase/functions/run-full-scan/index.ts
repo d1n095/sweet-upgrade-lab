@@ -939,6 +939,41 @@ async function runDataIntegrityScan(supabase: any, scanRunId: string): Promise<a
       } catch (_) {}
     }
 
+    // 10. Empty table detection: tables system expects to have data
+    const EXPECTED_DATA_TABLES = [
+      { table: "profiles", label: "users", severity: "critical" as const },
+      { table: "orders", label: "orders", severity: "high" as const },
+      { table: "products", label: "products", severity: "critical" as const },
+      { table: "categories", label: "categories", severity: "high" as const },
+      { table: "user_roles", label: "user_roles", severity: "critical" as const },
+      { table: "work_items", label: "work_items", severity: "medium" as const },
+      { table: "legal_documents", label: "legal_documents", severity: "high" as const },
+      { table: "email_templates", label: "email_templates", severity: "medium" as const },
+      { table: "store_settings", label: "store_settings", severity: "high" as const },
+      { table: "role_module_permissions", label: "role_permissions", severity: "critical" as const },
+    ];
+
+    for (const et of EXPECTED_DATA_TABLES) {
+      try {
+        const { count } = await supabase.from(et.table).select("id", { count: "exact", head: true });
+        if (count === 0 || count === null) {
+          issues.push({
+            type: "empty_table",
+            severity: et.severity,
+            entity: et.label,
+            entity_id: et.table,
+            title: `No data found where expected: ${et.label} = 0`,
+            step: "database → pipeline",
+            root_cause: "Table empty — broken pipeline or failed creation",
+            component: et.table,
+            _issue_type: "bug",
+            _impact_score: et.severity === "critical" ? 5 : 4,
+            _impact_label: et.severity,
+          });
+        }
+      } catch (_) {}
+    }
+
   } catch (e: any) {
     console.error("Data integrity scan error:", e);
     issues.push({ type: "scan_error", severity: "critical", entity: "integrity_scan", title: `Integrity scan fel: ${e.message}`, step: "scan", root_cause: e.message, component: "integrity_scan" });
@@ -948,13 +983,13 @@ async function runDataIntegrityScan(supabase: any, scanRunId: string): Promise<a
   await supabase.from("system_observability_log").insert({
     event_type: "scan_step", severity: issues.filter(i => i.severity === "critical").length > 0 ? "warning" : "info",
     source: "scanner", message: `Data integrity scan: ${issues.length} problem`,
-    details: { total_issues: issues.length, by_type: { data_loss: issues.filter(i => i.type === "data_loss").length, failed_insert: issues.filter(i => i.type === "failed_insert").length, stale_state: issues.filter(i => i.type === "stale_state").length, incorrect_filtering: issues.filter(i => i.type === "incorrect_filtering").length, data_validation: issues.filter(i => i.type === "data_validation").length, id_trace: issues.filter(i => i.type === "id_trace").length, data_mismatch: issues.filter(i => i.type === "data_mismatch").length } },
+    details: { total_issues: issues.length, by_type: { data_loss: issues.filter(i => i.type === "data_loss").length, failed_insert: issues.filter(i => i.type === "failed_insert").length, stale_state: issues.filter(i => i.type === "stale_state").length, incorrect_filtering: issues.filter(i => i.type === "incorrect_filtering").length, data_validation: issues.filter(i => i.type === "data_validation").length, id_trace: issues.filter(i => i.type === "id_trace").length, data_mismatch: issues.filter(i => i.type === "data_mismatch").length, empty_table: issues.filter(i => i.type === "empty_table").length } },
     scan_id: scanRunId, trace_id: traceId, component: "data_integrity_scan", duration_ms: durationMs,
   }).catch(() => {});
 
   return {
     issues, total_issues: issues.length,
-    by_type: { data_loss: issues.filter(i => i.type === "data_loss").length, failed_insert: issues.filter(i => i.type === "failed_insert").length, stale_state: issues.filter(i => i.type === "stale_state").length, incorrect_filtering: issues.filter(i => i.type === "incorrect_filtering").length, data_validation: issues.filter(i => i.type === "data_validation").length, id_trace: issues.filter(i => i.type === "id_trace").length, data_mismatch: issues.filter(i => i.type === "data_mismatch").length },
+    by_type: { data_loss: issues.filter(i => i.type === "data_loss").length, failed_insert: issues.filter(i => i.type === "failed_insert").length, stale_state: issues.filter(i => i.type === "stale_state").length, incorrect_filtering: issues.filter(i => i.type === "incorrect_filtering").length, data_validation: issues.filter(i => i.type === "data_validation").length, id_trace: issues.filter(i => i.type === "id_trace").length, data_mismatch: issues.filter(i => i.type === "data_mismatch").length, empty_table: issues.filter(i => i.type === "empty_table").length },
     duration_ms: durationMs, scanned_at: new Date().toISOString(),
   };
 }
