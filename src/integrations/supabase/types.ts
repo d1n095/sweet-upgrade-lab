@@ -2983,6 +2983,8 @@ export type Database = {
       scan_snapshots: {
         Row: {
           blind_scanners_count: number
+          coverage_total: number | null
+          coverage_unique_targets: number | null
           created_at: string
           dead_scanners_count: number
           diagnosis_summary: string | null
@@ -2997,6 +2999,8 @@ export type Database = {
         }
         Insert: {
           blind_scanners_count?: number
+          coverage_total?: number | null
+          coverage_unique_targets?: number | null
           created_at?: string
           dead_scanners_count?: number
           diagnosis_summary?: string | null
@@ -3011,6 +3015,8 @@ export type Database = {
         }
         Update: {
           blind_scanners_count?: number
+          coverage_total?: number | null
+          coverage_unique_targets?: number | null
           created_at?: string
           dead_scanners_count?: number
           diagnosis_summary?: string | null

@@ -2306,10 +2306,26 @@ serve(async (req) => {
       const deadScannersCount = Object.values(updatedResults || {}).filter((s: any) => s?._executed === false || s?.failed === true).length;
       const blindScannersCount = Object.values(updatedResults || {}).filter((s: any) => s?._executed !== false && s?.failed !== true && (s?._scan_scope?.size > 0) && (!s?.issues || s.issues.length === 0)).length;
 
+      // Coverage metrics
+      let coverageTotal = 0;
+      const uniqueTargets = new Set<string>();
+      for (const [_, scanner] of Object.entries(updatedResults || {})) {
+        const s = scanner as any;
+        if (s?._scan_scope) {
+          const scopeSize = typeof s._scan_scope.size === "number" ? s._scan_scope.size : (Array.isArray(s._scan_scope.targets) ? s._scan_scope.targets.length : 0);
+          coverageTotal += scopeSize;
+          if (Array.isArray(s._scan_scope.targets)) {
+            for (const t of s._scan_scope.targets) uniqueTargets.add(String(t));
+          }
+        }
+      }
+      const coverageUniqueTargets = uniqueTargets.size;
+
       // Generate rule-based diagnosis summary (max 10 lines)
       const diagLines: string[] = [];
       diagLines.push(`Health: ${unified.system_health_score}/100 — ${systemStage} — ${iterationsCompleted} iteration(s)`);
       diagLines.push(`Detected: ${totalDetected} issues → ${workItemsCreated} created, ${totalSkipped} skipped`);
+      diagLines.push(`Coverage: ${coverageUniqueTargets} unique targets / ${coverageTotal} total scope`);
       if (highAttentionCount > 0) diagLines.push(`⚠️ ${highAttentionCount} high-attention issues (impact ≥ 4)`);
       const impact5 = (adaptiveResult?.issues ?? []).filter((i: any) => i._impact_score >= 5);
       if (impact5.length > 0) diagLines.push(`💥 ${impact5.length} CRITICAL (impact 5): ${impact5.slice(0, 3).map((i: any) => i.title || i.description || "unnamed").join(", ")}${impact5.length > 3 ? "…" : ""}`);
@@ -2345,6 +2361,8 @@ serve(async (req) => {
         high_attention_count: highAttentionCount,
         dead_scanners_count: deadScannersCount,
         blind_scanners_count: blindScannersCount,
+        coverage_total: coverageTotal,
+        coverage_unique_targets: coverageUniqueTargets,
         diagnosis_summary: diagnosisSummary,
         payload: adaptiveResult,
       });
