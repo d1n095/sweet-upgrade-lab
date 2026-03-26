@@ -9109,17 +9109,19 @@ Svara ALLTID på svenska.`,
 // ── System Explorer Query (READ-ONLY) ──
 async function handleSystemExplorerQuery(supabase: any, apiKey: string, question: string) {
   // Gather read-only context
-  const [workItemsRes, scanRes, bugsRes, historyRes] = await Promise.all([
+  const [workItemsRes, scanRes, bugsRes, historyRes, structureMapRes] = await Promise.all([
     supabase.from("work_items").select("id, title, status, priority, item_type, source_type, source_id, ai_detected, created_at, ignored, issue_fingerprint").order("created_at", { ascending: false }).limit(100),
     supabase.from("ai_scan_results").select("id, scan_type, issues_count, tasks_created, overall_score, overall_status, executive_summary, created_at, results").order("created_at", { ascending: false }).limit(3),
     supabase.from("bug_reports").select("id, status, ai_severity, ai_category, ai_summary, created_at").order("created_at", { ascending: false }).limit(30),
     supabase.from("work_item_history").select("work_item_id, action, old_value, new_value, created_at").order("created_at", { ascending: false }).limit(50),
+    supabase.from("system_structure_map").select("entity_type, entity_name, source_path, last_seen_at, scan_count").order("last_seen_at", { ascending: false }).limit(50),
   ]);
 
   const workItems = workItemsRes.data || [];
   const scans = scanRes.data || [];
   const bugs = bugsRes.data || [];
   const history = historyRes.data || [];
+  const structureMap = structureMapRes.data || [];
 
   // Build status summary
   const statusCounts: Record<string, number> = {};
