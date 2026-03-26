@@ -229,6 +229,11 @@ const SystemExplorer = () => {
   }
 
   async function runSystemScan(mode: string) {
+    if (isScanning) {
+      console.warn("Scan already running");
+      return;
+    }
+    setIsScanning(true);
     logAction({ type: "SCAN", status: "started", mode });
     try {
       if (mode === "files") {
@@ -264,6 +269,8 @@ const SystemExplorer = () => {
         mode,
         message: err.message
       });
+    } finally {
+      setIsScanning(false);
     }
   }
 
