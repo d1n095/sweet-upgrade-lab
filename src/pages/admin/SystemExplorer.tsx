@@ -212,11 +212,16 @@ const SystemExplorer = () => {
       }
     }
 
+    // Step results from scan for executed status
+    const stepResults = (scanResults?.step_results ?? scanResults) as Record<string, any> | null;
+
     return SCANNER_GROUPS.map(group => {
       const scannerResults = group.scanners.map(scanner => {
         let detected = 0;
         let created = 0;
         const allRaw: any[] = [];
+        // Determine executed status from step results
+        let executed = false;
         for (const mk of scanner.matchKeys) {
           const s = keyStats[mk.toLowerCase()];
           if (s) {
@@ -224,17 +229,26 @@ const SystemExplorer = () => {
             created += s.created;
             allRaw.push(...s.raw);
           }
+          // Check step_results for _executed flag
+          if (stepResults && typeof stepResults === 'object') {
+            const stepData = stepResults[mk] || stepResults[scanner.id];
+            if (stepData?._executed === true) executed = true;
+            if (stepData && stepData._executed === undefined && !stepData.failed) executed = true;
+          }
         }
+        // If we found any raw issues or created items, scanner must have executed
+        if (detected > 0 || created > 0) executed = true;
         // De-duplicate raw issues by reference
         const uniqueRaw = [...new Map(allRaw.map(r => [r.title || JSON.stringify(r), r])).values()];
         detected = uniqueRaw.length;
         const skipped = Math.max(0, detected - created);
         const ratio = detected > 0 ? created / detected : 0;
         let health: "GOOD" | "WEAK" | "NOISY" = "GOOD";
-        if (detected === 0) health = "WEAK";
+        if (!executed) health = "WEAK";
+        else if (detected === 0) health = "WEAK";
         else if (ratio < 0.3 && skipped > 2) health = "NOISY";
         else if (detected <= 1 && created === 0) health = "WEAK";
-        return { ...scanner, detected, afterFilter: created, skipped, created, health, rawIssues: uniqueRaw };
+        return { ...scanner, detected, afterFilter: created, skipped, created, health, rawIssues: uniqueRaw, executed };
       });
 
       const groupDetected = scannerResults.reduce((s, r) => s + r.detected, 0);
