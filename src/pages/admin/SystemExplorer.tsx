@@ -247,6 +247,26 @@ const SystemExplorer = () => {
     staleTime: 30_000,
   });
 
+  // Debug Console logs (runtime_traces + observability)
+  const { data: debugConsoleLogs = [] } = useQuery({
+    queryKey: ["system-explorer-debug-console"],
+    queryFn: async () => {
+      const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+      const [tracesRes, obsRes] = await Promise.all([
+        supabase.from("runtime_traces" as any).select("id, function_name, endpoint, error_message, created_at, request_trace_id").gte("created_at", cutoff).order("created_at", { ascending: false }).limit(50),
+        supabase.from("system_observability_log" as any).select("id, event_type, source, message, created_at, component").gte("created_at", cutoff).order("created_at", { ascending: false }).limit(50),
+      ]);
+      const traces = ((tracesRes.data || []) as any[]).map((t: any) => ({
+        ts: t.created_at, source: `trace:${t.function_name || "unknown"}`, message: t.error_message || `${t.endpoint || ""} OK`, id: t.id,
+      }));
+      const obs = ((obsRes.data || []) as any[]).map((o: any) => ({
+        ts: o.created_at, source: `${o.source || o.component || "system"}`, message: o.message || o.event_type, id: o.id,
+      }));
+      return [...traces, ...obs].sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime()).slice(0, 100);
+    },
+    staleTime: 15_000,
+  });
+
   const handleRefresh = async () => {
     setIsRefreshing(true);
     await Promise.all([
@@ -255,6 +275,7 @@ const SystemExplorer = () => {
       queryClient.invalidateQueries({ queryKey: ["system-explorer-structure-map"] }),
       queryClient.invalidateQueries({ queryKey: ["admin-work-items"] }),
       queryClient.invalidateQueries({ queryKey: ["system-explorer-runtime-errors"] }),
+      queryClient.invalidateQueries({ queryKey: ["system-explorer-debug-console"] }),
     ]);
     setIsRefreshing(false);
   };
@@ -912,6 +933,39 @@ const SystemExplorer = () => {
           )}
         </Card>
         )}
+
+        {/* DEBUG CONSOLE */}
+        {isSystemAdmin && (
+        <Card>
+          <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("debugConsole")}>
+            <CardTitle className="text-sm flex items-center gap-2">
+              {expandedSections.debugConsole ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <Cpu className="h-4 w-4 text-primary" />
+              Debug Console ({debugConsoleLogs.length})
+            </CardTitle>
+          </CardHeader>
+          {expandedSections.debugConsole && (
+            <CardContent className="pt-0">
+              <div className="bg-muted/20 border border-border rounded-md p-2 max-h-[400px] overflow-y-auto font-mono text-[11px] space-y-0.5">
+                {debugConsoleLogs.length === 0 && (
+                  <p className="text-muted-foreground py-2">No logs in last 2h</p>
+                )}
+                {(debugConsoleLogs as any[]).map((log: any) => {
+                  const time = new Date(log.ts).toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+                  return (
+                    <div key={log.id} className="flex gap-2 py-0.5 border-b border-border/30 last:border-0">
+                      <span className="text-muted-foreground shrink-0">[{time}]</span>
+                      <span className="text-primary shrink-0">{log.source}</span>
+                      <span className="text-foreground break-all">{log.message}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          )}
+        </Card>
+        )}
+
 
         {isViewerAdmin && (
           <Card>
