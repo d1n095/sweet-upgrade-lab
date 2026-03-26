@@ -1138,16 +1138,38 @@ const SystemExplorer = () => {
                   throw new Error("No structure map");
                 }
                 setIsScanning(true);
-                await supabase.functions.invoke("run-full-scan", {
-                  body: { action: "start", scan_mode: "full", structure_map: structure_map.map(p => ({ path: p })) }
-                });
-                setIsScanning(false);
+                setScanProgress({ step: 0, total: 11, label: "Startar..." });
+                const pollInterval = setInterval(async () => {
+                  try {
+                    const { data } = await supabase.from("scan_runs").select("current_step, current_step_label").order("created_at", { ascending: false }).limit(1).single();
+                    if (data) {
+                      setScanProgress({ step: data.current_step || 0, total: 11, label: data.current_step_label || "Scanning..." });
+                    }
+                  } catch (_) {}
+                }, 2000);
+                try {
+                  await supabase.functions.invoke("run-full-scan", {
+                    body: { action: "start", scan_mode: "full", structure_map: structure_map.map(p => ({ path: p })) }
+                  });
+                } finally {
+                  clearInterval(pollInterval);
+                  setIsScanning(false);
+                  setScanProgress(null);
+                }
                 return true;
               })
             } disabled={isScanning}>
               {isScanning ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Radar className="h-4 w-4 mr-1" />}
-              {isScanning ? "Scanning..." : "Run Full Scan"}
+              {isScanning && scanProgress ? `Scanning... (${scanProgress.step}/${scanProgress.total})` : isScanning ? "Scanning..." : "Run Full Scan"}
             </Button>
+            {isScanning && scanProgress && (
+              <div className="flex items-center gap-2 ml-2">
+                <div className="w-32 h-1.5 bg-muted rounded-full overflow-hidden">
+                  <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${Math.round((scanProgress.step / scanProgress.total) * 100)}%` }} />
+                </div>
+                <span className="text-[9px] text-muted-foreground truncate max-w-[200px]">{scanProgress.label}</span>
+              </div>
+            )}
            )}
            {isSystemAdmin && (
              <Button variant="outline" size="sm" onClick={() => setShowRawScan(!showRawScan)}>
