@@ -436,11 +436,28 @@ const SystemExplorer = () => {
     setIsScanning(true);
     
     try {
+      const before = await supabase.from("work_items").select("id");
+      const beforeCount = before.data?.length || 0;
+      logAction({ type: "Full Scan", status: "started" });
       console.log("🚀 STARTING FULL SCAN");
       const res = await tracedInvoke("run-full-scan", {
         body: { action: "start", scan_mode: "full" },
       });
       console.log("📡 RESPONSE:", res);
+      const verify = await verifyWorkItemsCreated(beforeCount);
+      if (verify.created === 0) {
+        logAction({
+          type: "Full Scan",
+          status: "no-effect",
+          message: "Scan ran but created 0 work_items ❌"
+        });
+      } else {
+        logAction({
+          type: "Full Scan",
+          status: "verified",
+          message: `Created ${verify.created} work_items ✔`
+        });
+      }
       console.log("[DEBUG] FULL SCAN RESPONSE:", res);
       const json = res?.data ?? res;
       console.log("[DEBUG] FULL SCAN JSON:", json);
