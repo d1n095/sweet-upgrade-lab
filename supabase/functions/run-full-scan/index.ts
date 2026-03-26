@@ -2995,6 +2995,20 @@ serve(async (req) => {
         scan_id: scan_run_id, trace_id: `full-scan-${scan_run_id.slice(0, 8)}`, component: "run-full-scan", duration_ms: totalDuration, user_id: scanRun.started_by,
       });
 
+      // ── Violation explainer ──
+      function explainViolation(v: any, context: any) {
+        if (v.code === "FILTER_BLOCK") {
+          return "Issues detected but removed during filtering — filter rules likely too strict";
+        }
+        if (v.code === "DEDUP_BLOCK") {
+          return "Issues skipped due to duplicates — dedup logic may be blocking valid data";
+        }
+        if (v.code === "NO_STRUCTURE_MAP") {
+          return "Scanner has no access to file structure — input pipeline is broken";
+        }
+        return v.message;
+      }
+
       // ── Violation checks ──
       const violations: string[] = [];
       // INPUT CHECKS
