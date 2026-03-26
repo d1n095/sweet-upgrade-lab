@@ -309,7 +309,7 @@ const SystemExplorer = () => {
       const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const { data } = await supabase
         .from("runtime_traces" as any)
-        .select("id, function_name, endpoint, error_message, created_at, request_trace_id")
+        .select("id, function_name, endpoint, error_message, created_at, request_trace_id, source")
         .gte("created_at", cutoff)
         .order("created_at", { ascending: false })
         .limit(50);
