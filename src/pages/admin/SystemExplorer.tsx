@@ -166,6 +166,7 @@ const SystemExplorer = () => {
   const [detailTab, setDetailTab] = useState<"info" | "history">("info");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
+  const [showRawScan, setShowRawScan] = useState(false);
   const [aiQuery, setAiQuery] = useState("");
   const [aiAnswer, setAiAnswer] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
@@ -828,7 +829,13 @@ const SystemExplorer = () => {
               {isScanning ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Radar className="h-4 w-4 mr-1" />}
               {isScanning ? "Scanning..." : "Run Full Scan"}
             </Button>
-          )}
+           )}
+           {isSystemAdmin && (
+             <Button variant="outline" size="sm" onClick={() => setShowRawScan(!showRawScan)}>
+               <FileText className="h-4 w-4 mr-1" />
+               {showRawScan ? "Hide Raw Scan" : "View Raw Scan"}
+             </Button>
+           )}
         </div>
         <div className="flex items-center gap-2">
           <select
