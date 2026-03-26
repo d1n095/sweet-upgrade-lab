@@ -58,7 +58,7 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { action, refund_request_id, order_id, reason } = body;
+    const { action, refund_request_id, order_id, reason, request_trace_id } = body;
 
     // Check user role
     const { data: roles } = await supabase
@@ -327,7 +327,7 @@ serve(async (req) => {
     });
   } catch (err: any) {
     console.error("Refund error:", err);
-    await logRuntimeTrace("api", "process-refund", "/process-refund", err?.message || "Unknown", { stack: err?.stack?.slice(0, 500) });
+    await logRuntimeTrace("api", "process-refund", "/process-refund", err?.message || "Unknown", { stack: err?.stack?.slice(0, 500) }, request_trace_id);
     return new Response(JSON.stringify({ error: "Internal error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -91,7 +91,7 @@ serve(async (req) => {
     const authenticatedUserId = await resolveUserId(req);
 
     const body = await req.json().catch(() => ({}));
-    const { items, shipping, email, language = "sv" } = body ?? {};
+    const { items, shipping, email, language = "sv", request_trace_id } = body ?? {};
 
     const origin = req.headers.get("origin") || "https://4thepeople.se";
     const warnings: string[] = [];
@@ -293,7 +293,7 @@ serve(async (req) => {
     });
   } catch (error: any) {
     console.error("CHECKOUT FATAL ERROR:", error);
-    await logRuntimeTrace("api", "create-checkout", "/create-checkout", error?.message || "Unknown error", { stack: error?.stack?.slice(0, 500) });
+    await logRuntimeTrace("api", "create-checkout", "/create-checkout", error?.message || "Unknown error", { stack: error?.stack?.slice(0, 500) }, request_trace_id);
 
     // Release reserved stock best-effort
     if (supabase) {
