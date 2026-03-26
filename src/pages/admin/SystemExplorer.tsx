@@ -1,12 +1,29 @@
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { Database, Activity, Bug, CheckCircle, AlertTriangle, Clock, Shield } from "lucide-react";
+import { Database, Activity, Bug, CheckCircle, AlertTriangle, Clock, Shield, ChevronRight, ChevronDown, X, Folder, FolderOpen, FileText } from "lucide-react";
+
+type WorkItem = {
+  id: string;
+  title: string;
+  status: string;
+  source_type: string | null;
+  item_type: string;
+  priority: string;
+  ai_detected: boolean | null;
+  created_at: string;
+  issue_fingerprint: string | null;
+  ignored: boolean | null;
+};
 
 const SystemExplorer = () => {
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ workItems: true, scanResults: true });
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({ open: true, in_progress: true, done: false, completed: false, cancelled: false });
+  const [selectedItem, setSelectedItem] = useState<WorkItem | null>(null);
+
   // 1. ALL work_items
   const { data: workItems = [], isLoading: wiLoading } = useQuery({
     queryKey: ["system-explorer-work-items"],
@@ -46,6 +63,30 @@ const SystemExplorer = () => {
   const scanResults = latestScan?.results as Record<string, any> | null;
   const detectedIssues = scanResults?.master_list?.total ?? scanResults?.detected_issues?.length ?? latestScan?.issues_count ?? 0;
 
+  // Group work items by status
+  const grouped = useMemo(() => {
+    const groups: Record<string, WorkItem[]> = {};
+    for (const wi of workItems) {
+      const key = wi.status || "unknown";
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(wi);
+    }
+    return groups;
+  }, [workItems]);
+
+  const statusOrder = ["open", "in_progress", "done", "completed", "cancelled"];
+  const sortedGroupKeys = useMemo(() => {
+    const keys = Object.keys(grouped);
+    return keys.sort((a, b) => {
+      const ai = statusOrder.indexOf(a);
+      const bi = statusOrder.indexOf(b);
+      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+    });
+  }, [grouped]);
+
+  const toggleSection = (key: string) => setExpandedSections((prev) => ({ ...prev, [key]: !prev[key] }));
+  const toggleGroup = (key: string) => setExpandedGroups((prev) => ({ ...prev, [key]: !prev[key] }));
+
   const priorityColor = (p: string) => {
     switch (p) {
       case "critical": return "destructive";
@@ -66,145 +107,220 @@ const SystemExplorer = () => {
   };
 
   return (
-    <div className="space-y-6 p-4">
-      <div className="flex items-center gap-2">
-        <Database className="h-6 w-6 text-primary" />
-        <h1 className="text-2xl font-bold text-foreground">System Explorer</h1>
-        <Badge variant="outline" className="ml-2">READ-ONLY</Badge>
-      </div>
+    <div className="flex h-full min-h-0">
+      {/* Main tree panel */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex items-center gap-2">
+          <Database className="h-6 w-6 text-primary" />
+          <h1 className="text-2xl font-bold text-foreground">System Explorer</h1>
+          <Badge variant="outline" className="ml-2">READ-ONLY</Badge>
+        </div>
 
-      {/* SECTION 3: FLOW STATUS */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-        <Card>
-          <CardContent className="p-4 text-center">
-            <AlertTriangle className="h-5 w-5 mx-auto mb-1 text-orange-500" />
-            <div className="text-2xl font-bold">{detectedIssues}</div>
-            <div className="text-xs text-muted-foreground">Detected Issues</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <Activity className="h-5 w-5 mx-auto mb-1 text-blue-500" />
-            <div className="text-2xl font-bold">{workItems.length}</div>
-            <div className="text-xs text-muted-foreground">Total Work Items</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <Clock className="h-5 w-5 mx-auto mb-1 text-yellow-500" />
-            <div className="text-2xl font-bold">{activeCount}</div>
-            <div className="text-xs text-muted-foreground">Active</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <CheckCircle className="h-5 w-5 mx-auto mb-1 text-green-500" />
-            <div className="text-2xl font-bold">{completedCount}</div>
-            <div className="text-xs text-muted-foreground">Completed</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <Bug className="h-5 w-5 mx-auto mb-1 text-purple-500" />
-            <div className="text-2xl font-bold">{scanSourceCount}</div>
-            <div className="text-xs text-muted-foreground">From Scans</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <Shield className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
-            <div className="text-2xl font-bold">{manualSourceCount}</div>
-            <div className="text-xs text-muted-foreground">Manual</div>
-          </CardContent>
-        </Card>
-      </div>
+        {/* FLOW STATUS */}
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+          <Card>
+            <CardContent className="p-4 text-center">
+              <AlertTriangle className="h-5 w-5 mx-auto mb-1 text-orange-500" />
+              <div className="text-2xl font-bold">{detectedIssues}</div>
+              <div className="text-xs text-muted-foreground">Detected Issues</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 text-center">
+              <Activity className="h-5 w-5 mx-auto mb-1 text-blue-500" />
+              <div className="text-2xl font-bold">{workItems.length}</div>
+              <div className="text-xs text-muted-foreground">Total Work Items</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 text-center">
+              <Clock className="h-5 w-5 mx-auto mb-1 text-yellow-500" />
+              <div className="text-2xl font-bold">{activeCount}</div>
+              <div className="text-xs text-muted-foreground">Active</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 text-center">
+              <CheckCircle className="h-5 w-5 mx-auto mb-1 text-green-500" />
+              <div className="text-2xl font-bold">{completedCount}</div>
+              <div className="text-xs text-muted-foreground">Completed</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 text-center">
+              <Bug className="h-5 w-5 mx-auto mb-1 text-purple-500" />
+              <div className="text-2xl font-bold">{scanSourceCount}</div>
+              <div className="text-xs text-muted-foreground">From Scans</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 text-center">
+              <Shield className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
+              <div className="text-2xl font-bold">{manualSourceCount}</div>
+              <div className="text-xs text-muted-foreground">Manual</div>
+            </CardContent>
+          </Card>
+        </div>
 
-      {/* SECTION 4: DEBUG FLAGS */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm">Debug Flags</CardTitle>
-        </CardHeader>
-        <CardContent className="flex gap-4 text-sm">
-          <div>Dedup active: <Badge variant="outline">{workItems.some((w) => w.issue_fingerprint) ? "true" : "false"}</Badge></div>
-          <div>Ignored items: <Badge variant="outline">{ignoredCount > 0 ? `${ignoredCount} ignored` : "none"}</Badge></div>
-          <div>Cleanup (orphan fn): <Badge variant="outline">available</Badge></div>
-        </CardContent>
-      </Card>
+        {/* DEBUG FLAGS */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Debug Flags</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-4 text-sm">
+            <div>Dedup active: <Badge variant="outline">{workItems.some((w) => w.issue_fingerprint) ? "true" : "false"}</Badge></div>
+            <div>Ignored items: <Badge variant="outline">{ignoredCount > 0 ? `${ignoredCount} ignored` : "none"}</Badge></div>
+            <div>Cleanup (orphan fn): <Badge variant="outline">available</Badge></div>
+          </CardContent>
+        </Card>
 
-      {/* SECTION 2: LATEST SCAN */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm">Latest Scan Result</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {scanLoading ? (
-            <p className="text-sm text-muted-foreground">Laddar...</p>
-          ) : latestScan ? (
-            <div className="space-y-2 text-sm">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                <div><span className="text-muted-foreground">ID:</span> {latestScan.id.slice(0, 8)}…</div>
-                <div><span className="text-muted-foreground">Typ:</span> {latestScan.scan_type}</div>
-                <div><span className="text-muted-foreground">Score:</span> {latestScan.overall_score ?? "–"}</div>
-                <div><span className="text-muted-foreground">Issues:</span> {latestScan.issues_count ?? 0}</div>
-                <div><span className="text-muted-foreground">Tasks skapade:</span> {latestScan.tasks_created ?? 0}</div>
-                <div><span className="text-muted-foreground">Status:</span> {latestScan.overall_status ?? "–"}</div>
-                <div className="col-span-2"><span className="text-muted-foreground">Skapad:</span> {format(new Date(latestScan.created_at), "yyyy-MM-dd HH:mm")}</div>
-              </div>
-              {latestScan.executive_summary && (
-                <p className="text-muted-foreground border-t pt-2 mt-2">{latestScan.executive_summary}</p>
-              )}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">Ingen scan hittad.</p>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* SECTION 1: WORK ITEMS TABLE */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm">Work Items ({workItems.length})</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          {wiLoading ? (
-            <p className="p-4 text-sm text-muted-foreground">Laddar...</p>
-          ) : (
-            <div className="overflow-auto max-h-[500px]">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Title</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Priority</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Source</TableHead>
-                    <TableHead>AI</TableHead>
-                    <TableHead>Created</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {workItems.map((wi) => (
-                    <TableRow key={wi.id} className={wi.ignored ? "opacity-50" : ""}>
-                      <TableCell className="max-w-[300px] truncate text-xs">{wi.title}</TableCell>
-                      <TableCell><Badge variant={statusColor(wi.status)}>{wi.status}</Badge></TableCell>
-                      <TableCell><Badge variant={priorityColor(wi.priority)}>{wi.priority}</Badge></TableCell>
-                      <TableCell className="text-xs">{wi.item_type}</TableCell>
-                      <TableCell className="text-xs">{wi.source_type ?? "–"}</TableCell>
-                      <TableCell className="text-xs">{wi.ai_detected ? "✓" : "–"}</TableCell>
-                      <TableCell className="text-xs whitespace-nowrap">{format(new Date(wi.created_at), "MM-dd HH:mm")}</TableCell>
-                    </TableRow>
-                  ))}
+        {/* WORK ITEMS TREE */}
+        <Card>
+          <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("workItems")}>
+            <CardTitle className="text-sm flex items-center gap-2">
+              {expandedSections.workItems ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <Database className="h-4 w-4 text-primary" />
+              Work Items ({workItems.length})
+            </CardTitle>
+          </CardHeader>
+          {expandedSections.workItems && (
+            <CardContent className="pt-0 pl-2">
+              {wiLoading ? (
+                <p className="p-4 text-sm text-muted-foreground">Laddar...</p>
+              ) : (
+                <div className="space-y-1">
+                  {sortedGroupKeys.map((status) => {
+                    const items = grouped[status];
+                    const isOpen = expandedGroups[status] ?? false;
+                    return (
+                      <div key={status}>
+                        <button
+                          onClick={() => toggleGroup(status)}
+                          className="flex items-center gap-1.5 py-1 px-2 w-full text-left text-sm hover:bg-muted/50 rounded-md transition-colors"
+                        >
+                          {isOpen ? <FolderOpen className="h-4 w-4 text-muted-foreground" /> : <Folder className="h-4 w-4 text-muted-foreground" />}
+                          <span className="font-medium">{status}</span>
+                          <Badge variant={statusColor(status)} className="text-[10px] px-1.5 py-0 ml-1">{items.length}</Badge>
+                        </button>
+                        {isOpen && (
+                          <div className="ml-6 border-l border-border pl-2 space-y-0.5">
+                            {items.map((wi) => (
+                              <button
+                                key={wi.id}
+                                onClick={() => setSelectedItem(wi)}
+                                className={`flex items-center gap-2 py-1 px-2 w-full text-left text-xs rounded-md transition-colors hover:bg-muted/50 ${
+                                  selectedItem?.id === wi.id ? "bg-accent" : ""
+                                } ${wi.ignored ? "opacity-50" : ""}`}
+                              >
+                                <FileText className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
+                                <span className="truncate flex-1">{wi.title}</span>
+                                <Badge variant={priorityColor(wi.priority)} className="text-[10px] px-1 py-0 flex-shrink-0">{wi.priority}</Badge>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                   {workItems.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center text-muted-foreground">Inga work items.</TableCell>
-                    </TableRow>
+                    <p className="text-sm text-muted-foreground p-2">Inga work items.</p>
                   )}
-                </TableBody>
-              </Table>
-            </div>
+                </div>
+              )}
+            </CardContent>
           )}
-        </CardContent>
-      </Card>
+        </Card>
+
+        {/* SCAN RESULTS */}
+        <Card>
+          <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("scanResults")}>
+            <CardTitle className="text-sm flex items-center gap-2">
+              {expandedSections.scanResults ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <Bug className="h-4 w-4 text-primary" />
+              Latest Scan Result
+            </CardTitle>
+          </CardHeader>
+          {expandedSections.scanResults && (
+            <CardContent>
+              {scanLoading ? (
+                <p className="text-sm text-muted-foreground">Laddar...</p>
+              ) : latestScan ? (
+                <div className="space-y-2 text-sm">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    <div><span className="text-muted-foreground">ID:</span> {latestScan.id.slice(0, 8)}…</div>
+                    <div><span className="text-muted-foreground">Typ:</span> {latestScan.scan_type}</div>
+                    <div><span className="text-muted-foreground">Score:</span> {latestScan.overall_score ?? "–"}</div>
+                    <div><span className="text-muted-foreground">Issues:</span> {latestScan.issues_count ?? 0}</div>
+                    <div><span className="text-muted-foreground">Tasks skapade:</span> {latestScan.tasks_created ?? 0}</div>
+                    <div><span className="text-muted-foreground">Status:</span> {latestScan.overall_status ?? "–"}</div>
+                    <div className="col-span-2"><span className="text-muted-foreground">Skapad:</span> {format(new Date(latestScan.created_at), "yyyy-MM-dd HH:mm")}</div>
+                  </div>
+                  {latestScan.executive_summary && (
+                    <p className="text-muted-foreground border-t pt-2 mt-2">{latestScan.executive_summary}</p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Ingen scan hittad.</p>
+              )}
+            </CardContent>
+          )}
+        </Card>
+      </div>
+
+      {/* Detail side panel */}
+      {selectedItem && (
+        <div className="w-80 border-l border-border bg-card overflow-y-auto p-4 space-y-4 flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold text-foreground">Detail</h2>
+            <button onClick={() => setSelectedItem(null)} className="p-1 rounded-md hover:bg-muted/50">
+              <X className="h-4 w-4 text-muted-foreground" />
+            </button>
+          </div>
+          <div className="space-y-3 text-sm">
+            <div>
+              <span className="text-muted-foreground text-xs">Title</span>
+              <p className="font-medium">{selectedItem.title}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground text-xs">Status</span>
+              <div><Badge variant={statusColor(selectedItem.status)}>{selectedItem.status}</Badge></div>
+            </div>
+            <div>
+              <span className="text-muted-foreground text-xs">Priority</span>
+              <div><Badge variant={priorityColor(selectedItem.priority)}>{selectedItem.priority}</Badge></div>
+            </div>
+            <div>
+              <span className="text-muted-foreground text-xs">Type</span>
+              <p>{selectedItem.item_type}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground text-xs">Source</span>
+              <p>{selectedItem.source_type ?? "–"}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground text-xs">AI Detected</span>
+              <p>{selectedItem.ai_detected ? "Yes" : "No"}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground text-xs">Created</span>
+              <p>{format(new Date(selectedItem.created_at), "yyyy-MM-dd HH:mm:ss")}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground text-xs">ID</span>
+              <p className="font-mono text-xs break-all">{selectedItem.id}</p>
+            </div>
+            {selectedItem.issue_fingerprint && (
+              <div>
+                <span className="text-muted-foreground text-xs">Fingerprint</span>
+                <p className="font-mono text-xs break-all">{selectedItem.issue_fingerprint}</p>
+              </div>
+            )}
+            {selectedItem.ignored && (
+              <Badge variant="outline" className="mt-2">Ignored</Badge>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
