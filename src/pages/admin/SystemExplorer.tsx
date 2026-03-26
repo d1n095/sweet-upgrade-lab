@@ -837,6 +837,21 @@ const SystemExplorer = () => {
              </Button>
            )}
         </div>
+        {showRawScan && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Raw Scan Results (read-only)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <pre className="bg-muted/30 border border-border rounded-md p-3 text-[10px] font-mono overflow-auto max-h-[500px] whitespace-pre-wrap text-foreground select-all">
+                {scanResults ? JSON.stringify(scanResults, null, 2) : "No scan results available"}
+              </pre>
+            </CardContent>
+          </Card>
+        )}
         <div className="flex items-center gap-2">
           <select
             className="text-xs border border-border rounded-md px-2 py-1.5 bg-background text-foreground"
