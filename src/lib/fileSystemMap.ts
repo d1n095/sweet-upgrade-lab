@@ -153,6 +153,10 @@ export function getDuplicatedLines(minFiles = 3, minLineLength = 40): { line: st
     .sort((a, b) => b.files.length - a.files.length);
 }
 
+export function getRawSources(): Record<string, string> {
+  return rawSources;
+}
+
 export type AnalysisRating = "good" | "neutral" | "bad";
 
 export interface CodeIssue {
