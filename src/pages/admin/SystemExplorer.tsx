@@ -971,6 +971,19 @@ const SystemExplorer = () => {
                   {latestScan.executive_summary && (
                     <p className="text-muted-foreground border-t pt-2 mt-2">{latestScan.executive_summary}</p>
                   )}
+                  {/* High Attention Areas */}
+                  {scanResults?.high_attention_areas?.length > 0 && (
+                    <div className="border-t pt-2 mt-2">
+                      <p className="font-medium text-xs mb-1">🔴 High Attention Areas</p>
+                      <div className="flex flex-wrap gap-1">
+                        {scanResults.high_attention_areas.map((area: any, idx: number) => (
+                          <Badge key={idx} variant="destructive" className="text-[10px]">
+                            {area.type}/{area.target} — {area.reason}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">Ingen scan hittad.</p>
