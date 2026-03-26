@@ -1125,7 +1125,7 @@ const SystemExplorer = () => {
                         <p className="text-[10px] text-muted-foreground mb-1">Showing {allIssues.length} of {Array.isArray(issues) ? issues.length : "?"} issues</p>
                         {allIssues.map((issue: any, i: number) => (
                           <details key={i} className="border border-border/50 rounded-md p-1.5 text-[9px]">
-                            <summary className="cursor-pointer font-mono text-foreground truncate">{issue.title || issue.description || issue.message || JSON.stringify(issue).slice(0, 100)}</summary>
+                            <summary className="cursor-pointer font-mono text-foreground truncate flex items-center gap-1">{issue.title || issue.description || issue.message || JSON.stringify(issue).slice(0, 100)}{issue._status && <Badge variant={issue._status === "created" ? "default" : issue._status === "error" ? "destructive" : "secondary"} className="text-[8px] px-1 py-0 ml-1">{issue._status}</Badge>}</summary>
                             <pre className="mt-1 font-mono text-[8px] text-muted-foreground whitespace-pre-wrap">{JSON.stringify(issue, null, 2)}</pre>
                           </details>
                         ))}
