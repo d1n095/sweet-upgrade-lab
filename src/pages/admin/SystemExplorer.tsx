@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { tracedInvoke } from "@/lib/tracedInvoke";
 import { useAiQueueStore } from "@/stores/aiQueueStore";
-import { fileSystemMap, type FileEntry, getFileContent, getCodeIndex } from "@/lib/fileSystemMap";
+import { fileSystemMap, type FileEntry, getFileContent, getCodeIndex, getDuplicatedLines } from "@/lib/fileSystemMap";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useFounderRole } from "@/hooks/useFounderRole";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -977,6 +977,37 @@ const SystemExplorer = () => {
                 )}
               </CardContent>
             </Card>
+
+            {/* Duplicated Logic Issues */}
+            {(() => {
+              const dupes = getDuplicatedLines();
+              return dupes.length > 0 ? (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4 text-orange-500" />
+                      Possible Duplicated Logic ({dupes.length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-1 p-3 max-h-[300px] overflow-auto">
+                    {dupes.slice(0, 50).map((d, i) => (
+                      <details key={i} className="border border-orange-500/20 bg-orange-500/5 rounded-md p-2">
+                        <summary className="flex items-center gap-2 cursor-pointer text-[10px]">
+                          <Badge variant="outline" className="text-[8px] border-orange-500/30 text-orange-500">duplicate</Badge>
+                          <span className="text-muted-foreground">Found in {d.files.length} files</span>
+                          <span className="font-mono text-foreground truncate max-w-[400px]">{d.line.slice(0, 80)}{d.line.length > 80 ? "…" : ""}</span>
+                        </summary>
+                        <div className="mt-1 pl-4 space-y-0.5">
+                          {d.files.map((f, j) => (
+                            <div key={j} className="font-mono text-[9px] text-muted-foreground">{f}</div>
+                          ))}
+                        </div>
+                      </details>
+                    ))}
+                  </CardContent>
+                </Card>
+              ) : null;
+            })()}
             </div>
           );
         })()}
