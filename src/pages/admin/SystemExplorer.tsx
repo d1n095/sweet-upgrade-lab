@@ -397,7 +397,28 @@ const SystemExplorer = () => {
     },
     staleTime: 30_000,
   });
+  const [frontendViolations, setFrontendViolations] = useState<{ type: string; action: string; message: string }[]>([]);
 
+  function validateAction(actionName: string, fn: () => any) {
+    try {
+      const result = fn();
+      if (!result) {
+        throw new Error("No result returned");
+      }
+      return result;
+    } catch (err: any) {
+      console.error("🚨 ACTION FAILED:", actionName, err.message);
+      setFrontendViolations(prev => [
+        ...prev,
+        {
+          type: "ACTION_FAILED",
+          action: actionName,
+          message: err.message
+        }
+      ]);
+      return null;
+    }
+  }
 
   const { data: debugConsoleLogs = [] } = useQuery({
     queryKey: ["system-explorer-debug-console"],
