@@ -253,23 +253,24 @@ const SystemExplorer = () => {
         const uniqueRaw = [...new Map(allRaw.map(r => [r.title || JSON.stringify(r), r])).values()];
         detected = uniqueRaw.length;
         const skipped = Math.max(0, detected - created);
-        const ratio = detected > 0 ? created / detected : 0;
-        let health: "GOOD" | "WEAK" | "NOISY" = "GOOD";
-        if (!executed) health = "WEAK";
-        else if (detected === 0) health = "WEAK";
-        else if (ratio < 0.3 && skipped > 2) health = "NOISY";
-        else if (detected <= 1 && created === 0) health = "WEAK";
+        let health: "WORKING" | "DEAD" | "BLIND" | "OVER-FILTERING" | "DEDUP_BLOCKED" = "WORKING";
+        if (!executed) health = "DEAD";
+        else if (detected === 0 && (inputSize ?? 0) > 0) health = "BLIND";
+        else if (detected > 0 && created === 0 && skipped === detected) health = "OVER-FILTERING";
+        else if (detected > 0 && created === 0) health = "DEDUP_BLOCKED";
+        else if (created > 0) health = "WORKING";
+        else health = "BLIND";
         return { ...scanner, detected, afterFilter: created, skipped, created, health, rawIssues: uniqueRaw, executed, executionTimeMs, inputSize, emptyReason, scanStartedAt, scanFinishedAt, createTrace };
       });
 
       const groupDetected = scannerResults.reduce((s, r) => s + r.detected, 0);
       const groupCreated = scannerResults.reduce((s, r) => s + r.created, 0);
       const groupSkipped = scannerResults.reduce((s, r) => s + r.skipped, 0);
-      const weakCount = scannerResults.filter(r => r.health === "WEAK").length;
-      const noisyCount = scannerResults.filter(r => r.health === "NOISY").length;
-      let groupHealth: "GOOD" | "WEAK" | "NOISY" = "GOOD";
-      if (weakCount > scannerResults.length / 2) groupHealth = "WEAK";
-      else if (noisyCount > scannerResults.length / 2) groupHealth = "NOISY";
+      const deadCount = scannerResults.filter(r => r.health === "DEAD" || r.health === "BLIND").length;
+      const blockedCount = scannerResults.filter(r => r.health === "OVER-FILTERING" || r.health === "DEDUP_BLOCKED").length;
+      let groupHealth: "WORKING" | "DEAD" | "BLIND" | "OVER-FILTERING" | "DEDUP_BLOCKED" = "WORKING";
+      if (deadCount > scannerResults.length / 2) groupHealth = "DEAD";
+      else if (blockedCount > scannerResults.length / 2) groupHealth = "OVER-FILTERING";
 
       return { ...group, scanners: scannerResults, detected: groupDetected, created: groupCreated, skipped: groupSkipped, health: groupHealth };
     });
