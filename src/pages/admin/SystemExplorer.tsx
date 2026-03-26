@@ -209,6 +209,41 @@ const SystemExplorer = () => {
   const scanResults = latestScan?.results as Record<string, any> | null;
   const detectedIssues = scanResults?.master_list?.total ?? scanResults?.detected_issues?.length ?? latestScan?.issues_count ?? 0;
 
+  // Compute unscanned areas: entities in structure map not covered by any scanner scope
+  const unscannedAreas = useMemo(() => {
+    // Collect all scan scope targets from scanner groups
+    const scannedTargets = new Set<string>();
+    for (const group of SCANNER_GROUPS) {
+      for (const scanner of group.scanners) {
+        for (const key of scanner.matchKeys) {
+          scannedTargets.add(key);
+        }
+      }
+    }
+    // Also collect scan_scope targets from latest scan step_results
+    const stepResults = (scanResults?.step_results ?? scanResults) as Record<string, any> | null;
+    if (stepResults) {
+      for (const [, val] of Object.entries(stepResults)) {
+        if (val?._scan_scope?.target) scannedTargets.add(val._scan_scope.target);
+      }
+    }
+
+    return structureMap.filter((entry: any) => {
+      const name = entry.entity_name?.toLowerCase() || "";
+      return !Array.from(scannedTargets).some(t => name.includes(t.toLowerCase()) || t.toLowerCase().includes(name));
+    });
+  }, [structureMap, scanResults]);
+
+  const unscannedByType = useMemo(() => {
+    const groups: Record<string, any[]> = { component: [], route: [], data: [], flow: [] };
+    for (const entry of unscannedAreas) {
+      const type = entry.entity_type || "data";
+      if (!groups[type]) groups[type] = [];
+      groups[type].push(entry);
+    }
+    return groups;
+  }, [unscannedAreas]);
+
   // Scanner stats derived from scan results — organized by module groups
   const groupedScannerStats = useMemo(() => {
     const rawIssues = (scanResults?.issues as any[] | undefined) ?? [];
