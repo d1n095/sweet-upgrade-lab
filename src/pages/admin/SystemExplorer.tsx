@@ -1358,6 +1358,37 @@ const SystemExplorer = () => {
               </CardContent>
             </Card>
 
+            {codeScanResult && codeScanResult.length > 0 && (
+              <Card className="mt-3">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">Detected Issues ({codeScanResult.length})</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="max-h-[400px] overflow-auto">
+                    <table className="w-full text-[10px]">
+                      <thead className="sticky top-0 bg-background border-b border-border">
+                        <tr>
+                          <th className="text-left p-2 text-muted-foreground font-medium">File</th>
+                          <th className="text-left p-2 text-muted-foreground font-medium">Type</th>
+                          <th className="text-left p-2 text-muted-foreground font-medium">Message</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {codeScanResult.map((issue, idx) => (
+                          <tr key={idx} className="border-b border-border/50 hover:bg-muted/30">
+                            <td className="p-2 font-mono text-foreground truncate max-w-[250px]">{issue.file.replace(/^\//, "")}</td>
+                            <td className="p-2">
+                              <Badge className={`text-[8px] ${issue.type === "bug" ? "bg-red-500/20 text-red-500 border-red-500/30" : issue.type === "structure" ? "bg-yellow-500/20 text-yellow-500 border-yellow-500/30" : issue.type === "performance" ? "bg-orange-500/20 text-orange-500 border-orange-500/30" : "bg-muted text-muted-foreground border-border"}`}>{issue.type}</Badge>
+                            </td>
+                            <td className="p-2 text-muted-foreground">{issue.message}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
             {/* All Code Issues with Analysis */}
             {(() => {
               const ratingOrder = { good: 0, neutral: 1, bad: 2 } as const;
