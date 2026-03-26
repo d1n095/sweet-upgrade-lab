@@ -265,7 +265,7 @@ const SystemExplorer = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("scan_snapshots")
-        .select("id, created_at, total_scanners, total_detected, total_created, dead_scanners_count, blind_scanners_count, payload")
+        .select("id, created_at, total_scanners, total_detected, total_created, dead_scanners_count, blind_scanners_count, scan_confidence_score, coverage_total, coverage_unique_targets, diagnosis_summary, payload")
         .order("created_at", { ascending: false })
         .limit(10);
       if (error) throw error;
