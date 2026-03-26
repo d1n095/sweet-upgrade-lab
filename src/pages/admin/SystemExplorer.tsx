@@ -130,7 +130,27 @@ const SystemExplorer = () => {
     },
   });
 
-  // Structure map for unscanned areas
+  // System expectations for gap detection
+  const { data: systemExpectations = [] } = useQuery({
+    queryKey: ["system-explorer-expectations"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("system_expectations" as any)
+        .select("entity_type, entity_name, required")
+        .eq("required", true);
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+
+  // Missing required parts: expected but not in structure_map
+  const missingExpectations = useMemo(() => {
+    const structureKeys = new Set(structureMap.map((s: any) => `${s.entity_type}::${s.entity_name}`));
+    return systemExpectations.filter((exp: any) =>
+      exp.required && !structureKeys.has(`${exp.entity_type}::${exp.entity_name}`)
+    );
+  }, [systemExpectations, structureMap]);
+
   const { data: structureMap = [] } = useQuery({
     queryKey: ["system-explorer-structure-map"],
     queryFn: async () => {
