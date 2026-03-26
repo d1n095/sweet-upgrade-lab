@@ -1460,6 +1460,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     flow._issue_type = issueType;
     flow._suggested_fix = suggestedFixForType(issueType);
     flow._affected_area = flow.category === "flow_ui" ? { type: "flow", target: "ui_flows" } : CATEGORY_AREA_MAP.broken_flows;
+    flow._origin_source = "ai_scan";
     allWorkIssues.push({
       title: `Broken flow: ${flow.description || flow.route || flow.issue || "unknown"}${similarNote}`.slice(0, 120),
       priority: "high", item_type: "bug", description: flow.fix_suggestion || flow.detail || "",
@@ -1477,6 +1478,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     fake._issue_type = issueType;
     fake._suggested_fix = suggestedFixForType(issueType);
     fake._affected_area = CATEGORY_AREA_MAP.fake_features;
+    fake._origin_source = "ai_scan";
     allWorkIssues.push({
       title: `Fake feature: ${fake.name || fake.component || fake.description || "unknown"}${similarNote}`.slice(0, 120),
       priority: "high", item_type: "improvement", description: fake.reason || fake.detail || "",
@@ -1494,6 +1496,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     fail._issue_type = issueType;
     fail._suggested_fix = suggestedFixForType(issueType);
     fail._affected_area = CATEGORY_AREA_MAP.interaction_failures;
+    fail._origin_source = "ai_scan";
     allWorkIssues.push({
       title: `Interaction: ${fail.title || fail.element || fail.description || "unknown"}${similarNote}`.slice(0, 120),
       priority: fail.severity === "critical" ? "critical" : "high", item_type: "bug",
@@ -1512,6 +1515,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     issue._issue_type = issueType;
     issue._suggested_fix = suggestedFixForType(issueType);
     issue._affected_area = issue.category === "ui_visual" ? { type: "ui", target: "components" } : CATEGORY_AREA_MAP.data_issues;
+    issue._origin_source = "ai_scan";
     allWorkIssues.push({
       title: `Data: ${issue.title || issue.field || issue.description || "unknown"}${similarNote}`.slice(0, 120),
       priority: issue.severity === "critical" ? "critical" : "medium", item_type: "bug",
