@@ -598,6 +598,27 @@ const SystemExplorer = () => {
     );
   }, []);
 
+  // Structure sanity issues from file_system_map
+  const structureIssues = useMemo(() => {
+    const issues: { path: string; issue: string; issue_type: string; fix_confidence: number }[] = [];
+    for (const f of fileSystemMap) {
+      const fileName = f.path.split("/").pop() || "";
+      // Component file NOT in /components (PascalCase .tsx not in components or pages)
+      if (fileName.match(/^[A-Z]/) && fileName.match(/\.tsx$/) && f.type !== "component" && f.type !== "page") {
+        issues.push({ path: f.path, issue: "Component in wrong folder", issue_type: "improvement", fix_confidence: 3 });
+      }
+      // API logic in /components
+      if (f.type === "component" && f.has_api_logic) {
+        issues.push({ path: f.path, issue: "Logic misplaced in UI layer", issue_type: "improvement", fix_confidence: 3 });
+      }
+      // Page inside components folder
+      if (f.path.includes("/components/") && (fileName.toLowerCase().includes("page") || fileName.toLowerCase().includes("dashboard")) && !fileName.toLowerCase().includes("content")) {
+        issues.push({ path: f.path, issue: "Page incorrectly placed in components", issue_type: "improvement", fix_confidence: 3 });
+      }
+    }
+    return issues;
+  }, []);
+
   // Issue Clusters: group all scan issues by affected_area.target
   const issueClusters = useMemo(() => {
     const rawIssues = (scanResults?.issues as any[] | undefined) ?? [];
@@ -2421,6 +2442,40 @@ const SystemExplorer = () => {
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">Inga orphan-filer — alla filer importeras någonstans.</p>
+              )}
+            </CardContent>
+          )}
+        </Card>
+
+        {/* ── STRUCTURE SANITY ── */}
+        <Card>
+          <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("structureSanity")}>
+            <CardTitle className="text-sm flex items-center gap-2">
+              {expandedSections.structureSanity ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <Layers className="h-4 w-4 text-orange-500" />
+              Structure Sanity
+              {structureIssues.length > 0 && (
+                <Badge variant="destructive" className="text-[10px]">{structureIssues.length}</Badge>
+              )}
+              <Badge variant="outline" className="text-[10px]">improvement</Badge>
+            </CardTitle>
+            <p className="text-[10px] text-muted-foreground mt-1">Misplaced components, pages in wrong folders, logic in UI layer</p>
+          </CardHeader>
+          {expandedSections.structureSanity && (
+            <CardContent className="pt-0 max-h-[400px] overflow-y-auto">
+              {structureIssues.length > 0 ? (
+                <div className="space-y-1">
+                  {structureIssues.map((si, idx) => (
+                    <div key={idx} className="flex items-center gap-2 py-1 px-2 rounded-md bg-muted/30 border border-border">
+                      <Badge variant="outline" className="text-[8px] px-1 py-0 border-orange-500 text-orange-500">{si.issue_type}</Badge>
+                      <span className="font-mono text-[10px] text-foreground truncate flex-1">{si.path}</span>
+                      <span className="text-[9px] text-muted-foreground whitespace-nowrap">{si.issue}</span>
+                      <span className="text-[9px] text-muted-foreground whitespace-nowrap">Fix confidence: {si.fix_confidence}/5</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Inga strukturproblem — alla filer är korrekt placerade.</p>
               )}
             </CardContent>
           )}

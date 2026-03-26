@@ -6,6 +6,7 @@ interface FileEntry {
   type: "component" | "page" | "hook" | "lib" | "store" | "util" | "edge_function" | "other";
   folder: string;
   used_in: string[];
+  has_api_logic: boolean;
 }
 
 function classifyFile(path: string): FileEntry["type"] {
@@ -94,12 +95,18 @@ function buildMap(): FileEntry[] {
     }
   }
 
-  return cleanPaths.map((path) => ({
-    path,
-    type: classifyFile(path),
-    folder: extractFolder(path),
-    used_in: usageMap[path] || [],
-  })).sort((a, b) => a.path.localeCompare(b.path));
+  return cleanPaths.map((path) => {
+    const rawKey = "/" + path;
+    const source = typeof rawSources[rawKey] === "string" ? rawSources[rawKey] : "";
+    const has_api_logic = /supabase\.(from|rpc|auth|storage)|\.functions\.invoke|fetch\s*\(/.test(source);
+    return {
+      path,
+      type: classifyFile(path),
+      folder: extractFolder(path),
+      used_in: usageMap[path] || [],
+      has_api_logic,
+    };
+  }).sort((a, b) => a.path.localeCompare(b.path));
 }
 
 export const fileSystemMap: FileEntry[] = buildMap();
