@@ -2111,17 +2111,17 @@ serve(async (req) => {
     // ── START ──
     if (action === "start") {
       const authHeader = req.headers.get("authorization");
-      if (!authHeader) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
+      if (!authHeader) return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
       const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authHeader } } });
       const token = authHeader.replace("Bearer ", "");
       const { data: claimsData, error: claimsError } = await anonClient.auth.getClaims(token);
-      if (claimsError || !claimsData?.claims?.sub) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
+      if (claimsError || !claimsData?.claims?.sub) return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       const userId = claimsData.claims.sub as string;
 
       const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
       const isStaff = roles?.some((r: any) => ["admin", "founder", "it", "support", "moderator"].includes(r.role));
-      if (!isStaff) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 403, headers: corsHeaders });
+      if (!isStaff) return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
       // Check running scan lock
       const { data: running } = await supabase.from("scan_runs").select("id, started_by, current_step_label, started_at").eq("status", "running").limit(1);
@@ -2130,7 +2130,7 @@ serve(async (req) => {
         if (Date.now() - startedAt > 15 * 60 * 1000) {
           await supabase.from("scan_runs").update({ status: "error", error_message: "Timeout 15 min", completed_at: new Date().toISOString() }).eq("id", running[0].id);
         } else {
-          return new Response(JSON.stringify({ error: "En skanning körs redan", running_scan: running[0] }), { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          return new Response(JSON.stringify({ success: false, error: "En skanning körs redan", running_scan: running[0] }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
       }
 
@@ -2158,15 +2158,15 @@ serve(async (req) => {
         ...(isTargeted ? { scan_mode: "targeted", target_area, verification_for } : { scan_mode: "full" }),
       }).select("id").single();
 
-      if (insertError || !scanRun) return new Response(JSON.stringify({ error: "Failed to create scan run" }), { status: 500, headers: corsHeaders });
+      if (insertError || !scanRun) return new Response(JSON.stringify({ success: false, error: "Failed to create scan run" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
       fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
         body: JSON.stringify({ action: "process_step", scan_run_id: scanRun.id, step_index: 0, iteration: 1 }),
       }).catch((e) => console.error("Failed to chain first step:", e));
 
-      return new Response(JSON.stringify({ scan_run_id: scanRun.id, status: "started", system_stage: systemStage, scan_mode: isTargeted ? "targeted" : "full" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      return new Response(JSON.stringify({ success: true, scan_id: scanRun.id, status: "started", system_stage: systemStage, scan_mode: isTargeted ? "targeted" : "full" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
       });
     }
 
@@ -2174,10 +2174,10 @@ serve(async (req) => {
     if (action === "process_step" && scan_run_id && step_index !== undefined) {
       const currentIteration = iteration || 1;
       const { data: scanRun } = await supabase.from("scan_runs").select("*").eq("id", scan_run_id).single();
-      if (!scanRun || scanRun.status !== "running") return new Response(JSON.stringify({ error: "Scan not running" }), { status: 400, headers: corsHeaders });
+      if (!scanRun || scanRun.status !== "running") return new Response(JSON.stringify({ success: false, error: "Scan not running" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
       const step = currentIteration === 1 ? STEPS[step_index] : (scanRun._targeted_steps || STEPS)[step_index];
-      if (!step) return new Response(JSON.stringify({ error: "Invalid step index" }), { status: 400, headers: corsHeaders });
+      if (!step) return new Response(JSON.stringify({ success: false, error: "Invalid step index" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
       await supabase.from("scan_runs").update({ current_step: step_index, current_step_label: `[Iteration ${currentIteration}/${MAX_ITERATIONS}] ${step.label}`, iteration: currentIteration }).eq("id", scan_run_id);
 
@@ -2320,14 +2320,14 @@ serve(async (req) => {
         }).catch((e) => console.error("Failed to chain evaluation:", e));
       }
 
-      return new Response(JSON.stringify({ ok: true, step: step.id, step_index, iteration: currentIteration }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ success: true, ok: true, step: step.id, step_index, iteration: currentIteration }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
     }
 
     // ── EVALUATE_ITERATION ──
     if (action === "evaluate_iteration" && scan_run_id) {
       const currentIteration = iteration || 1;
       const { data: scanRun } = await supabase.from("scan_runs").select("*").eq("id", scan_run_id).single();
-      if (!scanRun || scanRun.status !== "running") return new Response(JSON.stringify({ error: "Scan not running" }), { status: 400, headers: corsHeaders });
+      if (!scanRun || scanRun.status !== "running") return new Response(JSON.stringify({ success: false, error: "Scan not running" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
       await supabase.from("scan_runs").update({ current_step_label: `[Iteration ${currentIteration}/${MAX_ITERATIONS}] Analyserar mönster...` }).eq("id", scan_run_id);
 
@@ -2372,7 +2372,7 @@ serve(async (req) => {
             method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
             body: JSON.stringify({ action: "process_step", scan_run_id, step_index: 0, iteration: currentIteration + 1 }),
           }).catch((e) => console.error("Failed to chain re-scan:", e));
-          return new Response(JSON.stringify({ ok: true, action: "recursing", iteration: currentIteration + 1 }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          return new Response(JSON.stringify({ success: true, ok: true, action: "recursing", iteration: currentIteration + 1 }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
         }
       }
 
@@ -2381,13 +2381,13 @@ serve(async (req) => {
         body: JSON.stringify({ action: "finalize", scan_run_id }),
       }).catch((e) => console.error("Failed to chain finalize:", e));
 
-      return new Response(JSON.stringify({ ok: true, action: "finalizing", iterations_completed: currentIteration }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ success: true, ok: true, action: "finalizing", iterations_completed: currentIteration }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
     }
 
     // ── FINALIZE ──
     if (action === "finalize" && scan_run_id) {
       const { data: scanRun } = await supabase.from("scan_runs").select("*").eq("id", scan_run_id).single();
-      if (!scanRun || scanRun.status !== "running") return new Response(JSON.stringify({ error: "Scan not running" }), { status: 400, headers: corsHeaders });
+      if (!scanRun || scanRun.status !== "running") return new Response(JSON.stringify({ success: false, error: "Scan not running" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
       const systemStage: SystemStage = scanRun.system_stage || await getSystemStage(supabase);
 
@@ -2819,7 +2819,7 @@ serve(async (req) => {
         scan_id: scan_run_id, trace_id: `full-scan-${scan_run_id.slice(0, 8)}`, component: "run-full-scan", duration_ms: totalDuration, user_id: scanRun.started_by,
       });
 
-      return new Response(JSON.stringify({ ok: true, action: "finalized", iterations: iterationsCompleted, work_items_created: workItemsCreated, system_stage: systemStage }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ success: true, scan_id: scan_run_id, detected: issuesCount, created: workItemsCreated, filtered: issuesCount - workItemsCreated, skipped: 0, action: "finalized", iterations: iterationsCompleted, system_stage: systemStage }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
     }
 
     // ── STATUS ──
@@ -2828,14 +2828,14 @@ serve(async (req) => {
       if (scan_run_id) query = query.eq("id", scan_run_id);
       else query = query.order("created_at", { ascending: false }).limit(1);
       const { data } = await query.single();
-      return new Response(JSON.stringify(data || null), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ success: true, ...(data || {}) }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
     }
 
     console.log("INVALID ACTION RECEIVED:", body.action);
-    return new Response(JSON.stringify({ error: "Invalid action" }), { status: 400, headers: corsHeaders });
+    return new Response(JSON.stringify({ success: false, error: "Invalid action" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
     console.error("run-full-scan error:", e);
-    await logRuntimeTrace("api", "run-full-scan", "/run-full-scan", e?.message || "Unknown", { stack: e?.stack?.slice(0, 500) }, request_trace_id);
-    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    try { await logRuntimeTrace("api", "run-full-scan", "/run-full-scan", e?.message || "Unknown", { stack: e?.stack?.slice(0, 500) }); } catch (_) {}
+    return new Response(JSON.stringify({ success: false, error: e?.message || "Unknown error" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
