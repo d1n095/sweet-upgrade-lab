@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { tracedInvoke } from "@/lib/tracedInvoke";
 import { useAiQueueStore } from "@/stores/aiQueueStore";
-import { fileSystemMap, type FileEntry, getFileContent, getCodeIndex, getDuplicatedLines, getCodeIssues } from "@/lib/fileSystemMap";
+import { fileSystemMap, type FileEntry, getFileContent, getCodeIndex, getDuplicatedLines, getCodeIssues, getRawSources } from "@/lib/fileSystemMap";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useFounderRole } from "@/hooks/useFounderRole";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -182,6 +182,7 @@ const SystemExplorer = () => {
   const [patchSubmitted, setPatchSubmitted] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [showBackendRaw, setShowBackendRaw] = useState(false);
+  const [fileScanResult, setFileScanResult] = useState<{ total: number; emptyFiles: number; largeFiles: number } | null>(null);
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | null>(null);
   const [verifyingFix, setVerifyingFix] = useState(false);
   const [verifyResult, setVerifyResult] = useState<{ itemId: string; status: "confirmed" | "failed"; scanId?: string } | null>(null);
@@ -1177,13 +1178,40 @@ const SystemExplorer = () => {
         {mainTab === "files" && (
           <div className="space-y-3">
             {/* Filters */}
-            <div className="flex gap-1">
+            <div className="flex gap-1 items-center">
               {(["all", "orphan", "has_issues"] as const).map((f) => (
                 <button key={f} onClick={() => setFilesFilter(f)} className={`px-2 py-1 text-[10px] rounded-md border transition-colors ${filesFilter === f ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:bg-muted/50"}`}>
                   {f === "all" ? `All (${fileSystemMap.length})` : f === "orphan" ? `Orphan (${fileSystemMap.filter(fi => fi.used_in.length === 0 && fi.type !== "page" && fi.type !== "edge_function").length})` : `Has Issues (${fileSystemMap.filter(fi => structureIssues.some(si => si.path === fi.path)).length})`}
                 </button>
               ))}
+              <Button variant="outline" size="sm" className="text-[10px] h-6 ml-auto" onClick={() => {
+                const sources = getRawSources();
+                const files = Object.keys(sources);
+                const result = {
+                  total: files.length,
+                  emptyFiles: files.filter(f => sources[f].trim() === "").length,
+                  largeFiles: files.filter(f => sources[f].length > 5000).length,
+                };
+                console.log("[FILE SCAN RESULT]:", result);
+                setFileScanResult(result);
+              }}>
+                Scan Files
+              </Button>
             </div>
+
+            {fileScanResult && (
+              <div className="flex gap-3 text-[10px]">
+                <div className="px-3 py-1.5 rounded-md bg-muted/30 border border-border">
+                  <span className="text-muted-foreground">Total: </span><span className="font-bold text-foreground">{fileScanResult.total}</span>
+                </div>
+                <div className="px-3 py-1.5 rounded-md bg-muted/30 border border-border">
+                  <span className="text-muted-foreground">Empty: </span><span className={`font-bold ${fileScanResult.emptyFiles > 0 ? "text-red-500" : "text-foreground"}`}>{fileScanResult.emptyFiles}</span>
+                </div>
+                <div className="px-3 py-1.5 rounded-md bg-muted/30 border border-border">
+                  <span className="text-muted-foreground">Large (5k+): </span><span className={`font-bold ${fileScanResult.largeFiles > 0 ? "text-yellow-500" : "text-foreground"}`}>{fileScanResult.largeFiles}</span>
+                </div>
+              </div>
+            )}
 
             <div className="flex gap-3 min-h-[500px]">
               {/* LEFT: Folder tree */}
