@@ -2127,6 +2127,74 @@ const SystemExplorer = () => {
                   )}
                 </div>
               )}
+              {/* Data Trace Section */}
+              {(() => {
+                const meta = (selectedItem as any).metadata ? (typeof (selectedItem as any).metadata === "string" ? JSON.parse((selectedItem as any).metadata) : (selectedItem as any).metadata) : {};
+                const dt = meta?.data_trace;
+                const it = meta?.id_trace;
+                const vf = meta?.validation_fields;
+                const hasTrace = dt || it || vf;
+                if (!hasTrace) return null;
+
+                const traceSteps = [];
+                if (dt) {
+                  traceSteps.push(
+                    { label: "UI (Input)", ok: dt.input_detected },
+                    { label: "MAP", ok: dt.mapped },
+                    { label: "TRANSFORM", ok: dt.transformed },
+                    { label: "DB (Saved)", ok: dt.saved_to_db },
+                  );
+                }
+                if (it) {
+                  traceSteps.push(
+                    { label: "ID Generated", ok: it.generated },
+                    { label: "ID Persisted", ok: it.persisted },
+                    { label: "ID Returned", ok: it.returned },
+                  );
+                }
+
+                return (
+                  <div className="border border-border rounded-md p-2 bg-muted/30 space-y-2">
+                    <span className="text-muted-foreground text-xs font-medium">Data Trace</span>
+                    {traceSteps.length > 0 && (
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {traceSteps.map((step, idx) => (
+                          <React.Fragment key={step.label}>
+                            <span className={`text-[9px] px-1.5 py-0.5 rounded border font-medium ${step.ok ? "border-primary/30 text-primary bg-primary/5" : "border-destructive/40 text-destructive bg-destructive/5 font-bold"}`}>
+                              {step.ok ? "✅" : "❌"} {step.label}
+                            </span>
+                            {idx < traceSteps.length - 1 && <span className="text-[9px] text-muted-foreground">→</span>}
+                          </React.Fragment>
+                        ))}
+                      </div>
+                    )}
+                    {vf && (
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1">
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded border ${vf.id === "present" ? "border-primary/30 text-primary" : "border-destructive/40 text-destructive font-bold"}`}>
+                            {vf.id === "present" ? "✅" : "❌"} ID: {vf.id}
+                          </span>
+                        </div>
+                        {vf.required_fields_missing?.length > 0 && (
+                          <p className="text-[9px] text-destructive">❌ Missing: {vf.required_fields_missing.join(", ")}</p>
+                        )}
+                        {vf.null_fields?.length > 0 && (
+                          <p className="text-[9px] text-destructive">⚠️ Null: {vf.null_fields.join(", ")}</p>
+                        )}
+                        {(!vf.required_fields_missing?.length && !vf.null_fields?.length && vf.id === "present") && (
+                          <p className="text-[9px] text-primary">✅ All fields valid</p>
+                        )}
+                      </div>
+                    )}
+                    {/* Break point indicator */}
+                    {traceSteps.some(s => !s.ok) && (
+                      <p className="text-[9px] text-destructive font-medium">
+                        💥 Break at: {traceSteps.find(s => !s.ok)?.label}
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
               <div>
                 <span className="text-muted-foreground text-xs">Created By</span>
                 <p className="font-mono text-xs break-all">{selectedItem.created_by ?? "–"}</p>
