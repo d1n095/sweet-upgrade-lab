@@ -173,6 +173,9 @@ const SystemExplorer = () => {
   const [aiAnswer, setAiAnswer] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiFocusArea, setAiFocusArea] = useState<string | null>(null);
+  const [mainTab, setMainTab] = useState<"system" | "files">("system");
+  const [filesFilter, setFilesFilter] = useState<"all" | "orphan" | "has_issues">("all");
+  const [selectedFile, setSelectedFile] = useState<FileEntry | null>(null);
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | null>(null);
   const [verifyingFix, setVerifyingFix] = useState(false);
   const [verifyResult, setVerifyResult] = useState<{ itemId: string; status: "confirmed" | "failed"; scanId?: string } | null>(null);
@@ -893,6 +896,167 @@ const SystemExplorer = () => {
              </Button>
            )}
         </div>
+
+        {/* TAB BAR */}
+        <div className="flex gap-1 border-b border-border">
+          <button onClick={() => setMainTab("system")} className={`px-3 py-1.5 text-xs font-medium rounded-t-md transition-colors ${mainTab === "system" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"}`}>
+            System
+          </button>
+          <button onClick={() => setMainTab("files")} className={`px-3 py-1.5 text-xs font-medium rounded-t-md transition-colors ${mainTab === "files" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"}`}>
+            Files ({fileSystemMap.length})
+          </button>
+        </div>
+
+        {/* FILES TAB */}
+        {mainTab === "files" && (
+          <div className="space-y-3">
+            {/* Filters */}
+            <div className="flex gap-1">
+              {(["all", "orphan", "has_issues"] as const).map((f) => (
+                <button key={f} onClick={() => setFilesFilter(f)} className={`px-2 py-1 text-[10px] rounded-md border transition-colors ${filesFilter === f ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:bg-muted/50"}`}>
+                  {f === "all" ? `All (${fileSystemMap.length})` : f === "orphan" ? `Orphan (${fileSystemMap.filter(fi => fi.used_in.length === 0 && fi.type !== "page" && fi.type !== "edge_function").length})` : `Has Issues (${fileSystemMap.filter(fi => structureIssues.some(si => si.path === fi.path)).length})`}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex gap-3 min-h-[500px]">
+              {/* LEFT: Folder tree */}
+              <div className="w-1/2 border border-border rounded-md overflow-y-auto max-h-[600px]">
+                {(() => {
+                  const filtered = fileSystemMap.filter((f) => {
+                    if (filesFilter === "orphan") return f.used_in.length === 0 && f.type !== "page" && f.type !== "edge_function";
+                    if (filesFilter === "has_issues") return structureIssues.some(si => si.path === f.path);
+                    return true;
+                  });
+                  const tree: Record<string, FileEntry[]> = {};
+                  for (const f of filtered) {
+                    if (!tree[f.folder]) tree[f.folder] = [];
+                    tree[f.folder].push(f);
+                  }
+                  const folders = Object.keys(tree).sort();
+                  return (
+                    <div className="space-y-0.5 p-1">
+                      {folders.map((folder) => {
+                        const files = tree[folder];
+                        const fKey = `ftab_${folder}`;
+                        const isOpen = expandedScanners[fKey] ?? false;
+                        return (
+                          <div key={folder}>
+                            <button
+                              onClick={() => setExpandedScanners(prev => ({ ...prev, [fKey]: !prev[fKey] }))}
+                              className="flex items-center gap-1.5 w-full text-left px-2 py-1 text-[10px] hover:bg-muted/50 rounded-md"
+                            >
+                              {isOpen ? <FolderOpen className="h-3 w-3 text-primary" /> : <Folder className="h-3 w-3 text-muted-foreground" />}
+                              <span className="font-mono truncate flex-1">{folder}</span>
+                              <Badge variant="outline" className="text-[8px]">{files.length}</Badge>
+                            </button>
+                            {isOpen && (
+                              <div className="pl-4 space-y-0.5">
+                                {files.map((f) => {
+                                  const isOrphan = f.used_in.length === 0 && f.type !== "page" && f.type !== "edge_function";
+                                  const hasIssue = structureIssues.some(si => si.path === f.path);
+                                  const isSelected = selectedFile?.path === f.path;
+                                  return (
+                                    <button
+                                      key={f.path}
+                                      onClick={() => setSelectedFile(f)}
+                                      className={`flex items-center gap-1.5 w-full text-left px-2 py-0.5 text-[10px] rounded-md transition-colors ${isSelected ? "bg-primary/20 border border-primary/30" : "hover:bg-muted/30"}`}
+                                    >
+                                      <FileText className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                                      <span className="font-mono truncate flex-1">{f.path.split("/").pop()}</span>
+                                      {isOrphan && <span className="text-[8px] text-destructive">●</span>}
+                                      {hasIssue && <span className="text-[8px] text-orange-500">▲</span>}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                      {folders.length === 0 && <p className="text-xs text-muted-foreground p-2">Inga filer matchar filtret.</p>}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* RIGHT: Selected file info */}
+              <div className="w-1/2 border border-border rounded-md p-3 overflow-y-auto max-h-[600px]">
+                {selectedFile ? (
+                  <div className="space-y-3">
+                    <div>
+                      <span className="text-[10px] text-muted-foreground">File Path</span>
+                      <p className="font-mono text-xs text-foreground break-all">{selectedFile.path}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Badge variant="secondary" className="text-[9px]">{selectedFile.type}</Badge>
+                      {selectedFile.used_in.length === 0 && selectedFile.type !== "page" && selectedFile.type !== "edge_function" && (
+                        <Badge variant="destructive" className="text-[9px]">orphan</Badge>
+                      )}
+                      {selectedFile.has_api_logic && (
+                        <Badge variant="outline" className="text-[9px] border-orange-500 text-orange-500">API logic</Badge>
+                      )}
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] text-muted-foreground">Used In ({selectedFile.used_in.length})</span>
+                      {selectedFile.used_in.length > 0 ? (
+                        <div className="space-y-0.5 mt-1">
+                          {selectedFile.used_in.map((ref) => (
+                            <div key={ref} className="font-mono text-[10px] text-foreground bg-muted/30 rounded px-2 py-0.5">{ref}</div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-[10px] text-destructive mt-1">Not imported anywhere</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] text-muted-foreground">Issues Linked</span>
+                      {(() => {
+                        const linked = structureIssues.filter(si => si.path === selectedFile.path);
+                        const wiLinked = workItems.filter((wi: any) => wi.source_file === selectedFile.path || wi.source_path === selectedFile.path);
+                        const all = [...linked.map(l => ({ label: l.issue, type: l.issue_type, confidence: l.fix_confidence })), ...wiLinked.map((w: any) => ({ label: w.title, type: w.item_type, confidence: null }))];
+                        if (all.length === 0) return <p className="text-[10px] text-muted-foreground mt-1">No issues</p>;
+                        return (
+                          <div className="space-y-0.5 mt-1">
+                            {all.map((item, i) => (
+                              <div key={i} className="flex items-center gap-1.5 text-[10px] bg-muted/30 rounded px-2 py-0.5">
+                                <Badge variant="outline" className="text-[8px] px-1 py-0">{item.type}</Badge>
+                                <span className="text-foreground truncate">{item.label}</span>
+                                {item.confidence != null && <span className="text-muted-foreground ml-auto">🎯 {item.confidence}/5</span>}
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })()}
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] text-muted-foreground">Orphan Status</span>
+                      <p className="text-xs mt-0.5">
+                        {selectedFile.type === "page" || selectedFile.type === "edge_function"
+                          ? <span className="text-muted-foreground">Entry point — not checked</span>
+                          : selectedFile.used_in.length > 0
+                            ? <span className="text-green-500">✅ Active — {selectedFile.used_in.length} reference(s)</span>
+                            : <span className="text-destructive">⚠️ Orphan — no imports found</span>
+                        }
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-muted-foreground text-xs">
+                    Select a file to view details
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* SYSTEM TAB */}
+        {mainTab === "system" && (
+        <>
         {showRawScan && (
           <Card>
             <CardHeader className="pb-2">
@@ -2483,6 +2647,8 @@ const SystemExplorer = () => {
             </CardContent>
           )}
         </Card>
+        </>
+        )}
       </div>
       {selectedItem && (
         <div className="w-80 border-l border-border bg-card overflow-y-auto p-4 space-y-4 flex-shrink-0">
