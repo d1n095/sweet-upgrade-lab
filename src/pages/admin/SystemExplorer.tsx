@@ -1131,7 +1131,20 @@ const SystemExplorer = () => {
             Refresh
           </Button>
           {isSystemAdmin && (
-            <Button variant="default" size="sm" onClick={() => runSystemScan("full")} disabled={isScanning}>
+            <Button variant="default" size="sm" onClick={() =>
+              validateAction("FULL_SCAN", async () => {
+                const structure_map = Object.keys(getRawSources() || {});
+                if (!structure_map.length) {
+                  throw new Error("No structure map");
+                }
+                setIsScanning(true);
+                await supabase.functions.invoke("run-full-scan", {
+                  body: { action: "start", scan_mode: "full", structure_map: structure_map.map(p => ({ path: p })) }
+                });
+                setIsScanning(false);
+                return true;
+              })
+            } disabled={isScanning}>
               {isScanning ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Radar className="h-4 w-4 mr-1" />}
               {isScanning ? "Scanning..." : "Run Full Scan"}
             </Button>
