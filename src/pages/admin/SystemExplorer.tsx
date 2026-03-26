@@ -12,6 +12,8 @@ type WorkItem = {
   title: string;
   status: string;
   source_type: string | null;
+  source_id: string | null;
+  created_by: string | null;
   item_type: string;
   priority: string;
   ai_detected: boolean | null;
@@ -33,7 +35,7 @@ const SystemExplorer = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("work_items")
-        .select("id, title, status, source_type, item_type, priority, ai_detected, created_at, issue_fingerprint, ignored")
+        .select("id, title, status, source_type, source_id, created_by, item_type, priority, ai_detected, created_at, issue_fingerprint, ignored")
         .order("created_at", { ascending: false })
         .limit(200);
       if (error) throw error;
@@ -311,8 +313,20 @@ const SystemExplorer = () => {
               <p>{selectedItem.item_type}</p>
             </div>
             <div>
-              <span className="text-muted-foreground text-xs">Source</span>
+              <span className="text-muted-foreground text-xs">Source Type</span>
               <p>{selectedItem.source_type ?? "–"}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground text-xs">Source ID</span>
+              <p className="font-mono text-xs break-all">{selectedItem.source_id ?? "–"}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground text-xs">Origin</span>
+              <p>{selectedItem.source_type === "scan" || selectedItem.source_type === "ai_scan" ? "scan" : selectedItem.source_type === "manual" ? "manual" : "system"}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground text-xs">Created By</span>
+              <p className="font-mono text-xs break-all">{selectedItem.created_by ?? "–"}</p>
             </div>
             <div>
               <span className="text-muted-foreground text-xs">AI Detected</span>
