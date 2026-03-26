@@ -2199,6 +2199,7 @@ serve(async (req) => {
 
     // ── PROCESS_STEP ──
     if (action === "process_step" && scan_run_id && step_index !== undefined) {
+      console.log("[SCAN] running scanners — step:", step_index, "iteration:", iteration);
       const currentIteration = iteration || 1;
       const { data: scanRun } = await supabase.from("scan_runs").select("*").eq("id", scan_run_id).single();
       if (!scanRun || scanRun.status !== "running") return new Response(JSON.stringify({ success: false, error: "Scan not running" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -2413,6 +2414,7 @@ serve(async (req) => {
 
     // ── FINALIZE ──
     if (action === "finalize" && scan_run_id) {
+      console.log("[SCAN] creating work items — finalize phase");
       const { data: scanRun } = await supabase.from("scan_runs").select("*").eq("id", scan_run_id).single();
       if (!scanRun || scanRun.status !== "running") return new Response(JSON.stringify({ success: false, error: "Scan not running" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
@@ -2848,6 +2850,7 @@ serve(async (req) => {
         scan_id: scan_run_id, trace_id: `full-scan-${scan_run_id.slice(0, 8)}`, component: "run-full-scan", duration_ms: totalDuration, user_id: scanRun.started_by,
       });
 
+      console.log("[SCAN] finished — detected:", issuesCount, "created:", workItemsCreated);
       return new Response(JSON.stringify({ success: true, scan_id: scan_run_id, detected: issuesCount, created: workItemsCreated, filtered: issuesCount - workItemsCreated, skipped: 0, action: "finalized", iterations: iterationsCompleted, system_stage: systemStage }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
     }
 
