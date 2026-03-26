@@ -1058,7 +1058,7 @@ const SystemExplorer = () => {
             <div className="space-y-3">
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2"><Radar className="h-4 w-4" /> Backend Scan</CardTitle>
+                <CardTitle className="text-sm flex items-center gap-2"><Radar className="h-4 w-4" /> Backend Scan <span className="text-[9px] text-green-500/80 font-mono ml-2">✔ Real scan (Supabase)</span></CardTitle>
               </CardHeader>
               <CardContent className="p-3">
                 {backendScanLoading ? (
