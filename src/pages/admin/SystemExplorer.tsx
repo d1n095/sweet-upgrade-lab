@@ -360,6 +360,21 @@ const SystemExplorer = () => {
     return groups;
   }, [orphanEntities]);
 
+  // Issue Clusters: group all scan issues by affected_area.target
+  const issueClusters = useMemo(() => {
+    const rawIssues = (scanResults?.issues as any[] | undefined) ?? [];
+    const clusterMap = new Map<string, { target: string; type: string; issues: any[] }>();
+    for (const issue of rawIssues) {
+      const target = issue._affected_area?.target || issue.component || issue.category || "unknown";
+      const type = issue._affected_area?.type || issue.type || "general";
+      if (!clusterMap.has(target)) clusterMap.set(target, { target, type, issues: [] });
+      clusterMap.get(target)!.issues.push(issue);
+    }
+    return Array.from(clusterMap.values())
+      .map((c, idx) => ({ ...c, cluster_id: `cluster_${idx}`, cluster_size: c.issues.length }))
+      .sort((a, b) => b.cluster_size - a.cluster_size);
+  }, [scanResults]);
+
   // Scanner stats derived from scan results — organized by module groups
   const groupedScannerStats = useMemo(() => {
     const rawIssues = (scanResults?.issues as any[] | undefined) ?? [];
