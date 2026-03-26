@@ -1280,6 +1280,64 @@ const SystemExplorer = () => {
             </CardContent>
           )}
         </Card>
+
+        {/* ── NO ISSUES DETECTED (LOW SIGNAL) SECTION ── */}
+        <Card>
+          <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("noIssueAreas")}>
+            <CardTitle className="text-sm flex items-center gap-2">
+              {expandedSections.noIssueAreas ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <Radar className="h-4 w-4 text-muted-foreground" />
+              No Issues Detected (Low Signal)
+              {noIssueEntities.length > 0 && (
+                <Badge variant="destructive" className="text-[10px]">{noIssueEntities.length}</Badge>
+              )}
+              <Badge variant="outline" className="text-[10px]">READ-ONLY</Badge>
+            </CardTitle>
+            <p className="text-[10px] text-muted-foreground mt-1">Entities scanned but never flagged — possible fake clean areas or broken scanners</p>
+          </CardHeader>
+          {expandedSections.noIssueAreas && (
+            <CardContent>
+              {noIssueEntities.length > 0 ? (
+                <div className="space-y-3">
+                  {(["component", "route", "data", "flow"] as const).map((type) => {
+                    const items = noIssueByType[type] || [];
+                    if (items.length === 0) return null;
+                    const typeLabels: Record<string, string> = { component: "🖥️ Components", route: "🔗 Routes", data: "🗄️ Data", flow: "🔀 Flows" };
+                    return (
+                      <div key={type}>
+                        <p className="text-xs font-medium text-muted-foreground mb-1">{typeLabels[type] || type} ({items.length})</p>
+                        <div className="border rounded-md overflow-hidden">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="border-b bg-muted/50">
+                                <th className="text-left p-2 font-medium text-muted-foreground">Entity</th>
+                                <th className="text-left p-2 font-medium text-muted-foreground">Last Seen</th>
+                                <th className="text-left p-2 font-medium text-muted-foreground">Scans</th>
+                                <th className="text-left p-2 font-medium text-muted-foreground">Flag</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {items.map((entry: any, idx: number) => (
+                                <tr key={idx} className="border-b last:border-b-0">
+                                  <td className="p-2 font-mono text-foreground">{entry.entity_name}</td>
+                                  <td className="p-2 text-muted-foreground">{entry.last_seen_at ? format(new Date(entry.last_seen_at), "yyyy-MM-dd HH:mm") : "—"}</td>
+                                  <td className="p-2 text-muted-foreground">{entry.scan_count}</td>
+                                  <td className="p-2"><Badge variant="outline" className="text-[9px] border-destructive text-destructive">no_issues_detected</Badge></td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Alla entiteter har registrerade issues — inga misstänkta luckor.</p>
+              )}
+            </CardContent>
+          )}
+        </Card>
       </div>
 
       {/* Detail side panel */}
