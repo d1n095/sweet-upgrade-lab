@@ -144,6 +144,28 @@ const SystemExplorer = () => {
     },
   });
 
+  // System expectations for gap detection
+  const { data: systemExpectations = [] } = useQuery({
+    queryKey: ["system-explorer-expectations"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("system_expectations" as any)
+        .select("entity_type, entity_name, required")
+        .eq("required", true);
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+
+  // Missing required parts: expected but not in structure_map
+  const missingExpectations = useMemo(() => {
+    const structureKeys = new Set(structureMap.map((s: any) => `${s.entity_type}::${s.entity_name}`));
+    return systemExpectations.filter((exp: any) =>
+      exp.required && !structureKeys.has(`${exp.entity_type}::${exp.entity_name}`)
+    );
+  }, [systemExpectations, structureMap]);
+
+
   const handleRefresh = async () => {
     setIsRefreshing(true);
     await Promise.all([
@@ -1634,6 +1656,24 @@ const SystemExplorer = () => {
                     </ul>
                   </div>
                 ) : <p className="text-[10px] text-muted-foreground">✅ Allt skannat</p>;
+              })()}
+
+              {/* 7. MISSING REQUIRED SYSTEM PARTS */}
+              {(() => {
+                return missingExpectations.length > 0 ? (
+                  <div>
+                    <h4 className="text-xs font-bold text-destructive mb-1">🚨 Missing Required System Parts</h4>
+                    <ul className="space-y-0.5">
+                      {missingExpectations.slice(0, 10).map((exp: any, idx: number) => (
+                        <li key={idx} className="text-[10px] text-foreground flex items-start gap-1">
+                          <span className="text-destructive">•</span>
+                          <span><strong>{exp.entity_name}</strong> <span className="text-muted-foreground">({exp.entity_type})</span> — impact 5/5</span>
+                        </li>
+                      ))}
+                      {missingExpectations.length > 10 && <li className="text-[9px] text-muted-foreground">…och {missingExpectations.length - 10} till</li>}
+                    </ul>
+                  </div>
+                ) : <p className="text-[10px] text-muted-foreground">✅ Alla förväntade systemdelar hittade</p>;
               })()}
             </CardContent>
           )}

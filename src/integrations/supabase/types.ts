@@ -3418,6 +3418,30 @@ export type Database = {
         }
         Relationships: []
       }
+      system_expectations: {
+        Row: {
+          created_at: string
+          entity_name: string
+          entity_type: string
+          id: string
+          required: boolean
+        }
+        Insert: {
+          created_at?: string
+          entity_name: string
+          entity_type: string
+          id?: string
+          required?: boolean
+        }
+        Update: {
+          created_at?: string
+          entity_name?: string
+          entity_type?: string
+          id?: string
+          required?: boolean
+        }
+        Relationships: []
+      }
       system_history: {
         Row: {
           ai_review_at: string | null
