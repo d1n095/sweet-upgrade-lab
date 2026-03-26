@@ -186,6 +186,7 @@ const SystemExplorer = () => {
   const [codeScanResult, setCodeScanResult] = useState<{ filesWithApi: number; filesWithState: number; largeFiles: number } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<{ path: string; lineNumber: number; line: string }[]>([]);
+  const [lastAction, setLastAction] = useState("");
 
   function handleSearch() {
     if (!searchQuery) return;
@@ -919,6 +920,7 @@ const SystemExplorer = () => {
       {/* Main tree panel */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         <p className="text-xs text-green-500 font-mono">TEST BUILD OK — Files detected: {fileSystemMap.length}</p>
+        <div className="text-[10px] font-mono text-muted-foreground">Last action: {lastAction || "none"}</div>
         <div className="flex gap-2 items-center">
           <Input
             placeholder="Search code..."
