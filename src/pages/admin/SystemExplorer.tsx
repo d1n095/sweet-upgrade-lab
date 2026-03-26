@@ -668,6 +668,18 @@ const SystemExplorer = () => {
                                   </div>
                                 </div>
                               )}
+                              {/* Coverage */}
+                              <div className="px-2.5 pb-1.5 text-[10px] border-t border-border/30 pt-1">
+                                <div className="text-center">
+                                  <div className="text-muted-foreground mb-0.5">Coverage</div>
+                                  {(() => {
+                                    const size = scanner.scanScope?.size ?? scanner.inputSize ?? 0;
+                                    if (size === 0) return <div className="font-bold text-destructive">NO INPUT</div>;
+                                    const ratio = ((scanner.detected / size) * 100).toFixed(1);
+                                    return <div className="font-bold">{scanner.detected} issues / {size} scanned ({ratio}%)</div>;
+                                  })()}
+                                </div>
+                              </div>
                               </div>
                               {scannerExpanded && scanner.rawIssues.length > 0 && (
                                 <div className="px-2.5 pb-2 border-t border-border/50 pt-1.5">
