@@ -3092,7 +3092,7 @@ serve(async (req) => {
           explanation: explainViolation(typeof v === "string" ? { message: v } : v, scanContext)
         }));
         console.error("🚨 SYSTEM VIOLATIONS:", enrichedViolations);
-        return new Response(JSON.stringify({ success: false, violations: enrichedViolations, scan_id: scan_run_id, detected: issuesCount, created: workItemsCreated, scanContext }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
+        return new Response(JSON.stringify({ success: false, violations: enrichedViolations, context: scanContext, scan_id: scan_run_id }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
       }
 
       console.log("[SCAN] finished — detected:", issuesCount, "created:", workItemsCreated, "scanContext:", JSON.stringify(scanContext));
