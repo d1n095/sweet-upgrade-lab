@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { Database, Activity, Bug, CheckCircle, AlertTriangle, Clock, Shield, ChevronRight, ChevronDown, X, Folder, FolderOpen, FileText, RefreshCw, Cpu, ArrowRight, Filter, Layers, History } from "lucide-react";
+import { Database, Activity, Bug, CheckCircle, AlertTriangle, Clock, Shield, ChevronRight, ChevronDown, X, Folder, FolderOpen, FileText, RefreshCw, Cpu, ArrowRight, Filter, Layers, History, Radar, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type WorkItem = {
@@ -24,7 +24,8 @@ type WorkItem = {
 
 const SystemExplorer = () => {
   const queryClient = useQueryClient();
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ workItems: true, scanResults: true, aiFlow: true });
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ workItems: true, scanResults: true, aiFlow: true, scanners: true });
+  const [expandedScanners, setExpandedScanners] = useState<Record<string, boolean>>({});
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({ open: true, in_progress: true, done: false, completed: false, cancelled: false });
   const [selectedItem, setSelectedItem] = useState<WorkItem | null>(null);
   const [detailTab, setDetailTab] = useState<"info" | "history">("info");
@@ -110,7 +111,38 @@ const SystemExplorer = () => {
   const scanResults = latestScan?.results as Record<string, any> | null;
   const detectedIssues = scanResults?.master_list?.total ?? scanResults?.detected_issues?.length ?? latestScan?.issues_count ?? 0;
 
-  // Group work items by status
+  // Scanner stats derived from scan results issues
+  const scannerStats = useMemo(() => {
+    const rawIssues = (scanResults?.issues as any[] | undefined) ?? [];
+    const categoryMap: Record<string, { raw: any[]; created: number }> = {};
+    for (const issue of rawIssues) {
+      const cat = issue.category || issue.type || "unknown";
+      if (!categoryMap[cat]) categoryMap[cat] = { raw: [], created: 0 };
+      categoryMap[cat].raw.push(issue);
+    }
+    // Match work_items created from scan to categories
+    const scanItems = workItems.filter(w => w.source_type === "scan" || w.source_type === "ai_scan" || w.source_type === "ai_detection");
+    for (const wi of scanItems) {
+      // Try to match by item_type or a rough category
+      const cat = wi.item_type || "unknown";
+      if (categoryMap[cat]) {
+        categoryMap[cat].created++;
+      }
+    }
+    return Object.entries(categoryMap).map(([name, data]) => {
+      const detected = data.raw.length;
+      const created = data.created;
+      const filtered = Math.max(0, detected - created);
+      const ratio = detected > 0 ? created / detected : 0;
+      let health: "GOOD" | "WEAK" | "NOISY" = "GOOD";
+      if (detected === 0) health = "WEAK";
+      else if (ratio < 0.3 && filtered > 2) health = "NOISY";
+      else if (detected <= 1 && created === 0) health = "WEAK";
+      return { name, detected, afterFilter: created, skipped: filtered, created, health, rawIssues: data.raw };
+    }).sort((a, b) => b.detected - a.detected);
+  }, [scanResults, workItems]);
+
+
   const grouped = useMemo(() => {
     const groups: Record<string, WorkItem[]> = {};
     for (const wi of workItems) {
@@ -303,6 +335,85 @@ const SystemExplorer = () => {
                   <div>Mode: <Badge variant="secondary">{import.meta.env.MODE ?? "development"}</Badge></div>
                 </div>
               </div>
+            </CardContent>
+          )}
+        </Card>
+
+        {/* SCANNERS */}
+        <Card>
+          <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("scanners")}>
+            <CardTitle className="text-sm flex items-center gap-2">
+              {expandedSections.scanners ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <Radar className="h-4 w-4 text-primary" />
+              Scanners ({scannerStats.length})
+            </CardTitle>
+          </CardHeader>
+          {expandedSections.scanners && (
+            <CardContent className="space-y-2 pt-0">
+              {scannerStats.length === 0 ? (
+                <p className="text-xs text-muted-foreground">Inga skannerresultat.</p>
+              ) : (
+                scannerStats.map((s) => {
+                  const isExpanded = expandedScanners[s.name] ?? false;
+                  return (
+                    <div key={s.name} className="border border-border rounded-md">
+                      <button
+                        onClick={() => setExpandedScanners(prev => ({ ...prev, [s.name]: !prev[s.name] }))}
+                        className="flex items-center gap-2 w-full text-left px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
+                      >
+                        {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                        <span className="font-medium flex-1 capitalize">{s.name}</span>
+                        <Badge
+                          variant={s.health === "GOOD" ? "default" : s.health === "NOISY" ? "destructive" : "secondary"}
+                          className="text-[10px] px-1.5 py-0"
+                        >
+                          {s.health}
+                        </Badge>
+                      </button>
+                      <div className="px-3 pb-2 grid grid-cols-4 gap-2 text-xs">
+                        <div className="text-center">
+                          <div className="font-bold">{s.detected}</div>
+                          <div className="text-muted-foreground">Raw</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="font-bold">{s.afterFilter}</div>
+                          <div className="text-muted-foreground">After</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="font-bold">{s.skipped}</div>
+                          <div className="text-muted-foreground">Skipped</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="font-bold">{s.created}</div>
+                          <div className="text-muted-foreground">Created</div>
+                        </div>
+                      </div>
+                      {isExpanded && (
+                        <div className="px-3 pb-3 border-t border-border pt-2">
+                          <div className="flex items-center gap-1 mb-1.5">
+                            <Eye className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-xs font-medium text-muted-foreground">Raw scan output</span>
+                          </div>
+                          <div className="space-y-1 max-h-48 overflow-y-auto">
+                            {s.rawIssues.map((issue: any, idx: number) => (
+                              <div key={idx} className="text-xs border border-border rounded px-2 py-1.5 bg-muted/30">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="font-medium truncate flex-1">{issue.title || "Untitled"}</span>
+                                  <Badge variant="outline" className="text-[9px] px-1 py-0">{issue.type || "–"}</Badge>
+                                  <Badge variant="outline" className="text-[9px] px-1 py-0">{issue.severity || "–"}</Badge>
+                                </div>
+                                {issue.category && (
+                                  <span className="text-muted-foreground text-[10px]">cat: {issue.category}</span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
             </CardContent>
           )}
         </Card>
