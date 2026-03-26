@@ -1522,6 +1522,24 @@ const SystemExplorer = () => {
                   </Badge>
                 </p>
               </div>
+              {/* Occurrence Tracking */}
+              <div className="border border-border rounded-md p-2 bg-muted/30 space-y-1">
+                <span className="text-muted-foreground text-xs font-medium">Occurrence Tracking</span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge variant={(selectedItem as any).occurrence_count > 2 ? "destructive" : "outline"} className="text-[10px]">
+                    🔁 ×{(selectedItem as any).occurrence_count ?? 1}
+                  </Badge>
+                  {(selectedItem as any).first_seen_at && (
+                    <span className="text-[10px] text-muted-foreground">First: {format(new Date((selectedItem as any).first_seen_at), "yyyy-MM-dd HH:mm")}</span>
+                  )}
+                  {(selectedItem as any).last_seen_at && (
+                    <span className="text-[10px] text-muted-foreground">Last: {format(new Date((selectedItem as any).last_seen_at), "yyyy-MM-dd HH:mm")}</span>
+                  )}
+                </div>
+                {(selectedItem as any).occurrence_count > 2 && (
+                  <p className="text-[9px] text-destructive">⚠️ Persistent problem — seen {(selectedItem as any).occurrence_count} times</p>
+                )}
+              </div>
               <div>
                 <span className="text-muted-foreground text-xs">Created By</span>
                 <p className="font-mono text-xs break-all">{selectedItem.created_by ?? "–"}</p>
