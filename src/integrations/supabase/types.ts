@@ -2826,6 +2826,7 @@ export type Database = {
           function_name: string
           id: string
           payload_snapshot: Json | null
+          request_trace_id: string | null
           source: string
         }
         Insert: {
@@ -2835,6 +2836,7 @@ export type Database = {
           function_name: string
           id?: string
           payload_snapshot?: Json | null
+          request_trace_id?: string | null
           source?: string
         }
         Update: {
@@ -2844,6 +2846,7 @@ export type Database = {
           function_name?: string
           id?: string
           payload_snapshot?: Json | null
+          request_trace_id?: string | null
           source?: string
         }
         Relationships: []
