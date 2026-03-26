@@ -595,6 +595,9 @@ const SystemExplorer = () => {
                               >
                                 {scannerExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                                 <span className="font-medium flex-1">{scanner.label}</span>
+                                <span className={`text-[9px] font-mono mr-1 ${scanner.executed ? 'text-green-500' : 'text-destructive'}`}>
+                                  {scanner.executed ? '✓ RAN' : '✗ NO'}
+                                </span>
                                 <Badge
                                   variant={scanner.health === "GOOD" ? "default" : scanner.health === "NOISY" ? "destructive" : "secondary"}
                                   className="text-[9px] px-1 py-0"
