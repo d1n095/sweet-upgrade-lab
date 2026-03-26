@@ -957,7 +957,8 @@ const SystemExplorer = () => {
 
             {/* All Code Issues with Analysis */}
             {(() => {
-              const allIssues = getCodeIssues();
+              const ratingOrder = { good: 0, neutral: 1, bad: 2 } as const;
+              const allIssues = getCodeIssues().sort((a, b) => (ratingOrder[a.analysis_rating] ?? 1) - (ratingOrder[b.analysis_rating] ?? 1));
               const ratingColor = (r: string) => r === "good" ? "text-green-500" : r === "bad" ? "text-red-500" : "text-yellow-500";
               const ratingBg = (r: string) => r === "good" ? "bg-green-500/10 border-green-500/20" : r === "bad" ? "bg-red-500/10 border-red-500/20" : "bg-yellow-500/10 border-yellow-500/20";
               return (
