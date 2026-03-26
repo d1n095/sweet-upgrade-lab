@@ -1,10 +1,12 @@
 import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAdminRole } from "@/hooks/useAdminRole";
+import { useFounderRole } from "@/hooks/useFounderRole";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { Database, Activity, Bug, CheckCircle, AlertTriangle, Clock, Shield, ChevronRight, ChevronDown, X, Folder, FolderOpen, FileText, RefreshCw, Cpu, ArrowRight, Filter, Layers, History, Radar, Eye, Bot, Send, Loader2 } from "lucide-react";
+import { Database, Activity, Bug, CheckCircle, AlertTriangle, Clock, Shield, ChevronRight, ChevronDown, X, Folder, FolderOpen, FileText, RefreshCw, Cpu, ArrowRight, Filter, Layers, History, Radar, Eye, Bot, Send, Loader2, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import ReactMarkdown from "react-markdown";
@@ -26,6 +28,10 @@ type WorkItem = {
 
 const SystemExplorer = () => {
   const queryClient = useQueryClient();
+  const { isAdmin, isLoading: adminLoading } = useAdminRole();
+  const { isFounder, isLoading: founderLoading } = useFounderRole();
+  const isSystemAdmin = isFounder || false; // founder = full access
+  const isViewerAdmin = isAdmin && !isFounder; // admin without founder = read-only viewer
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ workItems: true, scanResults: true, aiFlow: true, scanners: true });
   const [expandedScanners, setExpandedScanners] = useState<Record<string, boolean>>({});
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({ open: true, in_progress: true, done: false, completed: false, cancelled: false });
@@ -211,17 +217,20 @@ const SystemExplorer = () => {
     <div className="flex h-full min-h-0">
       {/* Main tree panel */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        <div className="flex items-center gap-2 flex-1">
+        <div className="flex items-center gap-2 flex-wrap">
           <Database className="h-6 w-6 text-primary" />
           <h1 className="text-2xl font-bold text-foreground">System Explorer</h1>
           <Badge variant="outline" className="ml-2">READ-ONLY</Badge>
+          {isSystemAdmin && <Badge className="bg-primary/10 text-primary text-[10px]"><Shield className="h-3 w-3 mr-1" />SYSTEM ADMIN</Badge>}
+          {isViewerAdmin && <Badge variant="secondary" className="text-[10px]"><Lock className="h-3 w-3 mr-1" />VIEWER</Badge>}
         </div>
         <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing}>
           <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
           Refresh
         </Button>
 
-        {/* AI ASSISTANT */}
+        {/* AI ASSISTANT - System Admin only */}
+        {isSystemAdmin && (
         <Card>
           <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("aiAssistant")}>
             <CardTitle className="text-sm flex items-center gap-2">
@@ -265,6 +274,16 @@ const SystemExplorer = () => {
             </CardContent>
           )}
         </Card>
+        )}
+
+        {isViewerAdmin && (
+          <Card>
+            <CardContent className="p-4 flex items-center gap-2 text-sm text-muted-foreground">
+              <Lock className="h-4 w-4" />
+              Viewer-läge — du har läsbehörighet. AI Assistant och kontrollåtgärder kräver System Admin-behörighet.
+            </CardContent>
+          </Card>
+        )}
 
         {/* FLOW STATUS */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
