@@ -212,7 +212,7 @@ const SystemExplorer = () => {
     setCodeScanResult(allIssues);
   }, []);
 
-
+  function handleSearch() {
     logAction({ type: "Search", status: "started" });
     if (!searchQuery) {
       logAction({ type: "Search", status: "no-input", message: "Search query empty" });
