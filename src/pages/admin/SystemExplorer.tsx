@@ -173,6 +173,9 @@ const SystemExplorer = () => {
   const [aiAnswer, setAiAnswer] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiFocusArea, setAiFocusArea] = useState<string | null>(null);
+  const [mainTab, setMainTab] = useState<"system" | "files">("system");
+  const [filesFilter, setFilesFilter] = useState<"all" | "orphan" | "has_issues">("all");
+  const [selectedFile, setSelectedFile] = useState<FileEntry | null>(null);
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | null>(null);
   const [verifyingFix, setVerifyingFix] = useState(false);
   const [verifyResult, setVerifyResult] = useState<{ itemId: string; status: "confirmed" | "failed"; scanId?: string } | null>(null);
