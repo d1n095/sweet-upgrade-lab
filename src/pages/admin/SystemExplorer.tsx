@@ -84,6 +84,22 @@ const SystemExplorer = () => {
     },
   });
 
+  // 3b. History for selected item
+  const { data: itemHistory = [], isLoading: historyLoading } = useQuery({
+    queryKey: ["system-explorer-history", selectedItem?.id],
+    enabled: !!selectedItem,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("work_item_history")
+        .select("id, action, old_value, new_value, created_at")
+        .eq("work_item_id", selectedItem!.id)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   // 3. Flow counts
   const activeCount = workItems.filter((w) => w.status === "open" || w.status === "in_progress").length;
   const completedCount = workItems.filter((w) => w.status === "done" || w.status === "completed").length;
