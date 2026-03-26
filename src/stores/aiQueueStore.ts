@@ -486,6 +486,9 @@ export const useAiQueueStore = create<AiQueueState>((set, get) => ({
   processQueue: async () => {
     const state = get();
 
+    // Paused — skip processing
+    if (state.paused) return;
+
     // Deadlock protection: if _isProcessing has been stuck for too long, force-release
     if (state._isProcessing) {
       if (state._processingStartedAt && Date.now() - state._processingStartedAt > PROCESSING_TIMEOUT_MS) {
