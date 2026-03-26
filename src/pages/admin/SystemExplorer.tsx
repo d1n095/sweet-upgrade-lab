@@ -1228,6 +1228,41 @@ const SystemExplorer = () => {
           )}
         </Card>
 
+        {/* RUNTIME ERRORS (individual) */}
+        <Card>
+          <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("rawRuntimeErrors")}>
+            <CardTitle className="text-sm flex items-center gap-2">
+              {expandedSections.rawRuntimeErrors ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <AlertTriangle className="h-4 w-4 text-destructive" />
+              Runtime Errors ({rawRuntimeErrors.length})
+            </CardTitle>
+          </CardHeader>
+          {expandedSections.rawRuntimeErrors && (
+            <CardContent className="space-y-1 pt-0 max-h-[400px] overflow-y-auto">
+              {rawRuntimeErrors.length === 0 && (
+                <p className="text-xs text-muted-foreground py-2">No runtime errors in last 24h ✅</p>
+              )}
+              {(rawRuntimeErrors as any[]).map((err: any) => (
+                <div key={err.id} className="border border-border rounded p-2 bg-muted/10 space-y-0.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-[11px] font-medium text-foreground">{err.function_name || "–"}</span>
+                    <span className="text-muted-foreground text-[9px] shrink-0">
+                      {new Date(err.created_at).toLocaleString("sv-SE", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                    </span>
+                  </div>
+                  {err.endpoint && (
+                    <p className="font-mono text-[10px] text-muted-foreground">{err.endpoint}</p>
+                  )}
+                  <p className="font-mono text-[10px] text-destructive bg-destructive/10 rounded px-1 py-0.5 break-all">{err.error_message || "No error message"}</p>
+                  {err.request_trace_id && (
+                    <p className="font-mono text-[9px] text-muted-foreground">trace: {err.request_trace_id.slice(0, 12)}…</p>
+                  )}
+                </div>
+              ))}
+            </CardContent>
+          )}
+        </Card>
+
         {/* SCANNERS — Grouped by Module */}
         <Card>
           <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("scanners")}>
