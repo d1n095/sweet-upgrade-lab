@@ -526,7 +526,7 @@ const SystemExplorer = () => {
 
   const activeSnapshot = selectedSnapshotId ? scanSnapshots.find((s: any) => s.id === selectedSnapshotId) : null;
 
-  const scanResults = activeSnapshot ? (activeSnapshot.payload as Record<string, any> | null) : (latestScan?.results as Record<string, any> | null);
+  const scanResults = latestBackendScan?.results as Record<string, any> | null;
   const detectedIssues = scanResults?.master_list?.total ?? scanResults?.detected_issues?.length ?? (activeSnapshot ? activeSnapshot.total_detected : latestScan?.issues_count) ?? 0;
 
   // Regression detection: compare last 2 snapshots
