@@ -2048,6 +2048,7 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, serviceKey);
 
     const body = await req.json();
+    console.log("FULL SCAN BODY:", body);
     const { action, scan_run_id, step_index, iteration, request_trace_id } = body;
 
     // ── START ──
@@ -2764,6 +2765,7 @@ serve(async (req) => {
       return new Response(JSON.stringify(data || null), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    console.log("INVALID ACTION RECEIVED:", body.action);
     return new Response(JSON.stringify({ error: "Invalid action" }), { status: 400, headers: corsHeaders });
   } catch (e: any) {
     console.error("run-full-scan error:", e);
