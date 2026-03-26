@@ -2953,14 +2953,18 @@ export type Database = {
           iteration_results: Json | null
           max_iterations: number
           pattern_discoveries: Json | null
+          scan_mode: string | null
           started_at: string | null
           started_by: string | null
           status: string
           steps_results: Json | null
           system_health_score: number | null
+          system_stage: string | null
+          target_area: string | null
           total_new_issues: number | null
           total_steps: number | null
           unified_result: Json | null
+          verification_for: string | null
           work_items_created: number | null
         }
         Insert: {
@@ -2977,14 +2981,18 @@ export type Database = {
           iteration_results?: Json | null
           max_iterations?: number
           pattern_discoveries?: Json | null
+          scan_mode?: string | null
           started_at?: string | null
           started_by?: string | null
           status?: string
           steps_results?: Json | null
           system_health_score?: number | null
+          system_stage?: string | null
+          target_area?: string | null
           total_new_issues?: number | null
           total_steps?: number | null
           unified_result?: Json | null
+          verification_for?: string | null
           work_items_created?: number | null
         }
         Update: {
@@ -3001,14 +3009,18 @@ export type Database = {
           iteration_results?: Json | null
           max_iterations?: number
           pattern_discoveries?: Json | null
+          scan_mode?: string | null
           started_at?: string | null
           started_by?: string | null
           status?: string
           steps_results?: Json | null
           system_health_score?: number | null
+          system_stage?: string | null
+          target_area?: string | null
           total_new_issues?: number | null
           total_steps?: number | null
           unified_result?: Json | null
+          verification_for?: string | null
           work_items_created?: number | null
         }
         Relationships: []
