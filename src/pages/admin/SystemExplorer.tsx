@@ -173,7 +173,7 @@ const SystemExplorer = () => {
   const [aiAnswer, setAiAnswer] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiFocusArea, setAiFocusArea] = useState<string | null>(null);
-  const [mainTab, setMainTab] = useState<"system" | "files" | "patch" | "codeindex">("system");
+  const [mainTab, setMainTab] = useState<"system" | "files" | "patch" | "codeindex" | "backendscan">("system");
   const [filesFilter, setFilesFilter] = useState<"all" | "orphan" | "has_issues">("all");
   const [selectedFile, setSelectedFile] = useState<FileEntry | null>(null);
   const [patchInput, setPatchInput] = useState("");
@@ -184,6 +184,21 @@ const SystemExplorer = () => {
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | null>(null);
   const [verifyingFix, setVerifyingFix] = useState(false);
   const [verifyResult, setVerifyResult] = useState<{ itemId: string; status: "confirmed" | "failed"; scanId?: string } | null>(null);
+
+  // Backend scan latest
+  const { data: latestBackendScan, isLoading: backendScanLoading } = useQuery({
+    queryKey: ["backend-scan-latest"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("ai_scan_results")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
 
   // 1. ALL work_items
   const { data: workItems = [], isLoading: wiLoading } = useQuery({
@@ -917,7 +932,46 @@ const SystemExplorer = () => {
           <button onClick={() => setMainTab("codeindex")} className={`px-3 py-1.5 text-xs font-medium rounded-t-md transition-colors ${mainTab === "codeindex" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"}`}>
             Code Index
           </button>
+          <button onClick={() => setMainTab("backendscan")} className={`px-3 py-1.5 text-xs font-medium rounded-t-md transition-colors ${mainTab === "backendscan" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"}`}>
+            Backend Scan
+          </button>
         </div>
+
+        {/* BACKEND SCAN TAB */}
+        {mainTab === "backendscan" && (() => {
+          const r = latestBackendScan?.results as any;
+          return (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2"><Radar className="h-4 w-4" /> Backend Scan</CardTitle>
+              </CardHeader>
+              <CardContent className="p-3">
+                {backendScanLoading ? (
+                  <p className="text-[10px] text-muted-foreground">Loading...</p>
+                ) : !latestBackendScan ? (
+                  <p className="text-[10px] text-muted-foreground">No backend scan found</p>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-2 text-[10px]">
+                      <div><span className="text-muted-foreground">Scan ID:</span> <span className="font-mono text-foreground">{latestBackendScan.id?.slice(0, 8)}</span></div>
+                      <div><span className="text-muted-foreground">Created:</span> <span className="text-foreground">{format(new Date(latestBackendScan.created_at), "yyyy-MM-dd HH:mm")}</span></div>
+                      <div><span className="text-muted-foreground">Detected:</span> <span className="text-foreground">{r?.detected_count ?? latestBackendScan.issues_count ?? "—"}</span></div>
+                      <div><span className="text-muted-foreground">Created:</span> <span className="text-foreground">{r?.created_count ?? latestBackendScan.tasks_created ?? "—"}</span></div>
+                      <div><span className="text-muted-foreground">Filtered:</span> <span className="text-foreground">{r?.filtered_count ?? "—"}</span></div>
+                      <div><span className="text-muted-foreground">Skipped:</span> <span className="text-foreground">{r?.skipped_count ?? "—"}</span></div>
+                    </div>
+                    {latestBackendScan.overall_status && (
+                      <Badge className={`text-[8px] ${latestBackendScan.overall_status === "healthy" ? "bg-green-500/20 text-green-500 border-green-500/30" : "bg-yellow-500/20 text-yellow-500 border-yellow-500/30"}`}>{latestBackendScan.overall_status}</Badge>
+                    )}
+                    {latestBackendScan.executive_summary && (
+                      <p className="text-[9px] text-muted-foreground mt-1">{latestBackendScan.executive_summary}</p>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })()}
 
         {/* CODE INDEX TAB */}
         {mainTab === "codeindex" && (() => {
