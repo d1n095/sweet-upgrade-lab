@@ -1817,6 +1817,7 @@ serve(async (req) => {
       };
       const scopeDef = SCAN_SCOPE_MAP[step.scanType] || { type: "edge", target: step.scanType };
       stepResult._scan_scope = { type: scopeDef.type, target: scopeDef.target, size: inputSize };
+      stepResult._affected_area = { type: scopeDef.type, target: scopeDef.target };
 
       // ── Upsert system_structure_map ──
       await supabase.from("system_structure_map").upsert({
