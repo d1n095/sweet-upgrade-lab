@@ -130,6 +130,20 @@ const SystemExplorer = () => {
     },
   });
 
+  // Structure map for unscanned areas
+  const { data: structureMap = [] } = useQuery({
+    queryKey: ["system-explorer-structure-map"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("system_structure_map" as any)
+        .select("entity_type, entity_name, last_seen_at, scan_count")
+        .order("last_seen_at", { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+
   // System expectations for gap detection
   const { data: systemExpectations = [] } = useQuery({
     queryKey: ["system-explorer-expectations"],
@@ -151,18 +165,6 @@ const SystemExplorer = () => {
     );
   }, [systemExpectations, structureMap]);
 
-  const { data: structureMap = [] } = useQuery({
-    queryKey: ["system-explorer-structure-map"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("system_structure_map" as any)
-        .select("entity_type, entity_name, last_seen_at, scan_count")
-        .order("last_seen_at", { ascending: false })
-        .limit(200);
-      if (error) throw error;
-      return (data || []) as any[];
-    },
-  });
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
