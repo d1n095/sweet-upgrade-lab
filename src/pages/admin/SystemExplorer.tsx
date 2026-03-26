@@ -2317,6 +2317,7 @@ const SystemExplorer = () => {
                                             {issue._origin_source && <Badge variant="outline" className="text-[8px] px-1 py-0">{issue._origin_source === "ai_scan" ? "🤖" : issue._origin_source === "manual" ? "👤" : "🔧"} {issue._origin_source}</Badge>}
                                             {issue._impact_score && <Badge variant={issue._impact_label === "critical" ? "destructive" : "outline"} className="text-[8px] px-1 py-0">{issue._impact_label === "critical" ? "💥" : issue._impact_label === "high" ? "🔴" : issue._impact_label === "medium" ? "🟡" : "🟢"} impact:{issue._impact_score}/5</Badge>}
                                             {issue._occurrence_count > 1 && <Badge variant="outline" className="text-[8px] px-1 py-0 border-orange-500 text-orange-600">🔁 ×{issue._occurrence_count}</Badge>}
+                                            {issue._status && <Badge variant={issue._status === "created" ? "default" : issue._status === "error" ? "destructive" : "secondary"} className="text-[8px] px-1 py-0">{issue._status === "created" ? "✅ created" : issue._status === "skipped_dedup" ? "🔁 skipped_dedup" : issue._status === "filtered" ? "🚫 filtered" : issue._status === "error" ? "❌ error" : issue._status}</Badge>}
                                           </div>
                                           {issue._flow_chain && (
                                             <div className="flex gap-1 flex-wrap mt-0.5">
