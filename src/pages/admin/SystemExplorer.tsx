@@ -368,7 +368,7 @@ const SystemExplorer = () => {
       }
       await handleRefresh();
     } catch (err) {
-      console.error("[DEBUG] FULL SCAN CRASH:", err);
+      console.error("[FULL SCAN UI ERROR]:", err);
     } finally {
       useAiQueueStore.getState().resumeQueue();
       setIsScanning(false);
