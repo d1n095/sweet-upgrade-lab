@@ -3496,6 +3496,36 @@ export type Database = {
         }
         Relationships: []
       }
+      system_structure_map: {
+        Row: {
+          created_at: string
+          entity_name: string
+          entity_type: string
+          id: string
+          last_seen_at: string
+          scan_count: number
+          source_path: string | null
+        }
+        Insert: {
+          created_at?: string
+          entity_name: string
+          entity_type: string
+          id?: string
+          last_seen_at?: string
+          scan_count?: number
+          source_path?: string | null
+        }
+        Update: {
+          created_at?: string
+          entity_name?: string
+          entity_type?: string
+          id?: string
+          last_seen_at?: string
+          scan_count?: number
+          source_path?: string | null
+        }
+        Relationships: []
+      }
       timeline_entries: {
         Row: {
           created_at: string
