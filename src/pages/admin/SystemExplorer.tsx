@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { tracedInvoke } from "@/lib/tracedInvoke";
 import { useAiQueueStore } from "@/stores/aiQueueStore";
-import { fileSystemMap, type FileEntry, getFileContent, getCodeIndex, getDuplicatedLines, getCodeIssues, getRawSources } from "@/lib/fileSystemMap";
+import { fileSystemMap, type FileEntry, getFileContent, getCodeIndex, getDuplicatedLines, getCodeIssues, getRawSources, scanFileContent } from "@/lib/fileSystemMap";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useFounderRole } from "@/hooks/useFounderRole";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -246,12 +246,13 @@ const SystemExplorer = () => {
         logAction({ type: "SCAN", status: "success", mode });
       }
       if (mode === "code") {
-        const index = getCodeIndex();
-        const result = {
-          files: index.length,
-          api: index.filter(f => f.hasApiCall).length
-        };
-        setCodeScanResult({ filesWithApi: result.api, filesWithState: 0, largeFiles: 0 });
+        const results: { type: string; message: string; file: string }[] = [];
+        Object.entries(getRawSources() || {}).forEach(([path, content]) => {
+          const issues = scanFileContent(path, content as string);
+          results.push(...issues);
+        });
+        console.log("[FILE ISSUES FOUND]:", results.length);
+        setCodeScanResult(results);
         logAction({ type: "SCAN", status: "success", mode });
       }
       if (mode === "full") {
