@@ -908,6 +908,9 @@ const SystemExplorer = () => {
           <button onClick={() => setMainTab("files")} className={`px-3 py-1.5 text-xs font-medium rounded-t-md transition-colors ${mainTab === "files" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"}`}>
             Files ({fileSystemMap.length})
           </button>
+          <button onClick={() => setMainTab("patch")} className={`px-3 py-1.5 text-xs font-medium rounded-t-md transition-colors ${mainTab === "patch" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"}`}>
+            Patch Controller
+          </button>
         </div>
 
         {/* FILES TAB */}
