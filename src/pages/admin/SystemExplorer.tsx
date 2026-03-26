@@ -443,6 +443,7 @@ const SystemExplorer = () => {
       const structure_map = Object.keys(getRawSources() || {}).map(path => ({
         path
       }));
+      console.log("[SENDING STRUCTURE MAP]:", structure_map.length);
       const res = await tracedInvoke("run-full-scan", {
         body: { action: "start", scan_mode: "full", structure_map },
       });
