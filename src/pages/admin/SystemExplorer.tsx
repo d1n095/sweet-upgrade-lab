@@ -112,6 +112,7 @@ const SystemExplorer = () => {
   const [aiQuery, setAiQuery] = useState("");
   const [aiAnswer, setAiAnswer] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiFocusArea, setAiFocusArea] = useState<string | null>(null);
 
   // 1. ALL work_items
   const { data: workItems = [], isLoading: wiLoading } = useQuery({
