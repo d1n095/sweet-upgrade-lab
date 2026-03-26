@@ -659,6 +659,14 @@ const SystemExplorer = () => {
                                       <div key={idx} className="text-[10px] border border-border rounded px-2 py-1 bg-muted/30">
                                         <div className="flex items-center gap-1 flex-wrap">
                                           <span className="font-medium truncate flex-1">{issue.title || "Untitled"}</span>
+                                          {issue._filter_decision && (
+                                            <Badge
+                                              variant={issue._filter_decision === "passed" ? "default" : "destructive"}
+                                              className="text-[8px] px-1 py-0"
+                                            >
+                                              {issue._filter_decision === "passed" ? "✓" : `✗ ${issue._filter_reason || "filtered"}`}
+                                            </Badge>
+                                          )}
                                           <Badge variant="outline" className="text-[8px] px-1 py-0">{issue.type || "–"}</Badge>
                                           <Badge variant="outline" className="text-[8px] px-1 py-0">{issue.severity || "–"}</Badge>
                                         </div>
