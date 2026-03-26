@@ -181,6 +181,7 @@ const SystemExplorer = () => {
   const [safeModeEnabled, setSafeModeEnabled] = useState(true);
   const [patchSubmitted, setPatchSubmitted] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [showBackendRaw, setShowBackendRaw] = useState(false);
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | null>(null);
   const [verifyingFix, setVerifyingFix] = useState(false);
   const [verifyResult, setVerifyResult] = useState<{ itemId: string; status: "confirmed" | "failed"; scanId?: string } | null>(null);
@@ -1041,6 +1042,43 @@ const SystemExplorer = () => {
                   );
                 })()}
               </CardContent>
+            </Card>
+
+            {/* View Backend Raw */}
+            <Card>
+              <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                <CardTitle className="text-sm flex items-center gap-2"><Database className="h-4 w-4" /> Backend Raw Output</CardTitle>
+                <Button variant="outline" size="sm" className="text-[10px] h-6" onClick={() => setShowBackendRaw(!showBackendRaw)}>
+                  {showBackendRaw ? "Hide" : "View Backend Raw"}
+                </Button>
+              </CardHeader>
+              {showBackendRaw && (
+                <CardContent className="p-3">
+                  {!latestBackendScan?.results ? (
+                    <p className="text-[10px] text-muted-foreground">No raw data available</p>
+                  ) : (() => {
+                    const raw = latestBackendScan.results as any;
+                    const issues = raw?.issues || raw?.broken_flows || raw?.data_issues || raw?.fake_features || raw?.interaction_failures || [];
+                    const allIssues = Array.isArray(issues) ? issues.slice(0, 50) : [];
+                    return allIssues.length === 0 ? (
+                      <div>
+                        <p className="text-[10px] text-muted-foreground mb-2">No issue array found. Raw keys: {Object.keys(raw).join(", ")}</p>
+                        <pre className="text-[9px] font-mono bg-muted/30 border border-border rounded-md p-2 max-h-[300px] overflow-auto whitespace-pre-wrap text-foreground">{JSON.stringify(raw, null, 2).slice(0, 5000)}</pre>
+                      </div>
+                    ) : (
+                      <div className="space-y-1 max-h-[400px] overflow-auto">
+                        <p className="text-[10px] text-muted-foreground mb-1">Showing {allIssues.length} of {Array.isArray(issues) ? issues.length : "?"} issues</p>
+                        {allIssues.map((issue: any, i: number) => (
+                          <details key={i} className="border border-border/50 rounded-md p-1.5 text-[9px]">
+                            <summary className="cursor-pointer font-mono text-foreground truncate">{issue.title || issue.description || issue.message || JSON.stringify(issue).slice(0, 100)}</summary>
+                            <pre className="mt-1 font-mono text-[8px] text-muted-foreground whitespace-pre-wrap">{JSON.stringify(issue, null, 2)}</pre>
+                          </details>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </CardContent>
+              )}
             </Card>
             </div>
           );
