@@ -2051,12 +2051,12 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
       console.log(`[create-verify] ✅ VERIFIED: ${created.id} "${issue.title.slice(0, 40)}"`);
       workItemsCreated++;
       verified = true;
-      createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'created', created_id: created.id, issue_type: issue.issue_type || 'bug', affected_area: issue.affected_area, _origin_source: 'ai_scan', _impact_score: (issue as any)._impact_score, _impact_label: (issue as any)._impact_label, _insert_success: true, _insert_error: null });
+      createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'created', created_id: created.id, issue_type: issue.issue_type || 'bug', affected_area: issue.affected_area, _origin_source: 'ai_scan', _impact_score: (issue as any)._impact_score, _impact_label: (issue as any)._impact_label, _insert_success: true, _insert_error: null, _suggested_fix_code: suggested_fix_code, _suggested_fix_type: suggested_fix_type });
       
       break;
     }
     if (!verified) {
-      createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'skipped_validation', _validation_reason: 'invalid_payload', issue_type: issue.issue_type || 'bug', affected_area: issue.affected_area, _insert_success: false, _insert_error: lastInsertError });
+      createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'skipped_validation', _validation_reason: 'invalid_payload', issue_type: issue.issue_type || 'bug', affected_area: issue.affected_area, _insert_success: false, _insert_error: lastInsertError, _suggested_fix_code: suggested_fix_code, _suggested_fix_type: suggested_fix_type });
       console.error(`[create-verify] ❌ FAILED: "${issue.title.slice(0, 60)}" error: ${lastInsertError}`);
     }
   }
