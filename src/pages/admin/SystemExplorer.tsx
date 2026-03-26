@@ -221,6 +221,51 @@ const SystemExplorer = () => {
           Refresh
         </Button>
 
+        {/* AI ASSISTANT */}
+        <Card>
+          <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("aiAssistant")}>
+            <CardTitle className="text-sm flex items-center gap-2">
+              {expandedSections.aiAssistant ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <Bot className="h-4 w-4 text-primary" />
+              AI Assistant
+              <Badge variant="outline" className="text-[10px]">READ-ONLY</Badge>
+            </CardTitle>
+          </CardHeader>
+          {expandedSections.aiAssistant && (
+            <CardContent className="space-y-3">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Ask about system state, scanners, work items..."
+                  value={aiQuery}
+                  onChange={(e) => setAiQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleAiAnalyze()}
+                  className="text-sm"
+                />
+                <Button size="sm" onClick={handleAiAnalyze} disabled={aiLoading || !aiQuery.trim()}>
+                  {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  Analyze
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {["Why was this created?", "Which scanners failed?", "What is broken?", "Summarize system state"].map((q) => (
+                  <button
+                    key={q}
+                    onClick={() => { setAiQuery(q); }}
+                    className="text-[10px] px-2 py-1 rounded-md border border-border hover:bg-muted/50 transition-colors text-muted-foreground"
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+              {aiAnswer && (
+                <div className="border border-border rounded-md p-3 bg-muted/30 text-sm prose prose-sm max-w-none dark:prose-invert">
+                  <ReactMarkdown>{aiAnswer}</ReactMarkdown>
+                </div>
+              )}
+            </CardContent>
+          )}
+        </Card>
+
         {/* FLOW STATUS */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
           <Card>
