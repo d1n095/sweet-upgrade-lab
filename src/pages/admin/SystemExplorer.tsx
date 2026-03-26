@@ -70,6 +70,7 @@ const SCANNER_GROUPS: ScannerGroup[] = [
     scanners: [
       { id: "interaction_qa", label: "Interaction QA", matchKeys: ["interaction_qa", "interaction"] },
       { id: "human_test", label: "Human Test Simulation", matchKeys: ["human_test", "human"] },
+      { id: "ui_flow_integrity", label: "UI Flow Integrity", matchKeys: ["ui_flow_integrity", "ui_flow"] },
       { id: "checkout_flow_break", label: "Checkout Flow Break", matchKeys: ["checkout_flow_break", "checkout"] },
       { id: "order_creation_gap", label: "Order Creation Gap", matchKeys: ["order_creation_gap"] },
       { id: "scan_to_work_item_loss", label: "Scan → Work Item Loss", matchKeys: ["scan_to_work_item_loss", "pipeline_loss"] },

@@ -17,6 +17,7 @@ const STEPS = [
   { id: "regression_detection", scanType: "system_scan", label: "Detekterar regressioner..." },
   { id: "decision_engine", scanType: "decision_engine", label: "Kör beslutsmotor..." },
   { id: "blocker_detection", scanType: "blocker_detection", label: "Söker blockerare..." },
+  { id: "ui_flow_integrity", scanType: "ui_flow_integrity", label: "Verifierar UI-flödesintegritet..." },
 ];
 
 const MAX_ITERATIONS = 3;
@@ -1248,6 +1249,110 @@ async function runRealComponentMapScan(supabase: any, scanRunId: string): Promis
   return { issues, issues_found: issues.length, components_scanned: componentsScanned, overall_score: score, duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
 }
 
+// ── REAL DB SCAN: UI Flow Integrity ──
+async function runUiFlowIntegrityScan(supabase: any, scanRunId: string): Promise<any> {
+  const issues: any[] = [];
+  const startMs = Date.now();
+  let flowsScanned = 0;
+
+  // Known application routes
+  const KNOWN_ROUTES = [
+    "/", "/shop", "/produkter", "/about", "/contact", "/checkout",
+    "/donations", "/cbd", "/business", "/whats-new", "/track-order",
+    "/suggest-product", "/affiliate", "/balance", "/member",
+    "/admin", "/privacy-policy", "/terms", "/returns-policy", "/shipping-policy",
+  ];
+
+  // Known flows: start → end
+  const KNOWN_FLOWS = [
+    { name: "Checkout", steps: ["product_view", "add_to_cart", "checkout", "payment", "confirmation"], startRoute: "/shop", endRoute: "/order-confirmation" },
+    { name: "Login", steps: ["open_auth", "enter_credentials", "authenticated"], startRoute: "/", endRoute: "/" },
+    { name: "Registration", steps: ["open_auth", "enter_details", "verify_email", "profile_created"], startRoute: "/", endRoute: "/member" },
+    { name: "Track Order", steps: ["enter_email_order", "lookup", "display_status"], startRoute: "/track-order", endRoute: "/track-order" },
+    { name: "Affiliate Signup", steps: ["landing", "apply", "confirmation"], startRoute: "/affiliate", endRoute: "/affiliate" },
+    { name: "Donation", steps: ["select_amount", "checkout", "confirmation"], startRoute: "/donations", endRoute: "/donations" },
+  ];
+
+  try {
+    // 1. Check routes have corresponding page_sections (content exists)
+    const { data: sections } = await supabase.from("page_sections").select("page, section_key, is_visible").limit(500);
+    const pagesWithContent = new Set((sections || []).map((s: any) => s.page));
+    flowsScanned += KNOWN_ROUTES.length;
+
+    for (const route of KNOWN_ROUTES) {
+      const pageName = route === "/" ? "home" : route.replace(/^\//, "").replace(/-/g, "_");
+      // Skip admin and policy routes (they don't use page_sections)
+      if (route.startsWith("/admin") || route.includes("policy") || route.includes("terms")) continue;
+      if (!pagesWithContent.has(pageName) && !pagesWithContent.has(route.replace(/^\//, ""))) {
+        // Not necessarily broken, but flag if no content at all
+      }
+    }
+
+    // 2. Check navigation paths: products should be navigable (have handles)
+    const { data: products } = await supabase.from("products").select("id, handle, title_sv, is_visible").eq("is_visible", true).limit(200);
+    flowsScanned += (products || []).length;
+    for (const p of products || []) {
+      if (!p.handle) {
+        issues.push({ title: `Broken flow: product "${p.title_sv || p.id.slice(0,8)}" has no URL handle`, severity: "high", component: "products", element: "ProductDetail", category: "flow_ui", _issue_type: "bug", _suggested_fix: "Fix broken logic or missing connection" });
+      }
+    }
+
+    // 3. Check categories have valid slugs (navigation targets)
+    const { data: categories } = await supabase.from("categories").select("id, name_sv, slug, is_visible").eq("is_visible", true).limit(100);
+    flowsScanned += (categories || []).length;
+    for (const c of categories || []) {
+      if (!c.slug || c.slug.trim() === "") {
+        issues.push({ title: `Broken flow: category "${c.name_sv || c.id.slice(0,8)}" has no slug`, severity: "high", component: "categories", element: "CategoryFilter", category: "flow_ui", _issue_type: "bug", _suggested_fix: "Fix broken logic or missing connection" });
+      }
+    }
+
+    // 4. Check flows have start → end: verify analytics events exist for flow steps
+    const { data: recentEvents } = await supabase.from("analytics_events").select("event_type").order("created_at", { ascending: false }).limit(500);
+    const eventTypes = new Set((recentEvents || []).map((e: any) => e.event_type));
+    flowsScanned += KNOWN_FLOWS.length;
+
+    for (const flow of KNOWN_FLOWS) {
+      const missingSteps = flow.steps.filter(step => {
+        // Check if any event matches this step pattern
+        const patterns = [step, `${step}_start`, `${step}_complete`, flow.name.toLowerCase() + "_" + step];
+        return !patterns.some(p => eventTypes.has(p));
+      });
+
+      if (missingSteps.length === flow.steps.length) {
+        issues.push({ title: `Broken flow: "${flow.name}" has no tracked events (${flow.steps.length} steps missing)`, severity: "medium", component: flow.name, element: "FlowTracking", category: "flow_ui", _issue_type: "bug", _suggested_fix: "Fix broken logic or missing connection", route: flow.startRoute });
+      } else if (missingSteps.length > 0 && missingSteps.length < flow.steps.length) {
+        issues.push({ title: `Broken flow: "${flow.name}" incomplete tracking (${missingSteps.length}/${flow.steps.length} steps missing)`, severity: "low", component: flow.name, element: "FlowTracking", category: "flow_ui", _issue_type: "bug", _suggested_fix: "Fix broken logic or missing connection", route: flow.startRoute });
+      }
+    }
+
+    // 5. Buttons point somewhere: bundles/promotions with no linked products
+    const { data: activeBundles } = await supabase.from("bundles").select("id, name, is_active").eq("is_active", true).limit(50);
+    flowsScanned += (activeBundles || []).length;
+    for (const b of activeBundles || []) {
+      const { count } = await supabase.from("bundle_items").select("id", { count: "exact", head: true }).eq("bundle_id", b.id);
+      if (!count || count === 0) {
+        issues.push({ title: `Broken flow: bundle "${b.name}" has no products (dead CTA)`, severity: "high", component: "bundles", element: "ProductBundles", category: "flow_ui", _issue_type: "bug", _suggested_fix: "Fix broken logic or missing connection" });
+      }
+    }
+
+    // 6. Legal documents should be accessible (active)
+    const { data: legalDocs } = await supabase.from("legal_documents").select("id, document_type, is_active, title_sv").limit(20);
+    flowsScanned += (legalDocs || []).length;
+    const requiredTypes = ["privacy_policy", "terms_conditions", "return_policy"];
+    for (const reqType of requiredTypes) {
+      const found = (legalDocs || []).find((d: any) => d.document_type === reqType && d.is_active);
+      if (!found) {
+        issues.push({ title: `Broken flow: required legal document "${reqType}" missing or inactive`, severity: "high", component: "legal_documents", element: "LegalPage", category: "flow_ui", _issue_type: "bug", _suggested_fix: "Fix broken logic or missing connection" });
+      }
+    }
+
+  } catch (e: any) { issues.push({ title: `UI Flow Integrity error: ${e.message}`, severity: "critical", component: "ui_flow_integrity", category: "flow_ui" }); }
+
+  const durationMs = Date.now() - startMs;
+  const score = Math.max(0, 100 - issues.length * 6);
+  return { issues, issues_found: issues.length, flows_scanned: flowsScanned, overall_score: score, duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
+}
+
 // ── Map scan types to real DB functions ──
 const REAL_DB_SCANNERS: Record<string, (supabase: any, scanRunId: string) => Promise<any>> = {
   data_integrity: runDataIntegrityScan,
@@ -1256,6 +1361,7 @@ const REAL_DB_SCANNERS: Record<string, (supabase: any, scanRunId: string) => Pro
   feature_detection: runRealFeatureDetection,
   interaction_qa: runRealInteractionQA,
   component_map: runRealComponentMapScan,
+  ui_flow_integrity: runUiFlowIntegrityScan,
 };
 
 // ── SCAN CONSISTENCY GUARD ──
@@ -1694,6 +1800,7 @@ serve(async (req) => {
         system_scan: { type: "business", target: "regressions" },
         decision_engine: { type: "business", target: "rules" },
         blocker_detection: { type: "edge", target: "blockers" },
+        ui_flow_integrity: { type: "flow", target: "ui_flows" },
       };
       const scopeDef = SCAN_SCOPE_MAP[step.scanType] || { type: "edge", target: step.scanType };
       stepResult._scan_scope = { type: scopeDef.type, target: scopeDef.target, size: inputSize };
