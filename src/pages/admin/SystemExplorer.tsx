@@ -2195,6 +2195,59 @@ const SystemExplorer = () => {
                   </div>
                 );
               })()}
+              {/* Runtime Trace Section */}
+              {(() => {
+                const traceId = (selectedItem as any).runtime_trace_id;
+                if (!traceId) {
+                  return (
+                    <div className="border border-border rounded-md p-2 bg-muted/30 space-y-1">
+                      <span className="text-muted-foreground text-xs font-medium">Runtime Trace</span>
+                      <p className="text-xs text-muted-foreground italic">No runtime trace found</p>
+                    </div>
+                  );
+                }
+                const [trace, setTrace] = React.useState<any>(null);
+                const [traceLoading, setTraceLoading] = React.useState(false);
+                React.useEffect(() => {
+                  if (!traceId) return;
+                  setTraceLoading(true);
+                  supabase.from("runtime_traces").select("*").eq("id", traceId).maybeSingle().then(({ data }) => {
+                    setTrace(data);
+                    setTraceLoading(false);
+                  });
+                }, [traceId]);
+                return (
+                  <div className="border border-border rounded-md p-2 bg-muted/30 space-y-2">
+                    <span className="text-muted-foreground text-xs font-medium">Runtime Trace</span>
+                    {traceLoading && <p className="text-xs text-muted-foreground">Loading…</p>}
+                    {!traceLoading && !trace && <p className="text-xs text-muted-foreground italic">Trace not found (ID: {traceId.slice(0, 8)}…)</p>}
+                    {trace && (
+                      <div className="space-y-1.5">
+                        <div>
+                          <span className="text-muted-foreground text-[10px]">function_name</span>
+                          <p className="font-mono text-xs bg-muted/50 rounded px-1 py-0.5">{trace.function_name}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground text-[10px]">endpoint</span>
+                          <p className="font-mono text-xs bg-muted/50 rounded px-1 py-0.5">{trace.endpoint || "–"}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground text-[10px]">error_message</span>
+                          <p className="font-mono text-xs bg-destructive/10 text-destructive rounded px-1 py-0.5 break-all">{trace.error_message}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground text-[10px]">payload_snapshot</span>
+                          <pre className="font-mono text-[9px] bg-muted/50 rounded p-1 overflow-x-auto max-h-32 whitespace-pre-wrap break-all">{JSON.stringify(trace.payload_snapshot, null, 2)}</pre>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground text-[10px]">timestamp</span>
+                          <p className="font-mono text-xs">{new Date(trace.created_at).toLocaleString("sv-SE")}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
               <div>
                 <span className="text-muted-foreground text-xs">Created By</span>
                 <p className="font-mono text-xs break-all">{selectedItem.created_by ?? "–"}</p>
