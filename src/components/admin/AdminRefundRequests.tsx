@@ -47,7 +47,7 @@ const AdminRefundRequests = () => {
     if (!confirm('Godkänn återbetalning? Stripe debiteras.')) return;
     setProcessingId(id);
     try {
-      const { data, error } = await supabase.functions.invoke('process-refund', {
+      const { data, error } = await tracedInvoke('process-refund', {
         body: { action: 'approve', refund_request_id: id },
       });
       if (error) throw error;
@@ -63,7 +63,7 @@ const AdminRefundRequests = () => {
   const handleReject = async (id: string) => {
     setProcessingId(id);
     try {
-      const { error } = await supabase.functions.invoke('process-refund', {
+      const { error } = await tracedInvoke('process-refund', {
         body: { action: 'reject', refund_request_id: id, admin_notes: rejectNotes[id] || '' },
       });
       if (error) throw error;

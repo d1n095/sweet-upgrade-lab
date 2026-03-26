@@ -172,7 +172,7 @@ const TrackOrder = () => {
       setSearchedQuery(cleanInput || cleanEmail);
 
       // Use edge function to bypass RLS — allows guest tracking
-      const { data, error } = await supabase.functions.invoke('lookup-order', {
+      const { data, error } = await tracedInvoke('lookup-order', {
         body: { query: cleanInput, email: cleanEmail },
       });
 

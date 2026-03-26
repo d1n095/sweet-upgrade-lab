@@ -236,7 +236,7 @@ const SystemExplorer = () => {
   const handleRunFullScan = async () => {
     setIsScanning(true);
     try {
-      const { error } = await supabase.functions.invoke("run-full-scan", {
+      const { error } = await tracedInvoke("run-full-scan", {
         body: { scan_mode: "full" },
       });
       if (error) throw error;

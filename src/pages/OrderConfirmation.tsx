@@ -55,7 +55,7 @@ const OrderConfirmation = () => {
 
       for (let attempt = 0; attempt < maxRetries && !isCancelled; attempt += 1) {
         try {
-          const { data: fnData, error: fnError } = await supabase.functions.invoke('lookup-order', {
+          const { data: fnData, error: fnError } = await tracedInvoke('lookup-order', {
             body: { session_id: sessionId },
           });
 
