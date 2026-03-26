@@ -2449,6 +2449,40 @@ const SystemExplorer = () => {
             </CardContent>
           )}
         </Card>
+
+        {/* ── STRUCTURE SANITY ── */}
+        <Card>
+          <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("structureSanity")}>
+            <CardTitle className="text-sm flex items-center gap-2">
+              {expandedSections.structureSanity ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <Layers className="h-4 w-4 text-orange-500" />
+              Structure Sanity
+              {structureIssues.length > 0 && (
+                <Badge variant="destructive" className="text-[10px]">{structureIssues.length}</Badge>
+              )}
+              <Badge variant="outline" className="text-[10px]">improvement</Badge>
+            </CardTitle>
+            <p className="text-[10px] text-muted-foreground mt-1">Misplaced components, pages in wrong folders, logic in UI layer</p>
+          </CardHeader>
+          {expandedSections.structureSanity && (
+            <CardContent className="pt-0 max-h-[400px] overflow-y-auto">
+              {structureIssues.length > 0 ? (
+                <div className="space-y-1">
+                  {structureIssues.map((si, idx) => (
+                    <div key={idx} className="flex items-center gap-2 py-1 px-2 rounded-md bg-muted/30 border border-border">
+                      <Badge variant="outline" className="text-[8px] px-1 py-0 border-orange-500 text-orange-500">{si.issue_type}</Badge>
+                      <span className="font-mono text-[10px] text-foreground truncate flex-1">{si.path}</span>
+                      <span className="text-[9px] text-muted-foreground whitespace-nowrap">{si.issue}</span>
+                      <span className="text-[9px] text-muted-foreground whitespace-nowrap">Fix confidence: {si.fix_confidence}/5</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Inga strukturproblem — alla filer är korrekt placerade.</p>
+              )}
+            </CardContent>
+          )}
+        </Card>
       </div>
       {selectedItem && (
         <div className="w-80 border-l border-border bg-card overflow-y-auto p-4 space-y-4 flex-shrink-0">
