@@ -28,6 +28,9 @@ interface WorkItemPayload {
   claimed_by?: string;
   claimed_at?: string;
   related_order_id?: string;
+  source_path?: string | null;
+  source_file?: string | null;
+  source_component?: string | null;
   [key: string]: any;
 }
 
