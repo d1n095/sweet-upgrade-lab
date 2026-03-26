@@ -222,6 +222,7 @@ const AdminProductImportExport = () => {
 
     setIsImportOpen(true);
     if (fileInputRef.current) fileInputRef.current.value = '';
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sv, overwriteExisting]);
 
   // ── Parse ingredient rows ──

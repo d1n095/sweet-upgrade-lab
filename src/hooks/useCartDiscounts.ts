@@ -99,7 +99,7 @@ export function useCartDiscounts() {
       .sort((a, b) => b.discount_percent - a.discount_percent);
 
     const bestGlobal = eligibleGlobal[0];
-    let globalAppliedIds = new Set<string>();
+    const globalAppliedIds = new Set<string>();
 
     if (bestGlobal) {
       const cartTotal = bestGlobal.eligibleItems.reduce(

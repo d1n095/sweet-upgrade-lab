@@ -60,7 +60,7 @@ const RelatedProducts = ({ productId, limit = 4 }: Props) => {
           return;
         }
 
-        let relatedIds = new Set<string>();
+        const relatedIds = new Set<string>();
 
         if (tagIds.length > 0) {
           const { data: tagMatches } = await supabase

@@ -3698,7 +3698,7 @@ async function handleAutoFix(supabase: any, apiKey: string, supabaseUrl: string,
   }
 
   // ─── 7. FIX INVISIBLE PRODUCTS WITH STOCK ───
-  let productsRevealed = 0;
+  const productsRevealed = 0;
   const { data: hiddenWithStock } = await supabase.from("products").select("id, title_sv, stock, is_visible").eq("is_visible", false).gt("stock", 0).limit(50);
   for (const prod of hiddenWithStock || []) {
     if ((prod.stock || 0) > 5) {

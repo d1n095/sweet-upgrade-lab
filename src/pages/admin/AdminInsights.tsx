@@ -53,8 +53,8 @@ const AdminInsights = () => {
 
       if (!orders?.length) return { avgPackHours: 0, avgShipHours: 0, slowOrders: [], total: 0 };
 
-      let packTimes: number[] = [];
-      let shipTimes: number[] = [];
+      const packTimes: number[] = [];
+      const shipTimes: number[] = [];
       const slowOrders: any[] = [];
 
       for (const o of orders) {

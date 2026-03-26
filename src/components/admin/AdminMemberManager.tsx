@@ -432,6 +432,7 @@ const AdminMemberManager = ({ roleFilter = 'all', onStatsUpdate }: AdminMemberMa
 
   useEffect(() => {
     loadMembers();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Reset page when filter changes

@@ -71,7 +71,7 @@ export const useDbCategories = (adminView = false) => {
       }
 
       // Fetch product counts per category — only count visible+sellable products
-      let productCountMap: Record<string, number> = {};
+      const productCountMap: Record<string, number> = {};
       if (!adminView) {
         const { data: visibleProducts } = await supabase
           .from('products')

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import {
@@ -180,12 +180,12 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [expandedGroup, setExpandedGroup] = useState<string | null>(() => findGroupForTab(initialTab)?.id || 'dashboard');
 
-  const handleNavigate = (tab: string) => {
+  const handleNavigate = useCallback((tab: string) => {
     setActiveTab(tab);
     const group = findGroupForTab(tab);
     if (group) setExpandedGroup(group.id);
     setMobileNavOpen(false);
-  };
+  }, []);
 
   // Listen for external navigation events (from AiControlBar)
   useEffect(() => {
@@ -197,14 +197,14 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
     };
     window.addEventListener('ai-center-navigate', handler);
     return () => window.removeEventListener('ai-center-navigate', handler);
-  }, []);
+  }, [handleNavigate]);
 
   // Sync with URL param changes
   useEffect(() => {
     if (tabParam && ALL_TABS.some(t => t.value === tabParam) && tabParam !== activeTab) {
       handleNavigate(tabParam);
     }
-  }, [tabParam]);
+  }, [tabParam, handleNavigate, activeTab]);
 
   const activeTabDef = ALL_TABS.find(t => t.value === activeTab);
 

@@ -2093,7 +2093,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
       try {
         const cutoff = new Date(Date.now() - 60_000).toISOString();
         const keywords = (issue.title || "").split(/\s+/).filter((w: string) => w.length > 4).slice(0, 3);
-        let traceQuery = supabase.from("runtime_traces").select("id, error_message, function_name, endpoint").gte("created_at", cutoff).order("created_at", { ascending: false }).limit(5);
+        const traceQuery = supabase.from("runtime_traces").select("id, error_message, function_name, endpoint").gte("created_at", cutoff).order("created_at", { ascending: false }).limit(5);
         const { data: traces } = await traceQuery;
         if (traces?.length) {
           const match = traces.find((t: any) => keywords.some((kw: string) => t.error_message?.toLowerCase().includes(kw.toLowerCase())));
