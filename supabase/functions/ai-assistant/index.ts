@@ -374,6 +374,16 @@ serve(async (req) => {
         break;
       }
 
+      case "system_explorer_query": {
+        const { question } = body;
+        if (!question || typeof question !== "string" || question.length < 2 || question.length > 2000) {
+          return new Response(JSON.stringify({ error: "Invalid question" }), { status: 400, headers: corsHeaders });
+        }
+        await logAiRead(supabase, { action_type: "query", target_type: "system_explorer", result: "inspected", summary: `Explorer query: ${question.substring(0, 100)}`, triggered_by: user.id });
+        result = await handleSystemExplorerQuery(supabase, lovableKey, question);
+        break;
+      }
+
       default:
         return new Response(JSON.stringify({ error: "Unknown type" }), { status: 400, headers: corsHeaders });
     }
