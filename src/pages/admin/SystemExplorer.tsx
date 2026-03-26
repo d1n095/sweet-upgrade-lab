@@ -940,6 +940,46 @@ const SystemExplorer = () => {
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         <p className="text-xs text-green-500 font-mono">TEST BUILD OK — Files detected: {fileSystemMap.length}</p>
         <div className="text-[10px] font-mono text-muted-foreground">Last action: {lastAction || "none"}</div>
+
+        {/* Action Monitor */}
+        <details className="border border-border rounded-md">
+          <summary className="px-3 py-1.5 text-[10px] font-semibold cursor-pointer bg-muted/30 hover:bg-muted/50 transition-colors">
+            Action Monitor ({actionLogs.length})
+          </summary>
+          <div className="max-h-48 overflow-y-auto">
+            {actionLogs.length === 0 ? (
+              <p className="text-[10px] text-muted-foreground px-3 py-2">No actions logged yet</p>
+            ) : (
+              <table className="w-full text-[10px]">
+                <thead>
+                  <tr className="border-b border-border text-muted-foreground">
+                    <th className="px-3 py-1 text-left">Time</th>
+                    <th className="px-3 py-1 text-left">Type</th>
+                    <th className="px-3 py-1 text-left">Status</th>
+                    <th className="px-3 py-1 text-left">Message</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {actionLogs.slice(0, 10).map((log, i) => (
+                    <tr key={i} className="border-b border-border/50 hover:bg-muted/20">
+                      <td className="px-3 py-1 font-mono text-muted-foreground">{log.time?.split("T")[1]?.slice(0, 8)}</td>
+                      <td className="px-3 py-1 font-medium text-foreground">{log.type}</td>
+                      <td className="px-3 py-1">
+                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${
+                          log.status === "success" ? "bg-green-500/20 text-green-400" :
+                          log.status === "error" || log.status === "no-data" ? "bg-red-500/20 text-red-400" :
+                          log.status === "started" ? "bg-blue-500/20 text-blue-400" :
+                          "bg-yellow-500/20 text-yellow-400"
+                        }`}>{log.status}</span>
+                      </td>
+                      <td className="px-3 py-1 text-muted-foreground truncate max-w-[200px]">{log.message || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </details>
         <div className="flex gap-2 items-center">
           <Input
             placeholder="Search code..."
