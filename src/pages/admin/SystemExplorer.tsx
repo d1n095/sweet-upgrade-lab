@@ -102,7 +102,7 @@ const SystemExplorer = () => {
   const { isFounder, isLoading: founderLoading } = useFounderRole();
   const isSystemAdmin = isFounder || false; // founder = full access
   const isViewerAdmin = isAdmin && !isFounder; // admin without founder = read-only viewer
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ workItems: true, scanResults: true, aiFlow: true, scanners: true, noIssueAreas: false });
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ workItems: true, scanResults: true, aiFlow: true, scanners: true, noIssueAreas: false, orphanElements: false });
   const [expandedScanners, setExpandedScanners] = useState<Record<string, boolean>>({});
   const [scannerIssueFilter, setScannerIssueFilter] = useState<"all" | "bug" | "improvement" | "upgrade">("all");
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({ open: true, in_progress: true, done: false, completed: false, cancelled: false });
@@ -299,6 +299,66 @@ const SystemExplorer = () => {
     }
     return groups;
   }, [noIssueEntities]);
+
+  // Orphan Elements: entities with no flow connection, no recent issues, not referenced by any work_item
+  const orphanEntities = useMemo(() => {
+    // Collect all entity names referenced by flows (from scan results)
+    const flowConnected = new Set<string>();
+    const stepResults = (scanResults?.step_results ?? scanResults) as Record<string, any> | null;
+    if (stepResults) {
+      for (const [, val] of Object.entries(stepResults)) {
+        // Flows reference routes, components, etc.
+        if (Array.isArray(val?.flows)) {
+          for (const f of val.flows) {
+            [f.startRoute, f.endRoute, f.component, f.entity, ...(f.steps || [])].filter(Boolean).forEach((s: string) => flowConnected.add(String(s).toLowerCase()));
+          }
+        }
+        if (Array.isArray(val?.issues)) {
+          for (const iss of val.issues) {
+            [iss.route, iss.component, iss.element, iss.entity, iss.chain].filter(Boolean).forEach((s: string) => flowConnected.add(String(s).toLowerCase()));
+          }
+        }
+      }
+    }
+
+    // Collect all entity names referenced by work_items
+    const workItemRefs = new Set<string>();
+    for (const wi of workItems) {
+      const refs = [wi.title, (wi as any).source_component, (wi as any).source_path, (wi as any).source_file].filter(Boolean);
+      for (const r of refs) workItemRefs.add(String(r).toLowerCase());
+    }
+
+    // Collect issue targets from last 3 scans (reuse logic)
+    const issuedTargets = new Set<string>();
+    for (const scan of last3Scans) {
+      const res = scan.results as Record<string, any> | null;
+      if (!res) continue;
+      const issues = (res.issues ?? res.master_list?.items ?? []) as any[];
+      for (const issue of issues) {
+        [issue.target, issue.component, issue.entity_name, issue.title].filter(Boolean).forEach((t: any) => issuedTargets.add(String(t).toLowerCase()));
+      }
+    }
+
+    return structureMap.filter((entry: any) => {
+      const name = entry.entity_name?.toLowerCase() || "";
+      const type = entry.entity_type || "";
+      if (type === "flow") return false; // flows themselves are not orphans
+      const hasFlowConnection = Array.from(flowConnected).some(f => name.includes(f) || f.includes(name));
+      const hasRecentIssues = Array.from(issuedTargets).some(t => name.includes(t) || t.includes(name));
+      const hasWorkItemRef = Array.from(workItemRefs).some(r => r.includes(name) || name.includes(r));
+      return !hasFlowConnection && !hasRecentIssues && !hasWorkItemRef;
+    });
+  }, [structureMap, scanResults, workItems, last3Scans]);
+
+  const orphanByType = useMemo(() => {
+    const groups: Record<string, any[]> = { component: [], route: [], data: [] };
+    for (const entry of orphanEntities) {
+      const type = entry.entity_type || "data";
+      if (!groups[type]) groups[type] = [];
+      groups[type].push(entry);
+    }
+    return groups;
+  }, [orphanEntities]);
 
   // Scanner stats derived from scan results — organized by module groups
   const groupedScannerStats = useMemo(() => {
@@ -1339,9 +1399,63 @@ const SystemExplorer = () => {
             </CardContent>
           )}
         </Card>
-      </div>
 
-      {/* Detail side panel */}
+        {/* ── ORPHAN ELEMENTS SECTION ── */}
+        <Card>
+          <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("orphanElements")}>
+            <CardTitle className="text-sm flex items-center gap-2">
+              {expandedSections.orphanElements ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <Layers className="h-4 w-4 text-muted-foreground" />
+              Orphan Elements
+              {orphanEntities.length > 0 && (
+                <Badge variant="destructive" className="text-[10px]">{orphanEntities.length}</Badge>
+              )}
+              <Badge variant="outline" className="text-[10px]">READ-ONLY</Badge>
+            </CardTitle>
+            <p className="text-[10px] text-muted-foreground mt-1">Dead components, unused routes, broken architecture — no flow, no issues, no work items</p>
+          </CardHeader>
+          {expandedSections.orphanElements && (
+            <CardContent>
+              {orphanEntities.length > 0 ? (
+                <div className="space-y-3">
+                  {(["component", "route", "data"] as const).map((type) => {
+                    const items = orphanByType[type] || [];
+                    if (items.length === 0) return null;
+                    const typeLabels: Record<string, string> = { component: "🖥️ Components", route: "🔗 Routes", data: "🗄️ Data" };
+                    return (
+                      <div key={type}>
+                        <p className="text-xs font-medium text-muted-foreground mb-1">{typeLabels[type] || type} ({items.length})</p>
+                        <div className="border rounded-md overflow-hidden">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="border-b bg-muted/50">
+                                <th className="text-left p-2 font-medium text-muted-foreground">Entity</th>
+                                <th className="text-left p-2 font-medium text-muted-foreground">Last Seen</th>
+                                <th className="text-left p-2 font-medium text-muted-foreground">Flag</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {items.map((entry: any, idx: number) => (
+                                <tr key={idx} className="border-b last:border-b-0">
+                                  <td className="p-2 font-mono text-foreground">{entry.entity_name}</td>
+                                  <td className="p-2 text-muted-foreground">{entry.last_seen_at ? format(new Date(entry.last_seen_at), "yyyy-MM-dd HH:mm") : "—"}</td>
+                                  <td className="p-2"><Badge variant="outline" className="text-[9px] border-destructive text-destructive">orphan</Badge></td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Inga orphan-element hittades — alla entiteter har kopplingar.</p>
+              )}
+            </CardContent>
+          )}
+        </Card>
+      </div>
       {selectedItem && (
         <div className="w-80 border-l border-border bg-card overflow-y-auto p-4 space-y-4 flex-shrink-0">
           <div className="flex items-center justify-between">
