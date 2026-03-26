@@ -221,6 +221,31 @@ const SystemExplorer = () => {
     );
   }, [systemExpectations, structureMap]);
 
+  // Top runtime errors (clustered)
+  const { data: runtimeErrorClusters = [] } = useQuery({
+    queryKey: ["system-explorer-runtime-errors"],
+    queryFn: async () => {
+      const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { data } = await supabase
+        .from("runtime_traces" as any)
+        .select("id, function_name, endpoint, error_message, created_at")
+        .gte("created_at", cutoff)
+        .order("created_at", { ascending: false })
+        .limit(200);
+      if (!data?.length) return [];
+      const clusters: Record<string, { function_name: string; endpoint: string; error_message: string; count: number; latest: string }> = {};
+      for (const t of data as any[]) {
+        const key = `${t.function_name}::${(t.error_message || "").slice(0, 100)}`;
+        if (!clusters[key]) {
+          clusters[key] = { function_name: t.function_name, endpoint: t.endpoint || "", error_message: t.error_message || "", count: 0, latest: t.created_at };
+        }
+        clusters[key].count++;
+        if (t.created_at > clusters[key].latest) clusters[key].latest = t.created_at;
+      }
+      return Object.values(clusters).sort((a, b) => b.count - a.count).slice(0, 10);
+    },
+    staleTime: 30_000,
+  });
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -229,6 +254,7 @@ const SystemExplorer = () => {
       queryClient.invalidateQueries({ queryKey: ["system-explorer-latest-scan"] }),
       queryClient.invalidateQueries({ queryKey: ["system-explorer-structure-map"] }),
       queryClient.invalidateQueries({ queryKey: ["admin-work-items"] }),
+      queryClient.invalidateQueries({ queryKey: ["system-explorer-runtime-errors"] }),
     ]);
     setIsRefreshing(false);
   };
@@ -1032,6 +1058,41 @@ const SystemExplorer = () => {
                   <div>Mode: <Badge variant="secondary">{import.meta.env.MODE ?? "development"}</Badge></div>
                 </div>
               </div>
+            </CardContent>
+          )}
+        </Card>
+
+        {/* TOP RUNTIME ERRORS */}
+        <Card>
+          <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("runtimeErrors")}>
+            <CardTitle className="text-sm flex items-center gap-2">
+              {expandedSections.runtimeErrors ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <AlertTriangle className="h-4 w-4 text-destructive" />
+              Top Runtime Errors ({runtimeErrorClusters.length})
+            </CardTitle>
+          </CardHeader>
+          {expandedSections.runtimeErrors && (
+            <CardContent className="space-y-1 pt-0">
+              {runtimeErrorClusters.length === 0 && (
+                <p className="text-xs text-muted-foreground py-2">No runtime errors in last 24h ✅</p>
+              )}
+              {(runtimeErrorClusters as any[]).map((cluster: any, i: number) => (
+                <div key={i} className="border border-border rounded p-2 bg-muted/10 space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <Badge variant="destructive" className="text-[9px] shrink-0">{cluster.count}×</Badge>
+                      <span className="font-mono text-xs truncate">{cluster.function_name}</span>
+                    </div>
+                    <span className="text-muted-foreground text-[9px] shrink-0">
+                      {new Date(cluster.latest).toLocaleString("sv-SE", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  </div>
+                  {cluster.endpoint && (
+                    <p className="font-mono text-[10px] text-muted-foreground">{cluster.endpoint}</p>
+                  )}
+                  <p className="font-mono text-[10px] text-destructive bg-destructive/10 rounded px-1 py-0.5 break-all">{cluster.error_message.slice(0, 200)}</p>
+                </div>
+              ))}
             </CardContent>
           )}
         </Card>
