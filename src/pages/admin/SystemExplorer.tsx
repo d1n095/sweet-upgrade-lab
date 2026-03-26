@@ -1738,7 +1738,7 @@ const SystemExplorer = () => {
           <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("expectedVsActual")}>
             <CardTitle className="text-sm flex items-center gap-2">
               {expandedSections.expectedVsActual ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-              <CheckCircle2 className="h-4 w-4 text-primary" />
+              <CheckCircle className="h-4 w-4 text-primary" />
               Expected vs Actual
               {missingExpectations.length > 0 && (
                 <Badge variant="destructive" className="text-[10px]">{missingExpectations.length} missing</Badge>
