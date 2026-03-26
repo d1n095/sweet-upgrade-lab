@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { tracedInvoke } from "@/lib/tracedInvoke";
 import { useAiQueueStore } from "@/stores/aiQueueStore";
-import { fileSystemMap, type FileEntry, getFileContent, getCodeIndex, getDuplicatedLines, getCodeIssues, getRawSources } from "@/lib/fileSystemMap";
+import { fileSystemMap, type FileEntry, getFileContent, getCodeIndex, getDuplicatedLines, getCodeIssues, getRawSources, scanFileContent } from "@/lib/fileSystemMap";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useFounderRole } from "@/hooks/useFounderRole";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -183,7 +183,7 @@ const SystemExplorer = () => {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [showBackendRaw, setShowBackendRaw] = useState(false);
   const [fileScanResult, setFileScanResult] = useState<{ total: number; emptyFiles: number; largeFiles: number } | null>(null);
-  const [codeScanResult, setCodeScanResult] = useState<{ filesWithApi: number; filesWithState: number; largeFiles: number } | null>(null);
+  const [codeScanResult, setCodeScanResult] = useState<{ type: string; message: string; file: string }[] | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<{ path: string; lineNumber: number; line: string }[]>([]);
   const [lastAction, setLastAction] = useState("");
@@ -246,12 +246,13 @@ const SystemExplorer = () => {
         logAction({ type: "SCAN", status: "success", mode });
       }
       if (mode === "code") {
-        const index = getCodeIndex();
-        const result = {
-          files: index.length,
-          api: index.filter(f => f.hasApiCall).length
-        };
-        setCodeScanResult({ filesWithApi: result.api, filesWithState: 0, largeFiles: 0 });
+        const results: { type: string; message: string; file: string }[] = [];
+        Object.entries(getRawSources() || {}).forEach(([path, content]) => {
+          const issues = scanFileContent(path, content as string);
+          results.push(...issues);
+        });
+        console.log("[FILE ISSUES FOUND]:", results.length);
+        setCodeScanResult(results);
         logAction({ type: "SCAN", status: "success", mode });
       }
       if (mode === "full") {
@@ -1305,7 +1306,7 @@ const SystemExplorer = () => {
             {index.length === 0 && (
               <p className="text-[10px] text-yellow-500">⚠ Code Index empty — scanner not connected</p>
             )}
-            {codeScanResult && codeScanResult.filesWithApi === 0 && (
+            {codeScanResult && codeScanResult.filter(i => i.type === "structure").length === 0 && (
               <p className="text-[10px] text-yellow-500">⚠ No API calls detected — possible broken scan</p>
             )}
             <Card>
@@ -1316,15 +1317,18 @@ const SystemExplorer = () => {
                 </Button>
               </CardHeader>
               {codeScanResult && (
-                <div className="flex gap-3 text-[10px] px-3 pb-2">
+                <div className="flex gap-3 text-[10px] px-3 pb-2 flex-wrap">
                   <div className="px-3 py-1.5 rounded-md bg-muted/30 border border-border">
-                    <span className="text-muted-foreground">API calls: </span><span className="font-bold text-foreground">{codeScanResult.filesWithApi}</span>
+                    <span className="text-muted-foreground">Total issues: </span><span className="font-bold text-foreground">{codeScanResult.length}</span>
                   </div>
                   <div className="px-3 py-1.5 rounded-md bg-muted/30 border border-border">
-                    <span className="text-muted-foreground">useState: </span><span className="font-bold text-foreground">{codeScanResult.filesWithState}</span>
+                    <span className="text-muted-foreground">Structure: </span><span className="font-bold text-foreground">{codeScanResult.filter(i => i.type === "structure").length}</span>
                   </div>
                   <div className="px-3 py-1.5 rounded-md bg-muted/30 border border-border">
-                    <span className="text-muted-foreground">Large (300+): </span><span className={`font-bold ${codeScanResult.largeFiles > 0 ? "text-yellow-500" : "text-foreground"}`}>{codeScanResult.largeFiles}</span>
+                    <span className="text-muted-foreground">Bugs: </span><span className="font-bold text-foreground">{codeScanResult.filter(i => i.type === "bug").length}</span>
+                  </div>
+                  <div className="px-3 py-1.5 rounded-md bg-muted/30 border border-border">
+                    <span className="text-muted-foreground">Performance: </span><span className={`font-bold ${codeScanResult.filter(i => i.type === "performance").length > 0 ? "text-yellow-500" : "text-foreground"}`}>{codeScanResult.filter(i => i.type === "performance").length}</span>
                   </div>
                 </div>
               )}
