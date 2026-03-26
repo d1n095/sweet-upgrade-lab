@@ -1095,6 +1095,12 @@ const SystemExplorer = () => {
           const componentApiIssues = index.filter(f => f.hasApiCall && f.path.includes("/components"));
           return (
             <div className="space-y-3">
+            {index.length === 0 && (
+              <p className="text-[10px] text-yellow-500">⚠ Code Index empty — scanner not connected</p>
+            )}
+            {codeScanResult && codeScanResult.filesWithApi === 0 && (
+              <p className="text-[10px] text-yellow-500">⚠ No API calls detected — possible broken scan</p>
+            )}
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2"><Layers className="h-4 w-4" /> Code Index ({index.length} files)</CardTitle>
