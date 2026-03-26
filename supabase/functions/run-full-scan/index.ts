@@ -1270,6 +1270,16 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
 
   // ── PROCESS EACH ISSUE with consistency logic ──
   for (const issue of allWorkIssues) {
+    // Validation checks
+    if (!issue.title || issue.title.trim().length === 0) {
+      createTrace.push({ title: issue.title || '', fingerprint: issue.fingerprint, _create_decision: 'skipped_validation', _validation_reason: 'missing_title' });
+      continue;
+    }
+    if (!issue.item_type || issue.item_type.trim().length === 0) {
+      createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'skipped_validation', _validation_reason: 'missing_type' });
+      continue;
+    }
+
     const existingItem = existingByFp.get(issue.fingerprint);
 
     if (existingItem) {
@@ -1278,14 +1288,12 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
       const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
       if (itemAge <= TWENTY_FOUR_HOURS) {
         // REAPPEARING ISSUE within 24h — do NOT create new
-        // Check if severity/priority changed
         if (existingItem.priority !== issue.priority) {
           await supabase.from("work_items").update({
             priority: issue.priority,
             updated_at: new Date().toISOString(),
           }).eq("id", existingItem.id);
 
-          // Log severity change
           await supabase.from("system_observability_log").insert({
             event_type: "action", severity: "info", source: "consistency_guard",
             message: `Severity ändrad: "${issue.title.slice(0, 60)}" ${existingItem.priority} → ${issue.priority}`,
@@ -1296,7 +1304,8 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
         } else {
           console.log(`[consistency-guard] LINKED (unchanged, <24h): ${existingItem.id.slice(0, 8)} "${issue.title.slice(0, 40)}"`);
         }
-        continue; // Do NOT create new
+        createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'skipped_dedup', _dedup_reason: 'fingerprint_match', existing_item_id: existingItem.id });
+        continue;
       } else {
         console.log(`[consistency-guard] ALLOW re-creation (>24h old): "${issue.title.slice(0, 40)}" (existing ${existingItem.id.slice(0, 8)})`);
       }
@@ -1312,12 +1321,12 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
       .limit(1);
 
     if (existingByTitle?.length) {
-      // Update fingerprint on existing item so future scans match by fp
       await supabase.from("work_items").update({
         issue_fingerprint: issue.fingerprint,
         updated_at: new Date().toISOString(),
       }).eq("id", existingByTitle[0].id);
       console.log(`[consistency-guard] LINKED by title: ${existingByTitle[0].id.slice(0, 8)} "${issue.title.slice(0, 40)}"`);
+      createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'skipped_dedup', _dedup_reason: 'title_match', existing_item_id: existingByTitle[0].id });
       continue;
     }
 
@@ -1348,12 +1357,16 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
       console.log(`[create-verify] ✅ VERIFIED: ${created.id} "${issue.title.slice(0, 40)}"`);
       workItemsCreated++;
       verified = true;
+      createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'created', created_id: created.id });
       break;
     }
-    if (!verified) console.error(`[create-verify] ❌ FAILED: "${issue.title.slice(0, 60)}"`);
+    if (!verified) {
+      createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'skipped_validation', _validation_reason: 'invalid_payload' });
+      console.error(`[create-verify] ❌ FAILED: "${issue.title.slice(0, 60)}"`);
+    }
   }
 
-  return workItemsCreated;
+  return { created: workItemsCreated, createTrace };
 }
 
 // ── Helper: Persist per-step scan results ──
