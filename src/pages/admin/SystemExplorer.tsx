@@ -753,6 +753,121 @@ const SystemExplorer = () => {
           )}
         </Card>
 
+        {/* SYSTEM MAP */}
+        <Card>
+          <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("systemMap")}>
+            <CardTitle className="text-sm flex items-center gap-2">
+              {expandedSections.systemMap ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <Layers className="h-4 w-4 text-primary" />
+              System Map
+              <Badge variant="outline" className="text-[10px]">COVERAGE</Badge>
+            </CardTitle>
+          </CardHeader>
+          {expandedSections.systemMap && (
+            <CardContent className="space-y-3 pt-0">
+              {(() => {
+                // Build map entries from scanner scope data
+                const categoryMap: Record<string, { label: string; size: number; scannerNames: Set<string> }> = {};
+                const CATEGORY_DEFS: Record<string, string> = {
+                  components: "Components",
+                  routes: "Routes",
+                  orders: "Orders",
+                  products: "Products",
+                  features: "Features",
+                  checkout_flow: "Checkout Flow",
+                  regressions: "Regressions",
+                  rules: "Rules",
+                  blockers: "Blockers",
+                };
+                for (const group of groupedScannerStats) {
+                  for (const scanner of group.scanners) {
+                    const scope = scanner.scanScope;
+                    if (!scope) continue;
+                    const target = scope.target;
+                    if (!categoryMap[target]) {
+                      categoryMap[target] = { label: CATEGORY_DEFS[target] || target, size: 0, scannerNames: new Set() };
+                    }
+                    if (scope.size != null && scope.size > categoryMap[target].size) {
+                      categoryMap[target].size = scope.size;
+                    }
+                    categoryMap[target].scannerNames.add(scanner.label);
+                  }
+                }
+                // Group by type
+                const TYPE_ORDER = ["ui", "data", "flow", "business", "edge"];
+                const typeGroups: Record<string, string[]> = { ui: ["components", "routes"], data: ["orders", "products"], flow: ["checkout_flow"], business: ["features", "regressions", "rules"], edge: ["blockers"] };
+                const allTargets = Object.keys(categoryMap);
+                // Add any targets not in predefined groups
+                for (const t of allTargets) {
+                  const found = Object.values(typeGroups).some(arr => arr.includes(t));
+                  if (!found) { if (!typeGroups.edge) typeGroups.edge = []; typeGroups.edge.push(t); }
+                }
+
+                const TYPE_LABELS: Record<string, string> = { ui: "🖥️ UI", data: "🗄️ Data", flow: "🔀 Flows", business: "💼 Business", edge: "⚡ Edge" };
+
+                return (
+                  <div className="space-y-3">
+                    {/* Summary row */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                      <div className="text-center border border-border rounded p-2">
+                        <div className="text-lg font-bold">{categoryMap.components?.size ?? 0}</div>
+                        <div className="text-[10px] text-muted-foreground">Components</div>
+                      </div>
+                      <div className="text-center border border-border rounded p-2">
+                        <div className="text-lg font-bold">{categoryMap.routes?.size ?? 0}</div>
+                        <div className="text-[10px] text-muted-foreground">Routes</div>
+                      </div>
+                      <div className="text-center border border-border rounded p-2">
+                        <div className="text-lg font-bold">{(categoryMap.orders?.size ?? 0) + (categoryMap.products?.size ?? 0)}</div>
+                        <div className="text-[10px] text-muted-foreground">Data Entities</div>
+                      </div>
+                      <div className="text-center border border-border rounded p-2">
+                        <div className="text-lg font-bold">{categoryMap.checkout_flow?.size ?? 0}</div>
+                        <div className="text-[10px] text-muted-foreground">Flows</div>
+                      </div>
+                    </div>
+                    {/* Per-category detail */}
+                    <div className="space-y-1">
+                      {TYPE_ORDER.map(typeKey => {
+                        const targets = typeGroups[typeKey] || [];
+                        const entries = targets.filter(t => categoryMap[t]);
+                        if (entries.length === 0) return null;
+                        return (
+                          <div key={typeKey} className="space-y-1">
+                            <div className="text-[11px] font-semibold text-muted-foreground">{TYPE_LABELS[typeKey] || typeKey}</div>
+                            {entries.map(target => {
+                              const cat = categoryMap[target];
+                              const scannerCount = cat.scannerNames.size;
+                              return (
+                                <div key={target} className="flex items-center justify-between px-2 py-1.5 rounded border border-border bg-muted/20 text-[11px]">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium">{cat.label}</span>
+                                    <span className="text-muted-foreground font-bold">{cat.size}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <Badge variant={scannerCount === 0 ? "destructive" : scannerCount === 1 ? "secondary" : "default"} className="text-[9px] px-1.5 py-0">
+                                      {scannerCount === 0 ? "NOT COVERED" : `${scannerCount} scanner${scannerCount > 1 ? "s" : ""}`}
+                                    </Badge>
+                                    {scannerCount > 0 && (
+                                      <span className="text-[9px] text-muted-foreground truncate max-w-[120px]" title={[...cat.scannerNames].join(", ")}>
+                                        ({[...cat.scannerNames].join(", ")})
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+            </CardContent>
+          )}
+        </Card>
+
         {/* WORK ITEMS TREE */}
         <Card>
           <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("workItems")}>
