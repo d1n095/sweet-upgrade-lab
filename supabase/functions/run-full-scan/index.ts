@@ -2350,6 +2350,18 @@ serve(async (req) => {
       if (deadScannersCount === 0 && blindScannersCount === 0 && highAttentionCount === 0) {
         diagLines.push("✅ No critical scanner or issue anomalies detected");
       }
+      // Scan confidence score (0–100)
+      let scanConfidenceScore = 100;
+      scanConfidenceScore -= deadScannersCount * 10;
+      scanConfidenceScore -= blindScannersCount * 5;
+      // NO_INPUT: scanners with no scope at all
+      const noInputCount = Object.values(updatedResults || {}).filter((s: any) => s?._executed !== false && s?.failed !== true && (!s?._scan_scope || s._scan_scope.size === 0) && (!Array.isArray(s?._scan_scope?.targets) || s._scan_scope.targets.length === 0)).length;
+      scanConfidenceScore -= noInputCount * 5;
+      // Coverage penalty
+      const coveragePct = totalScanners > 0 ? Math.round((coverageUniqueTargets / Math.max(coverageTotal, 1)) * 100) : 0;
+      if (coveragePct < 50) scanConfidenceScore -= 10;
+      scanConfidenceScore = Math.max(0, Math.min(100, scanConfidenceScore));
+      diagLines.push(`🎯 Scan confidence: ${scanConfidenceScore}%`);
       const diagnosisSummary = diagLines.slice(0, 10).join("\n");
 
       await supabase.from("scan_snapshots").insert({
@@ -2363,6 +2375,7 @@ serve(async (req) => {
         blind_scanners_count: blindScannersCount,
         coverage_total: coverageTotal,
         coverage_unique_targets: coverageUniqueTargets,
+        scan_confidence_score: scanConfidenceScore,
         diagnosis_summary: diagnosisSummary,
         payload: adaptiveResult,
       });

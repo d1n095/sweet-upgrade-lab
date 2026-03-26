@@ -677,6 +677,11 @@ const SystemExplorer = () => {
           {selectedSnapshotId && (
             <Badge variant="secondary" className="text-[9px]">📸 Snapshot</Badge>
           )}
+          {activeSnapshot?.scan_confidence_score != null && (
+            <Badge variant={activeSnapshot.scan_confidence_score >= 70 ? "outline" : "destructive"} className="text-[9px]">
+              🎯 Confidence: {activeSnapshot.scan_confidence_score}%
+            </Badge>
+          )}
         </div>
 
         {/* AI ASSISTANT - System Admin only */}
