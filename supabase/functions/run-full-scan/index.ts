@@ -3009,6 +3009,52 @@ serve(async (req) => {
       if (issuesCount > 0 && workItemsCreated === 0) {
         violations.push("❌ ISSUES FOUND BUT NOTHING CREATED (FILTER/DEDUP BLOCK)");
       }
+      // SCAN NOT EXECUTED
+      if (!scanRun || !scanRun.started_at) {
+        violations.push("❌ SCAN NEVER STARTED");
+      }
+      // NO SCANNERS RUN
+      const scannersRun = Object.keys(updatedResults || {}).filter(k => !k.startsWith("_"));
+      if (!scannersRun || scannersRun.length === 0) {
+        violations.push("❌ NO SCANNERS EXECUTED");
+      }
+      // NO RAW DETECTIONS
+      const rawDetected = actionableIssues.length + (unified.broken_flows || []).filter((i: any) => i._dev_expected).length + (unified.interaction_failures || []).filter((i: any) => i._dev_expected).length + (unified.data_issues || []).filter((i: any) => i._dev_expected).length;
+      if (rawDetected === 0) {
+        violations.push("⚠ NO RAW ISSUES DETECTED");
+      }
+      // FILTER KILLS EVERYTHING
+      if (rawDetected > 0 && issuesCount === 0) {
+        violations.push("❌ FILTER REMOVED ALL ISSUES");
+      }
+      // DEDUP KILLS EVERYTHING
+      const skippedCount = (createResult.createTrace || []).filter((t: any) => t._create_decision !== "created").length;
+      if (issuesCount > 0 && workItemsCreated === 0 && skippedCount > 0) {
+        violations.push("❌ DEDUP BLOCKED ALL CREATION");
+      }
+      // INSERT FAILED
+      const insertAttempted = (createResult.createTrace || []).filter((t: any) => t._create_decision === "created" || t._create_error).length;
+      if (insertAttempted > 0 && workItemsCreated === 0) {
+        violations.push("❌ DB INSERT FAILED");
+      }
+      // PARTIAL CREATION
+      if (workItemsCreated > 0 && workItemsCreated < issuesCount) {
+        violations.push("⚠ PARTIAL CREATION (SOME LOST)");
+      }
+      // EMPTY PAYLOAD
+      if (!actionableIssues || actionableIssues.length === 0) {
+        violations.push("❌ EMPTY SCAN PAYLOAD");
+      }
+      // INVALID DATA STRUCTURE
+      const allTracedIssues = createResult.createTrace || [];
+      if (allTracedIssues.length > 0 && allTracedIssues.some((i: any) => !i.fingerprint)) {
+        violations.push("❌ ISSUES MISSING FINGERPRINT");
+      }
+      // STALE DATA
+      const scanTimestamp = new Date(scanRun.started_at).getTime();
+      if (scanTimestamp && Date.now() - scanTimestamp > 60000) {
+        violations.push("⚠ STALE SCAN DATA (>60s old)");
+      }
       // FINAL
       if (violations.length > 0) {
         console.error("🚨 SYSTEM VIOLATIONS:", violations);
