@@ -942,6 +942,7 @@ const SystemExplorer = () => {
         {mainTab === "backendscan" && (() => {
           const r = latestBackendScan?.results as any;
           return (
+            <div className="space-y-3">
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2"><Radar className="h-4 w-4" /> Backend Scan</CardTitle>
@@ -973,7 +974,7 @@ const SystemExplorer = () => {
             </Card>
 
             {/* Scanner Execution */}
-            <Card className="mt-3">
+            <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2"><Activity className="h-4 w-4" /> Scanner Execution</CardTitle>
               </CardHeader>
@@ -1003,6 +1004,7 @@ const SystemExplorer = () => {
                 })()}
               </CardContent>
             </Card>
+            </div>
           );
         })()}
 
