@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { Database, Activity, Bug, CheckCircle, AlertTriangle, Clock, Shield, ChevronRight, ChevronDown, X, Folder, FolderOpen, FileText, RefreshCw } from "lucide-react";
+import { Database, Activity, Bug, CheckCircle, AlertTriangle, Clock, Shield, ChevronRight, ChevronDown, X, Folder, FolderOpen, FileText, RefreshCw, Cpu, ArrowRight, Filter, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type WorkItem = {
@@ -60,6 +60,21 @@ const SystemExplorer = () => {
       const { data, error } = await supabase
         .from("ai_scan_results")
         .select("*")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // 2b. Latest scan_run for pipeline data
+  const { data: latestRun } = useQuery({
+    queryKey: ["system-explorer-latest-run"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("scan_runs")
+        .select("id, status, total_new_issues, work_items_created, created_at, unified_result")
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
