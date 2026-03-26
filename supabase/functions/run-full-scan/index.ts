@@ -1420,7 +1420,16 @@ function classifyIssueType(issue: any, category: string): "bug" | "improvement" 
 async function createWorkItems(supabase: any, unified: any, stage: SystemStage): Promise<{ created: number; createTrace: any[] }> {
   let workItemsCreated = 0;
   const createTrace: any[] = [];
-  const allWorkIssues: { title: string; priority: string; item_type: string; description?: string; fingerprint: string; source_path?: string; source_file?: string; source_component?: string; issue_type?: string; suggested_fix?: string }[] = [];
+  const allWorkIssues: { title: string; priority: string; item_type: string; description?: string; fingerprint: string; source_path?: string; source_file?: string; source_component?: string; issue_type?: string; suggested_fix?: string; affected_area?: { type: string; target: string } }[] = [];
+
+  // Map issue categories to affected areas
+  const CATEGORY_AREA_MAP: Record<string, { type: string; target: string }> = {
+    broken_flows: { type: "flow", target: "checkout_flow" },
+    fake_features: { type: "business", target: "features" },
+    interaction_failures: { type: "flow", target: "checkout_flow" },
+    data_issues: { type: "data", target: "orders" },
+    blocker: { type: "edge", target: "blockers" },
+  };
 
   function suggestedFixForType(issueType: string): string {
     if (issueType === "improvement") return "Adjust UI/UX for clarity and usability";
