@@ -2235,12 +2235,16 @@ async function persistStepResults(supabase: any, steps: typeof STEPS, results: R
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  let _activeScanRunId: string | null = null;
+  let _supabase: any = null;
+
   try {
     console.log("🚨 SCAN STARTED");
     console.log("[SCAN START]");
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
+    _supabase = supabase;
 
     // Compatibility shim: Postgrest builder is thenable but doesn't implement .catch
     try {
@@ -2314,6 +2318,7 @@ serve(async (req) => {
 
       console.log("[SCAN] insert result:", scanRun, "error:", insertError);
       if (insertError || !scanRun) return new Response(JSON.stringify({ success: false, error: "Failed to create scan run", detail: insertError?.message }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      _activeScanRunId = scanRun.id;
 
       // Input debug
       const { data: structure_map } = await supabase.from("system_structure_map").select("entity_type, entity_name").limit(500);
