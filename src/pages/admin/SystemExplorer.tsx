@@ -293,6 +293,7 @@ const SystemExplorer = () => {
       queryClient.invalidateQueries({ queryKey: ["admin-work-items"] }),
       queryClient.invalidateQueries({ queryKey: ["system-explorer-runtime-errors"] }),
       queryClient.invalidateQueries({ queryKey: ["system-explorer-debug-console"] }),
+      queryClient.invalidateQueries({ queryKey: ["system-explorer-raw-runtime-errors"] }),
     ]);
     setIsRefreshing(false);
   };
