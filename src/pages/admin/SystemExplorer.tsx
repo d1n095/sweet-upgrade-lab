@@ -1657,6 +1657,24 @@ const SystemExplorer = () => {
                   </div>
                 ) : <p className="text-[10px] text-muted-foreground">✅ Allt skannat</p>;
               })()}
+
+              {/* 7. MISSING REQUIRED SYSTEM PARTS */}
+              {(() => {
+                return missingExpectations.length > 0 ? (
+                  <div>
+                    <h4 className="text-xs font-bold text-destructive mb-1">🚨 Missing Required System Parts</h4>
+                    <ul className="space-y-0.5">
+                      {missingExpectations.slice(0, 10).map((exp: any, idx: number) => (
+                        <li key={idx} className="text-[10px] text-foreground flex items-start gap-1">
+                          <span className="text-destructive">•</span>
+                          <span><strong>{exp.entity_name}</strong> <span className="text-muted-foreground">({exp.entity_type})</span> — impact 5/5</span>
+                        </li>
+                      ))}
+                      {missingExpectations.length > 10 && <li className="text-[9px] text-muted-foreground">…och {missingExpectations.length - 10} till</li>}
+                    </ul>
+                  </div>
+                ) : <p className="text-[10px] text-muted-foreground">✅ Alla förväntade systemdelar hittade</p>;
+              })()}
             </CardContent>
           )}
         </Card>
