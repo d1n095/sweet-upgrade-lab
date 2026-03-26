@@ -2349,16 +2349,21 @@ serve(async (req) => {
       const stepStart = Date.now();
 
       try {
+        const STEP_TIMEOUT_MS = 30000;
         const realScanner = REAL_DB_SCANNERS[step.scanType];
         if (realScanner) {
           console.log(`[scan] Running REAL DB scanner for ${step.scanType}`);
           const dbResult = await realScanner(supabase, scan_run_id);
           let aiEnrichment: any = null;
           try {
+            const aiController = new AbortController();
+            const aiTimeout = setTimeout(() => aiController.abort(), STEP_TIMEOUT_MS);
             const resp = await fetch(`${supabaseUrl}/functions/v1/ai-assistant`, {
               method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
               body: JSON.stringify({ type: step.scanType, orchestrated: true, step_index, real_db_findings: { issues_count: dbResult.issues_found || dbResult.total_issues || 0, score: dbResult.overall_score, sample_issues: (dbResult.issues || dbResult.mismatches || dbResult.features || []).slice(0, 5).map((i: any) => i.title || i.name || "") } }),
+              signal: aiController.signal,
             });
+            clearTimeout(aiTimeout);
             if (resp.ok) { const data = await resp.json(); aiEnrichment = data.result || data; }
           } catch (_) {}
           stepResult = { ...dbResult, ai_suggestions: aiEnrichment?.suggestions || aiEnrichment?.recommendations || [], ai_summary: aiEnrichment?.summary || aiEnrichment?.executive_summary || null };
@@ -2375,14 +2380,18 @@ serve(async (req) => {
           if (currentIteration > 1) {
             deepScanContext = { iteration: currentIteration, previous_patterns: scanRun.pattern_discoveries || [], high_risk_areas: scanRun.high_risk_areas || [], instruction: "DEEP RE-SCAN. Focus on high_risk_areas and patterns." };
           }
+          const stepController = new AbortController();
+          const stepTimeout = setTimeout(() => stepController.abort(), STEP_TIMEOUT_MS);
           const resp = await fetch(`${supabaseUrl}/functions/v1/ai-assistant`, {
             method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
             body: JSON.stringify({ type: step.scanType, orchestrated: true, step_index, previous_context: Object.keys(previousContext).length > 0 ? previousContext : undefined, deep_scan_context: deepScanContext }),
+            signal: stepController.signal,
           });
+          clearTimeout(stepTimeout);
           if (resp.ok) { const data = await resp.json(); stepResult = data.result || data; }
           else { const errBody = await resp.text().catch(() => ""); stepResult = { error: `HTTP ${resp.status}: ${errBody.substring(0, 200)}`, failed: true }; }
         }
-      } catch (e: any) { stepResult = { error: e.message, failed: true }; }
+      } catch (e: any) { stepResult = { error: e.message, failed: true, _timed_out: e.name === "AbortError" }; }
 
       const duration_ms = Date.now() - stepStart;
       const scanFinishedAt = new Date().toISOString();
