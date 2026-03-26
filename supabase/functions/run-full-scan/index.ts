@@ -2110,6 +2110,7 @@ serve(async (req) => {
 
     // ── START ──
     if (action === "start") {
+      console.log("[FULL SCAN START]");
       const authHeader = req.headers.get("authorization");
       if (!authHeader) return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
@@ -2592,6 +2593,8 @@ serve(async (req) => {
       const createResult = await createWorkItems(supabase, unified, systemStage);
       let workItemsCreated = createResult.created;
       unified._create_trace = createResult.createTrace;
+      console.log("[ISSUES FOUND]:", issuesCount);
+      console.log("[WORK ITEMS CREATED]:", workItemsCreated);
 
       // ── SUSPICIOUS AREA RULE 3: High issues but low creation (post-createWorkItems) ──
       for (const [, entry] of Object.entries(targetIssueCounts)) {
@@ -2835,6 +2838,7 @@ serve(async (req) => {
     return new Response(JSON.stringify({ success: false, error: "Invalid action" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
     console.error("run-full-scan error:", e);
+    console.error("[FULL SCAN ERROR]:", e?.message || e);
     try { await logRuntimeTrace("api", "run-full-scan", "/run-full-scan", e?.message || "Unknown", { stack: e?.stack?.slice(0, 500) }); } catch (_) {}
     return new Response(JSON.stringify({ success: false, error: e?.message || "Unknown error" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
