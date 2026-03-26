@@ -254,6 +254,7 @@ const SystemExplorer = () => {
       queryClient.invalidateQueries({ queryKey: ["system-explorer-latest-scan"] }),
       queryClient.invalidateQueries({ queryKey: ["system-explorer-structure-map"] }),
       queryClient.invalidateQueries({ queryKey: ["admin-work-items"] }),
+      queryClient.invalidateQueries({ queryKey: ["system-explorer-runtime-errors"] }),
     ]);
     setIsRefreshing(false);
   };
