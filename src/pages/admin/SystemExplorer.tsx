@@ -26,6 +26,75 @@ type WorkItem = {
   ignored: boolean | null;
 };
 
+// ── Scanner Module Groups ──
+interface ScannerDef {
+  id: string;
+  label: string;
+  /** Which scan step ids or issue categories map to this scanner */
+  matchKeys: string[];
+}
+
+interface ScannerGroup {
+  id: string;
+  label: string;
+  icon: string;
+  scanners: ScannerDef[];
+}
+
+const SCANNER_GROUPS: ScannerGroup[] = [
+  {
+    id: "ui_scanners",
+    label: "UI Scanners",
+    icon: "🖥️",
+    scanners: [
+      { id: "ui_data_binding", label: "UI/Data Binding", matchKeys: ["sync_scan", "ui_data_binding", "sync"] },
+      { id: "component_map", label: "Component Map", matchKeys: ["component_map", "component"] },
+      { id: "navigation_verification", label: "Navigation Verification", matchKeys: ["nav_scan", "navigation_verification", "navigation"] },
+    ],
+  },
+  {
+    id: "data_scanners",
+    label: "Data Scanners",
+    icon: "🗄️",
+    scanners: [
+      { id: "data_flow_validation", label: "Data Flow Validation", matchKeys: ["data_integrity", "data_flow_validation", "data"] },
+      { id: "order_data_mismatch", label: "Order Data Mismatch", matchKeys: ["order_data_mismatch", "order_data"] },
+      { id: "missing_product_data", label: "Missing Product Data", matchKeys: ["missing_product_data", "product_data"] },
+      { id: "stock_inconsistency", label: "Stock Inconsistency", matchKeys: ["stock_inconsistency", "stock", "inventory"] },
+    ],
+  },
+  {
+    id: "flow_scanners",
+    label: "Flow Scanners",
+    icon: "🔀",
+    scanners: [
+      { id: "interaction_qa", label: "Interaction QA", matchKeys: ["interaction_qa", "interaction"] },
+      { id: "human_test", label: "Human Test Simulation", matchKeys: ["human_test", "human"] },
+      { id: "checkout_flow_break", label: "Checkout Flow Break", matchKeys: ["checkout_flow_break", "checkout"] },
+      { id: "order_creation_gap", label: "Order Creation Gap", matchKeys: ["order_creation_gap"] },
+      { id: "scan_to_work_item_loss", label: "Scan → Work Item Loss", matchKeys: ["scan_to_work_item_loss", "pipeline_loss"] },
+    ],
+  },
+  {
+    id: "business_scanners",
+    label: "Business Scanners",
+    icon: "💼",
+    scanners: [
+      { id: "feature_detection", label: "Feature Detection", matchKeys: ["feature_detection", "feature"] },
+      { id: "decision_engine", label: "Decision Engine", matchKeys: ["decision_engine", "decision"] },
+      { id: "regression_detection", label: "Regression Detection", matchKeys: ["system_scan", "regression_detection", "regression"] },
+    ],
+  },
+  {
+    id: "edge_case_scanners",
+    label: "Edge Case Scanners",
+    icon: "⚡",
+    scanners: [
+      { id: "blocker_detection", label: "Blocker Detection", matchKeys: ["blocker_detection", "blocker"] },
+    ],
+  },
+];
+
 const SystemExplorer = () => {
   const queryClient = useQueryClient();
   const { isAdmin, isLoading: adminLoading } = useAdminRole();
