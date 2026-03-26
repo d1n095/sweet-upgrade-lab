@@ -152,3 +152,46 @@ export function getDuplicatedLines(minFiles = 3, minLineLength = 40): { line: st
     .map(([line, files]) => ({ line, files }))
     .sort((a, b) => b.files.length - a.files.length);
 }
+
+export type AnalysisRating = "good" | "neutral" | "bad";
+
+export interface CodeIssue {
+  path: string;
+  issue_type: string;
+  message: string;
+  analysis_rating: AnalysisRating;
+  analysis_reason: string;
+  analysis_confidence: 1 | 2 | 3 | 4 | 5;
+}
+
+export function getCodeIssues(): CodeIssue[] {
+  const issues: CodeIssue[] = [];
+  const index = getCodeIndex();
+
+  for (const f of index) {
+    if (f.hasApiCall && f.path.includes("/components")) {
+      issues.push({
+        path: f.path,
+        issue_type: "structure",
+        message: "API call inside component (bad practice)",
+        analysis_rating: "bad",
+        analysis_reason: "Components should not contain direct API calls. Move to hooks or services.",
+        analysis_confidence: 4,
+      });
+    }
+  }
+
+  const dupes = getDuplicatedLines();
+  for (const d of dupes) {
+    issues.push({
+      path: d.files[0],
+      issue_type: "duplicate",
+      message: `Possible duplicated logic (${d.files.length} files)`,
+      analysis_rating: "neutral",
+      analysis_reason: `Same line found in ${d.files.length} files. May be intentional or a candidate for extraction.`,
+      analysis_confidence: 2,
+    });
+  }
+
+  return issues;
+}
