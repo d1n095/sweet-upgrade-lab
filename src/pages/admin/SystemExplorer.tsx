@@ -102,7 +102,7 @@ const SystemExplorer = () => {
   const { isFounder, isLoading: founderLoading } = useFounderRole();
   const isSystemAdmin = isFounder || false; // founder = full access
   const isViewerAdmin = isAdmin && !isFounder; // admin without founder = read-only viewer
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ workItems: true, scanResults: true, aiFlow: true, scanners: true, noIssueAreas: false, orphanElements: false, issueClusters: false, priorityView: true, systemDiagnosis: true });
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ workItems: true, scanResults: true, aiFlow: true, scanners: true, noIssueAreas: false, orphanElements: false, issueClusters: false, priorityView: true, systemDiagnosis: true, expectedVsActual: true });
   const [expandedScanners, setExpandedScanners] = useState<Record<string, boolean>>({});
   const [scannerIssueFilter, setScannerIssueFilter] = useState<"all" | "bug" | "improvement" | "upgrade">("all");
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({ open: true, in_progress: true, done: false, completed: false, cancelled: false });
@@ -1729,6 +1729,51 @@ const SystemExplorer = () => {
                   </div>
                 ) : <p className="text-[10px] text-muted-foreground">✅ Alla förväntade systemdelar hittade</p>;
               })()}
+            </CardContent>
+          )}
+        </Card>
+
+        {/* ── EXPECTED VS ACTUAL SECTION ── */}
+        <Card>
+          <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("expectedVsActual")}>
+            <CardTitle className="text-sm flex items-center gap-2">
+              {expandedSections.expectedVsActual ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <CheckCircle2 className="h-4 w-4 text-primary" />
+              Expected vs Actual
+              {missingExpectations.length > 0 && (
+                <Badge variant="destructive" className="text-[10px]">{missingExpectations.length} missing</Badge>
+              )}
+              <Badge variant="outline" className="text-[10px]">READ-ONLY</Badge>
+            </CardTitle>
+            <p className="text-[10px] text-muted-foreground mt-1">Sanity check — required system parts vs what exists</p>
+          </CardHeader>
+          {expandedSections.expectedVsActual && (
+            <CardContent className="pt-0">
+              <div className="space-y-2">
+                {(["route", "flow", "data", "component"] as const).map((type) => {
+                  const items = systemExpectations.filter((e: any) => e.entity_type === type);
+                  if (items.length === 0) return null;
+                  return (
+                    <div key={type}>
+                      <h4 className="text-[10px] font-bold text-muted-foreground uppercase mb-0.5">{type}s</h4>
+                      <ul className="space-y-0.5">
+                        {items.map((exp: any, idx: number) => {
+                          const found = structureMap.some((s: any) => s.entity_type === exp.entity_type && s.entity_name === exp.entity_name);
+                          return (
+                            <li key={idx} className="text-[10px] text-foreground flex items-center gap-1.5">
+                              <span className={found ? "text-green-600" : "text-destructive"}>{found ? "✅" : "❌"}</span>
+                              <span className={!found ? "font-medium text-destructive" : ""}>{exp.entity_name}</span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  );
+                })}
+                {systemExpectations.length === 0 && (
+                  <p className="text-[10px] text-muted-foreground">No expectations configured</p>
+                )}
+              </div>
             </CardContent>
           )}
         </Card>
