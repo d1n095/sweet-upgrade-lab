@@ -2123,9 +2123,11 @@ serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
+    console.log("[SCAN] parsing body");
     const body = await req.json();
     console.log("FULL SCAN BODY:", body);
     const { action, scan_run_id, step_index, iteration, request_trace_id, scan_mode, target_area, verification_for } = body;
+    console.log("[SCAN] action:", action);
 
     // ── START ──
     if (action === "start") {
