@@ -409,61 +409,124 @@ const SystemExplorer = () => {
               <X className="h-4 w-4 text-muted-foreground" />
             </button>
           </div>
-          <div className="space-y-3 text-sm">
-            <div>
-              <span className="text-muted-foreground text-xs">Title</span>
-              <p className="font-medium">{selectedItem.title}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground text-xs">Status</span>
-              <div><Badge variant={statusColor(selectedItem.status)}>{selectedItem.status}</Badge></div>
-            </div>
-            <div>
-              <span className="text-muted-foreground text-xs">Priority</span>
-              <div><Badge variant={priorityColor(selectedItem.priority)}>{selectedItem.priority}</Badge></div>
-            </div>
-            <div>
-              <span className="text-muted-foreground text-xs">Type</span>
-              <p>{selectedItem.item_type}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground text-xs">Source Type</span>
-              <p>{selectedItem.source_type ?? "–"}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground text-xs">Source ID</span>
-              <p className="font-mono text-xs break-all">{selectedItem.source_id ?? "–"}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground text-xs">Origin</span>
-              <p>{selectedItem.source_type === "scan" || selectedItem.source_type === "ai_scan" ? "scan" : selectedItem.source_type === "manual" ? "manual" : "system"}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground text-xs">Created By</span>
-              <p className="font-mono text-xs break-all">{selectedItem.created_by ?? "–"}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground text-xs">AI Detected</span>
-              <p>{selectedItem.ai_detected ? "Yes" : "No"}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground text-xs">Created</span>
-              <p>{format(new Date(selectedItem.created_at), "yyyy-MM-dd HH:mm:ss")}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground text-xs">ID</span>
-              <p className="font-mono text-xs break-all">{selectedItem.id}</p>
-            </div>
-            {selectedItem.issue_fingerprint && (
-              <div>
-                <span className="text-muted-foreground text-xs">Fingerprint</span>
-                <p className="font-mono text-xs break-all">{selectedItem.issue_fingerprint}</p>
-              </div>
-            )}
-            {selectedItem.ignored && (
-              <Badge variant="outline" className="mt-2">Ignored</Badge>
-            )}
+          {/* Tabs */}
+          <div className="flex gap-1 border-b border-border">
+            <button
+              onClick={() => setDetailTab("info")}
+              className={`px-3 py-1.5 text-xs font-medium rounded-t-md transition-colors ${detailTab === "info" ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              Info
+            </button>
+            <button
+              onClick={() => setDetailTab("history")}
+              className={`px-3 py-1.5 text-xs font-medium rounded-t-md transition-colors flex items-center gap-1 ${detailTab === "history" ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              <History className="h-3 w-3" />
+              History
+            </button>
           </div>
+
+          {detailTab === "info" && (
+            <div className="space-y-3 text-sm">
+              <div>
+                <span className="text-muted-foreground text-xs">Title</span>
+                <p className="font-medium">{selectedItem.title}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground text-xs">Status</span>
+                <div><Badge variant={statusColor(selectedItem.status)}>{selectedItem.status}</Badge></div>
+              </div>
+              <div>
+                <span className="text-muted-foreground text-xs">Priority</span>
+                <div><Badge variant={priorityColor(selectedItem.priority)}>{selectedItem.priority}</Badge></div>
+              </div>
+              <div>
+                <span className="text-muted-foreground text-xs">Type</span>
+                <p>{selectedItem.item_type}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground text-xs">Source Type</span>
+                <p>{selectedItem.source_type ?? "–"}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground text-xs">Source ID</span>
+                <p className="font-mono text-xs break-all">{selectedItem.source_id ?? "–"}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground text-xs">Origin</span>
+                <p>{selectedItem.source_type === "scan" || selectedItem.source_type === "ai_scan" ? "scan" : selectedItem.source_type === "manual" ? "manual" : "system"}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground text-xs">Created By</span>
+                <p className="font-mono text-xs break-all">{selectedItem.created_by ?? "–"}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground text-xs">AI Detected</span>
+                <p>{selectedItem.ai_detected ? "Yes" : "No"}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground text-xs">Created</span>
+                <p>{format(new Date(selectedItem.created_at), "yyyy-MM-dd HH:mm:ss")}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground text-xs">ID</span>
+                <p className="font-mono text-xs break-all">{selectedItem.id}</p>
+              </div>
+              {selectedItem.issue_fingerprint && (
+                <div>
+                  <span className="text-muted-foreground text-xs">Fingerprint</span>
+                  <p className="font-mono text-xs break-all">{selectedItem.issue_fingerprint}</p>
+                </div>
+              )}
+              {selectedItem.ignored && (
+                <Badge variant="outline" className="mt-2">Ignored</Badge>
+              )}
+            </div>
+          )}
+
+          {detailTab === "history" && (
+            <div className="space-y-2">
+              {historyLoading ? (
+                <p className="text-xs text-muted-foreground">Laddar historik...</p>
+              ) : itemHistory.length === 0 ? (
+                <p className="text-xs text-muted-foreground">Ingen historik ännu.</p>
+              ) : (
+                <div className="relative border-l-2 border-border ml-2 space-y-3">
+                  {itemHistory.map((h: any) => {
+                    const newVal = h.new_value as Record<string, any> | null;
+                    const oldVal = h.old_value as Record<string, any> | null;
+                    return (
+                      <div key={h.id} className="pl-4 relative">
+                        <div className="absolute -left-[5px] top-1.5 w-2 h-2 rounded-full bg-primary" />
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">{h.action}</Badge>
+                          <span className="text-[10px] text-muted-foreground">{format(new Date(h.created_at), "MM-dd HH:mm:ss")}</span>
+                        </div>
+                        {h.action === "status_changed" && oldVal && newVal && (
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {oldVal.status} → {newVal.status}
+                          </p>
+                        )}
+                        {h.action === "created" && newVal && (
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {newVal.source_type ?? "system"} · {newVal.priority}
+                          </p>
+                        )}
+                        {h.action === "updated" && oldVal && newVal && (
+                          <div className="text-xs text-muted-foreground mt-0.5 space-y-0.5">
+                            {oldVal.priority !== newVal.priority && <p>priority: {oldVal.priority} → {newVal.priority}</p>}
+                            {oldVal.assigned_to !== newVal.assigned_to && <p>assigned changed</p>}
+                            {oldVal.claimed_by !== newVal.claimed_by && <p>claimed changed</p>}
+                            {oldVal.ignored !== newVal.ignored && <p>ignored: {String(oldVal.ignored)} → {String(newVal.ignored)}</p>}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
