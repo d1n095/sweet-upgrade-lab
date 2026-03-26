@@ -1062,6 +1062,41 @@ const SystemExplorer = () => {
           )}
         </Card>
 
+        {/* TOP RUNTIME ERRORS */}
+        <Card>
+          <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("runtimeErrors")}>
+            <CardTitle className="text-sm flex items-center gap-2">
+              {expandedSections.runtimeErrors ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <AlertTriangle className="h-4 w-4 text-destructive" />
+              Top Runtime Errors ({runtimeErrorClusters.length})
+            </CardTitle>
+          </CardHeader>
+          {expandedSections.runtimeErrors && (
+            <CardContent className="space-y-1 pt-0">
+              {runtimeErrorClusters.length === 0 && (
+                <p className="text-xs text-muted-foreground py-2">No runtime errors in last 24h ✅</p>
+              )}
+              {(runtimeErrorClusters as any[]).map((cluster: any, i: number) => (
+                <div key={i} className="border border-border rounded p-2 bg-muted/10 space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <Badge variant="destructive" className="text-[9px] shrink-0">{cluster.count}×</Badge>
+                      <span className="font-mono text-xs truncate">{cluster.function_name}</span>
+                    </div>
+                    <span className="text-muted-foreground text-[9px] shrink-0">
+                      {new Date(cluster.latest).toLocaleString("sv-SE", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  </div>
+                  {cluster.endpoint && (
+                    <p className="font-mono text-[10px] text-muted-foreground">{cluster.endpoint}</p>
+                  )}
+                  <p className="font-mono text-[10px] text-destructive bg-destructive/10 rounded px-1 py-0.5 break-all">{cluster.error_message.slice(0, 200)}</p>
+                </div>
+              ))}
+            </CardContent>
+          )}
+        </Card>
+
         {/* SCANNERS — Grouped by Module */}
         <Card>
           <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("scanners")}>
