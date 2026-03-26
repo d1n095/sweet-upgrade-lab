@@ -122,7 +122,7 @@ const SystemExplorer = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("work_items")
-        .select("id, title, status, source_type, source_id, created_by, item_type, priority, ai_detected, created_at, issue_fingerprint, ignored, source_path, source_file, source_component, first_seen_at, last_seen_at, occurrence_count")
+        .select("id, title, status, source_type, source_id, created_by, item_type, priority, ai_detected, created_at, issue_fingerprint, ignored, source_path, source_file, source_component, first_seen_at, last_seen_at, occurrence_count, verification_status, verification_scans_checked, verified_at")
         .order("created_at", { ascending: false })
         .limit(200);
       if (error) throw error;
@@ -2038,6 +2038,31 @@ const SystemExplorer = () => {
                 <div className="border border-destructive rounded-md p-2 bg-destructive/10 space-y-1">
                   <span className="text-destructive text-xs font-bold flex items-center gap-1">⚠️ no_effect_fix</span>
                   <p className="text-[9px] text-destructive/80">This item was marked as done, but the same issue reappeared within the last 2 scans. The fix may not have worked, or the assumption was wrong.</p>
+                </div>
+              )}
+              {/* Fix Verification Status */}
+              {selectedItem.status === "done" && (
+                <div className="border border-border rounded-md p-2 bg-muted/30 space-y-1">
+                  <span className="text-muted-foreground text-xs font-medium">Fix Verification</span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge
+                      variant={(selectedItem as any).verification_status === "confirmed" ? "default" : (selectedItem as any).verification_status === "failed" ? "destructive" : "outline"}
+                      className="text-[10px]"
+                    >
+                      {(selectedItem as any).verification_status === "confirmed" ? "✅ Confirmed" : (selectedItem as any).verification_status === "failed" ? "❌ Failed" : (selectedItem as any).verification_status === "pending" ? "⏳ Pending" : "❓ Unknown"}
+                    </Badge>
+                    <span className="text-[10px] text-muted-foreground">
+                      Scans checked: {(selectedItem as any).verification_scans_checked ?? 0}/2
+                    </span>
+                    {(selectedItem as any).verified_at && (
+                      <span className="text-[10px] text-muted-foreground">
+                        Verified: {format(new Date((selectedItem as any).verified_at), "yyyy-MM-dd HH:mm")}
+                      </span>
+                    )}
+                  </div>
+                  {(selectedItem as any).verification_status === "failed" && (
+                    <p className="text-[9px] text-destructive">⚠️ Issue reappeared after fix — may need re-investigation</p>
+                  )}
                 </div>
               )}
               <div>
