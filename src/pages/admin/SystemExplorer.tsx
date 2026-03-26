@@ -111,7 +111,38 @@ const SystemExplorer = () => {
   const scanResults = latestScan?.results as Record<string, any> | null;
   const detectedIssues = scanResults?.master_list?.total ?? scanResults?.detected_issues?.length ?? latestScan?.issues_count ?? 0;
 
-  // Group work items by status
+  // Scanner stats derived from scan results issues
+  const scannerStats = useMemo(() => {
+    const rawIssues = (scanResults?.issues as any[] | undefined) ?? [];
+    const categoryMap: Record<string, { raw: any[]; created: number }> = {};
+    for (const issue of rawIssues) {
+      const cat = issue.category || issue.type || "unknown";
+      if (!categoryMap[cat]) categoryMap[cat] = { raw: [], created: 0 };
+      categoryMap[cat].raw.push(issue);
+    }
+    // Match work_items created from scan to categories
+    const scanItems = workItems.filter(w => w.source_type === "scan" || w.source_type === "ai_scan" || w.source_type === "ai_detection");
+    for (const wi of scanItems) {
+      // Try to match by item_type or a rough category
+      const cat = wi.item_type || "unknown";
+      if (categoryMap[cat]) {
+        categoryMap[cat].created++;
+      }
+    }
+    return Object.entries(categoryMap).map(([name, data]) => {
+      const detected = data.raw.length;
+      const created = data.created;
+      const filtered = Math.max(0, detected - created);
+      const ratio = detected > 0 ? created / detected : 0;
+      let health: "GOOD" | "WEAK" | "NOISY" = "GOOD";
+      if (detected === 0) health = "WEAK";
+      else if (ratio < 0.3 && filtered > 2) health = "NOISY";
+      else if (detected <= 1 && created === 0) health = "WEAK";
+      return { name, detected, afterFilter: created, skipped: filtered, created, health, rawIssues: data.raw };
+    }).sort((a, b) => b.detected - a.detected);
+  }, [scanResults, workItems]);
+
+
   const grouped = useMemo(() => {
     const groups: Record<string, WorkItem[]> = {};
     for (const wi of workItems) {
