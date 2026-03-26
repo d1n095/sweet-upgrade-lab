@@ -875,6 +875,70 @@ async function runDataIntegrityScan(supabase: any, scanRunId: string): Promise<a
       } catch (_) {}
     }
 
+    // 9. Frontend vs Backend data mismatch: check fields frontend expects but backend may not have
+    const FRONTEND_EXPECTS: { table: string; entity: string; fields: { name: string; label: string }[]; limit: number }[] = [
+      { table: "orders", entity: "order", fields: [
+        { name: "id", label: "order.id" },
+        { name: "user_id", label: "order.user_id" },
+        { name: "total_amount", label: "order.total" },
+        { name: "status", label: "order.status" },
+        { name: "payment_status", label: "order.payment_status" },
+        { name: "order_email", label: "order.email" },
+        { name: "items", label: "order.items" },
+        { name: "shipping_address", label: "order.shipping_address" },
+        { name: "payment_intent_id", label: "order.payment_intent_id" },
+      ], limit: 100 },
+      { table: "profiles", entity: "user", fields: [
+        { name: "user_id", label: "user.user_id" },
+        { name: "username", label: "user.username" },
+        { name: "is_member", label: "user.is_member" },
+        { name: "level", label: "user.level" },
+        { name: "xp", label: "user.xp" },
+      ], limit: 100 },
+      { table: "products", entity: "product", fields: [
+        { name: "id", label: "product.id" },
+        { name: "title_sv", label: "product.title" },
+        { name: "price", label: "product.price" },
+        { name: "status", label: "product.status" },
+        { name: "handle", label: "product.handle" },
+        { name: "image_url", label: "product.image_url" },
+      ], limit: 100 },
+      { table: "work_items", entity: "work_item", fields: [
+        { name: "id", label: "work_item.id" },
+        { name: "title", label: "work_item.title" },
+        { name: "status", label: "work_item.status" },
+        { name: "priority", label: "work_item.priority" },
+        { name: "item_type", label: "work_item.item_type" },
+      ], limit: 50 },
+    ];
+
+    for (const fe of FRONTEND_EXPECTS) {
+      try {
+        const selectFields = fe.fields.map(f => f.name).join(", ");
+        const { data: rows } = await supabase.from(fe.table).select(selectFields).order("created_at", { ascending: false }).limit(fe.limit);
+        for (const row of rows || []) {
+          for (const field of fe.fields) {
+            const val = row[field.name];
+            if (val === null || val === undefined) {
+              issues.push({
+                type: "data_mismatch",
+                severity: ["user_id", "id", "total_amount", "price", "status"].includes(field.name) ? "critical" : "high",
+                entity: fe.entity,
+                entity_id: (row.id || row.user_id || "unknown").toString().slice(0, 8),
+                title: `Data mismatch: frontend vs backend — ${field.label} expected → ${val === null ? "null" : "undefined"}`,
+                step: "backend → frontend",
+                root_cause: `Frontend expects ${field.label} but backend returns ${val === null ? "null" : "undefined"}`,
+                component: fe.table,
+                _issue_type: "bug",
+                _impact_score: 4,
+                _impact_label: ["user_id", "id", "total_amount", "price"].includes(field.name) ? "critical" : "high",
+              });
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
   } catch (e: any) {
     console.error("Data integrity scan error:", e);
     issues.push({ type: "scan_error", severity: "critical", entity: "integrity_scan", title: `Integrity scan fel: ${e.message}`, step: "scan", root_cause: e.message, component: "integrity_scan" });
@@ -884,13 +948,13 @@ async function runDataIntegrityScan(supabase: any, scanRunId: string): Promise<a
   await supabase.from("system_observability_log").insert({
     event_type: "scan_step", severity: issues.filter(i => i.severity === "critical").length > 0 ? "warning" : "info",
     source: "scanner", message: `Data integrity scan: ${issues.length} problem`,
-    details: { total_issues: issues.length, by_type: { data_loss: issues.filter(i => i.type === "data_loss").length, failed_insert: issues.filter(i => i.type === "failed_insert").length, stale_state: issues.filter(i => i.type === "stale_state").length, incorrect_filtering: issues.filter(i => i.type === "incorrect_filtering").length, data_validation: issues.filter(i => i.type === "data_validation").length, id_trace: issues.filter(i => i.type === "id_trace").length } },
+    details: { total_issues: issues.length, by_type: { data_loss: issues.filter(i => i.type === "data_loss").length, failed_insert: issues.filter(i => i.type === "failed_insert").length, stale_state: issues.filter(i => i.type === "stale_state").length, incorrect_filtering: issues.filter(i => i.type === "incorrect_filtering").length, data_validation: issues.filter(i => i.type === "data_validation").length, id_trace: issues.filter(i => i.type === "id_trace").length, data_mismatch: issues.filter(i => i.type === "data_mismatch").length } },
     scan_id: scanRunId, trace_id: traceId, component: "data_integrity_scan", duration_ms: durationMs,
   }).catch(() => {});
 
   return {
     issues, total_issues: issues.length,
-    by_type: { data_loss: issues.filter(i => i.type === "data_loss").length, failed_insert: issues.filter(i => i.type === "failed_insert").length, stale_state: issues.filter(i => i.type === "stale_state").length, incorrect_filtering: issues.filter(i => i.type === "incorrect_filtering").length, data_validation: issues.filter(i => i.type === "data_validation").length, id_trace: issues.filter(i => i.type === "id_trace").length },
+    by_type: { data_loss: issues.filter(i => i.type === "data_loss").length, failed_insert: issues.filter(i => i.type === "failed_insert").length, stale_state: issues.filter(i => i.type === "stale_state").length, incorrect_filtering: issues.filter(i => i.type === "incorrect_filtering").length, data_validation: issues.filter(i => i.type === "data_validation").length, id_trace: issues.filter(i => i.type === "id_trace").length, data_mismatch: issues.filter(i => i.type === "data_mismatch").length },
     duration_ms: durationMs, scanned_at: new Date().toISOString(),
   };
 }
