@@ -191,35 +191,63 @@ const SystemExplorer = () => {
   const scanResults = latestScan?.results as Record<string, any> | null;
   const detectedIssues = scanResults?.master_list?.total ?? scanResults?.detected_issues?.length ?? latestScan?.issues_count ?? 0;
 
-  // Scanner stats derived from scan results issues
-  const scannerStats = useMemo(() => {
+  // Scanner stats derived from scan results — organized by module groups
+  const groupedScannerStats = useMemo(() => {
     const rawIssues = (scanResults?.issues as any[] | undefined) ?? [];
-    const categoryMap: Record<string, { raw: any[]; created: number }> = {};
-    for (const issue of rawIssues) {
-      const cat = issue.category || issue.type || "unknown";
-      if (!categoryMap[cat]) categoryMap[cat] = { raw: [], created: 0 };
-      categoryMap[cat].raw.push(issue);
-    }
-    // Match work_items created from scan to categories
     const scanItems = workItems.filter(w => w.source_type === "scan" || w.source_type === "ai_scan" || w.source_type === "ai_detection");
-    for (const wi of scanItems) {
-      // Try to match by item_type or a rough category
-      const cat = wi.item_type || "unknown";
-      if (categoryMap[cat]) {
-        categoryMap[cat].created++;
+
+    // Build a lookup: key → { raw issues, created count }
+    const keyStats: Record<string, { raw: any[]; created: number }> = {};
+    for (const issue of rawIssues) {
+      const keys = [issue.category, issue.type, issue.scan_type, issue.step, issue.item_type].filter(Boolean).map((k: string) => k.toLowerCase());
+      for (const k of keys) {
+        if (!keyStats[k]) keyStats[k] = { raw: [], created: 0 };
+        keyStats[k].raw.push(issue);
       }
     }
-    return Object.entries(categoryMap).map(([name, data]) => {
-      const detected = data.raw.length;
-      const created = data.created;
-      const filtered = Math.max(0, detected - created);
-      const ratio = detected > 0 ? created / detected : 0;
-      let health: "GOOD" | "WEAK" | "NOISY" = "GOOD";
-      if (detected === 0) health = "WEAK";
-      else if (ratio < 0.3 && filtered > 2) health = "NOISY";
-      else if (detected <= 1 && created === 0) health = "WEAK";
-      return { name, detected, afterFilter: created, skipped: filtered, created, health, rawIssues: data.raw };
-    }).sort((a, b) => b.detected - a.detected);
+    for (const wi of scanItems) {
+      const keys = [wi.item_type].filter(Boolean).map(k => k.toLowerCase());
+      for (const k of keys) {
+        if (keyStats[k]) keyStats[k].created++;
+      }
+    }
+
+    return SCANNER_GROUPS.map(group => {
+      const scannerResults = group.scanners.map(scanner => {
+        let detected = 0;
+        let created = 0;
+        const allRaw: any[] = [];
+        for (const mk of scanner.matchKeys) {
+          const s = keyStats[mk.toLowerCase()];
+          if (s) {
+            detected += s.raw.length;
+            created += s.created;
+            allRaw.push(...s.raw);
+          }
+        }
+        // De-duplicate raw issues by reference
+        const uniqueRaw = [...new Map(allRaw.map(r => [r.title || JSON.stringify(r), r])).values()];
+        detected = uniqueRaw.length;
+        const skipped = Math.max(0, detected - created);
+        const ratio = detected > 0 ? created / detected : 0;
+        let health: "GOOD" | "WEAK" | "NOISY" = "GOOD";
+        if (detected === 0) health = "WEAK";
+        else if (ratio < 0.3 && skipped > 2) health = "NOISY";
+        else if (detected <= 1 && created === 0) health = "WEAK";
+        return { ...scanner, detected, afterFilter: created, skipped, created, health, rawIssues: uniqueRaw };
+      });
+
+      const groupDetected = scannerResults.reduce((s, r) => s + r.detected, 0);
+      const groupCreated = scannerResults.reduce((s, r) => s + r.created, 0);
+      const groupSkipped = scannerResults.reduce((s, r) => s + r.skipped, 0);
+      const weakCount = scannerResults.filter(r => r.health === "WEAK").length;
+      const noisyCount = scannerResults.filter(r => r.health === "NOISY").length;
+      let groupHealth: "GOOD" | "WEAK" | "NOISY" = "GOOD";
+      if (weakCount > scannerResults.length / 2) groupHealth = "WEAK";
+      else if (noisyCount > scannerResults.length / 2) groupHealth = "NOISY";
+
+      return { ...group, scanners: scannerResults, detected: groupDetected, created: groupCreated, skipped: groupSkipped, health: groupHealth };
+    });
   }, [scanResults, workItems]);
 
 
