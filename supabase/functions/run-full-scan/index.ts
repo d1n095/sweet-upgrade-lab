@@ -948,7 +948,7 @@ async function runDataIntegrityScan(supabase: any, scanRunId: string): Promise<a
   await supabase.from("system_observability_log").insert({
     event_type: "scan_step", severity: issues.filter(i => i.severity === "critical").length > 0 ? "warning" : "info",
     source: "scanner", message: `Data integrity scan: ${issues.length} problem`,
-    details: { total_issues: issues.length, by_type: { data_loss: issues.filter(i => i.type === "data_loss").length, failed_insert: issues.filter(i => i.type === "failed_insert").length, stale_state: issues.filter(i => i.type === "stale_state").length, incorrect_filtering: issues.filter(i => i.type === "incorrect_filtering").length, data_validation: issues.filter(i => i.type === "data_validation").length, id_trace: issues.filter(i => i.type === "id_trace").length } },
+    details: { total_issues: issues.length, by_type: { data_loss: issues.filter(i => i.type === "data_loss").length, failed_insert: issues.filter(i => i.type === "failed_insert").length, stale_state: issues.filter(i => i.type === "stale_state").length, incorrect_filtering: issues.filter(i => i.type === "incorrect_filtering").length, data_validation: issues.filter(i => i.type === "data_validation").length, id_trace: issues.filter(i => i.type === "id_trace").length, data_mismatch: issues.filter(i => i.type === "data_mismatch").length } },
     scan_id: scanRunId, trace_id: traceId, component: "data_integrity_scan", duration_ms: durationMs,
   }).catch(() => {});
 
