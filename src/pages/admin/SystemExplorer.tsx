@@ -214,6 +214,7 @@ const SystemExplorer = () => {
 
     // Step results from scan for executed status
     const stepResults = (scanResults?.step_results ?? scanResults) as Record<string, any> | null;
+    const createTrace: any[] = scanResults?._create_trace ?? [];
 
     return SCANNER_GROUPS.map(group => {
       const scannerResults = group.scanners.map(scanner => {
@@ -258,7 +259,7 @@ const SystemExplorer = () => {
         else if (detected === 0) health = "WEAK";
         else if (ratio < 0.3 && skipped > 2) health = "NOISY";
         else if (detected <= 1 && created === 0) health = "WEAK";
-        return { ...scanner, detected, afterFilter: created, skipped, created, health, rawIssues: uniqueRaw, executed, executionTimeMs, inputSize, emptyReason, scanStartedAt, scanFinishedAt };
+        return { ...scanner, detected, afterFilter: created, skipped, created, health, rawIssues: uniqueRaw, executed, executionTimeMs, inputSize, emptyReason, scanStartedAt, scanFinishedAt, createTrace };
       });
 
       const groupDetected = scannerResults.reduce((s, r) => s + r.detected, 0);
@@ -656,19 +657,47 @@ const SystemExplorer = () => {
                                   </div>
                                   <div className="space-y-1 max-h-40 overflow-y-auto">
                                     {scanner.rawIssues.map((issue: any, idx: number) => (
-                                      <div key={idx} className="text-[10px] border border-border rounded px-2 py-1 bg-muted/30">
+                                      <div key={idx} className="text-[10px] border border-border rounded px-2 py-1 bg-muted/30 space-y-1">
                                         <div className="flex items-center gap-1 flex-wrap">
                                           <span className="font-medium truncate flex-1">{issue.title || "Untitled"}</span>
-                                          {issue._filter_decision && (
-                                            <Badge
-                                              variant={issue._filter_decision === "passed" ? "default" : "destructive"}
-                                              className="text-[8px] px-1 py-0"
-                                            >
-                                              {issue._filter_decision === "passed" ? "✓" : `✗ ${issue._filter_reason || "filtered"}`}
-                                            </Badge>
-                                          )}
                                           <Badge variant="outline" className="text-[8px] px-1 py-0">{issue.type || "–"}</Badge>
                                           <Badge variant="outline" className="text-[8px] px-1 py-0">{issue.severity || "–"}</Badge>
+                                        </div>
+                                        {/* SCAN → FILTER → CREATE flow */}
+                                        <div className="grid grid-cols-3 gap-1 text-[9px] border-t border-border/30 pt-1">
+                                          {/* SCAN */}
+                                          <div className="space-y-0.5">
+                                            <div className="font-semibold text-muted-foreground uppercase tracking-wider">Scan</div>
+                                            <div>detected: <span className="font-medium">yes</span></div>
+                                            {scanner.executionTimeMs != null && <div>time: <span className="font-medium">{scanner.executionTimeMs}ms</span></div>}
+                                            {scanner.inputSize != null && <div>input: <span className="font-medium">{scanner.inputSize}</span></div>}
+                                          </div>
+                                          {/* FILTER */}
+                                          <div className="space-y-0.5">
+                                            <div className="font-semibold text-muted-foreground uppercase tracking-wider">Filter</div>
+                                            <div>decision: <span className={`font-medium ${issue._filter_decision === 'passed' ? 'text-green-500' : 'text-destructive'}`}>
+                                              {issue._filter_decision || '–'}
+                                            </span></div>
+                                            {issue._filter_reason && <div>reason: <span className="font-medium text-destructive">{issue._filter_reason}</span></div>}
+                                          </div>
+                                          {/* CREATE */}
+                                          <div className="space-y-0.5">
+                                            <div className="font-semibold text-muted-foreground uppercase tracking-wider">Create</div>
+                                            {(() => {
+                                              const trace = (scanner.createTrace || []).find((t: any) => t.title === issue.title || t.fingerprint === issue.fingerprint);
+                                              if (trace) {
+                                                return <>
+                                                  <div>decision: <span className={`font-medium ${trace._create_decision === 'created' ? 'text-green-500' : 'text-destructive'}`}>
+                                                    {trace._create_decision}
+                                                  </span></div>
+                                                  {trace._dedup_reason && <div>dedup: <span className="font-medium">{trace._dedup_reason}</span></div>}
+                                                  {trace._validation_reason && <div>reason: <span className="font-medium">{trace._validation_reason}</span></div>}
+                                                  {trace.existing_item_id && <div>existing: <span className="font-mono">{trace.existing_item_id.slice(0, 8)}</span></div>}
+                                                </>;
+                                              }
+                                              return <div className="text-muted-foreground">–</div>;
+                                            })()}
+                                          </div>
                                         </div>
                                       </div>
                                     ))}
