@@ -130,3 +130,25 @@ export function getCodeIndex() {
     lineCount: content.split("\n").length
   }));
 }
+
+export function getDuplicatedLines(minFiles = 3, minLineLength = 40): { line: string; files: string[] }[] {
+  const lineMap: Record<string, string[]> = {};
+  for (const [rawPath, content] of Object.entries(rawSources)) {
+    if (typeof content !== "string") continue;
+    const path = rawPath.startsWith("/") ? rawPath.slice(1) : rawPath;
+    const seen = new Set<string>();
+    for (const line of content.split("\n")) {
+      const trimmed = line.trim();
+      if (trimmed.length < minLineLength) continue;
+      if (trimmed.startsWith("//") || trimmed.startsWith("import ") || trimmed.startsWith("export ")) continue;
+      if (seen.has(trimmed)) continue;
+      seen.add(trimmed);
+      if (!lineMap[trimmed]) lineMap[trimmed] = [];
+      lineMap[trimmed].push(path);
+    }
+  }
+  return Object.entries(lineMap)
+    .filter(([, files]) => files.length >= minFiles)
+    .map(([line, files]) => ({ line, files }))
+    .sort((a, b) => b.files.length - a.files.length);
+}
