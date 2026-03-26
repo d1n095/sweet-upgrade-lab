@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { tracedInvoke } from "@/lib/tracedInvoke";
 import { useAiQueueStore } from "@/stores/aiQueueStore";
-import { fileSystemMap, type FileEntry, getFileContent, getCodeIndex, getDuplicatedLines } from "@/lib/fileSystemMap";
+import { fileSystemMap, type FileEntry, getFileContent, getCodeIndex, getDuplicatedLines, getCodeIssues } from "@/lib/fileSystemMap";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useFounderRole } from "@/hooks/useFounderRole";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -955,58 +955,50 @@ const SystemExplorer = () => {
               </CardContent>
             </Card>
 
-            {/* Structure Issues from scan aggregation */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                  Structure Issues ({componentApiIssues.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-1 p-3">
-                {componentApiIssues.length === 0 ? (
-                  <p className="text-[10px] text-muted-foreground">No structure issues detected.</p>
-                ) : (
-                  componentApiIssues.map((f) => (
-                    <div key={f.path} className="flex items-center gap-2 p-2 rounded-md border border-yellow-500/20 bg-yellow-500/5">
-                      <Badge variant="outline" className="text-[8px] border-yellow-500/30 text-yellow-500">structure</Badge>
-                      <span className="font-mono text-[10px] text-foreground flex-1 truncate">{f.path.replace(/^\//, "")}</span>
-                      <span className="text-[9px] text-muted-foreground">API call inside component (bad practice)</span>
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Duplicated Logic Issues */}
+            {/* All Code Issues with Analysis */}
             {(() => {
-              const dupes = getDuplicatedLines();
-              return dupes.length > 0 ? (
+              const allIssues = getCodeIssues();
+              const ratingColor = (r: string) => r === "good" ? "text-green-500" : r === "bad" ? "text-red-500" : "text-yellow-500";
+              const ratingBg = (r: string) => r === "good" ? "bg-green-500/10 border-green-500/20" : r === "bad" ? "bg-red-500/10 border-red-500/20" : "bg-yellow-500/10 border-yellow-500/20";
+              return (
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm flex items-center gap-2">
-                      <AlertTriangle className="h-4 w-4 text-orange-500" />
-                      Possible Duplicated Logic ({dupes.length})
+                      <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                      Code Issues ({allIssues.length})
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-1 p-3 max-h-[300px] overflow-auto">
-                    {dupes.slice(0, 50).map((d, i) => (
-                      <details key={i} className="border border-orange-500/20 bg-orange-500/5 rounded-md p-2">
-                        <summary className="flex items-center gap-2 cursor-pointer text-[10px]">
-                          <Badge variant="outline" className="text-[8px] border-orange-500/30 text-orange-500">duplicate</Badge>
-                          <span className="text-muted-foreground">Found in {d.files.length} files</span>
-                          <span className="font-mono text-foreground truncate max-w-[400px]">{d.line.slice(0, 80)}{d.line.length > 80 ? "…" : ""}</span>
-                        </summary>
-                        <div className="mt-1 pl-4 space-y-0.5">
-                          {d.files.map((f, j) => (
-                            <div key={j} className="font-mono text-[9px] text-muted-foreground">{f}</div>
-                          ))}
-                        </div>
-                      </details>
-                    ))}
+                  <CardContent className="space-y-1 p-3 max-h-[400px] overflow-auto">
+                    {allIssues.length === 0 ? (
+                      <p className="text-[10px] text-muted-foreground">No issues detected.</p>
+                    ) : (
+                      allIssues.map((issue, i) => (
+                        <details key={i} className={`rounded-md border p-2 ${ratingBg(issue.analysis_rating)}`}>
+                          <summary className="flex items-center gap-2 cursor-pointer text-[10px]">
+                            <Badge variant="outline" className="text-[8px]">{issue.issue_type}</Badge>
+                            <span className="font-mono text-foreground flex-1 truncate">{issue.path.replace(/^\//, "")}</span>
+                            <span className="text-[9px] text-muted-foreground">{issue.message}</span>
+                          </summary>
+                          <div className="mt-2 ml-2 border-l-2 border-border pl-3 space-y-1">
+                            <div className="text-[10px]">
+                              <span className="text-muted-foreground">Rating: </span>
+                              <span className={`font-medium ${ratingColor(issue.analysis_rating)}`}>{issue.analysis_rating}</span>
+                            </div>
+                            <div className="text-[10px]">
+                              <span className="text-muted-foreground">Reason: </span>
+                              <span className="text-foreground">{issue.analysis_reason}</span>
+                            </div>
+                            <div className="text-[10px]">
+                              <span className="text-muted-foreground">Confidence: </span>
+                              <span className="text-foreground">{issue.analysis_confidence}/5</span>
+                            </div>
+                          </div>
+                        </details>
+                      ))
+                    )}
                   </CardContent>
                 </Card>
-              ) : null;
+              );
             })()}
             </div>
           );
