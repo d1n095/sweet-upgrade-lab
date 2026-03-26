@@ -246,6 +246,7 @@ const SystemExplorer = () => {
             if (stepData?._empty_reason && emptyReason === null) emptyReason = stepData._empty_reason;
             if (stepData?._scan_started_at && scanStartedAt === null) scanStartedAt = stepData._scan_started_at;
             if (stepData?._scan_finished_at && scanFinishedAt === null) scanFinishedAt = stepData._scan_finished_at;
+            if (stepData?._scan_scope && scanScope === null) scanScope = stepData._scan_scope;
           }
         }
         // If we found any raw issues or created items, scanner must have executed
