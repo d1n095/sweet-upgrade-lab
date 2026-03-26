@@ -700,6 +700,7 @@ const SystemExplorer = () => {
                                           <span className="font-medium truncate flex-1">{issue.title || "Untitled"}</span>
                                           <Badge variant="outline" className="text-[8px] px-1 py-0">{issue.type || "–"}</Badge>
                                           <Badge variant="outline" className="text-[8px] px-1 py-0">{issue.severity || "–"}</Badge>
+                                          {issue._issue_type && <Badge variant={issue._issue_type === "bug" ? "destructive" : issue._issue_type === "upgrade" ? "default" : "secondary"} className="text-[8px] px-1 py-0">{issue._issue_type}</Badge>}
                                         </div>
                                         {/* SCAN → FILTER → CREATE flow */}
                                         <div className="grid grid-cols-3 gap-1 text-[9px] border-t border-border/30 pt-1">
