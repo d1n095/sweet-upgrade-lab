@@ -824,6 +824,57 @@ async function runDataIntegrityScan(supabase: any, scanRunId: string): Promise<a
       } catch (_) {}
     }
 
+    // 8. ID Trace: verify IDs are generated, persisted, and returned for key entities
+    const ID_TRACE_ENTITIES = [
+      { table: "orders", entity: "order", id_field: "id", return_fields: ["id", "order_number", "payment_intent_id"], limit: 100 },
+      { table: "profiles", entity: "user", id_field: "user_id", return_fields: ["user_id", "username"], limit: 100 },
+      { table: "products", entity: "product", id_field: "id", return_fields: ["id", "handle"], limit: 100 },
+      { table: "work_items", entity: "work_item", id_field: "id", return_fields: ["id", "source_id"], limit: 100 },
+    ];
+
+    for (const ent of ID_TRACE_ENTITIES) {
+      try {
+        const { data: rows } = await supabase.from(ent.table).select(ent.return_fields.join(", ")).order("created_at", { ascending: false }).limit(ent.limit);
+        for (const row of rows || []) {
+          const generated = row[ent.id_field] !== null && row[ent.id_field] !== undefined && row[ent.id_field] !== "";
+          const persisted = generated; // if we fetched it from DB, it's persisted
+          // returned = all return_fields have values (ID made it through the full chain)
+          const missingReturns = ent.return_fields.filter(f => row[f] === null || row[f] === undefined || row[f] === "");
+          const returned = missingReturns.length === 0;
+
+          const id_trace = { generated, persisted, returned };
+
+          if (!generated) {
+            issues.push({
+              type: "id_trace",
+              severity: "critical",
+              entity: ent.entity,
+              entity_id: row[ent.id_field] || "unknown",
+              title: `ID lost at: generated in "${ent.entity}"`,
+              step: "create → ID generation",
+              root_cause: `${ent.id_field} is null/empty`,
+              component: ent.table,
+              id_trace,
+            });
+          } else if (!returned) {
+            // ID exists but downstream fields are missing
+            const lostAt = missingReturns.join(", ");
+            issues.push({
+              type: "id_trace",
+              severity: "high",
+              entity: ent.entity,
+              entity_id: (row[ent.id_field] || "").toString().slice(0, 8),
+              title: `ID lost at: returned in "${ent.entity}" (missing: ${lostAt})`,
+              step: "database → UI return",
+              root_cause: `Fields [${lostAt}] null/empty despite ID present`,
+              component: ent.table,
+              id_trace,
+            });
+          }
+        }
+      } catch (_) {}
+    }
+
   } catch (e: any) {
     console.error("Data integrity scan error:", e);
     issues.push({ type: "scan_error", severity: "critical", entity: "integrity_scan", title: `Integrity scan fel: ${e.message}`, step: "scan", root_cause: e.message, component: "integrity_scan" });
@@ -833,13 +884,13 @@ async function runDataIntegrityScan(supabase: any, scanRunId: string): Promise<a
   await supabase.from("system_observability_log").insert({
     event_type: "scan_step", severity: issues.filter(i => i.severity === "critical").length > 0 ? "warning" : "info",
     source: "scanner", message: `Data integrity scan: ${issues.length} problem`,
-    details: { total_issues: issues.length, by_type: { data_loss: issues.filter(i => i.type === "data_loss").length, failed_insert: issues.filter(i => i.type === "failed_insert").length, stale_state: issues.filter(i => i.type === "stale_state").length, incorrect_filtering: issues.filter(i => i.type === "incorrect_filtering").length, data_validation: issues.filter(i => i.type === "data_validation").length } },
+    details: { total_issues: issues.length, by_type: { data_loss: issues.filter(i => i.type === "data_loss").length, failed_insert: issues.filter(i => i.type === "failed_insert").length, stale_state: issues.filter(i => i.type === "stale_state").length, incorrect_filtering: issues.filter(i => i.type === "incorrect_filtering").length, data_validation: issues.filter(i => i.type === "data_validation").length, id_trace: issues.filter(i => i.type === "id_trace").length } },
     scan_id: scanRunId, trace_id: traceId, component: "data_integrity_scan", duration_ms: durationMs,
   }).catch(() => {});
 
   return {
     issues, total_issues: issues.length,
-    by_type: { data_loss: issues.filter(i => i.type === "data_loss").length, failed_insert: issues.filter(i => i.type === "failed_insert").length, stale_state: issues.filter(i => i.type === "stale_state").length, incorrect_filtering: issues.filter(i => i.type === "incorrect_filtering").length, data_validation: issues.filter(i => i.type === "data_validation").length },
+    by_type: { data_loss: issues.filter(i => i.type === "data_loss").length, failed_insert: issues.filter(i => i.type === "failed_insert").length, stale_state: issues.filter(i => i.type === "stale_state").length, incorrect_filtering: issues.filter(i => i.type === "incorrect_filtering").length, data_validation: issues.filter(i => i.type === "data_validation").length, id_trace: issues.filter(i => i.type === "id_trace").length },
     duration_ms: durationMs, scanned_at: new Date().toISOString(),
   };
 }
