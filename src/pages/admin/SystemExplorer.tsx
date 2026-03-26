@@ -112,6 +112,7 @@ const SystemExplorer = () => {
   const [aiQuery, setAiQuery] = useState("");
   const [aiAnswer, setAiAnswer] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiFocusArea, setAiFocusArea] = useState<string | null>(null);
 
   // 1. ALL work_items
   const { data: workItems = [], isLoading: wiLoading } = useQuery({
@@ -315,8 +316,9 @@ const SystemExplorer = () => {
     setAiLoading(true);
     setAiAnswer(null);
     try {
+      const focusSuffix = aiFocusArea ? ` [FOCUS AREA: ${aiFocusArea} — prioritize issues and scans within this area]` : "";
       const { data, error } = await supabase.functions.invoke("ai-assistant", {
-        body: { type: "system_explorer_query", question: aiQuery.trim() },
+        body: { type: "system_explorer_query", question: aiQuery.trim() + focusSuffix },
       });
       if (error) throw error;
       setAiAnswer(data?.result?.answer || "Inget svar.");
@@ -398,6 +400,30 @@ const SystemExplorer = () => {
                     {q}
                   </button>
                 ))}
+              </div>
+              <div className="flex items-center gap-1 flex-wrap">
+                <span className="text-[10px] text-muted-foreground font-medium mr-1">Focus Area:</span>
+                {[
+                  { key: "UI", label: "UI" },
+                  { key: "Data", label: "Data" },
+                  { key: "Flow", label: "Flow" },
+                  { key: "Business", label: "Business" },
+                ].map((area) => (
+                  <button
+                    key={area.key}
+                    onClick={() => setAiFocusArea(aiFocusArea === area.key ? null : area.key)}
+                    className={`text-[10px] px-2 py-1 rounded-md border transition-colors ${
+                      aiFocusArea === area.key
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "border-border hover:bg-muted/50 text-muted-foreground"
+                    }`}
+                  >
+                    {area.label}
+                  </button>
+                ))}
+                {aiFocusArea && (
+                  <span className="text-[10px] text-muted-foreground ml-1">Active: {aiFocusArea}</span>
+                )}
               </div>
               {aiAnswer && (
                 <div className="border border-border rounded-md p-3 bg-muted/30 text-sm prose prose-sm max-w-none dark:prose-invert">
