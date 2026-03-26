@@ -2029,17 +2029,35 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
       fix_confidence = 3; // has a fix suggestion but not strongly categorized
     }
 
+    // Resolve source_file_path from runtime trace or component name
+    let source_file_path: string | null = issue.source_file || issue.source_path || null;
+    if (!source_file_path && matchedTraceFn) {
+      // Map runtime trace function name to file path
+      source_file_path = `src/${matchedTraceFn.includes("/") ? matchedTraceFn : matchedTraceFn}`;
+    }
+    if (!source_file_path && issue.source_component) {
+      // Map component name to likely file path
+      const comp = issue.source_component;
+      source_file_path = `src/components/${comp.includes(".") ? comp : comp + ".tsx"}`;
+    }
+    if (!source_file_path && issue.affected_area?.target) {
+      const target = issue.affected_area.target;
+      if (target.includes("/") || target.includes(".")) {
+        source_file_path = target.startsWith("src/") ? target : `src/${target}`;
+      }
+    }
+
     const insertPayload: Record<string, any> = {
       title: issue.title,
-      description: (issue.description || "Auto-generated from scan") + (suggested_fix_code ? `\n\n💡 Suggested fix (${suggested_fix_type}): ${suggested_fix_code}` : "") + `\n\n🎯 Fix confidence: ${fix_confidence}/5`,
+      description: (issue.description || "Auto-generated from scan") + (suggested_fix_code ? `\n\n💡 Suggested fix (${suggested_fix_type}): ${suggested_fix_code}` : "") + `\n\n🎯 Fix confidence: ${fix_confidence}/5` + (source_file_path ? `\n📁 Source File: ${source_file_path}` : ""),
       status: "open",
       priority: issue.priority,
       item_type: issue.item_type,
       source_type: "ai_scan",
       ai_detected: true,
       issue_fingerprint: issue.fingerprint,
-      source_path: issue.source_path || null,
-      source_file: issue.source_file || null,
+      source_path: source_file_path || issue.source_path || null,
+      source_file: source_file_path || issue.source_file || null,
       source_component: issue.source_component || null,
       first_seen_at: now,
       last_seen_at: now,
