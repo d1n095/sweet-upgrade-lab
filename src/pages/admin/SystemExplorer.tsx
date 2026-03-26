@@ -199,8 +199,20 @@ const SystemExplorer = () => {
       ...prev
     ]);
   }
+  useEffect(() => {
+    const rawSources = getRawSources();
+    if (!rawSources) return;
+    console.log("🔍 AUTO SCAN START");
+    const allIssues: { type: string; message: string; file: string }[] = [];
+    Object.entries(rawSources).forEach(([path, content]) => {
+      const issues = scanFileContent(path, content as string);
+      allIssues.push(...issues);
+    });
+    console.log("🚨 AUTO SCAN FOUND:", allIssues.length);
+    setCodeScanResult(allIssues);
+  }, []);
 
-  function handleSearch() {
+
     logAction({ type: "Search", status: "started" });
     if (!searchQuery) {
       logAction({ type: "Search", status: "no-input", message: "Search query empty" });
