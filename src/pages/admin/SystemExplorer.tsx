@@ -729,7 +729,7 @@ const SystemExplorer = () => {
     setAiAnswer(null);
     try {
       const focusSuffix = aiFocusArea ? ` [FOCUS AREA: ${aiFocusArea} — prioritize issues and scans within this area]` : "";
-      const { data, error } = await supabase.functions.invoke("ai-assistant", {
+      const { data, error } = await tracedInvoke("ai-assistant", {
         body: { type: "system_explorer_query", question: aiQuery.trim() + focusSuffix },
       });
       if (error) throw error;
