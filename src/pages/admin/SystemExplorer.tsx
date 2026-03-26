@@ -440,8 +440,11 @@ const SystemExplorer = () => {
       const beforeCount = before.data?.length || 0;
       logAction({ type: "Full Scan", status: "started" });
       console.log("🚀 STARTING FULL SCAN");
+      const structure_map = Object.keys(rawSources || {}).map(path => ({
+        path
+      }));
       const res = await tracedInvoke("run-full-scan", {
-        body: { action: "start", scan_mode: "full" },
+        body: { action: "start", scan_mode: "full", structure_map },
       });
       console.log("📡 RESPONSE:", res);
       const verify = await verifyWorkItemsCreated(beforeCount);
