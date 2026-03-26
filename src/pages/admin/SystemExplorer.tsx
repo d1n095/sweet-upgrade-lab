@@ -214,6 +214,7 @@ const SystemExplorer = () => {
 
     // Step results from scan for executed status
     const stepResults = (scanResults?.step_results ?? scanResults) as Record<string, any> | null;
+    const createTrace: any[] = scanResults?._create_trace ?? [];
 
     return SCANNER_GROUPS.map(group => {
       const scannerResults = group.scanners.map(scanner => {
@@ -258,7 +259,7 @@ const SystemExplorer = () => {
         else if (detected === 0) health = "WEAK";
         else if (ratio < 0.3 && skipped > 2) health = "NOISY";
         else if (detected <= 1 && created === 0) health = "WEAK";
-        return { ...scanner, detected, afterFilter: created, skipped, created, health, rawIssues: uniqueRaw, executed, executionTimeMs, inputSize, emptyReason, scanStartedAt, scanFinishedAt };
+        return { ...scanner, detected, afterFilter: created, skipped, created, health, rawIssues: uniqueRaw, executed, executionTimeMs, inputSize, emptyReason, scanStartedAt, scanFinishedAt, createTrace };
       });
 
       const groupDetected = scannerResults.reduce((s, r) => s + r.detected, 0);
