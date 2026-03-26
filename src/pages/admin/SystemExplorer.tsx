@@ -178,6 +178,9 @@ const SystemExplorer = () => {
   const [selectedFile, setSelectedFile] = useState<FileEntry | null>(null);
   const [patchInput, setPatchInput] = useState("");
   const [patchStatus, setPatchStatus] = useState<"idle" | "valid" | "invalid">("idle");
+  const [safeModeEnabled, setSafeModeEnabled] = useState(true);
+  const [patchSubmitted, setPatchSubmitted] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | null>(null);
   const [verifyingFix, setVerifyingFix] = useState(false);
   const [verifyResult, setVerifyResult] = useState<{ itemId: string; status: "confirmed" | "failed"; scanId?: string } | null>(null);
@@ -1087,16 +1090,40 @@ const SystemExplorer = () => {
               <p className="text-[10px] text-muted-foreground">Validate patch prompts before sending. Must contain FILE:, ADD:, and DO NOT.</p>
             </CardHeader>
             <CardContent className="space-y-3">
+              {/* Safe Mode Toggle */}
+              <div className="flex items-center justify-between border border-border rounded-md p-2 bg-muted/30">
+                <div className="flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-primary" />
+                  <div>
+                    <span className="text-xs font-medium text-foreground">Safe Mode</span>
+                    <p className="text-[9px] text-muted-foreground">Max 1 patch in queue, block multiple submissions, require confirmation</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSafeModeEnabled(!safeModeEnabled)}
+                  className={`relative w-9 h-5 rounded-full transition-colors ${safeModeEnabled ? "bg-primary" : "bg-muted"}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${safeModeEnabled ? "translate-x-4" : ""}`} />
+                </button>
+              </div>
+              {safeModeEnabled && patchSubmitted && (
+                <div className="border border-orange-500/30 rounded-md p-2 bg-orange-500/10">
+                  <p className="text-[10px] text-orange-500 font-medium">⚠️ Safe Mode: A patch is already in queue. Wait for it to complete before submitting another.</p>
+                </div>
+              )}
+
               <textarea
                 className="w-full h-48 text-xs font-mono bg-muted/30 border border-border rounded-md p-3 text-foreground resize-y"
                 placeholder={"DO EXACT PATCH ONLY\nDO NOT REFACTOR\n\nFILE: ...\n\nADD:\n..."}
                 value={patchInput}
                 onChange={(e) => { setPatchInput(e.target.value); setPatchStatus("idle"); }}
+                disabled={safeModeEnabled && patchSubmitted}
               />
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Button
                   variant="outline"
                   size="sm"
+                  disabled={safeModeEnabled && patchSubmitted}
                   onClick={() => {
                     const text = patchInput.trim();
                     const hasFile = /FILE:/i.test(text);
@@ -1111,8 +1138,18 @@ const SystemExplorer = () => {
                 >
                   Validate Patch
                 </Button>
-                {patchStatus === "valid" && (
+                {patchStatus === "valid" && !confirmOpen && (
                   <Badge className="bg-green-500/20 text-green-500 border-green-500/30 text-[10px]">✅ Ready to send</Badge>
+                )}
+                {patchStatus === "valid" && safeModeEnabled && !confirmOpen && (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    disabled={patchSubmitted}
+                    onClick={() => setConfirmOpen(true)}
+                  >
+                    Submit Patch
+                  </Button>
                 )}
                 {patchStatus === "invalid" && (
                   <div className="space-y-0.5">
@@ -1125,6 +1162,49 @@ const SystemExplorer = () => {
                   </div>
                 )}
               </div>
+
+              {/* Confirmation Dialog */}
+              {confirmOpen && (
+                <div className="border border-primary/30 rounded-md p-3 bg-primary/5 space-y-2">
+                  <p className="text-xs font-medium text-foreground">⚠️ Confirm submission</p>
+                  <p className="text-[10px] text-muted-foreground">Are you sure you want to submit this patch? Safe Mode will block further submissions until this one completes.</p>
+                  <pre className="bg-muted/30 border border-border rounded-md p-2 text-[9px] font-mono max-h-[100px] overflow-auto whitespace-pre-wrap text-foreground">{patchInput.slice(0, 500)}</pre>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => {
+                        setPatchSubmitted(true);
+                        setConfirmOpen(false);
+                        setPatchStatus("idle");
+                      }}
+                    >
+                      ✅ Confirm
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => setConfirmOpen(false)}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Reset button when submitted */}
+              {patchSubmitted && (
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="text-[10px]">📦 Patch in queue</Badge>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setPatchSubmitted(false);
+                      setPatchInput("");
+                      setPatchStatus("idle");
+                    }}
+                  >
+                    Clear Queue
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
