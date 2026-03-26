@@ -1398,10 +1398,47 @@ async function runUiFlowIntegrityScan(supabase: any, scanRunId: string): Promise
         has_db: flow.name === "Checkout" ? hasDbWrites : eventTypes.has(flow.steps[flow.steps.length - 1]),
       };
 
-      // Attach chain to existing issues for this flow
+      // ── Data Trace: track data through each pipeline stage ──
+      const flowKey = flow.name.toLowerCase();
+      const input_detected = chain.has_ui || flow.steps.some(step => eventTypes.has(step) || eventTypes.has(`${step}_start`));
+      const mapped = chain.has_action || flow.steps.some(step => eventTypes.has(`${step}_complete`) || eventTypes.has(`${flowKey}_${step}`));
+      const transformed = flow.steps.length >= 2 && flow.steps.slice(1).some(step => eventTypes.has(step) || eventTypes.has(`${step}_start`) || eventTypes.has(`${step}_complete`));
+      const saved_to_db = chain.has_db;
+
+      const data_trace = { input_detected, mapped, transformed, saved_to_db };
+
+      // Detect data loss point
+      const traceSteps = [
+        { key: "input_detected", ok: input_detected },
+        { key: "mapped", ok: mapped },
+        { key: "transformed", ok: transformed },
+        { key: "saved_to_db", ok: saved_to_db },
+      ];
+      let prevOk: string | null = null;
+      for (const ts of traceSteps) {
+        if (ts.ok) {
+          prevOk = ts.key;
+        } else if (prevOk) {
+          issues.push({
+            title: `Data lost at: ${prevOk} → ${ts.key} in "${flow.name}"`,
+            severity: ts.key === "saved_to_db" ? "critical" : "high",
+            component: flow.name,
+            element: "DataTrace",
+            category: "flow_data",
+            _issue_type: "bug",
+            _suggested_fix: `Verify data pipeline from ${prevOk} to ${ts.key}`,
+            route: flow.startRoute,
+            data_trace,
+          });
+          break; // report first break only
+        }
+      }
+
+      // Attach chain + data_trace to existing issues for this flow
       const flowIssues = issues.filter((i: any) => i.component === flow.name);
       for (const fi of flowIssues) {
         fi._flow_chain = chain;
+        fi.data_trace = data_trace;
       }
 
       // Detect broken chain links
@@ -1426,6 +1463,7 @@ async function runUiFlowIntegrityScan(supabase: any, scanRunId: string): Promise
           _suggested_fix: "Fix broken logic or missing connection",
           route: flow.startRoute,
           _flow_chain: chain,
+          data_trace,
         });
       }
     }
