@@ -86,13 +86,13 @@ export async function createWorkItemWithDedup(payload: WorkItemPayload): Promise
     }
   }
 
-  // 2. Check by similar title (fuzzy match on core part)
+  // 2. Check by similar title — DEBUG MODE: relaxed (narrower match, higher threshold)
   const corePart = title
     .replace(/^\[.*?\]\s*/g, '')  // strip prefix tags
     .trim()
-    .substring(0, 50);
+    .substring(0, 25);
   
-  if (corePart.length >= 10) {
+  if (corePart.length >= 30) {
     const { data: byTitle } = await supabase
       .from('work_items' as any)
       .select('id, title, status')

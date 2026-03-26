@@ -86,29 +86,19 @@ function groupSimilarIssues(issues: any[]): any[] {
 }
 
 // ── Context-aware filtering: suppress false positives based on stage ──
+// DEBUG MODE: Relaxed — only suppress clearly invalid/placeholder patterns
 function filterDevFalsePositives(issues: any[], stage: SystemStage): any[] {
   if (stage === "production") return issues;
   
-  // Patterns always suppressed in development
-  const devIgnorePatterns = [
-    /0\s*(produkter|intäkter|ordrar|recensioner|donationer)/i,
-    /tom(ma|t)?\s*(data|tabell|lista)/i,
-    /saknar\s*(produkt|kategori|recension)/i,
-    /inga\s*(produkter|ordrar|recensioner)/i,
-    /row_count.*0/i,
-    /0\s*st\b/i,
-    /saknar\s*test\s*data/i,
+  // DEBUG: Only suppress obviously invalid patterns (placeholder/dummy data)
+  const debugIgnorePatterns = [
     /dummy|placeholder|lorem/i,
-    /ingen\s*(betalning|leverans|transaktion)/i,
+    /saknar\s*test\s*data/i,
   ];
-
-  // In staging: only suppress empty-data warnings, keep structural issues
-  const stagingIgnorePatterns = stage === "staging" ? devIgnorePatterns.slice(0, 6) : devIgnorePatterns;
-  const activePatterns = stage === "staging" ? stagingIgnorePatterns : devIgnorePatterns;
   
   return issues.map(issue => {
     const text = `${issue.title || ""} ${issue.description || ""}`;
-    const isDevExpected = activePatterns.some(p => p.test(text));
+    const isDevExpected = debugIgnorePatterns.some(p => p.test(text));
     if (isDevExpected) {
       return { ...issue, _dev_expected: true, severity: "info", _original_severity: issue.severity };
     }
@@ -1205,8 +1195,8 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
   let workItemsCreated = 0;
   const allWorkIssues: { title: string; priority: string; item_type: string; description?: string; fingerprint: string }[] = [];
 
-  // Priority filter: skip info-severity (dev-expected) issues
-  const isActionable = (issue: any) => !issue._dev_expected && issue.severity !== "info";
+  // DEBUG MODE: Relaxed filter — only skip explicitly dev-expected issues
+  const isActionable = (issue: any) => !issue._dev_expected;
 
   if (unified.blocker) {
     const fp = generateFingerprint({ component: "blocker", type: "blocker", route: "global" });
@@ -1215,7 +1205,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
 
   // Group broken_flows before creating
   const groupedFlows = groupSimilarIssues((unified.broken_flows || []).filter(isActionable));
-  for (const flow of groupedFlows.slice(0, 5)) {
+  for (const flow of groupedFlows.slice(0, 15)) {
     const fp = generateFingerprint(flow);
     const similarNote = flow._similar_count ? ` (+${flow._similar_count} liknande)` : "";
     allWorkIssues.push({
@@ -1226,7 +1216,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
   }
 
   const groupedFake = groupSimilarIssues((unified.fake_features || []).filter(isActionable));
-  for (const fake of groupedFake.slice(0, 5)) {
+  for (const fake of groupedFake.slice(0, 15)) {
     const fp = generateFingerprint(fake);
     const similarNote = fake._similar_count ? ` (+${fake._similar_count} liknande)` : "";
     allWorkIssues.push({
@@ -1237,7 +1227,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
   }
 
   const groupedInteraction = groupSimilarIssues((unified.interaction_failures || []).filter(isActionable));
-  for (const fail of groupedInteraction.slice(0, 5)) {
+  for (const fail of groupedInteraction.slice(0, 15)) {
     const fp = generateFingerprint(fail);
     const similarNote = fail._similar_count ? ` (+${fail._similar_count} liknande)` : "";
     allWorkIssues.push({
@@ -1249,7 +1239,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
   }
 
   const groupedData = groupSimilarIssues((unified.data_issues || []).filter(isActionable));
-  for (const issue of groupedData.slice(0, 5)) {
+  for (const issue of groupedData.slice(0, 15)) {
     const fp = generateFingerprint(issue);
     const similarNote = issue._similar_count ? ` (+${issue._similar_count} liknande)` : "";
     allWorkIssues.push({
@@ -1296,8 +1286,8 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
       continue; // Do NOT create new
     }
 
-    // Fallback: fuzzy title match (for items without fingerprint)
-    const searchTitle = issue.title.substring(0, 40);
+    // Fallback: fuzzy title match — DEBUG: narrowed to first 20 chars for less aggressive dedup
+    const searchTitle = issue.title.substring(0, 20);
     const { data: existingByTitle } = await supabase
       .from("work_items")
       .select("id, priority")
