@@ -1289,7 +1289,7 @@ const SystemExplorer = () => {
               </Button>
             </div>
 
-            {fileScanResult && (
+            {(fileScanResult || fileScanResult === null) && (fileScanResult ? (
               <div className="flex gap-3 text-[10px]">
                 <div className="px-3 py-1.5 rounded-md bg-muted/30 border border-border">
                   <span className="text-muted-foreground">Total: </span><span className="font-bold text-foreground">{fileScanResult.total}</span>
