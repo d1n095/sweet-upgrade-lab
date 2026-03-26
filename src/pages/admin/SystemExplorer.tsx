@@ -3391,6 +3391,98 @@ const SystemExplorer = () => {
                   </div>
                 );
               })()}
+              {/* Full Trace Chain */}
+              {(() => {
+                const traces = (scanResults?._create_trace ?? []) as any[];
+                const fp = selectedItem.issue_fingerprint;
+                const titleMatch = selectedItem.title;
+                const trace = traces.find((t: any) => t.fingerprint === fp || t.title === titleMatch);
+
+                const s = (ok: boolean | null) => ok === null ? "—" : ok ? "✓" : "✗";
+                const c = (ok: boolean | null) => ok === null ? "text-muted-foreground" : ok ? "text-green-500" : "text-destructive";
+
+                const uiOk = true;
+                const uiTraceId = trace?.request_trace_id || (selectedItem as any).source_id || null;
+                const uiTrigger = (selectedItem as any).source_type || "unknown";
+
+                const apiOk = trace ? !!trace.endpoint || !!trace.function_name : null;
+                const apiEndpoint = trace?.endpoint || trace?.function_name || null;
+
+                const runtimeOk = trace?.runtime_trace ? !trace.runtime_trace.error : trace?._insert_success != null ? true : null;
+                const runtimeMsg = trace?.runtime_trace?.error || trace?.runtime_trace?.message || null;
+
+                const dbOk = trace?._insert_success ?? null;
+                const dbError = trace?._insert_error || null;
+
+                const resultStatus = trace?._create_decision || (selectedItem.status === "open" ? "created" : selectedItem.status);
+                const resultOk = resultStatus === "created";
+
+                return (
+                  <div className="border border-border rounded-md p-2 bg-muted/30 space-y-2">
+                    <span className="text-muted-foreground text-xs font-medium">Full Trace Chain</span>
+                    <div className="space-y-1">
+                      {/* STEP 1: UI ACTION */}
+                      <div className="flex items-start gap-2 text-[10px] font-mono">
+                        <div className="flex flex-col items-center">
+                          <span className={`font-bold ${c(uiOk)}`}>{s(uiOk)}</span>
+                          <div className="w-px h-3 bg-border" />
+                        </div>
+                        <div>
+                          <div className="font-semibold text-foreground">STEP 1: UI ACTION</div>
+                          <div className="text-muted-foreground">trace_id: <span className="text-foreground">{uiTraceId || "–"}</span></div>
+                          <div className="text-muted-foreground">trigger: <span className="text-foreground">{uiTrigger}</span></div>
+                        </div>
+                      </div>
+                      {/* STEP 2: API CALL */}
+                      <div className="flex items-start gap-2 text-[10px] font-mono">
+                        <div className="flex flex-col items-center">
+                          <span className={`font-bold ${c(apiOk)}`}>{s(apiOk)}</span>
+                          <div className="w-px h-3 bg-border" />
+                        </div>
+                        <div>
+                          <div className="font-semibold text-foreground">STEP 2: API CALL</div>
+                          <div className="text-muted-foreground">endpoint: <span className="text-foreground">{apiEndpoint || "–"}</span></div>
+                        </div>
+                      </div>
+                      {/* STEP 3: BACKEND */}
+                      <div className="flex items-start gap-2 text-[10px] font-mono">
+                        <div className="flex flex-col items-center">
+                          <span className={`font-bold ${c(runtimeOk)}`}>{s(runtimeOk)}</span>
+                          <div className="w-px h-3 bg-border" />
+                        </div>
+                        <div>
+                          <div className="font-semibold text-foreground">STEP 3: FUNCTION</div>
+                          <div className="text-muted-foreground">runtime: <span className={runtimeMsg ? "text-destructive" : "text-foreground"}>{runtimeMsg || (runtimeOk ? "success" : "–")}</span></div>
+                        </div>
+                      </div>
+                      {/* STEP 4: DATABASE */}
+                      <div className="flex items-start gap-2 text-[10px] font-mono">
+                        <div className="flex flex-col items-center">
+                          <span className={`font-bold ${c(dbOk)}`}>{s(dbOk)}</span>
+                          <div className="w-px h-3 bg-border" />
+                        </div>
+                        <div>
+                          <div className="font-semibold text-foreground">STEP 4: DATABASE</div>
+                          <div className="text-muted-foreground">insert: <span className={dbError ? "text-destructive" : "text-foreground"}>{dbError || (dbOk ? "success" : "–")}</span></div>
+                        </div>
+                      </div>
+                      {/* STEP 5: RESULT */}
+                      <div className="flex items-start gap-2 text-[10px] font-mono">
+                        <div className="flex flex-col items-center">
+                          <span className={`font-bold ${c(resultOk)}`}>{s(resultOk)}</span>
+                        </div>
+                        <div>
+                          <div className="font-semibold text-foreground">STEP 5: RESULT</div>
+                          <div className="text-muted-foreground">status: <Badge variant={resultOk ? "default" : resultStatus === "skipped_dedup" ? "secondary" : "destructive"} className="text-[8px] px-1 py-0">{resultStatus}</Badge></div>
+                        </div>
+                      </div>
+                    </div>
+                    {!trace && (
+                      <p className="text-[9px] text-muted-foreground italic">No trace data — run a scan to populate chain</p>
+                    )}
+                  </div>
+                );
+              })()
               {noEffectFixIds.has(selectedItem.id) && (
                 <div className="border border-destructive rounded-md p-2 bg-destructive/10 space-y-1">
                   <span className="text-destructive text-xs font-bold flex items-center gap-1">⚠️ no_effect_fix</span>
