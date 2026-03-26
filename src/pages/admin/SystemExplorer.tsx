@@ -1163,6 +1163,69 @@ const SystemExplorer = () => {
                 )}
               </div>
 
+              {/* Patch Preview */}
+              {patchStatus === "valid" && (() => {
+                // Extract target file from patch
+                const fileMatch = patchInput.match(/FILE:\s*(.+)/i);
+                const targetFile = fileMatch ? fileMatch[1].trim() : null;
+                
+                // Extract ADD/CHANGE content
+                const addMatch = patchInput.match(/ADD:\s*([\s\S]*?)(?=\n(?:GOAL|DISPLAY|RULES|SHOW|IF|WHEN|LIMIT|DO NOT|$))/i);
+                const addContent = addMatch ? addMatch[1].trim() : null;
+                
+                // Try to find matching file in fileSystemMap
+                const matchedFile = targetFile ? fileSystemMap.find(f => {
+                  const name = f.path.split("/").pop()?.replace(/\.tsx?$/, "").toLowerCase() || "";
+                  const target = targetFile.toLowerCase().replace(/\.tsx?$/, "");
+                  return f.path.toLowerCase().includes(target) || name === target || f.path.toLowerCase().endsWith(target.toLowerCase());
+                }) : null;
+                
+                // Get current file content
+                const currentContent = matchedFile ? getFileContent(matchedFile.path) : null;
+                
+                return (
+                  <div className="border border-border rounded-md p-3 bg-muted/20 space-y-2">
+                    <p className="text-xs font-medium text-foreground flex items-center gap-2">
+                      <Eye className="h-3 w-3" />
+                      Patch Preview
+                    </p>
+                    
+                    {/* Target File */}
+                    <div>
+                      <span className="text-[10px] text-muted-foreground">Target File</span>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="font-mono text-[10px] text-foreground">{targetFile || "Unknown"}</span>
+                        {matchedFile ? (
+                          <Badge className="bg-green-500/20 text-green-500 border-green-500/30 text-[8px]">found: {matchedFile.path}</Badge>
+                        ) : (
+                          <Badge variant="destructive" className="text-[8px]">not found in file map</Badge>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Code to add */}
+                    {addContent && (
+                      <div>
+                        <span className="text-[10px] text-muted-foreground">Code Diff (what will be added)</span>
+                        <pre className="mt-0.5 bg-green-500/5 border border-green-500/20 rounded-md p-2 text-[9px] font-mono max-h-[150px] overflow-auto whitespace-pre-wrap">
+                          {addContent.split("\n").map((line, i) => (
+                            <div key={i} className="text-green-500">+ {line}</div>
+                          ))}
+                        </pre>
+                      </div>
+                    )}
+                    
+                    {/* Current file content (collapsed) */}
+                    {currentContent && (
+                      <details className="text-[10px]">
+                        <summary className="text-muted-foreground cursor-pointer hover:text-foreground">Current file content ({currentContent.split("\n").length} lines)</summary>
+                        <pre className="mt-1 bg-muted/30 border border-border rounded-md p-2 text-[9px] font-mono max-h-[200px] overflow-auto whitespace-pre text-foreground">{currentContent}</pre>
+                      </details>
+                    )}
+                  </div>
+                );
+              })()}
+
               {/* Confirmation Dialog */}
               {confirmOpen && (
                 <div className="border border-primary/30 rounded-md p-3 bg-primary/5 space-y-2">
