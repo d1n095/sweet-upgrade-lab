@@ -274,6 +274,19 @@ const SystemExplorer = () => {
     }
   }
 
+  async function verifyWorkItemsCreated(beforeCount: number) {
+    const { data } = await supabase
+      .from("work_items")
+      .select("id")
+      .limit(1000);
+    const afterCount = data?.length || 0;
+    return {
+      before: beforeCount,
+      after: afterCount,
+      created: afterCount - beforeCount
+    };
+  }
+
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | null>(null);
   const [verifyingFix, setVerifyingFix] = useState(false);
   const [verifyResult, setVerifyResult] = useState<{ itemId: string; status: "confirmed" | "failed"; scanId?: string } | null>(null);
