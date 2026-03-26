@@ -2991,6 +2991,7 @@ export type Database = {
           high_attention_count: number
           id: string
           payload: Json | null
+          scan_confidence_score: number | null
           total_created: number
           total_detected: number
           total_filtered: number
@@ -3007,6 +3008,7 @@ export type Database = {
           high_attention_count?: number
           id?: string
           payload?: Json | null
+          scan_confidence_score?: number | null
           total_created?: number
           total_detected?: number
           total_filtered?: number
@@ -3023,6 +3025,7 @@ export type Database = {
           high_attention_count?: number
           id?: string
           payload?: Json | null
+          scan_confidence_score?: number | null
           total_created?: number
           total_detected?: number
           total_filtered?: number
