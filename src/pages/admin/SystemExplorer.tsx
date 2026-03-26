@@ -1131,6 +1131,7 @@ const SystemExplorer = () => {
             Refresh
           </Button>
           {isSystemAdmin && (
+            <>
             <Button variant="default" size="sm" onClick={() =>
               validateAction("FULL_SCAN", async () => {
                 const structure_map = Object.keys(getRawSources() || {});
@@ -1170,7 +1171,8 @@ const SystemExplorer = () => {
                 <span className="text-[9px] text-muted-foreground truncate max-w-[200px]">{scanProgress.label}</span>
               </div>
             )}
-           )}
+            </>
+          )}
            {isSystemAdmin && (
              <Button variant="outline" size="sm" onClick={() => setShowRawScan(!showRawScan)}>
                <FileText className="h-4 w-4 mr-1" />
