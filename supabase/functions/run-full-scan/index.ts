@@ -2412,6 +2412,8 @@ serve(async (req) => {
         stepResult.issues = stepResult.issues ?? [];
       }
 
+      console.log("🚨 TOTAL ISSUES:", stepResult.issues.length);
+
       // ── Extended metadata ──
       stepResult._execution_time_ms = duration_ms;
       stepResult._scan_started_at = scanStartedAt;
