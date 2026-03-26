@@ -2304,6 +2304,19 @@ serve(async (req) => {
       console.log("[SCAN] insert result:", scanRun, "error:", insertError);
       if (insertError || !scanRun) return new Response(JSON.stringify({ success: false, error: "Failed to create scan run", detail: insertError?.message }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
+      // Input debug
+      const { data: structure_map } = await supabase.from("system_structure_map").select("entity_type, entity_name").limit(500);
+      const routes = (structure_map || []).filter((e: any) => e.entity_type === "page");
+      const components = (structure_map || []).filter((e: any) => e.entity_type === "component");
+      console.log("[SCAN INPUT DEBUG]", {
+        hasStructureMap: !!structure_map,
+        structureSize: structure_map?.length,
+        hasRoutes: !!routes,
+        routesCount: routes?.length,
+        hasComponents: !!components,
+        componentsCount: components?.length,
+      });
+
       console.log("[SCAN] running scanners — chaining first step");
       fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
