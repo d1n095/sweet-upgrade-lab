@@ -192,9 +192,13 @@ const SystemExplorer = () => {
   const [globalIssues, setGlobalIssues] = useState<{ type: string; message: string; file: string }[]>([]);
 
   function logAction(action: Record<string, any>) {
+    console.log("🟢 ACTION:", action);
     setActionLogs(prev => [
       {
         time: new Date().toISOString(),
+        type: "TEST_ACTION",
+        message: JSON.stringify(action),
+        timestamp: Date.now(),
         ...action
       },
       ...prev
