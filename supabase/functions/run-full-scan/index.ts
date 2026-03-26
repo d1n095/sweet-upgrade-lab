@@ -2015,7 +2015,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
 
     const insertPayload: Record<string, any> = {
       title: issue.title,
-      description: issue.description || "Auto-generated from scan",
+      description: (issue.description || "Auto-generated from scan") + (suggested_fix_code ? `\n\n💡 Suggested fix (${suggested_fix_type}): ${suggested_fix_code}` : ""),
       status: "open",
       priority: issue.priority,
       item_type: issue.item_type,
