@@ -2242,6 +2242,16 @@ serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
+    // Compatibility shim: Postgrest builder is thenable but doesn't implement .catch
+    try {
+      const proto = Object.getPrototypeOf(supabase.from("scan_runs").select("id"));
+      if (proto && typeof proto.then === "function" && typeof proto.catch !== "function") {
+        proto.catch = function (onRejected: any) {
+          return this.then(undefined, onRejected);
+        };
+      }
+    } catch (_) {}
+
     console.log("[SCAN] parsing body");
     const body = await req.json();
     console.log("FULL SCAN BODY:", body);
