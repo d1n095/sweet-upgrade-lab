@@ -24,7 +24,7 @@ type WorkItem = {
 
 const SystemExplorer = () => {
   const queryClient = useQueryClient();
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ workItems: true, scanResults: true });
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ workItems: true, scanResults: true, aiFlow: true });
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({ open: true, in_progress: true, done: false, completed: false, cancelled: false });
   const [selectedItem, setSelectedItem] = useState<WorkItem | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
