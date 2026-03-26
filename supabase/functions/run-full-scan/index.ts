@@ -985,6 +985,40 @@ async function runDataIntegrityScan(supabase: any, scanRunId: string): Promise<a
       } catch (_) {}
     }
 
+    // ── REQUEST FAILED BEFORE PERSISTENCE CHECK ──
+    try {
+      const traceCutoff = new Date(Date.now() - 300_000).toISOString(); // last 5 min
+      const { data: recentTraces } = await supabase
+        .from("runtime_traces")
+        .select("id, function_name, endpoint, error_message, payload_snapshot, request_trace_id, created_at")
+        .gte("created_at", traceCutoff)
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      for (const trace of recentTraces || []) {
+        // Has a request_trace_id (came from frontend) but errored (has error_message)
+        if (!trace.request_trace_id) continue;
+        const snap = trace.payload_snapshot || {};
+        const hasSavedToDb = snap.saved_to_db === true;
+        const hasSuccess = snap.success === true;
+        if (!hasSavedToDb && !hasSuccess && trace.error_message) {
+          issues.push({
+            type: "request_failed_before_persistence",
+            severity: "critical" as const,
+            title: `Request failed before persistence: ${trace.function_name} ${trace.endpoint || ""}`.trim(),
+            entity: trace.function_name,
+            step: "request → backend",
+            root_cause: trace.error_message,
+            component: trace.function_name,
+            _issue_type: "bug",
+            _impact_score: 5,
+            runtime_trace_id: trace.id,
+            request_trace_id: trace.request_trace_id,
+          });
+        }
+      }
+    } catch (_) {}
+
   } catch (e: any) {
     console.error("Data integrity scan error:", e);
     issues.push({ type: "scan_error", severity: "critical", entity: "integrity_scan", title: `Integrity scan fel: ${e.message}`, step: "scan", root_cause: e.message, component: "integrity_scan" });
