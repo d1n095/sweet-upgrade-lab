@@ -2002,28 +2002,31 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
 
     console.log("[DEBUG] INSERT PAYLOAD:", insertPayload);
     let verified = false;
+    let lastInsertError: string | null = null;
     for (let attempt = 1; attempt <= 2; attempt++) {
       const { data: created, error } = await supabase.from("work_items").insert(insertPayload).select("id, title, status").single();
       console.log("[DEBUG] INSERT RESULT:", { data: created, error });
       if (error) {
+        lastInsertError = error.message || JSON.stringify(error);
         console.error(`[create-verify] INSERT failed (attempt ${attempt}):`, error.message);
         continue;
       }
       const { data: fetched } = await supabase.from("work_items").select("id").eq("id", created.id).maybeSingle();
       if (!fetched) {
+        lastInsertError = `VERIFY failed — id=${created.id} not found`;
         console.error(`[create-verify] VERIFY failed — id=${created.id} not found`);
         continue;
       }
       console.log(`[create-verify] ✅ VERIFIED: ${created.id} "${issue.title.slice(0, 40)}"`);
       workItemsCreated++;
       verified = true;
-      createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'created', created_id: created.id, issue_type: issue.issue_type || 'bug', affected_area: issue.affected_area, _origin_source: 'ai_scan', _impact_score: (issue as any)._impact_score, _impact_label: (issue as any)._impact_label });
+      createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'created', created_id: created.id, issue_type: issue.issue_type || 'bug', affected_area: issue.affected_area, _origin_source: 'ai_scan', _impact_score: (issue as any)._impact_score, _impact_label: (issue as any)._impact_label, _insert_success: true, _insert_error: null });
       
       break;
     }
     if (!verified) {
-      createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'skipped_validation', _validation_reason: 'invalid_payload', issue_type: issue.issue_type || 'bug', affected_area: issue.affected_area });
-      console.error(`[create-verify] ❌ FAILED: "${issue.title.slice(0, 60)}"`);
+      createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'skipped_validation', _validation_reason: 'invalid_payload', issue_type: issue.issue_type || 'bug', affected_area: issue.affected_area, _insert_success: false, _insert_error: lastInsertError });
+      console.error(`[create-verify] ❌ FAILED: "${issue.title.slice(0, 60)}" error: ${lastInsertError}`);
     }
   }
 
