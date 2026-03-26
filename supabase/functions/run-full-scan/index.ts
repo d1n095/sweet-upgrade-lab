@@ -2132,6 +2132,7 @@ serve(async (req) => {
     // ── START ──
     if (action === "start") {
       console.log("[FULL SCAN START]");
+      console.log("[SCAN] authenticating user");
       const authHeader = req.headers.get("authorization");
       if (!authHeader) return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
@@ -2140,8 +2141,10 @@ serve(async (req) => {
       if (userError || !user?.id) return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       const userId = user.id;
 
+      console.log("[SCAN] user authenticated, checking role:", userId);
       const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
       const isStaff = roles?.some((r: any) => ["admin", "founder", "it", "support", "moderator"].includes(r.role));
+      console.log("[SCAN] roles:", roles, "isStaff:", isStaff);
       if (!isStaff) return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
       // Check running scan lock
@@ -2169,6 +2172,7 @@ serve(async (req) => {
         : allSteps;
       const effectiveIterations = isTargeted ? 1 : MAX_ITERATIONS;
 
+      console.log("[SCAN] creating scan_run in DB");
       const { data: scanRun, error: insertError } = await supabase.from("scan_runs").insert({
         status: "running", started_by: userId, current_step: 0, total_steps: prioritizedSteps.length,
         current_step_label: prioritizedSteps[0].label, steps_results: {},
@@ -2179,8 +2183,10 @@ serve(async (req) => {
         ...(isTargeted ? { scan_mode: "targeted", target_area, verification_for } : { scan_mode: "full" }),
       }).select("id").single();
 
-      if (insertError || !scanRun) return new Response(JSON.stringify({ success: false, error: "Failed to create scan run" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      console.log("[SCAN] insert result:", scanRun, "error:", insertError);
+      if (insertError || !scanRun) return new Response(JSON.stringify({ success: false, error: "Failed to create scan run", detail: insertError?.message }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
+      console.log("[SCAN] running scanners — chaining first step");
       fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
         body: JSON.stringify({ action: "process_step", scan_run_id: scanRun.id, step_index: 0, iteration: 1 }),
