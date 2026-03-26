@@ -1363,6 +1363,7 @@ const SystemExplorer = () => {
         {mainTab === "files" && (
           <div className="space-y-3">
             <span className="text-[9px] text-yellow-500/70 font-mono">⚠ Frontend scan (static / debug only)</span>
+            <span className="text-[9px] text-yellow-500/70 font-mono ml-2">⚠ Not connected to real codebase</span>
             {/* Filters */}
             <div className="flex gap-1 items-center">
               {(["all", "orphan", "has_issues"] as const).map((f) => (
