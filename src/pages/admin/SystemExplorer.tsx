@@ -303,13 +303,18 @@ const SystemExplorer = () => {
   const handleRunFullScan = async () => {
     setIsScanning(true);
     try {
-      const { error } = await tracedInvoke("run-full-scan", {
+      const res = await tracedInvoke("run-full-scan", {
         body: { action: "start", scan_mode: "full" },
       });
-      if (error) throw error;
+      console.log("[DEBUG] FULL SCAN RESPONSE:", res);
+      const json = res?.data ?? res;
+      console.log("[DEBUG] FULL SCAN JSON:", json);
+      if (json?.success === false) {
+        console.error("[DEBUG] FULL SCAN ERROR:", json?.error);
+      }
       await handleRefresh();
-    } catch (e) {
-      console.error("Full scan failed:", e);
+    } catch (err) {
+      console.error("[DEBUG] FULL SCAN CRASH:", err);
     } finally {
       setIsScanning(false);
     }
@@ -2441,9 +2446,11 @@ const SystemExplorer = () => {
                       const meta = (selectedItem as any).metadata ? (typeof (selectedItem as any).metadata === "string" ? JSON.parse((selectedItem as any).metadata) : (selectedItem as any).metadata) : {};
                       const target = meta?.affected_area?.target || (selectedItem as any).source_component || (selectedItem as any).source_path || selectedItem.item_type;
 
-                      const { data: scanData } = await tracedInvoke("run-full-scan", {
+                      const verifyRes = await tracedInvoke("run-full-scan", {
                         body: { action: "start", scan_mode: "targeted", target_area: target, verification_for: selectedItem.id },
                       });
+                      console.log("[DEBUG] VERIFY SCAN RESPONSE:", verifyRes);
+                      const scanData = verifyRes?.data ?? verifyRes;
 
                       // 3. Check if issue still found
                       const fp = selectedItem.issue_fingerprint;
