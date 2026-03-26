@@ -41,6 +41,16 @@ const SystemExplorer = () => {
     },
   });
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["system-explorer-work-items"] }),
+      queryClient.invalidateQueries({ queryKey: ["system-explorer-latest-scan"] }),
+      queryClient.invalidateQueries({ queryKey: ["admin-work-items"] }),
+    ]);
+    setIsRefreshing(false);
+  };
+
   // 2. Latest scan
   const { data: latestScan, isLoading: scanLoading } = useQuery({
     queryKey: ["system-explorer-latest-scan"],
@@ -113,11 +123,15 @@ const SystemExplorer = () => {
     <div className="flex h-full min-h-0">
       {/* Main tree panel */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-1">
           <Database className="h-6 w-6 text-primary" />
           <h1 className="text-2xl font-bold text-foreground">System Explorer</h1>
           <Badge variant="outline" className="ml-2">READ-ONLY</Badge>
         </div>
+        <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing}>
+          <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+          Refresh
+        </Button>
 
         {/* FLOW STATUS */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
