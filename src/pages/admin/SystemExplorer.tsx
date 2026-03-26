@@ -374,7 +374,7 @@ const SystemExplorer = () => {
   const handleRunFullScan = async () => {
     console.log("[SCAN TRIGGERED]");
     setIsScanning(true);
-    useAiQueueStore.getState().pauseQueue();
+    
     try {
       const res = await tracedInvoke("run-full-scan", {
         body: { action: "start", scan_mode: "full" },
@@ -389,7 +389,7 @@ const SystemExplorer = () => {
     } catch (err) {
       console.error("[FULL SCAN UI ERROR]:", err);
     } finally {
-      useAiQueueStore.getState().resumeQueue();
+      
       setIsScanning(false);
     }
   };
