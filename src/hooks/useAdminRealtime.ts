@@ -10,7 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 /** Map of DB table → query keys to invalidate on change */
 const TABLE_QUERY_MAP: Record<string, string[]> = {
   orders: ['admin-orders', 'mini-workbench-items'],
-  work_items: ['admin-work-items', 'work-items', 'mini-workbench-items', 'workbench-stats', 'system-trust-score', 'workbench-staff-panel-perf'],
+  work_items: ['admin-work-items', 'work-items', 'mini-workbench-items', 'workbench-stats', 'system-trust-score', 'workbench-staff-panel-perf', 'scan-work-items'],
   bug_reports: ['admin-bugs', 'bug-reports'],
   products: ['admin-products'],
   analytics_events: ['admin-analytics'],
