@@ -326,6 +326,7 @@ const SystemExplorer = () => {
   };
 
   const handleRunFullScan = async () => {
+    console.log("[SCAN TRIGGERED]");
     setIsScanning(true);
     useAiQueueStore.getState().pauseQueue();
     try {
