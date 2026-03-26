@@ -1221,6 +1221,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
       title: `Broken flow: ${flow.description || flow.route || flow.issue || "unknown"}${similarNote}`.slice(0, 120),
       priority: "high", item_type: "bug", description: flow.fix_suggestion || flow.detail || "",
       fingerprint: fp,
+      source_path: flow.route || flow.page || null, source_file: flow.file || flow.source_file || null, source_component: flow.component || flow.element || null,
     });
   }
 
@@ -1232,6 +1233,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
       title: `Fake feature: ${fake.name || fake.component || fake.description || "unknown"}${similarNote}`.slice(0, 120),
       priority: "high", item_type: "improvement", description: fake.reason || fake.detail || "",
       fingerprint: fp,
+      source_path: fake.route || fake.page || null, source_file: fake.file || fake.source_file || null, source_component: fake.component || fake.name || null,
     });
   }
 
@@ -1244,6 +1246,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
       priority: fail.severity === "critical" ? "critical" : "high", item_type: "bug",
       description: fail.fix_suggestion || fail.detail || fail.issue || "",
       fingerprint: fp,
+      source_path: fail.route || fail.page || null, source_file: fail.file || fail.source_file || null, source_component: fail.component || fail.element || null,
     });
   }
 
@@ -1256,6 +1259,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
       priority: issue.severity === "critical" ? "critical" : "medium", item_type: "bug",
       description: issue.fix_suggestion || issue.detail || "",
       fingerprint: fp,
+      source_path: issue.route || issue.page || null, source_file: issue.file || issue.source_file || null, source_component: issue.component || issue.table || issue.entity || null,
     });
   }
 
