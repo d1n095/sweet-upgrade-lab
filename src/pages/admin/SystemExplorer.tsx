@@ -591,6 +591,13 @@ const SystemExplorer = () => {
     return groups;
   }, [orphanEntities]);
 
+  // Orphan files from file_system_map: used_in === [] AND not a page/edge_function (entry points)
+  const orphanFiles = useMemo(() => {
+    return fileSystemMap.filter(
+      (f) => f.used_in.length === 0 && f.type !== "page" && f.type !== "edge_function"
+    );
+  }, []);
+
   // Issue Clusters: group all scan issues by affected_area.target
   const issueClusters = useMemo(() => {
     const rawIssues = (scanResults?.issues as any[] | undefined) ?? [];
@@ -2380,6 +2387,40 @@ const SystemExplorer = () => {
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">Inga orphan-element hittades — alla entiteter har kopplingar.</p>
+              )}
+            </CardContent>
+          )}
+        </Card>
+
+        {/* ── ORPHAN FILES (from File Map) ── */}
+        <Card>
+          <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("orphanFiles")}>
+            <CardTitle className="text-sm flex items-center gap-2">
+              {expandedSections.orphanFiles ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <FileText className="h-4 w-4 text-destructive" />
+              Orphan Files (0 imports)
+              {orphanFiles.length > 0 && (
+                <Badge variant="destructive" className="text-[10px]">{orphanFiles.length}</Badge>
+              )}
+              <Badge variant="outline" className="text-[10px]">improvement</Badge>
+            </CardTitle>
+            <p className="text-[10px] text-muted-foreground mt-1">Files with zero imports — not used anywhere. Pages & edge functions excluded (entry points).</p>
+          </CardHeader>
+          {expandedSections.orphanFiles && (
+            <CardContent className="pt-0 max-h-[400px] overflow-y-auto">
+              {orphanFiles.length > 0 ? (
+                <div className="space-y-1">
+                  {orphanFiles.map((f) => (
+                    <div key={f.path} className="flex items-center gap-2 py-1 px-2 rounded-md bg-muted/30 border border-border">
+                      <Badge variant="destructive" className="text-[8px] px-1 py-0">orphan</Badge>
+                      <span className="font-mono text-[10px] text-foreground truncate flex-1">{f.path}</span>
+                      <Badge variant="secondary" className="text-[8px] px-1 py-0">{f.type}</Badge>
+                      <span className="text-[9px] text-muted-foreground">Fix confidence: 2/5</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Inga orphan-filer — alla filer importeras någonstans.</p>
               )}
             </CardContent>
           )}
