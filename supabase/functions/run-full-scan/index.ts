@@ -2986,6 +2986,35 @@ serve(async (req) => {
         scan_id: scan_run_id, trace_id: `full-scan-${scan_run_id.slice(0, 8)}`, component: "run-full-scan", duration_ms: totalDuration, user_id: scanRun.started_by,
       });
 
+      // ── Violation checks ──
+      const violations: string[] = [];
+      // INPUT CHECKS
+      const { data: _structMap } = await supabase.from("system_structure_map").select("entity_type, entity_name").limit(500);
+      const _routes = (_structMap || []).filter((e: any) => e.entity_type === "page");
+      const _components = (_structMap || []).filter((e: any) => e.entity_type === "component");
+      if (!_structMap || _structMap.length === 0) {
+        violations.push("❌ NO STRUCTURE MAP");
+      }
+      if (!_routes || _routes.length === 0) {
+        violations.push("❌ NO ROUTES DETECTED");
+      }
+      if (!_components || _components.length === 0) {
+        violations.push("❌ NO COMPONENTS DETECTED");
+      }
+      // OUTPUT CHECKS
+      if (!issuesCount || issuesCount === 0) {
+        violations.push("⚠ NO ISSUES FOUND");
+      }
+      // PIPELINE CHECK
+      if (issuesCount > 0 && workItemsCreated === 0) {
+        violations.push("❌ ISSUES FOUND BUT NOTHING CREATED (FILTER/DEDUP BLOCK)");
+      }
+      // FINAL
+      if (violations.length > 0) {
+        console.error("🚨 SYSTEM VIOLATIONS:", violations);
+        return new Response(JSON.stringify({ success: false, violations, scan_id: scan_run_id, detected: issuesCount, created: workItemsCreated }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
+      }
+
       console.log("[SCAN] finished — detected:", issuesCount, "created:", workItemsCreated);
       return new Response(JSON.stringify({ success: true, scan_id: scan_run_id, detected: issuesCount, created: workItemsCreated, filtered: issuesCount - workItemsCreated, skipped: 0, action: "finalized", iterations: iterationsCompleted, system_stage: systemStage }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
     }
