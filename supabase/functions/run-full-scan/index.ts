@@ -1690,6 +1690,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     }
 
     // NEW ISSUE — create
+    const now = new Date().toISOString();
     const insertPayload: Record<string, any> = {
       title: issue.title,
       description: issue.description || "Auto-generated from scan",
@@ -1702,6 +1703,9 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
       source_path: issue.source_path || null,
       source_file: issue.source_file || null,
       source_component: issue.source_component || null,
+      first_seen_at: now,
+      last_seen_at: now,
+      occurrence_count: 1,
     };
 
     let verified = false;
