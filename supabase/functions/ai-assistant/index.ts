@@ -9109,17 +9109,19 @@ Svara ALLTID på svenska.`,
 // ── System Explorer Query (READ-ONLY) ──
 async function handleSystemExplorerQuery(supabase: any, apiKey: string, question: string) {
   // Gather read-only context
-  const [workItemsRes, scanRes, bugsRes, historyRes] = await Promise.all([
+  const [workItemsRes, scanRes, bugsRes, historyRes, structureMapRes] = await Promise.all([
     supabase.from("work_items").select("id, title, status, priority, item_type, source_type, source_id, ai_detected, created_at, ignored, issue_fingerprint").order("created_at", { ascending: false }).limit(100),
     supabase.from("ai_scan_results").select("id, scan_type, issues_count, tasks_created, overall_score, overall_status, executive_summary, created_at, results").order("created_at", { ascending: false }).limit(3),
     supabase.from("bug_reports").select("id, status, ai_severity, ai_category, ai_summary, created_at").order("created_at", { ascending: false }).limit(30),
     supabase.from("work_item_history").select("work_item_id, action, old_value, new_value, created_at").order("created_at", { ascending: false }).limit(50),
+    supabase.from("system_structure_map").select("entity_type, entity_name, source_path, last_seen_at, scan_count").order("last_seen_at", { ascending: false }).limit(50),
   ]);
 
   const workItems = workItemsRes.data || [];
   const scans = scanRes.data || [];
   const bugs = bugsRes.data || [];
   const history = historyRes.data || [];
+  const structureMap = structureMapRes.data || [];
 
   // Build status summary
   const statusCounts: Record<string, number> = {};
@@ -9129,6 +9131,7 @@ async function handleSystemExplorerQuery(supabase: any, apiKey: string, question
 
   const latestScan = scans[0];
   const scanIssues = latestScan?.results?.issues || [];
+  const highAttentionAreas = latestScan?.results?.high_attention_areas || [];
 
   const context = `
 SYSTEM STATE (read-only snapshot):
@@ -9143,6 +9146,12 @@ ${latestScan ? `ID: ${latestScan.id.slice(0,8)}, Type: ${latestScan.scan_type}, 
 SCAN ISSUES (${scanIssues.length}):
 ${JSON.stringify(scanIssues.slice(0, 20).map((i: any) => ({ title: i.title, type: i.type, category: i.category, severity: i.severity })))}
 
+HIGH ATTENTION AREAS (${highAttentionAreas.length}):
+${highAttentionAreas.length > 0 ? JSON.stringify(highAttentionAreas) : 'None flagged'}
+
+SYSTEM STRUCTURE MAP (${structureMap.length} entries, most recent first):
+${JSON.stringify(structureMap.map((s: any) => ({ type: s.entity_type, name: s.entity_name, source: s.source_path, scans: s.scan_count, last_seen: s.last_seen_at })))}
+
 RECENT BUGS (${bugs.length}):
 ${JSON.stringify(bugs.slice(0, 15).map((b: any) => ({ id: b.id.slice(0,8), status: b.status, severity: b.ai_severity, category: b.ai_category, summary: b.ai_summary?.slice(0,60) })))}
 
@@ -9156,7 +9165,7 @@ ${JSON.stringify(history.slice(0, 20).map((h: any) => ({ item: h.work_item_id.sl
     body: JSON.stringify({
       model: "google/gemini-2.5-flash",
       messages: [
-        { role: "system", content: `You are a read-only system analyst for a Swedish e-commerce platform. You analyze work items, scan results, bug reports, and system history. You NEVER suggest modifying data. Answer concisely in the same language as the question. Use markdown formatting.` },
+        { role: "system", content: `You are a read-only system analyst for a Swedish e-commerce platform. You analyze work items, scan results, bug reports, system history, system structure map, and high attention areas. You can identify where problems cluster, what areas are unstable, and what should be prioritized. You NEVER suggest modifying data. Answer concisely in the same language as the question. Use markdown formatting.` },
         { role: "user", content: `${context}\n\n---\nQUESTION: ${question}` },
       ],
     }),
