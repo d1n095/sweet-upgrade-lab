@@ -1102,6 +1102,9 @@ const SystemExplorer = () => {
 
         {/* BACKEND SCAN TAB */}
         {mainTab === "backendscan" && (() => {
+          if (!latestBackendScan) {
+            console.error("❌ NO BACKEND SCAN FOUND");
+          }
           const r = latestBackendScan?.results as any;
           return (
             <div className="space-y-3">
