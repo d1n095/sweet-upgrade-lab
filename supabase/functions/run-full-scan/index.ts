@@ -2308,14 +2308,16 @@ serve(async (req) => {
       const { data: structure_map } = await supabase.from("system_structure_map").select("entity_type, entity_name").limit(500);
       const routes = (structure_map || []).filter((e: any) => e.entity_type === "page");
       const components = (structure_map || []).filter((e: any) => e.entity_type === "component");
-      console.log("[SCAN INPUT DEBUG]", {
-        hasStructureMap: !!structure_map,
-        structureSize: structure_map?.length,
-        hasRoutes: !!routes,
-        routesCount: routes?.length,
-        hasComponents: !!components,
-        componentsCount: components?.length,
-      });
+      const dataEntities = (structure_map || []).filter((e: any) => e.entity_type !== "page" && e.entity_type !== "component");
+      const scanInput = {
+        components_count: components.length,
+        routes_count: routes.length,
+        data_entities_count: dataEntities.length,
+      };
+      console.log("[SCAN INPUT]", scanInput);
+
+      // Store scan_input on the scan_run
+      await supabase.from("scan_runs").update({ steps_results: { _scan_input: scanInput } }).eq("id", scanRun.id);
 
       if (!structure_map || structure_map.length === 0) {
         console.error("❌ SCAN ABORT: NO STRUCTURE MAP");

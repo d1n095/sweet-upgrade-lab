@@ -1478,6 +1478,29 @@ const SystemExplorer = () => {
               </Card>
             )}
 
+            {/* Scan Input */}
+            {latestRun && (() => {
+              const ur = latestRun.unified_result as any;
+              const si = ur?.steps_results?._scan_input || (latestRun as any).steps_results?._scan_input;
+              if (!si) return null;
+              return (
+                <Card className="mt-3">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Layers className="h-4 w-4" /> Scan Input
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="flex gap-4 text-xs">
+                      <div className="flex items-center gap-1"><Badge variant="outline">Components</Badge><span className="font-mono">{si.components_count ?? "–"}</span></div>
+                      <div className="flex items-center gap-1"><Badge variant="outline">Routes</Badge><span className="font-mono">{si.routes_count ?? "–"}</span></div>
+                      <div className="flex items-center gap-1"><Badge variant="outline">Data</Badge><span className="font-mono">{si.data_entities_count ?? "–"}</span></div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })()}
+
             {/* Frontend Health — Grouped by Viewport */}
             {codeScanResult && codeScanResult.length > 0 && (() => {
               const responsiveIssues = codeScanResult.filter((i: any) => i.type === "responsive");
