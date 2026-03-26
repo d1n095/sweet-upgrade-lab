@@ -33,7 +33,7 @@ const hookFiles = import.meta.glob("/src/hooks/**/*.{ts,tsx}", { eager: false })
 const libFiles = import.meta.glob("/src/lib/**/*.{ts,tsx}", { eager: false });
 const storeFiles = import.meta.glob("/src/stores/**/*.{ts,tsx}", { eager: false });
 const utilFiles = import.meta.glob("/src/utils/**/*.{ts,tsx}", { eager: false });
-const edgeFnFiles = import.meta.glob("/supabase/functions/*/index.ts", { eager: false });
+// Edge functions excluded from glob to avoid Deno import resolution errors
 
 // Raw source for import parsing
 const rawSources = import.meta.glob(
@@ -65,7 +65,7 @@ function buildMap(): FileEntry[] {
     ...Object.keys(libFiles),
     ...Object.keys(storeFiles),
     ...Object.keys(utilFiles),
-    ...Object.keys(edgeFnFiles),
+    // edgeFnFiles excluded
   ];
 
   const cleanPaths = allPaths.map((raw) => (raw.startsWith("/") ? raw.slice(1) : raw));
