@@ -1375,6 +1375,35 @@ async function runRealInteractionQA(supabase: any, scanRunId: string): Promise<a
       if (!t.subject_sv || !t.intro_sv) issues.push({ title: `E-postmall "${t.template_type}" saknar ämne/intro`, severity: "high", component: "email_templates", entity_id: t.id });
     }
 
+    // Buttons without action: active bundles with no items (dead CTA)
+    for (const b of bundles || []) {
+      const { count } = await supabase.from("bundle_items").select("id", { count: "exact", head: true }).eq("bundle_id", b.id);
+      if (!count || count === 0) {
+        issues.push({ title: `Broken interaction: button without action — bundle "${b.name}" CTA leads nowhere`, severity: "critical", component: "bundles", element: "BundleCTA", category: "interaction", _issue_type: "bug", _impact_score: 5, _impact_label: "critical" });
+      }
+    }
+
+    // Links without route: products visible but no handle (unnavigable)
+    const { data: noHandleProducts } = await supabase.from("products").select("id, title_sv, handle").eq("is_visible", true).is("handle", null).limit(50);
+    for (const p of noHandleProducts || []) {
+      issues.push({ title: `Broken interaction: link without route — product "${p.title_sv || p.id.slice(0,8)}" has no URL`, severity: "critical", component: "ProductCard", element: "ProductLink", category: "interaction", _issue_type: "bug", _impact_score: 5, _impact_label: "critical" });
+    }
+
+    // Forms without submit: affiliate applications with required fields missing config
+    const { data: affiliateApps } = await supabase.from("affiliate_applications").select("id, name, email, status").eq("status", "pending").limit(50);
+    for (const app of affiliateApps || []) {
+      if (!app.email || !app.name) {
+        issues.push({ title: `Broken interaction: form without submit — affiliate application missing required fields`, severity: "critical", component: "AffiliateForm", element: "SubmitButton", category: "interaction", _issue_type: "bug", _impact_score: 5, _impact_label: "critical" });
+      }
+    }
+
+    // Email templates without CTA (form/button without action)
+    for (const t of templates || []) {
+      if (!t.cta_text_sv || t.cta_text_sv.trim() === "") {
+        issues.push({ title: `Broken interaction: button without action — email "${t.template_type}" has no CTA text`, severity: "high", component: "email_templates", element: "EmailCTA", category: "interaction", _issue_type: "bug", _impact_score: 5, _impact_label: "critical" });
+      }
+    }
+
   } catch (e: any) { issues.push({ title: `Interaction QA error: ${e.message}`, severity: "critical", component: "interaction_qa" }); }
 
   const durationMs = Date.now() - startMs;
