@@ -1986,6 +1986,33 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
       } catch (_) {}
     }
 
+    // Suggested fix generation
+    let suggested_fix_code: string | null = null;
+    let suggested_fix_type: "sql" | "logic" | "mapping" | null = null;
+    const titleLower = (issue.title || "").toLowerCase();
+    const descLower = (issue.description || "").toLowerCase();
+    const traceContext = matchedTraceFn ? ` in ${matchedTraceFn}${matchedTraceEndpoint ? ` (${matchedTraceEndpoint})` : ""}` : "";
+
+    if (titleLower.includes("id lost") || titleLower.includes("persisted") || descLower.includes("id lost")) {
+      suggested_fix_type = "sql";
+      suggested_fix_code = `Ensure DB insert returns id and is awaited properly${traceContext}. Check that .select("id").single() is chained after insert.`;
+    } else if (titleLower.includes("no data found") || titleLower.includes("missing") || descLower.includes("no data found where expected")) {
+      suggested_fix_type = "logic";
+      suggested_fix_code = `Check insert logic or missing trigger for entity creation${traceContext}. Verify the row exists after write and RLS allows read-back.`;
+    } else if (titleLower.includes("mismatch") || titleLower.includes("data mismatch") || descLower.includes("mismatch")) {
+      suggested_fix_type = "mapping";
+      suggested_fix_code = `Align frontend expected fields with backend response${traceContext}. Compare request payload keys with DB column names.`;
+    } else if (titleLower.includes("null") || titleLower.includes("undefined")) {
+      suggested_fix_type = "logic";
+      suggested_fix_code = `Check for null/undefined values before DB write${traceContext}. Add default values or NOT NULL constraints.`;
+    } else if (titleLower.includes("rls") || titleLower.includes("row-level") || titleLower.includes("policy")) {
+      suggested_fix_type = "sql";
+      suggested_fix_code = `Review RLS policies${traceContext}. Ensure user_id is set correctly and policy allows the operation.`;
+    } else if (matchedTraceFn) {
+      suggested_fix_type = "logic";
+      suggested_fix_code = `Runtime error detected in ${matchedTraceFn}${matchedTraceEndpoint ? ` (${matchedTraceEndpoint})` : ""}. Check error handling and input validation.`;
+    }
+
     const insertPayload: Record<string, any> = {
       title: issue.title,
       description: issue.description || "Auto-generated from scan",
