@@ -3078,18 +3078,22 @@ serve(async (req) => {
       if (scanTimestamp && Date.now() - scanTimestamp > 60000) {
         violations.push("⚠ STALE SCAN DATA (>60s old)");
       }
-      // FINAL
-      if (violations.length > 0) {
-        console.error("🚨 SYSTEM VIOLATIONS:", violations);
-        return new Response(JSON.stringify({ success: false, violations, scan_id: scan_run_id, detected: issuesCount, created: workItemsCreated }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
-      }
-
       const scanContext = {
         raw_detected: rawDetected,
         after_filter: issuesCount,
         created_count: workItemsCreated,
         skipped_count: skippedCount
       };
+
+      // FINAL
+      if (violations.length > 0) {
+        const enrichedViolations = violations.map(v => ({
+          ...typeof v === "string" ? { message: v } : v,
+          explanation: explainViolation(typeof v === "string" ? { message: v } : v, scanContext)
+        }));
+        console.error("🚨 SYSTEM VIOLATIONS:", enrichedViolations);
+        return new Response(JSON.stringify({ success: false, violations: enrichedViolations, scan_id: scan_run_id, detected: issuesCount, created: workItemsCreated, scanContext }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
+      }
 
       console.log("[SCAN] finished — detected:", issuesCount, "created:", workItemsCreated, "scanContext:", JSON.stringify(scanContext));
       return new Response(JSON.stringify({ success: true, scan_id: scan_run_id, detected: issuesCount, created: workItemsCreated, filtered: issuesCount - workItemsCreated, skipped: skippedCount, action: "finalized", iterations: iterationsCompleted, system_stage: systemStage, scanContext }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
