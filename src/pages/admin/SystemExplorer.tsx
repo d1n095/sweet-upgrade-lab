@@ -942,6 +942,7 @@ const SystemExplorer = () => {
         {mainTab === "backendscan" && (() => {
           const r = latestBackendScan?.results as any;
           return (
+            <div className="space-y-3">
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2"><Radar className="h-4 w-4" /> Backend Scan</CardTitle>
@@ -971,6 +972,39 @@ const SystemExplorer = () => {
                 )}
               </CardContent>
             </Card>
+
+            {/* Scanner Execution */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2"><Activity className="h-4 w-4" /> Scanner Execution</CardTitle>
+              </CardHeader>
+              <CardContent className="p-3">
+                {(() => {
+                  const stepResults = r?.step_results || r?.steps_results || r?.scanners || null;
+                  if (!stepResults || typeof stepResults !== "object" || Object.keys(stepResults).length === 0) {
+                    return <p className="text-[10px] text-muted-foreground">No scanner execution data</p>;
+                  }
+                  return (
+                    <div className="space-y-1">
+                      {Object.entries(stepResults).map(([name, result]: [string, any]) => {
+                        const failed = result?.failed || result?.error;
+                        const issuesFound = result?.issues_found ?? result?.issues_count ?? result?.count ?? "—";
+                        const status = failed ? "failed" : (result && !result?.skipped) ? "success" : "no data";
+                        const statusColor = status === "success" ? "text-green-500" : status === "failed" ? "text-red-500" : "text-muted-foreground";
+                        return (
+                          <div key={name} className="flex items-center gap-2 text-[10px] py-1 border-b border-border/50">
+                            <span className="font-mono text-foreground flex-1">{name}</span>
+                            <span className={`font-medium ${statusColor}`}>{status}</span>
+                            <span className="text-muted-foreground min-w-[60px] text-right">issues: {issuesFound}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </CardContent>
+            </Card>
+            </div>
           );
         })()}
 
