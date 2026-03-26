@@ -1335,7 +1335,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     }
 
     // NEW ISSUE — create
-    const insertPayload = {
+    const insertPayload: Record<string, any> = {
       title: issue.title,
       description: issue.description || "Auto-generated from scan",
       status: "open",
@@ -1344,6 +1344,9 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
       source_type: "ai_scan",
       ai_detected: true,
       issue_fingerprint: issue.fingerprint,
+      source_path: issue.source_path || null,
+      source_file: issue.source_file || null,
+      source_component: issue.source_component || null,
     };
 
     let verified = false;
