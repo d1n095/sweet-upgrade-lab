@@ -1216,6 +1216,7 @@ const SystemExplorer = () => {
                 </button>
               ))}
               <Button variant="outline" size="sm" className="text-[10px] h-6 ml-auto" onClick={() => {
+                console.log("🟢 Scan Files clicked");
                 const sources = getRawSources();
                 const files = Object.keys(sources);
                 const result = {
