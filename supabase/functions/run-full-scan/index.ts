@@ -1212,7 +1212,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
   }
 
   // Group broken_flows before creating
-  const groupedFlows = groupSimilarIssues((unified.broken_flows || []).filter(isActionable));
+  const groupedFlows = groupSimilarIssues(tagActionable(unified.broken_flows || []).filter(isActionable));
   for (const flow of groupedFlows.slice(0, 15)) {
     const fp = generateFingerprint(flow);
     const similarNote = flow._similar_count ? ` (+${flow._similar_count} liknande)` : "";
@@ -1223,7 +1223,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     });
   }
 
-  const groupedFake = groupSimilarIssues((unified.fake_features || []).filter(isActionable));
+  const groupedFake = groupSimilarIssues(tagActionable(unified.fake_features || []).filter(isActionable));
   for (const fake of groupedFake.slice(0, 15)) {
     const fp = generateFingerprint(fake);
     const similarNote = fake._similar_count ? ` (+${fake._similar_count} liknande)` : "";
@@ -1234,7 +1234,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     });
   }
 
-  const groupedInteraction = groupSimilarIssues((unified.interaction_failures || []).filter(isActionable));
+  const groupedInteraction = groupSimilarIssues(tagActionable(unified.interaction_failures || []).filter(isActionable));
   for (const fail of groupedInteraction.slice(0, 15)) {
     const fp = generateFingerprint(fail);
     const similarNote = fail._similar_count ? ` (+${fail._similar_count} liknande)` : "";
@@ -1246,7 +1246,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     });
   }
 
-  const groupedData = groupSimilarIssues((unified.data_issues || []).filter(isActionable));
+  const groupedData = groupSimilarIssues(tagActionable(unified.data_issues || []).filter(isActionable));
   for (const issue of groupedData.slice(0, 15)) {
     const fp = generateFingerprint(issue);
     const similarNote = issue._similar_count ? ` (+${issue._similar_count} liknande)` : "";
