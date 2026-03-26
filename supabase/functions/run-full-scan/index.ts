@@ -1729,6 +1729,43 @@ serve(async (req) => {
       unified.data_issues = groupSimilarIssues(unified.data_issues);
       unified.fake_features = groupSimilarIssues(unified.fake_features);
 
+      // ── VIEWPORT TAGGING for UI issues ──
+      const VIEWPORT_CHECKS = [
+        { type: "desktop", width: 1440 },
+        { type: "tablet", width: 768 },
+        { type: "mobile", width: 375 },
+      ];
+      unified._viewport_checks = VIEWPORT_CHECKS;
+
+      const LAYOUT_PATTERN = /overflow|scroll|z-index|position|sticky|fixed|absolute|flex|grid|responsive|mobile|tablet|desktop|breakpoint|truncat|clip|hidden|wrap|width|height|padding|margin|gap|spacing|layout|resize|viewport/i;
+      const UI_PATTERN = /layout|overflow|scroll|z-index|position|css|style|responsive|mobile|tablet|component|button|modal|dialog|drawer|header|footer|nav|sidebar|card|form|input|select|image|icon/i;
+
+      function tagViewport(issues: any[]): any[] {
+        const result: any[] = [];
+        for (const issue of issues) {
+          const text = `${issue.title || ""} ${issue.description || ""} ${issue.component || ""} ${issue.element || ""} ${issue.route || ""}`.toLowerCase();
+          const isLayout = LAYOUT_PATTERN.test(text);
+          const isUi = UI_PATTERN.test(text);
+
+          if (isLayout) {
+            // Duplicate per viewport
+            for (const vp of VIEWPORT_CHECKS) {
+              result.push({ ...issue, _viewport: vp.type, _viewport_width: vp.width });
+            }
+          } else if (isUi) {
+            // Tag as desktop (default viewport)
+            result.push({ ...issue, _viewport: "desktop", _viewport_width: 1440 });
+          } else {
+            result.push(issue);
+          }
+        }
+        return result;
+      }
+
+      unified.broken_flows = tagViewport(unified.broken_flows);
+      unified.interaction_failures = tagViewport(unified.interaction_failures);
+      unified.fake_features = tagViewport(unified.fake_features);
+
       // Count only actionable (non-dev-expected) issues
       const actionableIssues = [
         ...unified.broken_flows.filter((i: any) => !i._dev_expected),
