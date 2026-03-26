@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { tracedInvoke } from "@/lib/tracedInvoke";
 import { useAiQueueStore } from "@/stores/aiQueueStore";
-import { fileSystemMap, type FileEntry } from "@/lib/fileSystemMap";
+import { fileSystemMap, type FileEntry, getFileContent } from "@/lib/fileSystemMap";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useFounderRole } from "@/hooks/useFounderRole";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1043,6 +1043,22 @@ const SystemExplorer = () => {
                             : <span className="text-destructive">⚠️ Orphan — no imports found</span>
                         }
                       </p>
+                    </div>
+
+                    {/* File Content */}
+                    <div>
+                      <span className="text-[10px] text-muted-foreground">Source Code (read-only, max 500 lines)</span>
+                      {(() => {
+                        const content = getFileContent(selectedFile.path);
+                        if (!content) return <p className="text-[10px] text-muted-foreground mt-1">Content not available</p>;
+                        const lineCount = content.split("\n").length;
+                        return (
+                          <div className="mt-1">
+                            <p className="text-[9px] text-muted-foreground mb-1">{lineCount} lines</p>
+                            <pre className="bg-muted/30 border border-border rounded-md p-2 text-[9px] font-mono overflow-auto max-h-[300px] whitespace-pre text-foreground select-all">{content}</pre>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 ) : (
