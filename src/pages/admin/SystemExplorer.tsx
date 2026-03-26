@@ -1508,7 +1508,14 @@ const SystemExplorer = () => {
                 if (!summary) return null;
                 return (
                   <div className="rounded-md border border-muted bg-muted/30 p-2 mb-2">
-                    <h4 className="text-xs font-bold text-foreground mb-1">📋 Diagnosis Summary</h4>
+                    <div className="flex items-center justify-between mb-1">
+                      <h4 className="text-xs font-bold text-foreground">📋 Diagnosis Summary</h4>
+                      {(activeSnapshot?.coverage_total != null || activeSnapshot?.coverage_unique_targets != null) && (
+                        <Badge variant="outline" className="text-[10px]">
+                          Coverage: {activeSnapshot.coverage_unique_targets ?? "?"} targets / {activeSnapshot.coverage_total ?? "?"} total
+                        </Badge>
+                      )}
+                    </div>
                     {summary.split("\n").map((line, idx) => (
                       <p key={idx} className="text-[10px] text-foreground leading-relaxed">{line}</p>
                     ))}
