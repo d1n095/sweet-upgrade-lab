@@ -1314,7 +1314,13 @@ function classifyIssueType(issue: any, category: string): "bug" | "improvement" 
 async function createWorkItems(supabase: any, unified: any, stage: SystemStage): Promise<{ created: number; createTrace: any[] }> {
   let workItemsCreated = 0;
   const createTrace: any[] = [];
-  const allWorkIssues: { title: string; priority: string; item_type: string; description?: string; fingerprint: string; source_path?: string; source_file?: string; source_component?: string; issue_type?: string }[] = [];
+  const allWorkIssues: { title: string; priority: string; item_type: string; description?: string; fingerprint: string; source_path?: string; source_file?: string; source_component?: string; issue_type?: string; suggested_fix?: string }[] = [];
+
+  function suggestedFixForType(issueType: string): string {
+    if (issueType === "improvement") return "Adjust UI/UX for clarity and usability";
+    if (issueType === "upgrade") return "Add or enhance feature based on expected behavior";
+    return "Fix broken logic or missing connection";
+  }
 
   // DEBUG MODE: Relaxed filter — only skip explicitly dev-expected issues
   const tagActionable = (issues: any[]) => issues.map(issue => {
@@ -1340,7 +1346,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     allWorkIssues.push({
       title: `Broken flow: ${flow.description || flow.route || flow.issue || "unknown"}${similarNote}`.slice(0, 120),
       priority: "high", item_type: "bug", description: flow.fix_suggestion || flow.detail || "",
-      fingerprint: fp, issue_type: issueType,
+      fingerprint: fp, issue_type: issueType, suggested_fix: suggestedFixForType(issueType),
       source_path: flow.route || flow.page || null, source_file: flow.file || flow.source_file || null, source_component: flow.component || flow.element || null,
     });
   }
