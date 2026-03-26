@@ -18,7 +18,7 @@ const SEOHead = ({
   description,
   keywords,
   canonical,
-  ogImage = 'https://lovable.dev/opengraph-image-p98pqg.png',
+  ogImage = 'https://jjvbvrgjanisbuhalevj.supabase.co/storage/v1/object/public/public-assets/og-image.jpg',
   ogType = 'website',
   noindex = false,
   schemaType = 'Store',
