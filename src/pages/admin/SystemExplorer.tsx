@@ -103,6 +103,7 @@ const SystemExplorer = () => {
   const isViewerAdmin = isAdmin && !isFounder; // admin without founder = read-only viewer
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ workItems: true, scanResults: true, aiFlow: true, scanners: true });
   const [expandedScanners, setExpandedScanners] = useState<Record<string, boolean>>({});
+  const [scannerIssueFilter, setScannerIssueFilter] = useState<"all" | "bug" | "improvement" | "upgrade">("all");
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({ open: true, in_progress: true, done: false, completed: false, cancelled: false });
   const [selectedItem, setSelectedItem] = useState<WorkItem | null>(null);
   const [detailTab, setDetailTab] = useState<"info" | "history">("info");
@@ -692,9 +693,16 @@ const SystemExplorer = () => {
                                   <div className="flex items-center gap-1 mb-1">
                                     <Eye className="h-3 w-3 text-muted-foreground" />
                                     <span className="text-[10px] font-medium text-muted-foreground">Raw output</span>
+                                    <div className="flex gap-0.5 ml-auto">
+                                      {(["all", "bug", "improvement", "upgrade"] as const).map(f => (
+                                        <button key={f} onClick={() => setScannerIssueFilter(f)} className={`text-[8px] px-1.5 py-0.5 rounded border ${scannerIssueFilter === f ? "bg-primary text-primary-foreground border-primary" : "bg-muted/50 text-muted-foreground border-border"}`}>
+                                          {f === "all" ? "All" : f === "bug" ? "Bugs" : f === "improvement" ? "Improvements" : "Upgrades"}
+                                        </button>
+                                      ))}
+                                    </div>
                                   </div>
                                   <div className="space-y-1 max-h-40 overflow-y-auto">
-                                    {scanner.rawIssues.map((issue: any, idx: number) => (
+                                    {scanner.rawIssues.filter((issue: any) => scannerIssueFilter === "all" || issue._issue_type === scannerIssueFilter).map((issue: any, idx: number) => (
                                       <div key={idx} className="text-[10px] border border-border rounded px-2 py-1 bg-muted/30 space-y-1">
                                         <div className="flex items-center gap-1 flex-wrap">
                                           <span className="font-medium truncate flex-1">{issue.title || "Untitled"}</span>
