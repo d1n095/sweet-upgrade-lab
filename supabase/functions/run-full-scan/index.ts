@@ -1969,6 +1969,8 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     const now = new Date().toISOString();
     // Try match a recent runtime_trace (within 60s)
     let matchedTraceId: string | null = null;
+    let matchedTraceFn: string | null = null;
+    let matchedTraceEndpoint: string | null = null;
     if (issue.issue_type === "bug" || issue.affected_area === "data" || issue.title?.toLowerCase().includes("missing") || issue.title?.toLowerCase().includes("mismatch") || issue.title?.toLowerCase().includes("null") || issue.title?.toLowerCase().includes("lost")) {
       try {
         const cutoff = new Date(Date.now() - 60_000).toISOString();
