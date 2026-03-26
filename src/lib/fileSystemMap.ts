@@ -193,5 +193,38 @@ export function getCodeIssues(): CodeIssue[] {
     });
   }
 
+  // Post-process: signal-based rating override
+  for (const issue of issues) {
+    const text = issue.path + " " + issue.message;
+    let rating: AnalysisRating = "neutral";
+    let reason = "No clear impact detected";
+    let confidence: CodeIssue["analysis_confidence"] = 2;
+
+    // GOOD signals
+    if (text.includes("error") || text.includes("crash") || text.includes("fails")) {
+      rating = "good";
+      reason = "Clear bug or failure described";
+      confidence = 5;
+    }
+
+    // BAD signals
+    if (text.includes("maybe") || text.includes("could") || text.includes("nice to have")) {
+      rating = "bad";
+      reason = "Unclear or low priority suggestion";
+      confidence = 3;
+    }
+
+    // CRITICAL signals
+    if (text.includes("security") || text.includes("data loss") || text.includes("payment")) {
+      rating = "good";
+      reason = "Critical system risk";
+      confidence = 5;
+    }
+
+    issue.analysis_rating = rating;
+    issue.analysis_reason = reason;
+    issue.analysis_confidence = confidence;
+  }
+
   return issues;
 }
