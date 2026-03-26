@@ -200,13 +200,14 @@ const SystemExplorer = () => {
   }
 
   function handleSearch() {
+    logAction({ type: "Search", status: "started" });
     if (!searchQuery) {
-      console.warn("⚠ No search query");
+      logAction({ type: "Search", status: "no-input", message: "Search query empty" });
       return;
     }
     const sources = getRawSources();
     if (!sources) {
-      console.error("❌ rawSources missing");
+      logAction({ type: "Search", status: "error", message: "rawSources missing" });
       return;
     }
     const results: { path: string; lineNumber: number; line: string }[] = [];
@@ -215,15 +216,15 @@ const SystemExplorer = () => {
       const lines = content.split("\n");
       lines.forEach((line, index) => {
         if (line.toLowerCase().includes(searchQuery.toLowerCase())) {
-          results.push({
-            path,
-            lineNumber: index + 1,
-            line: line.trim()
-          });
+          results.push({ path, lineNumber: index + 1, line: line.trim() });
         }
       });
     });
-    console.log("[SEARCH RESULTS]:", results.length);
+    logAction({
+      type: "Search",
+      status: results.length === 0 ? "no-results" : "success",
+      count: results.length
+    });
     setSearchResults(results.slice(0, 50));
   }
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | null>(null);
