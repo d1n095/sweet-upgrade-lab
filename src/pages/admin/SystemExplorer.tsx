@@ -1042,6 +1042,9 @@ const SystemExplorer = () => {
                         💡 [{t._suggested_fix_type}] {t._suggested_fix_code}
                       </p>
                     )}
+                    {t._fix_confidence != null && (
+                      <span className="text-[9px] text-muted-foreground">🎯 Fix confidence: {t._fix_confidence}/5</span>
+                    )}
                   </div>
                 ))}
               </div>
@@ -2626,6 +2629,16 @@ const SystemExplorer = () => {
                       <span className="text-muted-foreground text-xs font-medium">Suggested Fix</span>
                       <Badge variant="outline" className="text-[9px]">{fixType || "–"}</Badge>
                     </div>
+                    {trace?._fix_confidence != null && (
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] font-medium text-foreground">🎯 Fix confidence: {trace._fix_confidence}/5</span>
+                        <div className="flex gap-0.5">
+                          {[1,2,3,4,5].map(n => (
+                            <div key={n} className={`w-2 h-2 rounded-full ${n <= trace._fix_confidence ? "bg-primary" : "bg-muted"}`} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     <div className="text-[10px] text-muted-foreground space-y-0.5">
                       <p>📍 Affected: <span className="font-mono text-foreground">{endpoint}</span></p>
                     </div>

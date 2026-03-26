@@ -2013,9 +2013,25 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
       suggested_fix_code = `Runtime error detected in ${matchedTraceFn}${matchedTraceEndpoint ? ` (${matchedTraceEndpoint})` : ""}. Check error handling and input validation.`;
     }
 
+    // Fix confidence scoring (1-5)
+    let fix_confidence = 1;
+    if (matchedTraceFn && suggested_fix_type === "sql") {
+      fix_confidence = 5; // direct runtime error + clear fix
+    } else if (matchedTraceFn && suggested_fix_code) {
+      fix_confidence = 4; // runtime error with suggested fix
+    } else if (titleLower.includes("missing") || titleLower.includes("no data found") || descLower.includes("missing")) {
+      fix_confidence = 4; // data missing with clear source
+    } else if (suggested_fix_type === "mapping" || titleLower.includes("mismatch")) {
+      fix_confidence = 3; // mapping issue
+    } else if (titleLower.includes("ui") || titleLower.includes("layout") || titleLower.includes("display") || titleLower.includes("render")) {
+      fix_confidence = 2; // UI issue
+    } else if (suggested_fix_code) {
+      fix_confidence = 3; // has a fix suggestion but not strongly categorized
+    }
+
     const insertPayload: Record<string, any> = {
       title: issue.title,
-      description: (issue.description || "Auto-generated from scan") + (suggested_fix_code ? `\n\n💡 Suggested fix (${suggested_fix_type}): ${suggested_fix_code}` : ""),
+      description: (issue.description || "Auto-generated from scan") + (suggested_fix_code ? `\n\n💡 Suggested fix (${suggested_fix_type}): ${suggested_fix_code}` : "") + `\n\n🎯 Fix confidence: ${fix_confidence}/5`,
       status: "open",
       priority: issue.priority,
       item_type: issue.item_type,
@@ -2051,12 +2067,12 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
       console.log(`[create-verify] ✅ VERIFIED: ${created.id} "${issue.title.slice(0, 40)}"`);
       workItemsCreated++;
       verified = true;
-      createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'created', created_id: created.id, issue_type: issue.issue_type || 'bug', affected_area: issue.affected_area, _origin_source: 'ai_scan', _impact_score: (issue as any)._impact_score, _impact_label: (issue as any)._impact_label, _insert_success: true, _insert_error: null, _suggested_fix_code: suggested_fix_code, _suggested_fix_type: suggested_fix_type });
+      createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'created', created_id: created.id, issue_type: issue.issue_type || 'bug', affected_area: issue.affected_area, _origin_source: 'ai_scan', _impact_score: (issue as any)._impact_score, _impact_label: (issue as any)._impact_label, _insert_success: true, _insert_error: null, _suggested_fix_code: suggested_fix_code, _suggested_fix_type: suggested_fix_type, _fix_confidence: fix_confidence });
       
       break;
     }
     if (!verified) {
-      createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'skipped_validation', _validation_reason: 'invalid_payload', issue_type: issue.issue_type || 'bug', affected_area: issue.affected_area, _insert_success: false, _insert_error: lastInsertError, _suggested_fix_code: suggested_fix_code, _suggested_fix_type: suggested_fix_type });
+      createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'skipped_validation', _validation_reason: 'invalid_payload', issue_type: issue.issue_type || 'bug', affected_area: issue.affected_area, _insert_success: false, _insert_error: lastInsertError, _suggested_fix_code: suggested_fix_code, _suggested_fix_type: suggested_fix_type, _fix_confidence: fix_confidence });
       console.error(`[create-verify] ❌ FAILED: "${issue.title.slice(0, 60)}" error: ${lastInsertError}`);
     }
   }
