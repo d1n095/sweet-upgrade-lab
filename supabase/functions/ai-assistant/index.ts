@@ -374,6 +374,16 @@ serve(async (req) => {
         break;
       }
 
+      case "system_explorer_query": {
+        const { question } = body;
+        if (!question || typeof question !== "string" || question.length < 2 || question.length > 2000) {
+          return new Response(JSON.stringify({ error: "Invalid question" }), { status: 400, headers: corsHeaders });
+        }
+        await logAiRead(supabase, { action_type: "query", target_type: "system_explorer", result: "inspected", summary: `Explorer query: ${question.substring(0, 100)}`, triggered_by: user.id });
+        result = await handleSystemExplorerQuery(supabase, lovableKey, question);
+        break;
+      }
+
       default:
         return new Response(JSON.stringify({ error: "Unknown type" }), { status: 400, headers: corsHeaders });
     }
@@ -9094,4 +9104,71 @@ Svara ALLTID på svenska.`,
   if (scanId && tasksCreated > 0) await updateScanTaskCount(supabase, scanId, tasksCreated);
 
   return { ...analysis, scan_id: scanId, tasks_created: tasksCreated };
+}
+
+// ── System Explorer Query (READ-ONLY) ──
+async function handleSystemExplorerQuery(supabase: any, apiKey: string, question: string) {
+  // Gather read-only context
+  const [workItemsRes, scanRes, bugsRes, historyRes] = await Promise.all([
+    supabase.from("work_items").select("id, title, status, priority, item_type, source_type, source_id, ai_detected, created_at, ignored, issue_fingerprint").order("created_at", { ascending: false }).limit(100),
+    supabase.from("ai_scan_results").select("id, scan_type, issues_count, tasks_created, overall_score, overall_status, executive_summary, created_at, results").order("created_at", { ascending: false }).limit(3),
+    supabase.from("bug_reports").select("id, status, ai_severity, ai_category, ai_summary, created_at").order("created_at", { ascending: false }).limit(30),
+    supabase.from("work_item_history").select("work_item_id, action, old_value, new_value, created_at").order("created_at", { ascending: false }).limit(50),
+  ]);
+
+  const workItems = workItemsRes.data || [];
+  const scans = scanRes.data || [];
+  const bugs = bugsRes.data || [];
+  const history = historyRes.data || [];
+
+  // Build status summary
+  const statusCounts: Record<string, number> = {};
+  for (const wi of workItems) {
+    statusCounts[wi.status] = (statusCounts[wi.status] || 0) + 1;
+  }
+
+  const latestScan = scans[0];
+  const scanIssues = latestScan?.results?.issues || [];
+
+  const context = `
+SYSTEM STATE (read-only snapshot):
+
+WORK ITEMS (${workItems.length} most recent):
+Status counts: ${JSON.stringify(statusCounts)}
+Items: ${JSON.stringify(workItems.slice(0, 50).map((w: any) => ({ id: w.id.slice(0,8), title: w.title, status: w.status, priority: w.priority, type: w.item_type, source: w.source_type, ai: w.ai_detected, ignored: w.ignored })))}
+
+LATEST SCAN:
+${latestScan ? `ID: ${latestScan.id.slice(0,8)}, Type: ${latestScan.scan_type}, Score: ${latestScan.overall_score}, Issues: ${latestScan.issues_count}, Tasks created: ${latestScan.tasks_created}, Status: ${latestScan.overall_status}, Summary: ${latestScan.executive_summary || 'none'}` : 'No scans found'}
+
+SCAN ISSUES (${scanIssues.length}):
+${JSON.stringify(scanIssues.slice(0, 20).map((i: any) => ({ title: i.title, type: i.type, category: i.category, severity: i.severity })))}
+
+RECENT BUGS (${bugs.length}):
+${JSON.stringify(bugs.slice(0, 15).map((b: any) => ({ id: b.id.slice(0,8), status: b.status, severity: b.ai_severity, category: b.ai_category, summary: b.ai_summary?.slice(0,60) })))}
+
+RECENT HISTORY (${history.length} entries):
+${JSON.stringify(history.slice(0, 20).map((h: any) => ({ item: h.work_item_id.slice(0,8), action: h.action, old_status: h.old_value?.status, new_status: h.new_value?.status, at: h.created_at })))}
+`.trim();
+
+  const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        { role: "system", content: `You are a read-only system analyst for a Swedish e-commerce platform. You analyze work items, scan results, bug reports, and system history. You NEVER suggest modifying data. Answer concisely in the same language as the question. Use markdown formatting.` },
+        { role: "user", content: `${context}\n\n---\nQUESTION: ${question}` },
+      ],
+    }),
+  });
+
+  if (!resp.ok) {
+    if (resp.status === 429) throw Object.assign(new Error("Rate limited"), { status: 429 });
+    if (resp.status === 402) throw Object.assign(new Error("Credits exhausted"), { status: 402 });
+    throw new Error(`AI gateway error: ${resp.status}`);
+  }
+
+  const data = await resp.json();
+  const answer = data.choices?.[0]?.message?.content || "No answer generated.";
+  return { answer, context_items: workItems.length, scans_checked: scans.length, bugs_checked: bugs.length };
 }
