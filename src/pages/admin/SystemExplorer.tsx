@@ -228,6 +228,7 @@ const SystemExplorer = () => {
         let emptyReason: string | null = null;
         let scanStartedAt: string | null = null;
         let scanFinishedAt: string | null = null;
+        let scanScope: { type: string; target: string; size: number } | null = null;
         for (const mk of scanner.matchKeys) {
           const s = keyStats[mk.toLowerCase()];
           if (s) {
@@ -245,6 +246,7 @@ const SystemExplorer = () => {
             if (stepData?._empty_reason && emptyReason === null) emptyReason = stepData._empty_reason;
             if (stepData?._scan_started_at && scanStartedAt === null) scanStartedAt = stepData._scan_started_at;
             if (stepData?._scan_finished_at && scanFinishedAt === null) scanFinishedAt = stepData._scan_finished_at;
+            if (stepData?._scan_scope && scanScope === null) scanScope = stepData._scan_scope;
           }
         }
         // If we found any raw issues or created items, scanner must have executed
@@ -260,7 +262,7 @@ const SystemExplorer = () => {
         else if (detected > 0 && created === 0) health = "DEDUP_BLOCKED";
         else if (created > 0) health = "WORKING";
         else health = "BLIND";
-        return { ...scanner, detected, afterFilter: created, skipped, created, health, rawIssues: uniqueRaw, executed, executionTimeMs, inputSize, emptyReason, scanStartedAt, scanFinishedAt, createTrace };
+        return { ...scanner, detected, afterFilter: created, skipped, created, health, rawIssues: uniqueRaw, executed, executionTimeMs, inputSize, emptyReason, scanStartedAt, scanFinishedAt, scanScope, createTrace };
       });
 
       const groupDetected = scannerResults.reduce((s, r) => s + r.detected, 0);
@@ -648,7 +650,24 @@ const SystemExplorer = () => {
                                 <div className="text-center">
                                   <div className="font-bold">{scanner.emptyReason || '–'}</div>
                                   <div className="text-muted-foreground">Empty?</div>
+                              </div>
+                              {/* Scan Scope */}
+                              {scanner.scanScope && (
+                                <div className="px-2.5 pb-1.5 grid grid-cols-3 gap-1 text-[10px] border-t border-border/30 pt-1">
+                                  <div className="text-center">
+                                    <div className="font-bold">{scanner.scanScope.type}</div>
+                                    <div className="text-muted-foreground">Scope</div>
+                                  </div>
+                                  <div className="text-center">
+                                    <div className="font-bold">{scanner.scanScope.target}</div>
+                                    <div className="text-muted-foreground">Target</div>
+                                  </div>
+                                  <div className="text-center">
+                                    <div className="font-bold">{scanner.scanScope.size ?? '–'}</div>
+                                    <div className="text-muted-foreground">Size</div>
+                                  </div>
                                 </div>
+                              )}
                               </div>
                               {scannerExpanded && scanner.rawIssues.length > 0 && (
                                 <div className="px-2.5 pb-2 border-t border-border/50 pt-1.5">
