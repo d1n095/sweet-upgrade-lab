@@ -88,7 +88,9 @@ function groupSimilarIssues(issues: any[]): any[] {
 // ── Context-aware filtering: suppress false positives based on stage ──
 // DEBUG MODE: Relaxed — only suppress clearly invalid/placeholder patterns
 function filterDevFalsePositives(issues: any[], stage: SystemStage): any[] {
-  if (stage === "production") return issues;
+  if (stage === "production") {
+    return issues.map(issue => ({ ...issue, _filter_decision: "passed" }));
+  }
   
   // DEBUG: Only suppress obviously invalid patterns (placeholder/dummy data)
   const debugIgnorePatterns = [
@@ -100,9 +102,9 @@ function filterDevFalsePositives(issues: any[], stage: SystemStage): any[] {
     const text = `${issue.title || ""} ${issue.description || ""}`;
     const isDevExpected = debugIgnorePatterns.some(p => p.test(text));
     if (isDevExpected) {
-      return { ...issue, _dev_expected: true, severity: "info", _original_severity: issue.severity };
+      return { ...issue, _dev_expected: true, severity: "info", _original_severity: issue.severity, _filter_decision: "filtered_out", _filter_reason: "dev_placeholder" };
     }
-    return issue;
+    return { ...issue, _filter_decision: "passed" };
   });
 }
 
@@ -1196,6 +1198,12 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
   const allWorkIssues: { title: string; priority: string; item_type: string; description?: string; fingerprint: string }[] = [];
 
   // DEBUG MODE: Relaxed filter — only skip explicitly dev-expected issues
+  const tagActionable = (issues: any[]) => issues.map(issue => {
+    if (issue._dev_expected) {
+      return { ...issue, _filter_decision: issue._filter_decision || "filtered_out", _filter_reason: issue._filter_reason || "not_actionable" };
+    }
+    return { ...issue, _filter_decision: issue._filter_decision || "passed" };
+  });
   const isActionable = (issue: any) => !issue._dev_expected;
 
   if (unified.blocker) {
@@ -1204,7 +1212,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
   }
 
   // Group broken_flows before creating
-  const groupedFlows = groupSimilarIssues((unified.broken_flows || []).filter(isActionable));
+  const groupedFlows = groupSimilarIssues(tagActionable(unified.broken_flows || []).filter(isActionable));
   for (const flow of groupedFlows.slice(0, 15)) {
     const fp = generateFingerprint(flow);
     const similarNote = flow._similar_count ? ` (+${flow._similar_count} liknande)` : "";
@@ -1215,7 +1223,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     });
   }
 
-  const groupedFake = groupSimilarIssues((unified.fake_features || []).filter(isActionable));
+  const groupedFake = groupSimilarIssues(tagActionable(unified.fake_features || []).filter(isActionable));
   for (const fake of groupedFake.slice(0, 15)) {
     const fp = generateFingerprint(fake);
     const similarNote = fake._similar_count ? ` (+${fake._similar_count} liknande)` : "";
@@ -1226,7 +1234,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     });
   }
 
-  const groupedInteraction = groupSimilarIssues((unified.interaction_failures || []).filter(isActionable));
+  const groupedInteraction = groupSimilarIssues(tagActionable(unified.interaction_failures || []).filter(isActionable));
   for (const fail of groupedInteraction.slice(0, 15)) {
     const fp = generateFingerprint(fail);
     const similarNote = fail._similar_count ? ` (+${fail._similar_count} liknande)` : "";
@@ -1238,7 +1246,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     });
   }
 
-  const groupedData = groupSimilarIssues((unified.data_issues || []).filter(isActionable));
+  const groupedData = groupSimilarIssues(tagActionable(unified.data_issues || []).filter(isActionable));
   for (const issue of groupedData.slice(0, 15)) {
     const fp = generateFingerprint(issue);
     const similarNote = issue._similar_count ? ` (+${issue._similar_count} liknande)` : "";
