@@ -3070,8 +3070,15 @@ serve(async (req) => {
         return new Response(JSON.stringify({ success: false, violations, scan_id: scan_run_id, detected: issuesCount, created: workItemsCreated }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
       }
 
-      console.log("[SCAN] finished — detected:", issuesCount, "created:", workItemsCreated);
-      return new Response(JSON.stringify({ success: true, scan_id: scan_run_id, detected: issuesCount, created: workItemsCreated, filtered: issuesCount - workItemsCreated, skipped: 0, action: "finalized", iterations: iterationsCompleted, system_stage: systemStage }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
+      const scanContext = {
+        raw_detected: rawDetected,
+        after_filter: issuesCount,
+        created_count: workItemsCreated,
+        skipped_count: skippedCount
+      };
+
+      console.log("[SCAN] finished — detected:", issuesCount, "created:", workItemsCreated, "scanContext:", JSON.stringify(scanContext));
+      return new Response(JSON.stringify({ success: true, scan_id: scan_run_id, detected: issuesCount, created: workItemsCreated, filtered: issuesCount - workItemsCreated, skipped: skippedCount, action: "finalized", iterations: iterationsCompleted, system_stage: systemStage, scanContext }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
     }
 
     // ── STATUS ──
