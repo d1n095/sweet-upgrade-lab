@@ -205,22 +205,24 @@ const SystemExplorer = () => {
     ]);
   }
   useEffect(() => {
-    const rawSources = getRawSources();
-    if (!rawSources) {
-      console.warn("❌ NO rawSources — cannot scan");
-      return;
+    if (false) {
+      const rawSources = getRawSources();
+      if (!rawSources) {
+        console.warn("❌ NO rawSources — cannot scan");
+        return;
+      }
+      console.log("RAW SOURCES COUNT:", Object.keys(rawSources).length);
+      console.log("🔍 AUTO SCAN START");
+      const allIssues: { type: string; message: string; file: string }[] = [];
+      Object.entries(rawSources).forEach(([path, content]) => {
+        if (!content) return;
+        const issues = scanFileContent(path, content as string);
+        allIssues.push(...issues);
+      });
+      console.log("🚨 AUTO SCAN FOUND:", allIssues.length);
+      setCodeScanResult(allIssues);
+      setGlobalIssues(allIssues);
     }
-    console.log("RAW SOURCES COUNT:", Object.keys(rawSources).length);
-    console.log("🔍 AUTO SCAN START");
-    const allIssues: { type: string; message: string; file: string }[] = [];
-    Object.entries(rawSources).forEach(([path, content]) => {
-      if (!content) return;
-      const issues = scanFileContent(path, content as string);
-      allIssues.push(...issues);
-    });
-    console.log("🚨 AUTO SCAN FOUND:", allIssues.length);
-    setCodeScanResult(allIssues);
-    setGlobalIssues(allIssues);
   }, []);
 
   function handleSearch() {
@@ -500,12 +502,8 @@ const SystemExplorer = () => {
       const beforeCount = before.data?.length || 0;
       logAction({ type: "Full Scan", status: "started" });
       console.log("🚀 STARTING FULL SCAN");
-      const structure_map = Object.keys(getRawSources() || {}).map(path => ({
-        path
-      }));
-      console.log("[SENDING STRUCTURE MAP]:", structure_map.length);
       const res = await tracedInvoke("run-full-scan", {
-        body: { action: "start", scan_mode: "full", structure_map },
+        body: { action: "start", scan_mode: "full" },
       });
       console.log("📡 RESPONSE:", res);
       const verify = await verifyWorkItemsCreated(beforeCount);
@@ -1180,34 +1178,29 @@ const SystemExplorer = () => {
           </Button>
           {isSystemAdmin && (
             <>
-            <Button variant="default" size="sm" onClick={() =>
-              validateAction("FULL_SCAN", async () => {
-                const structure_map = Object.keys(getRawSources() || {});
-                if (!structure_map.length) {
-                  throw new Error("No structure map");
-                }
-                setIsScanning(true);
-                setScanProgress({ step: 0, total: 11, label: "Startar..." });
-                const pollInterval = setInterval(async () => {
-                  try {
-                    const { data } = await supabase.from("scan_runs").select("current_step, current_step_label").order("created_at", { ascending: false }).limit(1).single();
-                    if (data) {
-                      setScanProgress({ step: data.current_step || 0, total: 11, label: data.current_step_label || "Scanning..." });
-                    }
-                  } catch (_) {}
-                }, 2000);
+            <Button variant="default" size="sm" onClick={async () => {
+              setIsScanning(true);
+              setScanProgress({ step: 0, total: 11, label: "Startar..." });
+              const pollInterval = setInterval(async () => {
                 try {
-                  await supabase.functions.invoke("run-full-scan", {
-                    body: { action: "start", scan_mode: "full", structure_map: structure_map.map(p => ({ path: p })) }
-                  });
-                } finally {
-                  clearInterval(pollInterval);
-                  setIsScanning(false);
-                  setScanProgress(null);
-                }
-                return true;
-              })
-            } disabled={isScanning}>
+                  const { data } = await supabase.from("scan_runs").select("current_step, current_step_label").order("created_at", { ascending: false }).limit(1).single();
+                  if (data) {
+                    setScanProgress({ step: data.current_step || 0, total: 11, label: data.current_step_label || "Scanning..." });
+                  }
+                } catch (_) {}
+              }, 2000);
+              try {
+                await tracedInvoke("run-full-scan", {
+                  body: { action: "start", scan_mode: "full" },
+                });
+              } catch (err: any) {
+                console.error("[FULL SCAN ERROR]:", err);
+              } finally {
+                clearInterval(pollInterval);
+                setIsScanning(false);
+                setScanProgress(null);
+              }
+            }} disabled={isScanning}>
               {isScanning ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Radar className="h-4 w-4 mr-1" />}
               {isScanning && scanProgress ? `Scanning... (${scanProgress.step}/${scanProgress.total})` : isScanning ? "Scanning..." : "Run Full Scan"}
             </Button>
@@ -1418,22 +1411,11 @@ const SystemExplorer = () => {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2"><Layers className="h-4 w-4" /> Code Index ({index.length} files)</CardTitle>
-                <Button variant="outline" size="sm" className="text-[10px] h-6 ml-auto" onClick={() =>
-                  validateAction("SCAN_CODE", () => {
-                    const sources = getRawSources() || {};
-                    const results: { type: string; message: string; file: string }[] = [];
-                    Object.entries(sources).forEach(([path, content]) => {
-                      const issues = scanFileContent(path, content as string);
-                      results.push(...issues);
-                    });
-                    if (!results || results.length === 0) {
-                      throw new Error("Code index empty");
-                    }
-                    console.log("[FILE ISSUES FOUND]:", results.length);
-                    setCodeScanResult(results);
-                    return true;
-                  })
-                }>
+                <Button variant="outline" size="sm" className="text-[10px] h-6 ml-auto" onClick={() => {
+                  tracedInvoke("run-full-scan", {
+                    body: { action: "start", scan_mode: "full" },
+                  }).catch((err: any) => console.error("[SCAN CODE ERROR]:", err));
+                }}>
                   Scan Code
                 </Button>
               </CardHeader>
@@ -1676,18 +1658,11 @@ const SystemExplorer = () => {
                   {f === "all" ? `All (${fileSystemMap.length})` : f === "orphan" ? `Orphan (${fileSystemMap.filter(fi => fi.used_in.length === 0 && fi.type !== "page" && fi.type !== "edge_function").length})` : `Has Issues (${fileSystemMap.filter(fi => structureIssues.some(si => si.path === fi.path)).length})`}
                 </button>
               ))}
-              <Button variant="outline" size="sm" className="text-[10px] h-6 ml-auto" onClick={() =>
-                validateAction("SCAN_FILES", () => {
-                  const files = Object.keys(getRawSources() || {});
-                  if (!files.length) {
-                    throw new Error("No files available");
-                  }
-                  const result = files.length;
-                  console.log("[FILES FOUND]:", result);
-                  setFileScanResult({ total: result, emptyFiles: files.filter(f => !getRawSources()[f]?.trim()).length, largeFiles: 0 });
-                  return true;
-                })
-              }>
+              <Button variant="outline" size="sm" className="text-[10px] h-6 ml-auto" onClick={() => {
+                tracedInvoke("run-full-scan", {
+                  body: { action: "start", scan_mode: "full" },
+                }).catch((err: any) => console.error("[SCAN FILES ERROR]:", err));
+              }}>
                 Scan Files
               </Button>
             </div>

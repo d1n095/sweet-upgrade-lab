@@ -49,7 +49,8 @@ const AdminNotificationBell = () => {
         .limit(20)
         .then(({ data }) => {
           if (data) setNotifications(data as AdminNotif[]);
-        });
+        })
+        .catch(() => {});
     }
 
     const channel = supabase

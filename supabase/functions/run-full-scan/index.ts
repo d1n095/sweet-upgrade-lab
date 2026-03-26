@@ -1853,7 +1853,7 @@ function classifyIssueType(issue: any, category: string): "bug" | "improvement" 
 }
 
 async function createWorkItems(supabase: any, unified: any, stage: SystemStage): Promise<{ created: number; createTrace: any[] }> {
-  console.log("[DEBUG] createWorkItems START", allWorkIssues?.length || 0, "unified keys:", Object.keys(unified || {}));
+  console.log("[DEBUG] createWorkItems START", "unified keys:", Object.keys(unified || {}));
   console.log("[DEBUG] SUPABASE TEST START");
   const test = await supabase.from("work_items").select("id").limit(1);
   console.log("[DEBUG] SUPABASE TEST RESULT:", test);
@@ -2331,13 +2331,18 @@ serve(async (req) => {
         data_entities_count: dataEntities.length,
       };
       console.log("[SCAN INPUT]", scanInput);
+      console.log("[SCAN INPUT DEBUG]", {
+        structure_map_size: structure_map?.length || 0,
+        routes: routes.length,
+        components: components.length,
+        data_entities: dataEntities.length
+      });
 
       // Store scan_input on the scan_run
       await supabase.from("scan_runs").update({ steps_results: { _scan_input: scanInput } }).eq("id", scanRun.id);
 
       if (!structure_map || structure_map.length === 0) {
-        console.error("❌ SCAN ABORT: NO STRUCTURE MAP");
-        return new Response(JSON.stringify({ success: false, error: "NO_INPUT_DATA" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        console.warn("⚠ No structure_map – continuing with empty input");
       }
 
       console.log("[SCAN] running scanners — chaining first step");
@@ -3133,6 +3138,15 @@ serve(async (req) => {
   } catch (e: any) {
     console.error("run-full-scan error:", e);
     console.error("[FULL SCAN ERROR]:", e?.message || e);
+    if (_activeScanRunId && _supabase) {
+      try {
+        await _supabase.from("scan_runs").update({
+          status: "error",
+          error_message: "Scan aborted early",
+          completed_at: new Date().toISOString()
+        }).eq("id", _activeScanRunId);
+      } catch (_) {}
+    }
     try { await logRuntimeTrace("api", "run-full-scan", "/run-full-scan", e?.message || "Unknown", { stack: e?.stack?.slice(0, 500) }); } catch (_) {}
     return new Response(JSON.stringify({ success: false, error: e?.message || "Unknown error" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }

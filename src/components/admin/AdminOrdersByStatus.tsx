@@ -33,14 +33,18 @@ const AdminOrdersByStatus = ({ status, title, icon, emptyMessage }: Props) => {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      const { data } = await supabase
-        .from('orders')
-        .select('id, order_email, order_number, status, payment_status, total_amount, currency, tracking_number, created_at, updated_at, notes')
-        .eq('status', status)
-        .is('deleted_at', null)
-        .order('updated_at', { ascending: false });
-      setOrders(data || []);
-      setLoading(false);
+      try {
+        const { data } = await supabase
+          .from('orders')
+          .select('id, order_email, order_number, status, payment_status, total_amount, currency, tracking_number, created_at, updated_at, notes')
+          .eq('status', status)
+          .is('deleted_at', null)
+          .order('updated_at', { ascending: false });
+        setOrders(data || []);
+      } catch (_) {
+      } finally {
+        setLoading(false);
+      }
     };
     load();
   }, [status]);
