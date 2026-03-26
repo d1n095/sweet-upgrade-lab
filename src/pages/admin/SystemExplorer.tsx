@@ -184,6 +184,29 @@ const SystemExplorer = () => {
   const [showBackendRaw, setShowBackendRaw] = useState(false);
   const [fileScanResult, setFileScanResult] = useState<{ total: number; emptyFiles: number; largeFiles: number } | null>(null);
   const [codeScanResult, setCodeScanResult] = useState<{ filesWithApi: number; filesWithState: number; largeFiles: number } | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<{ path: string; lineNumber: number; line: string }[]>([]);
+
+  function handleSearch() {
+    if (!searchQuery) return;
+    const sources = getRawSources();
+    const results: { path: string; lineNumber: number; line: string }[] = [];
+    Object.entries(sources).forEach(([path, content]) => {
+      if (!content) return;
+      const lines = content.split("\n");
+      lines.forEach((line, index) => {
+        if (line.toLowerCase().includes(searchQuery.toLowerCase())) {
+          results.push({
+            path,
+            lineNumber: index + 1,
+            line: line.trim()
+          });
+        }
+      });
+    });
+    console.log("[SEARCH RESULTS]:", results.length);
+    setSearchResults(results.slice(0, 50));
+  }
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | null>(null);
   const [verifyingFix, setVerifyingFix] = useState(false);
   const [verifyResult, setVerifyResult] = useState<{ itemId: string; status: "confirmed" | "failed"; scanId?: string } | null>(null);
