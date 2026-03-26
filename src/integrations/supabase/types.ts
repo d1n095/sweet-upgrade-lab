@@ -2985,6 +2985,7 @@ export type Database = {
           blind_scanners_count: number
           created_at: string
           dead_scanners_count: number
+          diagnosis_summary: string | null
           high_attention_count: number
           id: string
           payload: Json | null
@@ -2998,6 +2999,7 @@ export type Database = {
           blind_scanners_count?: number
           created_at?: string
           dead_scanners_count?: number
+          diagnosis_summary?: string | null
           high_attention_count?: number
           id?: string
           payload?: Json | null
@@ -3011,6 +3013,7 @@ export type Database = {
           blind_scanners_count?: number
           created_at?: string
           dead_scanners_count?: number
+          diagnosis_summary?: string | null
           high_attention_count?: number
           id?: string
           payload?: Json | null

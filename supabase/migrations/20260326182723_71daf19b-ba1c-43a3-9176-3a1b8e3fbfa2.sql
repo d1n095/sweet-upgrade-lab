@@ -1,0 +1,1 @@
+ALTER TABLE public.scan_snapshots ADD COLUMN IF NOT EXISTS diagnosis_summary text;
