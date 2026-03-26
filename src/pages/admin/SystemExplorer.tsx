@@ -102,7 +102,7 @@ const SystemExplorer = () => {
   const { isFounder, isLoading: founderLoading } = useFounderRole();
   const isSystemAdmin = isFounder || false; // founder = full access
   const isViewerAdmin = isAdmin && !isFounder; // admin without founder = read-only viewer
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ workItems: true, scanResults: true, aiFlow: true, scanners: true });
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ workItems: true, scanResults: true, aiFlow: true, scanners: true, noIssueAreas: false });
   const [expandedScanners, setExpandedScanners] = useState<Record<string, boolean>>({});
   const [scannerIssueFilter, setScannerIssueFilter] = useState<"all" | "bug" | "improvement" | "upgrade">("all");
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({ open: true, in_progress: true, done: false, completed: false, cancelled: false });
@@ -165,6 +165,20 @@ const SystemExplorer = () => {
         .maybeSingle();
       if (error) throw error;
       return data;
+    },
+  });
+
+  // 2c. Last 3 scans for no-issue detection
+  const { data: last3Scans = [] } = useQuery({
+    queryKey: ["system-explorer-last-3-scans"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("ai_scan_results")
+        .select("results")
+        .order("created_at", { ascending: false })
+        .limit(3);
+      if (error) throw error;
+      return (data || []) as any[];
     },
   });
 
@@ -243,6 +257,48 @@ const SystemExplorer = () => {
     }
     return groups;
   }, [unscannedAreas]);
+
+  // Entities in structure_map with NO issues across last 3 scans → "no_issues_detected"
+  const noIssueEntities = useMemo(() => {
+    // Collect all issue targets/names across last 3 scans
+    const issuedTargets = new Set<string>();
+    for (const scan of last3Scans) {
+      const res = scan.results as Record<string, any> | null;
+      if (!res) continue;
+      const issues = (res.issues ?? res.master_list?.items ?? []) as any[];
+      for (const issue of issues) {
+        const targets = [issue.target, issue.component, issue.entity_name, issue.title, issue.category].filter(Boolean);
+        for (const t of targets) issuedTargets.add(String(t).toLowerCase());
+      }
+      // Also check step_results for per-step issues
+      const steps = (res.step_results ?? res) as Record<string, any>;
+      for (const [, val] of Object.entries(steps)) {
+        if (Array.isArray(val?.issues)) {
+          for (const si of val.issues) {
+            const ts = [si.target, si.component, si.entity_name, si.title].filter(Boolean);
+            for (const t of ts) issuedTargets.add(String(t).toLowerCase());
+          }
+        }
+      }
+    }
+    // Filter structure_map entities that are NOT in unscannedAreas AND have no issues
+    return structureMap.filter((entry: any) => {
+      const name = entry.entity_name?.toLowerCase() || "";
+      const isUnscanned = unscannedAreas.some((u: any) => u.entity_name === entry.entity_name && u.entity_type === entry.entity_type);
+      if (isUnscanned) return false; // already shown in unscanned
+      return !Array.from(issuedTargets).some(t => name.includes(t) || t.includes(name));
+    });
+  }, [structureMap, last3Scans, unscannedAreas]);
+
+  const noIssueByType = useMemo(() => {
+    const groups: Record<string, any[]> = { component: [], route: [], data: [], flow: [] };
+    for (const entry of noIssueEntities) {
+      const type = entry.entity_type || "data";
+      if (!groups[type]) groups[type] = [];
+      groups[type].push(entry);
+    }
+    return groups;
+  }, [noIssueEntities]);
 
   // Scanner stats derived from scan results — organized by module groups
   const groupedScannerStats = useMemo(() => {
@@ -1220,6 +1276,64 @@ const SystemExplorer = () => {
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">Alla kända entiteter täcks av skanningar.</p>
+              )}
+            </CardContent>
+          )}
+        </Card>
+
+        {/* ── NO ISSUES DETECTED (LOW SIGNAL) SECTION ── */}
+        <Card>
+          <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("noIssueAreas")}>
+            <CardTitle className="text-sm flex items-center gap-2">
+              {expandedSections.noIssueAreas ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <Radar className="h-4 w-4 text-muted-foreground" />
+              No Issues Detected (Low Signal)
+              {noIssueEntities.length > 0 && (
+                <Badge variant="destructive" className="text-[10px]">{noIssueEntities.length}</Badge>
+              )}
+              <Badge variant="outline" className="text-[10px]">READ-ONLY</Badge>
+            </CardTitle>
+            <p className="text-[10px] text-muted-foreground mt-1">Entities scanned but never flagged — possible fake clean areas or broken scanners</p>
+          </CardHeader>
+          {expandedSections.noIssueAreas && (
+            <CardContent>
+              {noIssueEntities.length > 0 ? (
+                <div className="space-y-3">
+                  {(["component", "route", "data", "flow"] as const).map((type) => {
+                    const items = noIssueByType[type] || [];
+                    if (items.length === 0) return null;
+                    const typeLabels: Record<string, string> = { component: "🖥️ Components", route: "🔗 Routes", data: "🗄️ Data", flow: "🔀 Flows" };
+                    return (
+                      <div key={type}>
+                        <p className="text-xs font-medium text-muted-foreground mb-1">{typeLabels[type] || type} ({items.length})</p>
+                        <div className="border rounded-md overflow-hidden">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="border-b bg-muted/50">
+                                <th className="text-left p-2 font-medium text-muted-foreground">Entity</th>
+                                <th className="text-left p-2 font-medium text-muted-foreground">Last Seen</th>
+                                <th className="text-left p-2 font-medium text-muted-foreground">Scans</th>
+                                <th className="text-left p-2 font-medium text-muted-foreground">Flag</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {items.map((entry: any, idx: number) => (
+                                <tr key={idx} className="border-b last:border-b-0">
+                                  <td className="p-2 font-mono text-foreground">{entry.entity_name}</td>
+                                  <td className="p-2 text-muted-foreground">{entry.last_seen_at ? format(new Date(entry.last_seen_at), "yyyy-MM-dd HH:mm") : "—"}</td>
+                                  <td className="p-2 text-muted-foreground">{entry.scan_count}</td>
+                                  <td className="p-2"><Badge variant="outline" className="text-[9px] border-destructive text-destructive">no_issues_detected</Badge></td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Alla entiteter har registrerade issues — inga misstänkta luckor.</p>
               )}
             </CardContent>
           )}
