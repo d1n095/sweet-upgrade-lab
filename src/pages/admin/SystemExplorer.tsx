@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { tracedInvoke } from "@/lib/tracedInvoke";
 import { useAiQueueStore } from "@/stores/aiQueueStore";
+import { fileSystemMap, type FileEntry } from "@/lib/fileSystemMap";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useFounderRole } from "@/hooks/useFounderRole";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1277,6 +1278,71 @@ const SystemExplorer = () => {
                   )}
                 </div>
               ))}
+            </CardContent>
+          )}
+        </Card>
+
+        {/* FILE MAP */}
+        <Card>
+          <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("fileMap")}>
+            <CardTitle className="text-sm flex items-center gap-2">
+              {expandedSections.fileMap ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <Folder className="h-4 w-4 text-primary" />
+              File Map ({fileSystemMap.length} files)
+            </CardTitle>
+          </CardHeader>
+          {expandedSections.fileMap && (
+            <CardContent className="pt-0 max-h-[500px] overflow-y-auto">
+              {(() => {
+                const tree: Record<string, FileEntry[]> = {};
+                for (const f of fileSystemMap) {
+                  if (!tree[f.folder]) tree[f.folder] = [];
+                  tree[f.folder].push(f);
+                }
+                const folders = Object.keys(tree).sort();
+                return (
+                  <div className="space-y-1">
+                    {folders.map((folder) => {
+                      const files = tree[folder];
+                      const folderKey = `fm_${folder}`;
+                      const isOpen = expandedScanners[folderKey] ?? false;
+                      const typeIcon = (t: FileEntry["type"]) => {
+                        if (t === "component") return "🧩";
+                        if (t === "page") return "📄";
+                        if (t === "hook") return "🪝";
+                        if (t === "lib") return "📚";
+                        if (t === "store") return "🗄️";
+                        if (t === "util") return "🔧";
+                        if (t === "edge_function") return "⚡";
+                        return "📦";
+                      };
+                      return (
+                        <div key={folder} className="border border-border rounded-md">
+                          <button
+                            onClick={() => setExpandedScanners(prev => ({ ...prev, [folderKey]: !prev[folderKey] }))}
+                            className="flex items-center gap-2 w-full text-left px-2 py-1.5 text-xs hover:bg-muted/50 transition-colors"
+                          >
+                            {isOpen ? <FolderOpen className="h-3 w-3 text-primary" /> : <Folder className="h-3 w-3 text-muted-foreground" />}
+                            <span className="font-mono text-[10px] flex-1 truncate">{folder}</span>
+                            <Badge variant="outline" className="text-[9px]">{files.length}</Badge>
+                          </button>
+                          {isOpen && (
+                            <div className="px-2 pb-1.5 space-y-0.5 border-t border-border/50">
+                              {files.map((f) => (
+                                <div key={f.path} className="flex items-center gap-1.5 py-0.5 pl-4">
+                                  <span className="text-[10px]">{typeIcon(f.type)}</span>
+                                  <span className="font-mono text-[10px] text-foreground truncate">{f.path.split("/").pop()}</span>
+                                  <Badge variant="secondary" className="text-[8px] px-1 py-0 ml-auto">{f.type}</Badge>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </CardContent>
           )}
         </Card>
