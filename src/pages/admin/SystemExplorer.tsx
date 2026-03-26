@@ -178,6 +178,9 @@ const SystemExplorer = () => {
   const [selectedFile, setSelectedFile] = useState<FileEntry | null>(null);
   const [patchInput, setPatchInput] = useState("");
   const [patchStatus, setPatchStatus] = useState<"idle" | "valid" | "invalid">("idle");
+  const [safeModeEnabled, setSafeModeEnabled] = useState(true);
+  const [patchSubmitted, setPatchSubmitted] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | null>(null);
   const [verifyingFix, setVerifyingFix] = useState(false);
   const [verifyResult, setVerifyResult] = useState<{ itemId: string; status: "confirmed" | "failed"; scanId?: string } | null>(null);
