@@ -102,7 +102,7 @@ const SystemExplorer = () => {
   const { isFounder, isLoading: founderLoading } = useFounderRole();
   const isSystemAdmin = isFounder || false; // founder = full access
   const isViewerAdmin = isAdmin && !isFounder; // admin without founder = read-only viewer
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ workItems: true, scanResults: true, aiFlow: true, scanners: true, noIssueAreas: false, orphanElements: false, issueClusters: false });
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ workItems: true, scanResults: true, aiFlow: true, scanners: true, noIssueAreas: false, orphanElements: false, issueClusters: false, priorityView: true });
   const [expandedScanners, setExpandedScanners] = useState<Record<string, boolean>>({});
   const [scannerIssueFilter, setScannerIssueFilter] = useState<"all" | "bug" | "improvement" | "upgrade">("all");
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({ open: true, in_progress: true, done: false, completed: false, cancelled: false });
@@ -414,6 +414,34 @@ const SystemExplorer = () => {
     }
     return flagged;
   }, [workItems, last3Scans]);
+
+  // Priority View: top 10 most critical problems sorted by impact_score, cluster_size, occurrence_count
+  const priorityItems = useMemo(() => {
+    const rawIssues = (scanResults?.issues as any[] | undefined) ?? [];
+    // Build cluster size lookup
+    const clusterSizeMap = new Map<string, number>();
+    for (const issue of rawIssues) {
+      const target = issue._affected_area?.target || issue.component || issue.category || "unknown";
+      clusterSizeMap.set(target, (clusterSizeMap.get(target) || 0) + 1);
+    }
+    // Enrich each issue with sorting keys
+    const enriched = rawIssues.map((issue: any) => {
+      const target = issue._affected_area?.target || issue.component || issue.category || "unknown";
+      return {
+        ...issue,
+        _sort_impact: issue._impact_score ?? 0,
+        _sort_cluster: clusterSizeMap.get(target) ?? 1,
+        _sort_occurrence: issue._occurrence_count ?? 1,
+        _cluster_target: target,
+      };
+    });
+    enriched.sort((a: any, b: any) => {
+      if (b._sort_impact !== a._sort_impact) return b._sort_impact - a._sort_impact;
+      if (b._sort_cluster !== a._sort_cluster) return b._sort_cluster - a._sort_cluster;
+      return b._sort_occurrence - a._sort_occurrence;
+    });
+    return enriched.slice(0, 10);
+  }, [scanResults]);
 
   // Scanner stats derived from scan results — organized by module groups
   const groupedScannerStats = useMemo(() => {
@@ -1387,6 +1415,55 @@ const SystemExplorer = () => {
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">Inga issue-kluster identifierade.</p>
+              )}
+            </CardContent>
+          )}
+        </Card>
+
+        {/* ── PRIORITY VIEW SECTION ── */}
+        <Card>
+          <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("priorityView")}>
+            <CardTitle className="text-sm flex items-center gap-2">
+              {expandedSections.priorityView ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <AlertTriangle className="h-4 w-4 text-destructive" />
+              Priority
+              {priorityItems.length > 0 && (
+                <Badge variant="destructive" className="text-[10px]">Top {priorityItems.length}</Badge>
+              )}
+              <Badge variant="outline" className="text-[10px]">READ-ONLY</Badge>
+            </CardTitle>
+            <p className="text-[10px] text-muted-foreground mt-1">Top 10 most critical problems — sorted by impact, cluster size, occurrence</p>
+          </CardHeader>
+          {expandedSections.priorityView && (
+            <CardContent>
+              {priorityItems.length > 0 ? (
+                <div className="space-y-1.5">
+                  {priorityItems.map((item: any, idx: number) => (
+                    <div key={idx} className="border border-border rounded-md p-2 bg-muted/20 flex flex-col gap-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-xs font-bold text-foreground">#{idx + 1}</span>
+                        <span className="text-xs text-foreground truncate max-w-[200px]">{item.title || item.description || item.issue || "unnamed"}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <Badge variant={item._sort_impact >= 4 ? "destructive" : item._sort_impact >= 3 ? "secondary" : "outline"} className="text-[9px]">
+                          {item._sort_impact >= 5 ? "💥" : item._sort_impact >= 4 ? "🔴" : item._sort_impact >= 3 ? "🟡" : "🟢"} impact:{item._sort_impact}/5
+                        </Badge>
+                        <Badge variant={item._sort_cluster >= 5 ? "destructive" : "outline"} className="text-[9px]">
+                          📦 cluster:{item._sort_cluster}
+                        </Badge>
+                        <Badge variant={item._sort_occurrence > 2 ? "destructive" : "outline"} className="text-[9px]">
+                          🔁 ×{item._sort_occurrence}
+                        </Badge>
+                        {item._impact_label && (
+                          <Badge variant="outline" className="text-[8px]">{item._impact_label}</Badge>
+                        )}
+                        <span className="text-[8px] text-muted-foreground">area: {item._cluster_target}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Inga prioriterade problem identifierade.</p>
               )}
             </CardContent>
           )}
