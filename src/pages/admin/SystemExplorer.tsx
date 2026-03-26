@@ -650,7 +650,24 @@ const SystemExplorer = () => {
                                 <div className="text-center">
                                   <div className="font-bold">{scanner.emptyReason || '–'}</div>
                                   <div className="text-muted-foreground">Empty?</div>
+                              </div>
+                              {/* Scan Scope */}
+                              {scanner.scanScope && (
+                                <div className="px-2.5 pb-1.5 grid grid-cols-3 gap-1 text-[10px] border-t border-border/30 pt-1">
+                                  <div className="text-center">
+                                    <div className="font-bold">{scanner.scanScope.type}</div>
+                                    <div className="text-muted-foreground">Scope</div>
+                                  </div>
+                                  <div className="text-center">
+                                    <div className="font-bold">{scanner.scanScope.target}</div>
+                                    <div className="text-muted-foreground">Target</div>
+                                  </div>
+                                  <div className="text-center">
+                                    <div className="font-bold">{scanner.scanScope.size ?? '–'}</div>
+                                    <div className="text-muted-foreground">Size</div>
+                                  </div>
                                 </div>
+                              )}
                               </div>
                               {scannerExpanded && scanner.rawIssues.length > 0 && (
                                 <div className="px-2.5 pb-2 border-t border-border/50 pt-1.5">
