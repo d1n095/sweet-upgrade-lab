@@ -423,9 +423,11 @@ const SystemExplorer = () => {
     setIsScanning(true);
     
     try {
+      console.log("🚀 STARTING FULL SCAN");
       const res = await tracedInvoke("run-full-scan", {
         body: { action: "start", scan_mode: "full" },
       });
+      console.log("📡 RESPONSE:", res);
       console.log("[DEBUG] FULL SCAN RESPONSE:", res);
       const json = res?.data ?? res;
       console.log("[DEBUG] FULL SCAN JSON:", json);
