@@ -265,7 +265,7 @@ const SystemExplorer = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("scan_snapshots")
-        .select("id, created_at, total_scanners, total_detected, total_created, dead_scanners_count, blind_scanners_count, payload")
+        .select("id, created_at, total_scanners, total_detected, total_created, dead_scanners_count, blind_scanners_count, scan_confidence_score, coverage_total, coverage_unique_targets, diagnosis_summary, payload")
         .order("created_at", { ascending: false })
         .limit(10);
       if (error) throw error;
@@ -277,6 +277,50 @@ const SystemExplorer = () => {
 
   const scanResults = activeSnapshot ? (activeSnapshot.payload as Record<string, any> | null) : (latestScan?.results as Record<string, any> | null);
   const detectedIssues = scanResults?.master_list?.total ?? scanResults?.detected_issues?.length ?? (activeSnapshot ? activeSnapshot.total_detected : latestScan?.issues_count) ?? 0;
+
+  // Regression detection: compare last 2 snapshots
+  const regressions = useMemo(() => {
+    if (scanSnapshots.length < 2) return [];
+    const latest = scanSnapshots[0];
+    const previous = scanSnapshots[1];
+    const flags: { target: string; reason: string }[] = [];
+
+    // Compare issue clusters per target
+    const getClusterMap = (snap: any): Record<string, number> => {
+      const map: Record<string, number> = {};
+      const issues = snap?.payload?.issues ?? [];
+      for (const issue of issues) {
+        const t = issue?.target || issue?.component || "unknown";
+        map[t] = (map[t] || 0) + 1;
+      }
+      return map;
+    };
+    const latestClusters = getClusterMap(latest);
+    const prevClusters = getClusterMap(previous);
+
+    // 1. increased_issues: more issues in same target
+    for (const [target, count] of Object.entries(latestClusters)) {
+      const prevCount = prevClusters[target] || 0;
+      if (count > prevCount && prevCount > 0) {
+        flags.push({ target, reason: "increased_issues" });
+      }
+    }
+
+    // 2. lost_coverage: coverage dropped
+    if ((latest.coverage_unique_targets ?? 0) < (previous.coverage_unique_targets ?? 0)) {
+      flags.push({ target: "system", reason: "lost_coverage" });
+    }
+
+    // 3. scanner_degraded: dead/blind count increased
+    if ((latest.dead_scanners_count ?? 0) > (previous.dead_scanners_count ?? 0)) {
+      flags.push({ target: "scanners", reason: "scanner_degraded" });
+    }
+    if ((latest.blind_scanners_count ?? 0) > (previous.blind_scanners_count ?? 0)) {
+      flags.push({ target: "scanners", reason: "scanner_degraded" });
+    }
+
+    return flags;
+  }, [scanSnapshots]);
 
   // Compute unscanned areas: entities in structure map not covered by any scanner scope
   const unscannedAreas = useMemo(() => {
@@ -706,7 +750,17 @@ const SystemExplorer = () => {
           )}
         </div>
 
-        {/* AI ASSISTANT - System Admin only */}
+        {/* REGRESSION BANNER */}
+        {regressions.length > 0 && (
+          <div className="rounded-md border border-destructive bg-destructive/10 p-2">
+            <p className="text-xs font-bold text-destructive mb-1">⚠ Regression detected</p>
+            {regressions.slice(0, 5).map((r, idx) => (
+              <p key={idx} className="text-[10px] text-foreground">
+                • <strong>{r.target}</strong> — {r.reason === "increased_issues" ? "more issues than previous scan" : r.reason === "lost_coverage" ? "coverage dropped" : "scanner degraded (BLIND/DEAD)"}
+              </p>
+            ))}
+          </div>
+        )}
         {isSystemAdmin && (
         <Card>
           <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("aiAssistant")}>
