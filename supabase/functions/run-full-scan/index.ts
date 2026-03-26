@@ -1522,6 +1522,11 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     });
   }
 
+  // Tag all scanner-created issues with origin_source
+  for (const issue of allWorkIssues) {
+    (issue as any)._origin_source = "ai_scan";
+  }
+
   // ── CONSISTENCY GUARD: Build fingerprint map of current scan issues ──
   const currentFingerprints = new Map<string, { title: string; priority: string; item_type: string; description?: string }>();
   for (const issue of allWorkIssues) {
