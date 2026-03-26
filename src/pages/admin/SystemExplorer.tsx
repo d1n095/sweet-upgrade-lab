@@ -969,6 +969,9 @@ const SystemExplorer = () => {
                     {latestBackendScan.executive_summary && (
                       <p className="text-[9px] text-muted-foreground mt-1">{latestBackendScan.executive_summary}</p>
                     )}
+                    {(r?.detected_count ?? latestBackendScan.issues_count ?? 0) === 0 && (
+                      <p className="text-[10px] text-yellow-500 mt-1">⚠ Scan returned no data — check input or scanner connection</p>
+                    )}
                   </div>
                 )}
               </CardContent>
