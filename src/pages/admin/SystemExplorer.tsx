@@ -603,16 +603,13 @@ const SystemExplorer = () => {
     const issues: { path: string; issue: string; issue_type: string; fix_confidence: number }[] = [];
     for (const f of fileSystemMap) {
       const fileName = f.path.split("/").pop() || "";
-      // Component file NOT in /components
+      // Component file NOT in /components (PascalCase .tsx not in components or pages)
       if (fileName.match(/^[A-Z]/) && fileName.match(/\.tsx$/) && f.type !== "component" && f.type !== "page") {
         issues.push({ path: f.path, issue: "Component in wrong folder", issue_type: "improvement", fix_confidence: 3 });
       }
-      // API/supabase logic in /components
-      if (f.type === "component") {
-        // Check if file imports supabase client or fetch calls via raw source — approximate by name patterns
-        if (fileName.toLowerCase().includes("manager") || fileName.toLowerCase().includes("api")) {
-          // Heuristic: "Manager" components often contain API logic
-        }
+      // API logic in /components
+      if (f.type === "component" && f.has_api_logic) {
+        issues.push({ path: f.path, issue: "Logic misplaced in UI layer", issue_type: "improvement", fix_confidence: 3 });
       }
       // Page inside components folder
       if (f.path.includes("/components/") && (fileName.toLowerCase().includes("page") || fileName.toLowerCase().includes("dashboard")) && !fileName.toLowerCase().includes("content")) {
