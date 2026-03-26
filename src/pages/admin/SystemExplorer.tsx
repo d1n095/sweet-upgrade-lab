@@ -339,6 +339,85 @@ const SystemExplorer = () => {
           )}
         </Card>
 
+        {/* SCANNERS */}
+        <Card>
+          <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("scanners")}>
+            <CardTitle className="text-sm flex items-center gap-2">
+              {expandedSections.scanners ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <Radar className="h-4 w-4 text-primary" />
+              Scanners ({scannerStats.length})
+            </CardTitle>
+          </CardHeader>
+          {expandedSections.scanners && (
+            <CardContent className="space-y-2 pt-0">
+              {scannerStats.length === 0 ? (
+                <p className="text-xs text-muted-foreground">Inga skannerresultat.</p>
+              ) : (
+                scannerStats.map((s) => {
+                  const isExpanded = expandedScanners[s.name] ?? false;
+                  return (
+                    <div key={s.name} className="border border-border rounded-md">
+                      <button
+                        onClick={() => setExpandedScanners(prev => ({ ...prev, [s.name]: !prev[s.name] }))}
+                        className="flex items-center gap-2 w-full text-left px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
+                      >
+                        {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                        <span className="font-medium flex-1 capitalize">{s.name}</span>
+                        <Badge
+                          variant={s.health === "GOOD" ? "default" : s.health === "NOISY" ? "destructive" : "secondary"}
+                          className="text-[10px] px-1.5 py-0"
+                        >
+                          {s.health}
+                        </Badge>
+                      </button>
+                      <div className="px-3 pb-2 grid grid-cols-4 gap-2 text-xs">
+                        <div className="text-center">
+                          <div className="font-bold">{s.detected}</div>
+                          <div className="text-muted-foreground">Raw</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="font-bold">{s.afterFilter}</div>
+                          <div className="text-muted-foreground">After</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="font-bold">{s.skipped}</div>
+                          <div className="text-muted-foreground">Skipped</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="font-bold">{s.created}</div>
+                          <div className="text-muted-foreground">Created</div>
+                        </div>
+                      </div>
+                      {isExpanded && (
+                        <div className="px-3 pb-3 border-t border-border pt-2">
+                          <div className="flex items-center gap-1 mb-1.5">
+                            <Eye className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-xs font-medium text-muted-foreground">Raw scan output</span>
+                          </div>
+                          <div className="space-y-1 max-h-48 overflow-y-auto">
+                            {s.rawIssues.map((issue: any, idx: number) => (
+                              <div key={idx} className="text-xs border border-border rounded px-2 py-1.5 bg-muted/30">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="font-medium truncate flex-1">{issue.title || "Untitled"}</span>
+                                  <Badge variant="outline" className="text-[9px] px-1 py-0">{issue.type || "–"}</Badge>
+                                  <Badge variant="outline" className="text-[9px] px-1 py-0">{issue.severity || "–"}</Badge>
+                                </div>
+                                {issue.category && (
+                                  <span className="text-muted-foreground text-[10px]">cat: {issue.category}</span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </CardContent>
+          )}
+        </Card>
+
         {/* WORK ITEMS TREE */}
         <Card>
           <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("workItems")}>
