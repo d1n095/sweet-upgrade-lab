@@ -1234,10 +1234,12 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
   for (const flow of groupedFlows.slice(0, 15)) {
     const fp = generateFingerprint(flow);
     const similarNote = flow._similar_count ? ` (+${flow._similar_count} liknande)` : "";
+    const issueType = classifyIssueType(flow, "broken_flows");
+    flow._issue_type = issueType;
     allWorkIssues.push({
       title: `Broken flow: ${flow.description || flow.route || flow.issue || "unknown"}${similarNote}`.slice(0, 120),
       priority: "high", item_type: "bug", description: flow.fix_suggestion || flow.detail || "",
-      fingerprint: fp,
+      fingerprint: fp, issue_type: issueType,
       source_path: flow.route || flow.page || null, source_file: flow.file || flow.source_file || null, source_component: flow.component || flow.element || null,
     });
   }
@@ -1246,10 +1248,12 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
   for (const fake of groupedFake.slice(0, 15)) {
     const fp = generateFingerprint(fake);
     const similarNote = fake._similar_count ? ` (+${fake._similar_count} liknande)` : "";
+    const issueType = classifyIssueType(fake, "fake_features");
+    fake._issue_type = issueType;
     allWorkIssues.push({
       title: `Fake feature: ${fake.name || fake.component || fake.description || "unknown"}${similarNote}`.slice(0, 120),
       priority: "high", item_type: "improvement", description: fake.reason || fake.detail || "",
-      fingerprint: fp,
+      fingerprint: fp, issue_type: issueType,
       source_path: fake.route || fake.page || null, source_file: fake.file || fake.source_file || null, source_component: fake.component || fake.name || null,
     });
   }
