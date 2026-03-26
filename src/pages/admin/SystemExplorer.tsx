@@ -262,7 +262,7 @@ const SystemExplorer = () => {
         else if (detected > 0 && created === 0) health = "DEDUP_BLOCKED";
         else if (created > 0) health = "WORKING";
         else health = "BLIND";
-        return { ...scanner, detected, afterFilter: created, skipped, created, health, rawIssues: uniqueRaw, executed, executionTimeMs, inputSize, emptyReason, scanStartedAt, scanFinishedAt, createTrace };
+        return { ...scanner, detected, afterFilter: created, skipped, created, health, rawIssues: uniqueRaw, executed, executionTimeMs, inputSize, emptyReason, scanStartedAt, scanFinishedAt, scanScope, createTrace };
       });
 
       const groupDetected = scannerResults.reduce((s, r) => s + r.detected, 0);
