@@ -991,6 +991,47 @@ const SystemExplorer = () => {
             </CardContent>
           )}
         </Card>
+
+        {/* ── HIGH ATTENTION AREAS SECTION ── */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-destructive" />
+              High Attention Areas
+              {scanResults?.high_attention_areas?.length > 0 && (
+                <Badge variant="destructive" className="text-[10px]">{scanResults.high_attention_areas.length}</Badge>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {scanResults?.high_attention_areas?.length > 0 ? (
+              <div className="border rounded-md overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b bg-muted/50">
+                      <th className="text-left p-2 font-medium text-muted-foreground">Target</th>
+                      <th className="text-left p-2 font-medium text-muted-foreground">Type</th>
+                      <th className="text-left p-2 font-medium text-muted-foreground">Reason</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {scanResults.high_attention_areas.map((area: any, idx: number) => (
+                      <tr key={idx} className="border-b last:border-b-0">
+                        <td className="p-2 font-mono text-foreground">{area.target}</td>
+                        <td className="p-2">
+                          <Badge variant="outline" className="text-[10px]">{area.type}</Badge>
+                        </td>
+                        <td className="p-2 text-muted-foreground">{area.reason}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Inga högriskområden identifierade.</p>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Detail side panel */}
