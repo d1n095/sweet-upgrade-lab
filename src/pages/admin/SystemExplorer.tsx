@@ -1067,7 +1067,15 @@ const SystemExplorer = () => {
             </CardHeader>
             <CardContent>
               <pre className="bg-muted/30 border border-border rounded-md p-3 text-[10px] font-mono overflow-auto max-h-[500px] whitespace-pre-wrap text-foreground select-all">
-                {scanResults ? JSON.stringify(scanResults, null, 2) : "No scan results available"}
+                {(() => {
+                  if (!scanResults) return "No scan results available";
+                  try {
+                    return JSON.stringify(scanResults, null, 2);
+                  } catch (e) {
+                    console.error("[DEBUG] JSON RENDER ERROR:", e);
+                    return "Error rendering scan results";
+                  }
+                })()}
               </pre>
             </CardContent>
           </Card>
