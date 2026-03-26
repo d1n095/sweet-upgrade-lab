@@ -102,7 +102,7 @@ const SystemExplorer = () => {
   const { isFounder, isLoading: founderLoading } = useFounderRole();
   const isSystemAdmin = isFounder || false; // founder = full access
   const isViewerAdmin = isAdmin && !isFounder; // admin without founder = read-only viewer
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ workItems: true, scanResults: true, aiFlow: true, scanners: true, noIssueAreas: false, orphanElements: false, issueClusters: false, priorityView: true });
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ workItems: true, scanResults: true, aiFlow: true, scanners: true, noIssueAreas: false, orphanElements: false, issueClusters: false, priorityView: true, systemDiagnosis: true });
   const [expandedScanners, setExpandedScanners] = useState<Record<string, boolean>>({});
   const [scannerIssueFilter, setScannerIssueFilter] = useState<"all" | "bug" | "improvement" | "upgrade">("all");
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({ open: true, in_progress: true, done: false, completed: false, cancelled: false });
@@ -1485,6 +1485,131 @@ const SystemExplorer = () => {
               ) : (
                 <p className="text-sm text-muted-foreground">Inga issue-kluster identifierade.</p>
               )}
+            </CardContent>
+          )}
+        </Card>
+
+        {/* ── SYSTEM DIAGNOSIS SECTION ── */}
+        <Card>
+          <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("systemDiagnosis")}>
+            <CardTitle className="text-sm flex items-center gap-2">
+              {expandedSections.systemDiagnosis ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <Activity className="h-4 w-4 text-destructive" />
+              System Diagnosis
+              <Badge variant="outline" className="text-[10px]">READ-ONLY</Badge>
+            </CardTitle>
+            <p className="text-[10px] text-muted-foreground mt-1">One screen — what to fix right now</p>
+          </CardHeader>
+          {expandedSections.systemDiagnosis && (
+            <CardContent className="space-y-3 pt-0">
+              {/* 1. CRITICAL ISSUES */}
+              {(() => {
+                const criticalIssues = priorityItems.filter((i: any) => i._sort_impact >= 5).slice(0, 10);
+                return criticalIssues.length > 0 ? (
+                  <div>
+                    <h4 className="text-xs font-bold text-destructive mb-1">💥 Critical Issues (impact 5/5)</h4>
+                    <ul className="space-y-0.5">
+                      {criticalIssues.map((item: any, idx: number) => (
+                        <li key={idx} className="text-[10px] text-foreground flex items-start gap-1">
+                          <span className="text-destructive">•</span>
+                          <span className="truncate">{item.title || item.description || item.issue || "unnamed"}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : <p className="text-[10px] text-muted-foreground">✅ Inga kritiska issues (impact 5)</p>;
+              })()}
+
+              {/* 2. TOP CLUSTERS */}
+              {(() => {
+                const topClusters = issueClusters.filter(c => c.cluster_size >= 2).slice(0, 10);
+                return topClusters.length > 0 ? (
+                  <div>
+                    <h4 className="text-xs font-bold text-foreground mb-1">📦 Top Clusters</h4>
+                    <ul className="space-y-0.5">
+                      {topClusters.map((c, idx) => (
+                        <li key={idx} className="text-[10px] text-foreground flex items-start gap-1">
+                          <span className="text-muted-foreground">•</span>
+                          <span>{c.target} — <strong>{c.cluster_size}</strong> issues</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : <p className="text-[10px] text-muted-foreground">✅ Inga issue-kluster</p>;
+              })()}
+
+              {/* 3. DEAD SCANNERS */}
+              {(() => {
+                const dead = groupedScannerStats.flatMap(g => g.scanners.filter((s: any) => s.health === "DEAD")).slice(0, 10);
+                return dead.length > 0 ? (
+                  <div>
+                    <h4 className="text-xs font-bold text-destructive mb-1">💀 Dead Scanners</h4>
+                    <ul className="space-y-0.5">
+                      {dead.map((s: any, idx: number) => (
+                        <li key={idx} className="text-[10px] text-foreground flex items-start gap-1">
+                          <span className="text-destructive">•</span>
+                          <span>{s.label}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : <p className="text-[10px] text-muted-foreground">✅ Inga döda scanners</p>;
+              })()}
+
+              {/* 4. BLIND SCANNERS */}
+              {(() => {
+                const blind = groupedScannerStats.flatMap(g => g.scanners.filter((s: any) => s.health === "BLIND")).slice(0, 10);
+                return blind.length > 0 ? (
+                  <div>
+                    <h4 className="text-xs font-bold text-foreground mb-1">👁️ Blind Scanners</h4>
+                    <ul className="space-y-0.5">
+                      {blind.map((s: any, idx: number) => (
+                        <li key={idx} className="text-[10px] text-foreground flex items-start gap-1">
+                          <span className="text-muted-foreground">•</span>
+                          <span>{s.label} — scope: {s.scanScope?.size ?? "?"}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : <p className="text-[10px] text-muted-foreground">✅ Inga blinda scanners</p>;
+              })()}
+
+              {/* 5. DEDUP_BLOCKED AREAS */}
+              {(() => {
+                const blocked = groupedScannerStats.flatMap(g => g.scanners.filter((s: any) => s.health === "DEDUP_BLOCKED")).slice(0, 10);
+                return blocked.length > 0 ? (
+                  <div>
+                    <h4 className="text-xs font-bold text-foreground mb-1">🔒 Dedup Blocked</h4>
+                    <ul className="space-y-0.5">
+                      {blocked.map((s: any, idx: number) => (
+                        <li key={idx} className="text-[10px] text-foreground flex items-start gap-1">
+                          <span className="text-muted-foreground">•</span>
+                          <span>{s.label} — {s.detected} detected, 0 created</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : <p className="text-[10px] text-muted-foreground">✅ Inga dedup-blockerade</p>;
+              })()}
+
+              {/* 6. UNSCANNED AREAS */}
+              {(() => {
+                const top = unscannedAreas.slice(0, 10);
+                return top.length > 0 ? (
+                  <div>
+                    <h4 className="text-xs font-bold text-foreground mb-1">🕳️ Unscanned Areas</h4>
+                    <ul className="space-y-0.5">
+                      {top.map((entry: any, idx: number) => (
+                        <li key={idx} className="text-[10px] text-foreground flex items-start gap-1">
+                          <span className="text-muted-foreground">•</span>
+                          <span>{entry.entity_name} <span className="text-muted-foreground">({entry.entity_type})</span></span>
+                        </li>
+                      ))}
+                      {unscannedAreas.length > 10 && <li className="text-[9px] text-muted-foreground">…och {unscannedAreas.length - 10} till</li>}
+                    </ul>
+                  </div>
+                ) : <p className="text-[10px] text-muted-foreground">✅ Allt skannat</p>;
+              })()}
             </CardContent>
           )}
         </Card>
