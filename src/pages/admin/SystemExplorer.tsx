@@ -1438,6 +1438,65 @@ const SystemExplorer = () => {
                 </CardContent>
               </Card>
             )}
+
+            {/* Frontend Health — Grouped by Viewport */}
+            {codeScanResult && codeScanResult.length > 0 && (() => {
+              const responsiveIssues = codeScanResult.filter((i: any) => i.type === "responsive");
+              const structureIssues = codeScanResult.filter(i => i.type === "structure");
+              const bugIssues = codeScanResult.filter(i => i.type === "bug");
+              const errorIssues = codeScanResult.filter(i => i.type === "error");
+              const viewports = ["mobile", "tablet", "desktop"] as const;
+              const grouped: Record<string, any[]> = {};
+              for (const vp of viewports) {
+                grouped[vp] = responsiveIssues.filter((i: any) => i.viewport === vp);
+              }
+              const totalHealth = responsiveIssues.length + structureIssues.length + bugIssues.length + errorIssues.length;
+              if (totalHealth === 0) return null;
+              return (
+                <Card className="mt-3">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Monitor className="h-4 w-4" /> Frontend Health ({totalHealth} issues)
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-3 space-y-3">
+                    {/* Summary badges */}
+                    <div className="flex gap-2 flex-wrap text-[10px]">
+                      {bugIssues.length > 0 && <Badge className="bg-red-500/20 text-red-500 border-red-500/30 text-[8px]">Broken Interactions: {bugIssues.length}</Badge>}
+                      {responsiveIssues.length > 0 && <Badge className="bg-orange-500/20 text-orange-500 border-orange-500/30 text-[8px]">Responsiveness: {responsiveIssues.length}</Badge>}
+                      {structureIssues.length > 0 && <Badge className="bg-yellow-500/20 text-yellow-500 border-yellow-500/30 text-[8px]">Layout Issues: {structureIssues.length}</Badge>}
+                      {errorIssues.length > 0 && <Badge className="bg-red-500/20 text-red-500 border-red-500/30 text-[8px]">Missing UI: {errorIssues.length}</Badge>}
+                    </div>
+                    {/* Viewport groups */}
+                    {viewports.map(vp => {
+                      const vpIssues = grouped[vp];
+                      if (!vpIssues || vpIssues.length === 0) return null;
+                      return (
+                        <div key={vp} className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-[9px] uppercase">{vp} {vp === "mobile" ? "(375px)" : vp === "tablet" ? "(768px)" : "(1440px)"}</Badge>
+                            <span className="text-[9px] text-muted-foreground">{vpIssues.length} issue{vpIssues.length > 1 ? "s" : ""}</span>
+                          </div>
+                          <div className="max-h-[200px] overflow-auto">
+                            <table className="w-full text-[10px]">
+                              <tbody>
+                                {vpIssues.map((issue: any, idx: number) => (
+                                  <tr key={idx} className="border-b border-border/50 hover:bg-muted/30">
+                                    <td className="p-1.5 font-mono text-foreground truncate max-w-[200px]">{issue.file.replace(/^\//, "")}</td>
+                                    <td className="p-1.5 text-muted-foreground">{issue.message}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </CardContent>
+                </Card>
+              );
+            })()}
+
             {/* All Code Issues with Analysis */}
             {(() => {
               const ratingOrder = { good: 0, neutral: 1, bad: 2 } as const;
