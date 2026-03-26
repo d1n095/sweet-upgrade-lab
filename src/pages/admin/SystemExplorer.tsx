@@ -1125,6 +1125,51 @@ const SystemExplorer = () => {
           </CardContent>
         </Card>
 
+        {/* ── SUSPICIOUS AREAS SECTION ── */}
+        <Card>
+          <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("suspiciousAreas")}>
+            <CardTitle className="text-sm flex items-center gap-2">
+              {expandedSections.suspiciousAreas ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <Radar className="h-4 w-4 text-destructive" />
+              Suspicious Areas
+              {(scanResults?.suspicious_areas?.length || 0) > 0 && (
+                <Badge variant="destructive" className="text-[10px]">{scanResults.suspicious_areas.length}</Badge>
+              )}
+              <Badge variant="outline" className="text-[10px]">READ-ONLY</Badge>
+            </CardTitle>
+          </CardHeader>
+          {expandedSections.suspiciousAreas && (
+            <CardContent>
+              {scanResults?.suspicious_areas?.length > 0 ? (
+                <div className="border rounded-md overflow-hidden">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b bg-muted/50">
+                        <th className="text-left p-2 font-medium text-muted-foreground">Target</th>
+                        <th className="text-left p-2 font-medium text-muted-foreground">Type</th>
+                        <th className="text-left p-2 font-medium text-muted-foreground">Reason</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {scanResults.suspicious_areas.map((area: any, idx: number) => (
+                        <tr key={idx} className="border-b last:border-b-0">
+                          <td className="p-2 font-mono text-foreground">{area.target}</td>
+                          <td className="p-2">
+                            <Badge variant="outline" className="text-[10px]">{area.type}</Badge>
+                          </td>
+                          <td className="p-2 text-muted-foreground">{area.reason}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Inga misstänkta områden identifierade.</p>
+              )}
+            </CardContent>
+          )}
+        </Card>
+
         {/* ── UNSCANNED AREAS SECTION ── */}
         <Card>
           <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("unscannedAreas")}>
