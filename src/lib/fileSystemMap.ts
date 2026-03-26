@@ -168,6 +168,55 @@ export interface CodeIssue {
   analysis_confidence: 1 | 2 | 3 | 4 | 5;
 }
 
+export function scanFileContent(path: string, content: string) {
+  const issues: { type: string; message: string; file: string }[] = [];
+  if (!content) return issues;
+  // RULE 1 — API CALL IN COMPONENT
+  if (
+    path.includes("/components/") &&
+    (content.includes("fetch(") || content.includes("supabase"))
+  ) {
+    issues.push({
+      type: "structure",
+      message: "API call inside component",
+      file: path
+    });
+  }
+  // RULE 2 — MISSING ERROR HANDLING
+  if (content.includes("fetch(") && !content.includes("catch")) {
+    issues.push({
+      type: "bug",
+      message: "Fetch without error handling",
+      file: path
+    });
+  }
+  // RULE 3 — EMPTY FILE
+  if (content.trim().length === 0) {
+    issues.push({
+      type: "error",
+      message: "Empty file",
+      file: path
+    });
+  }
+  // RULE 4 — LARGE FILE
+  if (content.split("\n").length > 300) {
+    issues.push({
+      type: "performance",
+      message: "File too large",
+      file: path
+    });
+  }
+  // RULE 5 — HARDCODED VALUES
+  if (content.includes("price =") || content.includes("const price")) {
+    issues.push({
+      type: "data",
+      message: "Possible hardcoded price",
+      file: path
+    });
+  }
+  return issues;
+}
+
 export function getCodeIssues(): CodeIssue[] {
   const issues: CodeIssue[] = [];
   const index = getCodeIndex();
