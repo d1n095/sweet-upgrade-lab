@@ -219,6 +219,7 @@ const SystemExplorer = () => {
       console.warn("❌ NO rawSources — cannot scan");
       return;
     }
+    console.log("RAW SOURCES COUNT:", Object.keys(rawSources || {}).length);
     console.log("🔍 FRONTEND SCAN START");
     const allIssues: { type: string; message: string; file: string }[] = [];
     Object.entries(rawSources).forEach(([path, content]) => {
