@@ -258,6 +258,48 @@ const SystemExplorer = () => {
     return groups;
   }, [unscannedAreas]);
 
+  // Entities in structure_map with NO issues across last 3 scans → "no_issues_detected"
+  const noIssueEntities = useMemo(() => {
+    // Collect all issue targets/names across last 3 scans
+    const issuedTargets = new Set<string>();
+    for (const scan of last3Scans) {
+      const res = scan.results as Record<string, any> | null;
+      if (!res) continue;
+      const issues = (res.issues ?? res.master_list?.items ?? []) as any[];
+      for (const issue of issues) {
+        const targets = [issue.target, issue.component, issue.entity_name, issue.title, issue.category].filter(Boolean);
+        for (const t of targets) issuedTargets.add(String(t).toLowerCase());
+      }
+      // Also check step_results for per-step issues
+      const steps = (res.step_results ?? res) as Record<string, any>;
+      for (const [, val] of Object.entries(steps)) {
+        if (Array.isArray(val?.issues)) {
+          for (const si of val.issues) {
+            const ts = [si.target, si.component, si.entity_name, si.title].filter(Boolean);
+            for (const t of ts) issuedTargets.add(String(t).toLowerCase());
+          }
+        }
+      }
+    }
+    // Filter structure_map entities that are NOT in unscannedAreas AND have no issues
+    return structureMap.filter((entry: any) => {
+      const name = entry.entity_name?.toLowerCase() || "";
+      const isUnscanned = unscannedAreas.some((u: any) => u.entity_name === entry.entity_name && u.entity_type === entry.entity_type);
+      if (isUnscanned) return false; // already shown in unscanned
+      return !Array.from(issuedTargets).some(t => name.includes(t) || t.includes(name));
+    });
+  }, [structureMap, last3Scans, unscannedAreas]);
+
+  const noIssueByType = useMemo(() => {
+    const groups: Record<string, any[]> = { component: [], route: [], data: [], flow: [] };
+    for (const entry of noIssueEntities) {
+      const type = entry.entity_type || "data";
+      if (!groups[type]) groups[type] = [];
+      groups[type].push(entry);
+    }
+    return groups;
+  }, [noIssueEntities]);
+
   // Scanner stats derived from scan results — organized by module groups
   const groupedScannerStats = useMemo(() => {
     const rawIssues = (scanResults?.issues as any[] | undefined) ?? [];
