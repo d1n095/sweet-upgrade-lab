@@ -4027,6 +4027,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_structure_map_scan: {
+        Args: { p_entity_name: string; p_entity_type: string }
+        Returns: undefined
+      }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_founder: { Args: { _user_id: string }; Returns: boolean }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
