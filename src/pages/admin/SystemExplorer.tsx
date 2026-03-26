@@ -591,6 +591,13 @@ const SystemExplorer = () => {
     return groups;
   }, [orphanEntities]);
 
+  // Orphan files from file_system_map: used_in === [] AND not a page/edge_function (entry points)
+  const orphanFiles = useMemo(() => {
+    return fileSystemMap.filter(
+      (f) => f.used_in.length === 0 && f.type !== "page" && f.type !== "edge_function"
+    );
+  }, []);
+
   // Issue Clusters: group all scan issues by affected_area.target
   const issueClusters = useMemo(() => {
     const rawIssues = (scanResults?.issues as any[] | undefined) ?? [];
