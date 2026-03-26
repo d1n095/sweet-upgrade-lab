@@ -2531,6 +2531,40 @@ const SystemExplorer = () => {
                   </div>
                 );
               })()}
+              {/* Apply Fix (Preview) */}
+              {(() => {
+                const fp = (selectedItem as any).issue_fingerprint;
+                const trace = (scanResults?._create_trace ?? [] as any[]).find((t: any) => t.fingerprint === fp || t.title === selectedItem.title);
+                const fixCode = trace?._suggested_fix_code || null;
+                const fixType = trace?._suggested_fix_type || null;
+                const affectedArea = trace?.affected_area;
+                const endpoint = (selectedItem as any).source_path || affectedArea?.target || "–";
+                if (!fixCode) return null;
+
+                return (
+                  <div className="border border-border rounded-md p-2 bg-muted/30 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground text-xs font-medium">Suggested Fix</span>
+                      <Badge variant="outline" className="text-[9px]">{fixType || "–"}</Badge>
+                    </div>
+                    <div className="text-[10px] text-muted-foreground space-y-0.5">
+                      <p>📍 Affected: <span className="font-mono text-foreground">{endpoint}</span></p>
+                    </div>
+                    <pre className="bg-muted/50 border border-border rounded px-2 py-1.5 text-[10px] font-mono text-foreground whitespace-pre-wrap break-all select-all">{fixCode}</pre>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full text-[10px] h-7"
+                      onClick={() => {
+                        navigator.clipboard.writeText(fixCode);
+                        navigator.clipboard.writeText(fixCode);
+                      }}
+                    >
+                      📋 Copy Fix
+                    </Button>
+                  </div>
+                );
+              })()}
               <div>
                 <span className="text-muted-foreground text-xs">Created By</span>
                 <p className="font-mono text-xs break-all">{selectedItem.created_by ?? "–"}</p>
