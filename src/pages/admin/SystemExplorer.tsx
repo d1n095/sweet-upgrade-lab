@@ -790,7 +790,22 @@ const SystemExplorer = () => {
                                            {issue._affected_area && <Badge variant="outline" className="text-[8px] px-1 py-0">📍 {issue._affected_area.type}/{issue._affected_area.target}</Badge>}
                                            {issue._origin_source && <Badge variant="outline" className="text-[8px] px-1 py-0">{issue._origin_source === "ai_scan" ? "🤖" : issue._origin_source === "manual" ? "👤" : "🔧"} {issue._origin_source}</Badge>}
                                           </div>
-                                         {issue._suggested_fix && <div className="text-[9px] text-muted-foreground italic">💡 {issue._suggested_fix}</div>}
+                                          {issue._flow_chain && (
+                                            <div className="flex gap-1 flex-wrap mt-0.5">
+                                              {[
+                                                { key: "UI", ok: issue._flow_chain.has_ui },
+                                                { key: "Action", ok: issue._flow_chain.has_action },
+                                                { key: "Flow", ok: issue._flow_chain.has_flow },
+                                                { key: "Data", ok: issue._flow_chain.has_data },
+                                                { key: "DB", ok: issue._flow_chain.has_db },
+                                              ].map((link: any) => (
+                                                <span key={link.key} className={`text-[8px] px-1 py-0 rounded border ${link.ok ? "border-primary/30 text-primary" : "border-destructive/30 text-destructive"}`}>
+                                                  {link.ok ? "✓" : "✗"} {link.key}
+                                                </span>
+                                              ))}
+                                            </div>
+                                          )}
+                                          {issue._suggested_fix && <div className="text-[9px] text-muted-foreground italic">💡 {issue._suggested_fix}</div>}
                                         {/* SCAN → FILTER → CREATE flow */}
                                         <div className="grid grid-cols-3 gap-1 text-[9px] border-t border-border/30 pt-1">
                                           {/* SCAN */}
