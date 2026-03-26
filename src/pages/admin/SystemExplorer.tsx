@@ -128,11 +128,26 @@ const SystemExplorer = () => {
     },
   });
 
+  // Structure map for unscanned areas
+  const { data: structureMap = [] } = useQuery({
+    queryKey: ["system-explorer-structure-map"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("system_structure_map" as any)
+        .select("entity_type, entity_name, last_seen_at, scan_count")
+        .order("last_seen_at", { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+
   const handleRefresh = async () => {
     setIsRefreshing(true);
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["system-explorer-work-items"] }),
       queryClient.invalidateQueries({ queryKey: ["system-explorer-latest-scan"] }),
+      queryClient.invalidateQueries({ queryKey: ["system-explorer-structure-map"] }),
       queryClient.invalidateQueries({ queryKey: ["admin-work-items"] }),
     ]);
     setIsRefreshing(false);
