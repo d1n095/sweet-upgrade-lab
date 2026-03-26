@@ -1478,18 +1478,41 @@ serve(async (req) => {
       } catch (e: any) { stepResult = { error: e.message, failed: true }; }
 
       const duration_ms = Date.now() - stepStart;
+      const scanFinishedAt = new Date().toISOString();
+      const scanStartedAt = new Date(Date.now() - duration_ms).toISOString();
 
       // ── Normalize scanner output ──
       const didExecute = !stepResult.failed && !stepResult.error;
       stepResult._executed = didExecute;
       stepResult._scanner_name = step.id;
       if (didExecute) {
-        // Ensure issues is always an array
         if (!Array.isArray(stepResult.issues)) {
           stepResult.issues = stepResult.issues ?? [];
         }
       } else {
         stepResult.issues = stepResult.issues ?? [];
+      }
+
+      // ── Extended metadata ──
+      stepResult._execution_time_ms = duration_ms;
+      stepResult._scan_started_at = scanStartedAt;
+      stepResult._scan_finished_at = scanFinishedAt;
+
+      // Compute input_size from scanner-specific fields
+      const inputSize = stepResult.components_scanned ?? stepResult.routes_scanned ?? stepResult.records_scanned ?? stepResult.features_scanned ?? stepResult.tables_scanned ?? stepResult.flows_scanned ?? stepResult.items_scanned ?? stepResult.total_checked ?? stepResult.total_scanned ?? 0;
+      stepResult._input_size = inputSize;
+
+      // Determine empty_reason when 0 issues
+      if (stepResult.issues.length === 0) {
+        if (stepResult.failed || stepResult.error) {
+          stepResult._empty_reason = "scanner_failed";
+        } else if (inputSize === 0) {
+          stepResult._empty_reason = "no_data";
+        } else if (didExecute) {
+          stepResult._empty_reason = "no_detection";
+        } else {
+          stepResult._empty_reason = "not_applicable";
+        }
       }
 
       stepResult._duration_ms = duration_ms;
