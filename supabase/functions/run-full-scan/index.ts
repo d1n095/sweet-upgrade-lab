@@ -1196,7 +1196,7 @@ async function runConsistencyGuard(supabase: any, currentFingerprints: Map<strin
 async function createWorkItems(supabase: any, unified: any, stage: SystemStage): Promise<{ created: number; createTrace: any[] }> {
   let workItemsCreated = 0;
   const createTrace: any[] = [];
-  const allWorkIssues: { title: string; priority: string; item_type: string; description?: string; fingerprint: string }[] = [];
+  const allWorkIssues: { title: string; priority: string; item_type: string; description?: string; fingerprint: string; source_path?: string; source_file?: string; source_component?: string }[] = [];
 
   // DEBUG MODE: Relaxed filter — only skip explicitly dev-expected issues
   const tagActionable = (issues: any[]) => issues.map(issue => {
