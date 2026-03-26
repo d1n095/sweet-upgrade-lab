@@ -1262,11 +1262,13 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
   for (const fail of groupedInteraction.slice(0, 15)) {
     const fp = generateFingerprint(fail);
     const similarNote = fail._similar_count ? ` (+${fail._similar_count} liknande)` : "";
+    const issueType = classifyIssueType(fail, "interaction_failures");
+    fail._issue_type = issueType;
     allWorkIssues.push({
       title: `Interaction: ${fail.title || fail.element || fail.description || "unknown"}${similarNote}`.slice(0, 120),
       priority: fail.severity === "critical" ? "critical" : "high", item_type: "bug",
       description: fail.fix_suggestion || fail.detail || fail.issue || "",
-      fingerprint: fp,
+      fingerprint: fp, issue_type: issueType,
       source_path: fail.route || fail.page || null, source_file: fail.file || fail.source_file || null, source_component: fail.component || fail.element || null,
     });
   }
