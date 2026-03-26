@@ -3832,6 +3832,9 @@ export type Database = {
           status: string
           title: string
           updated_at: string
+          verification_scans_checked: number | null
+          verification_status: string | null
+          verified_at: string | null
         }
         Insert: {
           ai_assigned?: boolean | null
@@ -3887,6 +3890,9 @@ export type Database = {
           status?: string
           title: string
           updated_at?: string
+          verification_scans_checked?: number | null
+          verification_status?: string | null
+          verified_at?: string | null
         }
         Update: {
           ai_assigned?: boolean | null
@@ -3942,6 +3948,9 @@ export type Database = {
           status?: string
           title?: string
           updated_at?: string
+          verification_scans_checked?: number | null
+          verification_status?: string | null
+          verified_at?: string | null
         }
         Relationships: [
           {

@@ -2380,7 +2380,44 @@ serve(async (req) => {
         payload: adaptiveResult,
       });
 
-      await supabase.from("system_observability_log").insert({
+      // Fix verification: check done items against current scan
+      const { data: doneItems } = await supabase
+        .from("work_items")
+        .select("id, issue_fingerprint, verification_status, verification_scans_checked")
+        .eq("status", "done")
+        .in("verification_status", ["unknown", "pending"])
+        .not("issue_fingerprint", "is", null)
+        .limit(200);
+
+      if (doneItems && doneItems.length > 0) {
+        const currentFingerprints = new Set(
+          (adaptiveResult?.issues ?? []).map((i: any) => i._fingerprint || i.issue_fingerprint).filter(Boolean)
+        );
+
+        for (const item of doneItems) {
+          const scansChecked = (item.verification_scans_checked ?? 0) + 1;
+          const stillFound = currentFingerprints.has(item.issue_fingerprint);
+
+          if (stillFound) {
+            await supabase.from("work_items").update({
+              verification_status: "failed",
+              verification_scans_checked: scansChecked,
+              verified_at: new Date().toISOString(),
+            }).eq("id", item.id);
+          } else if (scansChecked >= 2) {
+            await supabase.from("work_items").update({
+              verification_status: "confirmed",
+              verification_scans_checked: scansChecked,
+              verified_at: new Date().toISOString(),
+            }).eq("id", item.id);
+          } else {
+            await supabase.from("work_items").update({
+              verification_status: "pending",
+              verification_scans_checked: scansChecked,
+            }).eq("id", item.id);
+          }
+        }
+      }
         event_type: "action", severity: unified.system_health_score < 50 ? "warning" : "info",
         source: "scanner", message: `Full skanning klar: ${execSummary}`,
         details: { iterations: iterationsCompleted, health_score: unified.system_health_score, issues_count: issuesCount, work_items_created: workItemsCreated, predictions_count: predictions.length, coverage_score: coverageScore, system_stage: systemStage },
