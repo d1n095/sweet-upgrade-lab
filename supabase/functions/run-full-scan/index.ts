@@ -88,7 +88,9 @@ function groupSimilarIssues(issues: any[]): any[] {
 // ── Context-aware filtering: suppress false positives based on stage ──
 // DEBUG MODE: Relaxed — only suppress clearly invalid/placeholder patterns
 function filterDevFalsePositives(issues: any[], stage: SystemStage): any[] {
-  if (stage === "production") return issues;
+  if (stage === "production") {
+    return issues.map(issue => ({ ...issue, _filter_decision: "passed" }));
+  }
   
   // DEBUG: Only suppress obviously invalid patterns (placeholder/dummy data)
   const debugIgnorePatterns = [
@@ -100,9 +102,9 @@ function filterDevFalsePositives(issues: any[], stage: SystemStage): any[] {
     const text = `${issue.title || ""} ${issue.description || ""}`;
     const isDevExpected = debugIgnorePatterns.some(p => p.test(text));
     if (isDevExpected) {
-      return { ...issue, _dev_expected: true, severity: "info", _original_severity: issue.severity };
+      return { ...issue, _dev_expected: true, severity: "info", _original_severity: issue.severity, _filter_decision: "filtered_out", _filter_reason: "dev_placeholder" };
     }
-    return issue;
+    return { ...issue, _filter_decision: "passed" };
   });
 }
 
