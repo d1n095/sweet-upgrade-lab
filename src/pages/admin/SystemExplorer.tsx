@@ -549,7 +549,7 @@ const SystemExplorer = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("scan_runs")
-        .select("id, status, total_new_issues, work_items_created, created_at, unified_result")
+        .select("id, status, total_new_issues, work_items_created, created_at, unified_result, steps_results")
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
