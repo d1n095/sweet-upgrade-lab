@@ -1076,6 +1076,59 @@ const SystemExplorer = () => {
           </div>
         )}
 
+        {/* PATCH CONTROLLER TAB */}
+        {mainTab === "patch" && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Send className="h-4 w-4 text-primary" />
+                Patch Controller
+              </CardTitle>
+              <p className="text-[10px] text-muted-foreground">Validate patch prompts before sending. Must contain FILE:, ADD:, and DO NOT.</p>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <textarea
+                className="w-full h-48 text-xs font-mono bg-muted/30 border border-border rounded-md p-3 text-foreground resize-y"
+                placeholder={"DO EXACT PATCH ONLY\nDO NOT REFACTOR\n\nFILE: ...\n\nADD:\n..."}
+                value={patchInput}
+                onChange={(e) => { setPatchInput(e.target.value); setPatchStatus("idle"); }}
+              />
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const text = patchInput.trim();
+                    const hasFile = /FILE:/i.test(text);
+                    const hasAdd = /ADD:/i.test(text);
+                    const hasDoNot = /DO NOT/i.test(text);
+                    if (hasFile && hasAdd && hasDoNot) {
+                      setPatchStatus("valid");
+                    } else {
+                      setPatchStatus("invalid");
+                    }
+                  }}
+                >
+                  Validate Patch
+                </Button>
+                {patchStatus === "valid" && (
+                  <Badge className="bg-green-500/20 text-green-500 border-green-500/30 text-[10px]">✅ Ready to send</Badge>
+                )}
+                {patchStatus === "invalid" && (
+                  <div className="space-y-0.5">
+                    <Badge variant="destructive" className="text-[10px]">❌ Invalid patch format</Badge>
+                    <div className="flex gap-1 flex-wrap">
+                      {!/FILE:/i.test(patchInput) && <span className="text-[9px] text-destructive">Missing FILE:</span>}
+                      {!/ADD:/i.test(patchInput) && <span className="text-[9px] text-destructive">Missing ADD:</span>}
+                      {!/DO NOT/i.test(patchInput) && <span className="text-[9px] text-destructive">Missing DO NOT</span>}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* SYSTEM TAB */}
         {mainTab === "system" && (
         <>
