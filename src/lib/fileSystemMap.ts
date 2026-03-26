@@ -112,3 +112,11 @@ function buildMap(): FileEntry[] {
 export const fileSystemMap: FileEntry[] = buildMap();
 
 export type { FileEntry };
+
+export function getFileContent(path: string): string | null {
+  const key = "/" + path;
+  const content = rawSources[key];
+  if (typeof content !== "string") return null;
+  const lines = content.split("\n");
+  return lines.slice(0, 500).join("\n");
+}
