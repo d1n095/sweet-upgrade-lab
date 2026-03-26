@@ -114,6 +114,7 @@ const SystemExplorer = () => {
   const [aiAnswer, setAiAnswer] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiFocusArea, setAiFocusArea] = useState<string | null>(null);
+  const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | null>(null);
 
   // 1. ALL work_items
   const { data: workItems = [], isLoading: wiLoading } = useQuery({
@@ -236,8 +237,8 @@ const SystemExplorer = () => {
   const scanSourceCount = workItems.filter((w) => w.source_type === "scan" || w.source_type === "ai_scan").length;
   const manualSourceCount = workItems.filter((w) => w.source_type === "manual").length;
 
-  const scanResults = latestScan?.results as Record<string, any> | null;
-  const detectedIssues = scanResults?.master_list?.total ?? scanResults?.detected_issues?.length ?? latestScan?.issues_count ?? 0;
+  const scanResults = activeSnapshot ? (activeSnapshot.payload as Record<string, any> | null) : (latestScan?.results as Record<string, any> | null);
+  const detectedIssues = scanResults?.master_list?.total ?? scanResults?.detected_issues?.length ?? (activeSnapshot ? activeSnapshot.total_detected : latestScan?.issues_count) ?? 0;
 
   // Compute unscanned areas: entities in structure map not covered by any scanner scope
   const unscannedAreas = useMemo(() => {
@@ -558,6 +559,21 @@ const SystemExplorer = () => {
     });
   }, [scanResults, workItems]);
 
+  // Scan snapshots (last 10)
+  const { data: scanSnapshots = [] } = useQuery({
+    queryKey: ["system-explorer-snapshots"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("scan_snapshots")
+        .select("id, created_at, total_scanners, total_detected, total_created, dead_scanners_count, blind_scanners_count, payload")
+        .order("created_at", { ascending: false })
+        .limit(10);
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+
+  const activeSnapshot = selectedSnapshotId ? scanSnapshots.find((s: any) => s.id === selectedSnapshotId) : null;
 
   const grouped = useMemo(() => {
     const groups: Record<string, WorkItem[]> = {};
@@ -642,6 +658,22 @@ const SystemExplorer = () => {
             </Button>
           )}
         </div>
+        <div className="flex items-center gap-2">
+          <select
+            className="text-xs border border-border rounded-md px-2 py-1.5 bg-background text-foreground"
+            value={selectedSnapshotId || ""}
+            onChange={(e) => setSelectedSnapshotId(e.target.value || null)}
+          >
+            <option value="">Live data</option>
+            {scanSnapshots.map((snap: any) => (
+              <option key={snap.id} value={snap.id}>
+                {format(new Date(snap.created_at), "MM-dd HH:mm")} — {snap.total_detected} issues, {snap.total_created} created
+              </option>
+            ))}
+          </select>
+          {selectedSnapshotId && (
+            <Badge variant="secondary" className="text-[9px]">📸 Snapshot</Badge>
+          )}
 
         {/* AI ASSISTANT - System Admin only */}
         {isSystemAdmin && (
