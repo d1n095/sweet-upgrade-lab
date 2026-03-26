@@ -128,11 +128,26 @@ const SystemExplorer = () => {
     },
   });
 
+  // Structure map for unscanned areas
+  const { data: structureMap = [] } = useQuery({
+    queryKey: ["system-explorer-structure-map"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("system_structure_map" as any)
+        .select("entity_type, entity_name, last_seen_at, scan_count")
+        .order("last_seen_at", { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+
   const handleRefresh = async () => {
     setIsRefreshing(true);
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["system-explorer-work-items"] }),
       queryClient.invalidateQueries({ queryKey: ["system-explorer-latest-scan"] }),
+      queryClient.invalidateQueries({ queryKey: ["system-explorer-structure-map"] }),
       queryClient.invalidateQueries({ queryKey: ["admin-work-items"] }),
     ]);
     setIsRefreshing(false);
@@ -193,6 +208,41 @@ const SystemExplorer = () => {
 
   const scanResults = latestScan?.results as Record<string, any> | null;
   const detectedIssues = scanResults?.master_list?.total ?? scanResults?.detected_issues?.length ?? latestScan?.issues_count ?? 0;
+
+  // Compute unscanned areas: entities in structure map not covered by any scanner scope
+  const unscannedAreas = useMemo(() => {
+    // Collect all scan scope targets from scanner groups
+    const scannedTargets = new Set<string>();
+    for (const group of SCANNER_GROUPS) {
+      for (const scanner of group.scanners) {
+        for (const key of scanner.matchKeys) {
+          scannedTargets.add(key);
+        }
+      }
+    }
+    // Also collect scan_scope targets from latest scan step_results
+    const stepResults = (scanResults?.step_results ?? scanResults) as Record<string, any> | null;
+    if (stepResults) {
+      for (const [, val] of Object.entries(stepResults)) {
+        if (val?._scan_scope?.target) scannedTargets.add(val._scan_scope.target);
+      }
+    }
+
+    return structureMap.filter((entry: any) => {
+      const name = entry.entity_name?.toLowerCase() || "";
+      return !Array.from(scannedTargets).some(t => name.includes(t.toLowerCase()) || t.toLowerCase().includes(name));
+    });
+  }, [structureMap, scanResults]);
+
+  const unscannedByType = useMemo(() => {
+    const groups: Record<string, any[]> = { component: [], route: [], data: [], flow: [] };
+    for (const entry of unscannedAreas) {
+      const type = entry.entity_type || "data";
+      if (!groups[type]) groups[type] = [];
+      groups[type].push(entry);
+    }
+    return groups;
+  }, [unscannedAreas]);
 
   // Scanner stats derived from scan results — organized by module groups
   const groupedScannerStats = useMemo(() => {
@@ -1057,6 +1107,61 @@ const SystemExplorer = () => {
               <p className="text-sm text-muted-foreground">Inga högriskområden identifierade.</p>
             )}
           </CardContent>
+        </Card>
+
+        {/* ── UNSCANNED AREAS SECTION ── */}
+        <Card>
+          <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("unscannedAreas")}>
+            <CardTitle className="text-sm flex items-center gap-2">
+              {expandedSections.unscannedAreas ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <Eye className="h-4 w-4 text-muted-foreground" />
+              Unscanned Areas
+              {unscannedAreas.length > 0 && (
+                <Badge variant="secondary" className="text-[10px]">{unscannedAreas.length}</Badge>
+              )}
+              <Badge variant="outline" className="text-[10px]">READ-ONLY</Badge>
+            </CardTitle>
+          </CardHeader>
+          {expandedSections.unscannedAreas && (
+            <CardContent>
+              {unscannedAreas.length > 0 ? (
+                <div className="space-y-3">
+                  {(["component", "route", "data", "flow"] as const).map((type) => {
+                    const items = unscannedByType[type] || [];
+                    if (items.length === 0) return null;
+                    const typeLabels: Record<string, string> = { component: "🖥️ Components", route: "🔗 Routes", data: "🗄️ Data", flow: "🔀 Flows" };
+                    return (
+                      <div key={type}>
+                        <p className="text-xs font-medium text-muted-foreground mb-1">{typeLabels[type] || type} ({items.length})</p>
+                        <div className="border rounded-md overflow-hidden">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="border-b bg-muted/50">
+                                <th className="text-left p-2 font-medium text-muted-foreground">Entity</th>
+                                <th className="text-left p-2 font-medium text-muted-foreground">Last Seen</th>
+                                <th className="text-left p-2 font-medium text-muted-foreground">Scans</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {items.map((entry: any, idx: number) => (
+                                <tr key={idx} className="border-b last:border-b-0">
+                                  <td className="p-2 font-mono text-foreground">{entry.entity_name}</td>
+                                  <td className="p-2 text-muted-foreground">{entry.last_seen_at ? format(new Date(entry.last_seen_at), "yyyy-MM-dd HH:mm") : "—"}</td>
+                                  <td className="p-2 text-muted-foreground">{entry.scan_count}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Alla kända entiteter täcks av skanningar.</p>
+              )}
+            </CardContent>
+          )}
         </Card>
       </div>
 
