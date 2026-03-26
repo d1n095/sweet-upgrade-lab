@@ -633,6 +633,21 @@ const SystemExplorer = () => {
                                   <div className="text-muted-foreground">Created</div>
                                 </div>
                               </div>
+                              {/* Extended metadata */}
+                              <div className="px-2.5 pb-1.5 grid grid-cols-3 gap-1 text-[10px] border-t border-border/30 pt-1">
+                                <div className="text-center">
+                                  <div className="font-bold">{scanner.executionTimeMs != null ? `${scanner.executionTimeMs}ms` : '–'}</div>
+                                  <div className="text-muted-foreground">Time</div>
+                                </div>
+                                <div className="text-center">
+                                  <div className="font-bold">{scanner.inputSize ?? '–'}</div>
+                                  <div className="text-muted-foreground">Input</div>
+                                </div>
+                                <div className="text-center">
+                                  <div className="font-bold">{scanner.emptyReason || '–'}</div>
+                                  <div className="text-muted-foreground">Empty?</div>
+                                </div>
+                              </div>
                               {scannerExpanded && scanner.rawIssues.length > 0 && (
                                 <div className="px-2.5 pb-2 border-t border-border/50 pt-1.5">
                                   <div className="flex items-center gap-1 mb-1">
@@ -653,7 +668,9 @@ const SystemExplorer = () => {
                                 </div>
                               )}
                               {scannerExpanded && scanner.rawIssues.length === 0 && (
-                                <div className="px-2.5 pb-2 text-[10px] text-muted-foreground italic">No raw issues detected</div>
+                                <div className="px-2.5 pb-2 text-[10px] text-muted-foreground italic">
+                                  No raw issues detected {scanner.emptyReason ? `(${scanner.emptyReason})` : ''}
+                                </div>
                               )}
                             </div>
                           );
