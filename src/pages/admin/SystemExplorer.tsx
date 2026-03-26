@@ -573,7 +573,7 @@ const SystemExplorer = () => {
                       <span className="font-semibold flex-1">{group.label}</span>
                       <span className="text-xs text-muted-foreground mr-2">{group.scanners.length} scanners</span>
                       <Badge
-                        variant={group.health === "GOOD" ? "default" : group.health === "NOISY" ? "destructive" : "secondary"}
+                        variant={group.health === "WORKING" ? "default" : group.health === "DEAD" ? "destructive" : "secondary"}
                         className="text-[10px] px-1.5 py-0"
                       >
                         {group.health}
@@ -611,7 +611,7 @@ const SystemExplorer = () => {
                                   {scanner.executed ? '✓ RAN' : '✗ NO'}
                                 </span>
                                 <Badge
-                                  variant={scanner.health === "GOOD" ? "default" : scanner.health === "NOISY" ? "destructive" : "secondary"}
+                                  variant={scanner.health === "WORKING" ? "default" : (scanner.health === "DEAD" || scanner.health === "OVER-FILTERING") ? "destructive" : "secondary"}
                                   className="text-[9px] px-1 py-0"
                                 >
                                   {scanner.health}
