@@ -674,6 +674,7 @@ const SystemExplorer = () => {
           {selectedSnapshotId && (
             <Badge variant="secondary" className="text-[9px]">📸 Snapshot</Badge>
           )}
+        </div>
 
         {/* AI ASSISTANT - System Admin only */}
         {isSystemAdmin && (
