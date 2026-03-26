@@ -3854,6 +3854,7 @@ export type Database = {
           related_incident_id: string | null
           related_order_id: string | null
           resolution_notes: string | null
+          runtime_trace_id: string | null
           source_component: string | null
           source_file: string | null
           source_id: string | null
@@ -3912,6 +3913,7 @@ export type Database = {
           related_incident_id?: string | null
           related_order_id?: string | null
           resolution_notes?: string | null
+          runtime_trace_id?: string | null
           source_component?: string | null
           source_file?: string | null
           source_id?: string | null
@@ -3970,6 +3972,7 @@ export type Database = {
           related_incident_id?: string | null
           related_order_id?: string | null
           resolution_notes?: string | null
+          runtime_trace_id?: string | null
           source_component?: string | null
           source_file?: string | null
           source_id?: string | null
@@ -3995,6 +3998,13 @@ export type Database = {
             columns: ["related_order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_items_runtime_trace_id_fkey"
+            columns: ["runtime_trace_id"]
+            isOneToOne: false
+            referencedRelation: "runtime_traces"
             referencedColumns: ["id"]
           },
         ]
