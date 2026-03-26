@@ -2557,7 +2557,7 @@ const SystemExplorer = () => {
                       className="w-full text-[10px] h-7"
                       onClick={() => {
                         navigator.clipboard.writeText(fixCode);
-                        toast({ title: "Copied", description: "Fix suggestion copied to clipboard" });
+                        navigator.clipboard.writeText(fixCode);
                       }}
                     >
                       📋 Copy Fix
