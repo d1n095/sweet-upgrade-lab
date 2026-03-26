@@ -237,6 +237,22 @@ const SystemExplorer = () => {
   const scanSourceCount = workItems.filter((w) => w.source_type === "scan" || w.source_type === "ai_scan").length;
   const manualSourceCount = workItems.filter((w) => w.source_type === "manual").length;
 
+  // Scan snapshots (last 10)
+  const { data: scanSnapshots = [] } = useQuery({
+    queryKey: ["system-explorer-snapshots"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("scan_snapshots")
+        .select("id, created_at, total_scanners, total_detected, total_created, dead_scanners_count, blind_scanners_count, payload")
+        .order("created_at", { ascending: false })
+        .limit(10);
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+
+  const activeSnapshot = selectedSnapshotId ? scanSnapshots.find((s: any) => s.id === selectedSnapshotId) : null;
+
   const scanResults = activeSnapshot ? (activeSnapshot.payload as Record<string, any> | null) : (latestScan?.results as Record<string, any> | null);
   const detectedIssues = scanResults?.master_list?.total ?? scanResults?.detected_issues?.length ?? (activeSnapshot ? activeSnapshot.total_detected : latestScan?.issues_count) ?? 0;
 
@@ -559,21 +575,8 @@ const SystemExplorer = () => {
     });
   }, [scanResults, workItems]);
 
-  // Scan snapshots (last 10)
-  const { data: scanSnapshots = [] } = useQuery({
-    queryKey: ["system-explorer-snapshots"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("scan_snapshots")
-        .select("id, created_at, total_scanners, total_detected, total_created, dead_scanners_count, blind_scanners_count, payload")
-        .order("created_at", { ascending: false })
-        .limit(10);
-      if (error) throw error;
-      return (data || []) as any[];
-    },
-  });
 
-  const activeSnapshot = selectedSnapshotId ? scanSnapshots.find((s: any) => s.id === selectedSnapshotId) : null;
+
 
   const grouped = useMemo(() => {
     const groups: Record<string, WorkItem[]> = {};
