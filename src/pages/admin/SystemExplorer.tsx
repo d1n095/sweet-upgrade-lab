@@ -103,6 +103,7 @@ const SystemExplorer = () => {
   const isViewerAdmin = isAdmin && !isFounder; // admin without founder = read-only viewer
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ workItems: true, scanResults: true, aiFlow: true, scanners: true });
   const [expandedScanners, setExpandedScanners] = useState<Record<string, boolean>>({});
+  const [scannerIssueFilter, setScannerIssueFilter] = useState<"all" | "bug" | "improvement" | "upgrade">("all");
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({ open: true, in_progress: true, done: false, completed: false, cancelled: false });
   const [selectedItem, setSelectedItem] = useState<WorkItem | null>(null);
   const [detailTab, setDetailTab] = useState<"info" | "history">("info");
