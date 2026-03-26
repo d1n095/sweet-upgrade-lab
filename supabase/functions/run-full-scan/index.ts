@@ -1727,8 +1727,9 @@ serve(async (req) => {
       await persistStepResults(supabase, STEPS, updatedResults, scanRun.started_by);
 
       // Create work items with context awareness and fingerprint dedup
-      let workItemsCreated = await createWorkItems(supabase, unified, systemStage);
-
+      const createResult = await createWorkItems(supabase, unified, systemStage);
+      let workItemsCreated = createResult.created;
+      unified._create_trace = createResult.createTrace;
       // Systemic issues → work items (with consistency guard)
       for (const si of systemicIssues) {
         const fp = generateFingerprint({ component: si.pattern, type: "systemic", route: "global" });
