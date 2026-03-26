@@ -438,7 +438,7 @@ const SystemExplorer = () => {
       const combined = [...traces, ...obs].sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime()).slice(0, 100);
       // Fallback: if no logs in last 2h, fetch from last scan snapshot
       if (combined.length === 0) {
-        const { data: snapshot } = await supabase.from("scan_snapshots" as any).select("diagnosis_summary, created_at, scan_confidence_score, total_detected, total_created").order("created_at", { ascending: false }).limit(1).maybeSingle();
+        const { data: snapshot } = await supabase.from("scan_snapshots" as any).select("diagnosis_summary, created_at, scan_confidence_score, total_detected, total_created").order("created_at", { ascending: false }).limit(1).maybeSingle() as any;
         if (snapshot) {
           const lines = (snapshot.diagnosis_summary || "").split("\n").filter(Boolean);
           return lines.map((line: string, idx: number) => ({
