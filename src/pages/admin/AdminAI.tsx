@@ -1938,6 +1938,7 @@ const SystemScanTab = () => {
     // Force refetch work items from DB
     queryClient.invalidateQueries({ queryKey: ['work-items'] });
     queryClient.invalidateQueries({ queryKey: ['admin-work-items'] });
+    queryClient.invalidateQueries({ queryKey: ['scan-work-items'] });
 
     setExpandedIssue(null);
     toast.success('Ärende skapat och flyttat till Master Task List');
