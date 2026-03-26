@@ -1448,7 +1448,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
 
   if (unified.blocker) {
     const fp = generateFingerprint({ component: "blocker", type: "blocker", route: "global" });
-    allWorkIssues.push({ title: `BLOCKER: ${unified.blocker.description || unified.blocker.title || "Critical blocker"}`.slice(0, 120), priority: "critical", item_type: "bug", fingerprint: fp });
+    allWorkIssues.push({ title: `BLOCKER: ${unified.blocker.description || unified.blocker.title || "Critical blocker"}`.slice(0, 120), priority: "critical", item_type: "bug", fingerprint: fp, affected_area: CATEGORY_AREA_MAP.blocker });
   }
 
   // Group broken_flows before creating
@@ -1464,6 +1464,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
       priority: "high", item_type: "bug", description: flow.fix_suggestion || flow.detail || "",
       fingerprint: fp, issue_type: issueType, suggested_fix: suggestedFixForType(issueType),
       source_path: flow.route || flow.page || null, source_file: flow.file || flow.source_file || null, source_component: flow.component || flow.element || null,
+      affected_area: flow.category === "flow_ui" ? { type: "flow", target: "ui_flows" } : CATEGORY_AREA_MAP.broken_flows,
     });
   }
 
@@ -1479,6 +1480,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
       priority: "high", item_type: "improvement", description: fake.reason || fake.detail || "",
       fingerprint: fp, issue_type: issueType, suggested_fix: suggestedFixForType(issueType),
       source_path: fake.route || fake.page || null, source_file: fake.file || fake.source_file || null, source_component: fake.component || fake.name || null,
+      affected_area: CATEGORY_AREA_MAP.fake_features,
     });
   }
 
@@ -1495,6 +1497,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
       description: fail.fix_suggestion || fail.detail || fail.issue || "",
       fingerprint: fp, issue_type: issueType, suggested_fix: suggestedFixForType(issueType),
       source_path: fail.route || fail.page || null, source_file: fail.file || fail.source_file || null, source_component: fail.component || fail.element || null,
+      affected_area: CATEGORY_AREA_MAP.interaction_failures,
     });
   }
 
@@ -1511,6 +1514,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
       description: issue.fix_suggestion || issue.detail || "",
       fingerprint: fp, issue_type: issueType, suggested_fix: suggestedFixForType(issueType),
       source_path: issue.route || issue.page || null, source_file: issue.file || issue.source_file || null, source_component: issue.component || issue.table || issue.entity || null,
+      affected_area: issue.category === "ui_visual" ? { type: "ui", target: "components" } : CATEGORY_AREA_MAP.data_issues,
     });
   }
 
