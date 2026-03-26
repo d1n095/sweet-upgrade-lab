@@ -1501,6 +1501,25 @@ const SystemExplorer = () => {
               </Card>
             )}
 
+            {/* Live Code Issues */}
+            {globalIssues.length > 0 && (
+              <Card className="mt-3">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Bug className="h-4 w-4" /> Live Code Issues ({globalIssues.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0 max-h-[300px] overflow-y-auto space-y-1">
+                  {globalIssues.map((issue, i) => (
+                    <div key={i} className="text-xs border-b border-border/50 pb-1">
+                      <div className="font-semibold text-foreground">{issue.file}</div>
+                      <div className="text-muted-foreground">{issue.message}</div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
             {/* Scan Input */}
             {latestRun && (() => {
               const ur = latestRun.unified_result as any;
