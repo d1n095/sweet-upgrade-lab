@@ -1059,7 +1059,7 @@ const SystemExplorer = () => {
             Refresh
           </Button>
           {isSystemAdmin && (
-            <Button variant="default" size="sm" onClick={handleRunFullScan} disabled={isScanning}>
+            <Button variant="default" size="sm" onClick={() => runSystemScan("full")} disabled={isScanning}>
               {isScanning ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Radar className="h-4 w-4 mr-1" />}
               {isScanning ? "Scanning..." : "Run Full Scan"}
             </Button>
@@ -1254,15 +1254,7 @@ const SystemExplorer = () => {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2"><Layers className="h-4 w-4" /> Code Index ({index.length} files)</CardTitle>
-                <Button variant="outline" size="sm" className="text-[10px] h-6 ml-auto" onClick={() => {
-                  const result = {
-                    filesWithApi: index.filter(f => f.hasApiCall).length,
-                    filesWithState: index.filter(f => f.hasState).length,
-                    largeFiles: index.filter(f => f.lineCount > 300).length,
-                  };
-                  console.log("[CODE SCAN RESULT]:", result);
-                  setCodeScanResult(result);
-                }}>
+                <Button variant="outline" size="sm" className="text-[10px] h-6 ml-auto" onClick={() => runSystemScan("code")}>
                   Scan Code
                 </Button>
               </CardHeader>
@@ -1366,30 +1358,7 @@ const SystemExplorer = () => {
                   {f === "all" ? `All (${fileSystemMap.length})` : f === "orphan" ? `Orphan (${fileSystemMap.filter(fi => fi.used_in.length === 0 && fi.type !== "page" && fi.type !== "edge_function").length})` : `Has Issues (${fileSystemMap.filter(fi => structureIssues.some(si => si.path === fi.path)).length})`}
                 </button>
               ))}
-              <Button variant="outline" size="sm" className="text-[10px] h-6 ml-auto" onClick={() => {
-                logAction({ type: "Scan Files", status: "started" });
-                const sources = getRawSources();
-                const files = Object.keys(sources || {});
-                if (files.length === 0) {
-                  logAction({
-                    type: "Scan Files",
-                    status: "no-data",
-                    message: "No files found in rawSources"
-                  });
-                  return;
-                }
-                const result = {
-                  total: files.length,
-                  emptyFiles: files.filter(f => !sources[f]?.trim()).length,
-                  largeFiles: files.filter(f => sources[f]?.length > 5000).length
-                };
-                logAction({
-                  type: "Scan Files",
-                  status: "success",
-                  result
-                });
-                setFileScanResult(result);
-              }}>
+              <Button variant="outline" size="sm" className="text-[10px] h-6 ml-auto" onClick={() => runSystemScan("files")}>
                 Scan Files
               </Button>
             </div>
