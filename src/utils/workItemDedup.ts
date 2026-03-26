@@ -37,6 +37,7 @@ interface DedupResult {
   item: any | null;
   error: string | null;
   existingId?: string;
+  dedup_reason?: 'fingerprint_match' | 'title_match' | 'existing_open_item';
 }
 
 /**
