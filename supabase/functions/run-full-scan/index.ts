@@ -2123,13 +2123,16 @@ serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
+    console.log("[SCAN] parsing body");
     const body = await req.json();
     console.log("FULL SCAN BODY:", body);
     const { action, scan_run_id, step_index, iteration, request_trace_id, scan_mode, target_area, verification_for } = body;
+    console.log("[SCAN] action:", action);
 
     // ── START ──
     if (action === "start") {
       console.log("[FULL SCAN START]");
+      console.log("[SCAN] authenticating user");
       const authHeader = req.headers.get("authorization");
       if (!authHeader) return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
@@ -2138,8 +2141,10 @@ serve(async (req) => {
       if (userError || !user?.id) return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       const userId = user.id;
 
+      console.log("[SCAN] user authenticated, checking role:", userId);
       const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
       const isStaff = roles?.some((r: any) => ["admin", "founder", "it", "support", "moderator"].includes(r.role));
+      console.log("[SCAN] roles:", roles, "isStaff:", isStaff);
       if (!isStaff) return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
       // Check running scan lock
@@ -2167,6 +2172,7 @@ serve(async (req) => {
         : allSteps;
       const effectiveIterations = isTargeted ? 1 : MAX_ITERATIONS;
 
+      console.log("[SCAN] creating scan_run in DB");
       const { data: scanRun, error: insertError } = await supabase.from("scan_runs").insert({
         status: "running", started_by: userId, current_step: 0, total_steps: prioritizedSteps.length,
         current_step_label: prioritizedSteps[0].label, steps_results: {},
@@ -2177,8 +2183,10 @@ serve(async (req) => {
         ...(isTargeted ? { scan_mode: "targeted", target_area, verification_for } : { scan_mode: "full" }),
       }).select("id").single();
 
-      if (insertError || !scanRun) return new Response(JSON.stringify({ success: false, error: "Failed to create scan run" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      console.log("[SCAN] insert result:", scanRun, "error:", insertError);
+      if (insertError || !scanRun) return new Response(JSON.stringify({ success: false, error: "Failed to create scan run", detail: insertError?.message }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
+      console.log("[SCAN] running scanners — chaining first step");
       fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
         body: JSON.stringify({ action: "process_step", scan_run_id: scanRun.id, step_index: 0, iteration: 1 }),
@@ -2191,6 +2199,7 @@ serve(async (req) => {
 
     // ── PROCESS_STEP ──
     if (action === "process_step" && scan_run_id && step_index !== undefined) {
+      console.log("[SCAN] running scanners — step:", step_index, "iteration:", iteration);
       const currentIteration = iteration || 1;
       const { data: scanRun } = await supabase.from("scan_runs").select("*").eq("id", scan_run_id).single();
       if (!scanRun || scanRun.status !== "running") return new Response(JSON.stringify({ success: false, error: "Scan not running" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -2405,6 +2414,7 @@ serve(async (req) => {
 
     // ── FINALIZE ──
     if (action === "finalize" && scan_run_id) {
+      console.log("[SCAN] creating work items — finalize phase");
       const { data: scanRun } = await supabase.from("scan_runs").select("*").eq("id", scan_run_id).single();
       if (!scanRun || scanRun.status !== "running") return new Response(JSON.stringify({ success: false, error: "Scan not running" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
@@ -2840,6 +2850,7 @@ serve(async (req) => {
         scan_id: scan_run_id, trace_id: `full-scan-${scan_run_id.slice(0, 8)}`, component: "run-full-scan", duration_ms: totalDuration, user_id: scanRun.started_by,
       });
 
+      console.log("[SCAN] finished — detected:", issuesCount, "created:", workItemsCreated);
       return new Response(JSON.stringify({ success: true, scan_id: scan_run_id, detected: issuesCount, created: workItemsCreated, filtered: issuesCount - workItemsCreated, skipped: 0, action: "finalized", iterations: iterationsCompleted, system_stage: systemStage }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
     }
 
