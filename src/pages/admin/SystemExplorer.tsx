@@ -989,6 +989,7 @@ const SystemExplorer = () => {
             className="h-7 text-[10px] max-w-[250px]"
           />
           <Button variant="outline" size="sm" className="text-[10px] h-7" onClick={handleSearch}>Search</Button>
+          <span className="text-[9px] text-yellow-500/70 font-mono">⚠ Frontend scan (static / debug only)</span>
         </div>
         {searchResults.length > 0 && (
           <Card className="border-primary/30">
@@ -1317,6 +1318,7 @@ const SystemExplorer = () => {
         {/* FILES TAB */}
         {mainTab === "files" && (
           <div className="space-y-3">
+            <span className="text-[9px] text-yellow-500/70 font-mono">⚠ Frontend scan (static / debug only)</span>
             {/* Filters */}
             <div className="flex gap-1 items-center">
               {(["all", "orphan", "has_issues"] as const).map((f) => (
@@ -2177,7 +2179,7 @@ const SystemExplorer = () => {
             <CardTitle className="text-sm flex items-center gap-2">
               {expandedSections.fileMap ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
               <Folder className="h-4 w-4 text-primary" />
-              File Map ({fileSystemMap.length} files)
+              File Map ({fileSystemMap.length} files) <span className="text-[9px] text-yellow-500/70 font-mono ml-2">⚠ Frontend scan (static / debug only)</span>
             </CardTitle>
           </CardHeader>
           {expandedSections.fileMap && (
