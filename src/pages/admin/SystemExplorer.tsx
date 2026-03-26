@@ -117,7 +117,7 @@ const SystemExplorer = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("work_items")
-        .select("id, title, status, source_type, source_id, created_by, item_type, priority, ai_detected, created_at, issue_fingerprint, ignored")
+        .select("id, title, status, source_type, source_id, created_by, item_type, priority, ai_detected, created_at, issue_fingerprint, ignored, source_path, source_file, source_component")
         .order("created_at", { ascending: false })
         .limit(200);
       if (error) throw error;
@@ -891,6 +891,24 @@ const SystemExplorer = () => {
                 <div>
                   <span className="text-muted-foreground text-xs">Fingerprint</span>
                   <p className="font-mono text-xs break-all">{selectedItem.issue_fingerprint}</p>
+                </div>
+              )}
+              {(selectedItem as any).source_path && (
+                <div>
+                  <span className="text-muted-foreground text-xs">Source Path</span>
+                  <p className="font-mono text-xs break-all">{(selectedItem as any).source_path}</p>
+                </div>
+              )}
+              {(selectedItem as any).source_file && (
+                <div>
+                  <span className="text-muted-foreground text-xs">Source File</span>
+                  <p className="font-mono text-xs break-all">{(selectedItem as any).source_file}</p>
+                </div>
+              )}
+              {(selectedItem as any).source_component && (
+                <div>
+                  <span className="text-muted-foreground text-xs">Source Component</span>
+                  <p className="font-mono text-xs break-all">{(selectedItem as any).source_component}</p>
                 </div>
               )}
               {selectedItem.ignored && (

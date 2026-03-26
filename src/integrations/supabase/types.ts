@@ -3713,7 +3713,10 @@ export type Database = {
           related_incident_id: string | null
           related_order_id: string | null
           resolution_notes: string | null
+          source_component: string | null
+          source_file: string | null
           source_id: string | null
+          source_path: string | null
           source_type: string | null
           status: string
           title: string
@@ -3762,7 +3765,10 @@ export type Database = {
           related_incident_id?: string | null
           related_order_id?: string | null
           resolution_notes?: string | null
+          source_component?: string | null
+          source_file?: string | null
           source_id?: string | null
+          source_path?: string | null
           source_type?: string | null
           status?: string
           title: string
@@ -3811,7 +3817,10 @@ export type Database = {
           related_incident_id?: string | null
           related_order_id?: string | null
           resolution_notes?: string | null
+          source_component?: string | null
+          source_file?: string | null
           source_id?: string | null
+          source_path?: string | null
           source_type?: string | null
           status?: string
           title?: string
