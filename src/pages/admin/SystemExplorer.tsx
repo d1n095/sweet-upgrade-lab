@@ -1218,8 +1218,18 @@ const SystemExplorer = () => {
                 <p className="font-mono text-xs break-all">{selectedItem.source_id ?? "–"}</p>
               </div>
               <div>
-                <span className="text-muted-foreground text-xs">Origin</span>
-                <p>{selectedItem.source_type === "scan" || selectedItem.source_type === "ai_scan" ? "scan" : selectedItem.source_type === "manual" ? "manual" : "system"}</p>
+                <span className="text-muted-foreground text-xs">Origin Source</span>
+                <p>
+                  <Badge variant="outline" className="text-[10px]">
+                    {selectedItem.source_type === "scan" || selectedItem.source_type === "ai_scan" || selectedItem.source_type === "ai_detection"
+                      ? "🤖 ai_scan"
+                      : selectedItem.source_type === "manual"
+                      ? "👤 manual"
+                      : selectedItem.source_type === "lovable_build" || selectedItem.source_type === "system"
+                      ? "🔧 lovable_build"
+                      : `📦 ${selectedItem.source_type ?? "unknown"}`}
+                  </Badge>
+                </p>
               </div>
               <div>
                 <span className="text-muted-foreground text-xs">Created By</span>
