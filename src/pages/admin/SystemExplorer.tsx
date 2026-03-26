@@ -183,7 +183,7 @@ const SystemExplorer = () => {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [showBackendRaw, setShowBackendRaw] = useState(false);
   const [fileScanResult, setFileScanResult] = useState<{ total: number; emptyFiles: number; largeFiles: number } | null>(null);
-  const [codeScanResult, setCodeScanResult] = useState<{ filesWithApi: number; filesWithState: number; largeFiles: number } | null>(null);
+  const [codeScanResult, setCodeScanResult] = useState<{ type: string; message: string; file: string }[] | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<{ path: string; lineNumber: number; line: string }[]>([]);
   const [lastAction, setLastAction] = useState("");
