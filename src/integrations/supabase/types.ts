@@ -4040,6 +4040,10 @@ export type Database = {
         Args: { p_entity_name: string; p_entity_type: string }
         Returns: undefined
       }
+      increment_work_item_occurrence: {
+        Args: { p_work_item_id: string }
+        Returns: undefined
+      }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_founder: { Args: { _user_id: string }; Returns: boolean }
       is_staff: { Args: { _user_id: string }; Returns: boolean }

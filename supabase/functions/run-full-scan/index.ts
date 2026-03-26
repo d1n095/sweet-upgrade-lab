@@ -1680,8 +1680,10 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     if (existingByTitle?.length) {
       await supabase.from("work_items").update({
         issue_fingerprint: issue.fingerprint,
+        last_seen_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }).eq("id", existingByTitle[0].id);
+      await supabase.rpc("increment_work_item_occurrence", { p_work_item_id: existingByTitle[0].id }).catch(() => {});
       console.log(`[consistency-guard] LINKED by title: ${existingByTitle[0].id.slice(0, 8)} "${issue.title.slice(0, 40)}"`);
       createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'skipped_dedup', _dedup_reason: 'title_match', existing_item_id: existingByTitle[0].id, issue_type: issue.issue_type || 'bug', affected_area: issue.affected_area });
       continue;
