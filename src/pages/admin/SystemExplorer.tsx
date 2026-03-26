@@ -222,6 +222,11 @@ const SystemExplorer = () => {
         const allRaw: any[] = [];
         // Determine executed status from step results
         let executed = false;
+        let executionTimeMs: number | null = null;
+        let inputSize: number | null = null;
+        let emptyReason: string | null = null;
+        let scanStartedAt: string | null = null;
+        let scanFinishedAt: string | null = null;
         for (const mk of scanner.matchKeys) {
           const s = keyStats[mk.toLowerCase()];
           if (s) {
@@ -229,11 +234,16 @@ const SystemExplorer = () => {
             created += s.created;
             allRaw.push(...s.raw);
           }
-          // Check step_results for _executed flag
+          // Check step_results for metadata
           if (stepResults && typeof stepResults === 'object') {
             const stepData = stepResults[mk] || stepResults[scanner.id];
             if (stepData?._executed === true) executed = true;
             if (stepData && stepData._executed === undefined && !stepData.failed) executed = true;
+            if (stepData?._execution_time_ms != null && executionTimeMs === null) executionTimeMs = stepData._execution_time_ms;
+            if (stepData?._input_size != null && inputSize === null) inputSize = stepData._input_size;
+            if (stepData?._empty_reason && emptyReason === null) emptyReason = stepData._empty_reason;
+            if (stepData?._scan_started_at && scanStartedAt === null) scanStartedAt = stepData._scan_started_at;
+            if (stepData?._scan_finished_at && scanFinishedAt === null) scanFinishedAt = stepData._scan_finished_at;
           }
         }
         // If we found any raw issues or created items, scanner must have executed
@@ -248,7 +258,7 @@ const SystemExplorer = () => {
         else if (detected === 0) health = "WEAK";
         else if (ratio < 0.3 && skipped > 2) health = "NOISY";
         else if (detected <= 1 && created === 0) health = "WEAK";
-        return { ...scanner, detected, afterFilter: created, skipped, created, health, rawIssues: uniqueRaw, executed };
+        return { ...scanner, detected, afterFilter: created, skipped, created, health, rawIssues: uniqueRaw, executed, executionTimeMs, inputSize, emptyReason, scanStartedAt, scanFinishedAt };
       });
 
       const groupDetected = scannerResults.reduce((s, r) => s + r.detected, 0);
