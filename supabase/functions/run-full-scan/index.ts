@@ -1577,6 +1577,36 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     (issue as any)._origin_source = "ai_scan";
   }
 
+  // ── IMPACT SCORING: classify each issue 1–5 ──
+  const FLOW_KEYWORDS = ["checkout", "login", "order", "payment", "auth", "signup", "cart"];
+  const ACTION_KEYWORDS = ["button", "click", "submit", "form", "action", "interaction", "navigation"];
+  const DATA_KEYWORDS = ["data", "mismatch", "inconsisten", "sync", "orphan", "missing", "duplicate", "stale"];
+
+  for (const issue of allWorkIssues) {
+    const text = `${issue.title || ""} ${issue.description || ""} ${(issue as any).source_component || ""} ${(issue as any).source_path || ""}`.toLowerCase();
+    const isFlow = FLOW_KEYWORDS.some(k => text.includes(k));
+    const isAction = ACTION_KEYWORDS.some(k => text.includes(k));
+    const isData = DATA_KEYWORDS.some(k => text.includes(k));
+    const sevCritical = issue.priority === "critical";
+    const sevHigh = issue.priority === "high";
+
+    let impact_score = 1;
+    let impact_label = "low";
+
+    if (sevCritical || (isFlow && (sevHigh || sevCritical))) {
+      impact_score = 5; impact_label = "critical";
+    } else if (isFlow || (isAction && sevHigh)) {
+      impact_score = 4; impact_label = "high";
+    } else if (isData) {
+      impact_score = 3; impact_label = "medium";
+    } else if (isAction || issue.item_type === "improvement") {
+      impact_score = 2; impact_label = "low";
+    }
+
+    (issue as any)._impact_score = impact_score;
+    (issue as any)._impact_label = impact_label;
+  }
+
   // ── CONSISTENCY GUARD: Build fingerprint map of current scan issues ──
   const currentFingerprints = new Map<string, { title: string; priority: string; item_type: string; description?: string }>();
   for (const issue of allWorkIssues) {
