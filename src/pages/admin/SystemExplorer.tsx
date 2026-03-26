@@ -187,6 +187,17 @@ const SystemExplorer = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<{ path: string; lineNumber: number; line: string }[]>([]);
   const [lastAction, setLastAction] = useState("");
+  const [actionLogs, setActionLogs] = useState<{ time: string; [key: string]: any }[]>([]);
+
+  function logAction(action: Record<string, any>) {
+    setActionLogs(prev => [
+      {
+        time: new Date().toISOString(),
+        ...action
+      },
+      ...prev
+    ]);
+  }
 
   function handleSearch() {
     if (!searchQuery) {
