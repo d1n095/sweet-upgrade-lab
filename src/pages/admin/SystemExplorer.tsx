@@ -26,6 +26,75 @@ type WorkItem = {
   ignored: boolean | null;
 };
 
+// ── Scanner Module Groups ──
+interface ScannerDef {
+  id: string;
+  label: string;
+  /** Which scan step ids or issue categories map to this scanner */
+  matchKeys: string[];
+}
+
+interface ScannerGroup {
+  id: string;
+  label: string;
+  icon: string;
+  scanners: ScannerDef[];
+}
+
+const SCANNER_GROUPS: ScannerGroup[] = [
+  {
+    id: "ui_scanners",
+    label: "UI Scanners",
+    icon: "🖥️",
+    scanners: [
+      { id: "ui_data_binding", label: "UI/Data Binding", matchKeys: ["sync_scan", "ui_data_binding", "sync"] },
+      { id: "component_map", label: "Component Map", matchKeys: ["component_map", "component"] },
+      { id: "navigation_verification", label: "Navigation Verification", matchKeys: ["nav_scan", "navigation_verification", "navigation"] },
+    ],
+  },
+  {
+    id: "data_scanners",
+    label: "Data Scanners",
+    icon: "🗄️",
+    scanners: [
+      { id: "data_flow_validation", label: "Data Flow Validation", matchKeys: ["data_integrity", "data_flow_validation", "data"] },
+      { id: "order_data_mismatch", label: "Order Data Mismatch", matchKeys: ["order_data_mismatch", "order_data"] },
+      { id: "missing_product_data", label: "Missing Product Data", matchKeys: ["missing_product_data", "product_data"] },
+      { id: "stock_inconsistency", label: "Stock Inconsistency", matchKeys: ["stock_inconsistency", "stock", "inventory"] },
+    ],
+  },
+  {
+    id: "flow_scanners",
+    label: "Flow Scanners",
+    icon: "🔀",
+    scanners: [
+      { id: "interaction_qa", label: "Interaction QA", matchKeys: ["interaction_qa", "interaction"] },
+      { id: "human_test", label: "Human Test Simulation", matchKeys: ["human_test", "human"] },
+      { id: "checkout_flow_break", label: "Checkout Flow Break", matchKeys: ["checkout_flow_break", "checkout"] },
+      { id: "order_creation_gap", label: "Order Creation Gap", matchKeys: ["order_creation_gap"] },
+      { id: "scan_to_work_item_loss", label: "Scan → Work Item Loss", matchKeys: ["scan_to_work_item_loss", "pipeline_loss"] },
+    ],
+  },
+  {
+    id: "business_scanners",
+    label: "Business Scanners",
+    icon: "💼",
+    scanners: [
+      { id: "feature_detection", label: "Feature Detection", matchKeys: ["feature_detection", "feature"] },
+      { id: "decision_engine", label: "Decision Engine", matchKeys: ["decision_engine", "decision"] },
+      { id: "regression_detection", label: "Regression Detection", matchKeys: ["system_scan", "regression_detection", "regression"] },
+    ],
+  },
+  {
+    id: "edge_case_scanners",
+    label: "Edge Case Scanners",
+    icon: "⚡",
+    scanners: [
+      { id: "blocker_detection", label: "Blocker Detection", matchKeys: ["blocker_detection", "blocker"] },
+    ],
+  },
+];
+
 const SystemExplorer = () => {
   const queryClient = useQueryClient();
   const { isAdmin, isLoading: adminLoading } = useAdminRole();
@@ -122,35 +191,63 @@ const SystemExplorer = () => {
   const scanResults = latestScan?.results as Record<string, any> | null;
   const detectedIssues = scanResults?.master_list?.total ?? scanResults?.detected_issues?.length ?? latestScan?.issues_count ?? 0;
 
-  // Scanner stats derived from scan results issues
-  const scannerStats = useMemo(() => {
+  // Scanner stats derived from scan results — organized by module groups
+  const groupedScannerStats = useMemo(() => {
     const rawIssues = (scanResults?.issues as any[] | undefined) ?? [];
-    const categoryMap: Record<string, { raw: any[]; created: number }> = {};
-    for (const issue of rawIssues) {
-      const cat = issue.category || issue.type || "unknown";
-      if (!categoryMap[cat]) categoryMap[cat] = { raw: [], created: 0 };
-      categoryMap[cat].raw.push(issue);
-    }
-    // Match work_items created from scan to categories
     const scanItems = workItems.filter(w => w.source_type === "scan" || w.source_type === "ai_scan" || w.source_type === "ai_detection");
-    for (const wi of scanItems) {
-      // Try to match by item_type or a rough category
-      const cat = wi.item_type || "unknown";
-      if (categoryMap[cat]) {
-        categoryMap[cat].created++;
+
+    // Build a lookup: key → { raw issues, created count }
+    const keyStats: Record<string, { raw: any[]; created: number }> = {};
+    for (const issue of rawIssues) {
+      const keys = [issue.category, issue.type, issue.scan_type, issue.step, issue.item_type].filter(Boolean).map((k: string) => k.toLowerCase());
+      for (const k of keys) {
+        if (!keyStats[k]) keyStats[k] = { raw: [], created: 0 };
+        keyStats[k].raw.push(issue);
       }
     }
-    return Object.entries(categoryMap).map(([name, data]) => {
-      const detected = data.raw.length;
-      const created = data.created;
-      const filtered = Math.max(0, detected - created);
-      const ratio = detected > 0 ? created / detected : 0;
-      let health: "GOOD" | "WEAK" | "NOISY" = "GOOD";
-      if (detected === 0) health = "WEAK";
-      else if (ratio < 0.3 && filtered > 2) health = "NOISY";
-      else if (detected <= 1 && created === 0) health = "WEAK";
-      return { name, detected, afterFilter: created, skipped: filtered, created, health, rawIssues: data.raw };
-    }).sort((a, b) => b.detected - a.detected);
+    for (const wi of scanItems) {
+      const keys = [wi.item_type].filter(Boolean).map(k => k.toLowerCase());
+      for (const k of keys) {
+        if (keyStats[k]) keyStats[k].created++;
+      }
+    }
+
+    return SCANNER_GROUPS.map(group => {
+      const scannerResults = group.scanners.map(scanner => {
+        let detected = 0;
+        let created = 0;
+        const allRaw: any[] = [];
+        for (const mk of scanner.matchKeys) {
+          const s = keyStats[mk.toLowerCase()];
+          if (s) {
+            detected += s.raw.length;
+            created += s.created;
+            allRaw.push(...s.raw);
+          }
+        }
+        // De-duplicate raw issues by reference
+        const uniqueRaw = [...new Map(allRaw.map(r => [r.title || JSON.stringify(r), r])).values()];
+        detected = uniqueRaw.length;
+        const skipped = Math.max(0, detected - created);
+        const ratio = detected > 0 ? created / detected : 0;
+        let health: "GOOD" | "WEAK" | "NOISY" = "GOOD";
+        if (detected === 0) health = "WEAK";
+        else if (ratio < 0.3 && skipped > 2) health = "NOISY";
+        else if (detected <= 1 && created === 0) health = "WEAK";
+        return { ...scanner, detected, afterFilter: created, skipped, created, health, rawIssues: uniqueRaw };
+      });
+
+      const groupDetected = scannerResults.reduce((s, r) => s + r.detected, 0);
+      const groupCreated = scannerResults.reduce((s, r) => s + r.created, 0);
+      const groupSkipped = scannerResults.reduce((s, r) => s + r.skipped, 0);
+      const weakCount = scannerResults.filter(r => r.health === "WEAK").length;
+      const noisyCount = scannerResults.filter(r => r.health === "NOISY").length;
+      let groupHealth: "GOOD" | "WEAK" | "NOISY" = "GOOD";
+      if (weakCount > scannerResults.length / 2) groupHealth = "WEAK";
+      else if (noisyCount > scannerResults.length / 2) groupHealth = "NOISY";
+
+      return { ...group, scanners: scannerResults, detected: groupDetected, created: groupCreated, skipped: groupSkipped, health: groupHealth };
+    });
   }, [scanResults, workItems]);
 
 
@@ -425,81 +522,120 @@ const SystemExplorer = () => {
           )}
         </Card>
 
-        {/* SCANNERS */}
+        {/* SCANNERS — Grouped by Module */}
         <Card>
           <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("scanners")}>
             <CardTitle className="text-sm flex items-center gap-2">
               {expandedSections.scanners ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
               <Radar className="h-4 w-4 text-primary" />
-              Scanners ({scannerStats.length})
+              Scanners ({SCANNER_GROUPS.reduce((s, g) => s + g.scanners.length, 0)} in {SCANNER_GROUPS.length} groups)
             </CardTitle>
           </CardHeader>
           {expandedSections.scanners && (
-            <CardContent className="space-y-2 pt-0">
-              {scannerStats.length === 0 ? (
-                <p className="text-xs text-muted-foreground">Inga skannerresultat.</p>
-              ) : (
-                scannerStats.map((s) => {
-                  const isExpanded = expandedScanners[s.name] ?? false;
-                  return (
-                    <div key={s.name} className="border border-border rounded-md">
-                      <button
-                        onClick={() => setExpandedScanners(prev => ({ ...prev, [s.name]: !prev[s.name] }))}
-                        className="flex items-center gap-2 w-full text-left px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
+            <CardContent className="space-y-3 pt-0">
+              {groupedScannerStats.map((group) => {
+                const groupExpanded = expandedScanners[`group_${group.id}`] ?? false;
+                return (
+                  <div key={group.id} className="border border-border rounded-md">
+                    {/* Group Header */}
+                    <button
+                      onClick={() => setExpandedScanners(prev => ({ ...prev, [`group_${group.id}`]: !prev[`group_${group.id}`] }))}
+                      className="flex items-center gap-2 w-full text-left px-3 py-2.5 text-sm hover:bg-muted/50 transition-colors"
+                    >
+                      {groupExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                      <span className="text-base mr-1">{group.icon}</span>
+                      <span className="font-semibold flex-1">{group.label}</span>
+                      <span className="text-xs text-muted-foreground mr-2">{group.scanners.length} scanners</span>
+                      <Badge
+                        variant={group.health === "GOOD" ? "default" : group.health === "NOISY" ? "destructive" : "secondary"}
+                        className="text-[10px] px-1.5 py-0"
                       >
-                        {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                        <span className="font-medium flex-1 capitalize">{s.name}</span>
-                        <Badge
-                          variant={s.health === "GOOD" ? "default" : s.health === "NOISY" ? "destructive" : "secondary"}
-                          className="text-[10px] px-1.5 py-0"
-                        >
-                          {s.health}
-                        </Badge>
-                      </button>
-                      <div className="px-3 pb-2 grid grid-cols-4 gap-2 text-xs">
-                        <div className="text-center">
-                          <div className="font-bold">{s.detected}</div>
-                          <div className="text-muted-foreground">Raw</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="font-bold">{s.afterFilter}</div>
-                          <div className="text-muted-foreground">After</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="font-bold">{s.skipped}</div>
-                          <div className="text-muted-foreground">Skipped</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="font-bold">{s.created}</div>
-                          <div className="text-muted-foreground">Created</div>
-                        </div>
+                        {group.health}
+                      </Badge>
+                    </button>
+                    {/* Group Summary Row */}
+                    <div className="px-3 pb-2 grid grid-cols-3 gap-2 text-xs border-b border-border">
+                      <div className="text-center">
+                        <div className="font-bold">{group.detected}</div>
+                        <div className="text-muted-foreground">Detected</div>
                       </div>
-                      {isExpanded && (
-                        <div className="px-3 pb-3 border-t border-border pt-2">
-                          <div className="flex items-center gap-1 mb-1.5">
-                            <Eye className="h-3 w-3 text-muted-foreground" />
-                            <span className="text-xs font-medium text-muted-foreground">Raw scan output</span>
-                          </div>
-                          <div className="space-y-1 max-h-48 overflow-y-auto">
-                            {s.rawIssues.map((issue: any, idx: number) => (
-                              <div key={idx} className="text-xs border border-border rounded px-2 py-1.5 bg-muted/30">
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className="font-medium truncate flex-1">{issue.title || "Untitled"}</span>
-                                  <Badge variant="outline" className="text-[9px] px-1 py-0">{issue.type || "–"}</Badge>
-                                  <Badge variant="outline" className="text-[9px] px-1 py-0">{issue.severity || "–"}</Badge>
-                                </div>
-                                {issue.category && (
-                                  <span className="text-muted-foreground text-[10px]">cat: {issue.category}</span>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                      <div className="text-center">
+                        <div className="font-bold">{group.created}</div>
+                        <div className="text-muted-foreground">Created</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="font-bold">{group.skipped}</div>
+                        <div className="text-muted-foreground">Skipped</div>
+                      </div>
                     </div>
-                  );
-                })
-              )}
+                    {/* Individual Scanners */}
+                    {groupExpanded && (
+                      <div className="px-2 py-2 space-y-1">
+                        {group.scanners.map((scanner: any) => {
+                          const scannerExpanded = expandedScanners[scanner.id] ?? false;
+                          return (
+                            <div key={scanner.id} className="border border-border/50 rounded-md bg-muted/20">
+                              <button
+                                onClick={() => setExpandedScanners(prev => ({ ...prev, [scanner.id]: !prev[scanner.id] }))}
+                                className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 text-xs hover:bg-muted/50 transition-colors"
+                              >
+                                {scannerExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                                <span className="font-medium flex-1">{scanner.label}</span>
+                                <Badge
+                                  variant={scanner.health === "GOOD" ? "default" : scanner.health === "NOISY" ? "destructive" : "secondary"}
+                                  className="text-[9px] px-1 py-0"
+                                >
+                                  {scanner.health}
+                                </Badge>
+                              </button>
+                              <div className="px-2.5 pb-1.5 grid grid-cols-4 gap-1 text-[10px]">
+                                <div className="text-center">
+                                  <div className="font-bold">{scanner.detected}</div>
+                                  <div className="text-muted-foreground">Raw</div>
+                                </div>
+                                <div className="text-center">
+                                  <div className="font-bold">{scanner.afterFilter}</div>
+                                  <div className="text-muted-foreground">After</div>
+                                </div>
+                                <div className="text-center">
+                                  <div className="font-bold">{scanner.skipped}</div>
+                                  <div className="text-muted-foreground">Skip</div>
+                                </div>
+                                <div className="text-center">
+                                  <div className="font-bold">{scanner.created}</div>
+                                  <div className="text-muted-foreground">Created</div>
+                                </div>
+                              </div>
+                              {scannerExpanded && scanner.rawIssues.length > 0 && (
+                                <div className="px-2.5 pb-2 border-t border-border/50 pt-1.5">
+                                  <div className="flex items-center gap-1 mb-1">
+                                    <Eye className="h-3 w-3 text-muted-foreground" />
+                                    <span className="text-[10px] font-medium text-muted-foreground">Raw output</span>
+                                  </div>
+                                  <div className="space-y-1 max-h-40 overflow-y-auto">
+                                    {scanner.rawIssues.map((issue: any, idx: number) => (
+                                      <div key={idx} className="text-[10px] border border-border rounded px-2 py-1 bg-muted/30">
+                                        <div className="flex items-center gap-1 flex-wrap">
+                                          <span className="font-medium truncate flex-1">{issue.title || "Untitled"}</span>
+                                          <Badge variant="outline" className="text-[8px] px-1 py-0">{issue.type || "–"}</Badge>
+                                          <Badge variant="outline" className="text-[8px] px-1 py-0">{issue.severity || "–"}</Badge>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              {scannerExpanded && scanner.rawIssues.length === 0 && (
+                                <div className="px-2.5 pb-2 text-[10px] text-muted-foreground italic">No raw issues detected</div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </CardContent>
           )}
         </Card>
