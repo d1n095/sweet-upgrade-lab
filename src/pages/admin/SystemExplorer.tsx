@@ -2647,6 +2647,8 @@ const SystemExplorer = () => {
             </CardContent>
           )}
         </Card>
+        </>
+        )}
       </div>
       {selectedItem && (
         <div className="w-80 border-l border-border bg-card overflow-y-auto p-4 space-y-4 flex-shrink-0">
