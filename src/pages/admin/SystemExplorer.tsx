@@ -1067,7 +1067,15 @@ const SystemExplorer = () => {
             </CardHeader>
             <CardContent>
               <pre className="bg-muted/30 border border-border rounded-md p-3 text-[10px] font-mono overflow-auto max-h-[500px] whitespace-pre-wrap text-foreground select-all">
-                {scanResults ? JSON.stringify(scanResults, null, 2) : "No scan results available"}
+                {(() => {
+                  if (!scanResults) return "No scan results available";
+                  try {
+                    return JSON.stringify(scanResults, null, 2);
+                  } catch (e) {
+                    console.error("[DEBUG] JSON RENDER ERROR:", e);
+                    return "Error rendering scan results";
+                  }
+                })()}
               </pre>
             </CardContent>
           </Card>
@@ -2003,7 +2011,7 @@ const SystemExplorer = () => {
                     <div className="border-t pt-2 mt-2">
                       <p className="font-medium text-xs mb-1">🔴 High Attention Areas</p>
                       <div className="flex flex-wrap gap-1">
-                        {scanResults.high_attention_areas.map((area: any, idx: number) => (
+                        {(scanResults?.high_attention_areas ?? []).map((area: any, idx: number) => (
                           <Badge key={idx} variant="destructive" className="text-[10px]">
                             {area.type}/{area.target} — {area.reason}
                           </Badge>
@@ -2026,7 +2034,7 @@ const SystemExplorer = () => {
               <AlertTriangle className="h-4 w-4 text-destructive" />
               High Attention Areas
               {scanResults?.high_attention_areas?.length > 0 && (
-                <Badge variant="destructive" className="text-[10px]">{scanResults.high_attention_areas.length}</Badge>
+                <Badge variant="destructive" className="text-[10px]">{(scanResults?.high_attention_areas ?? []).length}</Badge>
               )}
             </CardTitle>
           </CardHeader>
@@ -2042,7 +2050,7 @@ const SystemExplorer = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {scanResults.high_attention_areas.map((area: any, idx: number) => (
+                    {(scanResults?.high_attention_areas ?? []).map((area: any, idx: number) => (
                       <tr key={idx} className="border-b last:border-b-0">
                         <td className="p-2 font-mono text-foreground">{area.target}</td>
                         <td className="p-2">
@@ -2068,7 +2076,7 @@ const SystemExplorer = () => {
               <Radar className="h-4 w-4 text-destructive" />
               Suspicious Areas
               {(scanResults?.suspicious_areas?.length || 0) > 0 && (
-                <Badge variant="destructive" className="text-[10px]">{scanResults.suspicious_areas.length}</Badge>
+                <Badge variant="destructive" className="text-[10px]">{(scanResults?.suspicious_areas ?? []).length}</Badge>
               )}
               <Badge variant="outline" className="text-[10px]">READ-ONLY</Badge>
             </CardTitle>
@@ -2086,7 +2094,7 @@ const SystemExplorer = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {scanResults.suspicious_areas.map((area: any, idx: number) => (
+                      {(scanResults?.suspicious_areas ?? []).map((area: any, idx: number) => (
                         <tr key={idx} className="border-b last:border-b-0">
                           <td className="p-2 font-mono text-foreground">{area.target}</td>
                           <td className="p-2">
