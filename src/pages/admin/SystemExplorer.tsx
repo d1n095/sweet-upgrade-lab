@@ -283,16 +283,16 @@ const SystemExplorer = () => {
       const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const { data } = await supabase
         .from("runtime_traces" as any)
-        .select("id, function_name, endpoint, error_message, created_at")
+        .select("id, function_name, endpoint, error_message, created_at, source")
         .gte("created_at", cutoff)
         .order("created_at", { ascending: false })
         .limit(200);
       if (!data?.length) return [];
-      const clusters: Record<string, { function_name: string; endpoint: string; error_message: string; count: number; latest: string }> = {};
+      const clusters: Record<string, { function_name: string; endpoint: string; error_message: string; count: number; latest: string; source: string }> = {};
       for (const t of data as any[]) {
         const key = `${t.function_name}::${(t.error_message || "").slice(0, 100)}`;
         if (!clusters[key]) {
-          clusters[key] = { function_name: t.function_name, endpoint: t.endpoint || "", error_message: t.error_message || "", count: 0, latest: t.created_at };
+          clusters[key] = { function_name: t.function_name, endpoint: t.endpoint || "", error_message: t.error_message || "", count: 0, latest: t.created_at, source: t.source || "" };
         }
         clusters[key].count++;
         if (t.created_at > clusters[key].latest) clusters[key].latest = t.created_at;
@@ -2036,6 +2036,7 @@ const SystemExplorer = () => {
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5 min-w-0">
                       <Badge variant="destructive" className="text-[9px] shrink-0">{cluster.count}×</Badge>
+                      {cluster.source === "scan" && <Badge variant="outline" className="text-[8px] px-1 py-0 border-orange-500 text-orange-600">[SCAN ERROR]</Badge>}
                       <span className="font-mono text-xs truncate">{cluster.function_name}</span>
                     </div>
                     <span className="text-muted-foreground text-[9px] shrink-0">
@@ -2070,6 +2071,7 @@ const SystemExplorer = () => {
                 <div key={err.id} className="border border-border rounded p-2 bg-muted/10 space-y-0.5">
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-mono text-[11px] font-medium text-foreground">{err.function_name || "–"}</span>
+                    {err.source === "scan" && <Badge variant="outline" className="text-[8px] px-1 py-0 border-orange-500 text-orange-600">[SCAN ERROR]</Badge>}
                     <span className="text-muted-foreground text-[9px] shrink-0">
                       {new Date(err.created_at).toLocaleString("sv-SE", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}
                     </span>
