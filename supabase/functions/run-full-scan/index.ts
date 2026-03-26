@@ -1343,6 +1343,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     const similarNote = flow._similar_count ? ` (+${flow._similar_count} liknande)` : "";
     const issueType = classifyIssueType(flow, "broken_flows");
     flow._issue_type = issueType;
+    flow._suggested_fix = suggestedFixForType(issueType);
     allWorkIssues.push({
       title: `Broken flow: ${flow.description || flow.route || flow.issue || "unknown"}${similarNote}`.slice(0, 120),
       priority: "high", item_type: "bug", description: flow.fix_suggestion || flow.detail || "",
@@ -1357,6 +1358,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     const similarNote = fake._similar_count ? ` (+${fake._similar_count} liknande)` : "";
     const issueType = classifyIssueType(fake, "fake_features");
     fake._issue_type = issueType;
+    fake._suggested_fix = suggestedFixForType(issueType);
     allWorkIssues.push({
       title: `Fake feature: ${fake.name || fake.component || fake.description || "unknown"}${similarNote}`.slice(0, 120),
       priority: "high", item_type: "improvement", description: fake.reason || fake.detail || "",
@@ -1371,6 +1373,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     const similarNote = fail._similar_count ? ` (+${fail._similar_count} liknande)` : "";
     const issueType = classifyIssueType(fail, "interaction_failures");
     fail._issue_type = issueType;
+    fail._suggested_fix = suggestedFixForType(issueType);
     allWorkIssues.push({
       title: `Interaction: ${fail.title || fail.element || fail.description || "unknown"}${similarNote}`.slice(0, 120),
       priority: fail.severity === "critical" ? "critical" : "high", item_type: "bug",
@@ -1386,6 +1389,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     const similarNote = issue._similar_count ? ` (+${issue._similar_count} liknande)` : "";
     const issueType = classifyIssueType(issue, "data_issues");
     issue._issue_type = issueType;
+    issue._suggested_fix = suggestedFixForType(issueType);
     allWorkIssues.push({
       title: `Data: ${issue.title || issue.field || issue.description || "unknown"}${similarNote}`.slice(0, 120),
       priority: issue.severity === "critical" ? "critical" : "medium", item_type: "bug",
