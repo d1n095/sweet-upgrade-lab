@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { tracedInvoke } from "@/lib/tracedInvoke";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useFounderRole } from "@/hooks/useFounderRole";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -235,7 +236,7 @@ const SystemExplorer = () => {
   const handleRunFullScan = async () => {
     setIsScanning(true);
     try {
-      const { error } = await supabase.functions.invoke("run-full-scan", {
+      const { error } = await tracedInvoke("run-full-scan", {
         body: { scan_mode: "full" },
       });
       if (error) throw error;
@@ -728,7 +729,7 @@ const SystemExplorer = () => {
     setAiAnswer(null);
     try {
       const focusSuffix = aiFocusArea ? ` [FOCUS AREA: ${aiFocusArea} — prioritize issues and scans within this area]` : "";
-      const { data, error } = await supabase.functions.invoke("ai-assistant", {
+      const { data, error } = await tracedInvoke("ai-assistant", {
         body: { type: "system_explorer_query", question: aiQuery.trim() + focusSuffix },
       });
       if (error) throw error;

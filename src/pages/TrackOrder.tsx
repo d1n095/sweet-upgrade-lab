@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
+import { tracedInvoke } from '@/lib/tracedInvoke';
 import { storeConfig } from '@/config/storeConfig';
 import { toast } from 'sonner';
 import { getOrderDisplayId } from '@/utils/orderDisplay';
@@ -171,7 +172,7 @@ const TrackOrder = () => {
       setSearchedQuery(cleanInput || cleanEmail);
 
       // Use edge function to bypass RLS — allows guest tracking
-      const { data, error } = await supabase.functions.invoke('lookup-order', {
+      const { data, error } = await tracedInvoke('lookup-order', {
         body: { query: cleanInput, email: cleanEmail },
       });
 
@@ -478,7 +479,7 @@ const TrackOrder = () => {
                     setIsRetrying(true);
                     try {
                       const items = Array.isArray(orderData.items) ? orderData.items : [];
-                      const { data, error } = await supabase.functions.invoke('create-checkout', {
+                      const { data, error } = await tracedInvoke('create-checkout', {
                         body: {
                           items: items.map((item: any) => ({
                             id: item.id,

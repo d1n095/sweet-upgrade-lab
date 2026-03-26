@@ -2,12 +2,13 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 
-async function logRuntimeTrace(source: string, function_name: string, endpoint: string, error_message: string, payload_snapshot: any) {
+async function logRuntimeTrace(source: string, function_name: string, endpoint: string, error_message: string, payload_snapshot: any, request_trace_id?: string) {
   try {
     const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     await sb.from("runtime_traces").insert({
       source, function_name, endpoint, error_message,
       payload_snapshot: typeof payload_snapshot === "object" ? JSON.parse(JSON.stringify(payload_snapshot, (_, v) => typeof v === "string" && v.length > 200 ? v.slice(0, 200) + "…" : v)) : {},
+      ...(request_trace_id ? { request_trace_id } : {}),
     });
   } catch (_) {}
 }

@@ -1,0 +1,1 @@
+ALTER TABLE public.runtime_traces ADD COLUMN IF NOT EXISTS request_trace_id uuid;
