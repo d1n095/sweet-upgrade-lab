@@ -102,7 +102,7 @@ const SystemExplorer = () => {
   const { isFounder, isLoading: founderLoading } = useFounderRole();
   const isSystemAdmin = isFounder || false; // founder = full access
   const isViewerAdmin = isAdmin && !isFounder; // admin without founder = read-only viewer
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ workItems: true, scanResults: true, aiFlow: true, scanners: true, noIssueAreas: false, orphanElements: false });
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ workItems: true, scanResults: true, aiFlow: true, scanners: true, noIssueAreas: false, orphanElements: false, issueClusters: false });
   const [expandedScanners, setExpandedScanners] = useState<Record<string, boolean>>({});
   const [scannerIssueFilter, setScannerIssueFilter] = useState<"all" | "bug" | "improvement" | "upgrade">("all");
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({ open: true, in_progress: true, done: false, completed: false, cancelled: false });
@@ -1298,6 +1298,55 @@ const SystemExplorer = () => {
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">Inga misstänkta områden identifierade.</p>
+              )}
+            </CardContent>
+          )}
+        </Card>
+
+        {/* ── ISSUE CLUSTERS SECTION ── */}
+        <Card>
+          <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("issueClusters")}>
+            <CardTitle className="text-sm flex items-center gap-2">
+              {expandedSections.issueClusters ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <Folder className="h-4 w-4 text-muted-foreground" />
+              Issue Clusters
+              {issueClusters.length > 0 && (
+                <Badge variant="secondary" className="text-[10px]">{issueClusters.length}</Badge>
+              )}
+              <Badge variant="outline" className="text-[10px]">READ-ONLY</Badge>
+            </CardTitle>
+            <p className="text-[10px] text-muted-foreground mt-1">Issues grouped by affected area — find one root problem causing many issues</p>
+          </CardHeader>
+          {expandedSections.issueClusters && (
+            <CardContent>
+              {issueClusters.length > 0 ? (
+                <div className="space-y-2">
+                  {issueClusters.map((cluster) => (
+                    <div key={cluster.cluster_id} className="border border-border rounded-md p-2 bg-muted/20">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <span className="font-mono text-xs font-medium text-foreground">{cluster.target}</span>
+                        <Badge variant={cluster.cluster_size >= 5 ? "destructive" : cluster.cluster_size >= 3 ? "secondary" : "outline"} className="text-[10px]">
+                          {cluster.cluster_size} issues
+                        </Badge>
+                        <Badge variant="outline" className="text-[9px]">{cluster.type}</Badge>
+                        <span className="text-[9px] text-muted-foreground">id: {cluster.cluster_id}</span>
+                      </div>
+                      {cluster.cluster_size >= 3 && (
+                        <p className="text-[9px] text-destructive">⚠️ Potential root cause — {cluster.cluster_size} issues clustered here</p>
+                      )}
+                      <div className="mt-1 space-y-0.5 max-h-24 overflow-y-auto">
+                        {cluster.issues.slice(0, 5).map((issue: any, idx: number) => (
+                          <p key={idx} className="text-[9px] text-muted-foreground truncate">• {issue.title || issue.description || issue.issue || "unnamed"}</p>
+                        ))}
+                        {cluster.issues.length > 5 && (
+                          <p className="text-[9px] text-muted-foreground">…and {cluster.issues.length - 5} more</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Inga issue-kluster identifierade.</p>
               )}
             </CardContent>
           )}
