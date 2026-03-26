@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
+import { tracedInvoke } from '@/lib/tracedInvoke';
 import { useAdminRole } from '@/hooks/useAdminRole';
 import { toast } from 'sonner';
 
