@@ -248,7 +248,23 @@ const SystemExplorer = () => {
     staleTime: 30_000,
   });
 
-  // Debug Console logs (runtime_traces + observability)
+  // Raw runtime errors (individual entries)
+  const { data: rawRuntimeErrors = [] } = useQuery({
+    queryKey: ["system-explorer-raw-runtime-errors"],
+    queryFn: async () => {
+      const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { data } = await supabase
+        .from("runtime_traces" as any)
+        .select("id, function_name, endpoint, error_message, created_at, request_trace_id")
+        .gte("created_at", cutoff)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      return (data || []) as any[];
+    },
+    staleTime: 30_000,
+  });
+
+
   const { data: debugConsoleLogs = [] } = useQuery({
     queryKey: ["system-explorer-debug-console"],
     queryFn: async () => {
