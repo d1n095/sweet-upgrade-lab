@@ -1193,10 +1193,27 @@ async function runConsistencyGuard(supabase: any, currentFingerprints: Map<strin
 }
 
 // ── Create work items with CONSISTENCY GUARD ──
+// ── Issue type classifier ──
+function classifyIssueType(issue: any, category: string): "bug" | "improvement" | "upgrade" {
+  const text = `${issue.title || ""} ${issue.description || ""} ${issue.fix_suggestion || ""} ${issue.type || ""} ${issue.failure_type || ""}`.toLowerCase();
+  // Bug: broken flow, missing data, crash, error, data_loss, action_failed
+  const bugPatterns = /broken|crash|error|missing data|data.?loss|action.?failed|lost.?state|orphan|saknas|finns ej|failed|duplicate|stale/;
+  // Improvement: UI spacing, unclear CTA, layout, inconsistency
+  const improvementPatterns = /spacing|layout|overflow|z-index|position|responsive|mobile|unclear|cta|inconsisten|alignment|truncat|padding|margin|style|visual|css/;
+  // Upgrade: feature missing but expected, outdated pattern, fake feature
+  const upgradePatterns = /fake.?feature|not.?implemented|placeholder|outdated|deprecated|missing.?feature|expected|wip|coming.?soon|icke.?funktionell/;
+
+  if (category === "fake_features") return "upgrade";
+  if (upgradePatterns.test(text)) return "upgrade";
+  if (improvementPatterns.test(text)) return "improvement";
+  if (bugPatterns.test(text)) return "bug";
+  return "bug";
+}
+
 async function createWorkItems(supabase: any, unified: any, stage: SystemStage): Promise<{ created: number; createTrace: any[] }> {
   let workItemsCreated = 0;
   const createTrace: any[] = [];
-  const allWorkIssues: { title: string; priority: string; item_type: string; description?: string; fingerprint: string; source_path?: string; source_file?: string; source_component?: string }[] = [];
+  const allWorkIssues: { title: string; priority: string; item_type: string; description?: string; fingerprint: string; source_path?: string; source_file?: string; source_component?: string; issue_type?: string }[] = [];
 
   // DEBUG MODE: Relaxed filter — only skip explicitly dev-expected issues
   const tagActionable = (issues: any[]) => issues.map(issue => {
