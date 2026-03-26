@@ -1035,6 +1035,11 @@ const SystemExplorer = () => {
                         {t._insert_error || t._validation_reason || t._dedup_reason}
                       </p>
                     )}
+                    {t._suggested_fix_code && (
+                      <p className="font-mono text-[10px] text-primary bg-primary/10 rounded px-1 py-0.5 break-all">
+                        💡 [{t._suggested_fix_type}] {t._suggested_fix_code}
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>

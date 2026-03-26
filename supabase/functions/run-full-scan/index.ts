@@ -1969,22 +1969,53 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     const now = new Date().toISOString();
     // Try match a recent runtime_trace (within 60s)
     let matchedTraceId: string | null = null;
+    let matchedTraceFn: string | null = null;
+    let matchedTraceEndpoint: string | null = null;
     if (issue.issue_type === "bug" || issue.affected_area === "data" || issue.title?.toLowerCase().includes("missing") || issue.title?.toLowerCase().includes("mismatch") || issue.title?.toLowerCase().includes("null") || issue.title?.toLowerCase().includes("lost")) {
       try {
         const cutoff = new Date(Date.now() - 60_000).toISOString();
         const keywords = (issue.title || "").split(/\s+/).filter((w: string) => w.length > 4).slice(0, 3);
-        let traceQuery = supabase.from("runtime_traces").select("id, error_message").gte("created_at", cutoff).order("created_at", { ascending: false }).limit(5);
+        let traceQuery = supabase.from("runtime_traces").select("id, error_message, function_name, endpoint").gte("created_at", cutoff).order("created_at", { ascending: false }).limit(5);
         const { data: traces } = await traceQuery;
         if (traces?.length) {
           const match = traces.find((t: any) => keywords.some((kw: string) => t.error_message?.toLowerCase().includes(kw.toLowerCase())));
           matchedTraceId = match?.id || traces[0]?.id || null;
+          if (match) { matchedTraceFn = match.function_name || null; matchedTraceEndpoint = match.endpoint || null; }
+          else if (traces[0]) { matchedTraceFn = traces[0].function_name || null; matchedTraceEndpoint = traces[0].endpoint || null; }
         }
       } catch (_) {}
     }
 
+    // Suggested fix generation
+    let suggested_fix_code: string | null = null;
+    let suggested_fix_type: "sql" | "logic" | "mapping" | null = null;
+    const titleLower = (issue.title || "").toLowerCase();
+    const descLower = (issue.description || "").toLowerCase();
+    const traceContext = matchedTraceFn ? ` in ${matchedTraceFn}${matchedTraceEndpoint ? ` (${matchedTraceEndpoint})` : ""}` : "";
+
+    if (titleLower.includes("id lost") || titleLower.includes("persisted") || descLower.includes("id lost")) {
+      suggested_fix_type = "sql";
+      suggested_fix_code = `Ensure DB insert returns id and is awaited properly${traceContext}. Check that .select("id").single() is chained after insert.`;
+    } else if (titleLower.includes("no data found") || titleLower.includes("missing") || descLower.includes("no data found where expected")) {
+      suggested_fix_type = "logic";
+      suggested_fix_code = `Check insert logic or missing trigger for entity creation${traceContext}. Verify the row exists after write and RLS allows read-back.`;
+    } else if (titleLower.includes("mismatch") || titleLower.includes("data mismatch") || descLower.includes("mismatch")) {
+      suggested_fix_type = "mapping";
+      suggested_fix_code = `Align frontend expected fields with backend response${traceContext}. Compare request payload keys with DB column names.`;
+    } else if (titleLower.includes("null") || titleLower.includes("undefined")) {
+      suggested_fix_type = "logic";
+      suggested_fix_code = `Check for null/undefined values before DB write${traceContext}. Add default values or NOT NULL constraints.`;
+    } else if (titleLower.includes("rls") || titleLower.includes("row-level") || titleLower.includes("policy")) {
+      suggested_fix_type = "sql";
+      suggested_fix_code = `Review RLS policies${traceContext}. Ensure user_id is set correctly and policy allows the operation.`;
+    } else if (matchedTraceFn) {
+      suggested_fix_type = "logic";
+      suggested_fix_code = `Runtime error detected in ${matchedTraceFn}${matchedTraceEndpoint ? ` (${matchedTraceEndpoint})` : ""}. Check error handling and input validation.`;
+    }
+
     const insertPayload: Record<string, any> = {
       title: issue.title,
-      description: issue.description || "Auto-generated from scan",
+      description: (issue.description || "Auto-generated from scan") + (suggested_fix_code ? `\n\n💡 Suggested fix (${suggested_fix_type}): ${suggested_fix_code}` : ""),
       status: "open",
       priority: issue.priority,
       item_type: issue.item_type,
@@ -2020,12 +2051,12 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
       console.log(`[create-verify] ✅ VERIFIED: ${created.id} "${issue.title.slice(0, 40)}"`);
       workItemsCreated++;
       verified = true;
-      createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'created', created_id: created.id, issue_type: issue.issue_type || 'bug', affected_area: issue.affected_area, _origin_source: 'ai_scan', _impact_score: (issue as any)._impact_score, _impact_label: (issue as any)._impact_label, _insert_success: true, _insert_error: null });
+      createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'created', created_id: created.id, issue_type: issue.issue_type || 'bug', affected_area: issue.affected_area, _origin_source: 'ai_scan', _impact_score: (issue as any)._impact_score, _impact_label: (issue as any)._impact_label, _insert_success: true, _insert_error: null, _suggested_fix_code: suggested_fix_code, _suggested_fix_type: suggested_fix_type });
       
       break;
     }
     if (!verified) {
-      createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'skipped_validation', _validation_reason: 'invalid_payload', issue_type: issue.issue_type || 'bug', affected_area: issue.affected_area, _insert_success: false, _insert_error: lastInsertError });
+      createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'skipped_validation', _validation_reason: 'invalid_payload', issue_type: issue.issue_type || 'bug', affected_area: issue.affected_area, _insert_success: false, _insert_error: lastInsertError, _suggested_fix_code: suggested_fix_code, _suggested_fix_type: suggested_fix_type });
       console.error(`[create-verify] ❌ FAILED: "${issue.title.slice(0, 60)}" error: ${lastInsertError}`);
     }
   }
