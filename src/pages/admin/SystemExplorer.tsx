@@ -267,7 +267,7 @@ const SystemExplorer = () => {
     staleTime: 15_000,
   });
 
-
+  const handleRefresh = async () => {
     setIsRefreshing(true);
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["system-explorer-work-items"] }),
