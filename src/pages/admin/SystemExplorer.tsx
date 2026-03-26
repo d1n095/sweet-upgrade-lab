@@ -2390,6 +2390,52 @@ const SystemExplorer = () => {
               })()}
               {/* Runtime Trace Section */}
               <RuntimeTraceSection traceId={(selectedItem as any).runtime_trace_id} />
+              {/* Pipeline Trace: SCAN → FILTER → DEDUP → CREATE */}
+              {(() => {
+                const fp = (selectedItem as any).issue_fingerprint;
+                const trace = (scanResults?._create_trace ?? [] as any[]).find((t: any) => t.fingerprint === fp || t.title === selectedItem.title);
+                const scanned = true; // if it exists, scan found it
+                const filterDecision = trace?._filter_decision;
+                const filtered = filterDecision === "passed";
+                const filterReason = trace?._filter_reason || (filterDecision && filterDecision !== "passed" ? filterDecision : null);
+                const dedupDecision = trace?._create_decision;
+                const deduped = dedupDecision !== "skipped_dedup";
+                const dedupReason = trace?._dedup_reason || (dedupDecision === "skipped_dedup" ? "duplicate" : null);
+                const created = dedupDecision === "created";
+                const createError = trace?._create_error || (dedupDecision === "skipped_validation" ? trace?._validation_reason : null);
+
+                const steps = [
+                  { label: "SCAN", ok: scanned, reason: null as string | null },
+                  { label: "FILTER", ok: trace ? filtered : null, reason: filterReason },
+                  { label: "DEDUP", ok: trace ? deduped : null, reason: dedupReason },
+                  { label: "CREATE", ok: trace ? created : null, reason: createError },
+                ];
+
+                return (
+                  <div className="border border-border rounded-md p-2 bg-muted/30 space-y-2">
+                    <span className="text-muted-foreground text-xs font-medium">Pipeline Trace</span>
+                    <div className="flex items-center gap-1 flex-wrap">
+                      {steps.map((step, idx) => (
+                        <React.Fragment key={step.label}>
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded border font-medium ${step.ok === true ? "border-primary/30 text-primary bg-primary/5" : step.ok === false ? "border-destructive/40 text-destructive bg-destructive/5 font-bold" : "border-border text-muted-foreground bg-muted/20"}`}>
+                            {step.ok === true ? "✅" : step.ok === false ? "❌" : "–"} {step.label}
+                          </span>
+                          {idx < steps.length - 1 && <span className="text-[9px] text-muted-foreground">→</span>}
+                        </React.Fragment>
+                      ))}
+                    </div>
+                    {steps.find(s => s.ok === false) && (
+                      <p className="text-[9px] text-destructive font-medium">
+                        💥 Stopped at: {steps.find(s => s.ok === false)?.label}
+                        {steps.find(s => s.ok === false)?.reason && ` — ${steps.find(s => s.ok === false)?.reason}`}
+                      </p>
+                    )}
+                    {!trace && (
+                      <p className="text-[9px] text-muted-foreground">No trace found in latest scan (may be from older scan)</p>
+                    )}
+                  </div>
+                );
+              })()}
               <div>
                 <span className="text-muted-foreground text-xs">Created By</span>
                 <p className="font-mono text-xs break-all">{selectedItem.created_by ?? "–"}</p>
