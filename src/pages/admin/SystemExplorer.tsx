@@ -221,6 +221,31 @@ const SystemExplorer = () => {
     );
   }, [systemExpectations, structureMap]);
 
+  // Top runtime errors (clustered)
+  const { data: runtimeErrorClusters = [] } = useQuery({
+    queryKey: ["system-explorer-runtime-errors"],
+    queryFn: async () => {
+      const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { data } = await supabase
+        .from("runtime_traces" as any)
+        .select("id, function_name, endpoint, error_message, created_at")
+        .gte("created_at", cutoff)
+        .order("created_at", { ascending: false })
+        .limit(200);
+      if (!data?.length) return [];
+      const clusters: Record<string, { function_name: string; endpoint: string; error_message: string; count: number; latest: string }> = {};
+      for (const t of data as any[]) {
+        const key = `${t.function_name}::${(t.error_message || "").slice(0, 100)}`;
+        if (!clusters[key]) {
+          clusters[key] = { function_name: t.function_name, endpoint: t.endpoint || "", error_message: t.error_message || "", count: 0, latest: t.created_at };
+        }
+        clusters[key].count++;
+        if (t.created_at > clusters[key].latest) clusters[key].latest = t.created_at;
+      }
+      return Object.values(clusters).sort((a, b) => b.count - a.count).slice(0, 10);
+    },
+    staleTime: 30_000,
+  });
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
