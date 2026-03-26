@@ -263,7 +263,7 @@ const SystemExplorer = () => {
     setIsScanning(true);
     try {
       const { error } = await tracedInvoke("run-full-scan", {
-        body: { action: "run_full_scan", scan_mode: "full" },
+        body: { action: "start", scan_mode: "full" },
       });
       if (error) throw error;
       await handleRefresh();
