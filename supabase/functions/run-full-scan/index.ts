@@ -2360,6 +2360,36 @@ serve(async (req) => {
       // Coverage penalty
       const coveragePct = totalScanners > 0 ? Math.round((coverageUniqueTargets / Math.max(coverageTotal, 1)) * 100) : 0;
       if (coveragePct < 50) scanConfidenceScore -= 10;
+
+      // Extended confidence modifiers
+      // +10 if all required entities exist, -10 per missing
+      const { data: expectations } = await supabase.from("system_expectations").select("entity_type, entity_name").eq("required", true);
+      const { data: structMap } = await supabase.from("system_structure_map").select("entity_type, entity_name");
+      const structKeys = new Set((structMap || []).map((s: any) => `${s.entity_type}::${s.entity_name}`));
+      const missingRequired = (expectations || []).filter((e: any) => !structKeys.has(`${e.entity_type}::${e.entity_name}`));
+      if (missingRequired.length === 0 && (expectations || []).length > 0) {
+        scanConfidenceScore += 10;
+      } else {
+        scanConfidenceScore -= missingRequired.length * 10;
+      }
+
+      // -10 if regression detected (compare with previous snapshot)
+      const { data: prevSnapshots } = await supabase.from("scan_snapshots").select("total_detected, dead_scanners_count, blind_scanners_count, coverage_unique_targets, payload").order("created_at", { ascending: false }).limit(1);
+      if (prevSnapshots && prevSnapshots.length > 0) {
+        const prev = prevSnapshots[0] as any;
+        const prevDead = prev.dead_scanners_count ?? 0;
+        const prevBlind = prev.blind_scanners_count ?? 0;
+        if (deadScannersCount > prevDead || blindScannersCount > prevBlind || (coverageUniqueTargets < (prev.coverage_unique_targets ?? 0))) {
+          scanConfidenceScore -= 10;
+        }
+      }
+
+      // +5 if confirmed fixes exist
+      const { count: confirmedCount } = await supabase.from("work_items").select("id", { count: "exact", head: true }).eq("status", "done").eq("verification_status", "confirmed");
+      if ((confirmedCount ?? 0) > 0) {
+        scanConfidenceScore += 5;
+      }
+
       scanConfidenceScore = Math.max(0, Math.min(100, scanConfidenceScore));
       diagLines.push(`🎯 Scan confidence: ${scanConfidenceScore}%`);
       const diagnosisSummary = diagLines.slice(0, 10).join("\n");
