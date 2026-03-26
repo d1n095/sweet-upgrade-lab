@@ -1398,6 +1398,9 @@ const SystemExplorer = () => {
           <div className="space-y-3">
             <span className="text-[9px] text-yellow-500/70 font-mono">⚠ Frontend scan (static / debug only)</span>
             <span className="text-[9px] text-yellow-500/70 font-mono ml-2">⚠ Not connected to real codebase</span>
+            {Object.keys(getRawSources() || {}).length === 0 && (
+              <p className="text-[10px] text-red-500 font-mono">❌ No source data — frontend scan is blind</p>
+            )}
             {/* Filters */}
             <div className="flex gap-1 items-center">
               {(["all", "orphan", "has_issues"] as const).map((f) => (
