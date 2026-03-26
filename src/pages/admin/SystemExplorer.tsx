@@ -213,7 +213,39 @@ const SystemExplorer = () => {
     setCodeScanResult(allIssues);
   }, []);
 
-  function handleSearch() {
+  useEffect(() => {
+    const rawSources = getRawSources();
+    if (!rawSources) {
+      console.warn("❌ NO rawSources — cannot scan");
+      return;
+    }
+    console.log("🔍 FRONTEND SCAN START");
+    const allIssues: { type: string; message: string; file: string }[] = [];
+    Object.entries(rawSources).forEach(([path, content]) => {
+      if (!content) return;
+      if (
+        path.includes("/components/") &&
+        (String(content).includes("fetch(") || String(content).includes("supabase"))
+      ) {
+        allIssues.push({
+          file: path,
+          type: "structure",
+          message: "API call inside component"
+        });
+      }
+      if (String(content).includes("fetch(") && !String(content).includes("catch")) {
+        allIssues.push({
+          file: path,
+          type: "bug",
+          message: "Fetch without error handling"
+        });
+      }
+    });
+    console.log("🚨 FRONTEND ISSUES FOUND:", allIssues.length);
+    setGlobalIssues(allIssues);
+  }, []);
+
+
     logAction({ type: "Search", status: "started" });
     if (!searchQuery) {
       logAction({ type: "Search", status: "no-input", message: "Search query empty" });
