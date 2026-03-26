@@ -2270,7 +2270,7 @@ serve(async (req) => {
       const { data: running } = await supabase.from("scan_runs").select("id, started_by, current_step_label, started_at").eq("status", "running").limit(1);
       if (running?.length) {
         const startedAt = new Date(running[0].started_at).getTime();
-        if (Date.now() - startedAt > 15 * 60 * 1000) {
+        if (Date.now() - startedAt > 5 * 60 * 1000) {
           await supabase.from("scan_runs").update({ status: "error", error_message: "Timeout 15 min", completed_at: new Date().toISOString() }).eq("id", running[0].id);
         } else {
           return new Response(JSON.stringify({ success: false, error: "En skanning körs redan", running_scan: running[0] }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
