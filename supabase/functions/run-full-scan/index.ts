@@ -2192,6 +2192,19 @@ serve(async (req) => {
       const createResult = await createWorkItems(supabase, unified, systemStage);
       let workItemsCreated = createResult.created;
       unified._create_trace = createResult.createTrace;
+
+      // ── SUSPICIOUS AREA RULE 3: High issues but low creation (post-createWorkItems) ──
+      for (const [, entry] of Object.entries(targetIssueCounts)) {
+        if (entry.count >= 3) {
+          const createdForArea = (createResult.createTrace || []).filter((t: any) => t._create_decision === "created" && t.affected_area?.target === entry.target).length;
+          if (createdForArea === 0 && !suspiciousAreas.find(s => s.target === entry.target && s.reason.includes("issues but"))) {
+            suspiciousAreas.push({ target: entry.target, type: entry.type, reason: `${entry.count} issues but 0 work items created` });
+          }
+        }
+      }
+      // Update adaptiveResult with final suspicious_areas
+      adaptiveResult.suspicious_areas = suspiciousAreas;
+
       // Systemic issues → work items (with consistency guard)
       for (const si of systemicIssues) {
         const fp = generateFingerprint({ component: si.pattern, type: "systemic", route: "global" });
