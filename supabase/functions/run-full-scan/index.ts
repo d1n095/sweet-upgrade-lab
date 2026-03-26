@@ -2297,6 +2297,26 @@ serve(async (req) => {
         current_step: STEPS.length, current_step_label: `Klar ✓ (${iterationsCompleted} iter, ${systemStage})`,
       }).eq("id", scan_run_id);
 
+      // Store scan snapshot for historical tracking
+      const totalScanners = STEPS.length;
+      const totalDetected = issuesCount;
+      const totalFiltered = adaptiveResult?.issues?.length ?? 0;
+      const totalSkipped = Math.max(0, totalDetected - workItemsCreated);
+      const highAttentionCount = (adaptiveResult?.issues ?? []).filter((i: any) => i._impact_score >= 4).length;
+      const deadScannersCount = Object.values(updatedResults || {}).filter((s: any) => s?._executed === false || s?.failed === true).length;
+      const blindScannersCount = Object.values(updatedResults || {}).filter((s: any) => s?._executed !== false && s?.failed !== true && (s?._scan_scope?.size > 0) && (!s?.issues || s.issues.length === 0)).length;
+      await supabase.from("scan_snapshots").insert({
+        total_scanners: totalScanners,
+        total_detected: totalDetected,
+        total_filtered: totalFiltered,
+        total_created: workItemsCreated,
+        total_skipped: totalSkipped,
+        high_attention_count: highAttentionCount,
+        dead_scanners_count: deadScannersCount,
+        blind_scanners_count: blindScannersCount,
+        payload: adaptiveResult,
+      });
+
       await supabase.from("system_observability_log").insert({
         event_type: "action", severity: unified.system_health_score < 50 ? "warning" : "info",
         source: "scanner", message: `Full skanning klar: ${execSummary}`,
