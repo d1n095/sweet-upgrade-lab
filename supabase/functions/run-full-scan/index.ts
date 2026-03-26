@@ -1360,7 +1360,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     allWorkIssues.push({
       title: `Fake feature: ${fake.name || fake.component || fake.description || "unknown"}${similarNote}`.slice(0, 120),
       priority: "high", item_type: "improvement", description: fake.reason || fake.detail || "",
-      fingerprint: fp, issue_type: issueType,
+      fingerprint: fp, issue_type: issueType, suggested_fix: suggestedFixForType(issueType),
       source_path: fake.route || fake.page || null, source_file: fake.file || fake.source_file || null, source_component: fake.component || fake.name || null,
     });
   }
@@ -1375,7 +1375,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
       title: `Interaction: ${fail.title || fail.element || fail.description || "unknown"}${similarNote}`.slice(0, 120),
       priority: fail.severity === "critical" ? "critical" : "high", item_type: "bug",
       description: fail.fix_suggestion || fail.detail || fail.issue || "",
-      fingerprint: fp, issue_type: issueType,
+      fingerprint: fp, issue_type: issueType, suggested_fix: suggestedFixForType(issueType),
       source_path: fail.route || fail.page || null, source_file: fail.file || fail.source_file || null, source_component: fail.component || fail.element || null,
     });
   }
@@ -1390,7 +1390,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
       title: `Data: ${issue.title || issue.field || issue.description || "unknown"}${similarNote}`.slice(0, 120),
       priority: issue.severity === "critical" ? "critical" : "medium", item_type: "bug",
       description: issue.fix_suggestion || issue.detail || "",
-      fingerprint: fp, issue_type: issueType,
+      fingerprint: fp, issue_type: issueType, suggested_fix: suggestedFixForType(issueType),
       source_path: issue.route || issue.page || null, source_file: issue.file || issue.source_file || null, source_component: issue.component || issue.table || issue.entity || null,
     });
   }
