@@ -227,6 +227,46 @@ const SystemExplorer = () => {
     });
     setSearchResults(results.slice(0, 50));
   }
+
+  async function runSystemScan(mode: string) {
+    logAction({ type: "SCAN", status: "started", mode });
+    try {
+      if (mode === "files") {
+        const files = Object.keys(getRawSources() || {});
+        const result = {
+          total: files.length,
+          empty: files.filter(f => !getRawSources()[f]?.trim()).length
+        };
+        setFileScanResult({ total: result.total, emptyFiles: result.empty, largeFiles: 0 });
+        logAction({ type: "SCAN", status: "success", mode });
+      }
+      if (mode === "code") {
+        const index = getCodeIndex();
+        const result = {
+          files: index.length,
+          api: index.filter(f => f.hasApiCall).length
+        };
+        setCodeScanResult({ filesWithApi: result.api, filesWithState: 0, largeFiles: 0 });
+        logAction({ type: "SCAN", status: "success", mode });
+      }
+      if (mode === "full") {
+        console.log("[FULL SCAN TRIGGERED]");
+        await tracedInvoke("run-full-scan", {
+          body: { action: "start", scan_mode: "full" },
+        });
+        logAction({ type: "SCAN", status: "success", mode });
+      }
+    } catch (err: any) {
+      console.error("[SCAN ERROR]:", err);
+      logAction({
+        type: "SCAN",
+        status: "error",
+        mode,
+        message: err.message
+      });
+    }
+  }
+
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | null>(null);
   const [verifyingFix, setVerifyingFix] = useState(false);
   const [verifyResult, setVerifyResult] = useState<{ itemId: string; status: "confirmed" | "failed"; scanId?: string } | null>(null);
