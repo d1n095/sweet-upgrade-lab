@@ -168,6 +168,20 @@ const SystemExplorer = () => {
     },
   });
 
+  // 2c. Last 3 scans for no-issue detection
+  const { data: last3Scans = [] } = useQuery({
+    queryKey: ["system-explorer-last-3-scans"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("ai_scan_results")
+        .select("results")
+        .order("created_at", { ascending: false })
+        .limit(3);
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+
   // 2b. Latest scan_run for pipeline data
   const { data: latestRun } = useQuery({
     queryKey: ["system-explorer-latest-run"],
