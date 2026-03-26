@@ -9131,6 +9131,7 @@ async function handleSystemExplorerQuery(supabase: any, apiKey: string, question
 
   const latestScan = scans[0];
   const scanIssues = latestScan?.results?.issues || [];
+  const highAttentionAreas = latestScan?.results?.high_attention_areas || [];
 
   const context = `
 SYSTEM STATE (read-only snapshot):
@@ -9144,6 +9145,12 @@ ${latestScan ? `ID: ${latestScan.id.slice(0,8)}, Type: ${latestScan.scan_type}, 
 
 SCAN ISSUES (${scanIssues.length}):
 ${JSON.stringify(scanIssues.slice(0, 20).map((i: any) => ({ title: i.title, type: i.type, category: i.category, severity: i.severity })))}
+
+HIGH ATTENTION AREAS (${highAttentionAreas.length}):
+${highAttentionAreas.length > 0 ? JSON.stringify(highAttentionAreas) : 'None flagged'}
+
+SYSTEM STRUCTURE MAP (${structureMap.length} entries, most recent first):
+${JSON.stringify(structureMap.map((s: any) => ({ type: s.entity_type, name: s.entity_name, source: s.source_path, scans: s.scan_count, last_seen: s.last_seen_at })))}
 
 RECENT BUGS (${bugs.length}):
 ${JSON.stringify(bugs.slice(0, 15).map((b: any) => ({ id: b.id.slice(0,8), status: b.status, severity: b.ai_severity, category: b.ai_category, summary: b.ai_summary?.slice(0,60) })))}
