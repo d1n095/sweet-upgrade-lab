@@ -919,6 +919,16 @@ const SystemExplorer = () => {
       {/* Main tree panel */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         <p className="text-xs text-green-500 font-mono">TEST BUILD OK — Files detected: {fileSystemMap.length}</p>
+        <div className="flex gap-2 items-center">
+          <Input
+            placeholder="Search code..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+            className="h-7 text-[10px] max-w-[250px]"
+          />
+          <Button variant="outline" size="sm" className="text-[10px] h-7" onClick={handleSearch}>Search</Button>
+        </div>
         <div className="flex items-center gap-2 flex-wrap">
           <Database className="h-6 w-6 text-primary" />
           <h1 className="text-2xl font-bold text-foreground">System Explorer</h1>
