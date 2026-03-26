@@ -1635,13 +1635,22 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
       const itemAge = Date.now() - new Date(existingItem.created_at).getTime();
       const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
       if (itemAge <= TWENTY_FOUR_HOURS) {
-        // REAPPEARING ISSUE within 24h — do NOT create new
+        // REAPPEARING ISSUE within 24h — do NOT create new, but update occurrence tracking
+        const updatePayload: Record<string, any> = {
+          last_seen_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
         if (existingItem.priority !== issue.priority) {
-          await supabase.from("work_items").update({
-            priority: issue.priority,
-            updated_at: new Date().toISOString(),
-          }).eq("id", existingItem.id);
+          updatePayload.priority = issue.priority;
+        }
+        await supabase.from("work_items").update(updatePayload).eq("id", existingItem.id);
+        // Increment occurrence_count via raw increment
+        await supabase.rpc("increment_work_item_occurrence", { p_work_item_id: existingItem.id }).catch(() => {
+          // Fallback if RPC doesn't exist yet
+          console.log(`[occurrence] RPC fallback for ${existingItem.id.slice(0, 8)}`);
+        });
 
+        if (existingItem.priority !== issue.priority) {
           await supabase.from("system_observability_log").insert({
             event_type: "action", severity: "info", source: "consistency_guard",
             message: `Severity ändrad: "${issue.title.slice(0, 60)}" ${existingItem.priority} → ${issue.priority}`,
