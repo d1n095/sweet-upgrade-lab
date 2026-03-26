@@ -518,7 +518,13 @@ const SystemExplorer = () => {
         else if (detected > 0 && created === 0) health = "DEDUP_BLOCKED";
         else if (created > 0) health = "WORKING";
         else health = "BLIND";
-        return { ...scanner, detected, afterFilter: created, skipped, created, health, rawIssues: uniqueRaw, executed, executionTimeMs, inputSize, emptyReason, scanStartedAt, scanFinishedAt, scanScope, createTrace };
+        // Silent failure: scope exists, executed, but zero issues, zero work_items, no history activity
+        const relatedWorkItems = scanItems.filter(w => {
+          const t = w.title?.toLowerCase() || "";
+          return scanner.matchKeys.some(mk => t.includes(mk.toLowerCase()));
+        });
+        const silentFailure = executed && scopeSize > 0 && detected === 0 && created === 0 && relatedWorkItems.length === 0;
+        return { ...scanner, detected, afterFilter: created, skipped, created, health, silentFailure, rawIssues: uniqueRaw, executed, executionTimeMs, inputSize, emptyReason, scanStartedAt, scanFinishedAt, scanScope, createTrace };
       });
 
       const groupDetected = scannerResults.reduce((s, r) => s + r.detected, 0);
@@ -901,6 +907,9 @@ const SystemExplorer = () => {
                                 >
                                   {scanner.health}
                                 </Badge>
+                                {scanner.silentFailure && (
+                                  <Badge variant="destructive" className="text-[9px] px-1 py-0">⚠️ SILENT_FAILURE</Badge>
+                                )}
                               </button>
                               <div className="px-2.5 pb-1.5 grid grid-cols-4 gap-1 text-[10px]">
                                 <div className="text-center">
