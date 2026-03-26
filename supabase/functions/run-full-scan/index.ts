@@ -2090,7 +2090,7 @@ serve(async (req) => {
 
     const body = await req.json();
     console.log("FULL SCAN BODY:", body);
-    const { action, scan_run_id, step_index, iteration, request_trace_id } = body;
+    const { action, scan_run_id, step_index, iteration, request_trace_id, scan_mode, target_area, verification_for } = body;
 
     // ── START ──
     if (action === "start") {
@@ -2122,15 +2122,24 @@ serve(async (req) => {
       const systemStage = await getSystemStage(supabase);
 
       const focusMemory = await loadFocusMemory(supabase);
-      const prioritizedSteps = prioritizeSteps(STEPS, focusMemory);
+
+      // Targeted mode: only run a subset of steps for fast re-scan
+      const isTargeted = scan_mode === "targeted" && target_area;
+      const targetedStepIds = ["data_flow_validation", "ui_data_binding", "regression_detection", "blocker_detection"];
+      const allSteps = prioritizeSteps(STEPS, focusMemory);
+      const prioritizedSteps = isTargeted
+        ? allSteps.filter((s: any) => targetedStepIds.includes(s.id))
+        : allSteps;
+      const effectiveIterations = isTargeted ? 1 : MAX_ITERATIONS;
 
       const { data: scanRun, error: insertError } = await supabase.from("scan_runs").insert({
         status: "running", started_by: userId, current_step: 0, total_steps: prioritizedSteps.length,
         current_step_label: prioritizedSteps[0].label, steps_results: {},
-        iteration: 1, max_iterations: MAX_ITERATIONS, iteration_results: [], pattern_discoveries: [],
+        iteration: 1, max_iterations: effectiveIterations, iteration_results: [], pattern_discoveries: [],
         high_risk_areas: focusMemory.slice(0, 10).map((m: any) => ({ component: m.label, issue_count: m.issue_count, risk_level: m.severity, source: "focus_memory" })),
         coverage_score: 0, total_new_issues: 0,
-        system_stage: systemStage, // Store stage in scan run
+        system_stage: systemStage,
+        ...(isTargeted ? { scan_mode: "targeted", target_area, verification_for } : { scan_mode: "full" }),
       }).select("id").single();
 
       if (insertError || !scanRun) return new Response(JSON.stringify({ error: "Failed to create scan run" }), { status: 500, headers: corsHeaders });
@@ -2140,7 +2149,7 @@ serve(async (req) => {
         body: JSON.stringify({ action: "process_step", scan_run_id: scanRun.id, step_index: 0, iteration: 1 }),
       }).catch((e) => console.error("Failed to chain first step:", e));
 
-      return new Response(JSON.stringify({ scan_run_id: scanRun.id, status: "started", system_stage: systemStage }), {
+      return new Response(JSON.stringify({ scan_run_id: scanRun.id, status: "started", system_stage: systemStage, scan_mode: isTargeted ? "targeted" : "full" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

@@ -2439,7 +2439,7 @@ const SystemExplorer = () => {
                       const target = meta?.affected_area?.target || (selectedItem as any).source_component || (selectedItem as any).source_path || selectedItem.item_type;
 
                       const { data: scanData } = await tracedInvoke("run-full-scan", {
-                        body: { action: "start", scan_mode: "partial", target_area: target, verification_for: selectedItem.id },
+                        body: { action: "start", scan_mode: "targeted", target_area: target, verification_for: selectedItem.id },
                       });
 
                       // 3. Check if issue still found
