@@ -3729,6 +3729,7 @@ export type Database = {
           due_at: string | null
           duplicate_of: string | null
           execution_order: number | null
+          first_seen_at: string | null
           human_custom_cause: string | null
           human_custom_fix: string | null
           human_selected_cause: string | null
@@ -3738,6 +3739,8 @@ export type Database = {
           ignored_reason: string | null
           issue_fingerprint: string | null
           item_type: string
+          last_seen_at: string | null
+          occurrence_count: number | null
           orchestrator_result: Json | null
           priority: string
           related_incident_id: string | null
@@ -3781,6 +3784,7 @@ export type Database = {
           due_at?: string | null
           duplicate_of?: string | null
           execution_order?: number | null
+          first_seen_at?: string | null
           human_custom_cause?: string | null
           human_custom_fix?: string | null
           human_selected_cause?: string | null
@@ -3790,6 +3794,8 @@ export type Database = {
           ignored_reason?: string | null
           issue_fingerprint?: string | null
           item_type?: string
+          last_seen_at?: string | null
+          occurrence_count?: number | null
           orchestrator_result?: Json | null
           priority?: string
           related_incident_id?: string | null
@@ -3833,6 +3839,7 @@ export type Database = {
           due_at?: string | null
           duplicate_of?: string | null
           execution_order?: number | null
+          first_seen_at?: string | null
           human_custom_cause?: string | null
           human_custom_fix?: string | null
           human_selected_cause?: string | null
@@ -3842,6 +3849,8 @@ export type Database = {
           ignored_reason?: string | null
           issue_fingerprint?: string | null
           item_type?: string
+          last_seen_at?: string | null
+          occurrence_count?: number | null
           orchestrator_result?: Json | null
           priority?: string
           related_incident_id?: string | null
@@ -4029,6 +4038,10 @@ export type Database = {
       }
       increment_structure_map_scan: {
         Args: { p_entity_name: string; p_entity_type: string }
+        Returns: undefined
+      }
+      increment_work_item_occurrence: {
+        Args: { p_work_item_id: string }
         Returns: undefined
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
