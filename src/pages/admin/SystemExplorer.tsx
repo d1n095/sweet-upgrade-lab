@@ -934,7 +934,39 @@ const SystemExplorer = () => {
         </Card>
         )}
 
-        {isViewerAdmin && (
+        {/* DEBUG CONSOLE */}
+        {isSystemAdmin && (
+        <Card>
+          <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("debugConsole")}>
+            <CardTitle className="text-sm flex items-center gap-2">
+              {expandedSections.debugConsole ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <Cpu className="h-4 w-4 text-primary" />
+              Debug Console ({debugConsoleLogs.length})
+            </CardTitle>
+          </CardHeader>
+          {expandedSections.debugConsole && (
+            <CardContent className="pt-0">
+              <div className="bg-muted/20 border border-border rounded-md p-2 max-h-[400px] overflow-y-auto font-mono text-[11px] space-y-0.5">
+                {debugConsoleLogs.length === 0 && (
+                  <p className="text-muted-foreground py-2">No logs in last 2h</p>
+                )}
+                {(debugConsoleLogs as any[]).map((log: any) => {
+                  const time = new Date(log.ts).toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+                  return (
+                    <div key={log.id} className="flex gap-2 py-0.5 border-b border-border/30 last:border-0">
+                      <span className="text-muted-foreground shrink-0">[{time}]</span>
+                      <span className="text-primary shrink-0">{log.source}</span>
+                      <span className="text-foreground break-all">{log.message}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          )}
+        </Card>
+        )}
+
+
           <Card>
             <CardContent className="p-4 flex items-center gap-2 text-sm text-muted-foreground">
               <Lock className="h-4 w-4" />
