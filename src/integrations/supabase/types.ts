@@ -2980,6 +2980,48 @@ export type Database = {
         }
         Relationships: []
       }
+      scan_snapshots: {
+        Row: {
+          blind_scanners_count: number
+          created_at: string
+          dead_scanners_count: number
+          high_attention_count: number
+          id: string
+          payload: Json | null
+          total_created: number
+          total_detected: number
+          total_filtered: number
+          total_scanners: number
+          total_skipped: number
+        }
+        Insert: {
+          blind_scanners_count?: number
+          created_at?: string
+          dead_scanners_count?: number
+          high_attention_count?: number
+          id?: string
+          payload?: Json | null
+          total_created?: number
+          total_detected?: number
+          total_filtered?: number
+          total_scanners?: number
+          total_skipped?: number
+        }
+        Update: {
+          blind_scanners_count?: number
+          created_at?: string
+          dead_scanners_count?: number
+          high_attention_count?: number
+          id?: string
+          payload?: Json | null
+          total_created?: number
+          total_detected?: number
+          total_filtered?: number
+          total_scanners?: number
+          total_skipped?: number
+        }
+        Relationships: []
+      }
       search_logs: {
         Row: {
           created_at: string
