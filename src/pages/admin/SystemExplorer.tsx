@@ -160,7 +160,7 @@ const SystemExplorer = () => {
   const { isFounder, isLoading: founderLoading } = useFounderRole();
   const isSystemAdmin = isFounder || false; // founder = full access
   const isViewerAdmin = isAdmin && !isFounder; // admin without founder = read-only viewer
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ workItems: true, scanResults: true, aiFlow: true, scanners: true, noIssueAreas: false, orphanElements: false, issueClusters: false, priorityView: true, systemDiagnosis: true, expectedVsActual: true });
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ workItems: true, scanResults: true, aiFlow: true, scanners: true, noIssueAreas: false, orphanElements: false, issueClusters: false, priorityView: true, systemDiagnosis: true, expectedVsActual: true, systemActivity: true, executionTrace: true });
   const [expandedScanners, setExpandedScanners] = useState<Record<string, boolean>>({});
   const [scannerIssueFilter, setScannerIssueFilter] = useState<"all" | "bug" | "improvement" | "upgrade">("all");
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({ open: true, in_progress: true, done: false, completed: false, cancelled: false });
@@ -421,6 +421,22 @@ const SystemExplorer = () => {
     },
     staleTime: 30_000,
   });
+
+  // System Activity: all runtime_traces, latest 50, live-refreshed every 5s
+  const { data: systemActivityTraces = [] } = useQuery({
+    queryKey: ["system-explorer-system-activity"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("runtime_traces" as any)
+        .select("id, function_name, endpoint, error_message, created_at, source, request_trace_id")
+        .order("created_at", { ascending: false })
+        .limit(50);
+      return (data || []) as any[];
+    },
+    refetchInterval: 5_000,
+    staleTime: 0,
+  });
+
   const [frontendViolations, setFrontendViolations] = useState<{ type: string; action: string; message: string }[]>([]);
 
   function validateAction(actionName: string, fn: () => any) {
@@ -487,6 +503,8 @@ const SystemExplorer = () => {
       queryClient.invalidateQueries({ queryKey: ["system-explorer-runtime-errors"] }),
       queryClient.invalidateQueries({ queryKey: ["system-explorer-debug-console"] }),
       queryClient.invalidateQueries({ queryKey: ["system-explorer-raw-runtime-errors"] }),
+      queryClient.invalidateQueries({ queryKey: ["system-explorer-system-activity"] }),
+      queryClient.invalidateQueries({ queryKey: ["system-explorer-execution-traces"] }),
     ]);
     setIsRefreshing(false);
   };
@@ -579,6 +597,22 @@ const SystemExplorer = () => {
       if (error) throw error;
       return data;
     },
+  });
+
+  // Execution traces for the latest scan run (linked via request_trace_id = scan_run.id)
+  const { data: executionTraces = [] } = useQuery({
+    queryKey: ["system-explorer-execution-traces", (latestRun as any)?.id],
+    enabled: !!(latestRun as any)?.id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("runtime_traces" as any)
+        .select("id, function_name, endpoint, error_message, created_at, source")
+        .eq("request_trace_id", (latestRun as any).id)
+        .order("created_at", { ascending: true });
+      return (data || []) as any[];
+    },
+    refetchInterval: 5_000,
+    staleTime: 0,
   });
 
   // 3b. History for selected item
@@ -2524,6 +2558,60 @@ const SystemExplorer = () => {
           )}
         </Card>
 
+        {/* SYSTEM ACTIVITY */}
+        <Card>
+          <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("systemActivity")}>
+            <CardTitle className="text-sm flex items-center gap-2">
+              {expandedSections.systemActivity ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <Activity className="h-4 w-4 text-primary" />
+              System Activity ({systemActivityTraces.length})
+              <span className="text-[9px] text-muted-foreground font-mono ml-auto">live ↻ 5s</span>
+            </CardTitle>
+          </CardHeader>
+          {expandedSections.systemActivity && (
+            <CardContent className="space-y-1 pt-0 max-h-[500px] overflow-y-auto">
+              {systemActivityTraces.length === 0 && (
+                <p className="text-xs text-muted-foreground py-2">No activity yet</p>
+              )}
+              {(systemActivityTraces as any[]).map((t: any) => {
+                const isBlocked = t.endpoint === "blocked";
+                const isError = !isBlocked && !!t.error_message;
+                const isSuccess = !isBlocked && !isError;
+                const rowColor = isBlocked
+                  ? "border-orange-500/40 bg-orange-500/5"
+                  : isError
+                  ? "border-destructive/40 bg-destructive/5"
+                  : "border-green-600/30 bg-green-500/5";
+                const badge = isBlocked
+                  ? <span className="text-[9px] font-bold text-orange-500 bg-orange-500/10 rounded px-1">BLOCKED</span>
+                  : isError
+                  ? <span className="text-[9px] font-bold text-destructive bg-destructive/10 rounded px-1">ERROR</span>
+                  : <span className="text-[9px] font-bold text-green-600 bg-green-500/10 rounded px-1">OK</span>;
+                return (
+                  <div key={t.id} className={`border rounded p-2 space-y-0.5 ${rowColor}`}>
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <span className="font-mono text-[11px] font-medium">{t.function_name || "–"}</span>
+                      <div className="flex items-center gap-1">
+                        {badge}
+                        <span className="text-muted-foreground text-[9px] shrink-0">
+                          {new Date(t.created_at).toLocaleString("sv-SE", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                      <span className="rounded bg-muted px-1">{t.source || "–"}</span>
+                      {t.endpoint && <span className="font-mono">{t.endpoint}</span>}
+                    </div>
+                    {t.error_message && (
+                      <p className="font-mono text-[10px] text-destructive break-all">{t.error_message}</p>
+                    )}
+                  </div>
+                );
+              })}
+            </CardContent>
+          )}
+        </Card>
+
         {/* FILE MAP */}
         <Card>
           <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("fileMap")}>
@@ -3063,6 +3151,66 @@ const SystemExplorer = () => {
               ) : (
                 <p className="text-sm text-muted-foreground">Ingen scan hittad.</p>
               )}
+            </CardContent>
+          )}
+        </Card>
+
+        {/* ── EXECUTION TRACE (traces linked to latest scan run) ── */}
+        <Card>
+          <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("executionTrace")}>
+            <CardTitle className="text-sm flex items-center gap-2">
+              {expandedSections.executionTrace ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <Radar className="h-4 w-4 text-primary" />
+              Execution Trace
+              {(latestRun as any)?.id && (
+                <span className="text-[9px] font-mono text-muted-foreground">scan: {(latestRun as any).id.slice(0, 8)}…</span>
+              )}
+              <span className="text-[9px] text-muted-foreground font-mono ml-auto">live ↻ 5s</span>
+            </CardTitle>
+          </CardHeader>
+          {expandedSections.executionTrace && (
+            <CardContent className="space-y-1 pt-0 max-h-[400px] overflow-y-auto">
+              {!(latestRun as any)?.id && (
+                <p className="text-xs text-muted-foreground py-2">No scan run found</p>
+              )}
+              {(latestRun as any)?.id && executionTraces.length === 0 && (
+                <p className="text-xs text-muted-foreground py-2">No execution traces for this scan yet</p>
+              )}
+              {(executionTraces as any[]).map((t: any) => {
+                const isBlocked = t.endpoint === "blocked";
+                const isError = !isBlocked && !!t.error_message;
+                const isSuccess = !isBlocked && !isError;
+                const rowColor = isBlocked
+                  ? "border-orange-500/40 bg-orange-500/5"
+                  : isError
+                  ? "border-destructive/40 bg-destructive/5"
+                  : "border-green-600/30 bg-green-500/5";
+                return (
+                  <div key={t.id} className={`border rounded p-2 space-y-0.5 ${rowColor}`}>
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <span className="font-mono text-[11px] font-medium">{t.function_name || "–"}</span>
+                      <div className="flex items-center gap-1">
+                        {isBlocked
+                          ? <span className="text-[9px] font-bold text-orange-500 bg-orange-500/10 rounded px-1">BLOCKED</span>
+                          : isError
+                          ? <span className="text-[9px] font-bold text-destructive bg-destructive/10 rounded px-1">ERROR</span>
+                          : <span className="text-[9px] font-bold text-green-600 bg-green-500/10 rounded px-1">OK</span>
+                        }
+                        <span className="text-muted-foreground text-[9px] shrink-0">
+                          {new Date(t.created_at).toLocaleString("sv-SE", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                      <span className="rounded bg-muted px-1">{t.source || "–"}</span>
+                      {t.endpoint && <span className="font-mono">{t.endpoint}</span>}
+                    </div>
+                    {t.error_message && (
+                      <p className="font-mono text-[10px] text-destructive break-all">{t.error_message}</p>
+                    )}
+                  </div>
+                );
+              })}
             </CardContent>
           )}
         </Card>

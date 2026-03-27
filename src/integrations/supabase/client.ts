@@ -22,10 +22,29 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
 const AI_BLOCKED_PATTERNS = /ai|assistant|generate|suggest/i;
 const _originalInvoke = supabase.functions.invoke.bind(supabase.functions);
 supabase.functions.invoke = (functionName: string, options?: Parameters<typeof _originalInvoke>[1]) => {
+  const payload = (options as any)?.body ?? {};
   if (AI_BLOCKED_PATTERNS.test(functionName)) {
     console.warn(`[AI GUARD] Blocked invoke: "${functionName}" — AI_ENABLED=false`);
+    // Fire-and-forget trace log for blocked calls
+    supabase.from("runtime_traces" as any).insert({
+      source: "frontend",
+      function_name: functionName,
+      endpoint: "blocked",
+      error_message: "AI BLOCKED",
+      payload_snapshot: payload,
+      created_at: new Date().toISOString(),
+    }).then(() => {}).catch(() => {});
     return Promise.resolve({ data: null, error: new Error('AI_DISABLED') });
   }
+  // Fire-and-forget trace log for allowed calls
+  supabase.from("runtime_traces" as any).insert({
+    source: "frontend",
+    function_name: functionName,
+    endpoint: "invoke",
+    error_message: null,
+    payload_snapshot: payload,
+    created_at: new Date().toISOString(),
+  }).then(() => {}).catch(() => {});
   return _originalInvoke(functionName, options);
 };
 // ─────────────────────────────────────────────────────────────────────────────

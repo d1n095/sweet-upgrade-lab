@@ -2332,6 +2332,9 @@ serve(async (req) => {
       // Store scan_input on the scan_run
       await supabase.from("scan_runs").update({ steps_results: { _scan_input: scanInput } }).eq("id", scanRun.id);
 
+      // Log scan start to runtime_traces for full system visibility
+      await logRuntimeTrace("scan", "run-full-scan", "start", null as any, { scanRunId: scanRun.id }, scanRun.id);
+
       if (!structure_map || structure_map.length === 0) {
         console.error("❌ SCAN ABORT: NO STRUCTURE MAP");
         return new Response(JSON.stringify({ success: false, error: "NO_INPUT_DATA" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
