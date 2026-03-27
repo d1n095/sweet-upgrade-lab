@@ -28,6 +28,11 @@ import {
 } from '@/lib/categories';
 import type { LucideIcon } from 'lucide-react';
 
+// ── AI kill-switch ─────────────────────────────────────────────────────────
+// Set to true to re-enable AI calls once credits are available.
+const AI_ENABLED = false;
+// ──────────────────────────────────────────────────────────────────────────
+
 const iconMap: Record<string, LucideIcon> = {
   Cpu, Shirt, Droplets, Flame, Sparkles, Gem, Bed, Grid, Tag, Leaf,
 };
@@ -156,6 +161,11 @@ const AdminCategoryManager = () => {
     setAiSyncing(true);
     setAiResult(null);
     try {
+      if (!AI_ENABLED) {
+        console.log("[AI DISABLED] Skipping AI category sync");
+        toast.info('AI är inaktiverat');
+        return;
+      }
       const { data, error } = await supabase.functions.invoke('ai-assistant', {
         body: { type: 'category_sync' },
       });
@@ -167,6 +177,7 @@ const AdminCategoryManager = () => {
       else if (data?.result?.no_changes_needed) toast.info('Alla produkter är korrekt kategoriserade');
       else toast.info('AI-analys klar');
     } catch (err: any) {
+      console.warn('AI failed, continuing without it');
       toast.error('AI-synk misslyckades: ' + (err?.message || ''));
     } finally {
       setAiSyncing(false);
@@ -206,6 +217,11 @@ const AdminCategoryManager = () => {
     setAiValidating(true);
     setValidationResult(null);
     try {
+      if (!AI_ENABLED) {
+        console.log("[AI DISABLED] Skipping AI category validate");
+        toast.info('AI är inaktiverat');
+        return;
+      }
       const { data, error } = await supabase.functions.invoke('ai-assistant', {
         body: { type: 'category_validate' },
       });
@@ -219,6 +235,7 @@ const AdminCategoryManager = () => {
       else if (fixed > 0) toast.success(`${fixed} problem åtgärdade automatiskt`);
       else toast.info(`${issues} problem hittade`);
     } catch (err: any) {
+      console.warn('AI failed, continuing without it');
       toast.error('Validering misslyckades: ' + (err?.message || ''));
     } finally {
       setAiValidating(false);

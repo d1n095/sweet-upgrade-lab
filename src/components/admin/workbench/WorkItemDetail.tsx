@@ -20,6 +20,11 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
 
+// ── AI kill-switch ─────────────────────────────────────────────────────────
+// Set to true to re-enable AI calls once credits are available.
+const AI_ENABLED = false;
+// ──────────────────────────────────────────────────────────────────────────
+
 interface WorkItemDetailProps {
   item: {
     id: string;
@@ -277,6 +282,11 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
   const handleRunRootCause = async () => {
     setAnalyzingFix(true);
     try {
+      if (!AI_ENABLED) {
+        console.log("[AI DISABLED] Skipping root cause analysis");
+        toast.info('AI är inaktiverat');
+        return;
+      }
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { toast.error('Ej inloggad'); return; }
       const resp = await fetch(
@@ -295,6 +305,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
           await supabase.from('work_items').update({ ai_root_causes: result } as any).eq('id', item.id);
         }
       } else {
+        console.warn('AI failed, continuing without it');
         toast.error('AI-analys misslyckades');
       }
     } catch { toast.error('Fel'); }
@@ -738,7 +749,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                         toast.info('🔍 Avvisad — AI kör fördjupad re-analys...', { duration: 4000 });
                         // 3. Trigger targeted rejection re-analysis
                         const { data: { session } } = await supabase.auth.getSession();
-                        if (session) {
+                        if (session && AI_ENABLED) {
                           fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
@@ -747,10 +758,13 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                             if (r.ok) {
                               toast.success('AI re-analys klar — nya förslag tillgängliga', { duration: 5000 });
                             } else {
+                              console.warn('AI failed, continuing without it');
                               toast.error('AI re-analys misslyckades');
                             }
                             onRefresh?.();
                           }).catch(() => {});
+                        } else if (!AI_ENABLED) {
+                          console.log("[AI DISABLED] Skipping rejection re-analysis");
                         }
                         onRefresh?.();
                       } catch { toast.error('Fel'); }
@@ -771,6 +785,11 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                 onClick={async () => {
                   setRunningPreVerify(true);
                   try {
+                    if (!AI_ENABLED) {
+                      console.log("[AI DISABLED] Skipping pre-verify");
+                      toast.info('AI är inaktiverat');
+                      return;
+                    }
                     const { data: { session } } = await supabase.auth.getSession();
                     if (!session) { toast.error('Ej inloggad'); return; }
                     const resp = await fetch(
@@ -788,7 +807,10 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                       else if (s === 'possibly_fixed') toast.info(`AI: Möjligen fixat (${result.pre_verify.confidence}%)`);
                       else toast.info('AI: Inget tyder på att det är löst');
                       onRefresh?.();
-                    } else toast.error('AI-analys misslyckades');
+                    } else {
+                      console.warn('AI failed, continuing without it');
+                      toast.error('AI-analys misslyckades');
+                    }
                   } catch { toast.error('Fel'); }
                   finally { setRunningPreVerify(false); }
                 }}

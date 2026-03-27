@@ -12,6 +12,11 @@ async function logRuntimeTrace(source: string, function_name: string, endpoint: 
   } catch (_) {}
 }
 
+// ── AI kill-switch ─────────────────────────────────────────────────────────
+// Set to true to re-enable AI enrichment once credits are available.
+const AI_ENABLED = false;
+// ──────────────────────────────────────────────────────────────────────────
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -2239,8 +2244,18 @@ async function runStep(
     if (realScanner) {
       const dbResult = await realScanner(supabase, scan_run_id);
       result = { ...dbResult };
+      // AI enrichment is intentionally skipped (AI_ENABLED = false).
+      // To re-enable: wrap the fetch call below with `if (AI_ENABLED) { ... }`.
+      result.ai_suggestions = result.ai_suggestions ?? [];
+      result.ai_summary = result.ai_summary ?? null;
     } else {
-      result._empty_reason = "no_scanner";
+      // No real DB scanner available; AI-only scanners are also disabled.
+      if (!AI_ENABLED) {
+        console.log(`[AI DISABLED] Skipping AI-only step: ${step.id}`);
+        result = { issues: [], skipped: true, _reason: "AI_DISABLED" };
+      } else {
+        result._empty_reason = "no_scanner";
+      }
     }
     if (!Array.isArray(result.issues)) {
       result.issues = result.issues ?? [];

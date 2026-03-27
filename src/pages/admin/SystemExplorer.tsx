@@ -6,6 +6,11 @@ import { useAiQueueStore } from "@/stores/aiQueueStore";
 import { fileSystemMap, type FileEntry, getFileContent, getCodeIndex, getDuplicatedLines, getCodeIssues, getRawSources, scanFileContent } from "@/lib/fileSystemMap";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useFounderRole } from "@/hooks/useFounderRole";
+
+// ── AI kill-switch ─────────────────────────────────────────────────────────
+// Set to true to re-enable AI calls once credits are available.
+const AI_ENABLED = false;
+// ──────────────────────────────────────────────────────────────────────────
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
@@ -1042,6 +1047,11 @@ const SystemExplorer = () => {
 
   const handleAiAnalyze = async () => {
     if (!aiQuery.trim() || aiLoading) return;
+    if (!AI_ENABLED) {
+      console.log("[AI DISABLED] Skipping AI analyze");
+      setAiAnswer("AI är inaktiverat. Aktivera AI_ENABLED för att använda denna funktion.");
+      return;
+    }
     setAiLoading(true);
     setAiAnswer(null);
     try {
@@ -1052,6 +1062,7 @@ const SystemExplorer = () => {
       if (error) throw error;
       setAiAnswer(data?.result?.answer || "Inget svar.");
     } catch (e: any) {
+      console.warn('AI failed, continuing without it');
       setAiAnswer(`Fel: ${e.message || "Kunde inte analysera."}`);
     } finally {
       setAiLoading(false);
