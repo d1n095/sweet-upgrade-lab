@@ -1091,6 +1091,21 @@ const SystemExplorer = () => {
         <p className="text-xs text-green-500 font-mono">TEST BUILD OK — Files detected: {fileSystemMap.length}</p>
         <div className="text-[10px] font-mono text-muted-foreground">Last action: {lastAction || "none"}</div>
 
+        <button onClick={() => {
+          console.log("🧪 TEST BUTTON CLICK");
+          setActionLogs(prev => [
+            {
+              time: new Date().toISOString(),
+              type: "MANUAL_TEST",
+              message: "Button clicked",
+              timestamp: Date.now()
+            },
+            ...prev
+          ]);
+        }} className="px-3 py-1 text-xs bg-primary text-primary-foreground rounded">
+          TEST ACTION
+        </button>
+
         {/* Action Monitor */}
         <details className="border border-border rounded-md">
           <summary className="px-3 py-1.5 text-[10px] font-semibold cursor-pointer bg-muted/30 hover:bg-muted/50 transition-colors">
