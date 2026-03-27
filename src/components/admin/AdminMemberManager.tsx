@@ -600,6 +600,27 @@ const AdminMemberManager = ({ roleFilter = 'all', onStatsUpdate }: AdminMemberMa
         }
         toast.success(t.roleAssigned);
         setUserRoles((prev) => ({ ...prev, [userId]: role }));
+
+        // If assigned affiliate role, ensure an affiliates row exists
+        if (validRole === 'affiliate') {
+          const member = members.find(m => m.user_id === userId);
+          const memberEmail = member?.email || '';
+          const memberName = member?.username || memberEmail.split('@')[0] || targetName;
+          const { data: existing } = await supabase
+            .from('affiliates')
+            .select('id')
+            .eq('user_id', userId)
+            .maybeSingle();
+          if (!existing) {
+            const code = memberName.toLowerCase().replace(/[^a-z0-9]/g, '') + Math.floor(1000 + Math.random() * 9000);
+            await supabase.from('affiliates').insert({
+              user_id: userId,
+              email: memberEmail,
+              name: memberName,
+              code,
+            });
+          }
+        }
       }
 
       // Log role change to activity log
