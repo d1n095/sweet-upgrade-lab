@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, createContext, useContext, useCallback } from 'react';
+import { logAICall } from '@/utils/aiGuard';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Sparkles, Bug, BarChart3, Copy, Loader2, Send, AlertTriangle, Lightbulb, Info, RefreshCw, Bot, CheckCircle, XCircle, Shield, Clock, Zap, Activity, TrendingUp, Package, AlertCircle, Database, Wrench, Radar, ArrowRight, Layers, Monitor, Smartphone, Tablet, Eye, Compass, LayoutGrid, GitMerge, ArrowRightLeft, ShieldCheck, Play, Settings2, ToggleRight, Maximize2, Gavel, ChevronDown, History, User, Brain } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger, ScrollableTabs } from '@/components/ui/tabs';
@@ -88,7 +89,9 @@ interface UnifiedReport {
 }
 
 const callAI = async (_type: string, _payload: Record<string, any> = {}) => {
+  logAICall({ source: 'AdminAI', file: 'AdminAI.tsx', action: _type, status: 'ATTEMPT' });
   // ai-assistant is DISABLED — all scans must go through run-full-scan
+  logAICall({ source: 'AdminAI', file: 'AdminAI.tsx', action: _type, status: 'BLOCKED' });
   console.warn('[callAI] ai-assistant is disabled; use run-full-scan instead');
   return null;
 };

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { logAICall } from '@/utils/aiGuard';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useExecutionLockStore } from './executionLockStore';
@@ -114,6 +115,7 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
 
       const scanRunId = data?.scan_id || data?.scan_run_id;
       console.log('[SCAN TRIGGERED FROM]: AI_CENTER — scan_run_id:', scanRunId);
+      logAICall({ source: 'ScannerStore', file: 'scannerStore.ts', action: 'run-full-scan', status: 'EXECUTED', payload: { scan_run_id: scanRunId } });
 
       logData({
         type: 'scan_complete',

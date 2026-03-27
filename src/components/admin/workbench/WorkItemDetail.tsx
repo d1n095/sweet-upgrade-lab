@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { logAICall } from '@/utils/aiGuard';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Sparkles, Tag, Copy, Loader2 as Loader2Icon, EyeOff, RotateCcw, PenLine, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -275,7 +276,9 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
   };
 
   const handleRunRootCause = async () => {
+    logAICall({ source: 'WorkItemDetail', file: 'WorkItemDetail.tsx', action: 'root_cause_analysis', status: 'ATTEMPT' });
     // ai-assistant is disabled — root cause analysis unavailable
+    logAICall({ source: 'WorkItemDetail', file: 'WorkItemDetail.tsx', action: 'root_cause_analysis', status: 'BLOCKED' });
     toast.info('AI-rotorsaksanalys är tillfälligt inaktiverat.');
   };
 
@@ -713,7 +716,9 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                           bug_report_id: item.source_type === 'bug_report' ? item.source_id : null,
                           metadata: { ai_confidence: item.ai_pre_verify_result?.confidence, action: 'reject', escalated_to: newPriority },
                         });
+                        logAICall({ source: 'WorkItemDetail', file: 'WorkItemDetail.tsx', action: 'rejection_reanalysis', status: 'ATTEMPT' });
                         toast.info('🔍 Avvisad — re-analys via ai-assistant är inaktiverat.', { duration: 4000 });
+                        logAICall({ source: 'WorkItemDetail', file: 'WorkItemDetail.tsx', action: 'rejection_reanalysis', status: 'BLOCKED' });
                         onRefresh?.();
                       } catch { toast.error('Fel'); }
                       finally { setRunningPreVerify(false); }
@@ -733,7 +738,9 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                 onClick={async () => {
                   setRunningPreVerify(true);
                   try {
+                    logAICall({ source: 'WorkItemDetail', file: 'WorkItemDetail.tsx', action: 'pre_verify', status: 'ATTEMPT' });
                     // ai-assistant is disabled — pre-verify unavailable
+                    logAICall({ source: 'WorkItemDetail', file: 'WorkItemDetail.tsx', action: 'pre_verify', status: 'BLOCKED' });
                     toast.info('AI pre-verify är tillfälligt inaktiverat.');
                   } finally { setRunningPreVerify(false); }
                 }}

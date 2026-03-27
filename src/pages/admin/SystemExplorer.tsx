@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { logAICall } from "@/utils/aiGuard";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { tracedInvoke } from "@/lib/tracedInvoke";
@@ -1043,7 +1044,9 @@ const SystemExplorer = () => {
 
   const handleAiAnalyze = async () => {
     if (!aiQuery.trim() || aiLoading) return;
+    logAICall({ source: 'SystemExplorer', file: 'SystemExplorer.tsx', action: 'ai_analyze', status: 'ATTEMPT' });
     // ai-assistant is disabled — all analysis goes through run-full-scan
+    logAICall({ source: 'SystemExplorer', file: 'SystemExplorer.tsx', action: 'ai_analyze', status: 'BLOCKED' });
     setAiAnswer('AI-analys via ai-assistant är inaktiverat. Använd Starta skanning för att analysera systemet.');
   };
 
