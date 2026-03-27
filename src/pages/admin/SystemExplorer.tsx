@@ -1171,21 +1171,7 @@ const SystemExplorer = () => {
   const toggleGroup = (key: string) => setExpandedGroups((prev) => ({ ...prev, [key]: !prev[key] }));
 
   const handleAiAnalyze = async () => {
-    if (!aiQuery.trim() || aiLoading) return;
-    setAiLoading(true);
-    setAiAnswer(null);
-    try {
-      const focusSuffix = aiFocusArea ? ` [FOCUS AREA: ${aiFocusArea} — prioritize issues and scans within this area]` : "";
-      const { data, error } = await tracedInvoke("ai-assistant", {
-        body: { type: "system_explorer_query", question: aiQuery.trim() + focusSuffix },
-      });
-      if (error) throw error;
-      setAiAnswer(data?.result?.answer || "Inget svar.");
-    } catch (e: any) {
-      setAiAnswer(`Fel: ${e.message || "Kunde inte analysera."}`);
-    } finally {
-      setAiLoading(false);
-    }
+    // AI assistant removed — use scan results instead
   };
 
   const priorityColor = (p: string) => {
@@ -2372,66 +2358,26 @@ const SystemExplorer = () => {
           <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("aiAssistant")}>
             <CardTitle className="text-sm flex items-center gap-2">
               {expandedSections.aiAssistant ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-              <Bot className="h-4 w-4 text-primary" />
-              AI Assistant
-              <Badge variant="outline" className="text-[10px]">READ-ONLY</Badge>
+              <Database className="h-4 w-4 text-primary" />
+              Systemsökning
+              <Badge variant="outline" className="text-[10px]">Skanner-data</Badge>
             </CardTitle>
           </CardHeader>
           {expandedSections.aiAssistant && (
             <CardContent className="space-y-3">
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Ask about system state, scanners, work items..."
-                  value={aiQuery}
-                  onChange={(e) => setAiQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleAiAnalyze()}
-                  className="text-sm"
-                />
-                <Button size="sm" onClick={handleAiAnalyze} disabled={aiLoading || !aiQuery.trim()}>
-                  {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  Analyze
-                </Button>
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {["Why was this created?", "Which scanners failed?", "What is broken?", "Summarize system state"].map((q) => (
-                  <button
-                    key={q}
-                    onClick={() => { setAiQuery(q); }}
-                    className="text-[10px] px-2 py-1 rounded-md border border-border hover:bg-muted/50 transition-colors text-muted-foreground"
-                  >
-                    {q}
-                  </button>
-                ))}
-              </div>
-              <div className="flex items-center gap-1 flex-wrap">
-                <span className="text-[10px] text-muted-foreground font-medium mr-1">Focus Area:</span>
-                {[
-                  { key: "UI", label: "UI" },
-                  { key: "Data", label: "Data" },
-                  { key: "Flow", label: "Flow" },
-                  { key: "Business", label: "Business" },
-                ].map((area) => (
-                  <button
-                    key={area.key}
-                    onClick={() => setAiFocusArea(aiFocusArea === area.key ? null : area.key)}
-                    className={`text-[10px] px-2 py-1 rounded-md border transition-colors ${
-                      aiFocusArea === area.key
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "border-border hover:bg-muted/50 text-muted-foreground"
-                    }`}
-                  >
-                    {area.label}
-                  </button>
-                ))}
-                {aiFocusArea && (
-                  <span className="text-[10px] text-muted-foreground ml-1">Active: {aiFocusArea}</span>
-                )}
-              </div>
-              {aiAnswer && (
-                <div className="border border-border rounded-md p-3 bg-muted/30 text-sm prose prose-sm max-w-none dark:prose-invert">
-                  <ReactMarkdown>{aiAnswer}</ReactMarkdown>
+              <p className="text-xs text-muted-foreground">
+                Sök i skanner-resultat och work items via filterverktygen ovan. AI-assistenten är borttagen — all analys sker via deterministiska skanners.
+              </p>
+              <div className="grid grid-cols-2 gap-2 text-[10px]">
+                <div className="bg-muted/30 rounded p-2">
+                  <span className="font-medium">Senaste skanning:</span>{' '}
+                  {latestRun ? new Date((latestRun as any).created_at).toLocaleString('sv-SE') : '–'}
                 </div>
-              )}
+                <div className="bg-muted/30 rounded p-2">
+                  <span className="font-medium">Hälsostatus:</span>{' '}
+                  {(latestRun as any)?.system_health_score ?? '–'}/100
+                </div>
+              </div>
             </CardContent>
           )}
         </Card>

@@ -296,18 +296,36 @@ const AdminCategoryManager = () => {
     setAiSyncing(true);
     setAiResult(null);
     try {
-      const { data, error } = await supabase.functions.invoke('ai-assistant', {
-        body: { type: 'category_sync' },
+      // Deterministic scanner: find products with no category assignment
+      const { data: allProducts } = await supabase
+        .from('products')
+        .select('id, name');
+      const { data: productCats } = await supabase
+        .from('product_categories')
+        .select('product_id');
+      const assignedIds = new Set((productCats || []).map((pc: any) => pc.product_id));
+      const uncategorized = (allProducts || []).filter((p: any) => !assignedIds.has(p.id));
+
+      // Find orphan categories (parent_id set but parent doesn't exist)
+      const catIds = new Set(categories.map(c => c.id));
+      const orphans = categories.filter(c => c.parent_id && !catIds.has(c.parent_id));
+
+      setAiResult({
+        no_changes_needed: uncategorized.length === 0 && orphans.length === 0,
+        uncategorized_products: uncategorized,
+        orphan_categories: orphans,
+        created: [],
+        pending_review: [],
+        analysis: `Skanning klar: ${uncategorized.length} produkter utan kategori, ${orphans.length} föräldralösa kategorier`,
       });
-      if (error) throw error;
-      setAiResult(data?.result || data);
-      queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
-      const created = data?.result?.created?.length || 0;
-      if (created > 0) toast.success(`${created} kategorier skapade av AI`);
-      else if (data?.result?.no_changes_needed) toast.info('Alla produkter är korrekt kategoriserade');
-      else toast.info('AI-analys klar');
+
+      if (uncategorized.length === 0 && orphans.length === 0) {
+        toast.info('Alla produkter är korrekt kategoriserade');
+      } else {
+        toast.info(`Skanning: ${uncategorized.length} okategoriserade, ${orphans.length} föräldralösa`);
+      }
     } catch (err: any) {
-      toast.error('AI-synk misslyckades: ' + (err?.message || ''));
+      toast.error('Skanning misslyckades: ' + (err?.message || ''));
     } finally {
       setAiSyncing(false);
     }
@@ -346,18 +364,36 @@ const AdminCategoryManager = () => {
     setAiValidating(true);
     setValidationResult(null);
     try {
-      const { data, error } = await supabase.functions.invoke('ai-assistant', {
-        body: { type: 'category_validate' },
-      });
-      if (error) throw error;
-      const res = data?.result || data;
-      setValidationResult(res);
-      queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
-      const fixed = res?.auto_fixed?.length || 0;
-      const issues = res?.issues_found || 0;
-      if (issues === 0) toast.success('Inga problem hittades!');
-      else if (fixed > 0) toast.success(`${fixed} problem åtgärdade automatiskt`);
-      else toast.info(`${issues} problem hittade`);
+      const issues: { type: string; message: string; category?: string }[] = [];
+
+      // 1. Find categories with broken parent links
+      const catIds = new Set(categories.map(c => c.id));
+      for (const cat of categories) {
+        if (cat.parent_id && !catIds.has(cat.parent_id)) {
+          issues.push({ type: 'broken_parent', message: `Kategori "${cat.name_sv}" har ogiltig förälder-id`, category: cat.name_sv });
+        }
+      }
+
+      // 2. Find hidden parent categories that have visible children
+      for (const cat of categories) {
+        if (!cat.is_visible && cat.children && cat.children.length > 0) {
+          const visibleChildren = cat.children.filter((c: any) => c.is_visible);
+          if (visibleChildren.length > 0) {
+            issues.push({ type: 'hidden_parent_visible_children', message: `"${cat.name_sv}" är dold men har ${visibleChildren.length} synliga underkategorier`, category: cat.name_sv });
+          }
+        }
+      }
+
+      // 3. Find categories with duplicate slugs
+      const slugCount: Record<string, number> = {};
+      for (const cat of categories) { slugCount[cat.slug] = (slugCount[cat.slug] || 0) + 1; }
+      for (const [slug, count] of Object.entries(slugCount)) {
+        if (count > 1) issues.push({ type: 'duplicate_slug', message: `Slug "${slug}" används av ${count} kategorier` });
+      }
+
+      setValidationResult({ issues_found: issues.length, issues, auto_fixed: [] });
+      if (issues.length === 0) toast.success(t.validate + ': Inga problem hittades!');
+      else toast.info(`${issues.length} problem hittade`);
     } catch (err: any) {
       toast.error('Validering misslyckades: ' + (err?.message || ''));
     } finally {
@@ -566,12 +602,12 @@ const AdminCategoryManager = () => {
         </div>
       </div>
 
-      {/* AI Sync Results */}
+      {/* Scanner Sync Results */}
       {aiResult && (
         <div className="border border-border rounded-lg p-4 space-y-3 bg-secondary/20">
           <div className="flex items-center gap-2">
             <Wand2 className="w-4 h-4 text-primary" />
-            <h4 className="text-sm font-semibold">AI Kategorianalys</h4>
+            <h4 className="text-sm font-semibold">Kategori-skanning</h4>
           </div>
           
           {aiResult.analysis && (
@@ -585,51 +621,30 @@ const AdminCategoryManager = () => {
             </div>
           )}
 
-          {aiResult.created?.length > 0 && (
+          {aiResult.uncategorized_products?.length > 0 && (
             <div className="space-y-1.5">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Skapade automatiskt</p>
-              {aiResult.created.map((c: any) => (
-                <div key={c.id || c.slug} className="flex items-center gap-2 p-2 rounded-lg bg-accent/10 border border-accent/20">
-                  <CheckCircle className="w-3.5 h-3.5 text-accent shrink-0" />
-                  <span className="text-xs font-medium">{c.name_sv}</span>
-                  <span className="text-[10px] text-muted-foreground">({c.slug})</span>
-                  {c.reason && <span className="text-[10px] text-muted-foreground ml-auto">{c.reason}</span>}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {aiResult.pending_review?.length > 0 && (
-            <div className="space-y-1.5">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Behöver granskning</p>
-              {aiResult.pending_review.map((s: any) => (
-                <div key={s.slug} className="flex items-center gap-2 p-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Produkter utan kategori ({aiResult.uncategorized_products.length})</p>
+              {aiResult.uncategorized_products.map((p: any) => (
+                <div key={p.id} className="flex items-center gap-2 p-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
                   <AlertTriangle className="w-3.5 h-3.5 text-yellow-600 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <span className="text-xs font-medium">{s.name_sv}</span>
-                    <span className="text-[10px] text-muted-foreground ml-1">({s.name_en})</span>
-                    <p className="text-[10px] text-muted-foreground truncate">{s.reason}</p>
-                  </div>
-                  <Badge variant="secondary" className="text-[9px] shrink-0">{s.confidence}</Badge>
-                  <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1 shrink-0" onClick={() => acceptPendingSuggestion(s)}>
-                    <Plus className="w-3 h-3" /> Skapa
-                  </Button>
+                  <span className="text-xs font-medium">{p.name}</span>
                 </div>
               ))}
             </div>
           )}
 
-          {aiResult.already_exists?.length > 0 && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Info className="w-3.5 h-3.5" />
-              {aiResult.already_exists.length} förslag redan existerande
+          {aiResult.orphan_categories?.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Föräldralösa kategorier ({aiResult.orphan_categories.length})</p>
+              {aiResult.orphan_categories.map((c: any) => (
+                <div key={c.id} className="flex items-center gap-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20">
+                  <AlertTriangle className="w-3.5 h-3.5 text-destructive shrink-0" />
+                  <span className="text-xs font-medium">{c.name_sv}</span>
+                  <span className="text-[10px] text-muted-foreground ml-auto">ogiltig förälder</span>
+                </div>
+              ))}
             </div>
           )}
-
-          <div className="flex gap-3 text-[10px] text-muted-foreground">
-            <span>{aiResult.total_products_analyzed} produkter analyserade</span>
-            <span>{aiResult.total_categories} befintliga kategorier</span>
-          </div>
 
           <Button size="sm" variant="ghost" className="text-xs" onClick={() => setAiResult(null)}>
             <XCircle className="w-3.5 h-3.5 mr-1" /> Stäng
@@ -652,47 +667,17 @@ const AdminCategoryManager = () => {
             </div>
           )}
 
-          {validationResult.auto_fixed?.length > 0 && (
+          {validationResult.issues?.length > 0 && (
             <div className="space-y-1.5">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Åtgärdat automatiskt</p>
-              {validationResult.auto_fixed.map((f: any, i: number) => (
-                <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-accent/10 border border-accent/20">
-                  <CheckCircle className="w-3.5 h-3.5 text-accent shrink-0" />
-                  <span className="text-xs">
-                    {f.action === 'hidden_empty' && `Dold tom kategori: ${f.category}`}
-                    {f.action === 'cleared_broken_parent' && `Rensad trasig förälder: ${f.category}`}
-                    {f.action === 'removed_orphan_links' && `${f.count} föräldralösa produktkopplingar borttagna`}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {validationResult.issues?.filter((i: any) => i.type === 'duplicate_slug' || i.type === 'duplicate_name').length > 0 && (
-            <div className="space-y-1.5">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Kräver manuell granskning</p>
-              {validationResult.issues.filter((i: any) => i.type === 'duplicate_slug' || i.type === 'duplicate_name').map((issue: any, i: number) => (
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Problem hittade</p>
+              {validationResult.issues.map((issue: any, i: number) => (
                 <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20">
                   <AlertTriangle className="w-3.5 h-3.5 text-destructive shrink-0" />
-                  <span className="text-xs">
-                    {issue.type === 'duplicate_slug' ? `Duplicerad slug: "${issue.slug}" (${issue.count} st)` : `Duplicerat namn: "${issue.name}" (${issue.count} st)`}
-                  </span>
+                  <span className="text-xs">{issue.message}</span>
                 </div>
               ))}
             </div>
           )}
-
-          {validationResult.tasks_created?.length > 0 && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Info className="w-3.5 h-3.5" />
-              {validationResult.tasks_created.length} uppgifter skapade i Workbench
-            </div>
-          )}
-
-          <div className="flex gap-3 text-[10px] text-muted-foreground">
-            <span>{validationResult.total_categories} kategorier</span>
-            <span>{validationResult.total_product_links} produktkopplingar</span>
-          </div>
 
           <Button size="sm" variant="ghost" className="text-xs" onClick={() => setValidationResult(null)}>
             <XCircle className="w-3.5 h-3.5 mr-1" /> Stäng
