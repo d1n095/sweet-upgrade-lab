@@ -97,6 +97,7 @@ const navGroups: NavGroup[] = [
       { to: '/admin/data', label: 'Data Center', icon: Eye, role: 'admin' },
       { to: '/admin/database', label: 'Databas', icon: Grid, role: 'admin' },
       { to: '/admin/settings', label: 'Inställningar', icon: Settings, role: 'admin' },
+      { to: '/admin/debug', label: 'Debug', icon: Shield, role: 'admin' },
     ],
   },
 ];
