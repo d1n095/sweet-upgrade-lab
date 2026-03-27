@@ -15,3 +15,17 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     autoRefreshToken: true,
   }
 });
+
+// ── GLOBAL AI INVOKE GUARD ────────────────────────────────────────────────────
+// Block any edge-function invocation whose name contains AI-related keywords.
+// This is the final client-side safety net; edge functions also enforce this.
+const AI_BLOCKED_PATTERNS = /ai|assistant|generate|suggest/i;
+const _originalInvoke = supabase.functions.invoke.bind(supabase.functions);
+supabase.functions.invoke = (functionName: string, options?: Parameters<typeof _originalInvoke>[1]) => {
+  if (AI_BLOCKED_PATTERNS.test(functionName)) {
+    console.warn(`[AI GUARD] Blocked invoke: "${functionName}" — AI_ENABLED=false`);
+    return Promise.resolve({ data: null, error: new Error('AI_DISABLED') });
+  }
+  return _originalInvoke(functionName, options);
+};
+// ─────────────────────────────────────────────────────────────────────────────
