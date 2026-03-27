@@ -2433,6 +2433,15 @@ serve(async (req) => {
       }
 
       console.log("🚨 TOTAL ISSUES:", stepResult.issues.length);
+      console.log("[STEP RESULT]", step.id, {
+        executed: stepResult._executed,
+        issues: stepResult.issues?.length || 0,
+        features: stepResult.features?.length || 0,
+        mismatches: stepResult.mismatches?.length || 0,
+        failed: !!stepResult.failed,
+        error: stepResult.error || null,
+        empty_reason: stepResult._empty_reason || null,
+      });
 
       // ── Extended metadata ──
       stepResult._execution_time_ms = duration_ms;
@@ -2531,7 +2540,21 @@ serve(async (req) => {
 
       const updatedResults = scanRun.steps_results || {};
       const totalDuration = Object.values(updatedResults).reduce((sum: number, r: any) => sum + (r?._duration_ms || 0), 0);
+      console.log("[SCANNER OUTPUT][evaluate_iteration]", {
+        system_scan: (updatedResults.regression_detection?.issues || []).length,
+        interaction_scan: (updatedResults.interaction_qa?.issues || []).length,
+        feature_scan: (updatedResults.feature_detection?.features || updatedResults.feature_detection?.issues || []).length,
+        component_scan: (updatedResults.component_map?.issues || updatedResults.component_map?.components || []).length,
+        steps_completed: Object.keys(updatedResults).length,
+      });
       const unified = buildUnifiedResult(updatedResults, totalDuration);
+      console.log("[UNIFIED INPUT][evaluate_iteration]", {
+        broken_flows: unified.broken_flows.length,
+        fake_features: unified.fake_features.length,
+        interaction_failures: unified.interaction_failures.length,
+        data_issues: unified.data_issues.length,
+        system_health_score: unified.system_health_score,
+      });
 
       const { data: rootCauseData } = await supabase.from("root_cause_memory").select("pattern_key, affected_system, root_cause, recurrence_count, severity").order("recurrence_count", { ascending: false }).limit(50);
       const { patterns, highRiskAreas, systemicIssues } = extractPatterns(unified, rootCauseData || []);
@@ -2603,7 +2626,27 @@ serve(async (req) => {
       updatedResults._functional_behavior = behaviorResult;
 
       const totalDuration = Object.values(updatedResults).reduce((sum: number, r: any) => sum + (r?._duration_ms || 0), 0);
+      console.log("[SCANNER OUTPUT][finalize]", {
+        system_scan: (updatedResults.regression_detection?.issues || []).length,
+        interaction_scan: (updatedResults.interaction_qa?.issues || []).length,
+        feature_scan: (updatedResults.feature_detection?.features || updatedResults.feature_detection?.issues || []).length,
+        component_scan: (updatedResults.component_map?.issues || updatedResults.component_map?.components || []).length,
+        data_flow: (updatedResults.data_flow_validation?.issues || []).length,
+        ui_data_binding: (updatedResults.ui_data_binding?.issues || updatedResults.ui_data_binding?.mismatches || []).length,
+        steps_with_data: Object.keys(updatedResults).filter(k => {
+          const r = updatedResults[k];
+          return (r?.issues?.length || 0) + (r?.features?.length || 0) + (r?.mismatches?.length || 0) > 0;
+        }),
+      });
       const unified = buildUnifiedResult(updatedResults, totalDuration);
+      console.log("[UNIFIED INPUT][finalize]", {
+        broken_flows: unified.broken_flows.length,
+        fake_features: unified.fake_features.length,
+        interaction_failures: unified.interaction_failures.length,
+        data_issues: unified.data_issues.length,
+        system_health_score: unified.system_health_score,
+        blocker: !!unified.blocker,
+      });
 
       // ── CONTEXT AWARENESS: Filter dev false positives ──
       unified.broken_flows = filterDevFalsePositives(unified.broken_flows, systemStage);
