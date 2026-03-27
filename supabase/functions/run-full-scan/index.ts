@@ -2217,6 +2217,74 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
 }
 
 // ── Helper: Persist per-step scan results ──
+// ── RUN STEP ──────────────────────────────────────────────────────────────
+// Simple, AI-free step executor. Always returns a valid object, never throws.
+async function runStep(
+  step: { id: string; label: string; scanType: string },
+  supabase: any,
+  scan_run_id: string,
+): Promise<{
+  issues: any[];
+  _executed: boolean;
+  _empty_reason: string;
+  _input_size: number;
+  _duration_ms: number;
+  [key: string]: any;
+}> {
+  const stepStart = Date.now();
+  console.log(`[SCAN START] ${step.id}`);
+  let result: any = { issues: [], _executed: false, _empty_reason: "", _input_size: 0, _duration_ms: 0 };
+  try {
+    const realScanner = REAL_DB_SCANNERS[step.scanType];
+    if (realScanner) {
+      const dbResult = await realScanner(supabase, scan_run_id);
+      result = { ...dbResult };
+    } else {
+      result._empty_reason = "no_scanner";
+    }
+    if (!Array.isArray(result.issues)) {
+      result.issues = result.issues ?? [];
+    }
+    const duration_ms = Date.now() - stepStart;
+    const didExecute = !result.failed && !result.error;
+    const inputSize =
+      result.components_scanned ?? result.routes_scanned ?? result.records_scanned ??
+      result.features_scanned ?? result.tables_scanned ?? result.flows_scanned ??
+      result.items_scanned ?? result.total_checked ?? result.total_scanned ?? 0;
+    if (result.issues.length === 0 && !result._empty_reason) {
+      if (result.failed || result.error) {
+        result._empty_reason = "scanner_failed";
+      } else if (inputSize === 0) {
+        result._empty_reason = "no_data";
+      } else if (didExecute) {
+        result._empty_reason = "no_detection";
+      } else {
+        result._empty_reason = "not_applicable";
+      }
+    }
+    result._executed = didExecute;
+    result._input_size = inputSize;
+    result._duration_ms = duration_ms;
+    result._step_id = step.id;
+    console.log(`[SCAN RESULT] ${step.id}: issues=${result.issues.length} executed=${result._executed} empty_reason=${result._empty_reason || ""}`);
+    console.log(`[SCAN END] ${step.id}: ${duration_ms}ms`);
+    return result;
+  } catch (e: any) {
+    const duration_ms = Date.now() - stepStart;
+    result.issues = Array.isArray(result.issues) ? result.issues : [];
+    result._empty_reason = "scanner_failed";
+    result._executed = false;
+    result._duration_ms = duration_ms;
+    result._step_id = step.id;
+    result.error = e.message;
+    result.failed = true;
+    console.log(`[SCAN RESULT] ${step.id}: issues=0 executed=false empty_reason=scanner_failed`);
+    console.log(`[SCAN END] ${step.id}: ${duration_ms}ms`);
+    return result;
+  }
+}
+// ──────────────────────────────────────────────────────────────────────────
+
 async function persistStepResults(supabase: any, steps: typeof STEPS, results: Record<string, any>, startedBy: string) {
   for (const stepDef of steps) {
     const stepRes = results[stepDef.id];
@@ -2335,11 +2403,19 @@ serve(async (req) => {
         return new Response(JSON.stringify({ success: false, error: "NO_INPUT_DATA" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
-      console.log("[SCAN] running scanners — chaining first step");
+      console.log("[SCAN] running scanners — sequential pipeline");
+      const stepsResults: Record<string, any> = { _scan_input: scanInput };
+      for (const step of prioritizedSteps) {
+        await supabase.from("scan_runs").update({ current_step_label: step.label, current_step: prioritizedSteps.indexOf(step) }).eq("id", scanRun.id);
+        const result = await runStep(step, supabase, scanRun.id);
+        stepsResults[step.id] = result;
+        await supabase.from("scan_runs").update({ steps_results: stepsResults }).eq("id", scanRun.id);
+      }
+
       fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
-        body: JSON.stringify({ action: "process_step", scan_run_id: scanRun.id, step_index: 0, iteration: 1 }),
-      }).catch((e) => console.error("Failed to chain first step:", e));
+        body: JSON.stringify({ action: "finalize", scan_run_id: scanRun.id }),
+      }).catch((e) => console.error("Failed to chain finalize:", e));
 
       return new Response(JSON.stringify({ success: true, scan_id: scanRun.id, status: "started", system_stage: systemStage, scan_mode: isTargeted ? "targeted" : "full" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
@@ -2358,93 +2434,10 @@ serve(async (req) => {
 
       await supabase.from("scan_runs").update({ current_step: step_index, current_step_label: `[Iteration ${currentIteration}/${MAX_ITERATIONS}] ${step.label}`, iteration: currentIteration }).eq("id", scan_run_id);
 
-      let stepResult: any = { error: "unknown", failed: true };
-      const stepStart = Date.now();
+      const stepResult = await runStep(step, supabase, scan_run_id);
 
-      try {
-        const STEP_TIMEOUT_MS = 30000;
-        const realScanner = REAL_DB_SCANNERS[step.scanType];
-        if (realScanner) {
-          console.log(`[scan] Running REAL DB scanner for ${step.scanType}`);
-          const dbResult = await realScanner(supabase, scan_run_id);
-          let aiEnrichment: any = null;
-          try {
-            const aiController = new AbortController();
-            const aiTimeout = setTimeout(() => aiController.abort(), STEP_TIMEOUT_MS);
-            const resp = await fetch(`${supabaseUrl}/functions/v1/ai-assistant`, {
-              method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
-              body: JSON.stringify({ type: step.scanType, orchestrated: true, step_index, real_db_findings: { issues_count: dbResult.issues_found || dbResult.total_issues || 0, score: dbResult.overall_score, sample_issues: (dbResult.issues || dbResult.mismatches || dbResult.features || []).slice(0, 5).map((i: any) => i.title || i.name || "") } }),
-              signal: aiController.signal,
-            });
-            clearTimeout(aiTimeout);
-            if (resp.ok) { const data = await resp.json(); aiEnrichment = data.result || data; }
-          } catch (_) {}
-          stepResult = { ...dbResult, ai_suggestions: aiEnrichment?.suggestions || aiEnrichment?.recommendations || [], ai_summary: aiEnrichment?.summary || aiEnrichment?.executive_summary || null };
-        } else {
-          console.log(`[scan] Running AI-only scanner for ${step.scanType}`);
-          const previousContext: Record<string, any> = {};
-          const existingResults = scanRun.steps_results || {};
-          for (const [key, val] of Object.entries(existingResults)) {
-            const v = val as any;
-            if (v?.overall_score != null) previousContext[key] = { score: v.overall_score };
-            if (v?.issues_count != null) previousContext[key] = { ...previousContext[key], issues: v.issues_count };
-          }
-          let deepScanContext: any = undefined;
-          if (currentIteration > 1) {
-            deepScanContext = { iteration: currentIteration, previous_patterns: scanRun.pattern_discoveries || [], high_risk_areas: scanRun.high_risk_areas || [], instruction: "DEEP RE-SCAN. Focus on high_risk_areas and patterns." };
-          }
-          const stepController = new AbortController();
-          const stepTimeout = setTimeout(() => stepController.abort(), STEP_TIMEOUT_MS);
-          const resp = await fetch(`${supabaseUrl}/functions/v1/ai-assistant`, {
-            method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
-            body: JSON.stringify({ type: step.scanType, orchestrated: true, step_index, previous_context: Object.keys(previousContext).length > 0 ? previousContext : undefined, deep_scan_context: deepScanContext }),
-            signal: stepController.signal,
-          });
-          clearTimeout(stepTimeout);
-          if (resp.ok) { const data = await resp.json(); stepResult = data.result || data; }
-          else { const errBody = await resp.text().catch(() => ""); stepResult = { error: `HTTP ${resp.status}: ${errBody.substring(0, 200)}`, failed: true }; }
-        }
-      } catch (e: any) { stepResult = { error: e.message, failed: true, _timed_out: e.name === "AbortError" }; }
-
-      const duration_ms = Date.now() - stepStart;
-      const scanFinishedAt = new Date().toISOString();
-      const scanStartedAt = new Date(Date.now() - duration_ms).toISOString();
-
-      // ── Normalize scanner output ──
-      const didExecute = !stepResult.failed && !stepResult.error;
-      stepResult._executed = didExecute;
-      stepResult._scanner_name = step.id;
-      if (didExecute) {
-        if (!Array.isArray(stepResult.issues)) {
-          stepResult.issues = stepResult.issues ?? [];
-        }
-      } else {
-        stepResult.issues = stepResult.issues ?? [];
-      }
-
-      console.log("🚨 TOTAL ISSUES:", stepResult.issues.length);
-
-      // ── Extended metadata ──
-      stepResult._execution_time_ms = duration_ms;
-      stepResult._scan_started_at = scanStartedAt;
-      stepResult._scan_finished_at = scanFinishedAt;
-
-      // Compute input_size from scanner-specific fields
-      const inputSize = stepResult.components_scanned ?? stepResult.routes_scanned ?? stepResult.records_scanned ?? stepResult.features_scanned ?? stepResult.tables_scanned ?? stepResult.flows_scanned ?? stepResult.items_scanned ?? stepResult.total_checked ?? stepResult.total_scanned ?? 0;
-      stepResult._input_size = inputSize;
-
-      // Determine empty_reason when 0 issues
-      if (stepResult.issues.length === 0) {
-        if (stepResult.failed || stepResult.error) {
-          stepResult._empty_reason = "scanner_failed";
-        } else if (inputSize === 0) {
-          stepResult._empty_reason = "no_data";
-        } else if (didExecute) {
-          stepResult._empty_reason = "no_detection";
-        } else {
-          stepResult._empty_reason = "not_applicable";
-        }
-      }
+      const duration_ms = stepResult._duration_ms;
+      const inputSize = stepResult._input_size;
 
       // ── Scan scope metadata ──
       const SCAN_SCOPE_MAP: Record<string, { type: string; target: string }> = {
@@ -2465,6 +2458,7 @@ serve(async (req) => {
       const scopeDef = SCAN_SCOPE_MAP[step.scanType] || { type: "edge", target: step.scanType };
       stepResult._scan_scope = { type: scopeDef.type, target: scopeDef.target, size: inputSize };
       stepResult._affected_area = { type: scopeDef.type, target: scopeDef.target };
+      stepResult._iteration = currentIteration;
 
       // ── Upsert system_structure_map ──
       await supabase.from("system_structure_map").upsert({
@@ -2474,13 +2468,8 @@ serve(async (req) => {
         last_seen_at: new Date().toISOString(),
         scan_count: 1,
       }, { onConflict: "entity_type,entity_name" }).then(async () => {
-        // Increment scan_count for existing rows (upsert sets 1 for new)
         await supabase.rpc("increment_structure_map_scan", { p_entity_type: scopeDef.type, p_entity_name: scopeDef.target }).catch(() => {});
       }).catch(() => {});
-
-      stepResult._duration_ms = duration_ms;
-      stepResult._step_id = step.id;
-      stepResult._iteration = currentIteration;
 
       await supabase.from("system_observability_log").insert({
         event_type: "scan_step", severity: stepResult.failed ? "error" : "info", source: "scanner",
@@ -2490,25 +2479,9 @@ serve(async (req) => {
       }).catch(() => {});
 
       const updatedResults = { ...(scanRun.steps_results || {}), [step.id]: stepResult };
-      const stepsForIteration = currentIteration === 1 ? STEPS : (scanRun._targeted_steps || STEPS);
-      const isLastStep = step_index + 1 >= stepsForIteration.length;
+      await supabase.from("scan_runs").update({ steps_results: updatedResults, current_step: step_index }).eq("id", scan_run_id);
 
-      if (!isLastStep) {
-        const nextStep = stepsForIteration[step_index + 1];
-        await supabase.from("scan_runs").update({ steps_results: updatedResults, current_step: step_index + 1, current_step_label: `[Iteration ${currentIteration}/${MAX_ITERATIONS}] ${nextStep.label}` }).eq("id", scan_run_id);
-        fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
-          method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
-          body: JSON.stringify({ action: "process_step", scan_run_id, step_index: step_index + 1, iteration: currentIteration }),
-        }).catch((e) => console.error("Failed to chain next step:", e));
-      } else {
-        await supabase.from("scan_runs").update({ steps_results: updatedResults }).eq("id", scan_run_id);
-        fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
-          method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
-          body: JSON.stringify({ action: "evaluate_iteration", scan_run_id, iteration: currentIteration }),
-        }).catch((e) => console.error("Failed to chain evaluation:", e));
-      }
-
-      return new Response(JSON.stringify({ success: true, ok: true, step: step.id, step_index, iteration: currentIteration }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
+      return new Response(JSON.stringify({ success: true, ok: true, step: step.id, step_index }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
     }
 
     // ── EVALUATE_ITERATION ──
@@ -2549,20 +2522,6 @@ serve(async (req) => {
       const totalNewIssues = (scanRun.total_new_issues || 0) + newCount;
 
       await supabase.from("scan_runs").update({ iteration_results: allIterResults, pattern_discoveries: allPatterns, high_risk_areas: allHighRisk, coverage_score: coverageScore, total_new_issues: totalNewIssues }).eq("id", scan_run_id);
-
-      const shouldRecurse = currentIteration < MAX_ITERATIONS && newCount > 0 && (highRiskAreas.length > 0 || patterns.length > 0);
-
-      if (shouldRecurse) {
-        const targetedSteps = buildTargetedSteps(patterns, highRiskAreas, currentIteration + 1);
-        if (targetedSteps.length > 0) {
-          await supabase.from("scan_runs").update({ current_step_label: `[Iteration ${currentIteration + 1}/${MAX_ITERATIONS}] ${targetedSteps[0].label}`, current_step: 0, total_steps: STEPS.length + targetedSteps.length * currentIteration, _targeted_steps: targetedSteps }).eq("id", scan_run_id);
-          fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
-            method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
-            body: JSON.stringify({ action: "process_step", scan_run_id, step_index: 0, iteration: currentIteration + 1 }),
-          }).catch((e) => console.error("Failed to chain re-scan:", e));
-          return new Response(JSON.stringify({ success: true, ok: true, action: "recursing", iteration: currentIteration + 1 }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
-        }
-      }
 
       fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
