@@ -2315,6 +2315,9 @@ serve(async (req) => {
       console.log("[SCAN] insert result:", scanRun, "error:", insertError);
       if (insertError || !scanRun) return new Response(JSON.stringify({ success: false, error: "Failed to create scan run", detail: insertError?.message }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
+      // Log scan start trace so it appears in the System Activity panel
+      await logRuntimeTrace("scan", "run-full-scan", "start", null, { scanRunId: scanRun.id }, request_trace_id);
+
       // Input debug
       const { data: structure_map } = await supabase.from("system_structure_map").select("entity_type, entity_name").limit(500);
       const routes = (structure_map || []).filter((e: any) => e.entity_type === "page");
