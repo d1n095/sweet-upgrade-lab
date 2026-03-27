@@ -618,7 +618,7 @@ const SystemExplorer = () => {
     },
   });
 
-  // ── Live system activity: all runtime_traces, auto-refresh every 4 s ──
+  // ── Live system activity: all runtime_traces, auto-refresh every 4 s (only when Activity tab is active) ──
   const { data: systemActivityTraces = [] } = useQuery({
     queryKey: ["system-activity-traces"],
     queryFn: async () => {
@@ -629,7 +629,7 @@ const SystemExplorer = () => {
         .limit(50);
       return (data || []) as any[];
     },
-    refetchInterval: 4_000,
+    refetchInterval: mainTab === "activity" ? 4_000 : false,
     staleTime: 0,
   });
 

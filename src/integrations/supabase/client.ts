@@ -35,7 +35,7 @@ supabase.functions.invoke = async (fn: string, payload?: any) => {
       endpoint: 'blocked',
       error_message: 'AI BLOCKED',
       payload_snapshot: payload?.body || {},
-    }).then(() => {}).catch(() => {});
+    }).then(() => {}).catch((e) => console.warn('[runtime_traces insert failed]', e));
     throw new Error(msg);
   }
 
@@ -48,7 +48,7 @@ supabase.functions.invoke = async (fn: string, payload?: any) => {
     endpoint: 'invoke',
     error_message: null,
     payload_snapshot: payload?.body || {},
-  }).then(() => {}).catch(() => {});
+  }).then(() => {}).catch((e) => console.warn('[runtime_traces insert failed]', e));
 
   try {
     const result = await _originalInvoke(fn, payload);
