@@ -187,6 +187,9 @@ function computeRawScanReport(
     issues_after_filter: issuesAfterFilter,
     work_items_created: workItemsCreated,
     pipeline_status: pipelineStatus,
+    data_flow_status: stepsExecuted > 0 ? "ok" : "broken",
+    last_failed_step: steps.filter(s => !s.executed || (s as any).error).slice(-1)[0]?.step_id ?? null,
+    last_successful_scan_time: actionLogs.filter(l => l.type === "Full Scan" && (l.status === "verified" || l.status === "no-effect")).slice(0, 1)[0]?.time ?? null,
     steps,
     failures,
     dead_actions,
@@ -288,6 +291,7 @@ const SystemExplorer = () => {
 
   function logAction(action: Record<string, any>) {
     console.log("🟢 ACTION:", action);
+    setLastAction(action.type ? `${action.type}:${action.status ?? ""}` : JSON.stringify(action));
     setActionLogs(prev => [
       {
         time: new Date().toISOString(),
@@ -676,6 +680,10 @@ const SystemExplorer = () => {
       return data;
     },
   });
+
+  useEffect(() => {
+    console.log("[FETCH latestRun]", latestRun);
+  }, [latestRun]);
 
   // 3b. History for selected item
   const { data: itemHistory = [], isLoading: historyLoading } = useQuery({
@@ -1294,8 +1302,14 @@ const SystemExplorer = () => {
                   body: { action: "start", scan_mode: "full" },
                 });
                 console.log("[UI RESPONSE]", data, error);
+                if (error) {
+                  logAction({ type: "Full Scan", status: "error", message: error?.message ?? "invoke error" });
+                } else {
+                  logAction({ type: "Full Scan", status: "verified", message: "scan dispatched" });
+                }
               } catch (err: any) {
                 console.error("[FULL SCAN ERROR]:", err);
+                logAction({ type: "Full Scan", status: "error", message: err?.message ?? "Unknown error" });
               } finally {
                 clearInterval(pollInterval);
                 setIsScanning(false);
@@ -2156,7 +2170,8 @@ const SystemExplorer = () => {
                 const run = latestRun as any;
                 const stepsResults = run?.steps_results as Record<string, any> | null;
                 console.log("[RAW INPUT]", stepsResults);
-                if (!stepsResults) return <p className="text-xs text-muted-foreground">No scan results available — run a scan first</p>;
+                if (!run) return <p className="text-xs text-muted-foreground">No scan_run in DB — run a scan first</p>;
+                if (!stepsResults) return <p className="text-xs text-destructive font-mono text-[10px]">data_flow_break: scan_run exists (id: {run.id?.slice(0, 8)}) but steps_results is empty — scan may not have finalized</p>;
                 try {
                   const report = run?.raw_scan_report
                     ? run.raw_scan_report as Record<string, any>
@@ -2172,11 +2187,14 @@ const SystemExplorer = () => {
                     <div className="space-y-3">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className={`text-sm font-bold ${statusColor}`}>pipeline: {report.pipeline_status}</span>
+                        <Badge variant={report.data_flow_status === "ok" ? "outline" : "destructive"} className="text-[10px]">data_flow: {report.data_flow_status}</Badge>
                         <Badge variant="outline" className="text-[10px]">{report.steps_executed}/{report.total_steps} steps executed</Badge>
                         {report.steps_failed > 0 && <Badge variant="destructive" className="text-[10px]">{report.steps_failed} failed</Badge>}
                         <Badge variant="outline" className="text-[10px]">detected: {report.issues_detected}</Badge>
                         <Badge variant="outline" className="text-[10px]">after filter: {report.issues_after_filter}</Badge>
                         <Badge variant="outline" className="text-[10px]">work_items: {report.work_items_created}</Badge>
+                        {report.last_failed_step && <Badge variant="destructive" className="text-[10px]">last_failed: {report.last_failed_step}</Badge>}
+                        {report.last_successful_scan_time && <Badge variant="outline" className="text-[10px]">last_ok: {new Date(report.last_successful_scan_time).toLocaleTimeString()}</Badge>}
                       </div>
                       {report.failures?.length > 0 && (
                         <div className="rounded-md border border-destructive/50 bg-destructive/5 p-2 space-y-1">
