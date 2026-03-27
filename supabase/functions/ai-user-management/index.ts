@@ -9,6 +9,15 @@ const corsHeaders = {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  // ── AI ISOLATION GUARD ─────────────────────────────────────────────
+  if (Deno.env.get("AI_ENABLED") !== "true") {
+    console.warn("[ai-user-management] AI_ENABLED=false — request blocked");
+    return new Response(JSON.stringify({ error: "AI_DISABLED" }), {
+      status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  // ──────────────────────────────────────────────────────────────────
+
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Unauthorized");

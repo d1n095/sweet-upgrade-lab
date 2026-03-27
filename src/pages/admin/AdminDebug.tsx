@@ -16,6 +16,8 @@ import { useSiteScannerStore, ScanStatus } from '@/debug/scanner/siteScanner';
 import { useDebugLoggerStore, LogLevel } from '@/debug/logger/debugLogger';
 import { useTestRunnerStore, TEST_CASES } from '@/debug/testRunner/testRunner';
 import { buildSiteIndex, searchIndex, IndexEntryType } from '@/debug/index/siteIndex';
+import { getIsolationReport, getAiViolations } from '@/ai/aiIsolationGuard';
+import { SYSTEM_FLAGS } from '@/config/systemFlags';
 
 // ─────────────────────────────────────────────
 // Site Scanner Tab
@@ -447,6 +449,7 @@ const AdminDebug = () => {
           <TabsTrigger value="tests" className="gap-2"><Activity className="w-4 h-4" />Test Runner</TabsTrigger>
           <TabsTrigger value="index" className="gap-2"><Search className="w-4 h-4" />Site Index</TabsTrigger>
           <TabsTrigger value="logger" className="gap-2"><Terminal className="w-4 h-4" />Debug Logger</TabsTrigger>
+          <TabsTrigger value="ai-isolation" className="gap-2"><Shield className="w-4 h-4" />AI Isolation</TabsTrigger>
         </TabsList>
 
         <TabsContent value="scanner" className="mt-4">
@@ -496,7 +499,94 @@ const AdminDebug = () => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="ai-isolation" className="mt-4">
+          <AiIsolationTab />
+        </TabsContent>
       </Tabs>
+    </div>
+  );
+};
+
+// ─── AI Isolation Report Tab ──────────────────────────────────────────────────
+
+const AiIsolationTab = () => {
+  const [report, setReport] = useState(() => getIsolationReport());
+
+  const refresh = () => setReport(getIsolationReport());
+
+  const statusColor = report.isolation_status === 'SUCCESS' ? 'text-green-500' : 'text-red-500';
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          Real-time AI isolation status. All flags are compile-time constants — AI cannot be enabled without a code change.
+        </p>
+        <Button variant="outline" size="sm" onClick={refresh} className="gap-1.5">
+          <RefreshCw className="w-3.5 h-3.5" />Refresh
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: 'AI_ENABLED', value: SYSTEM_FLAGS.AI_ENABLED },
+          { label: 'AI_ALLOWED_IN_SCANNER', value: SYSTEM_FLAGS.AI_ALLOWED_IN_SCANNER },
+          { label: 'AI_ALLOWED_IN_AUTOMATION', value: SYSTEM_FLAGS.AI_ALLOWED_IN_AUTOMATION },
+        ].map(f => (
+          <Card key={f.label} className="p-3">
+            <p className="text-xs text-muted-foreground font-mono">{f.label}</p>
+            <Badge variant={f.value ? 'destructive' : 'secondary'} className="mt-1">
+              {String(f.value)}
+            </Badge>
+          </Card>
+        ))}
+        <Card className="p-3">
+          <p className="text-xs text-muted-foreground font-mono">isolation_status</p>
+          <p className={cn('text-sm font-bold mt-1', statusColor)}>{report.isolation_status}</p>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Shield className="w-4 h-4" />
+            Isolation Report
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <pre className="text-xs bg-secondary/50 rounded p-3 overflow-x-auto">
+            {JSON.stringify({
+              ai_calls_detected: report.ai_calls_detected,
+              isolation_status: report.isolation_status,
+              violations: report.violations,
+            }, null, 2)}
+          </pre>
+        </CardContent>
+      </Card>
+
+      {report.violations.length > 0 && (
+        <Card className="border-red-500/50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-red-500 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4" />
+              AI ISOLATION BREACHES ({report.violations.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="h-48">
+              <div className="space-y-2">
+                {report.violations.map(v => (
+                  <div key={v.id} className="text-xs bg-red-500/10 rounded p-2 font-mono">
+                    <p className="font-semibold">[{v.timestamp}] {v.file}::{v.fn}</p>
+                    <p className="text-muted-foreground mt-0.5">{v.message}</p>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };

@@ -9,11 +9,17 @@ const corsHeaders = {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  // ── AI ISOLATION GUARD ─────────────────────────────────────────────
+  if (Deno.env.get("AI_ENABLED") !== "true") {
+    console.warn("[generate-product-content] AI_ENABLED=false — request blocked");
+    return new Response(JSON.stringify({ error: "AI_DISABLED" }), {
+      status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  // ──────────────────────────────────────────────────────────────────
+
   // Auth: require valid JWT
   const authHeader = req.headers.get("Authorization") || "";
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  if (authHeader !== `Bearer ${serviceRoleKey}`) {
-    const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },
     });
