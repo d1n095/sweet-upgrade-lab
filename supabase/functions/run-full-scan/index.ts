@@ -2255,7 +2255,9 @@ serve(async (req) => {
     console.log("[SCAN] parsing body");
     const body = await req.json();
     console.log("FULL SCAN BODY:", body);
-    const { action, scan_run_id, step_index, iteration, request_trace_id, scan_mode, target_area, verification_for } = body;
+    const { action, scan_run_id, step_index, iteration, request_trace_id, scan_mode, target_area, verification_for, source } = body;
+    const scanSource = source || "SYSTEM";
+    console.log("[SCAN TRIGGERED FROM]:", scanSource);
     console.log("[SCAN] action:", action);
 
     // ── START ──

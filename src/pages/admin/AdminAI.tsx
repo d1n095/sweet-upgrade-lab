@@ -2015,28 +2015,23 @@ const SystemScanTab = () => {
 
   const runScan = async () => {
     setLoading(true);
-    const res = await callAI('system_scan');
-    if (res) {
-      setScanResult(res);
-      // Persist to DB
-      const { data: { session } } = await supabase.auth.getSession();
-      const { data: scanRow } = await supabase.from('ai_scan_results' as any).insert({
-        scan_type: 'system_scan',
-        results: res,
-        overall_score: res.system_score || null,
-        overall_status: res.system_score >= 70 ? 'healthy' : res.system_score >= 40 ? 'warning' : 'critical',
-        executive_summary: res.executive_summary || null,
-        issues_count: res.issues_found || 0,
-        tasks_created: res.tasks_created || 0,
-        scanned_by: session?.user?.id || null,
-      } as any).select('id').single();
-      const savedScanId = (scanRow as any)?.id || null;
-      setCurrentScanId(savedScanId);
-      logChange({ change_type: 'scan', description: `Systemskanning klar — poäng: ${res.system_score || '?'}, ${res.issues_found || 0} problem`, source: 'ai', affected_components: ['system_scan'], scan_id: savedScanId });
+    console.log('[SCAN TRIGGERED FROM]: AI_CENTER');
+    try {
+      // All scans go through run-full-scan — no ai-assistant calls
+      const { data, error } = await supabase.functions.invoke('run-full-scan', {
+        body: { action: 'start', scan_mode: 'full', source: 'AI_CENTER' },
+      });
+      if (error) throw error;
+      const scanRunId = data?.scan_id || data?.scan_run_id;
+      console.log('[SCAN TRIGGERED FROM]: AI_CENTER — scan_run_id:', scanRunId);
+      toast.success('Skanning startad via run-full-scan');
       queryClient.invalidateQueries({ queryKey: ['last-scan-result'] });
       queryClient.invalidateQueries({ queryKey: ['scan-history'] });
+    } catch (err: any) {
+      toast.error(err?.message || 'Kunde inte starta skanning');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const loadHistoryScan = async (id: string) => {

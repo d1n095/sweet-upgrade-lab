@@ -492,6 +492,7 @@ const SystemExplorer = () => {
   };
 
   const handleRunFullScan = async () => {
+    console.log("[SCAN TRIGGERED FROM]: EXPLORER");
     console.log("[SCAN TRIGGERED]");
     setIsScanning(true);
     
@@ -500,12 +501,12 @@ const SystemExplorer = () => {
       const beforeCount = before.data?.length || 0;
       logAction({ type: "Full Scan", status: "started" });
       console.log("🚀 STARTING FULL SCAN");
-      const structure_map = Object.keys(getRawSources() || {}).map(path => ({
-        path
-      }));
+      const rawPaths = Object.keys(getRawSources() || {});
+      // Structure map failsafe: use fallback if empty — do NOT abort
+      const structure_map = rawPaths.length > 0 ? rawPaths.map(path => ({ path })) : [{ path: "/" }];
       console.log("[SENDING STRUCTURE MAP]:", structure_map.length);
       const res = await tracedInvoke("run-full-scan", {
-        body: { action: "start", scan_mode: "full", structure_map },
+        body: { action: "start", scan_mode: "full", source: "EXPLORER", structure_map },
       });
       console.log("📡 RESPONSE:", res);
       const verify = await verifyWorkItemsCreated(beforeCount);
@@ -1197,10 +1198,10 @@ const SystemExplorer = () => {
             <>
             <Button variant="default" size="sm" onClick={() =>
               validateAction("FULL_SCAN", async () => {
-                const structure_map = Object.keys(getRawSources() || {});
-                if (!structure_map.length) {
-                  throw new Error("No structure map");
-                }
+                const rawPaths = Object.keys(getRawSources() || {});
+                // Structure map failsafe: use fallback if empty — do NOT abort
+                const structure_map = rawPaths.length > 0 ? rawPaths.map(p => ({ path: p })) : [{ path: "/" }];
+                console.log("[SCAN TRIGGERED FROM]: EXPLORER", { structure_map_size: structure_map.length });
                 setIsScanning(true);
                 setScanProgress({ step: 0, total: 11, label: "Startar..." });
                 const pollInterval = setInterval(async () => {
@@ -1213,7 +1214,7 @@ const SystemExplorer = () => {
                 }, 2000);
                 try {
                   await supabase.functions.invoke("run-full-scan", {
-                    body: { action: "start", scan_mode: "full", structure_map: structure_map.map(p => ({ path: p })) }
+                    body: { action: "start", scan_mode: "full", source: "EXPLORER", structure_map }
                   });
                 } finally {
                   clearInterval(pollInterval);
