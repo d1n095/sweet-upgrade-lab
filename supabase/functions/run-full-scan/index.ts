@@ -2502,9 +2502,18 @@ serve(async (req) => {
       const scanFinishedAt = new Date().toISOString();
       const scanStartedAt = new Date(Date.now() - duration_ms).toISOString();
 
+      const duration_ms_early = Date.now() - stepStart;
+      console.log("[STEP END]", {
+        step_id: step.id,
+        iteration: currentIteration,
+        issues_count: Array.isArray(stepResult.issues) ? stepResult.issues.length : 0,
+        executed: !stepResult.failed && !stepResult.error,
+        duration_ms: duration_ms_early,
+        failure_reason: stepResult.error || null,
+      });
+
       // ── Normalize scanner output ──
-      // Steps that had AI disabled are treated as not executed (no real scan ran)
-      const didExecute = !stepResult.failed && !stepResult.error && !stepResult._ai_disabled;
+      const didExecute = !stepResult.failed && !stepResult.error;
       stepResult._executed = didExecute;
       stepResult._scanner_name = step.id;
       if (didExecute) {
