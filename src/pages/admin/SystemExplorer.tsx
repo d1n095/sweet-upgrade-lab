@@ -1297,6 +1297,7 @@ const SystemExplorer = () => {
                 } catch (_) {}
               }, 2000);
               try {
+                logAction({ type: "Full Scan", status: "started", message: "invoke dispatched" });
                 console.log("[UI INVOKE] run-full-scan called");
                 const { data, error } = await tracedInvoke("run-full-scan", {
                   body: { action: "start", scan_mode: "full" },
@@ -1304,6 +1305,8 @@ const SystemExplorer = () => {
                 console.log("[UI RESPONSE]", data, error);
                 if (error) {
                   logAction({ type: "Full Scan", status: "error", message: error?.message ?? "invoke error" });
+                } else if ((data as any)?.success === false) {
+                  logAction({ type: "Full Scan", status: "error", message: (data as any)?.error ?? "scan returned success: false" });
                 } else {
                   logAction({ type: "Full Scan", status: "verified", message: "scan dispatched" });
                 }

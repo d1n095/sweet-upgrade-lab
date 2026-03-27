@@ -2494,7 +2494,7 @@ serve(async (req) => {
             deepScanContext = { iteration: currentIteration, previous_patterns: scanRun.pattern_discoveries || [], high_risk_areas: scanRun.high_risk_areas || [], instruction: "DEEP RE-SCAN. Focus on high_risk_areas and patterns." };
           }
           console.log("[AI STATUS] DISABLED – running pure scan");
-          stepResult = { issues: [], issues_found: 0, overall_score: 100, ai_suggestions: [], ai_summary: "AI disabled" };
+          stepResult = { issues: [], issues_found: 0, overall_score: null, ai_suggestions: [], ai_summary: "AI disabled", _ai_disabled: true };
         }
       } catch (e: any) { stepResult = { error: e.message, failed: true, _timed_out: e.name === "AbortError" }; }
 
@@ -2503,7 +2503,8 @@ serve(async (req) => {
       const scanStartedAt = new Date(Date.now() - duration_ms).toISOString();
 
       // ── Normalize scanner output ──
-      const didExecute = !stepResult.failed && !stepResult.error;
+      // Steps that had AI disabled are treated as not executed (no real scan ran)
+      const didExecute = !stepResult.failed && !stepResult.error && !stepResult._ai_disabled;
       stepResult._executed = didExecute;
       stepResult._scanner_name = step.id;
       if (didExecute) {
@@ -3227,8 +3228,8 @@ serve(async (req) => {
       }
       // STALE DATA
       const scanTimestamp = new Date(scanRun.started_at).getTime();
-      if (scanTimestamp && Date.now() - scanTimestamp > 60000) {
-        violations.push("⚠ STALE SCAN DATA (>60s old)");
+      if (scanTimestamp && Date.now() - scanTimestamp > 600000) {
+        violations.push("⚠ STALE SCAN DATA (>10min old)");
       }
       const scanContext = {
         raw_detected: rawDetected,
