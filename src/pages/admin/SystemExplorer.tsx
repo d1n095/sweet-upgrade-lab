@@ -584,7 +584,10 @@ const SystemExplorer = () => {
       queryClient.invalidateQueries({ queryKey: ["system-explorer-runtime-errors"] }),
       queryClient.invalidateQueries({ queryKey: ["system-explorer-debug-console"] }),
       queryClient.invalidateQueries({ queryKey: ["system-explorer-raw-runtime-errors"] }),
+      queryClient.invalidateQueries({ queryKey: ["system-explorer-latest-run"] }),
+      queryClient.invalidateQueries({ queryKey: ["backend-scan-latest"] }),
     ]);
+    console.log("[UI FETCH latestRun] queries invalidated — data will refresh");
     setIsRefreshing(false);
   };
 
@@ -1274,6 +1277,7 @@ const SystemExplorer = () => {
           {isSystemAdmin && (
             <>
             <Button variant="default" size="sm" onClick={async () => {
+              console.log("[UI CLICK] Full scan clicked");
               setIsScanning(true);
               setScanProgress({ step: 0, total: 11, label: "Startar..." });
               const pollInterval = setInterval(async () => {
@@ -1285,15 +1289,18 @@ const SystemExplorer = () => {
                 } catch (_) {}
               }, 2000);
               try {
-                await tracedInvoke("run-full-scan", {
+                console.log("[UI INVOKE] run-full-scan called");
+                const { data, error } = await tracedInvoke("run-full-scan", {
                   body: { action: "start", scan_mode: "full" },
                 });
+                console.log("[UI RESPONSE]", data, error);
               } catch (err: any) {
                 console.error("[FULL SCAN ERROR]:", err);
               } finally {
                 clearInterval(pollInterval);
                 setIsScanning(false);
                 setScanProgress(null);
+                await handleRefresh();
               }
             }} disabled={isScanning}>
               {isScanning ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Radar className="h-4 w-4 mr-1" />}
@@ -2148,6 +2155,7 @@ const SystemExplorer = () => {
               {(() => {
                 const run = latestRun as any;
                 const stepsResults = run?.steps_results as Record<string, any> | null;
+                console.log("[RAW INPUT]", stepsResults);
                 if (!stepsResults) return <p className="text-xs text-muted-foreground">No scan results available — run a scan first</p>;
                 try {
                   const report = run?.raw_scan_report
