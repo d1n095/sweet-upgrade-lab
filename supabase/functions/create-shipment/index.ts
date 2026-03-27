@@ -29,21 +29,19 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Verify caller is staff via JWT claims
+    // Verify caller is staff via JWT
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const userClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: claims, error: claimsErr } = await userClient.auth.getClaims(
+    const anonClient = createClient(supabaseUrl, anonKey);
+    const { data: { user }, error: authError } = await anonClient.auth.getUser(
       authHeader.replace("Bearer ", ""),
     );
-    if (claimsErr || !claims?.claims?.sub) {
+    if (authError || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const userId = claims.claims.sub as string;
+    const userId = user.id;
 
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
     const { data: roles } = await adminClient
