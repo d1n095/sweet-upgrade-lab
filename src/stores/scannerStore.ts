@@ -6,6 +6,7 @@ import { useFeedbackLoopStore } from './feedbackLoopStore';
 import { QueryClient } from '@tanstack/react-query';
 import { createTraceId, observeScanStep, observeError, observeAction, flushObservabilityBuffer } from '@/utils/observabilityLogger';
 import { trace, newTraceId as newDebugTraceId } from '@/utils/deepDebugTrace';
+import { logData } from '@/utils/actionMonitor';
 
 export type ScanStepStatus = 'pending' | 'running' | 'done' | 'error';
 
@@ -148,23 +149,60 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
             set(state => ({
               steps: state.steps.map((s, idx) => idx === i ? { ...s, status: 'done' as const, result: res, duration_ms } : s),
             }));
+            // Report successful scan step to ActionMonitor
+            logData({
+              type: 'scan_step',
+              page: 'ScannerStore',
+              endpoint: step.type,
+              data: { label: step.label, duration_ms, traceId: debugTraceId },
+            });
           } else {
             observeError(`Inget resultat: ${step.label}`, undefined, { trace_id: traceId, component: step.type, duration_ms: Date.now() - start });
             set(state => ({
               steps: state.steps.map((s, idx) => idx === i ? { ...s, status: 'error' as const, error: 'Inget resultat', duration_ms: Date.now() - start } : s),
             }));
+            // Report empty result to ActionMonitor
+            logData({
+              type: 'scan_error',
+              page: 'ScannerStore',
+              endpoint: step.type,
+              data: { label: step.label, error: 'Inget resultat', duration_ms: Date.now() - start },
+            });
           }
         } catch (err: any) {
           observeError(`Skanningsfel: ${step.label}`, err, { trace_id: traceId, component: step.type, duration_ms: Date.now() - start });
           set(state => ({
             steps: state.steps.map((s, idx) => idx === i ? { ...s, status: 'error' as const, error: err?.message || 'Fel', duration_ms: Date.now() - start } : s),
           }));
+          // Report scan error to ActionMonitor
+          logData({
+            type: 'scan_error',
+            page: 'ScannerStore',
+            endpoint: step.type,
+            data: { label: step.label, error: err?.message || 'Fel', duration_ms: Date.now() - start },
+          });
         }
       })
     );
 
     observeAction(`Snabbskanning klar (${toRun.length} steg)`, { trace_id: traceId, source: 'scanner' });
     flushObservabilityBuffer();
+
+    // Report overall scan completion to ActionMonitor
+    const completedSteps = get().steps;
+    const completedCount = completedSteps.filter(s => s.status === 'done').length;
+    const failedCount = completedSteps.filter(s => s.status === 'error').length;
+    logData({
+      type: 'scan_complete',
+      page: 'ScannerStore',
+      endpoint: 'run-full-scan',
+      data: {
+        total: toRun.length,
+        completed: completedCount,
+        failed: failedCount,
+        traceId: debugTraceId,
+      },
+    });
 
     // Invalidate relevant queries so UI reflects new scan results + work items
     if (queryClient) {
@@ -174,8 +212,7 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
     }
 
     // Evaluate feedback loop after scans
-    const steps = get().steps;
-    const errorCount = steps.filter(s => s.status === 'error').length;
+    const errorCount = completedSteps.filter(s => s.status === 'error').length;
     const fbEntry = await useFeedbackLoopStore.getState().evaluateAfterAction(
       'scan', `Skanning (${toRun.length} steg)`, { failed: errorCount, regressed: 0, errors: errorCount }
     );
