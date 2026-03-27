@@ -818,6 +818,7 @@ async function runDataIntegrityScan(supabase: any, scanRunId: string): Promise<a
   const issues: any[] = [];
   const traceId = `integrity-${scanRunId.slice(0, 8)}`;
   const startMs = Date.now();
+  console.log("[TRACE EXECUTION]: runDataIntegrityScan started", { scanRunId, traceId, no_ai: true, no_external_calls: true });
 
   try {
     // 1. Work items created but missing source
@@ -1145,6 +1146,7 @@ async function runDataIntegrityScan(supabase: any, scanRunId: string): Promise<a
     scan_id: scanRunId, trace_id: traceId, component: "data_integrity_scan", duration_ms: durationMs,
   }).catch(() => {});
 
+  console.log("[TRACE EXECUTION]: runDataIntegrityScan done", { scanRunId, traceId, issues_found: issues.length, duration_ms: Date.now() - startMs, no_ai: true });
   return {
     issues, total_issues: issues.length,
     by_type: { data_loss: issues.filter(i => i.type === "data_loss").length, failed_insert: issues.filter(i => i.type === "failed_insert").length, stale_state: issues.filter(i => i.type === "stale_state").length, incorrect_filtering: issues.filter(i => i.type === "incorrect_filtering").length, data_validation: issues.filter(i => i.type === "data_validation").length, id_trace: issues.filter(i => i.type === "id_trace").length, data_mismatch: issues.filter(i => i.type === "data_mismatch").length, empty_table: issues.filter(i => i.type === "empty_table").length, request_failed_before_persistence: issues.filter(i => i.type === "request_failed_before_persistence").length },
@@ -1282,6 +1284,7 @@ async function runFunctionalBehaviorScan(supabase: any, scanRunId: string): Prom
 async function runRealSyncScan(supabase: any, scanRunId: string): Promise<any> {
   const issues: any[] = [];
   const startMs = Date.now();
+  console.log("[TRACE EXECUTION]: runRealSyncScan started", { scanRunId, no_ai: true, no_external_calls: true });
 
   try {
     const { data: products } = await supabase.from("products").select("id, title_sv, price, status, image_urls, handle, category").limit(500);
@@ -1322,6 +1325,7 @@ async function runRealSyncScan(supabase: any, scanRunId: string): Promise<any> {
 
   const durationMs = Date.now() - startMs;
   const score = Math.max(0, 100 - issues.length * 5);
+  console.log("[TRACE EXECUTION]: runRealSyncScan done", { scanRunId, issues_found: issues.length, duration_ms: durationMs, no_ai: true });
   return { issues, mismatches: issues, total_issues: issues.length, sync_score: score, overall_score: score, issues_found: issues.length, duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
 }
 
@@ -1330,6 +1334,7 @@ async function runRealSystemScan(supabase: any, scanRunId: string): Promise<any>
   const issues: any[] = [];
   const metrics: Record<string, number> = {};
   const startMs = Date.now();
+  console.log("[TRACE EXECUTION]: runRealSystemScan started", { scanRunId, no_ai: true, no_external_calls: true });
 
   try {
     const tables = [
@@ -1390,6 +1395,7 @@ async function runRealSystemScan(supabase: any, scanRunId: string): Promise<any>
 
   const durationMs = Date.now() - startMs;
   const score = Math.max(0, 100 - issues.length * 8);
+  console.log("[TRACE EXECUTION]: runRealSystemScan done", { scanRunId, issues_found: issues.length, duration_ms: durationMs, no_ai: true });
   return { issues, issues_found: issues.length, metrics, system_score: score, overall_score: score, duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
 }
 
@@ -1397,6 +1403,7 @@ async function runRealSystemScan(supabase: any, scanRunId: string): Promise<any>
 async function runRealFeatureDetection(supabase: any, scanRunId: string): Promise<any> {
   const features: any[] = [];
   const startMs = Date.now();
+  console.log("[TRACE EXECUTION]: runRealFeatureDetection started", { scanRunId, no_ai: true, no_external_calls: true });
 
   const featureTests = [
     { name: "Produkter", table: "products", query: "id, title_sv, status" },
@@ -1438,6 +1445,7 @@ async function runRealFeatureDetection(supabase: any, scanRunId: string): Promis
   const working = features.filter(f => f.status === "working").length;
   const broken = features.filter(f => f.status !== "working").length;
   const score = Math.round((working / Math.max(1, features.length)) * 100);
+  console.log("[TRACE EXECUTION]: runRealFeatureDetection done", { scanRunId, features_total: features.length, working, broken, duration_ms: durationMs, no_ai: true });
   return { features, working_count: working, broken_count: broken, total_features: features.length, overall_score: score, score, issues_found: broken, duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
 }
 
