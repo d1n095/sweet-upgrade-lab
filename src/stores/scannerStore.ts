@@ -52,31 +52,28 @@ interface ScannerState {
   runAllScans: (queryClient?: QueryClient) => Promise<void>;
 }
 
-const callAIForScan = async (type: string, payload: Record<string, any> = {}) => {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error('Ej inloggad');
+/**
+ * Fetch the latest cached scan result for a given scan type directly from the
+ * database.  No AI calls — no credits consumed.
+ */
+const fetchScanResult = async (type: string): Promise<any> => {
+  const { data, error } = await supabase
+    .from('ai_scan_results' as any)
+    .select('results, overall_score, issues_count, created_at, scan_type')
+    .eq('scan_type', type)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
-  const resp = await fetch(
-    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ type, ...payload }),
-    }
-  );
-
-  if (!resp.ok) {
-    if (resp.status === 429) throw new Error('AI är överbelastad');
-    if (resp.status === 402) throw new Error('AI-krediter slut');
-    const err = await resp.json().catch(() => ({}));
-    throw new Error(err.error || `AI-fel (${resp.status})`);
-  }
-
-  const data = await resp.json();
-  return data.result;
+  if (error) throw new Error(`DB query failed (${type}): ${error.message}`);
+  if (!data) return { issues: [], overall_score: null, issues_count: 0, _source: 'no_prior_scan' };
+  return {
+    ...((data as any).results as Record<string, any> || {}),
+    _source: 'db_cached',
+    _cached_at: (data as any).created_at,
+    overall_score: (data as any).overall_score,
+    issues_count: (data as any).issues_count,
+  };
 };
 
 export const useScannerStore = create<ScannerState>((set, get) => ({
@@ -136,10 +133,7 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
       toRun.map(async (step, i) => {
         const start = Date.now();
         try {
-          const res = await callAIForScan(
-            step.type,
-            step.type === 'content_validation' ? { auto_fix: false } : {}
-          );
+          const res = await fetchScanResult(step.type);
 
           if (res) {
             const duration_ms = Date.now() - start;

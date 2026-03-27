@@ -330,27 +330,50 @@ const SystemExplorer = () => {
       logAction({ type: "Search", status: "no-input", message: "Search query empty" });
       return;
     }
-    const sources = getRawSources();
-    if (!sources) {
-      logAction({ type: "Search", status: "error", message: "rawSources missing" });
-      return;
-    }
+    const q = searchQuery.toLowerCase();
     const results: { path: string; lineNumber: number; line: string }[] = [];
-    Object.entries(sources).forEach(([path, content]) => {
-      if (!content) return;
-      const lines = content.split("\n");
-      lines.forEach((line, index) => {
-        if (line.toLowerCase().includes(searchQuery.toLowerCase())) {
-          results.push({ path, lineNumber: index + 1, line: line.trim() });
-        }
+
+    // 1. Search raw frontend source files (static build-time index)
+    const sources = getRawSources();
+    if (sources) {
+      Object.entries(sources).forEach(([path, content]) => {
+        if (!content) return;
+        const lines = content.split("\n");
+        lines.forEach((line, index) => {
+          if (line.toLowerCase().includes(q)) {
+            results.push({ path, lineNumber: index + 1, line: line.trim() });
+          }
+        });
       });
-    });
+    }
+
+    // 2. Search fileSystemMap paths/folders (covers files not in rawSources)
+    for (const f of fileSystemMap) {
+      if (f.path.toLowerCase().includes(q) && !sources?.[f.path]) {
+        results.push({ path: f.path, lineNumber: 0, line: `[file] ${f.type} — used in: ${f.used_in.slice(0, 3).join(", ") || "nowhere"}` });
+      }
+    }
+
+    // 3. Search latest scan step issues (real diagnostic data from scan_runs)
+    const scanSteps = (latestRun as any)?.steps_results as Record<string, any> | null;
+    if (scanSteps) {
+      for (const [stepId, stepResult] of Object.entries(scanSteps)) {
+        const issues: any[] = Array.isArray((stepResult as any)?.issues) ? (stepResult as any).issues : [];
+        for (const issue of issues) {
+          const text = `${issue.title || ""} ${issue.description || ""} ${issue.component || ""} ${issue.route || ""}`;
+          if (text.toLowerCase().includes(q)) {
+            results.push({ path: `[scan:${stepId}] ${issue.component || issue.route || "–"}`, lineNumber: 0, line: issue.title || "(no title)" });
+          }
+        }
+      }
+    }
+
     logAction({
       type: "Search",
       status: results.length === 0 ? "no-results" : "success",
       count: results.length
     });
-    setSearchResults(results.slice(0, 50));
+    setSearchResults(results.slice(0, 100));
   }
 
   async function runSystemScan(mode: string) {
@@ -590,6 +613,7 @@ const SystemExplorer = () => {
       queryClient.invalidateQueries({ queryKey: ["system-explorer-raw-runtime-errors"] }),
       queryClient.invalidateQueries({ queryKey: ["system-explorer-latest-run"] }),
       queryClient.invalidateQueries({ queryKey: ["backend-scan-latest"] }),
+      refetchLatestRun(),
     ]);
     console.log("[UI FETCH latestRun] queries invalidated — data will refresh");
     setIsRefreshing(false);
@@ -667,7 +691,7 @@ const SystemExplorer = () => {
   });
 
   // 2b. Latest scan_run for pipeline data
-  const { data: latestRun } = useQuery({
+  const { data: latestRun, refetch: refetchLatestRun } = useQuery({
     queryKey: ["system-explorer-latest-run"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -679,6 +703,8 @@ const SystemExplorer = () => {
       if (error) throw error;
       return data;
     },
+    staleTime: 0,
+    refetchInterval: 5000,
   });
 
   useEffect(() => {
@@ -1531,9 +1557,29 @@ const SystemExplorer = () => {
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2"><Layers className="h-4 w-4" /> Code Index ({index.length} files)</CardTitle>
                 <Button variant="outline" size="sm" className="text-[10px] h-6 ml-auto" onClick={() => {
-                  tracedInvoke("run-full-scan", {
-                    body: { action: "start", scan_mode: "full" },
-                  }).catch((err: any) => console.error("[SCAN CODE ERROR]:", err));
+                  // Merge static frontend scan with real scan_runs step issues (no AI)
+                  const staticIssues: { type: string; message: string; file: string }[] = [];
+                  Object.entries(getRawSources() || {}).forEach(([path, content]) => {
+                    staticIssues.push(...scanFileContent(path, content as string));
+                  });
+
+                  const dbIssues: { type: string; message: string; file: string }[] = [];
+                  const scanSteps = (latestRun as any)?.steps_results as Record<string, any> | null;
+                  if (scanSteps) {
+                    for (const [stepId, stepResult] of Object.entries(scanSteps)) {
+                      const issues: any[] = Array.isArray((stepResult as any)?.issues) ? (stepResult as any).issues : [];
+                      for (const iss of issues) {
+                        dbIssues.push({
+                          type: iss.type || iss.failure_type || "bug",
+                          message: iss.title || iss.description || "(no description)",
+                          file: iss.source_file || iss.component || iss.route || `scan:${stepId}`,
+                        });
+                      }
+                    }
+                  }
+
+                  setCodeScanResult([...dbIssues, ...staticIssues]);
+                  logAction({ type: "SCAN_CODE", status: "success", count: staticIssues.length + dbIssues.length });
                 }}>
                   Scan Code
                 </Button>
@@ -2166,6 +2212,14 @@ const SystemExplorer = () => {
                 <FileText className="h-4 w-4" />
                 Raw Scan Report – Truth Engine
                 <Badge variant="outline" className="text-[10px]">steps_results only</Badge>
+                <Badge variant={(latestRun as any)?.status === "done" ? "outline" : (latestRun as any)?.status === "running" ? "secondary" : "destructive"} className="text-[10px]">
+                  {(latestRun as any)?.status ?? "no scan"}
+                </Badge>
+                {(latestRun as any)?.created_at && (
+                  <span className="text-[9px] text-muted-foreground ml-1">
+                    updated {new Date((latestRun as any).created_at).toLocaleTimeString("sv-SE")}
+                  </span>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -2218,6 +2272,57 @@ const SystemExplorer = () => {
                       <pre className="bg-muted/30 border border-border rounded-md p-3 text-[10px] font-mono overflow-auto max-h-[400px] whitespace-pre-wrap text-foreground select-all">
                         {JSON.stringify(report, null, 2)}
                       </pre>
+                      {/* ── Live Diagnostic Issues (from scan_runs.steps_results) ── */}
+                      {(() => {
+                        const sr = run?.steps_results as Record<string, any> | null;
+                        if (!sr) return null;
+                        const allIssues: { step: string; title: string; severity: string; type: string; file: string }[] = [];
+                        for (const [stepId, stepResult] of Object.entries(sr)) {
+                          if (stepId.startsWith("_")) continue;
+                          const issues: any[] = Array.isArray((stepResult as any)?.issues) ? (stepResult as any).issues : [];
+                          for (const iss of issues) {
+                            allIssues.push({
+                              step: stepId,
+                              title: iss.title || "(no title)",
+                              severity: iss.severity || "–",
+                              type: iss.type || iss.failure_type || "–",
+                              file: iss.source_file || iss.component || iss.route || "–",
+                            });
+                          }
+                        }
+                        if (allIssues.length === 0) return (
+                          <p className="text-[10px] text-muted-foreground">No issues in steps_results</p>
+                        );
+                        return (
+                          <div className="space-y-1">
+                            <p className="text-[10px] font-bold text-foreground">Live Diagnostic Issues ({allIssues.length})</p>
+                            <div className="rounded-md border border-border overflow-auto max-h-[400px]">
+                              <table className="w-full text-[10px]">
+                                <thead className="sticky top-0 bg-background border-b border-border">
+                                  <tr>
+                                    <th className="text-left p-2 text-muted-foreground font-medium w-[140px]">Step</th>
+                                    <th className="text-left p-2 text-muted-foreground font-medium">Title</th>
+                                    <th className="text-left p-2 text-muted-foreground font-medium w-[70px]">Severity</th>
+                                    <th className="text-left p-2 text-muted-foreground font-medium w-[70px]">Type</th>
+                                    <th className="text-left p-2 text-muted-foreground font-medium w-[180px]">File/Component</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {allIssues.map((iss, idx) => (
+                                    <tr key={idx} className="border-b border-border/50 hover:bg-muted/30">
+                                      <td className="p-2 font-mono text-muted-foreground truncate">{iss.step}</td>
+                                      <td className="p-2 text-foreground">{iss.title}</td>
+                                      <td className={`p-2 font-mono ${iss.severity === "critical" ? "text-destructive" : iss.severity === "high" ? "text-orange-500" : "text-muted-foreground"}`}>{iss.severity}</td>
+                                      <td className="p-2 font-mono text-muted-foreground">{iss.type}</td>
+                                      <td className="p-2 font-mono text-muted-foreground truncate">{iss.file}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   );
                 } catch (e) {
