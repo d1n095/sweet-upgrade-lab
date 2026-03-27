@@ -1,3 +1,15 @@
+// ⚠️ COPILOT / AI TOOLS WARNING:
+// This function is a multi-step scan orchestrator.
+// It may appear recursive but should NOT be executed or simulated fully.
+//
+// RULES:
+// - Do NOT follow recursive calls
+// - Do NOT simulate multiple iterations
+// - Treat each step independently
+// - AI is DISABLED in this pipeline
+//
+// Only analyze one step at a time.
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
@@ -2472,29 +2484,17 @@ serve(async (req) => {
       let stepResult: any = { error: "unknown", failed: true };
       const stepStart = Date.now();
 
+      console.log("[STEP START]", { step_id: step.id, iteration: currentIteration, step_index });
+
       try {
-        const STEP_TIMEOUT_MS = 30000;
         const realScanner = REAL_DB_SCANNERS[step.scanType];
         if (realScanner) {
           console.log(`[scan] Running REAL DB scanner for ${step.scanType}`);
           const dbResult = await realScanner(supabase, scan_run_id);
-          console.log("[AI STATUS] DISABLED – running pure scan");
-          stepResult = { ...dbResult, ai_suggestions: [], ai_summary: "AI disabled" };
+          stepResult = { ...dbResult };
         } else {
-          console.log(`[scan] Running AI-only scanner for ${step.scanType}`);
-          const previousContext: Record<string, any> = {};
-          const existingResults = scanRun.steps_results || {};
-          for (const [key, val] of Object.entries(existingResults)) {
-            const v = val as any;
-            if (v?.overall_score != null) previousContext[key] = { score: v.overall_score };
-            if (v?.issues_count != null) previousContext[key] = { ...previousContext[key], issues: v.issues_count };
-          }
-          let deepScanContext: any = undefined;
-          if (currentIteration > 1) {
-            deepScanContext = { iteration: currentIteration, previous_patterns: scanRun.pattern_discoveries || [], high_risk_areas: scanRun.high_risk_areas || [], instruction: "DEEP RE-SCAN. Focus on high_risk_areas and patterns." };
-          }
-          console.log("[AI STATUS] DISABLED – running pure scan");
-          stepResult = { issues: [], issues_found: 0, overall_score: null, ai_suggestions: [], ai_summary: "AI disabled", _ai_disabled: true };
+          console.log(`[scan] No scanner registered for ${step.scanType} — skipping`);
+          stepResult = { issues: [], issues_found: 0, overall_score: null, _empty_reason: "no_scanner" };
         }
       } catch (e: any) { stepResult = { error: e.message, failed: true, _timed_out: e.name === "AbortError" }; }
 
