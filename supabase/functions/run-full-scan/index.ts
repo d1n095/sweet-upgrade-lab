@@ -443,6 +443,18 @@ function buildUnifiedResult(stepResults: Record<string, any>, totalDuration: num
   if (stepResults.data_flow_validation?.broken_links) broken_flows.push(...stepResults.data_flow_validation.broken_links);
   if (stepResults.navigation_verification?.issues) broken_flows.push(...stepResults.navigation_verification.issues);
   if (stepResults.navigation_verification?.broken_routes) broken_flows.push(...stepResults.navigation_verification.broken_routes);
+  // Previously ignored: real DB scanner results for component_map, regression_detection, ui_flow_integrity
+  if (stepResults.component_map?.issues) broken_flows.push(...stepResults.component_map.issues);
+  if (stepResults.regression_detection?.issues) broken_flows.push(...stepResults.regression_detection.issues);
+  if (stepResults.ui_flow_integrity?.issues) broken_flows.push(...stepResults.ui_flow_integrity.issues);
+  // Broken/errored features from feature_detection: not "fake" (placeholder), but genuine regressions
+  if (stepResults.feature_detection?.features) {
+    broken_flows.push(
+      ...stepResults.feature_detection.features
+        .filter((f: any) => f.status === "broken" || f.status === "error")
+        .map((f: any) => ({ ...f, title: f.title || `Broken feature: ${f.name || "unknown"}`, description: f.reason || f.description }))
+    );
+  }
 
   const fake_features: any[] = [];
   if (stepResults.feature_detection?.features) {
@@ -457,6 +469,22 @@ function buildUnifiedResult(stepResults: Record<string, any>, totalDuration: num
   const data_issues: any[] = [];
   if (stepResults.ui_data_binding?.issues) data_issues.push(...stepResults.ui_data_binding.issues);
   if (stepResults.ui_data_binding?.mismatches) data_issues.push(...stepResults.ui_data_binding.mismatches);
+
+  console.log("[BUILD UNIFIED] per-step read counts:", {
+    data_flow_validation_issues: stepResults.data_flow_validation?.issues?.length || 0,
+    navigation_verification_issues: stepResults.navigation_verification?.issues?.length || 0,
+    component_map_issues: stepResults.component_map?.issues?.length || 0,
+    regression_detection_issues: stepResults.regression_detection?.issues?.length || 0,
+    ui_flow_integrity_issues: stepResults.ui_flow_integrity?.issues?.length || 0,
+    feature_detection_features: stepResults.feature_detection?.features?.length || 0,
+    feature_detection_broken: (stepResults.feature_detection?.features || []).filter((f: any) => f.status === "broken" || f.status === "error").length,
+    interaction_qa_issues: stepResults.interaction_qa?.issues?.length || 0,
+    ui_data_binding_issues: stepResults.ui_data_binding?.issues?.length || 0,
+    broken_flows_total: broken_flows.length,
+    interaction_failures_total: interaction_failures.length,
+    data_issues_total: data_issues.length,
+    fake_features_total: fake_features.length,
+  });
 
   const scores: number[] = [];
   for (const key of Object.keys(stepResults)) {
