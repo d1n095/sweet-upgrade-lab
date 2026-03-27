@@ -21,9 +21,9 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
 // function from being invoked (prevents unexpected AI credit usage).
 const _originalInvoke = supabase.functions.invoke.bind(supabase.functions);
 supabase.functions.invoke = async (fn: string, payload?: any) => {
-  console.warn('[INVOKE]', fn, payload ?? {});
+  console.error('[TRACE INVOKE]', fn, new Error().stack);
 
-  if (fn.includes('ai') || fn.includes('generate') || fn.includes('suggest')) {
+  if (fn.includes('ai') || fn.includes('generate') || fn.includes('suggest') || fn.includes('task') || fn.includes('review')) {
     const msg = `BLOCKED_AT_INVOKE_LAYER: "${fn}" is an AI function and must not be called automatically`;
     console.error('[AI CALL BLOCKED]', fn);
     throw new Error(msg);

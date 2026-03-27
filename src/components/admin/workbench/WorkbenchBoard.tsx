@@ -204,44 +204,13 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   };
 
   const runAutomation = async () => {
-    setRunningAutomation(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('automation-engine');
-      if (error) throw error;
-      const r = data?.results;
-      toast.success(`Automation klar: ${r?.escalated || 0} eskalerade, ${r?.reassigned || 0} omfördelade`);
-      queryClient.invalidateQueries({ queryKey: ['work-items'] });
-      queryClient.invalidateQueries({ queryKey: ['automation-logs-recent'] });
-    } catch (e: any) {
-      toast.error('Automation misslyckades: ' + e.message);
-    } finally {
-      setRunningAutomation(false);
-    }
+    // automation-engine disabled — system fully isolated
+    toast.info('Automation är inaktiverad. Systemet är 100% deterministiskt.');
   };
 
   const runOrchestrator = async () => {
-    setRunningOrchestrator(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('ai-task-manager', { body: { action: 'orchestrate' } });
-      if (error) throw error;
-      const r = data?.results;
-      const scanned = r?.orchestrator_scanned || 0;
-      const orchestrated = r?.orchestrated || 0;
-
-      if (scanned === 0) {
-        toast.info('Orchestrator: inga aktiva uppgifter hittades');
-      } else if (orchestrated === 0) {
-        toast.warning(`Orchestrator skannade ${scanned} uppgifter men kunde inte ordna dem automatiskt`);
-      } else {
-        toast.success(`Orchestrator klar: ${orchestrated}/${scanned} uppgifter ordnade (${r?.orchestrator_mode || 'ai'})`);
-      }
-
-      queryClient.invalidateQueries({ queryKey: ['work-items'] });
-    } catch (e: any) {
-      toast.error('Orchestrator misslyckades: ' + e.message);
-    } finally {
-      setRunningOrchestrator(false);
-    }
+    // ai-task-manager disabled — system fully isolated
+    toast.info('AI-orchestrator är inaktiverad. Systemet är 100% deterministiskt.');
   };
 
   const runValidation = async () => {
