@@ -99,6 +99,101 @@ const SCANNER_GROUPS: ScannerGroup[] = [
   },
 ];
 
+// ── RAW SCAN REPORT: truth engine (mirrors backend buildRawScanReport) ──
+const RAW_SCAN_STEPS = [
+  { id: "data_flow_validation", scanType: "data_integrity" },
+  { id: "component_map", scanType: "component_map" },
+  { id: "ui_data_binding", scanType: "sync_scan" },
+  { id: "interaction_qa", scanType: "interaction_qa" },
+  { id: "human_test", scanType: "human_test" },
+  { id: "navigation_verification", scanType: "nav_scan" },
+  { id: "feature_detection", scanType: "feature_detection" },
+  { id: "regression_detection", scanType: "system_scan" },
+  { id: "decision_engine", scanType: "decision_engine" },
+  { id: "blocker_detection", scanType: "blocker_detection" },
+  { id: "ui_flow_integrity", scanType: "ui_flow_integrity" },
+];
+
+function computeRawScanReport(
+  stepsResults: Record<string, any>,
+  workItemsCreated: number,
+  issuesDetected: number,
+  issuesAfterFilter: number,
+  actionLogs: { type?: string; status?: string; [key: string]: any }[]
+): Record<string, any> {
+  const steps = RAW_SCAN_STEPS.map(step => {
+    const r = stepsResults[step.id] || {};
+    const executed = r._executed === true;
+    const issuesArr = Array.isArray(r.issues) ? r.issues : [];
+    return {
+      step_id: step.id,
+      scanType: step.scanType,
+      executed,
+      issues_count: issuesArr.length,
+      duration: r._duration_ms || 0,
+      ...(r.error ? { error: r.error } : {}),
+      input_received: (r._input_size ?? 0) > 0,
+      output_produced: issuesArr.length > 0,
+    };
+  });
+
+  const totalSteps = steps.length;
+  const stepsExecuted = steps.filter(s => s.executed).length;
+  const stepsFailed = steps.filter(s => !s.executed || (s as any).error).length;
+
+  const failures: { type: string; step: string; severity: string; reason: string }[] = [];
+
+  for (const s of steps) {
+    if (!s.executed) {
+      failures.push({ type: "pipeline_failure", step: s.step_id, severity: "high", reason: "step not executed or empty result" });
+    } else if ((s as any).error) {
+      failures.push({ type: "pipeline_failure", step: s.step_id, severity: "high", reason: (s as any).error });
+    }
+  }
+
+  // Section 6 — Data loss detection
+  if (issuesDetected > 0) {
+    const drop = ((issuesDetected - issuesAfterFilter) / issuesDetected) * 100;
+    if (drop > 80) {
+      failures.push({ type: "data_loss", step: "filter", severity: "critical", reason: `${drop.toFixed(0)}% of issues removed by filter (${issuesDetected} → ${issuesAfterFilter})` });
+    }
+  }
+
+  // Section 7 — Pipeline block detection
+  if (issuesAfterFilter > 0 && workItemsCreated === 0) {
+    failures.push({ type: "pipeline_block", step: "work_items", severity: "critical", reason: `${issuesAfterFilter} issues detected but 0 work_items created` });
+  }
+
+  // Section 4 — Dead action detection from actionLogs
+  const dead_actions: { action: string; name: string; triggered: boolean; response_received: boolean }[] = [];
+  const scanStarts = actionLogs.filter(l => l.type === "Full Scan" && l.status === "started");
+  const scanResponses = actionLogs.filter(l => l.type === "Full Scan" && (l.status === "verified" || l.status === "no-effect" || l.status === "error"));
+  if (scanStarts.length > scanResponses.length) {
+    dead_actions.push({ action: "button_click", name: "full_scan", triggered: true, response_received: false });
+  }
+
+  let pipelineStatus: "ok" | "blocked" | "broken" = "ok";
+  if (stepsFailed > Math.floor(totalSteps / 2)) {
+    pipelineStatus = "broken";
+  } else if (failures.some(f => f.type === "pipeline_block" || f.type === "data_loss")) {
+    pipelineStatus = "blocked";
+  }
+
+  return {
+    total_steps: totalSteps,
+    steps_executed: stepsExecuted,
+    steps_failed: stepsFailed,
+    issues_detected: issuesDetected,
+    issues_after_filter: issuesAfterFilter,
+    work_items_created: workItemsCreated,
+    pipeline_status: pipelineStatus,
+    steps,
+    failures,
+    dead_actions,
+    generated_at: new Date().toISOString(),
+  };
+}
+
 const RuntimeTraceSection = ({ traceId }: { traceId?: string }) => {
   const [trace, setTrace] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -570,7 +665,7 @@ const SystemExplorer = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("scan_runs")
-        .select("id, status, total_new_issues, work_items_created, created_at, unified_result, steps_results")
+        .select("id, status, total_new_issues, work_items_created, created_at, unified_result, steps_results, raw_scan_report")
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -2045,35 +2140,60 @@ const SystemExplorer = () => {
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
                 <FileText className="h-4 w-4" />
-                Raw Scan Results (read-only)
+                Raw Scan Report – Truth Engine
+                <Badge variant="outline" className="text-[10px]">steps_results only</Badge>
               </CardTitle>
             </CardHeader>
             <CardContent>
               {(() => {
-                if (!scanResults) return <p className="text-xs text-muted-foreground">No scan results available</p>;
+                const run = latestRun as any;
+                const stepsResults = run?.steps_results as Record<string, any> | null;
+                if (!stepsResults) return <p className="text-xs text-muted-foreground">No scan results available — run a scan first</p>;
                 try {
-                  const limited = { ...scanResults };
-                  const allIssues = limited?.issues ?? limited?._create_trace ?? [];
-                  const totalCount = Array.isArray(allIssues) ? allIssues.length : 0;
-                  if (Array.isArray(limited?.issues) && limited.issues.length > 50) {
-                    limited.issues = limited.issues.slice(0, 50);
-                  }
-                  if (Array.isArray(limited?._create_trace) && limited._create_trace.length > 50) {
-                    limited._create_trace = limited._create_trace.slice(0, 50);
-                  }
+                  const report = run?.raw_scan_report
+                    ? run.raw_scan_report as Record<string, any>
+                    : computeRawScanReport(
+                        stepsResults,
+                        run?.work_items_created ?? 0,
+                        run?.total_new_issues ?? 0,
+                        (run?.unified_result as any)?.issues?.length ?? 0,
+                        actionLogs,
+                      );
+                  const statusColor = report.pipeline_status === "ok" ? "text-green-500" : report.pipeline_status === "blocked" ? "text-yellow-500" : "text-destructive";
                   return (
-                    <>
-                      {totalCount > 50 && (
-                        <p className="text-[10px] text-muted-foreground mb-2">Showing 50 of {totalCount} issues</p>
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`text-sm font-bold ${statusColor}`}>pipeline: {report.pipeline_status}</span>
+                        <Badge variant="outline" className="text-[10px]">{report.steps_executed}/{report.total_steps} steps executed</Badge>
+                        {report.steps_failed > 0 && <Badge variant="destructive" className="text-[10px]">{report.steps_failed} failed</Badge>}
+                        <Badge variant="outline" className="text-[10px]">detected: {report.issues_detected}</Badge>
+                        <Badge variant="outline" className="text-[10px]">after filter: {report.issues_after_filter}</Badge>
+                        <Badge variant="outline" className="text-[10px]">work_items: {report.work_items_created}</Badge>
+                      </div>
+                      {report.failures?.length > 0 && (
+                        <div className="rounded-md border border-destructive/50 bg-destructive/5 p-2 space-y-1">
+                          <p className="text-[10px] font-bold text-destructive">Failures ({report.failures.length})</p>
+                          {report.failures.map((f: any, i: number) => (
+                            <p key={i} className="text-[10px] font-mono text-foreground">• [{f.type}] {f.step} — {f.reason}</p>
+                          ))}
+                        </div>
                       )}
-                      <pre className="bg-muted/30 border border-border rounded-md p-3 text-[10px] font-mono overflow-auto max-h-[500px] whitespace-pre-wrap text-foreground select-all">
-                        {JSON.stringify(limited, null, 2)}
+                      {report.dead_actions?.length > 0 && (
+                        <div className="rounded-md border border-yellow-500/50 bg-yellow-500/5 p-2 space-y-1">
+                          <p className="text-[10px] font-bold text-yellow-500">Dead Actions ({report.dead_actions.length})</p>
+                          {report.dead_actions.map((a: any, i: number) => (
+                            <p key={i} className="text-[10px] font-mono text-foreground">• {a.name} — triggered:{String(a.triggered)} response:{String(a.response_received)}</p>
+                          ))}
+                        </div>
+                      )}
+                      <pre className="bg-muted/30 border border-border rounded-md p-3 text-[10px] font-mono overflow-auto max-h-[400px] whitespace-pre-wrap text-foreground select-all">
+                        {JSON.stringify(report, null, 2)}
                       </pre>
-                    </>
+                    </div>
                   );
                 } catch (e) {
-                  console.error("[DEBUG] JSON RENDER ERROR:", e);
-                  return <p className="text-xs text-destructive">Error rendering scan results</p>;
+                  console.error("[RAW SCAN RENDER ERROR]:", e);
+                  return <p className="text-xs text-destructive">Error rendering raw scan report</p>;
                 }
               })()}
             </CardContent>

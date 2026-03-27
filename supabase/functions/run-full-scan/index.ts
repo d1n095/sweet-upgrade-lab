@@ -33,6 +33,79 @@ const STEPS = [
 
 const MAX_ITERATIONS = 3;
 
+// ── RAW SCAN REPORT: truth engine built ONLY from steps_results ──
+function buildRawScanReport(
+  stepsResults: Record<string, any>,
+  workItemsCreated: number,
+  issuesDetected: number,
+  issuesAfterFilter: number,
+): Record<string, any> {
+  console.log("[RAW SCAN] Building truth report from steps_results");
+  const steps = STEPS.map(step => {
+    const r = stepsResults[step.id] || {};
+    const executed = r._executed === true;
+    const issuesArr = Array.isArray(r.issues) ? r.issues : [];
+    return {
+      step_id: step.id,
+      scanType: step.scanType,
+      executed,
+      issues_count: issuesArr.length,
+      duration: r._duration_ms || 0,
+      ...(r.error ? { error: r.error } : {}),
+      input_received: (r._input_size ?? 0) > 0,
+      output_produced: issuesArr.length > 0,
+    };
+  });
+
+  const totalSteps = steps.length;
+  const stepsExecuted = steps.filter(s => s.executed).length;
+  const stepsFailed = steps.filter(s => !s.executed || (s as any).error).length;
+
+  const failures: { type: string; step: string; severity: string; reason: string }[] = [];
+
+  for (const s of steps) {
+    if (!s.executed) {
+      failures.push({ type: "pipeline_failure", step: s.step_id, severity: "high", reason: "step not executed or empty result" });
+    } else if ((s as any).error) {
+      failures.push({ type: "pipeline_failure", step: s.step_id, severity: "high", reason: (s as any).error });
+    }
+  }
+
+  // Section 6 — Data loss detection
+  if (issuesDetected > 0) {
+    const drop = ((issuesDetected - issuesAfterFilter) / issuesDetected) * 100;
+    if (drop > 80) {
+      failures.push({ type: "data_loss", step: "filter", severity: "critical", reason: `${drop.toFixed(0)}% of issues removed by filter (${issuesDetected} → ${issuesAfterFilter})` });
+    }
+  }
+
+  // Section 7 — Pipeline block detection
+  if (issuesAfterFilter > 0 && workItemsCreated === 0) {
+    failures.push({ type: "pipeline_block", step: "work_items", severity: "critical", reason: `${issuesAfterFilter} issues detected but 0 work_items created` });
+  }
+
+  let pipelineStatus: "ok" | "blocked" | "broken" = "ok";
+  if (stepsFailed > Math.floor(totalSteps / 2)) {
+    pipelineStatus = "broken";
+  } else if (failures.some(f => f.type === "pipeline_block" || f.type === "data_loss")) {
+    pipelineStatus = "blocked";
+  }
+
+  return {
+    total_steps: totalSteps,
+    steps_executed: stepsExecuted,
+    steps_failed: stepsFailed,
+    issues_detected: issuesDetected,
+    issues_after_filter: issuesAfterFilter,
+    work_items_created: workItemsCreated,
+    pipeline_status: pipelineStatus,
+    steps,
+    failures,
+    dead_actions: [],
+    generated_at: new Date().toISOString(),
+  };
+}
+
 // ── SYSTEM STAGE: Context awareness ──
 type SystemStage = "development" | "staging" | "production";
 
@@ -2906,11 +2979,13 @@ serve(async (req) => {
       }
 
       const execSummary = `${unified.system_health_score}/100 — ${issuesCount} issues (${systemStage}) — ${iterationsCompleted} iter — ${coverageScore}% — ${workItemsCreated} uppgifter`;
+      const rawScanReport = buildRawScanReport(updatedResults, workItemsCreated, issuesCount, adaptiveResult?.issues?.length ?? 0);
       await supabase.from("scan_runs").update({
         status: "done", completed_at: new Date().toISOString(), steps_results: updatedResults,
         unified_result: adaptiveResult, system_health_score: unified.system_health_score,
         executive_summary: execSummary, work_items_created: workItemsCreated,
         current_step: STEPS.length, current_step_label: `Klar ✓ (${iterationsCompleted} iter, ${systemStage})`,
+        raw_scan_report: rawScanReport,
       }).eq("id", scan_run_id);
 
       // Store scan snapshot for historical tracking
