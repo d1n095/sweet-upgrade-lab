@@ -2405,20 +2405,8 @@ serve(async (req) => {
         if (realScanner) {
           console.log(`[scan] Running REAL DB scanner for ${step.scanType}`);
           const dbResult = await realScanner(supabase, scan_run_id);
-          let aiEnrichment: any = null;
-          try {
-            const aiController = new AbortController();
-            const aiTimeout = setTimeout(() => aiController.abort(), STEP_TIMEOUT_MS);
-            const resp = await fetch(`${supabaseUrl}/functions/v1/ai-assistant`, {
-              method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
-              body: JSON.stringify({ type: step.scanType, orchestrated: true, step_index, real_db_findings: { issues_count: dbResult.issues_found || dbResult.total_issues || 0, score: dbResult.overall_score, sample_issues: (dbResult.issues || dbResult.mismatches || dbResult.features || []).slice(0, 5).map((i: any) => i.title || i.name || "") } }),
-              signal: aiController.signal,
-            });
-            clearTimeout(aiTimeout);
-            if (resp.ok) { const data = await resp.json(); aiEnrichment = data.result || data; }
-            else { console.warn("[AI ERROR]", resp.status, step.scanType); }
-          } catch (aiErr: any) { console.warn("[AI DISABLED]", aiErr.message, step.scanType); }
-          stepResult = { ...dbResult, ai_suggestions: aiEnrichment?.suggestions || aiEnrichment?.recommendations || [], ai_summary: aiEnrichment?.summary || aiEnrichment?.executive_summary || "AI unavailable" };
+          console.log("[AI STATUS] DISABLED – running pure scan");
+          stepResult = { ...dbResult, ai_suggestions: [], ai_summary: "AI disabled" };
         } else {
           console.log(`[scan] Running AI-only scanner for ${step.scanType}`);
           const previousContext: Record<string, any> = {};
@@ -2432,26 +2420,8 @@ serve(async (req) => {
           if (currentIteration > 1) {
             deepScanContext = { iteration: currentIteration, previous_patterns: scanRun.pattern_discoveries || [], high_risk_areas: scanRun.high_risk_areas || [], instruction: "DEEP RE-SCAN. Focus on high_risk_areas and patterns." };
           }
-          const stepController = new AbortController();
-          const stepTimeout = setTimeout(() => stepController.abort(), STEP_TIMEOUT_MS);
-          try {
-            const resp = await fetch(`${supabaseUrl}/functions/v1/ai-assistant`, {
-              method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
-              body: JSON.stringify({ type: step.scanType, orchestrated: true, step_index, previous_context: Object.keys(previousContext).length > 0 ? previousContext : undefined, deep_scan_context: deepScanContext }),
-              signal: stepController.signal,
-            });
-            clearTimeout(stepTimeout);
-            if (resp.ok) { const data = await resp.json(); stepResult = data.result || data; }
-            else {
-              const errBody = await resp.text().catch(() => "");
-              console.warn("[AI ERROR]", resp.status, step.scanType, errBody.substring(0, 200));
-              stepResult = { issues: [], issues_found: 0, overall_score: 100, ai_suggestions: [], ai_summary: "AI unavailable (credits exhausted)", real_db_scan: false };
-            }
-          } catch (aiErr: any) {
-            clearTimeout(stepTimeout);
-            console.warn("[AI DISABLED]", aiErr.message, step.scanType);
-            stepResult = { issues: [], issues_found: 0, overall_score: 100, ai_suggestions: [], ai_summary: "AI unavailable", real_db_scan: false };
-          }
+          console.log("[AI STATUS] DISABLED – running pure scan");
+          stepResult = { issues: [], issues_found: 0, overall_score: 100, ai_suggestions: [], ai_summary: "AI disabled" };
         }
       } catch (e: any) { stepResult = { error: e.message, failed: true, _timed_out: e.name === "AbortError" }; }
 
