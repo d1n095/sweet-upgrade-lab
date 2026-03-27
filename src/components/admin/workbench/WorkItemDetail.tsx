@@ -275,30 +275,8 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
   };
 
   const handleRunRootCause = async () => {
-    setAnalyzingFix(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { toast.error('Ej inloggad'); return; }
-      const resp = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-          body: JSON.stringify({ type: 'bug_fix_suggestion', bug_id: item.source_id }),
-        }
-      );
-      if (resp.ok) {
-        const { result } = await resp.json();
-        setFixSuggestion(result);
-        // Save root causes to DB
-        if (result?.root_causes) {
-          await supabase.from('work_items').update({ ai_root_causes: result } as any).eq('id', item.id);
-        }
-      } else {
-        toast.error('AI-analys misslyckades');
-      }
-    } catch { toast.error('Fel'); }
-    finally { setAnalyzingFix(false); }
+    // AI root cause analysis disabled — system fully isolated
+    toast.info('AI-analys är inaktiverad. Systemet är 100% deterministiskt.');
   };
 
   const dt = fmtFull(item.created_at);
@@ -735,23 +713,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                           bug_report_id: item.source_type === 'bug_report' ? item.source_id : null,
                           metadata: { ai_confidence: item.ai_pre_verify_result?.confidence, action: 'reject', escalated_to: newPriority },
                         });
-                        toast.info('🔍 Avvisad — AI kör fördjupad re-analys...', { duration: 4000 });
-                        // 3. Trigger targeted rejection re-analysis
-                        const { data: { session } } = await supabase.auth.getSession();
-                        if (session) {
-                          fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-                            body: JSON.stringify({ type: 'rejection_reanalysis', work_item_id: item.id }),
-                          }).then(async (r) => {
-                            if (r.ok) {
-                              toast.success('AI re-analys klar — nya förslag tillgängliga', { duration: 5000 });
-                            } else {
-                              toast.error('AI re-analys misslyckades');
-                            }
-                            onRefresh?.();
-                          }).catch(() => {});
-                        }
+                        toast.info('🔍 Avvisad — AI-analys är inaktiverad.', { duration: 4000 });
                         onRefresh?.();
                       } catch { toast.error('Fel'); }
                       finally { setRunningPreVerify(false); }
@@ -767,34 +729,13 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
 
             {/* Pre-Verify Button for open items */}
             {isOpen && (
-              <Button size="sm" variant="outline" className="w-full gap-1.5" disabled={runningPreVerify}
+              <Button size="sm" variant="outline" className="w-full gap-1.5" disabled={true}
                 onClick={async () => {
-                  setRunningPreVerify(true);
-                  try {
-                    const { data: { session } } = await supabase.auth.getSession();
-                    if (!session) { toast.error('Ej inloggad'); return; }
-                    const resp = await fetch(
-                      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`,
-                      {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-                        body: JSON.stringify({ type: 'pre_verify', work_item_id: item.id }),
-                      }
-                    );
-                    if (resp.ok) {
-                      const { result } = await resp.json();
-                      const s = result?.pre_verify?.status;
-                      if (s === 'appears_fixed') toast.success(`AI: Verkar fixat (${result.pre_verify.confidence}%)`);
-                      else if (s === 'possibly_fixed') toast.info(`AI: Möjligen fixat (${result.pre_verify.confidence}%)`);
-                      else toast.info('AI: Inget tyder på att det är löst');
-                      onRefresh?.();
-                    } else toast.error('AI-analys misslyckades');
-                  } catch { toast.error('Fel'); }
-                  finally { setRunningPreVerify(false); }
+                  toast.info('AI-verifiering är inaktiverad. Systemet är 100% deterministiskt.');
                 }}
               >
-                {runningPreVerify ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                AI: Kontrollera om löst
+                <Sparkles className="w-3.5 h-3.5" />
+                AI: Kontrollera om löst (inaktiverad)
               </Button>
             )}
 

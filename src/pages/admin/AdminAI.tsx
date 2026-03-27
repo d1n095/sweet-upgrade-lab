@@ -87,58 +87,18 @@ interface UnifiedReport {
   raw_metrics?: Record<string, number>;
 }
 
-const callAI = async (type: string, payload: Record<string, any> = {}) => {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) { toast.error('Ej inloggad'); return null; }
-
-  const resp = await fetch(
-    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ type, ...payload }),
-    }
-  );
-
-  if (!resp.ok) {
-    const err = await resp.json().catch(() => ({}));
-    if (resp.status === 429) toast.error('AI är överbelastad, försök igen om en stund');
-    else if (resp.status === 402) toast.error('AI-krediter slut');
-    else toast.error(err.error || 'AI-fel');
-    return null;
-  }
-
-  const data = await resp.json();
-  return data.result;
+// AI assistant disabled — system fully isolated, no AI calls allowed
+const callAI = async (_type: string, _payload: Record<string, any> = {}) => {
+  console.error('[AI BLOCKED] callAI called but AI is disabled');
+  toast.info('AI är inaktiverad. Systemet är 100% deterministiskt.');
+  return null;
 };
 
-const callTaskManager = async (action: string) => {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) { toast.error('Ej inloggad'); return null; }
-
-  const resp = await fetch(
-    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-task-manager`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ action }),
-    }
-  );
-
-  if (!resp.ok) {
-    const err = await resp.json().catch(() => ({}));
-    toast.error(err.error || 'AI Task Manager-fel');
-    return null;
-  }
-
-  const data = await resp.json();
-  return data.results;
+// AI task manager disabled — system fully isolated, no AI calls allowed
+const callTaskManager = async (_action: string) => {
+  console.error('[AI BLOCKED] callTaskManager called but AI is disabled');
+  toast.info('AI Task Manager är inaktiverad. Systemet är 100% deterministiskt.');
+  return null;
 };
 
 const copyToClipboard = (text: string, buttonId?: string) => {
@@ -6590,15 +6550,10 @@ const AiUserManagementTab = () => {
   const [roleFilter, setRoleFilter] = useState('all');
 
   const callMgmt = async (body: Record<string, any>) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { toast.error('Ej inloggad'); return null; }
-    const resp = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-user-management`,
-      { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify(body) }
-    );
-    const data = await resp.json();
-    if (!resp.ok) throw new Error(data.error || 'Request failed');
-    return data;
+    // ai-user-management disabled — system fully isolated
+    if (body.action === 'list_users') return null;
+    console.error('[AI BLOCKED] callMgmt called but AI is disabled', body);
+    throw new Error('AI User Management är inaktiverad');
   };
 
   const loadUsers = async () => {

@@ -9,6 +9,11 @@ const corsHeaders = {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  // AI disabled — return immediately without consuming any credits
+  return new Response(JSON.stringify({ skipped: true, reason: "AI disabled" }), {
+    status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+
   try {
     const { work_item_id } = await req.json();
     if (!work_item_id) throw new Error("work_item_id required");

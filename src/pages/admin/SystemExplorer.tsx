@@ -173,7 +173,7 @@ const SystemExplorer = () => {
   const [aiAnswer, setAiAnswer] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiFocusArea, setAiFocusArea] = useState<string | null>(null);
-  const [mainTab, setMainTab] = useState<"system" | "files" | "patch" | "codeindex" | "backendscan">("system");
+  const [mainTab, setMainTab] = useState<"system" | "files" | "patch" | "codeindex" | "backendscan" | "activity">("system");
   const [filesFilter, setFilesFilter] = useState<"all" | "orphan" | "has_issues">("all");
   const [selectedFile, setSelectedFile] = useState<FileEntry | null>(null);
   const [patchInput, setPatchInput] = useState("");
@@ -618,6 +618,21 @@ const SystemExplorer = () => {
     },
   });
 
+  // ── Live system activity: all runtime_traces, auto-refresh every 4 s (only when Activity tab is active) ──
+  const { data: systemActivityTraces = [] } = useQuery({
+    queryKey: ["system-activity-traces"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("runtime_traces" as any)
+        .select("id, function_name, endpoint, source, error_message, created_at, request_trace_id, payload_snapshot")
+        .order("created_at", { ascending: false })
+        .limit(50);
+      return (data || []) as any[];
+    },
+    refetchInterval: mainTab === "activity" ? 4_000 : false,
+    staleTime: 0,
+  });
+
   const activeSnapshot = selectedSnapshotId ? scanSnapshots.find((s: any) => s.id === selectedSnapshotId) : null;
 
   const scanResults = latestBackendScan?.results as Record<string, any> | null;
@@ -1041,21 +1056,8 @@ const SystemExplorer = () => {
   const toggleGroup = (key: string) => setExpandedGroups((prev) => ({ ...prev, [key]: !prev[key] }));
 
   const handleAiAnalyze = async () => {
-    if (!aiQuery.trim() || aiLoading) return;
-    setAiLoading(true);
-    setAiAnswer(null);
-    try {
-      const focusSuffix = aiFocusArea ? ` [FOCUS AREA: ${aiFocusArea} — prioritize issues and scans within this area]` : "";
-      const { data, error } = await tracedInvoke("ai-assistant", {
-        body: { type: "system_explorer_query", question: aiQuery.trim() + focusSuffix },
-      });
-      if (error) throw error;
-      setAiAnswer(data?.result?.answer || "Inget svar.");
-    } catch (e: any) {
-      setAiAnswer(`Fel: ${e.message || "Kunde inte analysera."}`);
-    } finally {
-      setAiLoading(false);
-    }
+    // AI assistant disabled — system fully isolated
+    setAiAnswer("AI-assistenten är inaktiverad. Systemet är 100% deterministiskt.");
   };
 
   const priorityColor = (p: string) => {
@@ -1261,6 +1263,9 @@ const SystemExplorer = () => {
           <button onClick={() => setMainTab("backendscan")} className={`px-3 py-1.5 text-xs font-medium rounded-t-md transition-colors ${mainTab === "backendscan" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"}`}>
             Backend Scan
           </button>
+          <button onClick={() => setMainTab("activity")} className={`px-3 py-1.5 text-xs font-medium rounded-t-md transition-colors ${mainTab === "activity" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"}`}>
+            System Activity
+          </button>
         </div>
 
         {/* BACKEND SCAN TAB */}
@@ -1414,11 +1419,113 @@ const SystemExplorer = () => {
                 </CardContent>
               )}
             </Card>
+
+            {/* Execution Trace — all runtime_traces linked to the latest scan run */}
+            {latestRun && (() => {
+              const scanRunPrefix = (latestRun as any).id?.slice(0, 8) ?? "";
+              const execTraces = systemActivityTraces.filter((t: any) =>
+                t.source === "scan" && (
+                  (t.request_trace_id && t.request_trace_id.includes(scanRunPrefix)) ||
+                  (t.payload_snapshot?.scanRunId === (latestRun as any).id)
+                )
+              );
+              if (!execTraces.length && !scanRunPrefix) return null;
+              return (
+                <Card className="border-border/60">
+                  <CardHeader className="py-2 px-3">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <span>⛓</span> Execution Trace
+                      <span className="text-[9px] font-mono text-muted-foreground ml-2">scan_run: {scanRunPrefix}…</span>
+                      <span className="text-[9px] text-muted-foreground">({execTraces.length} entries)</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="px-3 pb-3">
+                    {execTraces.length === 0 ? (
+                      <p className="text-[10px] text-muted-foreground">No execution traces linked to this scan run yet.</p>
+                    ) : (
+                      <div className="space-y-1 max-h-[300px] overflow-auto">
+                        {execTraces.map((t: any) => {
+                          const isBlocked = t.endpoint === "blocked";
+                          const isError = !!t.error_message && !isBlocked;
+                          const rowColor = isBlocked
+                            ? "border-orange-500/40 bg-orange-500/5 text-orange-400"
+                            : isError
+                            ? "border-red-500/40 bg-red-500/5 text-red-400"
+                            : "border-green-500/30 bg-green-500/5 text-green-400";
+                          return (
+                            <div key={t.id} className={`flex items-center gap-2 rounded-md border px-2 py-1 text-[10px] ${rowColor}`}>
+                              <span className="font-mono font-semibold w-4">{isBlocked ? "🟠" : isError ? "🔴" : "🟢"}</span>
+                              <span className="font-mono font-semibold flex-1 truncate">{t.function_name}</span>
+                              <span className="font-mono text-muted-foreground">{t.endpoint ?? "—"}</span>
+                              <span className="text-muted-foreground">{t.source}</span>
+                              <span className="text-muted-foreground whitespace-nowrap">{new Date(t.created_at).toLocaleTimeString()}</span>
+                              {t.error_message && <span className="text-[9px] text-red-400 truncate max-w-[120px]">{t.error_message}</span>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })()}
             </div>
           );
         })()}
 
-        {/* CODE INDEX TAB */}
+        {/* SYSTEM ACTIVITY TAB */}
+        {mainTab === "activity" && (() => {
+          return (
+            <div className="space-y-3">
+              <Card className="border-border/60">
+                <CardHeader className="py-2 px-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <span>📡</span> System Activity
+                    <span className="text-[9px] text-green-400 font-mono ml-2">● live (4 s)</span>
+                    <span className="text-[9px] text-muted-foreground">({systemActivityTraces.length} entries)</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-3 pb-3">
+                  {systemActivityTraces.length === 0 ? (
+                    <p className="text-[10px] text-muted-foreground">No activity yet. Trigger a scan or function call to see entries here.</p>
+                  ) : (
+                    <div className="space-y-1 max-h-[600px] overflow-auto">
+                      {systemActivityTraces.map((t: any) => {
+                        const isBlocked = t.endpoint === "blocked";
+                        const isError = !!t.error_message && !isBlocked;
+                        const rowColor = isBlocked
+                          ? "border-orange-500/40 bg-orange-500/5"
+                          : isError
+                          ? "border-red-500/40 bg-red-500/5"
+                          : "border-green-500/30 bg-green-500/5";
+                        const dotColor = isBlocked ? "🟠" : isError ? "🔴" : "🟢";
+                        const textColor = isBlocked ? "text-orange-400" : isError ? "text-red-400" : "text-green-400";
+                        return (
+                          <div key={t.id} className={`flex items-start gap-2 rounded-md border px-2 py-1.5 text-[10px] ${rowColor}`}>
+                            <span className="mt-0.5 w-4 shrink-0">{dotColor}</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className={`font-mono font-semibold ${textColor}`}>{t.function_name}</span>
+                                <span className="text-muted-foreground font-mono">{t.endpoint ?? "—"}</span>
+                                <span className="text-muted-foreground">[{t.source}]</span>
+                              </div>
+                              {t.error_message && (
+                                <p className="text-[9px] text-red-400 mt-0.5 truncate">{t.error_message}</p>
+                              )}
+                            </div>
+                            <span className="text-muted-foreground whitespace-nowrap text-[9px] shrink-0">
+                              {new Date(t.created_at).toLocaleTimeString()}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          );
+        })()}
         {mainTab === "codeindex" && (() => {
           const index = getCodeIndex();
           const componentApiIssues = index.filter(f => f.hasApiCall && f.path.includes("/components"));
