@@ -15,3 +15,19 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     autoRefreshToken: true,
   }
 });
+
+// ── Global invoke guard ──────────────────────────────────────────────────────
+// Logs every edge-function call and hard-blocks any AI/generate/suggest
+// function from being invoked (prevents unexpected AI credit usage).
+const _originalInvoke = supabase.functions.invoke.bind(supabase.functions);
+supabase.functions.invoke = async (fn: string, payload?: any) => {
+  console.warn('[INVOKE]', fn, payload ?? {});
+
+  if (fn.includes('ai') || fn.includes('generate') || fn.includes('suggest')) {
+    const msg = `BLOCKED_AT_INVOKE_LAYER: "${fn}" is an AI function and must not be called automatically`;
+    console.error('[AI CALL BLOCKED]', fn);
+    throw new Error(msg);
+  }
+
+  return _originalInvoke(fn, payload);
+};

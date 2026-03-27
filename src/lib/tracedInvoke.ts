@@ -10,6 +10,8 @@ export async function tracedInvoke<T = any>(
 ): Promise<{ data: T | null; error: any; request_trace_id: string }> {
   const request_trace_id = crypto.randomUUID();
 
+  console.warn('[tracedInvoke]', functionName, { request_trace_id });
+
   const body = {
     ...(options?.body || {}),
     request_trace_id,
