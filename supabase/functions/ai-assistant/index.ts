@@ -39,15 +39,17 @@ async function updateScanTaskCount(supabase: any, scanId: string, tasksCreated: 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  // ── AI ISOLATION GUARD ─────────────────────────────────────────────
-  if (Deno.env.get("AI_ENABLED") !== "true") {
-    console.warn("[ai-assistant] AI_ENABLED=false — request blocked");
-    return new Response(JSON.stringify({ error: "AI_DISABLED" }), {
-      status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
+  // ── HARD DISABLE: ai-assistant is permanently disabled ─────────────
+  // All AI calls must go through run-full-scan.
+  console.warn("[AI COST CALL BLOCKED FROM]: ai-assistant/index.ts — endpoint permanently disabled");
+  return new Response(JSON.stringify({
+    success: false,
+    error: "AI_ASSISTANT_DISABLED",
+    message: "All AI calls must go through run-full-scan",
+  }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   // ──────────────────────────────────────────────────────────────────
 
+  // Dead code below — kept for reference only
   try {
     const authHeader = req.headers.get("authorization");
     if (!authHeader) {

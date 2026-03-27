@@ -88,32 +88,11 @@ interface UnifiedReport {
 }
 
 const callAI = async (type: string, payload: Record<string, any> = {}) => {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) { toast.error('Ej inloggad'); return null; }
-
-  const resp = await fetch(
-    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ type, ...payload }),
-    }
-  );
-
-  if (!resp.ok) {
-    const err = await resp.json().catch(() => ({}));
-    if (resp.status === 429) toast.error('AI är överbelastad, försök igen om en stund');
-    else if (resp.status === 402) toast.error('AI-krediter slut');
-    else toast.error(err.error || 'AI-fel');
-    return null;
-  }
-
-  const data = await resp.json();
-  return data.result;
-};
+  // ── HARD BLOCK: all direct AI calls are disabled ──────────────────
+  console.log("[AI COST CALL BLOCKED FROM]: AdminAI.tsx — type:", type);
+  toast.error('AI-anrop blockerat. Använd run-full-scan som enda ingångspunkt.');
+  return null;
+  // ─────────────────────────────────────────────────────────────────
 
 const callTaskManager = async (action: string) => {
   const { data: { session } } = await supabase.auth.getSession();
@@ -6590,16 +6569,10 @@ const AiUserManagementTab = () => {
   const [roleFilter, setRoleFilter] = useState('all');
 
   const callMgmt = async (body: Record<string, any>) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { toast.error('Ej inloggad'); return null; }
-    const resp = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-user-management`,
-      { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify(body) }
-    );
-    const data = await resp.json();
-    if (!resp.ok) throw new Error(data.error || 'Request failed');
-    return data;
-  };
+    // ── HARD BLOCK: ai-user-management is disabled ────────────────────
+    console.log("[AI COST CALL BLOCKED FROM]: AdminAI.tsx callMgmt — action:", body.action);
+    throw new Error('AI_DISABLED: ai-user-management endpoint is disabled');
+    // ─────────────────────────────────────────────────────────────────
 
   const loadUsers = async () => {
     setLoading(true);

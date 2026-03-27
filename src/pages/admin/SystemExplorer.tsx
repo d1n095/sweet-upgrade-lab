@@ -1045,12 +1045,10 @@ const SystemExplorer = () => {
     setAiLoading(true);
     setAiAnswer(null);
     try {
-      const focusSuffix = aiFocusArea ? ` [FOCUS AREA: ${aiFocusArea} — prioritize issues and scans within this area]` : "";
-      const { data, error } = await tracedInvoke("ai-assistant", {
-        body: { type: "system_explorer_query", question: aiQuery.trim() + focusSuffix },
-      });
-      if (error) throw error;
-      setAiAnswer(data?.result?.answer || "Inget svar.");
+      // ── HARD BLOCK: direct ai-assistant calls are disabled ──────────
+      console.log("[AI COST CALL BLOCKED FROM]: SystemExplorer.tsx — system_explorer_query");
+      setAiAnswer('AI_DISABLED: direktanrop till ai-assistant är blockerat. Använd run-full-scan som enda ingångspunkt.');
+      // ─────────────────────────────────────────────────────────────────
     } catch (e: any) {
       setAiAnswer(`Fel: ${e.message || "Kunde inte analysera."}`);
     } finally {
