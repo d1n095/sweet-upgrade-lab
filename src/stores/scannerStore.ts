@@ -55,37 +55,13 @@ interface ScannerState {
 }
 
 const callAIForScan = async (type: string, payload: Record<string, any> = {}) => {
-  // ── AI ISOLATION GUARD ──────────────────────────────────────────────
-  if (!SYSTEM_FLAGS.AI_ENABLED || !SYSTEM_FLAGS.AI_ALLOWED_IN_SCANNER) {
-    recordAiViolation('scannerStore.ts', 'callAIForScan', type);
-    throw new Error('AI_DISABLED — scanner is not allowed to call AI (SYSTEM_FLAGS.AI_ALLOWED_IN_SCANNER=false)');
+  // ── HARD BLOCK: direct ai-assistant calls are permanently disabled ──
+  console.log("[AI COST CALL BLOCKED FROM]: scannerStore.ts — type:", type);
+  if (process.env.DISABLE_AI === "true") {
+    console.log("[AI BLOCKED] Scanner running in deterministic mode");
   }
+  throw new Error('AI_DISABLED — all AI calls must go through run-full-scan');
   // ────────────────────────────────────────────────────────────────────
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error('Ej inloggad');
-
-  const resp = await fetch(
-    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ type, ...payload }),
-    }
-  );
-
-  if (!resp.ok) {
-    if (resp.status === 429) throw new Error('AI är överbelastad');
-    if (resp.status === 402) throw new Error('AI-krediter slut');
-    const err = await resp.json().catch(() => ({}));
-    throw new Error(err.error || `AI-fel (${resp.status})`);
-  }
-
-  const data = await resp.json();
-  return data.result;
-};
 
 export const useScannerStore = create<ScannerState>((set, get) => ({
   scanning: false,
