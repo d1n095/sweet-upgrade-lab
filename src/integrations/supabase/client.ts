@@ -28,11 +28,28 @@ supabase.functions.invoke = async (fn: string, payload?: any) => {
     const msg = `BLOCKED_AT_INVOKE_LAYER: "${fn}" is an AI function and must not be called automatically`;
     console.error('[AI CALL BLOCKED]', fn);
     logInvokeBlocked(fn, msg);
+    // Persist blocked call to runtime_traces (fire-and-forget)
+    supabase.from('runtime_traces').insert({
+      source: 'frontend',
+      function_name: fn,
+      endpoint: 'blocked',
+      error_message: 'AI BLOCKED',
+      payload_snapshot: payload?.body || {},
+    }).then(() => {}).catch(() => {});
     throw new Error(msg);
   }
 
   const callId = logInvokeStart(fn, payload?.body);
   const t0 = Date.now();
+  // Log start to runtime_traces (fire-and-forget)
+  supabase.from('runtime_traces').insert({
+    source: 'frontend',
+    function_name: fn,
+    endpoint: 'invoke',
+    error_message: null,
+    payload_snapshot: payload?.body || {},
+  }).then(() => {}).catch(() => {});
+
   try {
     const result = await _originalInvoke(fn, payload);
     logInvokeEnd(callId, result.error ? 'error' : 'success', Date.now() - t0, result.error?.message);
