@@ -3,6 +3,7 @@ import { logChange } from '@/utils/changeLogger';
 import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
 import { useSafeModeStore } from '@/stores/safeModeStore';
 import { recordRootCause, checkKnownPatterns } from '@/lib/rootCauseMemory';
+import { SYSTEM_FLAGS } from '@/config/systemFlags';
 
 export type PipelineStage = 'scan' | 'issues' | 'work_items' | 'change_log' | 'verification';
 
@@ -257,6 +258,11 @@ export const runUnifiedPipeline = async (
 
     // ─── STAGE 5: VERIFICATION ───
     // Trigger AI review on recently completed work items that lack verification
+    // ── AI ISOLATION GUARD ────────────────────────────────────────────
+    if (!SYSTEM_FLAGS.AI_ENABLED || !SYSTEM_FLAGS.AI_ALLOWED_IN_AUTOMATION) {
+      // AI disabled — skip automatic review pass silently
+    } else {
+    // ─────────────────────────────────────────────────────────────────
     const { data: unverified } = await supabase
       .from('work_items' as any)
       .select('id, title, ai_review_status')
@@ -276,6 +282,7 @@ export const runUnifiedPipeline = async (
           err?.message || 'AI review kraschade'));
       }
     }
+    } // end AI guard
   } catch (err: any) {
     emit(makeEvent('scan', 'pipeline_error', runId, 'pipeline', false, err?.message || 'Pipeline kraschade'));
     useSafeModeStore.getState().activate('critical_error', `Pipeline kraschade: ${err?.message}`, 'pipeline');

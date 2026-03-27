@@ -1,4 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
+import { SYSTEM_FLAGS } from '@/config/systemFlags';
+import { recordAiViolation } from '@/ai/aiIsolationGuard';
 
 type AiReviewStatus = 'verified' | 'needs_review' | 'incomplete' | 'pending' | null;
 
@@ -18,6 +20,14 @@ export const triggerAiReviewForWorkItem = async (
   options: TriggerAiReviewOptions = {}
 ): Promise<TriggerAiReviewResult> => {
   const context = options.context || 'unknown';
+
+  // ── AI ISOLATION GUARD ──────────────────────────────────────────────
+  if (!SYSTEM_FLAGS.AI_ENABLED) {
+    recordAiViolation('workItemAiReview.ts', 'triggerAiReviewForWorkItem', context);
+    return { ok: false, status: 'needs_review', error: 'AI_DISABLED' };
+  }
+  // ────────────────────────────────────────────────────────────────────
+
   console.info('[ai-review] trigger', { workItemId, context });
 
   try {

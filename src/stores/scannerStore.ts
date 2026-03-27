@@ -6,6 +6,8 @@ import { useFeedbackLoopStore } from './feedbackLoopStore';
 import { QueryClient } from '@tanstack/react-query';
 import { createTraceId, observeScanStep, observeError, observeAction, flushObservabilityBuffer } from '@/utils/observabilityLogger';
 import { trace, newTraceId as newDebugTraceId } from '@/utils/deepDebugTrace';
+import { SYSTEM_FLAGS } from '@/config/systemFlags';
+import { recordAiViolation } from '@/ai/aiIsolationGuard';
 
 export type ScanStepStatus = 'pending' | 'running' | 'done' | 'error';
 
@@ -53,6 +55,12 @@ interface ScannerState {
 }
 
 const callAIForScan = async (type: string, payload: Record<string, any> = {}) => {
+  // ── AI ISOLATION GUARD ──────────────────────────────────────────────
+  if (!SYSTEM_FLAGS.AI_ENABLED || !SYSTEM_FLAGS.AI_ALLOWED_IN_SCANNER) {
+    recordAiViolation('scannerStore.ts', 'callAIForScan', type);
+    throw new Error('AI_DISABLED — scanner is not allowed to call AI (SYSTEM_FLAGS.AI_ALLOWED_IN_SCANNER=false)');
+  }
+  // ────────────────────────────────────────────────────────────────────
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) throw new Error('Ej inloggad');
 
