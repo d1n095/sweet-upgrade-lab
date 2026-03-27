@@ -87,32 +87,10 @@ interface UnifiedReport {
   raw_metrics?: Record<string, number>;
 }
 
-const callAI = async (type: string, payload: Record<string, any> = {}) => {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) { toast.error('Ej inloggad'); return null; }
-
-  const resp = await fetch(
-    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ type, ...payload }),
-    }
-  );
-
-  if (!resp.ok) {
-    const err = await resp.json().catch(() => ({}));
-    if (resp.status === 429) toast.error('AI är överbelastad, försök igen om en stund');
-    else if (resp.status === 402) toast.error('AI-krediter slut');
-    else toast.error(err.error || 'AI-fel');
-    return null;
-  }
-
-  const data = await resp.json();
-  return data.result;
+const callAI = async (_type: string, _payload: Record<string, any> = {}) => {
+  // ai-assistant is DISABLED — all scans must go through run-full-scan
+  console.warn('[callAI] ai-assistant is disabled; use run-full-scan instead');
+  return null;
 };
 
 const callTaskManager = async (action: string) => {

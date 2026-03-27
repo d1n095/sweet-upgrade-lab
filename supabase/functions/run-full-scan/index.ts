@@ -2333,8 +2333,8 @@ serve(async (req) => {
       await supabase.from("scan_runs").update({ steps_results: { _scan_input: scanInput } }).eq("id", scanRun.id);
 
       if (!structure_map || structure_map.length === 0) {
-        console.error("❌ SCAN ABORT: NO STRUCTURE MAP");
-        return new Response(JSON.stringify({ success: false, error: "NO_INPUT_DATA" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        console.warn("⚠️ NO STRUCTURE MAP — using root fallback [{ path: '/' }]");
+        structure_map = [{ path: "/" }];
       }
 
       console.log("[SCAN] running scanners — chaining first step");
@@ -2369,42 +2369,11 @@ serve(async (req) => {
         if (realScanner) {
           console.log(`[scan] Running REAL DB scanner for ${step.scanType}`);
           const dbResult = await realScanner(supabase, scan_run_id);
-          let aiEnrichment: any = null;
-          try {
-            const aiController = new AbortController();
-            const aiTimeout = setTimeout(() => aiController.abort(), STEP_TIMEOUT_MS);
-            const resp = await fetch(`${supabaseUrl}/functions/v1/ai-assistant`, {
-              method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
-              body: JSON.stringify({ type: step.scanType, orchestrated: true, step_index, real_db_findings: { issues_count: dbResult.issues_found || dbResult.total_issues || 0, score: dbResult.overall_score, sample_issues: (dbResult.issues || dbResult.mismatches || dbResult.features || []).slice(0, 5).map((i: any) => i.title || i.name || "") } }),
-              signal: aiController.signal,
-            });
-            clearTimeout(aiTimeout);
-            if (resp.ok) { const data = await resp.json(); aiEnrichment = data.result || data; }
-          } catch (_) {}
-          stepResult = { ...dbResult, ai_suggestions: aiEnrichment?.suggestions || aiEnrichment?.recommendations || [], ai_summary: aiEnrichment?.summary || aiEnrichment?.executive_summary || null };
+          // AI enrichment removed — run-full-scan is the sole scan engine
+          stepResult = { ...dbResult, ai_suggestions: [], ai_summary: null };
         } else {
-          console.log(`[scan] Running AI-only scanner for ${step.scanType}`);
-          const previousContext: Record<string, any> = {};
-          const existingResults = scanRun.steps_results || {};
-          for (const [key, val] of Object.entries(existingResults)) {
-            const v = val as any;
-            if (v?.overall_score != null) previousContext[key] = { score: v.overall_score };
-            if (v?.issues_count != null) previousContext[key] = { ...previousContext[key], issues: v.issues_count };
-          }
-          let deepScanContext: any = undefined;
-          if (currentIteration > 1) {
-            deepScanContext = { iteration: currentIteration, previous_patterns: scanRun.pattern_discoveries || [], high_risk_areas: scanRun.high_risk_areas || [], instruction: "DEEP RE-SCAN. Focus on high_risk_areas and patterns." };
-          }
-          const stepController = new AbortController();
-          const stepTimeout = setTimeout(() => stepController.abort(), STEP_TIMEOUT_MS);
-          const resp = await fetch(`${supabaseUrl}/functions/v1/ai-assistant`, {
-            method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
-            body: JSON.stringify({ type: step.scanType, orchestrated: true, step_index, previous_context: Object.keys(previousContext).length > 0 ? previousContext : undefined, deep_scan_context: deepScanContext }),
-            signal: stepController.signal,
-          });
-          clearTimeout(stepTimeout);
-          if (resp.ok) { const data = await resp.json(); stepResult = data.result || data; }
-          else { const errBody = await resp.text().catch(() => ""); stepResult = { error: `HTTP ${resp.status}: ${errBody.substring(0, 200)}`, failed: true }; }
+          console.log(`[scan] Skipping AI-only scanner for ${step.scanType} — ai-assistant disabled`);
+          stepResult = { skipped: true, reason: "ai-assistant disabled", overall_score: null, issues_count: 0 };
         }
       } catch (e: any) { stepResult = { error: e.message, failed: true, _timed_out: e.name === "AbortError" }; }
 
