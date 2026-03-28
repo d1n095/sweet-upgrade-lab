@@ -277,8 +277,6 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
   const handleRunRootCause = async () => {
     toast.info('AI-analys är avaktiverad — analysera grundorsak manuellt');
   };
-    finally { setAnalyzingFix(false); }
-  };
 
   const dt = fmtFull(item.created_at);
   const reanalysis = (item.ai_root_causes as any)?.refined_diagnosis ? item.ai_root_causes as any : null;

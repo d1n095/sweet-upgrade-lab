@@ -188,17 +188,6 @@ const AdminCategoryManager = () => {
   const runAiValidate = async () => {
     toast.info('AI är avaktiverad — validera kategorier manuellt');
   };
-      const fixed = res?.auto_fixed?.length || 0;
-      const issues = res?.issues_found || 0;
-      if (issues === 0) toast.success('Inga problem hittades!');
-      else if (fixed > 0) toast.success(`${fixed} problem åtgärdade automatiskt`);
-      else toast.info(`${issues} problem hittade`);
-    } catch (err: any) {
-      toast.error('Validering misslyckades: ' + (err?.message || ''));
-    } finally {
-      setAiValidating(false);
-    }
-  };
 
   const renderCategoryRow = (cat: DbCategory, depth = 0) => {
     const Icon = getIcon(cat.icon);
