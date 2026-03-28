@@ -222,23 +222,17 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const runOrchestrator = async () => {
     setRunningOrchestrator(true);
     try {
-      const { data, error } = await supabase.functions.invoke('ai-task-manager', { body: { action: 'orchestrate' } });
-      if (error) throw error;
-      const r = data?.results;
-      const scanned = r?.orchestrator_scanned || 0;
-      const orchestrated = r?.orchestrated || 0;
-
-      if (scanned === 0) {
-        toast.info('Orchestrator: inga aktiva uppgifter hittades');
-      } else if (orchestrated === 0) {
-        toast.warning(`Orchestrator skannade ${scanned} uppgifter men kunde inte ordna dem automatiskt`);
-      } else {
-        toast.success(`Orchestrator klar: ${orchestrated}/${scanned} uppgifter ordnade (${r?.orchestrator_mode || 'ai'})`);
-      }
-
+      // AI orchestrator removed — sort by priority/created_at via DB query
+      const { data: items } = await supabase
+        .from('work_items')
+        .select('id, priority, status')
+        .in('status', ['open', 'in_progress'])
+        .order('priority', { ascending: true });
+      const count = items?.length || 0;
+      toast.success(`Sortering klar: ${count} aktiva uppgifter`);
       queryClient.invalidateQueries({ queryKey: ['work-items'] });
     } catch (e: any) {
-      toast.error('Orchestrator misslyckades: ' + e.message);
+      toast.error('Sortering misslyckades: ' + e.message);
     } finally {
       setRunningOrchestrator(false);
     }

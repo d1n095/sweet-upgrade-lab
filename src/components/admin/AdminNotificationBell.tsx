@@ -39,19 +39,19 @@ const AdminNotificationBell = () => {
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  const fetchNotifications = async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(20);
-    if (data) setNotifications(data as AdminNotif[]);
-  };
-
   useEffect(() => {
-    fetchNotifications();
+    if (user) {
+      supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(20)
+        .then(({ data }) => {
+          if (data) setNotifications(data as AdminNotif[]);
+        })
+        .catch(() => {});
+    }
 
     const channel = supabase
       .channel('admin-notifications')

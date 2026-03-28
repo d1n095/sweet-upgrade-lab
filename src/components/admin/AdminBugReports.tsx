@@ -149,6 +149,7 @@ const AdminBugReports = () => {
       enrichedRef.current = true;
       autoEnrichBugs();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, queryReports]);
 
   const autoEnrichBugs = async () => {

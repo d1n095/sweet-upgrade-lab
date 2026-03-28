@@ -1079,7 +1079,7 @@ const SalePricesTab = () => {
 
     const currentProduct = products.find(p => p.id === id);
     const currentTags = currentProduct?.tags || [];
-    let newTags = currentTags.filter(t => t !== 'exclude_campaigns');
+    const newTags = currentTags.filter(t => t !== 'exclude_campaigns');
     if (editExcludeFromCampaigns) newTags.push('exclude_campaigns');
 
     const { error } = await supabase.from('products').update({

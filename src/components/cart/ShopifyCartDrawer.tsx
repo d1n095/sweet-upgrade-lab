@@ -33,7 +33,9 @@ const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
   const navigate = useNavigate();
   const { items, isLoading, updateQuantity, removeItem, addItem } = useCartStore();
   const { discounts, totalDiscount, getDiscountedTotal } = useCartDiscounts();
-  const [showLoginIncentive, setShowLoginIncentive] = useState(true);
+  const [showLoginIncentive, setShowLoginIncentive] = useState(
+    () => sessionStorage.getItem('cart_guest_dismissed') !== '1'
+  );
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [recommended, setRecommended] = useState<RecommendedProduct[]>([]);
 
@@ -188,7 +190,7 @@ const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
                   </div>
 
                   {!user && showLoginIncentive && (
-                    <LoginIncentives onLogin={() => setIsAuthOpen(true)} onContinue={() => setShowLoginIncentive(false)} />
+                    <LoginIncentives onLogin={() => setIsAuthOpen(true)} onContinue={() => { sessionStorage.setItem('cart_guest_dismissed', '1'); setShowLoginIncentive(false); }} />
                   )}
 
                   {discounts.length > 0 && (

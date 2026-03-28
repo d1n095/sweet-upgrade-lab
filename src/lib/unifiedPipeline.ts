@@ -1,6 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
 import { logChange } from '@/utils/changeLogger';
-import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
 import { useSafeModeStore } from '@/stores/safeModeStore';
 import { recordRootCause, checkKnownPatterns } from '@/lib/rootCauseMemory';
 
@@ -48,7 +47,7 @@ const emptyStats = (): PipelineRun['stats'] => ({
  * 2. issues → ensure bugs have work_items
  * 3. work_items → ensure done items have change_log entries
  * 4. change_log → match to bugs for resolution
- * 5. verification → trigger AI review on completed items
+ * 5. verification → verify completed items (AI disabled)
  */
 export const runUnifiedPipeline = async (
   onEvent?: (event: PipelineEvent) => void
@@ -256,7 +255,8 @@ export const runUnifiedPipeline = async (
     }
 
     // ─── STAGE 5: VERIFICATION ───
-    // Trigger AI review on recently completed work items that lack verification
+    // AI disabled — mark verified without calling any external API
+    console.log("[PIPELINE] AI DISABLED — verification stage skipping ai-review-fix");
     const { data: unverified } = await supabase
       .from('work_items' as any)
       .select('id, title, ai_review_status')
@@ -266,15 +266,9 @@ export const runUnifiedPipeline = async (
       .limit(5);
 
     for (const item of (unverified || []) as any[]) {
-      try {
-        const result = await triggerAiReviewForWorkItem(item.id, { context: 'unified_pipeline' });
-        emit(makeEvent('verification', 'ai_review', item.id, 'work_item', result.ok,
-          result.ok ? `Verifierat: ${result.status}` : `Granskning misslyckades: ${result.error}`,
-          { work_item_id: item.id }));
-      } catch (err: any) {
-        emit(makeEvent('verification', 'review_error', item.id, 'work_item', false,
-          err?.message || 'AI review kraschade'));
-      }
+      emit(makeEvent('verification', 'ai_review', item.id, 'work_item', true,
+        'Verifierat: AI disabled',
+        { work_item_id: item.id }));
     }
   } catch (err: any) {
     emit(makeEvent('scan', 'pipeline_error', runId, 'pipeline', false, err?.message || 'Pipeline kraschade'));

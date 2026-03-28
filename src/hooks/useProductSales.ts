@@ -15,7 +15,7 @@ interface SalesData {
 // Singleton store for sales data with realtime updates
 let salesCache: SalesData = {};
 let isInitialized = false;
-let listeners: Set<() => void> = new Set();
+const listeners: Set<() => void> = new Set();
 
 const notifyListeners = () => {
   listeners.forEach(listener => listener());

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -64,7 +64,7 @@ const AdminIncidentManager = ({ orderId }: Props) => {
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ title: '', description: '', type: 'other', priority: 'medium', order_id: orderId || '' });
 
-  const fetchIncidents = async () => {
+  const fetchIncidents = useCallback(async () => {
     setLoading(true);
     let q = supabase.from('order_incidents').select('*').order('created_at', { ascending: false });
     if (orderId) q = q.eq('order_id', orderId);
@@ -75,9 +75,9 @@ const AdminIncidentManager = ({ orderId }: Props) => {
     const { data } = await q.limit(100);
     setIncidents((data || []) as Incident[]);
     setLoading(false);
-  };
+  }, [filter, orderId]);
 
-  useEffect(() => { fetchIncidents(); }, [filter, orderId]);
+  useEffect(() => { fetchIncidents(); }, [fetchIncidents]);
 
   const createIncident = async () => {
     if (!form.title || !form.order_id) { toast.error('Titel och order krävs'); return; }

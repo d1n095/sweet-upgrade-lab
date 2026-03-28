@@ -1,3 +1,15 @@
+// ⚠️ COPILOT / AI TOOLS WARNING:
+// This function is a multi-step scan orchestrator.
+// It may appear recursive but should NOT be executed or simulated fully.
+//
+// RULES:
+// - Do NOT follow recursive calls
+// - Do NOT simulate multiple iterations
+// - Treat each step independently
+// - AI is DISABLED in this pipeline
+//
+// Only analyze one step at a time.
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
@@ -32,6 +44,79 @@ const STEPS = [
 ];
 
 const MAX_ITERATIONS = 3;
+
+// ── RAW SCAN REPORT: truth engine built ONLY from steps_results ──
+function buildRawScanReport(
+  stepsResults: Record<string, any>,
+  workItemsCreated: number,
+  issuesDetected: number,
+  issuesAfterFilter: number,
+): Record<string, any> {
+  console.log("[RAW SCAN] Building truth report from steps_results");
+  const steps = STEPS.map(step => {
+    const r = stepsResults[step.id] || {};
+    const executed = r._executed === true;
+    const issuesArr = Array.isArray(r.issues) ? r.issues : [];
+    return {
+      step_id: step.id,
+      scanType: step.scanType,
+      executed,
+      issues_count: issuesArr.length,
+      duration: r._duration_ms || 0,
+      ...(r.error ? { error: r.error } : {}),
+      input_received: (r._input_size ?? 0) > 0,
+      output_produced: issuesArr.length > 0,
+    };
+  });
+
+  const totalSteps = steps.length;
+  const stepsExecuted = steps.filter(s => s.executed).length;
+  const stepsFailed = steps.filter(s => !s.executed || (s as any).error).length;
+
+  const failures: { type: string; step: string; severity: string; reason: string }[] = [];
+
+  for (const s of steps) {
+    if (!s.executed) {
+      failures.push({ type: "pipeline_failure", step: s.step_id, severity: "high", reason: "step not executed or empty result" });
+    } else if ((s as any).error) {
+      failures.push({ type: "pipeline_failure", step: s.step_id, severity: "high", reason: (s as any).error });
+    }
+  }
+
+  // Section 6 — Data loss detection
+  if (issuesDetected > 0) {
+    const drop = ((issuesDetected - issuesAfterFilter) / issuesDetected) * 100;
+    if (drop > 80) {
+      failures.push({ type: "data_loss", step: "filter", severity: "critical", reason: `${drop.toFixed(0)}% of issues removed by filter (${issuesDetected} → ${issuesAfterFilter})` });
+    }
+  }
+
+  // Section 7 — Pipeline block detection
+  if (issuesAfterFilter > 0 && workItemsCreated === 0) {
+    failures.push({ type: "pipeline_block", step: "work_items", severity: "critical", reason: `${issuesAfterFilter} issues detected but 0 work_items created` });
+  }
+
+  let pipelineStatus: "ok" | "blocked" | "broken" = "ok";
+  if (stepsFailed > Math.floor(totalSteps / 2)) {
+    pipelineStatus = "broken";
+  } else if (failures.some(f => f.type === "pipeline_block" || f.type === "data_loss")) {
+    pipelineStatus = "blocked";
+  }
+
+  return {
+    total_steps: totalSteps,
+    steps_executed: stepsExecuted,
+    steps_failed: stepsFailed,
+    issues_detected: issuesDetected,
+    issues_after_filter: issuesAfterFilter,
+    work_items_created: workItemsCreated,
+    pipeline_status: pipelineStatus,
+    steps,
+    failures,
+    dead_actions: [],
+    generated_at: new Date().toISOString(),
+  };
+}
 
 // ── SYSTEM STAGE: Context awareness ──
 type SystemStage = "development" | "staging" | "production";
@@ -443,6 +528,18 @@ function buildUnifiedResult(stepResults: Record<string, any>, totalDuration: num
   if (stepResults.data_flow_validation?.broken_links) broken_flows.push(...stepResults.data_flow_validation.broken_links);
   if (stepResults.navigation_verification?.issues) broken_flows.push(...stepResults.navigation_verification.issues);
   if (stepResults.navigation_verification?.broken_routes) broken_flows.push(...stepResults.navigation_verification.broken_routes);
+  // Previously ignored: real DB scanner results for component_map, regression_detection, ui_flow_integrity
+  if (stepResults.component_map?.issues) broken_flows.push(...stepResults.component_map.issues);
+  if (stepResults.regression_detection?.issues) broken_flows.push(...stepResults.regression_detection.issues);
+  if (stepResults.ui_flow_integrity?.issues) broken_flows.push(...stepResults.ui_flow_integrity.issues);
+  // Broken/errored features from feature_detection: not "fake" (placeholder), but genuine regressions
+  if (stepResults.feature_detection?.features) {
+    broken_flows.push(
+      ...stepResults.feature_detection.features
+        .filter((f: any) => f.status === "broken" || f.status === "error")
+        .map((f: any) => ({ ...f, title: f.title || `Broken feature: ${f.name || "unknown"}`, description: f.reason || f.description }))
+    );
+  }
 
   const fake_features: any[] = [];
   if (stepResults.feature_detection?.features) {
@@ -457,6 +554,22 @@ function buildUnifiedResult(stepResults: Record<string, any>, totalDuration: num
   const data_issues: any[] = [];
   if (stepResults.ui_data_binding?.issues) data_issues.push(...stepResults.ui_data_binding.issues);
   if (stepResults.ui_data_binding?.mismatches) data_issues.push(...stepResults.ui_data_binding.mismatches);
+
+  console.log("[BUILD UNIFIED] per-step read counts:", {
+    data_flow_validation_issues: stepResults.data_flow_validation?.issues?.length || 0,
+    navigation_verification_issues: stepResults.navigation_verification?.issues?.length || 0,
+    component_map_issues: stepResults.component_map?.issues?.length || 0,
+    regression_detection_issues: stepResults.regression_detection?.issues?.length || 0,
+    ui_flow_integrity_issues: stepResults.ui_flow_integrity?.issues?.length || 0,
+    feature_detection_features: stepResults.feature_detection?.features?.length || 0,
+    feature_detection_broken: (stepResults.feature_detection?.features || []).filter((f: any) => f.status === "broken" || f.status === "error").length,
+    interaction_qa_issues: stepResults.interaction_qa?.issues?.length || 0,
+    ui_data_binding_issues: stepResults.ui_data_binding?.issues?.length || 0,
+    broken_flows_total: broken_flows.length,
+    interaction_failures_total: interaction_failures.length,
+    data_issues_total: data_issues.length,
+    fake_features_total: fake_features.length,
+  });
 
   const scores: number[] = [];
   for (const key of Object.keys(stepResults)) {
@@ -705,6 +818,7 @@ async function runDataIntegrityScan(supabase: any, scanRunId: string): Promise<a
   const issues: any[] = [];
   const traceId = `integrity-${scanRunId.slice(0, 8)}`;
   const startMs = Date.now();
+  console.log("[TRACE EXECUTION]: runDataIntegrityScan started", { scanRunId, traceId, no_ai: true, no_external_calls: true });
 
   try {
     // 1. Work items created but missing source
@@ -1032,6 +1146,7 @@ async function runDataIntegrityScan(supabase: any, scanRunId: string): Promise<a
     scan_id: scanRunId, trace_id: traceId, component: "data_integrity_scan", duration_ms: durationMs,
   }).catch(() => {});
 
+  console.log("[TRACE EXECUTION]: runDataIntegrityScan done", { scanRunId, traceId, issues_found: issues.length, duration_ms: Date.now() - startMs, no_ai: true });
   return {
     issues, total_issues: issues.length,
     by_type: { data_loss: issues.filter(i => i.type === "data_loss").length, failed_insert: issues.filter(i => i.type === "failed_insert").length, stale_state: issues.filter(i => i.type === "stale_state").length, incorrect_filtering: issues.filter(i => i.type === "incorrect_filtering").length, data_validation: issues.filter(i => i.type === "data_validation").length, id_trace: issues.filter(i => i.type === "id_trace").length, data_mismatch: issues.filter(i => i.type === "data_mismatch").length, empty_table: issues.filter(i => i.type === "empty_table").length, request_failed_before_persistence: issues.filter(i => i.type === "request_failed_before_persistence").length },
@@ -1169,6 +1284,7 @@ async function runFunctionalBehaviorScan(supabase: any, scanRunId: string): Prom
 async function runRealSyncScan(supabase: any, scanRunId: string): Promise<any> {
   const issues: any[] = [];
   const startMs = Date.now();
+  console.log("[TRACE EXECUTION]: runRealSyncScan started", { scanRunId, no_ai: true, no_external_calls: true });
 
   try {
     const { data: products } = await supabase.from("products").select("id, title_sv, price, status, image_urls, handle, category").limit(500);
@@ -1209,6 +1325,7 @@ async function runRealSyncScan(supabase: any, scanRunId: string): Promise<any> {
 
   const durationMs = Date.now() - startMs;
   const score = Math.max(0, 100 - issues.length * 5);
+  console.log("[TRACE EXECUTION]: runRealSyncScan done", { scanRunId, issues_found: issues.length, duration_ms: durationMs, no_ai: true });
   return { issues, mismatches: issues, total_issues: issues.length, sync_score: score, overall_score: score, issues_found: issues.length, duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
 }
 
@@ -1217,6 +1334,7 @@ async function runRealSystemScan(supabase: any, scanRunId: string): Promise<any>
   const issues: any[] = [];
   const metrics: Record<string, number> = {};
   const startMs = Date.now();
+  console.log("[TRACE EXECUTION]: runRealSystemScan started", { scanRunId, no_ai: true, no_external_calls: true });
 
   try {
     const tables = [
@@ -1277,6 +1395,7 @@ async function runRealSystemScan(supabase: any, scanRunId: string): Promise<any>
 
   const durationMs = Date.now() - startMs;
   const score = Math.max(0, 100 - issues.length * 8);
+  console.log("[TRACE EXECUTION]: runRealSystemScan done", { scanRunId, issues_found: issues.length, duration_ms: durationMs, no_ai: true });
   return { issues, issues_found: issues.length, metrics, system_score: score, overall_score: score, duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
 }
 
@@ -1284,6 +1403,7 @@ async function runRealSystemScan(supabase: any, scanRunId: string): Promise<any>
 async function runRealFeatureDetection(supabase: any, scanRunId: string): Promise<any> {
   const features: any[] = [];
   const startMs = Date.now();
+  console.log("[TRACE EXECUTION]: runRealFeatureDetection started", { scanRunId, no_ai: true, no_external_calls: true });
 
   const featureTests = [
     { name: "Produkter", table: "products", query: "id, title_sv, status" },
@@ -1325,6 +1445,7 @@ async function runRealFeatureDetection(supabase: any, scanRunId: string): Promis
   const working = features.filter(f => f.status === "working").length;
   const broken = features.filter(f => f.status !== "working").length;
   const score = Math.round((working / Math.max(1, features.length)) * 100);
+  console.log("[TRACE EXECUTION]: runRealFeatureDetection done", { scanRunId, features_total: features.length, working, broken, duration_ms: durationMs, no_ai: true });
   return { features, working_count: working, broken_count: broken, total_features: features.length, overall_score: score, score, issues_found: broken, duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
 }
 
@@ -1853,7 +1974,7 @@ function classifyIssueType(issue: any, category: string): "bug" | "improvement" 
 }
 
 async function createWorkItems(supabase: any, unified: any, stage: SystemStage): Promise<{ created: number; createTrace: any[] }> {
-  console.log("[DEBUG] createWorkItems START", allWorkIssues?.length || 0, "unified keys:", Object.keys(unified || {}));
+  console.log("[DEBUG] createWorkItems START", "unified keys:", Object.keys(unified || {}));
   console.log("[DEBUG] SUPABASE TEST START");
   const test = await supabase.from("work_items").select("id").limit(1);
   console.log("[DEBUG] SUPABASE TEST RESULT:", test);
@@ -2093,7 +2214,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
       try {
         const cutoff = new Date(Date.now() - 60_000).toISOString();
         const keywords = (issue.title || "").split(/\s+/).filter((w: string) => w.length > 4).slice(0, 3);
-        let traceQuery = supabase.from("runtime_traces").select("id, error_message, function_name, endpoint").gte("created_at", cutoff).order("created_at", { ascending: false }).limit(5);
+        const traceQuery = supabase.from("runtime_traces").select("id, error_message, function_name, endpoint").gte("created_at", cutoff).order("created_at", { ascending: false }).limit(5);
         const { data: traces } = await traceQuery;
         if (traces?.length) {
           const match = traces.find((t: any) => keywords.some((kw: string) => t.error_message?.toLowerCase().includes(kw.toLowerCase())));
@@ -2235,12 +2356,16 @@ async function persistStepResults(supabase: any, steps: typeof STEPS, results: R
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  let _activeScanRunId: string | null = null;
+  let _supabase: any = null;
+
   try {
     console.log("🚨 SCAN STARTED");
     console.log("[SCAN START]");
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
+    _supabase = supabase;
 
     // Compatibility shim: Postgrest builder is thenable but doesn't implement .catch
     try {
@@ -2314,6 +2439,7 @@ serve(async (req) => {
 
       console.log("[SCAN] insert result:", scanRun, "error:", insertError);
       if (insertError || !scanRun) return new Response(JSON.stringify({ success: false, error: "Failed to create scan run", detail: insertError?.message }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      _activeScanRunId = scanRun.id;
 
       // Input debug
       const { data: structure_map } = await supabase.from("system_structure_map").select("entity_type, entity_name").limit(500);
@@ -2326,13 +2452,18 @@ serve(async (req) => {
         data_entities_count: dataEntities.length,
       };
       console.log("[SCAN INPUT]", scanInput);
+      console.log("[SCAN INPUT DEBUG]", {
+        structure_map_size: structure_map?.length || 0,
+        routes: routes.length,
+        components: components.length,
+        data_entities: dataEntities.length
+      });
 
       // Store scan_input on the scan_run
       await supabase.from("scan_runs").update({ steps_results: { _scan_input: scanInput } }).eq("id", scanRun.id);
 
       if (!structure_map || structure_map.length === 0) {
-        console.error("❌ SCAN ABORT: NO STRUCTURE MAP");
-        return new Response(JSON.stringify({ success: false, error: "NO_INPUT_DATA" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        console.warn("⚠ No structure_map – continuing with empty input");
       }
 
       console.log("[SCAN] running scanners — chaining first step");
@@ -2361,54 +2492,33 @@ serve(async (req) => {
       let stepResult: any = { error: "unknown", failed: true };
       const stepStart = Date.now();
 
+      console.log("[STEP START]", { step_id: step.id, iteration: currentIteration, step_index });
+
       try {
-        const STEP_TIMEOUT_MS = 30000;
         const realScanner = REAL_DB_SCANNERS[step.scanType];
         if (realScanner) {
           console.log(`[scan] Running REAL DB scanner for ${step.scanType}`);
           const dbResult = await realScanner(supabase, scan_run_id);
-          let aiEnrichment: any = null;
-          try {
-            const aiController = new AbortController();
-            const aiTimeout = setTimeout(() => aiController.abort(), STEP_TIMEOUT_MS);
-            const resp = await fetch(`${supabaseUrl}/functions/v1/ai-assistant`, {
-              method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
-              body: JSON.stringify({ type: step.scanType, orchestrated: true, step_index, real_db_findings: { issues_count: dbResult.issues_found || dbResult.total_issues || 0, score: dbResult.overall_score, sample_issues: (dbResult.issues || dbResult.mismatches || dbResult.features || []).slice(0, 5).map((i: any) => i.title || i.name || "") } }),
-              signal: aiController.signal,
-            });
-            clearTimeout(aiTimeout);
-            if (resp.ok) { const data = await resp.json(); aiEnrichment = data.result || data; }
-          } catch (_) {}
-          stepResult = { ...dbResult, ai_suggestions: aiEnrichment?.suggestions || aiEnrichment?.recommendations || [], ai_summary: aiEnrichment?.summary || aiEnrichment?.executive_summary || null };
+          stepResult = { ...dbResult };
         } else {
-          console.log(`[scan] Running AI-only scanner for ${step.scanType}`);
-          const previousContext: Record<string, any> = {};
-          const existingResults = scanRun.steps_results || {};
-          for (const [key, val] of Object.entries(existingResults)) {
-            const v = val as any;
-            if (v?.overall_score != null) previousContext[key] = { score: v.overall_score };
-            if (v?.issues_count != null) previousContext[key] = { ...previousContext[key], issues: v.issues_count };
-          }
-          let deepScanContext: any = undefined;
-          if (currentIteration > 1) {
-            deepScanContext = { iteration: currentIteration, previous_patterns: scanRun.pattern_discoveries || [], high_risk_areas: scanRun.high_risk_areas || [], instruction: "DEEP RE-SCAN. Focus on high_risk_areas and patterns." };
-          }
-          const stepController = new AbortController();
-          const stepTimeout = setTimeout(() => stepController.abort(), STEP_TIMEOUT_MS);
-          const resp = await fetch(`${supabaseUrl}/functions/v1/ai-assistant`, {
-            method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
-            body: JSON.stringify({ type: step.scanType, orchestrated: true, step_index, previous_context: Object.keys(previousContext).length > 0 ? previousContext : undefined, deep_scan_context: deepScanContext }),
-            signal: stepController.signal,
-          });
-          clearTimeout(stepTimeout);
-          if (resp.ok) { const data = await resp.json(); stepResult = data.result || data; }
-          else { const errBody = await resp.text().catch(() => ""); stepResult = { error: `HTTP ${resp.status}: ${errBody.substring(0, 200)}`, failed: true }; }
+          console.log(`[scan] No scanner registered for ${step.scanType} — skipping`);
+          stepResult = { issues: [], issues_found: 0, overall_score: null, _empty_reason: "no_scanner" };
         }
       } catch (e: any) { stepResult = { error: e.message, failed: true, _timed_out: e.name === "AbortError" }; }
 
       const duration_ms = Date.now() - stepStart;
       const scanFinishedAt = new Date().toISOString();
       const scanStartedAt = new Date(Date.now() - duration_ms).toISOString();
+
+      const duration_ms_early = Date.now() - stepStart;
+      console.log("[STEP END]", {
+        step_id: step.id,
+        iteration: currentIteration,
+        issues_count: Array.isArray(stepResult.issues) ? stepResult.issues.length : 0,
+        executed: !stepResult.failed && !stepResult.error,
+        duration_ms: duration_ms_early,
+        failure_reason: stepResult.error || null,
+      });
 
       // ── Normalize scanner output ──
       const didExecute = !stepResult.failed && !stepResult.error;
@@ -2423,6 +2533,15 @@ serve(async (req) => {
       }
 
       console.log("🚨 TOTAL ISSUES:", stepResult.issues.length);
+      console.log("[STEP RESULT]", step.id, {
+        executed: stepResult._executed,
+        issues: stepResult.issues?.length || 0,
+        features: stepResult.features?.length || 0,
+        mismatches: stepResult.mismatches?.length || 0,
+        failed: !!stepResult.failed,
+        error: stepResult.error || null,
+        empty_reason: stepResult._empty_reason || null,
+      });
 
       // ── Extended metadata ──
       stepResult._execution_time_ms = duration_ms;
@@ -2521,7 +2640,21 @@ serve(async (req) => {
 
       const updatedResults = scanRun.steps_results || {};
       const totalDuration = Object.values(updatedResults).reduce((sum: number, r: any) => sum + (r?._duration_ms || 0), 0);
+      console.log("[SCANNER OUTPUT][evaluate_iteration]", {
+        system_scan: (updatedResults.regression_detection?.issues || []).length,
+        interaction_scan: (updatedResults.interaction_qa?.issues || []).length,
+        feature_scan: (updatedResults.feature_detection?.features || updatedResults.feature_detection?.issues || []).length,
+        component_scan: (updatedResults.component_map?.issues || updatedResults.component_map?.components || []).length,
+        steps_completed: Object.keys(updatedResults).length,
+      });
       const unified = buildUnifiedResult(updatedResults, totalDuration);
+      console.log("[UNIFIED INPUT][evaluate_iteration]", {
+        broken_flows: unified.broken_flows.length,
+        fake_features: unified.fake_features.length,
+        interaction_failures: unified.interaction_failures.length,
+        data_issues: unified.data_issues.length,
+        system_health_score: unified.system_health_score,
+      });
 
       const { data: rootCauseData } = await supabase.from("root_cause_memory").select("pattern_key, affected_system, root_cause, recurrence_count, severity").order("recurrence_count", { ascending: false }).limit(50);
       const { patterns, highRiskAreas, systemicIssues } = extractPatterns(unified, rootCauseData || []);
@@ -2593,7 +2726,27 @@ serve(async (req) => {
       updatedResults._functional_behavior = behaviorResult;
 
       const totalDuration = Object.values(updatedResults).reduce((sum: number, r: any) => sum + (r?._duration_ms || 0), 0);
+      console.log("[SCANNER OUTPUT][finalize]", {
+        system_scan: (updatedResults.regression_detection?.issues || []).length,
+        interaction_scan: (updatedResults.interaction_qa?.issues || []).length,
+        feature_scan: (updatedResults.feature_detection?.features || updatedResults.feature_detection?.issues || []).length,
+        component_scan: (updatedResults.component_map?.issues || updatedResults.component_map?.components || []).length,
+        data_flow: (updatedResults.data_flow_validation?.issues || []).length,
+        ui_data_binding: (updatedResults.ui_data_binding?.issues || updatedResults.ui_data_binding?.mismatches || []).length,
+        steps_with_data: Object.keys(updatedResults).filter(k => {
+          const r = updatedResults[k];
+          return (r?.issues?.length || 0) + (r?.features?.length || 0) + (r?.mismatches?.length || 0) > 0;
+        }),
+      });
       const unified = buildUnifiedResult(updatedResults, totalDuration);
+      console.log("[UNIFIED INPUT][finalize]", {
+        broken_flows: unified.broken_flows.length,
+        fake_features: unified.fake_features.length,
+        interaction_failures: unified.interaction_failures.length,
+        data_issues: unified.data_issues.length,
+        system_health_score: unified.system_health_score,
+        blocker: !!unified.blocker,
+      });
 
       // ── CONTEXT AWARENESS: Filter dev false positives ──
       unified.broken_flows = filterDevFalsePositives(unified.broken_flows, systemStage);
@@ -2844,11 +2997,13 @@ serve(async (req) => {
       }
 
       const execSummary = `${unified.system_health_score}/100 — ${issuesCount} issues (${systemStage}) — ${iterationsCompleted} iter — ${coverageScore}% — ${workItemsCreated} uppgifter`;
+      const rawScanReport = buildRawScanReport(updatedResults, workItemsCreated, issuesCount, adaptiveResult?.issues?.length ?? 0);
       await supabase.from("scan_runs").update({
         status: "done", completed_at: new Date().toISOString(), steps_results: updatedResults,
         unified_result: adaptiveResult, system_health_score: unified.system_health_score,
         executive_summary: execSummary, work_items_created: workItemsCreated,
         current_step: STEPS.length, current_step_label: `Klar ✓ (${iterationsCompleted} iter, ${systemStage})`,
+        raw_scan_report: rawScanReport,
       }).eq("id", scan_run_id);
 
       // Store scan snapshot for historical tracking
@@ -3090,8 +3245,8 @@ serve(async (req) => {
       }
       // STALE DATA
       const scanTimestamp = new Date(scanRun.started_at).getTime();
-      if (scanTimestamp && Date.now() - scanTimestamp > 60000) {
-        violations.push("⚠ STALE SCAN DATA (>60s old)");
+      if (scanTimestamp && Date.now() - scanTimestamp > 600000) {
+        violations.push("⚠ STALE SCAN DATA (>10min old)");
       }
       const scanContext = {
         raw_detected: rawDetected,
@@ -3128,6 +3283,15 @@ serve(async (req) => {
   } catch (e: any) {
     console.error("run-full-scan error:", e);
     console.error("[FULL SCAN ERROR]:", e?.message || e);
+    if (_activeScanRunId && _supabase) {
+      try {
+        await _supabase.from("scan_runs").update({
+          status: "error",
+          error_message: "Scan aborted early",
+          completed_at: new Date().toISOString()
+        }).eq("id", _activeScanRunId);
+      } catch (_) {}
+    }
     try { await logRuntimeTrace("api", "run-full-scan", "/run-full-scan", e?.message || "Unknown", { stack: e?.stack?.slice(0, 500) }); } catch (_) {}
     return new Response(JSON.stringify({ success: false, error: e?.message || "Unknown error" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }

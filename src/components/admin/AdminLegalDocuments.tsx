@@ -117,6 +117,7 @@ const AdminLegalDocuments = () => {
 
   useEffect(() => {
     loadDocuments();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadDocuments = async () => {

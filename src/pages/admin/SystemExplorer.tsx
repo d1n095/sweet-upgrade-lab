@@ -99,6 +99,104 @@ const SCANNER_GROUPS: ScannerGroup[] = [
   },
 ];
 
+// ── RAW SCAN REPORT: truth engine (mirrors backend buildRawScanReport) ──
+const RAW_SCAN_STEPS = [
+  { id: "data_flow_validation", scanType: "data_integrity" },
+  { id: "component_map", scanType: "component_map" },
+  { id: "ui_data_binding", scanType: "sync_scan" },
+  { id: "interaction_qa", scanType: "interaction_qa" },
+  { id: "human_test", scanType: "human_test" },
+  { id: "navigation_verification", scanType: "nav_scan" },
+  { id: "feature_detection", scanType: "feature_detection" },
+  { id: "regression_detection", scanType: "system_scan" },
+  { id: "decision_engine", scanType: "decision_engine" },
+  { id: "blocker_detection", scanType: "blocker_detection" },
+  { id: "ui_flow_integrity", scanType: "ui_flow_integrity" },
+];
+
+function computeRawScanReport(
+  stepsResults: Record<string, any>,
+  workItemsCreated: number,
+  issuesDetected: number,
+  issuesAfterFilter: number,
+  actionLogs: { type?: string; status?: string; [key: string]: any }[]
+): Record<string, any> {
+  const steps = RAW_SCAN_STEPS.map(step => {
+    const r = stepsResults[step.id] || {};
+    const executed = r._executed === true;
+    const issuesArr = Array.isArray(r.issues) ? r.issues : [];
+    return {
+      step_id: step.id,
+      scanType: step.scanType,
+      executed,
+      issues_count: issuesArr.length,
+      duration: r._duration_ms || 0,
+      ...(r.error ? { error: r.error } : {}),
+      input_received: (r._input_size ?? 0) > 0,
+      output_produced: issuesArr.length > 0,
+    };
+  });
+
+  const totalSteps = steps.length;
+  const stepsExecuted = steps.filter(s => s.executed).length;
+  const stepsFailed = steps.filter(s => !s.executed || (s as any).error).length;
+
+  const failures: { type: string; step: string; severity: string; reason: string }[] = [];
+
+  for (const s of steps) {
+    if (!s.executed) {
+      failures.push({ type: "pipeline_failure", step: s.step_id, severity: "high", reason: "step not executed or empty result" });
+    } else if ((s as any).error) {
+      failures.push({ type: "pipeline_failure", step: s.step_id, severity: "high", reason: (s as any).error });
+    }
+  }
+
+  // Section 6 — Data loss detection
+  if (issuesDetected > 0) {
+    const drop = ((issuesDetected - issuesAfterFilter) / issuesDetected) * 100;
+    if (drop > 80) {
+      failures.push({ type: "data_loss", step: "filter", severity: "critical", reason: `${drop.toFixed(0)}% of issues removed by filter (${issuesDetected} → ${issuesAfterFilter})` });
+    }
+  }
+
+  // Section 7 — Pipeline block detection
+  if (issuesAfterFilter > 0 && workItemsCreated === 0) {
+    failures.push({ type: "pipeline_block", step: "work_items", severity: "critical", reason: `${issuesAfterFilter} issues detected but 0 work_items created` });
+  }
+
+  // Section 4 — Dead action detection from actionLogs
+  const dead_actions: { action: string; name: string; triggered: boolean; response_received: boolean }[] = [];
+  const scanStarts = actionLogs.filter(l => l.type === "Full Scan" && l.status === "started");
+  const scanResponses = actionLogs.filter(l => l.type === "Full Scan" && (l.status === "verified" || l.status === "no-effect" || l.status === "error"));
+  if (scanStarts.length > scanResponses.length) {
+    dead_actions.push({ action: "button_click", name: "full_scan", triggered: true, response_received: false });
+  }
+
+  let pipelineStatus: "ok" | "blocked" | "broken" = "ok";
+  if (stepsFailed > Math.floor(totalSteps / 2)) {
+    pipelineStatus = "broken";
+  } else if (failures.some(f => f.type === "pipeline_block" || f.type === "data_loss")) {
+    pipelineStatus = "blocked";
+  }
+
+  return {
+    total_steps: totalSteps,
+    steps_executed: stepsExecuted,
+    steps_failed: stepsFailed,
+    issues_detected: issuesDetected,
+    issues_after_filter: issuesAfterFilter,
+    work_items_created: workItemsCreated,
+    pipeline_status: pipelineStatus,
+    data_flow_status: stepsExecuted > 0 ? "ok" : "broken",
+    last_failed_step: steps.filter(s => !s.executed || (s as any).error).slice(-1)[0]?.step_id ?? null,
+    last_successful_scan_time: actionLogs.filter(l => l.type === "Full Scan" && (l.status === "verified" || l.status === "no-effect")).slice(0, 1)[0]?.time ?? null,
+    steps,
+    failures,
+    dead_actions,
+    generated_at: new Date().toISOString(),
+  };
+}
+
 const RuntimeTraceSection = ({ traceId }: { traceId?: string }) => {
   const [trace, setTrace] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -193,6 +291,7 @@ const SystemExplorer = () => {
 
   function logAction(action: Record<string, any>) {
     console.log("🟢 ACTION:", action);
+    setLastAction(action.type ? `${action.type}:${action.status ?? ""}` : JSON.stringify(action));
     setActionLogs(prev => [
       {
         time: new Date().toISOString(),
@@ -205,22 +304,24 @@ const SystemExplorer = () => {
     ]);
   }
   useEffect(() => {
-    const rawSources = getRawSources();
-    if (!rawSources) {
-      console.warn("❌ NO rawSources — cannot scan");
-      return;
+    if (false) {
+      const rawSources = getRawSources();
+      if (!rawSources) {
+        console.warn("❌ NO rawSources — cannot scan");
+        return;
+      }
+      console.log("RAW SOURCES COUNT:", Object.keys(rawSources).length);
+      console.log("🔍 AUTO SCAN START");
+      const allIssues: { type: string; message: string; file: string }[] = [];
+      Object.entries(rawSources).forEach(([path, content]) => {
+        if (!content) return;
+        const issues = scanFileContent(path, content as string);
+        allIssues.push(...issues);
+      });
+      console.log("🚨 AUTO SCAN FOUND:", allIssues.length);
+      setCodeScanResult(allIssues);
+      setGlobalIssues(allIssues);
     }
-    console.log("RAW SOURCES COUNT:", Object.keys(rawSources).length);
-    console.log("🔍 AUTO SCAN START");
-    const allIssues: { type: string; message: string; file: string }[] = [];
-    Object.entries(rawSources).forEach(([path, content]) => {
-      if (!content) return;
-      const issues = scanFileContent(path, content as string);
-      allIssues.push(...issues);
-    });
-    console.log("🚨 AUTO SCAN FOUND:", allIssues.length);
-    setCodeScanResult(allIssues);
-    setGlobalIssues(allIssues);
   }, []);
 
   function handleSearch() {
@@ -229,27 +330,50 @@ const SystemExplorer = () => {
       logAction({ type: "Search", status: "no-input", message: "Search query empty" });
       return;
     }
-    const sources = getRawSources();
-    if (!sources) {
-      logAction({ type: "Search", status: "error", message: "rawSources missing" });
-      return;
-    }
+    const q = searchQuery.toLowerCase();
     const results: { path: string; lineNumber: number; line: string }[] = [];
-    Object.entries(sources).forEach(([path, content]) => {
-      if (!content) return;
-      const lines = content.split("\n");
-      lines.forEach((line, index) => {
-        if (line.toLowerCase().includes(searchQuery.toLowerCase())) {
-          results.push({ path, lineNumber: index + 1, line: line.trim() });
-        }
+
+    // 1. Search raw frontend source files (static build-time index)
+    const sources = getRawSources();
+    if (sources) {
+      Object.entries(sources).forEach(([path, content]) => {
+        if (!content) return;
+        const lines = content.split("\n");
+        lines.forEach((line, index) => {
+          if (line.toLowerCase().includes(q)) {
+            results.push({ path, lineNumber: index + 1, line: line.trim() });
+          }
+        });
       });
-    });
+    }
+
+    // 2. Search fileSystemMap paths/folders (covers files not in rawSources)
+    for (const f of fileSystemMap) {
+      if (f.path.toLowerCase().includes(q) && !sources?.[f.path]) {
+        results.push({ path: f.path, lineNumber: 0, line: `[file] ${f.type} — used in: ${f.used_in.slice(0, 3).join(", ") || "nowhere"}` });
+      }
+    }
+
+    // 3. Search latest scan step issues (real diagnostic data from scan_runs)
+    const scanSteps = (latestRun as any)?.steps_results as Record<string, any> | null;
+    if (scanSteps) {
+      for (const [stepId, stepResult] of Object.entries(scanSteps)) {
+        const issues: any[] = Array.isArray((stepResult as any)?.issues) ? (stepResult as any).issues : [];
+        for (const issue of issues) {
+          const text = `${issue.title || ""} ${issue.description || ""} ${issue.component || ""} ${issue.route || ""}`;
+          if (text.toLowerCase().includes(q)) {
+            results.push({ path: `[scan:${stepId}] ${issue.component || issue.route || "–"}`, lineNumber: 0, line: issue.title || "(no title)" });
+          }
+        }
+      }
+    }
+
     logAction({
       type: "Search",
       status: results.length === 0 ? "no-results" : "success",
       count: results.length
     });
-    setSearchResults(results.slice(0, 50));
+    setSearchResults(results.slice(0, 100));
   }
 
   async function runSystemScan(mode: string) {
@@ -487,7 +611,11 @@ const SystemExplorer = () => {
       queryClient.invalidateQueries({ queryKey: ["system-explorer-runtime-errors"] }),
       queryClient.invalidateQueries({ queryKey: ["system-explorer-debug-console"] }),
       queryClient.invalidateQueries({ queryKey: ["system-explorer-raw-runtime-errors"] }),
+      queryClient.invalidateQueries({ queryKey: ["system-explorer-latest-run"] }),
+      queryClient.invalidateQueries({ queryKey: ["backend-scan-latest"] }),
+      refetchLatestRun(),
     ]);
+    console.log("[UI FETCH latestRun] queries invalidated — data will refresh");
     setIsRefreshing(false);
   };
 
@@ -500,12 +628,8 @@ const SystemExplorer = () => {
       const beforeCount = before.data?.length || 0;
       logAction({ type: "Full Scan", status: "started" });
       console.log("🚀 STARTING FULL SCAN");
-      const structure_map = Object.keys(getRawSources() || {}).map(path => ({
-        path
-      }));
-      console.log("[SENDING STRUCTURE MAP]:", structure_map.length);
       const res = await tracedInvoke("run-full-scan", {
-        body: { action: "start", scan_mode: "full", structure_map },
+        body: { action: "start", scan_mode: "full" },
       });
       console.log("📡 RESPONSE:", res);
       const verify = await verifyWorkItemsCreated(beforeCount);
@@ -567,19 +691,25 @@ const SystemExplorer = () => {
   });
 
   // 2b. Latest scan_run for pipeline data
-  const { data: latestRun } = useQuery({
+  const { data: latestRun, refetch: refetchLatestRun } = useQuery({
     queryKey: ["system-explorer-latest-run"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("scan_runs")
-        .select("id, status, total_new_issues, work_items_created, created_at, unified_result, steps_results")
+        .select("id, status, total_new_issues, work_items_created, created_at, unified_result, steps_results, raw_scan_report")
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
       if (error) throw error;
       return data;
     },
+    staleTime: 0,
+    refetchInterval: 5000,
   });
+
+  useEffect(() => {
+    console.log("[FETCH latestRun]", latestRun);
+  }, [latestRun]);
 
   // 3b. History for selected item
   const { data: itemHistory = [], isLoading: historyLoading } = useQuery({
@@ -1041,21 +1171,7 @@ const SystemExplorer = () => {
   const toggleGroup = (key: string) => setExpandedGroups((prev) => ({ ...prev, [key]: !prev[key] }));
 
   const handleAiAnalyze = async () => {
-    if (!aiQuery.trim() || aiLoading) return;
-    setAiLoading(true);
-    setAiAnswer(null);
-    try {
-      const focusSuffix = aiFocusArea ? ` [FOCUS AREA: ${aiFocusArea} — prioritize issues and scans within this area]` : "";
-      const { data, error } = await tracedInvoke("ai-assistant", {
-        body: { type: "system_explorer_query", question: aiQuery.trim() + focusSuffix },
-      });
-      if (error) throw error;
-      setAiAnswer(data?.result?.answer || "Inget svar.");
-    } catch (e: any) {
-      setAiAnswer(`Fel: ${e.message || "Kunde inte analysera."}`);
-    } finally {
-      setAiLoading(false);
-    }
+    // AI assistant removed — use scan results instead
   };
 
   const priorityColor = (p: string) => {
@@ -1195,34 +1311,42 @@ const SystemExplorer = () => {
           </Button>
           {isSystemAdmin && (
             <>
-            <Button variant="default" size="sm" onClick={() =>
-              validateAction("FULL_SCAN", async () => {
-                const structure_map = Object.keys(getRawSources() || {});
-                if (!structure_map.length) {
-                  throw new Error("No structure map");
-                }
-                setIsScanning(true);
-                setScanProgress({ step: 0, total: 11, label: "Startar..." });
-                const pollInterval = setInterval(async () => {
-                  try {
-                    const { data } = await supabase.from("scan_runs").select("current_step, current_step_label").order("created_at", { ascending: false }).limit(1).single();
-                    if (data) {
-                      setScanProgress({ step: data.current_step || 0, total: 11, label: data.current_step_label || "Scanning..." });
-                    }
-                  } catch (_) {}
-                }, 2000);
+            <Button variant="default" size="sm" onClick={async () => {
+              console.log("[UI CLICK] Full scan clicked");
+              setIsScanning(true);
+              setScanProgress({ step: 0, total: 11, label: "Startar..." });
+              const pollInterval = setInterval(async () => {
                 try {
-                  await supabase.functions.invoke("run-full-scan", {
-                    body: { action: "start", scan_mode: "full", structure_map: structure_map.map(p => ({ path: p })) }
-                  });
-                } finally {
-                  clearInterval(pollInterval);
-                  setIsScanning(false);
-                  setScanProgress(null);
+                  const { data } = await supabase.from("scan_runs").select("current_step, current_step_label").order("created_at", { ascending: false }).limit(1).single();
+                  if (data) {
+                    setScanProgress({ step: data.current_step || 0, total: 11, label: data.current_step_label || "Scanning..." });
+                  }
+                } catch (_) {}
+              }, 2000);
+              try {
+                logAction({ type: "Full Scan", status: "started", message: "invoke dispatched" });
+                console.log("[UI INVOKE] run-full-scan called");
+                const { data, error } = await tracedInvoke("run-full-scan", {
+                  body: { action: "start", scan_mode: "full" },
+                });
+                console.log("[UI RESPONSE]", data, error);
+                if (error) {
+                  logAction({ type: "Full Scan", status: "error", message: error?.message ?? "invoke error" });
+                } else if ((data as any)?.success === false) {
+                  logAction({ type: "Full Scan", status: "error", message: (data as any)?.error ?? "scan returned success: false" });
+                } else {
+                  logAction({ type: "Full Scan", status: "verified", message: "scan dispatched" });
                 }
-                return true;
-              })
-            } disabled={isScanning}>
+              } catch (err: any) {
+                console.error("[FULL SCAN ERROR]:", err);
+                logAction({ type: "Full Scan", status: "error", message: err?.message ?? "Unknown error" });
+              } finally {
+                clearInterval(pollInterval);
+                setIsScanning(false);
+                setScanProgress(null);
+                await handleRefresh();
+              }
+            }} disabled={isScanning}>
               {isScanning ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Radar className="h-4 w-4 mr-1" />}
               {isScanning && scanProgress ? `Scanning... (${scanProgress.step}/${scanProgress.total})` : isScanning ? "Scanning..." : "Run Full Scan"}
             </Button>
@@ -1433,22 +1557,31 @@ const SystemExplorer = () => {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2"><Layers className="h-4 w-4" /> Code Index ({index.length} files)</CardTitle>
-                <Button variant="outline" size="sm" className="text-[10px] h-6 ml-auto" onClick={() =>
-                  validateAction("SCAN_CODE", () => {
-                    const sources = getRawSources() || {};
-                    const results: { type: string; message: string; file: string }[] = [];
-                    Object.entries(sources).forEach(([path, content]) => {
-                      const issues = scanFileContent(path, content as string);
-                      results.push(...issues);
-                    });
-                    if (!results || results.length === 0) {
-                      throw new Error("Code index empty");
+                <Button variant="outline" size="sm" className="text-[10px] h-6 ml-auto" onClick={() => {
+                  // Merge static frontend scan with real scan_runs step issues (no AI)
+                  const staticIssues: { type: string; message: string; file: string }[] = [];
+                  Object.entries(getRawSources() || {}).forEach(([path, content]) => {
+                    staticIssues.push(...scanFileContent(path, content as string));
+                  });
+
+                  const dbIssues: { type: string; message: string; file: string }[] = [];
+                  const scanSteps = (latestRun as any)?.steps_results as Record<string, any> | null;
+                  if (scanSteps) {
+                    for (const [stepId, stepResult] of Object.entries(scanSteps)) {
+                      const issues: any[] = Array.isArray((stepResult as any)?.issues) ? (stepResult as any).issues : [];
+                      for (const iss of issues) {
+                        dbIssues.push({
+                          type: iss.type || iss.failure_type || "bug",
+                          message: iss.title || iss.description || "(no description)",
+                          file: iss.source_file || iss.component || iss.route || `scan:${stepId}`,
+                        });
+                      }
                     }
-                    console.log("[FILE ISSUES FOUND]:", results.length);
-                    setCodeScanResult(results);
-                    return true;
-                  })
-                }>
+                  }
+
+                  setCodeScanResult([...dbIssues, ...staticIssues]);
+                  logAction({ type: "SCAN_CODE", status: "success", count: staticIssues.length + dbIssues.length });
+                }}>
                   Scan Code
                 </Button>
               </CardHeader>
@@ -1691,18 +1824,11 @@ const SystemExplorer = () => {
                   {f === "all" ? `All (${fileSystemMap.length})` : f === "orphan" ? `Orphan (${fileSystemMap.filter(fi => fi.used_in.length === 0 && fi.type !== "page" && fi.type !== "edge_function").length})` : `Has Issues (${fileSystemMap.filter(fi => structureIssues.some(si => si.path === fi.path)).length})`}
                 </button>
               ))}
-              <Button variant="outline" size="sm" className="text-[10px] h-6 ml-auto" onClick={() =>
-                validateAction("SCAN_FILES", () => {
-                  const files = Object.keys(getRawSources() || {});
-                  if (!files.length) {
-                    throw new Error("No files available");
-                  }
-                  const result = files.length;
-                  console.log("[FILES FOUND]:", result);
-                  setFileScanResult({ total: result, emptyFiles: files.filter(f => !getRawSources()[f]?.trim()).length, largeFiles: 0 });
-                  return true;
-                })
-              }>
+              <Button variant="outline" size="sm" className="text-[10px] h-6 ml-auto" onClick={() => {
+                tracedInvoke("run-full-scan", {
+                  body: { action: "start", scan_mode: "full" },
+                }).catch((err: any) => console.error("[SCAN FILES ERROR]:", err));
+              }}>
                 Scan Files
               </Button>
             </div>
@@ -2085,35 +2211,124 @@ const SystemExplorer = () => {
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
                 <FileText className="h-4 w-4" />
-                Raw Scan Results (read-only)
+                Raw Scan Report – Truth Engine
+                <Badge variant="outline" className="text-[10px]">steps_results only</Badge>
+                <Badge variant={(latestRun as any)?.status === "done" ? "outline" : (latestRun as any)?.status === "running" ? "secondary" : "destructive"} className="text-[10px]">
+                  {(latestRun as any)?.status ?? "no scan"}
+                </Badge>
+                {(latestRun as any)?.created_at && (
+                  <span className="text-[9px] text-muted-foreground ml-1">
+                    updated {new Date((latestRun as any).created_at).toLocaleTimeString("sv-SE")}
+                  </span>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent>
               {(() => {
-                if (!scanResults) return <p className="text-xs text-muted-foreground">No scan results available</p>;
+                const run = latestRun as any;
+                const stepsResults = run?.steps_results as Record<string, any> | null;
+                console.log("[RAW INPUT]", stepsResults);
+                if (!run) return <p className="text-xs text-muted-foreground">No scan_run in DB — run a scan first</p>;
+                if (!stepsResults) return <p className="text-xs text-destructive font-mono text-[10px]">data_flow_break: scan_run exists (id: {run.id?.slice(0, 8)}) but steps_results is empty — scan may not have finalized</p>;
                 try {
-                  const limited = { ...scanResults };
-                  const allIssues = limited?.issues ?? limited?._create_trace ?? [];
-                  const totalCount = Array.isArray(allIssues) ? allIssues.length : 0;
-                  if (Array.isArray(limited?.issues) && limited.issues.length > 50) {
-                    limited.issues = limited.issues.slice(0, 50);
-                  }
-                  if (Array.isArray(limited?._create_trace) && limited._create_trace.length > 50) {
-                    limited._create_trace = limited._create_trace.slice(0, 50);
-                  }
+                  const report = run?.raw_scan_report
+                    ? run.raw_scan_report as Record<string, any>
+                    : computeRawScanReport(
+                        stepsResults,
+                        run?.work_items_created ?? 0,
+                        run?.total_new_issues ?? 0,
+                        (run?.unified_result as any)?.issues?.length ?? 0,
+                        actionLogs,
+                      );
+                  const statusColor = report.pipeline_status === "ok" ? "text-green-500" : report.pipeline_status === "blocked" ? "text-yellow-500" : "text-destructive";
                   return (
-                    <>
-                      {totalCount > 50 && (
-                        <p className="text-[10px] text-muted-foreground mb-2">Showing 50 of {totalCount} issues</p>
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`text-sm font-bold ${statusColor}`}>pipeline: {report.pipeline_status}</span>
+                        <Badge variant={report.data_flow_status === "ok" ? "outline" : "destructive"} className="text-[10px]">data_flow: {report.data_flow_status}</Badge>
+                        <Badge variant="outline" className="text-[10px]">{report.steps_executed}/{report.total_steps} steps executed</Badge>
+                        {report.steps_failed > 0 && <Badge variant="destructive" className="text-[10px]">{report.steps_failed} failed</Badge>}
+                        <Badge variant="outline" className="text-[10px]">detected: {report.issues_detected}</Badge>
+                        <Badge variant="outline" className="text-[10px]">after filter: {report.issues_after_filter}</Badge>
+                        <Badge variant="outline" className="text-[10px]">work_items: {report.work_items_created}</Badge>
+                        {report.last_failed_step && <Badge variant="destructive" className="text-[10px]">last_failed: {report.last_failed_step}</Badge>}
+                        {report.last_successful_scan_time && <Badge variant="outline" className="text-[10px]">last_ok: {new Date(report.last_successful_scan_time).toLocaleTimeString()}</Badge>}
+                      </div>
+                      {report.failures?.length > 0 && (
+                        <div className="rounded-md border border-destructive/50 bg-destructive/5 p-2 space-y-1">
+                          <p className="text-[10px] font-bold text-destructive">Failures ({report.failures.length})</p>
+                          {report.failures.map((f: any, i: number) => (
+                            <p key={i} className="text-[10px] font-mono text-foreground">• [{f.type}] {f.step} — {f.reason}</p>
+                          ))}
+                        </div>
                       )}
-                      <pre className="bg-muted/30 border border-border rounded-md p-3 text-[10px] font-mono overflow-auto max-h-[500px] whitespace-pre-wrap text-foreground select-all">
-                        {JSON.stringify(limited, null, 2)}
+                      {report.dead_actions?.length > 0 && (
+                        <div className="rounded-md border border-yellow-500/50 bg-yellow-500/5 p-2 space-y-1">
+                          <p className="text-[10px] font-bold text-yellow-500">Dead Actions ({report.dead_actions.length})</p>
+                          {report.dead_actions.map((a: any, i: number) => (
+                            <p key={i} className="text-[10px] font-mono text-foreground">• {a.name} — triggered:{String(a.triggered)} response:{String(a.response_received)}</p>
+                          ))}
+                        </div>
+                      )}
+                      <pre className="bg-muted/30 border border-border rounded-md p-3 text-[10px] font-mono overflow-auto max-h-[400px] whitespace-pre-wrap text-foreground select-all">
+                        {JSON.stringify(report, null, 2)}
                       </pre>
-                    </>
+                      {/* ── Live Diagnostic Issues (from scan_runs.steps_results) ── */}
+                      {(() => {
+                        const sr = run?.steps_results as Record<string, any> | null;
+                        if (!sr) return null;
+                        const allIssues: { step: string; title: string; severity: string; type: string; file: string }[] = [];
+                        for (const [stepId, stepResult] of Object.entries(sr)) {
+                          if (stepId.startsWith("_")) continue;
+                          const issues: any[] = Array.isArray((stepResult as any)?.issues) ? (stepResult as any).issues : [];
+                          for (const iss of issues) {
+                            allIssues.push({
+                              step: stepId,
+                              title: iss.title || "(no title)",
+                              severity: iss.severity || "–",
+                              type: iss.type || iss.failure_type || "–",
+                              file: iss.source_file || iss.component || iss.route || "–",
+                            });
+                          }
+                        }
+                        if (allIssues.length === 0) return (
+                          <p className="text-[10px] text-muted-foreground">No issues in steps_results</p>
+                        );
+                        return (
+                          <div className="space-y-1">
+                            <p className="text-[10px] font-bold text-foreground">Live Diagnostic Issues ({allIssues.length})</p>
+                            <div className="rounded-md border border-border overflow-auto max-h-[400px]">
+                              <table className="w-full text-[10px]">
+                                <thead className="sticky top-0 bg-background border-b border-border">
+                                  <tr>
+                                    <th className="text-left p-2 text-muted-foreground font-medium w-[140px]">Step</th>
+                                    <th className="text-left p-2 text-muted-foreground font-medium">Title</th>
+                                    <th className="text-left p-2 text-muted-foreground font-medium w-[70px]">Severity</th>
+                                    <th className="text-left p-2 text-muted-foreground font-medium w-[70px]">Type</th>
+                                    <th className="text-left p-2 text-muted-foreground font-medium w-[180px]">File/Component</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {allIssues.map((iss, idx) => (
+                                    <tr key={idx} className="border-b border-border/50 hover:bg-muted/30">
+                                      <td className="p-2 font-mono text-muted-foreground truncate">{iss.step}</td>
+                                      <td className="p-2 text-foreground">{iss.title}</td>
+                                      <td className={`p-2 font-mono ${iss.severity === "critical" ? "text-destructive" : iss.severity === "high" ? "text-orange-500" : "text-muted-foreground"}`}>{iss.severity}</td>
+                                      <td className="p-2 font-mono text-muted-foreground">{iss.type}</td>
+                                      <td className="p-2 font-mono text-muted-foreground truncate">{iss.file}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
                   );
                 } catch (e) {
-                  console.error("[DEBUG] JSON RENDER ERROR:", e);
-                  return <p className="text-xs text-destructive">Error rendering scan results</p>;
+                  console.error("[RAW SCAN RENDER ERROR]:", e);
+                  return <p className="text-xs text-destructive">Error rendering raw scan report</p>;
                 }
               })()}
             </CardContent>
@@ -2158,66 +2373,26 @@ const SystemExplorer = () => {
           <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("aiAssistant")}>
             <CardTitle className="text-sm flex items-center gap-2">
               {expandedSections.aiAssistant ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-              <Bot className="h-4 w-4 text-primary" />
-              AI Assistant
-              <Badge variant="outline" className="text-[10px]">READ-ONLY</Badge>
+              <Database className="h-4 w-4 text-primary" />
+              Systemsökning
+              <Badge variant="outline" className="text-[10px]">Skanner-data</Badge>
             </CardTitle>
           </CardHeader>
           {expandedSections.aiAssistant && (
             <CardContent className="space-y-3">
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Ask about system state, scanners, work items..."
-                  value={aiQuery}
-                  onChange={(e) => setAiQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleAiAnalyze()}
-                  className="text-sm"
-                />
-                <Button size="sm" onClick={handleAiAnalyze} disabled={aiLoading || !aiQuery.trim()}>
-                  {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  Analyze
-                </Button>
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {["Why was this created?", "Which scanners failed?", "What is broken?", "Summarize system state"].map((q) => (
-                  <button
-                    key={q}
-                    onClick={() => { setAiQuery(q); }}
-                    className="text-[10px] px-2 py-1 rounded-md border border-border hover:bg-muted/50 transition-colors text-muted-foreground"
-                  >
-                    {q}
-                  </button>
-                ))}
-              </div>
-              <div className="flex items-center gap-1 flex-wrap">
-                <span className="text-[10px] text-muted-foreground font-medium mr-1">Focus Area:</span>
-                {[
-                  { key: "UI", label: "UI" },
-                  { key: "Data", label: "Data" },
-                  { key: "Flow", label: "Flow" },
-                  { key: "Business", label: "Business" },
-                ].map((area) => (
-                  <button
-                    key={area.key}
-                    onClick={() => setAiFocusArea(aiFocusArea === area.key ? null : area.key)}
-                    className={`text-[10px] px-2 py-1 rounded-md border transition-colors ${
-                      aiFocusArea === area.key
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "border-border hover:bg-muted/50 text-muted-foreground"
-                    }`}
-                  >
-                    {area.label}
-                  </button>
-                ))}
-                {aiFocusArea && (
-                  <span className="text-[10px] text-muted-foreground ml-1">Active: {aiFocusArea}</span>
-                )}
-              </div>
-              {aiAnswer && (
-                <div className="border border-border rounded-md p-3 bg-muted/30 text-sm prose prose-sm max-w-none dark:prose-invert">
-                  <ReactMarkdown>{aiAnswer}</ReactMarkdown>
+              <p className="text-xs text-muted-foreground">
+                Sök i skanner-resultat och work items via filterverktygen ovan. AI-assistenten är borttagen — all analys sker via deterministiska skanners.
+              </p>
+              <div className="grid grid-cols-2 gap-2 text-[10px]">
+                <div className="bg-muted/30 rounded p-2">
+                  <span className="font-medium">Senaste skanning:</span>{' '}
+                  {latestRun ? new Date((latestRun as any).created_at).toLocaleString('sv-SE') : '–'}
                 </div>
-              )}
+                <div className="bg-muted/30 rounded p-2">
+                  <span className="font-medium">Hälsostatus:</span>{' '}
+                  {(latestRun as any)?.system_health_score ?? '–'}/100
+                </div>
+              </div>
             </CardContent>
           )}
         </Card>

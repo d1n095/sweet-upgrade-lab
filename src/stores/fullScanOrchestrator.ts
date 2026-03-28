@@ -1,3 +1,9 @@
+// ⚠️ COPILOT / AI TOOLS WARNING:
+// This orchestrator polls and maps server-side scan results.
+// AI fields (ai_suggestions, ai_summary, _ai_disabled) are stripped before
+// exposing results to the frontend — do NOT re-add or depend on them.
+//
+// Only analyze one step at a time. Do NOT simulate full scan loops.
 import { create } from 'zustand';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -121,7 +127,13 @@ function buildStepsFromScanRun(scanRun: any): OrchestratorStep[] {
   const isError = scanRun.status === 'error';
 
   return ORCHESTRATED_STEPS.map((def, i) => {
-    const result = stepsResults[def.id];
+    const rawResult = stepsResults[def.id];
+    // Strip residual AI fields before exposing to frontend
+    let result = rawResult;
+    if (result && typeof result === 'object') {
+      const { ai_suggestions: _as, ai_summary: _asumm, _ai_disabled: _aid, ...clean } = result;
+      result = clean;
+    }
     let status: OrchestratorStepStatus = 'pending';
 
     if (result && !result.failed) {
