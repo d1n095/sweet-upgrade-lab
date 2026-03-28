@@ -95,7 +95,7 @@ serve(async (req) => {
    - task: manual/admin operational task
 
 Priority rules:
-- checkout/payment issues → critical
+- checkout/payment issues → SKIP (payment system is isolated from AI)
 - order fulfillment issues → high  
 - bugs affecting users → high
 - UI issues → medium

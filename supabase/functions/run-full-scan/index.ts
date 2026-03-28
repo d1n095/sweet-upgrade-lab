@@ -1122,14 +1122,9 @@ async function runFunctionalBehaviorScan(supabase: any, scanRunId: string): Prom
       }
     }
 
-    // ACTION CHAIN 6: Order → lifecycle
-    const { data: paidOrders } = await supabase.from("orders").select("id, status, payment_status, fulfillment_status").eq("payment_status", "paid").in("fulfillment_status", ["shipped", "delivered"]).is("deleted_at", null).limit(50);
-    for (const order of paidOrders || []) {
-      const { data: activeWi } = await supabase.from("work_items").select("id, title, item_type").eq("related_order_id", order.id).in("status", ["open", "claimed", "in_progress"]).in("item_type", ["pack_order", "packing", "shipping"]).limit(1);
-      if (activeWi?.length) {
-        failures.push({ chain: "order_lifecycle", action: "Order shipped → close tasks", expected: "No active packing tasks", actual: `Active: "${activeWi[0].title}"`, failure_type: "stale_state", step: "order status → work_items", severity: "medium", entity_id: activeWi[0].id });
-      }
-    }
+    // ACTION CHAIN 6: Order → lifecycle — PAYMENT ISOLATED: skipped
+    // AI must not scan or create issues for order payment lifecycle
+    console.log("[PAYMENT_ISOLATION] Skipped order lifecycle behavior check");
 
     // ACTION CHAIN 7: Notification on incident
     const { data: recentNotifIncidents } = await supabase.from("order_incidents").select("id, title, created_at").gte("created_at", new Date(Date.now() - 60 * 60 * 1000).toISOString()).order("created_at", { ascending: false }).limit(10);
