@@ -36,7 +36,7 @@ const TAB_GROUPS: TabGroup[] = [
     label: 'Dashboard',
     icon: Activity,
     tabs: [
-      { value: 'ai-dashboard', label: 'Översikt', icon: Activity },
+      { value: 'ai-dashboard', label: 'Scanner Center', icon: Radar },
       { value: 'system-state', label: 'Systemkarta', icon: Monitor },
       { value: 'unified-pipeline', label: 'Pipeline', icon: GitMerge },
       { value: 'health', label: 'Systemhälsa', icon: Shield },

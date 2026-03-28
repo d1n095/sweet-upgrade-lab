@@ -35,6 +35,7 @@ import SafeModePanel, { SafeModeBanner } from '@/components/admin/SafeModePanel'
 import UnifiedPipelineDashboard from '@/components/admin/UnifiedPipelineDashboard';
 import SystemStateDashboard from '@/components/admin/SystemStateDashboard';
 import FailureMemoryPanel from '@/components/admin/FailureMemoryPanel';
+import ScannerDashboard from '@/components/admin/ScannerDashboard';
 
 // Context to allow any tab to open a work item detail view
 const DetailContext = createContext<{
@@ -8076,14 +8077,13 @@ const OrchestrationTab = () => {
       <div className="min-h-0 flex-1 flex flex-col">
         <AiCenterTabs defaultValue="ai-dashboard">
           {/* Dashboard */}
+          <div data-value="ai-dashboard"><ScannerDashboard /></div>
           <div data-value="system-state"><SystemStateDashboard /></div>
           <div data-value="unified-pipeline"><UnifiedPipelineDashboard /></div>
           <div data-value="health"><SystemHealthTab /></div>
           <div data-value="insights"><DataInsightsTab /></div>
 
           {/* Operations */}
-          <div data-value="lova-chat"><LovaChatTab /></div>
-          <div data-value="autopilot"><AiAutopilotTab /></div>
           <div data-value="actions"><ActionEngineTab /></div>
           <div data-value="tasks"><TaskAITab /></div>
           <div data-value="bugs" className="flex flex-col min-h-0 h-full"><BugAITab /></div>

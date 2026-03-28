@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Sparkles, Tag, Copy, Loader2 as Loader2Icon, EyeOff, RotateCcw, PenLine, ChevronDown, ChevronUp } from 'lucide-react';
+import { Sparkles, Tag, Copy, Loader2 as Loader2Icon, EyeOff, RotateCcw, PenLine, ChevronDown, ChevronUp, Radar } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -279,9 +279,6 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
   };
 
   const dt = fmtFull(item.created_at);
-  const reanalysis = (item.ai_root_causes as any)?.refined_diagnosis ? item.ai_root_causes as any : null;
-  const rootCauses = fixSuggestion?.root_causes || (item.ai_root_causes as any)?.root_causes || [];
-  const analysisSummary = reanalysis?.refined_diagnosis?.summary || fixSuggestion?.summary || (item.ai_root_causes as any)?.summary;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -392,19 +389,13 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
               </div>
             )}
 
-            {/* AI Analysis for bugs */}
+            {/* Bug report metadata (scanner-processed) */}
             {bugData && (bugData as any).ai_processed_at && (
-              <div className="space-y-2 border border-primary/20 rounded-lg p-3 bg-primary/5">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  AI-analys
-                  {(bugData as any).ai_approved && (
-                    <Badge variant="outline" className="text-[9px] ml-1 border-accent/30 text-accent">✓ Godkänd</Badge>
-                  )}
+              <div className="space-y-2 border border-border rounded-lg p-3 bg-muted/20">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                  <Radar className="w-3.5 h-3.5" />
+                  Buggdata
                 </div>
-                {(bugData as any).ai_summary && (
-                  <div><span className="text-[10px] text-muted-foreground">Sammanfattning</span><p className="text-xs font-medium">{(bugData as any).ai_summary}</p></div>
-                )}
                 <div className="flex gap-1.5 flex-wrap">
                   {(bugData as any).ai_severity && <Badge variant="outline" className="text-[10px]">{(bugData as any).ai_severity}</Badge>}
                   {(bugData as any).ai_category && <Badge variant="outline" className="text-[10px]">{(bugData as any).ai_category}</Badge>}
@@ -424,161 +415,12 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                     <div className="text-xs bg-background rounded-md p-2 whitespace-pre-wrap border mt-0.5">{(bugData as any).ai_repro_steps}</div>
                   </div>
                 )}
-                {(bugData as any).ai_clean_prompt && (
-                  <div>
-                    <span className="text-[10px] text-muted-foreground">Strukturerad prompt</span>
-                    <div className="text-xs bg-background rounded-md p-2 whitespace-pre-wrap border mt-0.5 font-mono">{(bugData as any).ai_clean_prompt}</div>
-                  </div>
-                )}
               </div>
             )}
 
-            {/* Root Cause Analysis */}
+            {/* Root Cause / Custom fix (manual) */}
             {bugData && item.item_type === 'bug' && (
               <div className="space-y-2">
-                <Button size="sm" variant="outline" className="w-full gap-1.5" disabled={analyzingFix} onClick={handleRunRootCause}>
-                  {analyzingFix ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                  {rootCauses.length > 0 ? 'Kör ny AI-analys' : 'AI Root Cause-analys'}
-                </Button>
-
-                {rootCauses.length > 0 && (
-                  <div className="border border-primary/20 rounded-lg p-3 bg-primary/5 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
-                        <Sparkles className="w-3.5 h-3.5" />
-                        Möjliga grundorsaker ({rootCauses.length})
-                      </div>
-                      {fixSuggestion?.overall_risk && (
-                        <Badge variant="outline" className="text-[9px]">Risk: {fixSuggestion.overall_risk}</Badge>
-                      )}
-                    </div>
-
-                    {analysisSummary && <p className="text-xs text-muted-foreground">{analysisSummary}</p>}
-
-                    {/* Re-analysis after rejection */}
-                    {reanalysis && (
-                      <div className="space-y-2 border border-primary/20 bg-primary/5 rounded-lg p-2.5">
-                        <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
-                          <RotateCcw className="w-3 h-3" />
-                          Fördjupad re-analys (efter avvisning)
-                        </div>
-                        {reanalysis.refined_diagnosis?.why_previous_was_wrong && (
-                          <p className="text-[10px] text-destructive">
-                            <span className="font-medium">Varför förra var fel:</span> {reanalysis.refined_diagnosis.why_previous_was_wrong}
-                          </p>
-                        )}
-                        {reanalysis.refined_diagnosis?.likely_cause && (
-                          <p className="text-xs"><span className="font-medium">Trolig orsak:</span> {reanalysis.refined_diagnosis.likely_cause}</p>
-                        )}
-                        {reanalysis.refined_diagnosis?.evidence?.length > 0 && (
-                          <div className="text-[10px]">
-                            <span className="font-medium">Bevis:</span>
-                            <ul className="list-disc pl-3 mt-0.5 space-y-0.5">
-                              {reanalysis.refined_diagnosis.evidence.map((e: string, i: number) => <li key={i}>{e}</li>)}
-                            </ul>
-                          </div>
-                        )}
-                        {reanalysis.component_analysis?.length > 0 && (
-                          <div className="text-[10px]">
-                            <span className="font-medium">Komponentanalys:</span>
-                            <div className="mt-0.5 space-y-0.5">
-                              {reanalysis.component_analysis.map((c: any, i: number) => (
-                                <div key={i} className="flex items-center gap-1">
-                                  <Badge variant="outline" className={cn('text-[8px] py-0', {
-                                    'text-accent': c.status === 'healthy',
-                                    'text-primary': c.status === 'suspicious',
-                                    'text-destructive': c.status === 'broken',
-                                  })}>{c.status}</Badge>
-                                  <span className="font-medium">{c.component}:</span> {c.findings}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        {reanalysis.new_fix_suggestions?.length > 0 && (
-                          <div className="space-y-1 pt-1 border-t border-border">
-                            <span className="text-[10px] font-medium">Nya fixförslag:</span>
-                            {reanalysis.new_fix_suggestions.map((f: any, i: number) => (
-                              <div key={i} className="bg-background rounded p-2 text-[10px] space-y-0.5">
-                                <div className="font-medium flex items-center gap-1">
-                                  <Wrench className="w-3 h-3" /> {f.title}
-                                  <Badge variant="outline" className="text-[8px] py-0 ml-auto">{f.effort} effort</Badge>
-                                </div>
-                                <p className="text-muted-foreground">{f.description}</p>
-                                {f.lovable_prompt && (
-                                  <Button size="sm" variant="ghost" className="h-5 text-[9px] gap-1 p-0 px-1"
-                                    onClick={() => { navigator.clipboard.writeText(f.lovable_prompt); toast.success('Prompt kopierad'); }}>
-                                    <Copy className="w-2.5 h-2.5" /> Kopiera prompt
-                                  </Button>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        {reanalysis.severity_assessment && (
-                          <Badge variant="outline" className={cn('text-[9px]', {
-                            'text-muted-foreground': reanalysis.severity_assessment === 'low',
-                            'text-primary': reanalysis.severity_assessment === 'medium',
-                            'text-destructive': reanalysis.severity_assessment === 'high' || reanalysis.severity_assessment === 'critical',
-                          })}>
-                            Allvarlighetsgrad: {reanalysis.severity_assessment}
-                          </Badge>
-                        )}
-                      </div>
-                    )}
-
-                    {rootCauses.map((rc: any, i: number) => (
-                      <div key={i} className={cn('rounded-lg border p-2.5 space-y-2 transition-colors',
-                        item.human_selected_cause === rc.cause ? 'border-accent bg-accent/5' : 'border-border/50 bg-background'
-                      )}>
-                        <button className="flex items-start justify-between w-full text-left gap-2" onClick={() => setExpandedCause(expandedCause === i ? null : i)}>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-semibold">#{i + 1}</span>
-                              <span className="text-xs font-medium truncate">{rc.cause}</span>
-                            </div>
-                            <div className="flex items-center gap-2 mt-1">
-                              <Progress value={rc.confidence} className="h-1 w-16" />
-                              <span className="text-[10px] text-muted-foreground">{rc.confidence}%</span>
-                              <Badge variant="outline" className="text-[9px]">{rc.risk_level}</Badge>
-                            </div>
-                          </div>
-                          {expandedCause === i ? <ChevronUp className="w-3.5 h-3.5 shrink-0 mt-0.5" /> : <ChevronDown className="w-3.5 h-3.5 shrink-0 mt-0.5" />}
-                        </button>
-
-                        {expandedCause === i && (
-                          <div className="space-y-2 pt-1">
-                            <div className="text-xs"><span className="text-muted-foreground font-medium">Fix-strategi:</span><p className="mt-0.5">{rc.fix_strategy}</p></div>
-                            {rc.code_suggestion && (
-                              <div className="text-xs"><span className="text-muted-foreground font-medium">Kod:</span>
-                                <pre className="text-[11px] bg-muted rounded-md p-2 mt-0.5 whitespace-pre-wrap font-mono">{rc.code_suggestion}</pre>
-                              </div>
-                            )}
-                            {rc.affected_areas?.length > 0 && (
-                              <div className="flex gap-1 flex-wrap">
-                                {rc.affected_areas.map((a: string) => <span key={a} className="text-[9px] bg-muted px-1.5 py-0.5 rounded-full">{a}</span>)}
-                              </div>
-                            )}
-                            <div className="flex gap-1.5">
-                              <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1 flex-1" disabled={savingOverride}
-                                onClick={() => handleSelectCause(rc.cause)}>
-                                <CheckCircle2 className="w-2.5 h-2.5" />
-                                {item.human_selected_cause === rc.cause ? 'Vald ✓' : 'Välj denna orsak'}
-                              </Button>
-                              <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1" onClick={() => {
-                                navigator.clipboard.writeText(rc.lovable_prompt);
-                                toast.success('Prompt kopierad');
-                              }}>
-                                <Copy className="w-2.5 h-2.5" /> Prompt
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-
                 {/* Custom cause / fix */}
                 {isOpen && (
                   <div className="space-y-2">
@@ -594,6 +436,11 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                         </Button>
                       </div>
                     )}
+                  </div>
+                )}
+                {item.human_selected_cause && (
+                  <div className="border border-accent/30 rounded-lg p-2.5 bg-accent/5 text-xs">
+                    <span className="font-medium text-accent">Vald orsak:</span> {item.human_selected_cause}
                   </div>
                 )}
               </div>
