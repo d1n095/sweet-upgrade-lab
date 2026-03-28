@@ -1300,8 +1300,6 @@ function classifyIssueType(issue: any, category: string): "bug" | "improvement" 
   return "bug";
 }
 
-async function createWorkItems(supabase: any, unified: any, stage: SystemStage): Promise<{ created: number; createTrace: any[] }> {
-
 async function createWorkItems(supabase: any, unified: any): Promise<number> {
   let created = 0;
 
