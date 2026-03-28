@@ -234,6 +234,23 @@ interface LanguageContextType {
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
+function detectBrowserLanguage(): Language {
+  try {
+    const lang = navigator.language.toLowerCase();
+    const map: Record<string, Language> = {
+      'sv': 'sv', 'fi': 'fi', 'no': 'no', 'da': 'da', 'de': 'de',
+      'fr': 'fr', 'es': 'es', 'nl': 'nl', 'pl': 'pl', 'it': 'it',
+      'pt': 'pt', 'ro': 'ro', 'cs': 'cs', 'hu': 'hu', 'el': 'el',
+      'sk': 'sk', 'bg': 'bg', 'hr': 'hr', 'sl': 'sl', 'lt': 'lt',
+      'lv': 'lv', 'et': 'et', 'mt': 'mt', 'ga': 'ga',
+    };
+    const short = lang.split('-')[0];
+    return map[short] ?? 'en';
+  } catch {
+    return 'en';
+  }
+}
+
 export const LanguageProvider = ({ children }: { children: ReactNode }) => {
   const [language, setLanguage] = useState<Language>(() => {
     try {
@@ -243,9 +260,10 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
         'it', 'pt', 'ro', 'cs', 'hu', 'el', 'sk', 'bg', 'hr', 'sl',
         'lt', 'lv', 'et', 'mt', 'ga',
       ];
-      return saved && valid.includes(saved) ? saved : 'sv';
+      if (saved && valid.includes(saved)) return saved;
+      return detectBrowserLanguage();
     } catch {
-      return 'sv';
+      return 'en';
     }
   });
   const contentLang = getContentLang(language);
