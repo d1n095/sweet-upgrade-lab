@@ -153,24 +153,7 @@ const AdminCategoryManager = () => {
     setEditingCat(cat);
   };
   const runAiSync = async () => {
-    setAiSyncing(true);
-    setAiResult(null);
-    try {
-      const { data, error } = await supabase.functions.invoke('ai-assistant', {
-        body: { type: 'category_sync' },
-      });
-      if (error) throw error;
-      setAiResult(data?.result || data);
-      queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
-      const created = data?.result?.created?.length || 0;
-      if (created > 0) toast.success(`${created} kategorier skapade av AI`);
-      else if (data?.result?.no_changes_needed) toast.info('Alla produkter är korrekt kategoriserade');
-      else toast.info('AI-analys klar');
-    } catch (err: any) {
-      toast.error('AI-synk misslyckades: ' + (err?.message || ''));
-    } finally {
-      setAiSyncing(false);
-    }
+    toast.info('AI är avaktiverad — hantera kategorier manuellt');
   };
 
   const acceptPendingSuggestion = async (suggestion: any) => {
@@ -203,16 +186,8 @@ const AdminCategoryManager = () => {
   };
 
   const runAiValidate = async () => {
-    setAiValidating(true);
-    setValidationResult(null);
-    try {
-      const { data, error } = await supabase.functions.invoke('ai-assistant', {
-        body: { type: 'category_validate' },
-      });
-      if (error) throw error;
-      const res = data?.result || data;
-      setValidationResult(res);
-      queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
+    toast.info('AI är avaktiverad — validera kategorier manuellt');
+  };
       const fixed = res?.auto_fixed?.length || 0;
       const issues = res?.issues_found || 0;
       if (issues === 0) toast.success('Inga problem hittades!');

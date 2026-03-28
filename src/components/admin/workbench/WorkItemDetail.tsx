@@ -275,29 +275,8 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
   };
 
   const handleRunRootCause = async () => {
-    setAnalyzingFix(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { toast.error('Ej inloggad'); return; }
-      const resp = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-          body: JSON.stringify({ type: 'bug_fix_suggestion', bug_id: item.source_id }),
-        }
-      );
-      if (resp.ok) {
-        const { result } = await resp.json();
-        setFixSuggestion(result);
-        // Save root causes to DB
-        if (result?.root_causes) {
-          await supabase.from('work_items').update({ ai_root_causes: result } as any).eq('id', item.id);
-        }
-      } else {
-        toast.error('AI-analys misslyckades');
-      }
-    } catch { toast.error('Fel'); }
+    toast.info('AI-analys är avaktiverad — analysera grundorsak manuellt');
+  };
     finally { setAnalyzingFix(false); }
   };
 
