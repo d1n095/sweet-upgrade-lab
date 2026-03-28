@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, createContext, useContext, useCallback } from 'react';
+import { logAICall } from '@/utils/aiGuard';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Sparkles, Bug, BarChart3, Copy, Loader2, Send, AlertTriangle, Lightbulb, Info, RefreshCw, Bot, CheckCircle, XCircle, Shield, Clock, Zap, Activity, TrendingUp, Package, AlertCircle, Database, Wrench, Radar, ArrowRight, Layers, Monitor, Smartphone, Tablet, Eye, Compass, LayoutGrid, GitMerge, ArrowRightLeft, ShieldCheck, Play, Settings2, ToggleRight, Maximize2, Gavel, ChevronDown, History, User, Brain } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger, ScrollableTabs } from '@/components/ui/tabs';
@@ -87,32 +88,12 @@ interface UnifiedReport {
   raw_metrics?: Record<string, number>;
 }
 
-const callAI = async (type: string, payload: Record<string, any> = {}) => {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) { toast.error('Ej inloggad'); return null; }
-
-  const resp = await fetch(
-    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ type, ...payload }),
-    }
-  );
-
-  if (!resp.ok) {
-    const err = await resp.json().catch(() => ({}));
-    if (resp.status === 429) toast.error('AI är överbelastad, försök igen om en stund');
-    else if (resp.status === 402) toast.error('AI-krediter slut');
-    else toast.error(err.error || 'AI-fel');
-    return null;
-  }
-
-  const data = await resp.json();
-  return data.result;
+const callAI = async (_type: string, _payload: Record<string, any> = {}) => {
+  logAICall({ source: 'AdminAI', file: 'AdminAI.tsx', action: _type, status: 'ATTEMPT' });
+  // ai-assistant is DISABLED — all scans must go through run-full-scan
+  logAICall({ source: 'AdminAI', file: 'AdminAI.tsx', action: _type, status: 'BLOCKED' });
+  console.warn('[callAI] ai-assistant is disabled; use run-full-scan instead');
+  return null;
 };
 
 const callTaskManager = async (action: string) => {
@@ -2015,28 +1996,23 @@ const SystemScanTab = () => {
 
   const runScan = async () => {
     setLoading(true);
-    const res = await callAI('system_scan');
-    if (res) {
-      setScanResult(res);
-      // Persist to DB
-      const { data: { session } } = await supabase.auth.getSession();
-      const { data: scanRow } = await supabase.from('ai_scan_results' as any).insert({
-        scan_type: 'system_scan',
-        results: res,
-        overall_score: res.system_score || null,
-        overall_status: res.system_score >= 70 ? 'healthy' : res.system_score >= 40 ? 'warning' : 'critical',
-        executive_summary: res.executive_summary || null,
-        issues_count: res.issues_found || 0,
-        tasks_created: res.tasks_created || 0,
-        scanned_by: session?.user?.id || null,
-      } as any).select('id').single();
-      const savedScanId = (scanRow as any)?.id || null;
-      setCurrentScanId(savedScanId);
-      logChange({ change_type: 'scan', description: `Systemskanning klar — poäng: ${res.system_score || '?'}, ${res.issues_found || 0} problem`, source: 'ai', affected_components: ['system_scan'], scan_id: savedScanId });
+    console.log('[SCAN TRIGGERED FROM]: AI_CENTER');
+    try {
+      // All scans go through run-full-scan — no ai-assistant calls
+      const { data, error } = await supabase.functions.invoke('run-full-scan', {
+        body: { action: 'start', scan_mode: 'full', source: 'AI_CENTER' },
+      });
+      if (error) throw error;
+      const scanRunId = data?.scan_id || data?.scan_run_id;
+      console.log('[SCAN TRIGGERED FROM]: AI_CENTER — scan_run_id:', scanRunId);
+      toast.success('Skanning startad via run-full-scan');
       queryClient.invalidateQueries({ queryKey: ['last-scan-result'] });
       queryClient.invalidateQueries({ queryKey: ['scan-history'] });
+    } catch (err: any) {
+      toast.error(err?.message || 'Kunde inte starta skanning');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const loadHistoryScan = async (id: string) => {

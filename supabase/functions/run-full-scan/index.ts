@@ -722,6 +722,25 @@ function countNewIssues(currentUnified: any, previousIssueKeys: Set<string>): { 
   return { newCount, newKeys };
 }
 
+// ── Helper: Normalize raw scanner issue to the standard active-detection structure ──
+// Guarantees every issue has: type, severity, location, description, expected_state, actual_state
+function normalizeIssue(raw: any, defaults: { type?: string; location?: string } = {}): any {
+  const type = raw.type || raw._issue_type || defaults.type || "invalid_state";
+  const location = raw.location || raw.component || raw.entity || raw.table || defaults.location || "unknown";
+  const description = raw.description || raw.title || raw.message || "Unknown issue";
+  const expected_state = raw.expected_state ?? raw.expected ?? undefined;
+  const actual_state = raw.actual_state ?? raw.actual ?? undefined;
+  return {
+    ...raw,
+    type,
+    severity: raw.severity || "medium",
+    location,
+    description,
+    ...(expected_state !== undefined ? { expected_state } : {}),
+    ...(actual_state !== undefined ? { actual_state } : {}),
+  };
+}
+
 // ── DATA INTEGRITY SCAN ──
 async function runDataIntegrityScan(supabase: any, scanRunId: string): Promise<any> {
   const issues: any[] = [];
@@ -1047,16 +1066,21 @@ async function runDataIntegrityScan(supabase: any, scanRunId: string): Promise<a
   }
 
   const durationMs = Date.now() - startMs;
+  const normalizedIssues = issues.map(i => normalizeIssue(i));
+  const rulesApplied = ["work_items_without_source", "orphan_work_items_bug", "orphan_work_items_incident", "duplicate_work_items", "work_items_deleted_order", "status_mismatch_bug_resolved", "stale_claimed_items", "entity_required_fields", "id_trace_entities", "frontend_backend_mismatch"];
+  const emptyReason = normalizedIssues.length === 0 ? "no_detection" : undefined;
   await supabase.from("system_observability_log").insert({
-    event_type: "scan_step", severity: issues.filter(i => i.severity === "critical").length > 0 ? "warning" : "info",
-    source: "scanner", message: `Data integrity scan: ${issues.length} problem`,
-    details: { total_issues: issues.length, by_type: { data_loss: issues.filter(i => i.type === "data_loss").length, failed_insert: issues.filter(i => i.type === "failed_insert").length, stale_state: issues.filter(i => i.type === "stale_state").length, incorrect_filtering: issues.filter(i => i.type === "incorrect_filtering").length, data_validation: issues.filter(i => i.type === "data_validation").length, id_trace: issues.filter(i => i.type === "id_trace").length, data_mismatch: issues.filter(i => i.type === "data_mismatch").length, empty_table: issues.filter(i => i.type === "empty_table").length, request_failed_before_persistence: issues.filter(i => i.type === "request_failed_before_persistence").length } },
+    event_type: "scan_step", severity: normalizedIssues.filter(i => i.severity === "critical").length > 0 ? "warning" : "info",
+    source: "scanner", message: `Data integrity scan: ${normalizedIssues.length} problem`,
+    details: { total_issues: normalizedIssues.length, input_size: rulesApplied.length, rules_applied: rulesApplied, by_type: { data_loss: normalizedIssues.filter(i => i.type === "data_loss").length, failed_insert: normalizedIssues.filter(i => i.type === "failed_insert").length, stale_state: normalizedIssues.filter(i => i.type === "stale_state").length, incorrect_filtering: normalizedIssues.filter(i => i.type === "incorrect_filtering").length, data_validation: normalizedIssues.filter(i => i.type === "data_validation").length, id_trace: normalizedIssues.filter(i => i.type === "id_trace").length, data_mismatch: normalizedIssues.filter(i => i.type === "data_mismatch").length, empty_table: normalizedIssues.filter(i => i.type === "empty_table").length, request_failed_before_persistence: normalizedIssues.filter(i => i.type === "request_failed_before_persistence").length } },
     scan_id: scanRunId, trace_id: traceId, component: "data_integrity_scan", duration_ms: durationMs,
   }).catch(() => {});
 
   return {
-    issues, total_issues: issues.length,
-    by_type: { data_loss: issues.filter(i => i.type === "data_loss").length, failed_insert: issues.filter(i => i.type === "failed_insert").length, stale_state: issues.filter(i => i.type === "stale_state").length, incorrect_filtering: issues.filter(i => i.type === "incorrect_filtering").length, data_validation: issues.filter(i => i.type === "data_validation").length, id_trace: issues.filter(i => i.type === "id_trace").length, data_mismatch: issues.filter(i => i.type === "data_mismatch").length, empty_table: issues.filter(i => i.type === "empty_table").length, request_failed_before_persistence: issues.filter(i => i.type === "request_failed_before_persistence").length },
+    issues: normalizedIssues, issues_found: normalizedIssues.length, total_issues: normalizedIssues.length,
+    by_type: { data_loss: normalizedIssues.filter(i => i.type === "data_loss").length, failed_insert: normalizedIssues.filter(i => i.type === "failed_insert").length, stale_state: normalizedIssues.filter(i => i.type === "stale_state").length, incorrect_filtering: normalizedIssues.filter(i => i.type === "incorrect_filtering").length, data_validation: normalizedIssues.filter(i => i.type === "data_validation").length, id_trace: normalizedIssues.filter(i => i.type === "id_trace").length, data_mismatch: normalizedIssues.filter(i => i.type === "data_mismatch").length, empty_table: normalizedIssues.filter(i => i.type === "empty_table").length, request_failed_before_persistence: normalizedIssues.filter(i => i.type === "request_failed_before_persistence").length },
+    input_size: rulesApplied.length, rules_applied: rulesApplied,
+    ...(emptyReason ? { _empty_reason: emptyReason } : {}),
     duration_ms: durationMs, scanned_at: new Date().toISOString(),
   };
 }
@@ -1179,7 +1203,14 @@ async function runFunctionalBehaviorScan(supabase: any, scanRunId: string): Prom
     scan_id: scanRunId, trace_id: traceId, component: "functional_behavior_scan", duration_ms: durationMs,
   }).catch(() => {});
 
-  return { failures, total_failures: failures.length, by_type: byType, retests_passed: retestResults, duration_ms: durationMs, scanned_at: new Date().toISOString() };
+  const behaviorRules = ["create_work_item_verify", "bug_to_work_item", "incident_to_work_item", "status_sync_done_resolved", "dismiss_no_reappear", "order_lifecycle_closed", "incident_notification"];
+  return { failures, total_failures: failures.length, by_type: byType, retests_passed: retestResults,
+    issues: failures.map(f => normalizeIssue({ ...f, type: f.failure_type || "broken_flow", location: f.chain || f.component || "behavior", description: f.action || f.chain || "Behavior failure", expected_state: f.expected, actual_state: f.actual })),
+    issues_found: failures.length,
+    input_size: behaviorRules.length,
+    rules_applied: behaviorRules,
+    ...(failures.length === 0 ? { _empty_reason: "no_detection" } : {}),
+    duration_ms: durationMs, scanned_at: new Date().toISOString() };
 }
 
 // ── REAL DB SCAN: Sync Scanner ──
@@ -1221,7 +1252,9 @@ async function runRealSyncScan(supabase: any, scanRunId: string): Promise<any> {
 
   const durationMs = Date.now() - startMs;
   const score = Math.max(0, 100 - issues.length * 5);
-  return { issues, mismatches: issues, total_issues: issues.length, sync_score: score, overall_score: score, issues_found: issues.length, duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
+  const syncRules = ["product_missing_title", "product_invalid_price", "active_product_no_image", "active_product_no_handle", "order_shipped_no_timestamp", "order_delivered_no_timestamp", "order_paid_cancelled", "affiliate_no_code", "duplicate_discount_codes"];
+  const normalizedIssues = issues.map(i => normalizeIssue({ ...i, type: i.type || (i.field ? "missing_data" : "mismatch"), expected_state: `${i.field || "field"} present and valid`, actual_state: i.title }, { location: i.component || "sync" }));
+  return { issues: normalizedIssues, mismatches: normalizedIssues, total_issues: normalizedIssues.length, sync_score: score, overall_score: score, issues_found: normalizedIssues.length, input_size: syncRules.length, rules_applied: syncRules, ...(normalizedIssues.length === 0 ? { _empty_reason: "no_detection" } : {}), duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
 }
 
 // ── REAL DB SCAN: System scan ──
@@ -1289,7 +1322,9 @@ async function runRealSystemScan(supabase: any, scanRunId: string): Promise<any>
 
   const durationMs = Date.now() - startMs;
   const score = Math.max(0, 100 - issues.length * 8);
-  return { issues, issues_found: issues.length, metrics, system_score: score, overall_score: score, duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
+  const systemRules = ["open_bugs_threshold", "escalated_items_threshold", "errors_last_24h_threshold", "unread_notifications_threshold", "stale_escalated_items", "score_trend_regression"];
+  const normalizedIssues = issues.map(i => normalizeIssue({ ...i, type: i.type || "invalid_state", expected_state: `threshold not exceeded`, actual_state: i.title }, { location: i.component || "system" }));
+  return { issues: normalizedIssues, issues_found: normalizedIssues.length, metrics, system_score: score, overall_score: score, input_size: Object.keys(metrics).length, rules_applied: systemRules, ...(normalizedIssues.length === 0 ? { _empty_reason: "no_detection" } : {}), duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
 }
 
 // ── REAL DB SCAN: Feature Detection ──
@@ -1337,7 +1372,11 @@ async function runRealFeatureDetection(supabase: any, scanRunId: string): Promis
   const working = features.filter(f => f.status === "working").length;
   const broken = features.filter(f => f.status !== "working").length;
   const score = Math.round((working / Math.max(1, features.length)) * 100);
-  return { features, working_count: working, broken_count: broken, total_features: features.length, overall_score: score, score, issues_found: broken, duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
+  const featureRules = ["table_accessible", "row_count_detected", "write_access_round_trip"];
+  const brokenFeatureIssues = features
+    .filter(f => f.status !== "working")
+    .map(f => normalizeIssue({ type: "invalid_state", severity: "high", location: f.component || f.name, description: `Feature "${f.name}" is ${f.status}: ${f.reason || "query failed"}`, expected_state: "working", actual_state: f.status, component: f.component || f.name, title: `Feature not working: "${f.name}"` }));
+  return { features, working_count: working, broken_count: broken, total_features: features.length, overall_score: score, score, issues_found: broken, issues: brokenFeatureIssues, input_size: features.length, rules_applied: featureRules, ...(brokenFeatureIssues.length === 0 ? { _empty_reason: "no_detection" } : {}), duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
 }
 
 // ── REAL DB SCAN: Interaction QA ──
@@ -1420,7 +1459,9 @@ async function runRealInteractionQA(supabase: any, scanRunId: string): Promise<a
 
   const durationMs = Date.now() - startMs;
   const score = Math.max(0, 100 - issues.length * 6);
-  return { issues, issues_found: issues.length, dead_elements: issues, interaction_score: score, overall_score: score, duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
+  const interactionRules = ["bundle_items_orphan_bundle", "orphan_notifications_deleted_user", "incidents_missing_order", "automation_rules_empty_config", "email_templates_missing_subject", "bundles_no_items_dead_cta", "products_no_handle_unnavigable", "affiliate_applications_missing_fields", "email_templates_no_cta"];
+  const normalizedIssues = issues.map(i => normalizeIssue({ ...i, type: i.type || i._issue_type || "broken_flow", expected_state: `interaction element valid and linked`, actual_state: i.title }, { location: i.component || "interaction" }));
+  return { issues: normalizedIssues, issues_found: normalizedIssues.length, dead_elements: normalizedIssues, interaction_score: score, overall_score: score, input_size: interactionRules.length, rules_applied: interactionRules, ...(normalizedIssues.length === 0 ? { _empty_reason: "no_detection" } : {}), duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
 }
 
 // ── REAL DB SCAN: Component Map (UI Visual) ──
@@ -1520,7 +1561,9 @@ async function runRealComponentMapScan(supabase: any, scanRunId: string): Promis
 
   const durationMs = Date.now() - startMs;
   const score = Math.max(0, 100 - issues.length * 5);
-  return { issues, issues_found: issues.length, components_scanned: componentsScanned, overall_score: score, duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
+  const componentRules = ["page_sections_missing_label", "products_missing_title", "products_missing_description", "categories_missing_label", "active_bundles_no_items", "inconsistent_product_images", "duplicate_section_display_order", "email_templates_no_cta", "product_tags_inconsistent_color"];
+  const normalizedIssues = issues.map(i => normalizeIssue({ ...i, type: i.type || (i.category === "ui_visual" ? "missing_data" : "invalid_state"), expected_state: `UI component valid and fully configured`, actual_state: i.title }, { location: i.component || "ui" }));
+  return { issues: normalizedIssues, issues_found: normalizedIssues.length, components_scanned: componentsScanned, overall_score: score, input_size: componentsScanned, rules_applied: componentRules, ...(normalizedIssues.length === 0 ? { _empty_reason: "no_detection" } : {}), duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
 }
 
 // ── REAL DB SCAN: UI Flow Integrity ──
@@ -1797,7 +1840,9 @@ async function runUiFlowIntegrityScan(supabase: any, scanRunId: string): Promise
 
   const durationMs = Date.now() - startMs;
   const score = Math.max(0, 100 - issues.length * 6);
-  return { issues, issues_found: issues.length, flows_scanned: flowsScanned, overall_score: score, duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
+  const flowRules = ["products_missing_handle", "categories_missing_slug", "flows_analytics_events", "bundles_no_products_dead_cta", "required_legal_documents", "flow_chain_complete", "data_trace_pipeline", "ui_components_text_visible", "sellable_products_valid_price"];
+  const normalizedIssues = issues.map(i => normalizeIssue({ ...i, type: i.type || i._issue_type || "broken_flow", expected_state: `flow path valid and reachable`, actual_state: i.title }, { location: i.component || i.element || "flow" }));
+  return { issues: normalizedIssues, issues_found: normalizedIssues.length, flows_scanned: flowsScanned, overall_score: score, input_size: flowsScanned, rules_applied: flowRules, ...(normalizedIssues.length === 0 ? { _empty_reason: "no_detection" } : {}), duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
 }
 
 // ── Map scan types to real DB functions ──
@@ -2267,7 +2312,9 @@ serve(async (req) => {
     console.log("[SCAN] parsing body");
     const body = await req.json();
     console.log("FULL SCAN BODY:", body);
-    const { action, scan_run_id, step_index, iteration, request_trace_id, scan_mode, target_area, verification_for } = body;
+    const { action, scan_run_id, step_index, iteration, request_trace_id, scan_mode, target_area, verification_for, source } = body;
+    const scanSource = source || "SYSTEM";
+    console.log("[SCAN TRIGGERED FROM]:", scanSource);
     console.log("[SCAN] action:", action);
 
     // ── START ──
@@ -2343,8 +2390,8 @@ serve(async (req) => {
       await supabase.from("scan_runs").update({ steps_results: { _scan_input: scanInput } }).eq("id", scanRun.id);
 
       if (!structure_map || structure_map.length === 0) {
-        console.error("❌ SCAN ABORT: NO STRUCTURE MAP");
-        return new Response(JSON.stringify({ success: false, error: "NO_INPUT_DATA" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        console.warn("⚠️ NO STRUCTURE MAP — using root fallback [{ path: '/' }]");
+        structure_map = [{ path: "/" }];
       }
 
       console.log("[SCAN] running scanners — chaining first step");
@@ -2379,42 +2426,11 @@ serve(async (req) => {
         if (realScanner) {
           console.log(`[scan] Running REAL DB scanner for ${step.scanType}`);
           const dbResult = await realScanner(supabase, scan_run_id);
-          let aiEnrichment: any = null;
-          try {
-            const aiController = new AbortController();
-            const aiTimeout = setTimeout(() => aiController.abort(), STEP_TIMEOUT_MS);
-            const resp = await fetch(`${supabaseUrl}/functions/v1/ai-assistant`, {
-              method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
-              body: JSON.stringify({ type: step.scanType, orchestrated: true, step_index, real_db_findings: { issues_count: dbResult.issues_found || dbResult.total_issues || 0, score: dbResult.overall_score, sample_issues: (dbResult.issues || dbResult.mismatches || dbResult.features || []).slice(0, 5).map((i: any) => i.title || i.name || "") } }),
-              signal: aiController.signal,
-            });
-            clearTimeout(aiTimeout);
-            if (resp.ok) { const data = await resp.json(); aiEnrichment = data.result || data; }
-          } catch (_) {}
-          stepResult = { ...dbResult, ai_suggestions: aiEnrichment?.suggestions || aiEnrichment?.recommendations || [], ai_summary: aiEnrichment?.summary || aiEnrichment?.executive_summary || null };
+          // AI enrichment removed — run-full-scan is the sole scan engine
+          stepResult = { ...dbResult, ai_suggestions: [], ai_summary: null };
         } else {
-          console.log(`[scan] Running AI-only scanner for ${step.scanType}`);
-          const previousContext: Record<string, any> = {};
-          const existingResults = scanRun.steps_results || {};
-          for (const [key, val] of Object.entries(existingResults)) {
-            const v = val as any;
-            if (v?.overall_score != null) previousContext[key] = { score: v.overall_score };
-            if (v?.issues_count != null) previousContext[key] = { ...previousContext[key], issues: v.issues_count };
-          }
-          let deepScanContext: any = undefined;
-          if (currentIteration > 1) {
-            deepScanContext = { iteration: currentIteration, previous_patterns: scanRun.pattern_discoveries || [], high_risk_areas: scanRun.high_risk_areas || [], instruction: "DEEP RE-SCAN. Focus on high_risk_areas and patterns." };
-          }
-          const stepController = new AbortController();
-          const stepTimeout = setTimeout(() => stepController.abort(), STEP_TIMEOUT_MS);
-          const resp = await fetch(`${supabaseUrl}/functions/v1/ai-assistant`, {
-            method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
-            body: JSON.stringify({ type: step.scanType, orchestrated: true, step_index, previous_context: Object.keys(previousContext).length > 0 ? previousContext : undefined, deep_scan_context: deepScanContext }),
-            signal: stepController.signal,
-          });
-          clearTimeout(stepTimeout);
-          if (resp.ok) { const data = await resp.json(); stepResult = data.result || data; }
-          else { const errBody = await resp.text().catch(() => ""); stepResult = { error: `HTTP ${resp.status}: ${errBody.substring(0, 200)}`, failed: true }; }
+          console.log(`[scan] Skipping AI-only scanner for ${step.scanType} — ai-assistant disabled`);
+          stepResult = { skipped: true, reason: "ai-assistant disabled", overall_score: null, issues_count: 0 };
         }
       } catch (e: any) { stepResult = { error: e.message, failed: true, _timed_out: e.name === "AbortError" }; }
 
@@ -2441,20 +2457,29 @@ serve(async (req) => {
       stepResult._scan_started_at = scanStartedAt;
       stepResult._scan_finished_at = scanFinishedAt;
 
-      // Compute input_size from scanner-specific fields
-      const inputSize = stepResult.components_scanned ?? stepResult.routes_scanned ?? stepResult.records_scanned ?? stepResult.features_scanned ?? stepResult.tables_scanned ?? stepResult.flows_scanned ?? stepResult.items_scanned ?? stepResult.total_checked ?? stepResult.total_scanned ?? 0;
+      // Compute input_size: prefer scanner's own field, fall back to legacy scanner-specific fields
+      const inputSize = stepResult.input_size ?? stepResult.components_scanned ?? stepResult.routes_scanned ?? stepResult.records_scanned ?? stepResult.features_scanned ?? stepResult.tables_scanned ?? stepResult.flows_scanned ?? stepResult.items_scanned ?? stepResult.total_checked ?? stepResult.total_scanned ?? 0;
       stepResult._input_size = inputSize;
+
+      // Log rules applied by the scanner
+      if (stepResult.rules_applied?.length) {
+        stepResult._rules_applied = stepResult.rules_applied;
+        console.log(`[scan] ${step.id} applied ${stepResult.rules_applied.length} rules: ${stepResult.rules_applied.slice(0, 5).join(", ")}${stepResult.rules_applied.length > 5 ? "…" : ""}`);
+      }
 
       // Determine empty_reason when 0 issues
       if (stepResult.issues.length === 0) {
-        if (stepResult.failed || stepResult.error) {
-          stepResult._empty_reason = "scanner_failed";
-        } else if (inputSize === 0) {
-          stepResult._empty_reason = "no_data";
-        } else if (didExecute) {
-          stepResult._empty_reason = "no_detection";
-        } else {
-          stepResult._empty_reason = "not_applicable";
+        // Prefer scanner's own _empty_reason if already set during detection
+        if (!stepResult._empty_reason) {
+          if (stepResult.failed || stepResult.error) {
+            stepResult._empty_reason = "scanner_failed";
+          } else if (inputSize === 0) {
+            stepResult._empty_reason = "no_data";
+          } else if (didExecute) {
+            stepResult._empty_reason = "no_detection";
+          } else {
+            stepResult._empty_reason = "not_applicable";
+          }
         }
       }
 

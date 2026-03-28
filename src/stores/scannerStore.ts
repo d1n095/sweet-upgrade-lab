@@ -1,11 +1,13 @@
 import { create } from 'zustand';
+import { logAICall } from '@/utils/aiGuard';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useExecutionLockStore } from './executionLockStore';
 import { useFeedbackLoopStore } from './feedbackLoopStore';
 import { QueryClient } from '@tanstack/react-query';
-import { createTraceId, observeScanStep, observeError, observeAction, flushObservabilityBuffer } from '@/utils/observabilityLogger';
+import { createTraceId, observeError, observeAction, flushObservabilityBuffer } from '@/utils/observabilityLogger';
 import { trace, newTraceId as newDebugTraceId } from '@/utils/deepDebugTrace';
+import { logData } from '@/utils/actionMonitor';
 
 export type ScanStepStatus = 'pending' | 'running' | 'done' | 'error';
 
@@ -52,32 +54,6 @@ interface ScannerState {
   runAllScans: (queryClient?: QueryClient) => Promise<void>;
 }
 
-const callAIForScan = async (type: string, payload: Record<string, any> = {}) => {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error('Ej inloggad');
-
-  const resp = await fetch(
-    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ type, ...payload }),
-    }
-  );
-
-  if (!resp.ok) {
-    if (resp.status === 429) throw new Error('AI är överbelastad');
-    if (resp.status === 402) throw new Error('AI-krediter slut');
-    const err = await resp.json().catch(() => ({}));
-    throw new Error(err.error || `AI-fel (${resp.status})`);
-  }
-
-  const data = await resp.json();
-  return data.result;
-};
 
 export const useScannerStore = create<ScannerState>((set, get) => ({
   scanning: false,
@@ -118,74 +94,73 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
 
     set({
       scanning: true,
-      steps: toRun.map(s => ({ type: s.type, label: s.label, status: 'pending' as const })),
+      steps: toRun.map(s => ({ type: s.type, label: s.label, status: 'running' as const })),
     });
 
-    // Mark all as running
-    set(state => ({
-      steps: state.steps.map(s => ({ ...s, status: 'running' as const })),
-    }));
+    // Global trace log — single source of truth
+    console.log('[SCAN TRIGGERED FROM]: AI_CENTER', { steps: toRun.map(s => s.type) });
 
-    // Run all scans in parallel for speed
     const traceId = createTraceId('quick-scan');
     const debugTraceId = newDebugTraceId('scan');
-    trace('issue_detected', 'ScannerStore', `Starting scan (${toRun.length} steps)`, { traceId: debugTraceId, details: { steps: toRun.map(s => s.type) } });
-    observeAction(`Startar snabbskanning (${toRun.length} steg)`, { trace_id: traceId, source: 'scanner' });
+    trace('issue_detected', 'ScannerStore', `Starting scan via run-full-scan (${toRun.length} steps)`, { traceId: debugTraceId, details: { steps: toRun.map(s => s.type) } });
+    observeAction(`Startar skanning via run-full-scan (${toRun.length} steg)`, { trace_id: traceId, source: 'scanner' });
 
-    await Promise.allSettled(
-      toRun.map(async (step, i) => {
-        const start = Date.now();
-        try {
-          const res = await callAIForScan(
-            step.type,
-            step.type === 'content_validation' ? { auto_fix: false } : {}
-          );
+    try {
+      // All scans go through run-full-scan — no ai-assistant calls
+      const { data, error } = await supabase.functions.invoke('run-full-scan', {
+        body: { action: 'start', scan_mode: 'full', source: 'AI_CENTER' },
+      });
 
-          if (res) {
-            const duration_ms = Date.now() - start;
-            trace('scan_update', 'ScannerStore', `Step done: ${step.label} (${duration_ms}ms)`, { traceId: debugTraceId, details: { stepType: step.type, duration_ms } });
-            observeScanStep(`Steg klart: ${step.label}`, { trace_id: traceId, component: step.type, duration_ms });
-            set(state => ({
-              steps: state.steps.map((s, idx) => idx === i ? { ...s, status: 'done' as const, result: res, duration_ms } : s),
-            }));
-          } else {
-            observeError(`Inget resultat: ${step.label}`, undefined, { trace_id: traceId, component: step.type, duration_ms: Date.now() - start });
-            set(state => ({
-              steps: state.steps.map((s, idx) => idx === i ? { ...s, status: 'error' as const, error: 'Inget resultat', duration_ms: Date.now() - start } : s),
-            }));
-          }
-        } catch (err: any) {
-          observeError(`Skanningsfel: ${step.label}`, err, { trace_id: traceId, component: step.type, duration_ms: Date.now() - start });
-          set(state => ({
-            steps: state.steps.map((s, idx) => idx === i ? { ...s, status: 'error' as const, error: err?.message || 'Fel', duration_ms: Date.now() - start } : s),
-          }));
+      if (error) throw error;
+
+      const scanRunId = data?.scan_id || data?.scan_run_id;
+      console.log('[SCAN TRIGGERED FROM]: AI_CENTER — scan_run_id:', scanRunId);
+      logAICall({ source: 'ScannerStore', file: 'scannerStore.ts', action: 'run-full-scan', status: 'EXECUTED', payload: { scan_run_id: scanRunId } });
+
+      logData({
+        type: 'scan_complete',
+        page: 'ScannerStore',
+        endpoint: 'run-full-scan',
+        data: { source: 'AI_CENTER', scan_run_id: scanRunId, traceId: debugTraceId },
+      });
+
+      // Invalidate relevant queries so UI reflects new scan results + work items
+      if (queryClient) {
+        for (const key of POST_SCAN_QUERY_KEYS) {
+          queryClient.invalidateQueries({ queryKey: [key] });
         }
-      })
-    );
-
-    observeAction(`Snabbskanning klar (${toRun.length} steg)`, { trace_id: traceId, source: 'scanner' });
-    flushObservabilityBuffer();
-
-    // Invalidate relevant queries so UI reflects new scan results + work items
-    if (queryClient) {
-      for (const key of POST_SCAN_QUERY_KEYS) {
-        queryClient.invalidateQueries({ queryKey: [key] });
       }
+
+      // Evaluate feedback loop after scans
+      const fbEntry = await useFeedbackLoopStore.getState().evaluateAfterAction(
+        'scan', `Skanning via run-full-scan`, { failed: 0, regressed: 0, errors: 0 }
+      );
+
+      const verdictLabel = fbEntry?.verdict === 'improved' ? '📈 Förbättrat' :
+        fbEntry?.verdict === 'degraded' ? '📉 Försämrat' : '➡️ Stabilt';
+      toast.success(`Skanning startad — ${verdictLabel}`);
+      if (fbEntry?.suggestion) toast.warning(fbEntry.suggestion, { duration: 8000 });
+
+      set(state => ({
+        steps: state.steps.map(s => ({ ...s, status: 'done' as const })),
+      }));
+    } catch (err: any) {
+      observeError('Skanningsfel via run-full-scan', err, { trace_id: traceId });
+      logData({
+        type: 'scan_error',
+        page: 'ScannerStore',
+        endpoint: 'run-full-scan',
+        data: { error: err?.message || 'Fel', traceId: debugTraceId },
+      });
+      set(state => ({
+        steps: state.steps.map(s => ({ ...s, status: 'error' as const, error: err?.message || 'Fel' })),
+      }));
+      toast.error(err?.message || 'Kunde inte starta skanning');
+    } finally {
+      observeAction('Skanning via run-full-scan klar', { trace_id: traceId, source: 'scanner' });
+      flushObservabilityBuffer();
+      lockStore.release(lockId);
+      set({ scanning: false });
     }
-
-    // Evaluate feedback loop after scans
-    const steps = get().steps;
-    const errorCount = steps.filter(s => s.status === 'error').length;
-    const fbEntry = await useFeedbackLoopStore.getState().evaluateAfterAction(
-      'scan', `Skanning (${toRun.length} steg)`, { failed: errorCount, regressed: 0, errors: errorCount }
-    );
-
-    const verdictLabel = fbEntry?.verdict === 'improved' ? '📈 Förbättrat' :
-      fbEntry?.verdict === 'degraded' ? '📉 Försämrat' : '➡️ Stabilt';
-    toast.success(`Skanningar klara (${toRun.length} st) — ${verdictLabel}`);
-    if (fbEntry?.suggestion) toast.warning(fbEntry.suggestion, { duration: 8000 });
-
-    lockStore.release(lockId);
-    set({ scanning: false });
   },
 }));

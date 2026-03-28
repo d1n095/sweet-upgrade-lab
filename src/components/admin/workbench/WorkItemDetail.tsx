@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { logAICall } from '@/utils/aiGuard';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Sparkles, Tag, Copy, Loader2 as Loader2Icon, EyeOff, RotateCcw, PenLine, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -275,30 +276,10 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
   };
 
   const handleRunRootCause = async () => {
-    setAnalyzingFix(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { toast.error('Ej inloggad'); return; }
-      const resp = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-          body: JSON.stringify({ type: 'bug_fix_suggestion', bug_id: item.source_id }),
-        }
-      );
-      if (resp.ok) {
-        const { result } = await resp.json();
-        setFixSuggestion(result);
-        // Save root causes to DB
-        if (result?.root_causes) {
-          await supabase.from('work_items').update({ ai_root_causes: result } as any).eq('id', item.id);
-        }
-      } else {
-        toast.error('AI-analys misslyckades');
-      }
-    } catch { toast.error('Fel'); }
-    finally { setAnalyzingFix(false); }
+    logAICall({ source: 'WorkItemDetail', file: 'WorkItemDetail.tsx', action: 'root_cause_analysis', status: 'ATTEMPT' });
+    // ai-assistant is disabled — root cause analysis unavailable
+    logAICall({ source: 'WorkItemDetail', file: 'WorkItemDetail.tsx', action: 'root_cause_analysis', status: 'BLOCKED' });
+    toast.info('AI-rotorsaksanalys är tillfälligt inaktiverat.');
   };
 
   const dt = fmtFull(item.created_at);
@@ -735,23 +716,9 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                           bug_report_id: item.source_type === 'bug_report' ? item.source_id : null,
                           metadata: { ai_confidence: item.ai_pre_verify_result?.confidence, action: 'reject', escalated_to: newPriority },
                         });
-                        toast.info('🔍 Avvisad — AI kör fördjupad re-analys...', { duration: 4000 });
-                        // 3. Trigger targeted rejection re-analysis
-                        const { data: { session } } = await supabase.auth.getSession();
-                        if (session) {
-                          fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-                            body: JSON.stringify({ type: 'rejection_reanalysis', work_item_id: item.id }),
-                          }).then(async (r) => {
-                            if (r.ok) {
-                              toast.success('AI re-analys klar — nya förslag tillgängliga', { duration: 5000 });
-                            } else {
-                              toast.error('AI re-analys misslyckades');
-                            }
-                            onRefresh?.();
-                          }).catch(() => {});
-                        }
+                        logAICall({ source: 'WorkItemDetail', file: 'WorkItemDetail.tsx', action: 'rejection_reanalysis', status: 'ATTEMPT' });
+                        toast.info('🔍 Avvisad — re-analys via ai-assistant är inaktiverat.', { duration: 4000 });
+                        logAICall({ source: 'WorkItemDetail', file: 'WorkItemDetail.tsx', action: 'rejection_reanalysis', status: 'BLOCKED' });
                         onRefresh?.();
                       } catch { toast.error('Fel'); }
                       finally { setRunningPreVerify(false); }
@@ -771,26 +738,11 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                 onClick={async () => {
                   setRunningPreVerify(true);
                   try {
-                    const { data: { session } } = await supabase.auth.getSession();
-                    if (!session) { toast.error('Ej inloggad'); return; }
-                    const resp = await fetch(
-                      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`,
-                      {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-                        body: JSON.stringify({ type: 'pre_verify', work_item_id: item.id }),
-                      }
-                    );
-                    if (resp.ok) {
-                      const { result } = await resp.json();
-                      const s = result?.pre_verify?.status;
-                      if (s === 'appears_fixed') toast.success(`AI: Verkar fixat (${result.pre_verify.confidence}%)`);
-                      else if (s === 'possibly_fixed') toast.info(`AI: Möjligen fixat (${result.pre_verify.confidence}%)`);
-                      else toast.info('AI: Inget tyder på att det är löst');
-                      onRefresh?.();
-                    } else toast.error('AI-analys misslyckades');
-                  } catch { toast.error('Fel'); }
-                  finally { setRunningPreVerify(false); }
+                    logAICall({ source: 'WorkItemDetail', file: 'WorkItemDetail.tsx', action: 'pre_verify', status: 'ATTEMPT' });
+                    // ai-assistant is disabled — pre-verify unavailable
+                    logAICall({ source: 'WorkItemDetail', file: 'WorkItemDetail.tsx', action: 'pre_verify', status: 'BLOCKED' });
+                    toast.info('AI pre-verify är tillfälligt inaktiverat.');
+                  } finally { setRunningPreVerify(false); }
                 }}
               >
                 {runningPreVerify ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}

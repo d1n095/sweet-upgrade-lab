@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { logAICall } from '@/utils/aiGuard';
 import { motion } from 'framer-motion';
 import {
   Grid, Plus, Eye, EyeOff, Trash2, Loader2, Save, ChevronRight, ChevronDown,
@@ -153,24 +154,10 @@ const AdminCategoryManager = () => {
     setEditingCat(cat);
   };
   const runAiSync = async () => {
-    setAiSyncing(true);
-    setAiResult(null);
-    try {
-      const { data, error } = await supabase.functions.invoke('ai-assistant', {
-        body: { type: 'category_sync' },
-      });
-      if (error) throw error;
-      setAiResult(data?.result || data);
-      queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
-      const created = data?.result?.created?.length || 0;
-      if (created > 0) toast.success(`${created} kategorier skapade av AI`);
-      else if (data?.result?.no_changes_needed) toast.info('Alla produkter är korrekt kategoriserade');
-      else toast.info('AI-analys klar');
-    } catch (err: any) {
-      toast.error('AI-synk misslyckades: ' + (err?.message || ''));
-    } finally {
-      setAiSyncing(false);
-    }
+    logAICall({ source: 'AdminCategoryManager', file: 'AdminCategoryManager.tsx', action: 'category_sync', status: 'ATTEMPT' });
+    // ai-assistant is disabled — category sync unavailable
+    logAICall({ source: 'AdminCategoryManager', file: 'AdminCategoryManager.tsx', action: 'category_sync', status: 'BLOCKED' });
+    toast.info('AI kategori-synk är tillfälligt inaktiverat.');
   };
 
   const acceptPendingSuggestion = async (suggestion: any) => {
@@ -203,26 +190,10 @@ const AdminCategoryManager = () => {
   };
 
   const runAiValidate = async () => {
-    setAiValidating(true);
-    setValidationResult(null);
-    try {
-      const { data, error } = await supabase.functions.invoke('ai-assistant', {
-        body: { type: 'category_validate' },
-      });
-      if (error) throw error;
-      const res = data?.result || data;
-      setValidationResult(res);
-      queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
-      const fixed = res?.auto_fixed?.length || 0;
-      const issues = res?.issues_found || 0;
-      if (issues === 0) toast.success('Inga problem hittades!');
-      else if (fixed > 0) toast.success(`${fixed} problem åtgärdade automatiskt`);
-      else toast.info(`${issues} problem hittade`);
-    } catch (err: any) {
-      toast.error('Validering misslyckades: ' + (err?.message || ''));
-    } finally {
-      setAiValidating(false);
-    }
+    logAICall({ source: 'AdminCategoryManager', file: 'AdminCategoryManager.tsx', action: 'category_validate', status: 'ATTEMPT' });
+    // ai-assistant is disabled — category validation unavailable
+    logAICall({ source: 'AdminCategoryManager', file: 'AdminCategoryManager.tsx', action: 'category_validate', status: 'BLOCKED' });
+    toast.info('AI kategori-validering är tillfälligt inaktiverat.');
   };
 
   const renderCategoryRow = (cat: DbCategory, depth = 0) => {
