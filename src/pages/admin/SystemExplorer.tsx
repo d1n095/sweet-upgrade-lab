@@ -1142,6 +1142,9 @@ const SystemExplorer = () => {
                   clearInterval(pollInterval);
                   setIsScanning(false);
                   setScanProgress(null);
+                  await queryClient.invalidateQueries({ queryKey: ["system-explorer-latest-run"] });
+                  await queryClient.invalidateQueries({ queryKey: ["backend-scan-latest"] });
+                  await queryClient.invalidateQueries({ queryKey: ["system-explorer-latest-scan"] });
                 }
                 return true;
               })
@@ -2342,7 +2345,7 @@ const SystemExplorer = () => {
                     <div className="text-[10px] text-muted-foreground">Skipped (dedup)</div>
                   </div>
                   <div className="border border-border rounded-md p-2 text-center">
-                    <div className="text-lg font-bold">{latestRun?.work_items_created ?? latestScan?.tasks_created ?? 0}</div>
+                    <div className="text-lg font-bold">{latestRun?.work_items_created ?? latestScan?.work_items_created ?? 0}</div>
                     <div className="text-[10px] text-muted-foreground">Created Items</div>
                   </div>
                 </div>
@@ -2961,15 +2964,14 @@ const SystemExplorer = () => {
                 <div className="space-y-2 text-sm">
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                     <div><span className="text-muted-foreground">ID:</span> {latestScan.id.slice(0, 8)}…</div>
-                    <div><span className="text-muted-foreground">Typ:</span> {latestScan.scan_type}</div>
-                    <div><span className="text-muted-foreground">Score:</span> {latestScan.overall_score ?? "–"}</div>
-                    <div><span className="text-muted-foreground">Issues:</span> {latestScan.issues_count ?? 0}</div>
-                    <div><span className="text-muted-foreground">Tasks skapade:</span> {latestScan.tasks_created ?? 0}</div>
-                    <div><span className="text-muted-foreground">Status:</span> {latestScan.overall_status ?? "–"}</div>
+                    <div><span className="text-muted-foreground">Typ:</span> {(latestScan as any).scan_mode ?? "full"}</div>
+                    <div><span className="text-muted-foreground">Issues:</span> {(latestScan as any).total_new_issues ?? 0}</div>
+                    <div><span className="text-muted-foreground">Tasks skapade:</span> {(latestScan as any).work_items_created ?? 0}</div>
+                    <div><span className="text-muted-foreground">Status:</span> {(latestScan as any).status ?? "–"}</div>
                     <div className="col-span-2"><span className="text-muted-foreground">Skapad:</span> {format(new Date(latestScan.created_at), "yyyy-MM-dd HH:mm")}</div>
                   </div>
-                  {latestScan.executive_summary && (
-                    <p className="text-muted-foreground border-t pt-2 mt-2">{latestScan.executive_summary}</p>
+                  {((latestScan as any).unified_result as any)?.executive_summary && (
+                    <p className="text-muted-foreground border-t pt-2 mt-2">{((latestScan as any).unified_result as any).executive_summary}</p>
                   )}
                   {/* High Attention Areas */}
                   {scanResults?.high_attention_areas?.length > 0 && (
