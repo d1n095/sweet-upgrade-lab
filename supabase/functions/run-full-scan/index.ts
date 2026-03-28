@@ -168,6 +168,112 @@ function buildSystemOverview(stepResults: Record<string, any>, unified: any, sta
   };
 }
 
+// ── Helper: Build system insight layer ──
+function buildSystemInsight(unified: any, structure_map: any[], stepResults: Record<string, any>) {
+  const safeArr = (v: any): any[] => (Array.isArray(v) ? v : []);
+  const textOf = (item: any): string =>
+    `${item?.title || ""} ${item?.description || ""} ${item?.component || ""} ${item?.route || ""} ${item?.message || ""}`.toLowerCase();
+
+  // ── SURFACE ──
+  const LAYOUT_RE = /layout|overflow|scroll|css|responsive|mobile|z-index/i;
+  const CRITICAL_PAGES = /checkout|cart|login|payment|order/i;
+
+  const brokenPages: string[] = [];
+  const layoutIssues: string[] = [];
+  for (const f of [...safeArr(unified.broken_flows), ...safeArr(unified.fake_features)]) {
+    const t = textOf(f);
+    if (LAYOUT_RE.test(t)) {
+      layoutIssues.push(f.title || f.description || t.slice(0, 60));
+    }
+    if (CRITICAL_PAGES.test(t) && (f.route || f.page || f.component)) {
+      const page = f.route || f.page || f.component;
+      if (!brokenPages.includes(page)) brokenPages.push(page);
+    }
+  }
+  const visualRisk: "low" | "medium" | "high" =
+    layoutIssues.length > 5 ? "high" : layoutIssues.length > 1 ? "medium" : "low";
+
+  // ── FLOWS ──
+  const CRITICAL_FLOW_RE = /checkout|cart|login|payment|order/i;
+  const DEAD_END_RE = /null|undefined|fail|error|no.continuation|not.found|404/i;
+
+  const brokenFlows: string[] = [];
+  const criticalPaths: string[] = [];
+  const deadEnds: string[] = [];
+  for (const f of [...safeArr(unified.broken_flows), ...safeArr(unified.interaction_failures)]) {
+    const t = textOf(f);
+    const label = f.title || f.description || t.slice(0, 60);
+    if (!brokenFlows.includes(label)) brokenFlows.push(label);
+    if (CRITICAL_FLOW_RE.test(t) && !criticalPaths.includes(label)) criticalPaths.push(label);
+    if (DEAD_END_RE.test(t) && !deadEnds.includes(label)) deadEnds.push(label);
+  }
+
+  // ── DATA ──
+  const MISSING_REF_RE = /missing|not.found|undefined|null|no.id|relation|foreign|reference/i;
+  const MISMATCH_RE = /mismatch|conflict|inconsistent|wrong|invalid/i;
+  const SYNC_RE = /sync|out.of.date|stale|cache|desync/i;
+
+  const inconsistentEntities: string[] = [];
+  const missingLinks: string[] = [];
+  const syncFailures: string[] = [];
+  for (const d of safeArr(unified.data_issues).filter((d: any) => !d._dev_expected)) {
+    const t = textOf(d);
+    const label = d.title || d.description || t.slice(0, 60);
+    if (MISSING_REF_RE.test(t) && !missingLinks.includes(label)) missingLinks.push(label);
+    if (MISMATCH_RE.test(t) && !inconsistentEntities.includes(label)) inconsistentEntities.push(label);
+    if (SYNC_RE.test(t) && !syncFailures.includes(label)) syncFailures.push(label);
+  }
+
+  // ── ROOT CAUSES ──
+  const KEYWORDS = ["checkout", "cart", "login", "payment", "order", "product", "api", "user", "data", "layout"];
+  const rootCauses: { issue: string; chain: string[]; confidence: number }[] = [];
+
+  const dataLabels = [...missingLinks, ...inconsistentEntities, ...syncFailures];
+  const interactionLabels = safeArr(unified.interaction_failures).map((f: any) => f.title || f.description || "");
+
+  for (const kw of KEYWORDS) {
+    const dataMatches = dataLabels.filter(l => l.toLowerCase().includes(kw));
+    const flowMatches = brokenFlows.filter(l => l.toLowerCase().includes(kw));
+    const interactionMatches = interactionLabels.filter((l: string) => l.toLowerCase().includes(kw));
+
+    if (dataMatches.length === 0 && flowMatches.length === 0) continue;
+
+    const chain: string[] = [];
+    if (dataMatches.length > 0) chain.push(dataMatches[0].slice(0, 80));
+    if (interactionMatches.length > 0) chain.push(interactionMatches[0].slice(0, 80));
+    if (flowMatches.length > 0) chain.push(flowMatches[0].slice(0, 80));
+
+    if (chain.length < 1) continue;
+
+    const confidence = Math.min(0.9, 0.3 + (chain.length - 1) * 0.2 + (dataMatches.length > 1 ? 0.1 : 0) + (flowMatches.length > 1 ? 0.1 : 0));
+    const issue = kw.charAt(0).toUpperCase() + kw.slice(1) + " flow broken";
+
+    if (!rootCauses.find(r => r.issue === issue)) {
+      rootCauses.push({ issue, chain, confidence: Math.round(confidence * 10) / 10 });
+    }
+  }
+
+  // ── SUMMARY ──
+  const totalIssues =
+    brokenFlows.length + layoutIssues.length + missingLinks.length + inconsistentEntities.length + syncFailures.length;
+
+  const hasCritical = criticalPaths.length > 0 || /checkout|payment/i.test(JSON.stringify(unified.broken_flows || []));
+  const system_status: "healthy" | "warning" | "critical" =
+    hasCritical || totalIssues > 10 ? "critical" : totalIssues > 3 || visualRisk === "medium" || visualRisk === "high" ? "warning" : "healthy";
+
+  const critical_issues = criticalPaths.length + (hasCritical ? 1 : 0);
+  const major_issues = Math.max(0, brokenFlows.length + missingLinks.length - critical_issues);
+  const minor_issues = layoutIssues.length + syncFailures.length + inconsistentEntities.length;
+
+  return {
+    surface: { broken_pages: brokenPages, layout_issues: layoutIssues, visual_risk: visualRisk },
+    flows: { broken_flows: brokenFlows, critical_paths: criticalPaths, dead_ends: deadEnds },
+    data: { inconsistent_entities: inconsistentEntities, missing_links: missingLinks, sync_failures: syncFailures },
+    root_causes: rootCauses,
+    summary: { critical_issues, major_issues, minor_issues, system_status },
+  };
+}
+
 // ── Helper: Load scan focus memory (historical hotspots) ──
 async function loadFocusMemory(supabase: any): Promise<any[]> {
   const { data } = await supabase
@@ -2686,6 +2792,11 @@ serve(async (req) => {
 
       // ── BUILD SYSTEM OVERVIEW ──
       const systemOverview = buildSystemOverview(updatedResults, unified, systemStage);
+
+      // ── BUILD SYSTEM INSIGHT ──
+      const systemInsight = buildSystemInsight(unified, structure_map || [], updatedResults);
+      console.log("[SYSTEM INSIGHT]", JSON.stringify(systemInsight, null, 2));
+      await supabase.from("scan_runs").update({ system_insight: systemInsight }).eq("id", scan_run_id);
 
       // ── HIGH ATTENTION AREA DETECTION ──
       const highAttentionAreas: { type: string; target: string; reason: string }[] = [];
