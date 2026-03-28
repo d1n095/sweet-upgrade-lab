@@ -1214,9 +1214,16 @@ const SystemExplorer = () => {
                   } catch (_) {}
                 }, 2000);
                 try {
-                  await supabase.functions.invoke("run-full-scan", {
-                    body: { action: "start", scan_mode: "full", structure_map: structure_map.map(p => ({ path: p })) }
+                  const { data, error } = await tracedInvoke("run-full-scan", {
+                    body: { action: "start", scan_mode: "full" }
                   });
+                  if (error) throw error;
+                  console.log("[SCAN STARTED]", data);
+                  if (!data?.success) {
+                    console.error("SCAN DID NOT START", data);
+                  }
+                  queryClient.invalidateQueries({ queryKey: ["backend-scan-latest"] });
+                  queryClient.invalidateQueries({ queryKey: ["system-explorer-latest-run"] });
                 } finally {
                   clearInterval(pollInterval);
                   setIsScanning(false);
