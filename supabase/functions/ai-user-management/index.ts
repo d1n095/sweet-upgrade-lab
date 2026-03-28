@@ -16,7 +16,7 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+
 
     const userClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
@@ -216,14 +216,10 @@ serve(async (req) => {
         });
       }
 
-      // ── AI: Analyze & recommend changes ──
+      // ── Analyze & recommend changes (rule-based) ──
       case "ai_analyze": {
-        if (!lovableKey) throw new Error("LOVABLE_API_KEY not configured");
-
-        // Gather data
         const { data: { users: authUsers } } = await sb.auth.admin.listUsers({ perPage: 1000 });
         const { data: allRoles } = await sb.from("user_roles").select("user_id, role");
-        const { data: allPerms } = await sb.from("role_module_permissions").select("*");
         const { data: allProfiles } = await sb.from("profiles").select("user_id, username, first_name, last_name, is_member, level, created_at");
 
         const roleMap = new Map<string, string[]>();
@@ -232,137 +228,49 @@ serve(async (req) => {
           roleMap.get(r.user_id)!.push(r.role);
         }
 
-        const usersData = (authUsers || []).map(u => {
-          const profile = (allProfiles || []).find((p: any) => p.user_id === u.id);
-          return {
-            email: u.email,
-            roles: roleMap.get(u.id) || [],
-            last_sign_in: u.last_sign_in_at,
-            created: u.created_at,
-            username: profile?.username,
-            is_member: profile?.is_member,
-            level: profile?.level,
-          };
-        }).filter(u => (u.roles.length > 0)); // Only analyze users with roles
+        const now = new Date();
+        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-        const permsSummary: Record<string, string[]> = {};
-        for (const p of allPerms || []) {
-          if (!permsSummary[p.role]) permsSummary[p.role] = [];
-          const actions = [];
-          if (p.can_read) actions.push("read");
-          if (p.can_create) actions.push("create");
-          if (p.can_update) actions.push("update");
-          if (p.can_delete) actions.push("delete");
-          permsSummary[p.role].push(`${p.module}(${actions.join(",")})`);
-        }
+        const usersData = (authUsers || []).map(u => ({
+          email: u.email,
+          roles: roleMap.get(u.id) || [],
+          last_sign_in: u.last_sign_in_at,
+          created: u.created_at,
+          username: (allProfiles || []).find((p: any) => p.user_id === u.id)?.username,
+        })).filter(u => u.roles.length > 0);
 
-        const systemPrompt = `Du är Lova, en AI-säkerhetsoperatör för ett e-handelsföretag.
-Analysera användare och roller och ge konkreta rekommendationer.
+        // Rule-based recommendations
+        const recommendations: any[] = [];
+        for (const u of usersData) {
+          const lastSignIn = u.last_sign_in ? new Date(u.last_sign_in) : null;
+          const isInactive = !lastSignIn || lastSignIn < thirtyDaysAgo;
+          const hasHighPrivilege = u.roles.some((r: string) => ["admin", "founder"].includes(r));
+          const hasFinanceAndWarehouse = u.roles.includes("finance") && u.roles.includes("warehouse");
 
-Regler:
-- Följ principen om minsta privilegium
-- Inaktiva admin-konton (>30 dagar) bör flaggas
-- Användare med flera högnivåroller bör förenklas
-- Finance + warehouse = intressekonflikt
-- Roller utan modulbehörigheter = trasig åtkomst
-- Svara på svenska
-- Returnera EXAKT JSON med "recommendations" array
-
-Tillgängliga roller: ${validRoles.join(", ")}
-
-Varje rekommendation ska ha:
-- user_email (string)
-- current_roles (string[])
-- suggested_action: "downgrade" | "upgrade" | "remove_role" | "add_role" | "deactivate" | "no_change"
-- suggested_role (string, optional)
-- reason (string)
-- risk: "critical" | "high" | "medium" | "low"`;
-
-        const userPrompt = `Analysera dessa användare och ge rekommendationer:
-
-ANVÄNDARE:
-${JSON.stringify(usersData, null, 2)}
-
-ROLLBEHÖRIGHETER:
-${JSON.stringify(permsSummary, null, 2)}
-
-Idag: ${new Date().toISOString().split("T")[0]}`;
-
-        const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${lovableKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "google/gemini-3-flash-preview",
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: userPrompt },
-            ],
-            tools: [{
-              type: "function",
-              function: {
-                name: "provide_recommendations",
-                description: "Return user management recommendations",
-                parameters: {
-                  type: "object",
-                  properties: {
-                    summary: { type: "string", description: "Executive summary in Swedish" },
-                    recommendations: {
-                      type: "array",
-                      items: {
-                        type: "object",
-                        properties: {
-                          user_email: { type: "string" },
-                          current_roles: { type: "array", items: { type: "string" } },
-                          suggested_action: { type: "string", enum: ["downgrade", "upgrade", "remove_role", "add_role", "deactivate", "no_change"] },
-                          suggested_role: { type: "string" },
-                          reason: { type: "string" },
-                          risk: { type: "string", enum: ["critical", "high", "medium", "low"] },
-                        },
-                        required: ["user_email", "current_roles", "suggested_action", "reason", "risk"],
-                      },
-                    },
-                  },
-                  required: ["summary", "recommendations"],
-                },
-              },
-            }],
-            tool_choice: { type: "function", function: { name: "provide_recommendations" } },
-          }),
-        });
-
-        if (!aiResp.ok) {
-          if (aiResp.status === 429) throw new Error("AI rate limit — försök igen om en stund");
-          if (aiResp.status === 402) throw new Error("AI-krediter slut — fyll på i Settings > Workspace > Usage");
-          throw new Error(`AI gateway error: ${aiResp.status}`);
-        }
-
-        const aiData = await aiResp.json();
-        const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-        let recommendations: any = { summary: "Ingen AI-analys tillgänglig", recommendations: [] };
-
-        if (toolCall?.function?.arguments) {
-          try {
-            recommendations = JSON.parse(toolCall.function.arguments);
-          } catch {
-            recommendations = { summary: "Kunde inte tolka AI-svar", recommendations: [] };
+          if (isInactive && hasHighPrivilege && !u.roles.includes("founder")) {
+            recommendations.push({
+              user_email: u.email,
+              current_roles: u.roles,
+              suggested_action: "deactivate",
+              reason: "Inaktivt admin-konto (>30 dagar sedan inloggning)",
+              risk: "high",
+            });
+          } else if (hasFinanceAndWarehouse) {
+            recommendations.push({
+              user_email: u.email,
+              current_roles: u.roles,
+              suggested_action: "remove_role",
+              suggested_role: "warehouse",
+              reason: "Finance + warehouse är intressekonflikt",
+              risk: "medium",
+            });
           }
         }
 
-        await sb.from("ai_read_log").insert({
-          action_type: "ai_user_analysis",
-          target_type: "user",
-          result: "analyzed",
-          summary: recommendations.summary,
-          triggered_by: user.id,
-          metadata: { recommendations_count: recommendations.recommendations?.length || 0 },
-        });
-
         return new Response(JSON.stringify({
           success: true,
-          ...recommendations,
+          summary: `Regelbaserad analys av ${usersData.length} användare. ${recommendations.length} rekommendation(er) hittades.`,
+          recommendations,
           analyzed_users: usersData.length,
         }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
