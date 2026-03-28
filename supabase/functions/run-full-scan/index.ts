@@ -2438,13 +2438,13 @@ serve(async (req) => {
 
       if (!structure_map || structure_map.length === 0) {
         console.warn("⚠️ No structure map — using fallback");
-        (structure_map as any) = [
-          { entity_type: "ui", entity_name: "components" },
-          { entity_type: "data", entity_name: "orders" },
-          { entity_type: "flow", entity_name: "checkout_flow" },
-          { entity_type: "business", entity_name: "features" },
-        ];
       }
+      const effectiveStructureMap = (structure_map && structure_map.length > 0) ? structure_map : [
+        { entity_type: "ui", entity_name: "components" },
+        { entity_type: "data", entity_name: "orders" },
+        { entity_type: "flow", entity_name: "checkout_flow" },
+        { entity_type: "business", entity_name: "features" },
+      ];
 
       console.log("[SCAN] running scanners — chaining first step");
       fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
