@@ -196,6 +196,8 @@ const AdminBugReports = () => {
   const allChecked = RESOLVE_CHECKLIST.every(c => checklist[c.key]);
 
   const processWithAI = async (bugId: string) => {
+    toast.info('AI-analys är avaktiverad — granska buggen manuellt');
+    return;
     setProcessingAI(bugId);
     try {
       const { data: { session } } = await supabase.auth.getSession();

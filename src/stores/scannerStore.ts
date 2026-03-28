@@ -52,31 +52,23 @@ interface ScannerState {
   runAllScans: (queryClient?: QueryClient) => Promise<void>;
 }
 
-const callAIForScan = async (type: string, payload: Record<string, any> = {}) => {
+/**
+ * AI-FREE scan caller: calls run-full-scan edge function directly.
+ * No AI gateway involved — all scanning is rule-based.
+ */
+const callScanFunction = async (type: string, payload: Record<string, any> = {}) => {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) throw new Error('Ej inloggad');
 
-  const resp = await fetch(
-    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ type, ...payload }),
-    }
-  );
+  const { data, error } = await supabase.functions.invoke('run-full-scan', {
+    body: { scan_type: type, ...payload },
+  });
 
-  if (!resp.ok) {
-    if (resp.status === 429) throw new Error('AI är överbelastad');
-    if (resp.status === 402) throw new Error('AI-krediter slut');
-    const err = await resp.json().catch(() => ({}));
-    throw new Error(err.error || `AI-fel (${resp.status})`);
+  if (error) {
+    throw new Error(error.message || `Skanningsfel (${type})`);
   }
 
-  const data = await resp.json();
-  return data.result;
+  return data;
 };
 
 export const useScannerStore = create<ScannerState>((set, get) => ({
@@ -130,13 +122,13 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
     const traceId = createTraceId('quick-scan');
     const debugTraceId = newDebugTraceId('scan');
     trace('issue_detected', 'ScannerStore', `Starting scan (${toRun.length} steps)`, { traceId: debugTraceId, details: { steps: toRun.map(s => s.type) } });
-    observeAction(`Startar snabbskanning (${toRun.length} steg)`, { trace_id: traceId, source: 'scanner' });
+    observeAction(`Startar skanning (${toRun.length} steg)`, { trace_id: traceId, source: 'scanner' });
 
     await Promise.allSettled(
       toRun.map(async (step, i) => {
         const start = Date.now();
         try {
-          const res = await callAIForScan(
+          const res = await callScanFunction(
             step.type,
             step.type === 'content_validation' ? { auto_fix: false } : {}
           );
@@ -163,7 +155,7 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
       })
     );
 
-    observeAction(`Snabbskanning klar (${toRun.length} steg)`, { trace_id: traceId, source: 'scanner' });
+    observeAction(`Skanning klar (${toRun.length} steg)`, { trace_id: traceId, source: 'scanner' });
     flushObservabilityBuffer();
 
     // Invalidate relevant queries so UI reflects new scan results + work items

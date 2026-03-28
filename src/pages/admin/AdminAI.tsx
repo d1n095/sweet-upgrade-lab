@@ -88,31 +88,20 @@ interface UnifiedReport {
 }
 
 const callAI = async (type: string, payload: Record<string, any> = {}) => {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) { toast.error('Ej inloggad'); return null; }
-
-  const resp = await fetch(
-    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ type, ...payload }),
-    }
-  );
-
-  if (!resp.ok) {
-    const err = await resp.json().catch(() => ({}));
-    if (resp.status === 429) toast.error('AI är överbelastad, försök igen om en stund');
-    else if (resp.status === 402) toast.error('AI-krediter slut');
-    else toast.error(err.error || 'AI-fel');
-    return null;
+  // AI is disabled — redirect scan types to run-full-scan, others return null
+  const scanTypes = ['system_scan', 'data_integrity', 'content_validation', 'sync_scan', 'interaction_qa', 'visual_qa', 'nav_scan', 'ux_scan', 'human_test', 'action_governor', 'feature_detection'];
+  
+  if (scanTypes.includes(type)) {
+    const { data, error } = await supabase.functions.invoke('run-full-scan', {
+      body: { scan_type: type, ...payload },
+    });
+    if (error) { toast.error(error.message || 'Skanningsfel'); return null; }
+    return data;
   }
 
-  const data = await resp.json();
-  return data.result;
+  // Non-scan AI calls are disabled
+  toast.info('AI är avaktiverad — denna funktion kräver manuell hantering');
+  return null;
 };
 
 const callTaskManager = async (action: string) => {

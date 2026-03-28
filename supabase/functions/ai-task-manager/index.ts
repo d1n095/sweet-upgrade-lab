@@ -13,13 +13,6 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-
-    if (!lovableKey) {
-      return new Response(JSON.stringify({ error: "AI not configured" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
 
     // Auth: accept service role, cron secret, or authenticated staff
     const authHeader = req.headers.get("authorization") || "";
@@ -67,7 +60,7 @@ serve(async (req) => {
       orchestrator_error: null,
     };
 
-    // ─── 1. AI PRIORITIZATION ───
+    // ─── 1. RULE-BASED PRIORITIZATION (NO AI) ───
     if (action === "full_cycle" || action === "prioritize") {
       const { data: items } = await supabase
         .from("work_items")
@@ -76,85 +69,68 @@ serve(async (req) => {
         .or("ai_confidence.is.null,ai_confidence.eq.none")
         .limit(20);
 
-      if (items?.length) {
-        const itemsSummary = items.map((it: any) =>
-          `ID:${it.id} Type:${it.item_type} Title:${it.title} Desc:${it.description?.substring(0, 200) || "N/A"} CurrentPriority:${it.priority}`
-        ).join("\n");
+      for (const item of items || []) {
+        const text = `${item.title || ""} ${item.description || ""}`.toLowerCase();
+        
+        // Rule-based priority
+        let priority = item.priority || "medium";
+        let confidence = "medium";
+        let category = "system";
+        let classification = "task";
 
-        try {
-          const aiResult = await callAI(lovableKey, [
-            {
-              role: "system",
-              content: `You are a task manager for a Swedish e-commerce platform. Analyze work items and:
-1. Assign priority based on business impact
-2. Classify the TYPE of each item:
-   - bug: something is broken/not working
-   - improvement: existing feature can be better
-   - feature: new functionality request
-   - upgrade: performance, security, scalability enhancement
-   - task: manual/admin operational task
-
-Priority rules:
-- checkout/payment issues → SKIP (payment system is isolated from AI)
-- order fulfillment issues → high  
-- bugs affecting users → high
-- UI issues → medium
-- improvements/features → medium or low
-- internal/manual tasks → low
-
-Respond using the prioritize_tasks function.`,
-            },
-            { role: "user", content: `Prioritize and classify these work items:\n${itemsSummary}` },
-          ], [{
-            type: "function",
-            function: {
-              name: "prioritize_tasks",
-              description: "Assign priorities and classify work items",
-              parameters: {
-                type: "object",
-                properties: {
-                  tasks: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        id: { type: "string" },
-                        priority: { type: "string", enum: ["low", "medium", "high", "critical"] },
-                        confidence: { type: "string", enum: ["low", "medium", "high"] },
-                        category: { type: "string" },
-                        reason: { type: "string" },
-                        classification: { type: "string", enum: ["bug", "improvement", "feature", "upgrade", "task"] },
-                        classification_reason: { type: "string", description: "Short explanation: why this type" },
-                      },
-                      required: ["id", "priority", "confidence", "category", "classification"],
-                      additionalProperties: false,
-                    },
-                  },
-                },
-                required: ["tasks"],
-                additionalProperties: false,
-              },
-            },
-          }], { type: "function", function: { name: "prioritize_tasks" } });
-
-          for (const task of aiResult?.tasks || []) {
-            await supabase.from("work_items").update({
-              priority: task.priority,
-              ai_confidence: task.confidence,
-              ai_category: task.category,
-              ai_type_classification: task.classification || null,
-              ai_type_reason: task.classification_reason || null,
-              updated_at: new Date().toISOString(),
-            }).eq("id", task.id);
-            results.prioritized++;
-          }
-        } catch (e) {
-          console.error("AI prioritization error:", e);
+        // Bug classification
+        if (item.item_type === "bug" || text.includes("bug") || text.includes("fel") || text.includes("broken") || text.includes("trasig")) {
+          classification = "bug";
+          priority = "high";
+          confidence = "high";
         }
+
+        // Incident/support
+        if (item.item_type === "incident" || text.includes("incident") || text.includes("ärende")) {
+          classification = "bug";
+          priority = "high";
+          category = "support";
+        }
+
+        // UI issues
+        if (text.includes("layout") || text.includes("overflow") || text.includes("responsiv") || text.includes("css")) {
+          classification = "bug";
+          category = "UI";
+          priority = "medium";
+        }
+
+        // Feature/improvement
+        if (text.includes("förbättr") || text.includes("improve") || text.includes("ny funktion") || text.includes("feature")) {
+          classification = "improvement";
+          priority = "low";
+          confidence = "medium";
+        }
+
+        // Data issues
+        if (text.includes("data") || text.includes("databas") || text.includes("sync") || text.includes("null") || text.includes("saknas")) {
+          category = "data";
+          if (!classification || classification === "task") classification = "bug";
+        }
+
+        // Critical: anything with "critical" in it
+        if (text.includes("critical") || text.includes("kritisk") || item.priority === "critical") {
+          priority = "critical";
+          confidence = "high";
+        }
+
+        await supabase.from("work_items").update({
+          priority,
+          ai_confidence: confidence,
+          ai_category: category,
+          ai_type_classification: classification,
+          ai_type_reason: "Regelbaserad klassificering",
+          updated_at: new Date().toISOString(),
+        }).eq("id", item.id);
+        results.prioritized++;
       }
     }
 
-    // ─── 2. AI AUTO-ASSIGN ───
+    // ─── 2. RULE-BASED AUTO-ASSIGN ───
     if (action === "full_cycle" || action === "assign") {
       const { data: unassigned } = await supabase
         .from("work_items")
@@ -176,7 +152,7 @@ Respond using the prioritize_tasks function.`,
           await supabase.from("notifications").insert({
             user_id: assignee,
             type: "task",
-            message: `🤖 AI tilldelad uppgift: ${item.item_type}`,
+            message: `Automatiskt tilldelad uppgift: ${item.item_type}`,
             related_id: item.id,
             related_type: "work_item",
           });
@@ -185,12 +161,10 @@ Respond using the prioritize_tasks function.`,
       }
     }
 
-    // ─── 3. AI AUTO-DETECTION ───
-    // PAYMENT ISOLATION: AI is blocked from detecting/creating payment/checkout/stripe issues
+    // ─── 3. RULE-BASED AUTO-DETECTION ───
     if (action === "full_cycle" || action === "detect") {
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
 
-      // Only detect page_error — checkout_abandon and payment_error are ISOLATED
       const { data: recentErrors } = await supabase
         .from("analytics_events")
         .select("event_type, event_data, created_at")
@@ -206,12 +180,6 @@ Respond using the prioritize_tasks function.`,
       for (const [eventType, count] of Object.entries(errorCounts)) {
         if (count < 3) continue;
 
-        // PAYMENT ISOLATION: Skip any payment/checkout related events
-        if (/payment|checkout|stripe|betalning|kassa/i.test(eventType)) {
-          console.log(`[PAYMENT_ISOLATION] Skipped detection for: ${eventType}`);
-          continue;
-        }
-
         const { data: existing } = await supabase
           .from("work_items")
           .select("id")
@@ -223,7 +191,7 @@ Respond using the prioritize_tasks function.`,
 
         if (!existing?.length) {
           await supabase.from("work_items").insert({
-            title: `AI: ${count}x ${eventType} senaste timmen`,
+            title: `Auto: ${count}x ${eventType} senaste timmen`,
             description: `Automatiskt detekterat: ${count} ${eventType}-händelser under senaste timmen.`,
             status: "open",
             priority: "high",
@@ -236,13 +204,9 @@ Respond using the prioritize_tasks function.`,
           results.detected++;
         }
       }
-
-      // PAYMENT ISOLATION: Stuck orders detection is DISABLED
-      // AI must not create work items related to orders/payments
-      console.log("[PAYMENT_ISOLATION] Skipped stuck orders detection (isolated)");
     }
 
-    // ─── 4. AI RESOLUTION DETECTION ───
+    // ─── 4. RULE-BASED RESOLUTION DETECTION ───
     if (action === "full_cycle" || action === "resolve") {
       const { data: bugItems } = await supabase
         .from("work_items")
@@ -260,23 +224,13 @@ Respond using the prioritize_tasks function.`,
           .eq("id", item.source_id)
           .single();
 
-        if (bug?.status === "resolved") {
+        if (bug?.status === "resolved" && bug?.resolved_at) {
           await supabase.from("work_items").update({
             status: "done",
             completed_at: new Date().toISOString(),
-            ai_resolution_notes: "Automatiskt stängd: källbugg markerad som löst.",
-            ai_confidence: "high",
+            resolution_notes: "Automatiskt stängd — källbugg markerad som löst.",
             updated_at: new Date().toISOString(),
           }).eq("id", item.id);
-
-          await triggerAiReviewFromTaskManager(
-            supabase,
-            supabaseUrl,
-            serviceKey,
-            item.id,
-            "ai_task_manager_resolve"
-          );
-
           results.resolved++;
           continue;
         }
@@ -316,7 +270,7 @@ Respond using the prioritize_tasks function.`,
 
       const oneHourAgo2 = new Date(Date.now() - 60 * 60 * 1000).toISOString();
       for (const item of anomalyItems || []) {
-        const match = item.title.match(/AI: \d+x (\S+)/);
+        const match = item.title.match(/Auto: \d+x (\S+)/);
         if (!match) continue;
 
         const { count } = await supabase
@@ -336,7 +290,7 @@ Respond using the prioritize_tasks function.`,
       }
     }
 
-    // ─── 5. AI AUTO-CLOSE (HIGH CONFIDENCE ONLY) ───
+    // ─── 5. RULE-BASED AUTO-CLOSE (HIGH CONFIDENCE ONLY) ───
     if (action === "full_cycle" || action === "auto_close") {
       const { data: highConfItems } = await supabase
         .from("work_items")
@@ -354,25 +308,17 @@ Respond using the prioritize_tasks function.`,
           updated_at: new Date().toISOString(),
         }).eq("id", item.id);
 
-        await triggerAiReviewFromTaskManager(
-          supabase,
-          supabaseUrl,
-          serviceKey,
-          item.id,
-          "ai_task_manager_auto_close"
-        );
-
         await supabase.from("automation_logs").insert({
-          action_type: "ai_auto_close",
+          action_type: "auto_close",
           target_type: "work_item",
           target_id: item.id,
-          reason: `AI auto-stängd (hög konfidens): ${item.ai_resolution_notes}`,
+          reason: `Auto-stängd (hög konfidens): ${item.ai_resolution_notes}`,
         });
         results.resolved++;
       }
     }
 
-    // ─── 6. AI ORCHESTRATOR (DEPENDENCIES, DUPLICATES, CONFLICTS) ───
+    // ─── 6. RULE-BASED ORCHESTRATOR ───
     if (action === "full_cycle" || action === "orchestrate") {
       const { data: activeItems, error: activeItemsError } = await supabase
         .from("work_items")
@@ -388,14 +334,10 @@ Respond using the prioritize_tasks function.`,
       }
 
       results.orchestrator_scanned = activeItems?.length || 0;
-      console.log(`[orchestrator] scanned=${results.orchestrator_scanned}`);
 
-      // No work
       if (!activeItems?.length) {
         results.orchestrator_mode = "no_items";
-      }
-      // Single item -> still orchestrate to avoid "0 tasks"
-      else if (activeItems.length === 1) {
+      } else if (activeItems.length === 1) {
         await supabase.from("work_items").update({
           execution_order: 1,
           depends_on: [],
@@ -407,107 +349,19 @@ Respond using the prioritize_tasks function.`,
             parallel_group: "solo",
             conflict_with: null,
             updated_at: new Date().toISOString(),
-            mode: "single_item",
+            mode: "rule_based",
           },
           updated_at: new Date().toISOString(),
         }).eq("id", activeItems[0].id);
 
         results.orchestrated = 1;
-        results.orchestrator_mode = "single_item";
+        results.orchestrator_mode = "rule_based";
       } else {
-        const itemList = activeItems.map((it: any) =>
-          `ID:${it.id} Type:${it.item_type} Class:${it.ai_type_classification || "unknown"} Cat:${it.ai_category || "unknown"} Pri:${it.priority} Title:${it.title} Desc:${(it.description || "").substring(0, 150)}`
-        ).join("\n");
+        // Use rule-based orchestration for ALL cases
+        const orchestrated = buildFallbackOrchestration(activeItems);
+        results.orchestrator_mode = "rule_based";
 
-        let aiTasks: any[] = [];
-        const useAI = activeItems.length <= 50;
-
-        if (useAI) {
-          try {
-            const orchestratorResult = await callAI(lovableKey, [
-              {
-                role: "system",
-                content: `You are a task orchestrator for a Swedish e-commerce platform. Analyze all active work items and determine:
-1. Dependencies: which tasks must be completed before others
-2. Duplicates: which tasks are duplicates or very similar
-3. Conflicts: which tasks affect the same system and could conflict
-4. Execution order: optimal order to complete tasks
-
-Rules:
-- Payment/checkout fixes block order-related tasks
-- Auth fixes block everything user-facing
-- Bug fixes for same page/system are potential duplicates
-- Two fixes to the same component = potential conflict
-- Critical/blocking tasks get execution_order 1-10
-- Regular tasks get 11-50
-- Optional tasks get 51+
-
-Return one entry for EACH input ID.`,
-              },
-              { role: "user", content: `Orchestrate these ${activeItems.length} work items:\n${itemList}` },
-            ], [{
-              type: "function",
-              function: {
-                name: "orchestrate_tasks",
-                description: "Set dependencies, duplicates, conflicts and execution order",
-                parameters: {
-                  type: "object",
-                  properties: {
-                    tasks: {
-                      type: "array",
-                      items: {
-                        type: "object",
-                        properties: {
-                          id: { type: "string" },
-                          depends_on: { type: "array", items: { type: "string" }, description: "IDs of tasks that must be done first" },
-                          blocks: { type: "array", items: { type: "string" }, description: "IDs of tasks blocked by this one" },
-                          duplicate_of: { type: "string", description: "ID of the original task if this is a duplicate" },
-                          conflict_with: { type: "string", description: "ID of conflicting task" },
-                          execution_order: { type: "integer", description: "1=most urgent, higher=less urgent" },
-                          parallel_group: { type: "string", description: "Group name for tasks that can run in parallel" },
-                          reason: { type: "string" },
-                        },
-                        required: ["id", "execution_order"],
-                        additionalProperties: false,
-                      },
-                    },
-                  },
-                  required: ["tasks"],
-                  additionalProperties: false,
-                },
-              },
-            }], { type: "function", function: { name: "orchestrate_tasks" } });
-
-            aiTasks = (orchestratorResult?.tasks || []).filter((task: any) =>
-              task?.id && activeItems.some((it: any) => it.id === task.id)
-            );
-          } catch (e: any) {
-            console.error("AI orchestrator error:", e);
-            results.orchestrator_error = e?.message || "AI orchestrator failed";
-          }
-        }
-
-        if (!useAI) {
-          results.orchestrator_mode = "fallback_large_queue";
-        }
-
-        // Fallback when AI is disabled for large queues OR returns nothing/partial
-        if (!aiTasks.length || aiTasks.length < activeItems.length) {
-          const fallback = buildFallbackOrchestration(activeItems);
-          const mergedById = new Map<string, any>();
-          for (const t of fallback) mergedById.set(t.id, t);
-          for (const t of aiTasks) mergedById.set(t.id, { ...mergedById.get(t.id), ...t });
-          aiTasks = Array.from(mergedById.values());
-          if (!results.orchestrator_mode) {
-            results.orchestrator_mode = useAI ? "fallback_merge" : "fallback_large_queue";
-          }
-        } else {
-          results.orchestrator_mode = "ai";
-        }
-
-        console.log(`[orchestrator] mode=${results.orchestrator_mode} tasks=${aiTasks.length}`);
-
-        for (const batch of chunkArray(aiTasks, 25)) {
+        for (const batch of chunkArray(orchestrated, 25)) {
           await Promise.all(batch.map(async (task: any) => {
             const updates: any = {
               execution_order: task.execution_order,
@@ -516,7 +370,7 @@ Return one entry for EACH input ID.`,
                 parallel_group: task.parallel_group || null,
                 conflict_with: task.conflict_with || null,
                 updated_at: new Date().toISOString(),
-                mode: results.orchestrator_mode,
+                mode: "rule_based",
               },
               updated_at: new Date().toISOString(),
             };
@@ -537,7 +391,7 @@ Return one entry for EACH input ID.`,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    console.error("ai-task-manager error:", e);
+    console.error("task-manager error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -545,75 +399,6 @@ Return one entry for EACH input ID.`,
 });
 
 // ─── Helpers ───
-
-async function callAI(apiKey: string, messages: any[], tools?: any[], tool_choice?: any) {
-  const body: any = { model: "google/gemini-3-flash-preview", messages };
-  if (tools) body.tools = tools;
-  if (tool_choice) body.tool_choice = tool_choice;
-
-  const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!resp.ok) {
-    if (resp.status === 429) throw Object.assign(new Error("Rate limited"), { status: 429 });
-    if (resp.status === 402) throw Object.assign(new Error("Credits exhausted"), { status: 402 });
-    throw new Error(`AI error: ${resp.status}`);
-  }
-
-  const data = await resp.json();
-  const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-  if (toolCall) return JSON.parse(toolCall.function.arguments);
-  return { text: data.choices?.[0]?.message?.content || "" };
-}
-
-async function triggerAiReviewFromTaskManager(
-  supabase: any,
-  supabaseUrl: string,
-  serviceKey: string,
-  workItemId: string,
-  context: string,
-) {
-  console.log(`[ai-review-trigger] start context=${context} work_item_id=${workItemId}`);
-
-  try {
-    const resp = await fetch(`${supabaseUrl}/functions/v1/ai-review-fix`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${serviceKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ work_item_id: workItemId }),
-    });
-
-    const responseText = await resp.text();
-
-    if (!resp.ok) {
-      throw new Error(`ai-review-fix failed (${resp.status}): ${responseText.slice(0, 400)}`);
-    }
-
-    console.log(`[ai-review-trigger] done context=${context} work_item_id=${workItemId}`);
-  } catch (e: any) {
-    const message = e?.message || "unknown ai-review-fix error";
-    console.error(`[ai-review-trigger] failed context=${context} work_item_id=${workItemId}: ${message}`);
-
-    await supabase.from("work_items").update({
-      ai_review_status: "needs_review",
-      ai_review_result: {
-        status: "needs_review",
-        verdict: `AI-granskning misslyckades (${context})`,
-        confidence: 0,
-        error: message,
-      },
-      ai_review_at: new Date().toISOString(),
-    }).eq("id", workItemId);
-  }
-}
 
 function chunkArray<T>(arr: T[], size: number): T[][] {
   if (size <= 0) return [arr];
@@ -639,51 +424,68 @@ function buildFallbackOrchestration(activeItems: any[]) {
     return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
   });
 
-  const blockers = sorted.filter((it) => {
-    const text = `${it.title || ""} ${it.description || ""}`.toLowerCase();
-    return text.includes("payment") || text.includes("checkout") || text.includes("auth") || text.includes("login");
-  });
+  // Detect duplicates by similar titles
+  const titleMap = new Map<string, string>();
+  const duplicates = new Map<string, string>();
+  for (const item of sorted) {
+    const normalized = (item.title || "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 40);
+    if (titleMap.has(normalized)) {
+      duplicates.set(item.id, titleMap.get(normalized)!);
+    } else {
+      titleMap.set(normalized, item.id);
+    }
+  }
+
+  // Detect conflicts (same component)
+  const componentMap = new Map<string, string[]>();
+  for (const item of sorted) {
+    const text = `${item.title || ""} ${item.description || ""}`.toLowerCase();
+    const components = ["header", "footer", "checkout", "cart", "product", "order", "profile", "auth"];
+    for (const comp of components) {
+      if (text.includes(comp)) {
+        if (!componentMap.has(comp)) componentMap.set(comp, []);
+        componentMap.get(comp)!.push(item.id);
+      }
+    }
+  }
 
   return sorted.map((item, index) => {
     const text = `${item.title || ""} ${item.description || ""}`.toLowerCase();
     const isFeatureLike = ["feature", "improvement", "upgrade"].includes(item.ai_type_classification || "");
 
-    const depends_on = blockers
-      .filter((b) => b.id !== item.id)
-      .filter((b) => {
-        if (isFeatureLike) return true;
-        if (text.includes("order") || text.includes("shipping") || text.includes("warehouse")) {
-          const bText = `${b.title || ""} ${b.description || ""}`.toLowerCase();
-          return bText.includes("payment") || bText.includes("checkout");
-        }
-        return false;
-      })
-      .slice(0, 3)
-      .map((b) => b.id);
+    // Find conflicts
+    let conflict_with: string | null = null;
+    for (const [, ids] of componentMap) {
+      if (ids.includes(item.id) && ids.length > 1) {
+        conflict_with = ids.find(id => id !== item.id) || null;
+        break;
+      }
+    }
 
     return {
       id: item.id,
       execution_order: index + 1,
-      depends_on,
-      blocks: [],
-      duplicate_of: null,
-      conflict_with: null,
-      parallel_group: depends_on.length ? null : `lane_${(index % 3) + 1}`,
-      reason: depends_on.length
-        ? "Fallback: beroende upptäckta mot blockerande uppgifter"
-        : "Fallback: prioriterad efter severity + ålder",
+      depends_on: [] as string[],
+      blocks: [] as string[],
+      duplicate_of: duplicates.get(item.id) || null,
+      conflict_with,
+      parallel_group: `lane_${(index % 3) + 1}`,
+      reason: duplicates.has(item.id)
+        ? "Möjlig duplikat"
+        : conflict_with
+          ? "Konflikt med annan uppgift på samma komponent"
+          : "Prioriterad efter severity + ålder",
     };
   });
 }
 
 async function autoAssign(supabase: any, item: any): Promise<string | null> {
   const categoryRoleMap: Record<string, string[]> = {
-    payment: ["finance", "admin", "founder"],
-    checkout: ["it", "admin", "founder"],
     fulfillment: ["warehouse", "admin", "founder"],
     UI: ["it", "admin", "founder"],
     system: ["it", "admin", "founder"],
     support: ["support", "moderator", "admin", "founder"],
+    data: ["it", "admin", "founder"],
   };
 
   const typeRoleMap: Record<string, string[]> = {
