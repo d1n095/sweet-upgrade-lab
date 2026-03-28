@@ -1186,11 +1186,12 @@ async function runFunctionalBehaviorScan(supabase: any, scanRunId: string): Prom
     scan_id: scanRunId, trace_id: traceId, component: "functional_behavior_scan", duration_ms: durationMs,
   }).catch(() => {});
 
+  const behaviorRules = ["create_work_item_verify", "bug_to_work_item", "incident_to_work_item", "status_sync_done_resolved", "dismiss_no_reappear", "order_lifecycle_closed", "incident_notification"];
   return { failures, total_failures: failures.length, by_type: byType, retests_passed: retestResults,
     issues: failures.map(f => normalizeIssue({ ...f, type: f.failure_type || "broken_flow", location: f.chain || f.component || "behavior", description: f.action || f.chain || "Behavior failure", expected_state: f.expected, actual_state: f.actual })),
     issues_found: failures.length,
-    input_size: 7, // 7 action chains tested
-    rules_applied: ["create_work_item_verify", "bug_to_work_item", "incident_to_work_item", "status_sync_done_resolved", "dismiss_no_reappear", "order_lifecycle_closed", "incident_notification"],
+    input_size: behaviorRules.length,
+    rules_applied: behaviorRules,
     ...(failures.length === 0 ? { _empty_reason: "no_detection" } : {}),
     duration_ms: durationMs, scanned_at: new Date().toISOString() };
 }
@@ -2444,20 +2445,29 @@ serve(async (req) => {
       stepResult._scan_started_at = scanStartedAt;
       stepResult._scan_finished_at = scanFinishedAt;
 
-      // Compute input_size from scanner-specific fields
-      const inputSize = stepResult.components_scanned ?? stepResult.routes_scanned ?? stepResult.records_scanned ?? stepResult.features_scanned ?? stepResult.tables_scanned ?? stepResult.flows_scanned ?? stepResult.items_scanned ?? stepResult.total_checked ?? stepResult.total_scanned ?? 0;
+      // Compute input_size: prefer scanner's own field, fall back to legacy scanner-specific fields
+      const inputSize = stepResult.input_size ?? stepResult.components_scanned ?? stepResult.routes_scanned ?? stepResult.records_scanned ?? stepResult.features_scanned ?? stepResult.tables_scanned ?? stepResult.flows_scanned ?? stepResult.items_scanned ?? stepResult.total_checked ?? stepResult.total_scanned ?? 0;
       stepResult._input_size = inputSize;
+
+      // Log rules applied by the scanner
+      if (stepResult.rules_applied?.length) {
+        stepResult._rules_applied = stepResult.rules_applied;
+        console.log(`[scan] ${step.id} applied ${stepResult.rules_applied.length} rules: ${stepResult.rules_applied.slice(0, 5).join(", ")}${stepResult.rules_applied.length > 5 ? "…" : ""}`);
+      }
 
       // Determine empty_reason when 0 issues
       if (stepResult.issues.length === 0) {
-        if (stepResult.failed || stepResult.error) {
-          stepResult._empty_reason = "scanner_failed";
-        } else if (inputSize === 0) {
-          stepResult._empty_reason = "no_data";
-        } else if (didExecute) {
-          stepResult._empty_reason = "no_detection";
-        } else {
-          stepResult._empty_reason = "not_applicable";
+        // Prefer scanner's own _empty_reason if already set during detection
+        if (!stepResult._empty_reason) {
+          if (stepResult.failed || stepResult.error) {
+            stepResult._empty_reason = "scanner_failed";
+          } else if (inputSize === 0) {
+            stepResult._empty_reason = "no_data";
+          } else if (didExecute) {
+            stepResult._empty_reason = "no_detection";
+          } else {
+            stepResult._empty_reason = "not_applicable";
+          }
         }
       }
 
