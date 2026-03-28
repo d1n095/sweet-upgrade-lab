@@ -35,6 +35,7 @@ import SafeModePanel, { SafeModeBanner } from '@/components/admin/SafeModePanel'
 import UnifiedPipelineDashboard from '@/components/admin/UnifiedPipelineDashboard';
 import SystemStateDashboard from '@/components/admin/SystemStateDashboard';
 import FailureMemoryPanel from '@/components/admin/FailureMemoryPanel';
+import { AI_ENABLED } from '@/config/ai';
 
 // Context to allow any tab to open a work item detail view
 const DetailContext = createContext<{
@@ -88,6 +89,7 @@ interface UnifiedReport {
 }
 
 const callAI = async (type: string, payload: Record<string, any> = {}) => {
+  if (!AI_ENABLED) { console.log('[AI DISABLED]'); return null; }
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) { toast.error('Ej inloggad'); return null; }
 
@@ -116,6 +118,7 @@ const callAI = async (type: string, payload: Record<string, any> = {}) => {
 };
 
 const callTaskManager = async (action: string) => {
+  if (!AI_ENABLED) { console.log('[AI DISABLED]'); return null; }
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) { toast.error('Ej inloggad'); return null; }
 

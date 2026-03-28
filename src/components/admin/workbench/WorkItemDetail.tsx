@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
+import { AI_ENABLED } from '@/config/ai';
 
 interface WorkItemDetailProps {
   item: {
@@ -277,6 +278,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
   const handleRunRootCause = async () => {
     setAnalyzingFix(true);
     try {
+      if (!AI_ENABLED) { console.log('[AI DISABLED]'); return; }
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { toast.error('Ej inloggad'); return; }
       const resp = await fetch(
@@ -738,7 +740,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                         toast.info('🔍 Avvisad — AI kör fördjupad re-analys...', { duration: 4000 });
                         // 3. Trigger targeted rejection re-analysis
                         const { data: { session } } = await supabase.auth.getSession();
-                        if (session) {
+                        if (session && AI_ENABLED) {
                           fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
@@ -771,6 +773,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                 onClick={async () => {
                   setRunningPreVerify(true);
                   try {
+                    if (!AI_ENABLED) { console.log('[AI DISABLED]'); return; }
                     const { data: { session } } = await supabase.auth.getSession();
                     if (!session) { toast.error('Ej inloggad'); return; }
                     const resp = await fetch(

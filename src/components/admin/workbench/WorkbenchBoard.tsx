@@ -29,6 +29,7 @@ import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
 import { createAndVerify } from '@/utils/createVerifyLoop';
 import { trace, newTraceId, traceUIFetch } from '@/utils/deepDebugTrace';
 import { verifyAction } from '@/utils/actionVerificationEngine';
+import { AI_ENABLED } from '@/config/ai';
 
 interface WorkItem {
   id: string;
@@ -222,6 +223,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const runOrchestrator = async () => {
     setRunningOrchestrator(true);
     try {
+      if (!AI_ENABLED) { console.log('[AI DISABLED]'); return; }
       const { data, error } = await supabase.functions.invoke('ai-task-manager', { body: { action: 'orchestrate' } });
       if (error) throw error;
       const r = data?.results;

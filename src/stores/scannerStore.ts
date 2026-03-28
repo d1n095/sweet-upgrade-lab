@@ -6,6 +6,7 @@ import { useFeedbackLoopStore } from './feedbackLoopStore';
 import { QueryClient } from '@tanstack/react-query';
 import { createTraceId, observeScanStep, observeError, observeAction, flushObservabilityBuffer } from '@/utils/observabilityLogger';
 import { trace, newTraceId as newDebugTraceId } from '@/utils/deepDebugTrace';
+import { AI_ENABLED } from '@/config/ai';
 
 export type ScanStepStatus = 'pending' | 'running' | 'done' | 'error';
 
@@ -53,6 +54,11 @@ interface ScannerState {
 }
 
 const callAIForScan = async (type: string, payload: Record<string, any> = {}) => {
+  if (!AI_ENABLED) {
+    console.log('[AI DISABLED]');
+    return null;
+  }
+
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) throw new Error('Ej inloggad');
 
