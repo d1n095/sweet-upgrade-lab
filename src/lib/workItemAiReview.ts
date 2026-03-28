@@ -13,28 +13,62 @@ interface TriggerAiReviewResult {
   error?: string;
 }
 
+/**
+ * AI-FREE review: Uses rule-based verification instead of AI gateway.
+ * Simply marks items as 'needs_review' for manual verification.
+ */
 export const triggerAiReviewForWorkItem = async (
   workItemId: string,
   options: TriggerAiReviewOptions = {}
 ): Promise<TriggerAiReviewResult> => {
   const context = options.context || 'unknown';
-  console.info('[ai-review] trigger', { workItemId, context });
+  console.info('[review] trigger (rule-based)', { workItemId, context });
 
   try {
-    const { data, error } = await supabase.functions.invoke('ai-review-fix', {
-      body: { work_item_id: workItemId },
-    });
+    // Fetch work item to check if it has resolution notes
+    const { data: item, error: fetchError } = await supabase
+      .from('work_items')
+      .select('id, title, resolution_notes, status, completed_at')
+      .eq('id', workItemId)
+      .maybeSingle();
 
-    if (error) throw error;
+    if (fetchError || !item) {
+      throw new Error(fetchError?.message || 'Work item not found');
+    }
 
-    const review = (data as any)?.review;
-    const status = (review?.status as AiReviewStatus) ?? null;
+    // Rule-based verification:
+    // - Has resolution notes → verified
+    // - Status is done and has completed_at → verified
+    // - Otherwise → needs_review
+    const hasResolution = !!item.resolution_notes && item.resolution_notes.trim().length > 0;
+    const isDone = item.status === 'done' && !!item.completed_at;
 
-    console.info('[ai-review] complete', { workItemId, context, status });
-    return { ok: true, status, review };
+    const reviewResult = {
+      status: (hasResolution || isDone) ? 'verified' : 'needs_review' as AiReviewStatus,
+      verdict: hasResolution
+        ? 'Regelbaserad verifiering: resolution notes finns'
+        : isDone
+          ? 'Regelbaserad verifiering: uppgift klarmarkerad'
+          : 'Kräver manuell granskning',
+      confidence: hasResolution ? 70 : isDone ? 60 : 30,
+      risks: [] as string[],
+      edge_cases: [] as string[],
+    };
+
+    await supabase
+      .from('work_items')
+      .update({
+        ai_review_status: reviewResult.status,
+        ai_review_result: reviewResult,
+        ai_review_at: new Date().toISOString(),
+      } as any)
+      .eq('id', workItemId);
+
+    console.info('[review] complete (rule-based)', { workItemId, context, status: reviewResult.status });
+    return { ok: true, status: reviewResult.status as AiReviewStatus, review: reviewResult };
   } catch (err: any) {
-    const message = err?.message || 'Unknown AI review error';
-    console.error('[ai-review] failed', { workItemId, context, message });
+    const message = err?.message || 'Unknown review error';
+    console.error('[review] failed', { workItemId, context, message });
 
     await supabase
       .from('work_items')
@@ -42,7 +76,7 @@ export const triggerAiReviewForWorkItem = async (
         ai_review_status: 'needs_review',
         ai_review_result: {
           status: 'needs_review',
-          verdict: `AI-granskning misslyckades (${context})`,
+          verdict: `Granskning misslyckades (${context})`,
           confidence: 0,
           error: message,
         },
