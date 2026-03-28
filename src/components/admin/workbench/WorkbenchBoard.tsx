@@ -30,6 +30,11 @@ import { createAndVerify } from '@/utils/createVerifyLoop';
 import { trace, newTraceId, traceUIFetch } from '@/utils/deepDebugTrace';
 import { verifyAction } from '@/utils/actionVerificationEngine';
 
+// ── AI kill-switch ─────────────────────────────────────────────────────────
+// Set to true to re-enable AI calls once credits are available.
+const AI_ENABLED = false;
+// ──────────────────────────────────────────────────────────────────────────
+
 interface WorkItem {
   id: string;
   title: string;
@@ -222,6 +227,11 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const runOrchestrator = async () => {
     setRunningOrchestrator(true);
     try {
+      if (!AI_ENABLED) {
+        console.log("[AI DISABLED] Skipping orchestrator call");
+        toast.info('AI är inaktiverat');
+        return;
+      }
       const { data, error } = await supabase.functions.invoke('ai-task-manager', { body: { action: 'orchestrate' } });
       if (error) throw error;
       const r = data?.results;

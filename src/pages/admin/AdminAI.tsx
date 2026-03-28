@@ -127,6 +127,10 @@ const callAI = async (type: string, payload: Record<string, any> = {}) => {
 };
 
 const callTaskManager = async (action: string) => {
+  if (!AI_ENABLED) {
+    console.log(`[AI DISABLED] Skipping AI task manager call: ${action}`);
+    return null;
+  }
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) { toast.error('Ej inloggad'); return null; }
 
