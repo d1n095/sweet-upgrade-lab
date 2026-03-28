@@ -5,6 +5,7 @@ import { evaluateFixConfidence, applyConfidenceAction, useFixConfidenceStore } f
 import { useFeedbackLoopStore } from './feedbackLoopStore';
 import { supabase } from '@/integrations/supabase/client';
 import { logChange } from '@/utils/changeLogger';
+import { observeAction } from '@/utils/observabilityLogger';
 
 export type QueueTaskStatus = 'queued' | 'running' | 'completed' | 'failed' | 'blocked' | 'validating' | 'regressed';
 export type QueueTaskPriority = 'critical' | 'high' | 'normal';
@@ -473,18 +474,25 @@ export const useAiQueueStore = create<AiQueueState>((set, get) => ({
     })),
 
   retryTask: (id) => {
-    set((s) => ({
-      tasks: s.tasks.map((t) =>
-        t.id === id && (t.status === 'failed' || t.status === 'blocked' || t.status === 'regressed')
-          ? { ...t, status: 'queued' as const, error: undefined, failureReport: undefined, regressions: undefined, preSnapshot: undefined }
-          : t
-      ),
-    }));
-    setTimeout(() => get().processQueue(), 0);
+    // ── Step 4: Retries are blocked ──
+    console.warn('[AI RETRY BLOCKED]', id);
+    return;
   },
 
   processQueue: async () => {
+    // ── Step 3: Hard-block AI queue via env flag ──
+    if (import.meta.env.VITE_DISABLE_AI === 'true') {
+      console.warn('[AI BLOCKED FROM QUEUE]');
+      return;
+    }
+
     const state = get();
+
+    // ── Step 1: Log queue start ──
+    console.log('[AI QUEUE START]', {
+      time: new Date().toISOString(),
+      pending: state.tasks.filter((t) => t.status === 'queued').length,
+    });
 
     // Paused — skip processing
     if (state.paused) return;
@@ -573,6 +581,20 @@ export const useAiQueueStore = create<AiQueueState>((set, get) => ({
           }
         }
         await useFeedbackLoopStore.getState().captureBeforeAction();
+
+        // ── Step 2: Log every task execution ──
+        console.log('[AI TASK EXECUTING]', {
+          id: nextTask.id,
+          type: nextTask.type,
+          createdAt: nextTask.createdAt,
+        });
+
+        // ── Step 5: Observability hook ──
+        observeAction('AI_QUEUE_TRIGGER', {
+          component: 'aiQueueStore',
+          severity: 'info',
+          source: 'client',
+        } as any);
 
         set({
           tasks: updatedTasks.map((t) =>
