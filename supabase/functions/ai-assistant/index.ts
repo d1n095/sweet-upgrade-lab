@@ -39,6 +39,14 @@ async function updateScanTaskCount(supabase: any, scanId: string, tasksCreated: 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  // Global AI kill-switch
+  const AI_ENABLED = false;
+  if (!AI_ENABLED) {
+    return new Response(JSON.stringify({ skipped: true, reason: "AI_DISABLED" }), {
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   try {
     const authHeader = req.headers.get("authorization");
     if (!authHeader) {
