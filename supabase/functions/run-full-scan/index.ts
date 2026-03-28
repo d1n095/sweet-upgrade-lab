@@ -2480,13 +2480,10 @@ serve(async (req) => {
         if (realScanner) {
           console.log(`[scan] Running REAL DB scanner for ${step.scanType}`);
           const dbResult = await realScanner(supabase, scan_run_id);
-          // AI enrichment skipped: AI_ENABLED = false
-          const aiEnrichment: any = null;
           stepResult = { ...dbResult, ai_suggestions: [], ai_summary: null };
         } else {
-          // AI-only scanner skipped: AI_ENABLED = false
-          console.log(`[scan] AI-only scanner skipped (AI disabled) for ${step.scanType}`);
-          stepResult = { skipped: true, reason: "AI_DISABLED", failed: false };
+          console.log(`[scan] No scanner for ${step.scanType}`);
+          stepResult = { skipped: true, reason: "NO_SCANNER", failed: false };
         }
       } catch (e: any) { stepResult = { error: e.message, failed: true, _timed_out: e.name === "AbortError" }; }
 

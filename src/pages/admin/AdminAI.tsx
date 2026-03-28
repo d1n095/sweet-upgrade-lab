@@ -88,60 +88,14 @@ interface UnifiedReport {
   raw_metrics?: Record<string, number>;
 }
 
-const callAI = async (type: string, payload: Record<string, any> = {}) => {
-  if (!AI_ENABLED) { console.log('[AI DISABLED]'); return null; }
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) { toast.error('Ej inloggad'); return null; }
-
-  const resp = await fetch(
-    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ type, ...payload }),
-    }
-  );
-
-  if (!resp.ok) {
-    const err = await resp.json().catch(() => ({}));
-    if (resp.status === 429) toast.error('AI är överbelastad, försök igen om en stund');
-    else if (resp.status === 402) toast.error('AI-krediter slut');
-    else toast.error(err.error || 'AI-fel');
-    return null;
-  }
-
-  const data = await resp.json();
-  return data.result;
+const callAI = async (_type: string, _payload: Record<string, any> = {}) => {
+  // AI permanently removed
+  return null;
 };
 
-const callTaskManager = async (action: string) => {
-  if (!AI_ENABLED) { console.log('[AI DISABLED]'); return null; }
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) { toast.error('Ej inloggad'); return null; }
-
-  const resp = await fetch(
-    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-task-manager`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ action }),
-    }
-  );
-
-  if (!resp.ok) {
-    const err = await resp.json().catch(() => ({}));
-    toast.error(err.error || 'AI Task Manager-fel');
-    return null;
-  }
-
-  const data = await resp.json();
-  return data.results;
+const callTaskManager = async (_action: string) => {
+  // AI permanently removed
+  return null;
 };
 
 const copyToClipboard = (text: string, buttonId?: string) => {
