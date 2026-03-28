@@ -8,7 +8,7 @@ import {
   Loader2, Package, ClipboardList, BarChart3, Settings, Grid, Users,
   Handshake, Heart, Eye, LogOut, Home, Shield, Crown,
   Activity, User, Menu, X, Star, FileText, Percent, Truck, Wallet, Globe,
-  AlertTriangle, ScanLine, Sparkles, History, ShoppingCart,
+  AlertTriangle, ScanLine, Radar as RadarIcon, History, ShoppingCart,
 } from 'lucide-react';
 import { useEmployeeRole } from '@/hooks/useEmployeeRole';
 import { useFounderRole } from '@/hooks/useFounderRole';
@@ -88,7 +88,7 @@ const navGroups: NavGroup[] = [
   {
     label: 'SYSTEM',
     items: [
-      { to: '/admin/ai', label: 'AI Center', icon: Sparkles, role: 'admin' },
+      { to: '/admin/ai', label: 'Scan & Data Center', icon: RadarIcon, role: 'admin' },
       { to: '/admin/system-monitor', label: 'System Monitor', icon: Shield, role: 'admin' },
       { to: '/admin/history', label: 'Historik', icon: History, role: 'admin' },
       { to: '/admin/members', label: 'Användare', icon: Users, role: 'admin' },

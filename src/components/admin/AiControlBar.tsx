@@ -100,7 +100,7 @@ const AiControlBar = ({ onNavigateTab, compact = false }: AiControlBarProps) => 
             <span className="hidden lg:inline">Lova</span>
           </Button>
         </TooltipTrigger>
-        <TooltipContent side="bottom">Lova AI Chat</TooltipContent>
+        <TooltipContent side="bottom">Lova Chat</TooltipContent>
       </Tooltip>
 
       {/* Autopilot toggle */}

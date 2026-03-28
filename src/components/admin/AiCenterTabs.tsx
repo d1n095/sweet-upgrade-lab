@@ -6,7 +6,7 @@ import {
   Bot, Play, TrendingUp, Radar, Activity, Monitor,
   Database, Shield, Eye, GitMerge,
   ArrowRightLeft, Layers, ChevronRight, Menu, X,
-  Sparkles, Bug, Wrench, Clock, Lock,
+  Bug, Wrench, Clock, Lock,
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -78,7 +78,7 @@ const TAB_GROUPS: TabGroup[] = [
       { value: 'data-flow', label: 'Dataflöde', icon: ArrowRightLeft },
       { value: 'cleanup', label: 'Rensning', icon: Database },
       { value: 'change-log', label: 'Ändringslogg', icon: Clock },
-      { value: 'ai-reads', label: 'AI-läslogg', icon: Eye },
+      { value: 'ai-reads', label: 'Läslogg', icon: Eye },
     ],
   },
 ];
@@ -360,8 +360,8 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
             >
               <div className="h-12 px-3 border-b border-border flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-semibold">AI Center</span>
+                  <Radar className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-semibold">Scan &amp; Data Center</span>
                 </div>
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setMobileNavOpen(false)}>
                   <X className="w-4 h-4" />
@@ -381,7 +381,7 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
           {activeTab !== 'ai-dashboard' && activeTabDef && (
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-4 pt-1 shrink-0">
               <button onClick={() => handleNavigate('ai-dashboard')} className="hover:text-foreground transition-colors">
-                AI Center
+                Scan &amp; Data Center
               </button>
               <ChevronRight className="w-3 h-3" />
               <span className="text-foreground font-medium">{activeTabDef.label}</span>

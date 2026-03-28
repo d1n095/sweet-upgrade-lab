@@ -217,7 +217,7 @@ serve(async (req) => {
       }
 
       // ── Analyze & recommend changes (rule-based) ──
-      case "ai_analyze": {
+      case "analyze": {
         const { data: { users: authUsers } } = await sb.auth.admin.listUsers({ perPage: 1000 });
         const { data: allRoles } = await sb.from("user_roles").select("user_id, role");
         const { data: allProfiles } = await sb.from("profiles").select("user_id, username, first_name, last_name, is_member, level, created_at");
