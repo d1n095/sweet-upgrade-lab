@@ -705,6 +705,17 @@ function countNewIssues(currentUnified: any, previousIssueKeys: Set<string>): { 
   return { newCount, newKeys };
 }
 
+// ── Scanner rule lists ─────────────────────────────────────────────────────
+const DATA_INTEGRITY_RULES = ["work_items_without_source", "orphan_work_items_bug", "orphan_work_items_incident", "duplicate_work_items", "work_items_deleted_order", "status_mismatch_bug_resolved", "stale_claimed_items", "entity_required_fields", "id_trace_entities", "frontend_backend_mismatch"];
+const BEHAVIOR_RULES = ["create_work_item_verify", "bug_to_work_item", "incident_to_work_item", "status_sync_done_resolved", "dismiss_no_reappear", "order_lifecycle_closed", "incident_notification"];
+const SYNC_RULES = ["product_missing_title", "product_invalid_price", "active_product_no_image", "active_product_no_handle", "order_shipped_no_timestamp", "order_delivered_no_timestamp", "order_paid_cancelled", "affiliate_no_code", "duplicate_discount_codes"];
+const SYSTEM_RULES = ["open_bugs_threshold", "escalated_items_threshold", "errors_last_24h_threshold", "unread_notifications_threshold", "stale_escalated_items", "score_trend_regression"];
+const FEATURE_RULES = ["table_accessible", "row_count_detected", "write_access_round_trip"];
+const INTERACTION_RULES = ["bundle_items_orphan_bundle", "orphan_notifications_deleted_user", "incidents_missing_order", "automation_rules_empty_config", "email_templates_missing_subject", "bundles_no_items_dead_cta", "products_no_handle_unnavigable", "affiliate_applications_missing_fields", "email_templates_no_cta"];
+const COMPONENT_RULES = ["page_sections_missing_label", "products_missing_title", "products_missing_description", "categories_missing_label", "active_bundles_no_items", "inconsistent_product_images", "duplicate_section_display_order", "email_templates_no_cta", "product_tags_inconsistent_color"];
+const FLOW_RULES = ["products_missing_handle", "categories_missing_slug", "flows_analytics_events", "bundles_no_products_dead_cta", "required_legal_documents", "flow_chain_complete", "data_trace_pipeline", "ui_components_text_visible", "sellable_products_valid_price"];
+// ──────────────────────────────────────────────────────────────────────────
+
 // ── Helper: Normalize raw scanner issue to the standard active-detection structure ──
 // Guarantees every issue has: type, severity, location, description, expected_state, actual_state
 function normalizeIssue(raw: any, defaults: { type?: string; location?: string } = {}): any {
@@ -1050,7 +1061,7 @@ async function runDataIntegrityScan(supabase: any, scanRunId: string): Promise<a
 
   const durationMs = Date.now() - startMs;
   const normalizedIssues = issues.map(i => normalizeIssue(i));
-  const rulesApplied = ["work_items_without_source", "orphan_work_items_bug", "orphan_work_items_incident", "duplicate_work_items", "work_items_deleted_order", "status_mismatch_bug_resolved", "stale_claimed_items", "entity_required_fields", "id_trace_entities", "frontend_backend_mismatch"];
+  const rulesApplied = DATA_INTEGRITY_RULES;
   const emptyReason = normalizedIssues.length === 0 ? "no_detection" : undefined;
   await supabase.from("system_observability_log").insert({
     event_type: "scan_step", severity: normalizedIssues.filter(i => i.severity === "critical").length > 0 ? "warning" : "info",
@@ -1184,7 +1195,7 @@ async function runFunctionalBehaviorScan(supabase: any, scanRunId: string): Prom
     }
   } catch (memErr: any) { console.warn("Failure memory error:", memErr.message); }
 
-  const behaviorRules = ["create_work_item_verify", "bug_to_work_item", "incident_to_work_item", "status_sync_done_resolved", "dismiss_no_reappear", "order_lifecycle_closed", "incident_notification"];
+  const behaviorRules = BEHAVIOR_RULES;
   await supabase.from("system_observability_log").insert({
     event_type: "scan_step", severity: failures.filter(f => f.severity === "critical").length > 0 ? "warning" : "info",
     source: "scanner", message: `Functional behavior scan: ${failures.length} failures, ${retestResults.length} retests passed`,
@@ -1245,7 +1256,7 @@ async function runRealSyncScan(supabase: any, scanRunId: string): Promise<any> {
 
   const durationMs = Date.now() - startMs;
   const score = Math.max(0, 100 - issues.length * 5);
-  const syncRules = ["product_missing_title", "product_invalid_price", "active_product_no_image", "active_product_no_handle", "order_shipped_no_timestamp", "order_delivered_no_timestamp", "order_paid_cancelled", "affiliate_no_code", "duplicate_discount_codes"];
+  const syncRules = SYNC_RULES;
   const normalizedSyncIssues = issues.map(i => normalizeIssue({ ...i, type: i.type || (i.field ? "missing_data" : "mismatch"), expected_state: `${i.field || "field"} present and valid`, actual_state: i.title }, { location: i.component || "sync" }));
   return { issues: normalizedSyncIssues, mismatches: normalizedSyncIssues, total_issues: normalizedSyncIssues.length, sync_score: score, overall_score: score, issues_found: normalizedSyncIssues.length, input_size: syncRules.length, rules_applied: syncRules, ...(normalizedSyncIssues.length === 0 ? { _empty_reason: "no_detection" } : {}), duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
 }
@@ -1315,7 +1326,7 @@ async function runRealSystemScan(supabase: any, scanRunId: string): Promise<any>
 
   const durationMs = Date.now() - startMs;
   const score = Math.max(0, 100 - issues.length * 8);
-  const systemRules = ["open_bugs_threshold", "escalated_items_threshold", "errors_last_24h_threshold", "unread_notifications_threshold", "stale_escalated_items", "score_trend_regression"];
+  const systemRules = SYSTEM_RULES;
   const normalizedSystemIssues = issues.map(i => normalizeIssue({ ...i, type: i.type || "invalid_state", expected_state: `threshold not exceeded`, actual_state: i.title }, { location: i.component || "system" }));
   return { issues: normalizedSystemIssues, issues_found: normalizedSystemIssues.length, metrics, system_score: score, overall_score: score, input_size: Object.keys(metrics).length, rules_applied: systemRules, ...(normalizedSystemIssues.length === 0 ? { _empty_reason: "no_detection" } : {}), duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
 }
@@ -1365,7 +1376,7 @@ async function runRealFeatureDetection(supabase: any, scanRunId: string): Promis
   const working = features.filter(f => f.status === "working").length;
   const broken = features.filter(f => f.status !== "working").length;
   const score = Math.round((working / Math.max(1, features.length)) * 100);
-  const featureRules = ["table_accessible", "row_count_detected", "write_access_round_trip"];
+  const featureRules = FEATURE_RULES;
   const brokenFeatureIssues = features
     .filter(f => f.status !== "working")
     .map(f => normalizeIssue({ type: "invalid_state", severity: "high", location: f.component || f.name, description: `Feature "${f.name}" is ${f.status}: ${f.reason || "query failed"}`, expected_state: "working", actual_state: f.status, component: f.component || f.name, title: `Feature not working: "${f.name}"` }));
@@ -1452,7 +1463,7 @@ async function runRealInteractionQA(supabase: any, scanRunId: string): Promise<a
 
   const durationMs = Date.now() - startMs;
   const score = Math.max(0, 100 - issues.length * 6);
-  const interactionRules = ["bundle_items_orphan_bundle", "orphan_notifications_deleted_user", "incidents_missing_order", "automation_rules_empty_config", "email_templates_missing_subject", "bundles_no_items_dead_cta", "products_no_handle_unnavigable", "affiliate_applications_missing_fields", "email_templates_no_cta"];
+  const interactionRules = INTERACTION_RULES;
   const normalizedInteractionIssues = issues.map(i => normalizeIssue({ ...i, type: i.type || i._issue_type || "broken_flow", expected_state: `interaction element valid and linked`, actual_state: i.title }, { location: i.component || "interaction" }));
   return { issues: normalizedInteractionIssues, issues_found: normalizedInteractionIssues.length, dead_elements: normalizedInteractionIssues, interaction_score: score, overall_score: score, input_size: interactionRules.length, rules_applied: interactionRules, ...(normalizedInteractionIssues.length === 0 ? { _empty_reason: "no_detection" } : {}), duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
 }
@@ -1554,7 +1565,7 @@ async function runRealComponentMapScan(supabase: any, scanRunId: string): Promis
 
   const durationMs = Date.now() - startMs;
   const score = Math.max(0, 100 - issues.length * 5);
-  const componentRules = ["page_sections_missing_label", "products_missing_title", "products_missing_description", "categories_missing_label", "active_bundles_no_items", "inconsistent_product_images", "duplicate_section_display_order", "email_templates_no_cta", "product_tags_inconsistent_color"];
+  const componentRules = COMPONENT_RULES;
   const normalizedComponentIssues = issues.map(i => normalizeIssue({ ...i, type: i.type || (i.category === "ui_visual" ? "missing_data" : "invalid_state"), expected_state: `UI component valid and fully configured`, actual_state: i.title }, { location: i.component || "ui" }));
   return { issues: normalizedComponentIssues, issues_found: normalizedComponentIssues.length, components_scanned: componentsScanned, overall_score: score, input_size: componentsScanned, rules_applied: componentRules, ...(normalizedComponentIssues.length === 0 ? { _empty_reason: "no_detection" } : {}), duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
 }
@@ -1833,7 +1844,7 @@ async function runUiFlowIntegrityScan(supabase: any, scanRunId: string): Promise
 
   const durationMs = Date.now() - startMs;
   const score = Math.max(0, 100 - issues.length * 6);
-  const flowRules = ["products_missing_handle", "categories_missing_slug", "flows_analytics_events", "bundles_no_products_dead_cta", "required_legal_documents", "flow_chain_complete", "data_trace_pipeline", "ui_components_text_visible", "sellable_products_valid_price"];
+  const flowRules = FLOW_RULES;
   const normalizedFlowIssues = issues.map(i => normalizeIssue({ ...i, type: i.type || i._issue_type || "broken_flow", expected_state: `flow path valid and reachable`, actual_state: i.title }, { location: i.component || i.element || "flow" }));
   return { issues: normalizedFlowIssues, issues_found: normalizedFlowIssues.length, flows_scanned: flowsScanned, overall_score: score, input_size: flowsScanned, rules_applied: flowRules, ...(normalizedFlowIssues.length === 0 ? { _empty_reason: "no_detection" } : {}), duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
 }
