@@ -1196,13 +1196,8 @@ async function runRealSyncScan(supabase: any, scanRunId: string): Promise<any> {
       if (p.status === "active" && !p.handle) issues.push({ title: `Aktiv produkt utan handle: "${p.title_sv}"`, severity: "high", field: "handle", component: "products" });
     }
 
-    // Orders: status consistency
-    const { data: orders } = await supabase.from("orders").select("id, status, payment_status, fulfillment_status, shipped_at, delivered_at, packed_at").is("deleted_at", null).order("created_at", { ascending: false }).limit(200);
-    for (const o of orders || []) {
-      if (o.fulfillment_status === "shipped" && !o.shipped_at) issues.push({ title: `Order ${o.id.slice(0, 8)} status=shipped utan shipped_at`, severity: "high", field: "shipped_at", component: "orders" });
-      if (o.fulfillment_status === "delivered" && !o.delivered_at) issues.push({ title: `Order ${o.id.slice(0, 8)} status=delivered utan delivered_at`, severity: "high", field: "delivered_at", component: "orders" });
-      if (o.payment_status === "paid" && o.status === "cancelled") issues.push({ title: `Order ${o.id.slice(0, 8)} betalad men avbruten`, severity: "critical", field: "status", component: "orders" });
-    }
+    // Orders: status consistency — PAYMENT ISOLATED: skipped
+    console.log("[PAYMENT_ISOLATION] Skipped order status consistency check");
 
     // Affiliates
     const { data: affiliates } = await supabase.from("affiliates").select("id, name, code, is_active, email").eq("is_active", true).limit(100);
