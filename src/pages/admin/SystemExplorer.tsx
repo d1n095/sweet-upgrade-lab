@@ -13,6 +13,7 @@ import { Database, Activity, Bug, CheckCircle, AlertTriangle, Clock, Shield, Che
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import ReactMarkdown from "react-markdown";
+import { AI_ENABLED } from "@/config/ai";
 
 type WorkItem = {
   id: string;
@@ -1042,6 +1043,7 @@ const SystemExplorer = () => {
 
   const handleAiAnalyze = async () => {
     if (!aiQuery.trim() || aiLoading) return;
+    if (!AI_ENABLED) { console.log('[AI DISABLED]'); return; }
     setAiLoading(true);
     setAiAnswer(null);
     try {

@@ -27,6 +27,7 @@ import {
   DbCategory,
 } from '@/lib/categories';
 import type { LucideIcon } from 'lucide-react';
+import { AI_ENABLED } from '@/config/ai';
 
 const iconMap: Record<string, LucideIcon> = {
   Cpu, Shirt, Droplets, Flame, Sparkles, Gem, Bed, Grid, Tag, Leaf,
@@ -156,6 +157,7 @@ const AdminCategoryManager = () => {
     setAiSyncing(true);
     setAiResult(null);
     try {
+      if (!AI_ENABLED) { console.log('[AI DISABLED]'); return; }
       const { data, error } = await supabase.functions.invoke('ai-assistant', {
         body: { type: 'category_sync' },
       });
@@ -206,6 +208,7 @@ const AdminCategoryManager = () => {
     setAiValidating(true);
     setValidationResult(null);
     try {
+      if (!AI_ENABLED) { console.log('[AI DISABLED]'); return; }
       const { data, error } = await supabase.functions.invoke('ai-assistant', {
         body: { type: 'category_validate' },
       });
