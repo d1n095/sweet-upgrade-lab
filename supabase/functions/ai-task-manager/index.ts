@@ -237,42 +237,9 @@ Respond using the prioritize_tasks function.`,
         }
       }
 
-      // Stuck orders
-      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      const { data: stuckOrders } = await supabase
-        .from("orders")
-        .select("id, order_number, created_at, total_amount")
-        .eq("payment_status", "paid")
-        .in("fulfillment_status", ["pending", "unfulfilled"])
-        .is("deleted_at", null)
-        .lt("created_at", oneDayAgo)
-        .limit(10);
-
-      for (const order of stuckOrders || []) {
-        const { data: existingItem } = await supabase
-          .from("work_items")
-          .select("id")
-          .eq("related_order_id", order.id)
-          .eq("ai_detected", true)
-          .in("status", ["open", "claimed", "in_progress"])
-          .limit(1);
-
-        if (!existingItem?.length) {
-          await supabase.from("work_items").insert({
-            title: `AI: Order ${order.order_number || order.id.slice(0, 8)} väntar >24h`,
-            description: `Order betald ${order.created_at} (${order.total_amount} kr) men inte packad.`,
-            status: "open",
-            priority: order.total_amount >= 500 ? "critical" : "high",
-            item_type: "order_action",
-            source_type: "ai_detection",
-            related_order_id: order.id,
-            ai_detected: true,
-            ai_confidence: "high",
-            ai_category: "fulfillment",
-          });
-          results.detected++;
-        }
-      }
+      // PAYMENT ISOLATION: Stuck orders detection is DISABLED
+      // AI must not create work items related to orders/payments
+      console.log("[PAYMENT_ISOLATION] Skipped stuck orders detection (isolated)");
     }
 
     // ─── 4. AI RESOLUTION DETECTION ───
