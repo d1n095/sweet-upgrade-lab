@@ -87,7 +87,17 @@ interface UnifiedReport {
   raw_metrics?: Record<string, number>;
 }
 
+// ── AI kill-switch ─────────────────────────────────────────────────────────
+// Set to true to re-enable AI calls once credits are available.
+const AI_ENABLED = false;
+// ──────────────────────────────────────────────────────────────────────────
+
 const callAI = async (type: string, payload: Record<string, any> = {}) => {
+  if (!AI_ENABLED) {
+    console.log(`[AI DISABLED] Skipping AI call: ${type}`);
+    return null;
+  }
+
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) { toast.error('Ej inloggad'); return null; }
 
@@ -104,6 +114,7 @@ const callAI = async (type: string, payload: Record<string, any> = {}) => {
   );
 
   if (!resp.ok) {
+    console.warn('AI failed, continuing without it');
     const err = await resp.json().catch(() => ({}));
     if (resp.status === 429) toast.error('AI är överbelastad, försök igen om en stund');
     else if (resp.status === 402) toast.error('AI-krediter slut');
@@ -116,6 +127,10 @@ const callAI = async (type: string, payload: Record<string, any> = {}) => {
 };
 
 const callTaskManager = async (action: string) => {
+  if (!AI_ENABLED) {
+    console.log(`[AI DISABLED] Skipping AI task manager call: ${action}`);
+    return null;
+  }
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) { toast.error('Ej inloggad'); return null; }
 

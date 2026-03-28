@@ -52,33 +52,6 @@ interface ScannerState {
   runAllScans: (queryClient?: QueryClient) => Promise<void>;
 }
 
-const callAIForScan = async (type: string, payload: Record<string, any> = {}) => {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error('Ej inloggad');
-
-  const resp = await fetch(
-    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ type, ...payload }),
-    }
-  );
-
-  if (!resp.ok) {
-    if (resp.status === 429) throw new Error('AI är överbelastad');
-    if (resp.status === 402) throw new Error('AI-krediter slut');
-    const err = await resp.json().catch(() => ({}));
-    throw new Error(err.error || `AI-fel (${resp.status})`);
-  }
-
-  const data = await resp.json();
-  return data.result;
-};
-
 export const useScannerStore = create<ScannerState>((set, get) => ({
   scanning: false,
   steps: [],
@@ -132,36 +105,46 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
     trace('issue_detected', 'ScannerStore', `Starting scan (${toRun.length} steps)`, { traceId: debugTraceId, details: { steps: toRun.map(s => s.type) } });
     observeAction(`Startar snabbskanning (${toRun.length} steg)`, { trace_id: traceId, source: 'scanner' });
 
-    await Promise.allSettled(
-      toRun.map(async (step, i) => {
-        const start = Date.now();
-        try {
-          const res = await callAIForScan(
-            step.type,
-            step.type === 'content_validation' ? { auto_fix: false } : {}
-          );
+    const start = Date.now();
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Ej inloggad');
 
-          if (res) {
-            const duration_ms = Date.now() - start;
-            trace('scan_update', 'ScannerStore', `Step done: ${step.label} (${duration_ms}ms)`, { traceId: debugTraceId, details: { stepType: step.type, duration_ms } });
-            observeScanStep(`Steg klart: ${step.label}`, { trace_id: traceId, component: step.type, duration_ms });
-            set(state => ({
-              steps: state.steps.map((s, idx) => idx === i ? { ...s, status: 'done' as const, result: res, duration_ms } : s),
-            }));
-          } else {
-            observeError(`Inget resultat: ${step.label}`, undefined, { trace_id: traceId, component: step.type, duration_ms: Date.now() - start });
-            set(state => ({
-              steps: state.steps.map((s, idx) => idx === i ? { ...s, status: 'error' as const, error: 'Inget resultat', duration_ms: Date.now() - start } : s),
-            }));
-          }
-        } catch (err: any) {
-          observeError(`Skanningsfel: ${step.label}`, err, { trace_id: traceId, component: step.type, duration_ms: Date.now() - start });
-          set(state => ({
-            steps: state.steps.map((s, idx) => idx === i ? { ...s, status: 'error' as const, error: err?.message || 'Fel', duration_ms: Date.now() - start } : s),
-          }));
+      const resp = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/run-full-scan`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ action: 'start' }),
         }
-      })
-    );
+      );
+
+      const result = await resp.json();
+      const duration_ms = Date.now() - start;
+
+      if (result.success) {
+        trace('scan_update', 'ScannerStore', `Scan started (${duration_ms}ms)`, { traceId: debugTraceId, details: { scan_id: result.scan_id } });
+        observeScanStep('Skanning startad', { trace_id: traceId, component: 'run-full-scan', duration_ms });
+        set(state => ({
+          steps: state.steps.map(s => ({ ...s, status: 'done' as const, result, duration_ms })),
+        }));
+      } else {
+        const errMsg = result.error || 'Skanningsfel';
+        observeError('Skanningsfel', undefined, { trace_id: traceId, component: 'run-full-scan', duration_ms });
+        set(state => ({
+          steps: state.steps.map(s => ({ ...s, status: 'error' as const, error: errMsg, duration_ms })),
+        }));
+      }
+    } catch (err: any) {
+      const duration_ms = Date.now() - start;
+      observeError('Skanningsfel', err, { trace_id: traceId, component: 'run-full-scan', duration_ms });
+      set(state => ({
+        steps: state.steps.map(s => ({ ...s, status: 'error' as const, error: err?.message || 'Fel', duration_ms })),
+      }));
+    }
 
     observeAction(`Snabbskanning klar (${toRun.length} steg)`, { trace_id: traceId, source: 'scanner' });
     flushObservabilityBuffer();

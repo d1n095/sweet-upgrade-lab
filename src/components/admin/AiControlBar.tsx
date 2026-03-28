@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import { Radar, Bot, Bug, Play, Pause, Loader2 } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Radar, Bug } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
@@ -18,7 +16,6 @@ const AiControlBar = ({ onNavigateTab, compact = false }: AiControlBarProps) => 
   const navigate = useNavigate();
   const location = useLocation();
   const [bugCount, setBugCount] = useState(0);
-  const [autopilotOn, setAutopilotOn] = useState(false);
   const [scanRunning, setScanRunning] = useState(false);
 
   const isOnAiPage = location.pathname === '/admin/ai';
@@ -55,14 +52,6 @@ const AiControlBar = ({ onNavigateTab, compact = false }: AiControlBarProps) => 
     }
   };
 
-  const toggleAutopilot = () => {
-    setAutopilotOn(prev => !prev);
-    // If turning on and on AI page, navigate to autopilot tab
-    if (!autopilotOn) {
-      goToTab('autopilot');
-    }
-  };
-
   return (
     <div className={cn(
       'flex items-center gap-1 rounded-lg border border-border bg-secondary/30 px-1 py-0.5',
@@ -85,46 +74,6 @@ const AiControlBar = ({ onNavigateTab, compact = false }: AiControlBarProps) => 
           </Button>
         </TooltipTrigger>
         <TooltipContent side="bottom">Full skanning</TooltipContent>
-      </Tooltip>
-
-      {/* Lova Chat */}
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gap-1.5 h-7 text-xs px-2"
-            onClick={() => goToTab('lova-chat')}
-          >
-            <Bot className="w-3.5 h-3.5" />
-            <span className="hidden lg:inline">Lova</span>
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side="bottom">Lova AI Chat</TooltipContent>
-      </Tooltip>
-
-      {/* Autopilot toggle */}
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            onClick={toggleAutopilot}
-            className={cn(
-              'flex items-center gap-1.5 h-7 px-2 rounded-md text-xs font-medium transition-colors',
-              autopilotOn
-                ? 'bg-green-500/10 text-green-600 hover:bg-green-500/20'
-                : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
-            )}
-          >
-            {autopilotOn ? <Play className="w-3.5 h-3.5" /> : <Pause className="w-3.5 h-3.5" />}
-            <span className="hidden lg:inline">Autopilot</span>
-            {autopilotOn && (
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-            )}
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="bottom">
-          Autopilot {autopilotOn ? 'PÅ' : 'AV'}
-        </TooltipContent>
       </Tooltip>
 
       {/* Bugs */}
