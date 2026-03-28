@@ -97,6 +97,28 @@ function groupSimilarIssues(issues: any[]): any[] {
   return result;
 }
 
+// ── PAYMENT ISOLATION: AI must NOT touch payment/checkout/stripe systems ──
+const PAYMENT_ISOLATION_PATTERNS = [
+  /payment/i, /checkout/i, /stripe/i, /create-checkout/i,
+  /payment_status/i, /payment_intent/i, /payment_method/i,
+  /betalning/i, /kassa/i, /betald/i, /betalad/i,
+];
+
+function isPaymentRelated(issue: any): boolean {
+  const text = JSON.stringify(issue || {});
+  return PAYMENT_ISOLATION_PATTERNS.some(p => p.test(text));
+}
+
+function filterPaymentIsolated(issues: any[]): any[] {
+  return issues.filter(issue => {
+    if (isPaymentRelated(issue)) {
+      console.log(`[PAYMENT_ISOLATION] Filtered out: ${issue.title || issue.description || "unknown"}`);
+      return false;
+    }
+    return true;
+  });
+}
+
 // ── Context-aware filtering: suppress false positives based on stage ──
 // DEBUG MODE: Relaxed — only suppress clearly invalid/placeholder patterns
 function filterDevFalsePositives(issues: any[], stage: SystemStage): any[] {
