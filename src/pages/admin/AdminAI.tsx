@@ -87,13 +87,15 @@ interface UnifiedReport {
   raw_metrics?: Record<string, number>;
 }
 
-const callAI = async (type: string, payload: Record<string, any> = {}) => {
-  // ── HARD BLOCK: all direct AI calls are disabled ──────────────────
+// ── callAI: HARD BLOCK — all direct AI calls are disabled ──
+// Use run-full-scan as the only entry point for scan operations.
+const callAI = async (type: string, _payload: Record<string, any> = {}) => {
   console.log("[AI COST CALL BLOCKED FROM]: AdminAI.tsx — type:", type);
-  toast.error('AI-anrop blockerat. Använd run-full-scan som enda ingångspunkt.');
+  toast.info('Scan-operationer körs via Scan & Data Center → Full skanning.');
   return null;
-  // ─────────────────────────────────────────────────────────────────
+};
 
+// ── callTaskManager: invokes rule-based task manager (zero AI) ──
 const callTaskManager = async (action: string) => {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) { toast.error('Ej inloggad'); return null; }
@@ -112,7 +114,7 @@ const callTaskManager = async (action: string) => {
 
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({}));
-    toast.error(err.error || 'AI Task Manager-fel');
+    toast.error(err.error || 'Task Manager-fel');
     return null;
   }
 
@@ -4199,11 +4201,11 @@ Förslag: ${issue.fix_suggestion}`,
                             </div>
                           </div>
 
-                          {/* AI Analysis & Decision section */}
+                          {/* Scan Results & Decision section */}
                           {state.aiAnalysis && (
                             <div className="border rounded-lg p-3 bg-card space-y-3">
                               <div className="flex items-center justify-between">
-                                <p className="text-[10px] font-semibold text-primary uppercase tracking-wider flex items-center gap-1"><Bot className="w-3 h-3" /> AI-analys & beslut</p>
+                                <p className="text-[10px] font-semibold text-primary uppercase tracking-wider flex items-center gap-1"><Bot className="w-3 h-3" /> Scanresultat & beslut</p>
                                 {state.aiDecision && (
                                   <Badge variant={state.aiDecision === 'auto_fix' ? 'default' : state.aiDecision === 'ignore' ? 'outline' : 'secondary'} className="text-[10px]">
                                     {state.aiDecision === 'auto_fix' ? '⚡ Auto-fix' : state.aiDecision === 'ignore' ? '⏭️ Ignorera' : '📝 Kräver prompt'}
@@ -6588,7 +6590,7 @@ const AiUserManagementTab = () => {
     try {
       const data = await callMgmt({ action: 'ai_analyze' });
       if (data) setRecommendations(data);
-      toast.success(`AI-analys klar: ${data?.recommendations?.length || 0} rekommendationer`);
+      toast.success(`Scanresultat klar: ${data?.recommendations?.length || 0} rekommendationer`);
     } catch (e: any) { toast.error(e.message); }
     setAnalyzing(false);
   };
@@ -6695,7 +6697,7 @@ const AiUserManagementTab = () => {
         <div className="flex gap-2">
           <Button onClick={analyzeUsers} disabled={analyzing || users.length === 0} size="sm" variant="outline" className="gap-1">
             {analyzing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Brain className="w-3 h-3" />}
-            {analyzing ? 'Analyserar...' : 'AI-analys'}
+            {analyzing ? 'Analyserar...' : 'Scanresultat'}
           </Button>
           <Button onClick={loadUsers} disabled={loading} size="sm" className="gap-1">
             {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
@@ -8095,7 +8097,7 @@ const OrchestrationTab = () => {
           <div data-value="insights"><DataInsightsTab /></div>
 
           {/* Operations */}
-          <div data-value="lova-chat"><LovaChatTab /></div>
+          <div data-value="scan-center"><LovaChatTab /></div>
           <div data-value="autopilot"><AiAutopilotTab /></div>
           <div data-value="actions"><ActionEngineTab /></div>
           <div data-value="tasks"><TaskAITab /></div>
@@ -8117,7 +8119,7 @@ const OrchestrationTab = () => {
           <div data-value="data-flow"><DataFlowValidator /></div>
           <div data-value="cleanup"><DataCleanupTab /></div>
           <div data-value="change-log"><ChangeLogTab /></div>
-          <div data-value="ai-reads"><AdminAiReadLog /></div>
+          <div data-value="scan-logs"><AdminAiReadLog /></div>
         </AiCenterTabs>
       </div>
 

@@ -49,7 +49,7 @@ const AiControlBar = ({ onNavigateTab, compact = false }: AiControlBarProps) => 
     } else if (isOnAiPage) {
       // Already on AI page but no handler - use URL param
       navigate(`/admin/ai?tab=${tab}`, { replace: true });
-      window.dispatchEvent(new CustomEvent('ai-center-navigate', { detail: tab }));
+      window.dispatchEvent(new CustomEvent('scan-center-navigate', { detail: tab }));
     } else {
       navigate(`/admin/ai?tab=${tab}`);
     }
@@ -87,20 +87,20 @@ const AiControlBar = ({ onNavigateTab, compact = false }: AiControlBarProps) => 
         <TooltipContent side="bottom">Full skanning</TooltipContent>
       </Tooltip>
 
-      {/* Lova Chat */}
+      {/* Scan Center */}
       <Tooltip>
         <TooltipTrigger asChild>
           <Button
             variant="ghost"
             size="sm"
             className="gap-1.5 h-7 text-xs px-2"
-            onClick={() => goToTab('lova-chat')}
+            onClick={() => goToTab('scan-center')}
           >
             <Bot className="w-3.5 h-3.5" />
-            <span className="hidden lg:inline">Lova</span>
+            <span className="hidden lg:inline">Scan</span>
           </Button>
         </TooltipTrigger>
-        <TooltipContent side="bottom">Lova AI Chat</TooltipContent>
+        <TooltipContent side="bottom">Scan Center</TooltipContent>
       </Tooltip>
 
       {/* Autopilot toggle */}

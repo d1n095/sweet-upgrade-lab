@@ -1300,6 +1300,29 @@ async function runRealSystemScan(supabase: any, scanRunId: string): Promise<any>
 
   } catch (e: any) { issues.push({ title: `System scan error: ${e.message}`, severity: "critical", component: "system_scan" }); }
 
+  // ── AI CODE DETECTION RULE ──
+  // Scan for work_items or scan results that reference AI libraries or API calls.
+  // These represent potential AI cost leaks that must be removed.
+  try {
+    const AI_FORBIDDEN = ["openai", "anthropic", "gpt", "claude", "lovable_key", "ai.gateway"];
+    const { data: aiWorkItems } = await supabase
+      .from("work_items")
+      .select("id, title, description")
+      .or(AI_FORBIDDEN.map((k) => `title.ilike.%${k}%,description.ilike.%${k}%`).join(","))
+      .limit(20);
+
+    for (const item of aiWorkItems || []) {
+      issues.push({
+        title: `AI CODE DETECTED in work item: "${(item.title || "").slice(0, 60)}" (REMOVE)`,
+        severity: "high",
+        component: "ai_cleanup",
+        entity_id: item.id,
+        type: "ai_code_detected",
+        fix_suggestion: "Remove AI references and replace with rule-based logic",
+      });
+    }
+  } catch (_) {}
+
   const durationMs = Date.now() - startMs;
   const score = Math.max(0, 100 - issues.length * 8);
   return { issues, issues_found: issues.length, metrics, system_score: score, overall_score: score, duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };

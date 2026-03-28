@@ -110,3 +110,28 @@ export function getIsolationReport(): {
     violations: [..._violations],
   };
 }
+
+// ── GLOBAL AI USAGE BLOCKER ──────────────────────────────────────────
+/**
+ * Checks a code string for any forbidden AI library references.
+ * Returns true (blocked) if any forbidden keyword is found.
+ * Throws an error if blocking is enforced.
+ *
+ * Usage:
+ *   if (blockAIUsage(codeString)) throw new Error("AI USAGE NOT ALLOWED");
+ */
+export function blockAIUsage(code: string): boolean {
+  const forbidden = ["openai", "anthropic", "gpt", "claude", "lovable_key", "LOVABLE_API_KEY", "ai.gateway.lovable"];
+  const lower = code.toLowerCase();
+  const detected = forbidden.filter((word) => lower.includes(word.toLowerCase()));
+
+  if (detected.length > 0) {
+    const message = `AI USAGE NOT ALLOWED — detected forbidden keywords: ${detected.join(", ")}`;
+    recordAiViolation("blockAIUsage", "global-guard", message);
+    console.error(`[GLOBAL AI BLOCK] ${message}`);
+    return true;
+  }
+
+  return false;
+}
+// ─────────────────────────────────────────────────────────────────────

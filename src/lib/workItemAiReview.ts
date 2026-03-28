@@ -1,65 +1,77 @@
 import { supabase } from '@/integrations/supabase/client';
-import { SYSTEM_FLAGS } from '@/config/systemFlags';
-import { recordAiViolation } from '@/ai/aiIsolationGuard';
 
-type AiReviewStatus = 'verified' | 'needs_review' | 'incomplete' | 'pending' | null;
+// ── WORK ITEM REVIEW — Rule-based (zero AI) ──
+// AI review is disabled. Reviews are performed with deterministic rules only.
 
-interface TriggerAiReviewOptions {
+type ReviewStatus = 'verified' | 'needs_review' | 'incomplete' | 'pending' | null;
+
+interface TriggerReviewOptions {
   context?: string;
 }
 
-interface TriggerAiReviewResult {
+interface TriggerReviewResult {
   ok: boolean;
-  status: AiReviewStatus;
+  status: ReviewStatus;
   review?: any;
   error?: string;
 }
 
+/**
+ * Rule-based review for a work item.
+ * Previously called ai-review-fix; now uses deterministic status checks only.
+ */
 export const triggerAiReviewForWorkItem = async (
   workItemId: string,
-  options: TriggerAiReviewOptions = {}
-): Promise<TriggerAiReviewResult> => {
+  options: TriggerReviewOptions = {}
+): Promise<TriggerReviewResult> => {
   const context = options.context || 'unknown';
 
-  // ── AI ISOLATION GUARD ──────────────────────────────────────────────
-  if (!SYSTEM_FLAGS.AI_ENABLED) {
-    recordAiViolation('workItemAiReview.ts', 'triggerAiReviewForWorkItem', context);
-    return { ok: false, status: 'needs_review', error: 'AI_DISABLED' };
-  }
-  // ────────────────────────────────────────────────────────────────────
-
-  console.info('[ai-review] trigger', { workItemId, context });
+  console.info('[review] rule-based trigger', { workItemId, context });
 
   try {
-    const { data, error } = await supabase.functions.invoke('ai-review-fix', {
-      body: { work_item_id: workItemId },
-    });
+    // Fetch work item
+    const { data: item, error } = await supabase
+      .from('work_items')
+      .select('id, status, title, description, verification_status, verification_scans_checked')
+      .eq('id', workItemId)
+      .single();
 
-    if (error) throw error;
+    if (error || !item) {
+      return { ok: false, status: 'needs_review', error: 'Work item not found' };
+    }
 
-    const review = (data as any)?.review;
-    const status = (review?.status as AiReviewStatus) ?? null;
+    // Rule-based status determination
+    let status: ReviewStatus = 'needs_review';
 
-    console.info('[ai-review] complete', { workItemId, context, status });
-    return { ok: true, status, review };
-  } catch (err: any) {
-    const message = err?.message || 'Unknown AI review error';
-    console.error('[ai-review] failed', { workItemId, context, message });
+    if (item.status === 'done' && (item.verification_scans_checked ?? 0) >= 2) {
+      status = 'verified';
+    } else if (item.status === 'done') {
+      status = 'pending';
+    } else if (['open', 'claimed', 'in_progress'].includes(item.status)) {
+      status = 'needs_review';
+    }
 
+    // Update work item with rule-based review result
     await supabase
       .from('work_items')
       .update({
-        ai_review_status: 'needs_review',
+        ai_review_status: status,
         ai_review_result: {
-          status: 'needs_review',
-          verdict: `AI-granskning misslyckades (${context})`,
-          confidence: 0,
-          error: message,
+          status,
+          verdict: `Regelbaserad granskning (${context})`,
+          confidence: status === 'verified' ? 85 : 40,
+          mode: 'rule_based',
+          checked_at: new Date().toISOString(),
         },
         ai_review_at: new Date().toISOString(),
       } as any)
       .eq('id', workItemId);
 
+    console.info('[review] rule-based complete', { workItemId, context, status });
+    return { ok: true, status };
+  } catch (err: any) {
+    const message = err?.message || 'Unknown review error';
+    console.error('[review] failed', { workItemId, context, message });
     return { ok: false, status: 'needs_review', error: message };
   }
 };

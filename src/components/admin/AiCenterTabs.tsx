@@ -48,7 +48,7 @@ const TAB_GROUPS: TabGroup[] = [
     label: 'Operations',
     icon: Wrench,
     tabs: [
-      { value: 'lova-chat', label: 'Lova Chat', icon: Bot },
+      { value: 'scan-center', label: 'Skanncenter', icon: Bot },
       { value: 'autopilot', label: 'Autopilot', icon: Play },
       { value: 'actions', label: 'Åtgärder', icon: TrendingUp },
       { value: 'tasks', label: 'Uppgifter', icon: Layers },
@@ -78,7 +78,7 @@ const TAB_GROUPS: TabGroup[] = [
       { value: 'data-flow', label: 'Dataflöde', icon: ArrowRightLeft },
       { value: 'cleanup', label: 'Rensning', icon: Database },
       { value: 'change-log', label: 'Ändringslogg', icon: Clock },
-      { value: 'ai-reads', label: 'AI-läslogg', icon: Eye },
+      { value: 'scan-logs', label: 'Scan-logg', icon: Eye },
     ],
   },
 ];
@@ -96,7 +96,7 @@ interface DashboardOverviewProps {
 }
 
 const quickActions = [
-  { label: 'Prata med Lova', icon: Bot, tab: 'lova-chat', color: 'text-primary' },
+  { label: 'System Insights', icon: Bot, tab: 'scan-center', color: 'text-primary' },
   { label: 'Full skanning', icon: Radar, tab: 'scan', color: 'text-blue-500' },
   { label: 'Autopilot', icon: Play, tab: 'autopilot', color: 'text-green-500' },
   { label: 'Buggar', icon: Bug, tab: 'bugs', color: 'text-destructive' },
@@ -195,8 +195,8 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
         handleNavigate(tab);
       }
     };
-    window.addEventListener('ai-center-navigate', handler);
-    return () => window.removeEventListener('ai-center-navigate', handler);
+    window.addEventListener('scan-center-navigate', handler);
+    return () => window.removeEventListener('scan-center-navigate', handler);
   }, []);
 
   // Sync with URL param changes
@@ -361,7 +361,7 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
               <div className="h-12 px-3 border-b border-border flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-semibold">AI Center</span>
+                  <span className="text-sm font-semibold">Scan & Data Center</span>
                 </div>
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setMobileNavOpen(false)}>
                   <X className="w-4 h-4" />
@@ -381,7 +381,7 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
           {activeTab !== 'ai-dashboard' && activeTabDef && (
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-4 pt-1 shrink-0">
               <button onClick={() => handleNavigate('ai-dashboard')} className="hover:text-foreground transition-colors">
-                AI Center
+                Scan & Data Center
               </button>
               <ChevronRight className="w-3 h-3" />
               <span className="text-foreground font-medium">{activeTabDef.label}</span>

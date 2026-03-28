@@ -1147,7 +1147,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
             <Bot className="w-4 h-4" /> {runningAutomation ? 'Kör...' : 'Automation'}
           </Button>
           <Button size="sm" variant="outline" className="gap-1.5" onClick={runOrchestrator} disabled={runningOrchestrator}>
-            <Layers className="w-4 h-4" /> {runningOrchestrator ? 'Analyserar...' : 'AI Orchestrator'}
+            <Layers className="w-4 h-4" /> {runningOrchestrator ? 'Analyserar...' : 'Task Organizer'}
           </Button>
           <Button size="sm" variant="outline" className="gap-1.5" onClick={runValidation} disabled={runningValidation}>
             <CheckCircle2 className="w-4 h-4" /> {runningValidation ? 'Validerar...' : 'Validera & Städa'}
