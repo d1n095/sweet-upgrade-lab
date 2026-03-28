@@ -53,36 +53,9 @@ interface ScannerState {
   runAllScans: (queryClient?: QueryClient) => Promise<void>;
 }
 
-const callAIForScan = async (type: string, payload: Record<string, any> = {}) => {
-  if (!AI_ENABLED) {
-    console.log('[AI DISABLED]');
-    return null;
-  }
-
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error('Ej inloggad');
-
-  const resp = await fetch(
-    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ type, ...payload }),
-    }
-  );
-
-  if (!resp.ok) {
-    if (resp.status === 429) throw new Error('AI är överbelastad');
-    if (resp.status === 402) throw new Error('AI-krediter slut');
-    const err = await resp.json().catch(() => ({}));
-    throw new Error(err.error || `AI-fel (${resp.status})`);
-  }
-
-  const data = await resp.json();
-  return data.result;
+const callAIForScan = async (_type: string, _payload: Record<string, any> = {}) => {
+  // AI permanently removed
+  return null;
 };
 
 export const useScannerStore = create<ScannerState>((set, get) => ({

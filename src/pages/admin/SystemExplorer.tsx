@@ -1042,22 +1042,8 @@ const SystemExplorer = () => {
   const toggleGroup = (key: string) => setExpandedGroups((prev) => ({ ...prev, [key]: !prev[key] }));
 
   const handleAiAnalyze = async () => {
-    if (!aiQuery.trim() || aiLoading) return;
-    if (!AI_ENABLED) { console.log('[AI DISABLED]'); return; }
-    setAiLoading(true);
-    setAiAnswer(null);
-    try {
-      const focusSuffix = aiFocusArea ? ` [FOCUS AREA: ${aiFocusArea} — prioritize issues and scans within this area]` : "";
-      const { data, error } = await tracedInvoke("ai-assistant", {
-        body: { type: "system_explorer_query", question: aiQuery.trim() + focusSuffix },
-      });
-      if (error) throw error;
-      setAiAnswer(data?.result?.answer || "Inget svar.");
-    } catch (e: any) {
-      setAiAnswer(`Fel: ${e.message || "Kunde inte analysera."}`);
-    } finally {
-      setAiLoading(false);
-    }
+    // AI permanently removed
+    return;
   };
 
   const priorityColor = (p: string) => {

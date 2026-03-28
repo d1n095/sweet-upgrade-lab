@@ -223,22 +223,8 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const runOrchestrator = async () => {
     setRunningOrchestrator(true);
     try {
-      if (!AI_ENABLED) { console.log('[AI DISABLED]'); return; }
-      const { data, error } = await supabase.functions.invoke('ai-task-manager', { body: { action: 'orchestrate' } });
-      if (error) throw error;
-      const r = data?.results;
-      const scanned = r?.orchestrator_scanned || 0;
-      const orchestrated = r?.orchestrated || 0;
-
-      if (scanned === 0) {
-        toast.info('Orchestrator: inga aktiva uppgifter hittades');
-      } else if (orchestrated === 0) {
-        toast.warning(`Orchestrator skannade ${scanned} uppgifter men kunde inte ordna dem automatiskt`);
-      } else {
-        toast.success(`Orchestrator klar: ${orchestrated}/${scanned} uppgifter ordnade (${r?.orchestrator_mode || 'ai'})`);
-      }
-
-      queryClient.invalidateQueries({ queryKey: ['work-items'] });
+      // AI permanently removed
+      toast.info('Orchestrator: AI är borttagen');
     } catch (e: any) {
       toast.error('Orchestrator misslyckades: ' + e.message);
     } finally {
