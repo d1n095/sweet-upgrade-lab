@@ -584,9 +584,23 @@ export const useAiQueueStore = create<AiQueueState>((set, get) => ({
 
         if (nextTask.executor) {
           const taskWithSnapshot = { ...nextTask, preSnapshot };
+
+          console.log("[EXECUTOR START]", {
+            id: nextTask.id,
+            type: (nextTask as any).type,
+          });
+
+          // STEP 4 — OPTIONAL HARD BLOCK: uncomment the line below to disable all executors
+          // throw new Error("EXECUTOR DISABLED");
+
           taskWithSnapshot
             .executor!()
             .then(async (result) => {
+              console.log("[EXECUTOR END]", {
+                id: nextTask.id,
+                result,
+              });
+
               set((s) => ({
                 tasks: s.tasks.map((t) =>
                   t.id === nextTask.id ? { ...t, status: 'validating' as const, result } : t
