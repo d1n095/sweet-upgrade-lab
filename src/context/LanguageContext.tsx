@@ -1,6 +1,9 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
-export type Language = 'sv' | 'en' | 'no' | 'da' | 'de' | 'fi' | 'nl' | 'fr' | 'es' | 'pl';
+export type Language =
+  | 'sv' | 'en' | 'no' | 'da' | 'de' | 'fi' | 'nl' | 'fr' | 'es' | 'pl'
+  | 'it' | 'pt' | 'ro' | 'cs' | 'hu' | 'el' | 'sk' | 'bg' | 'hr' | 'sl'
+  | 'lt' | 'lv' | 'et' | 'mt' | 'ga';
 
 /**
  * Maps any Language to 'sv' or 'en' for components that only have those two content sets.
@@ -22,6 +25,21 @@ interface TranslationEntry {
   fr?: string;
   es?: string;
   pl?: string;
+  it?: string;
+  pt?: string;
+  ro?: string;
+  cs?: string;
+  hu?: string;
+  el?: string;
+  sk?: string;
+  bg?: string;
+  hr?: string;
+  sl?: string;
+  lt?: string;
+  lv?: string;
+  et?: string;
+  mt?: string;
+  ga?: string;
 }
 
 interface Translations {
@@ -220,7 +238,11 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
   const [language, setLanguage] = useState<Language>(() => {
     try {
       const saved = localStorage.getItem('preferred-language') as Language | null;
-      const valid: Language[] = ['sv', 'en', 'no', 'da', 'de', 'fi', 'nl', 'fr', 'es', 'pl'];
+      const valid: Language[] = [
+        'sv', 'en', 'no', 'da', 'de', 'fi', 'nl', 'fr', 'es', 'pl',
+        'it', 'pt', 'ro', 'cs', 'hu', 'el', 'sk', 'bg', 'hr', 'sl',
+        'lt', 'lv', 'et', 'mt', 'ga',
+      ];
       return saved && valid.includes(saved) ? saved : 'sv';
     } catch {
       return 'sv';
