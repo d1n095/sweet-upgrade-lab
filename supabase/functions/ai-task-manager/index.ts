@@ -186,13 +186,15 @@ Respond using the prioritize_tasks function.`,
     }
 
     // ─── 3. AI AUTO-DETECTION ───
+    // PAYMENT ISOLATION: AI is blocked from detecting/creating payment/checkout/stripe issues
     if (action === "full_cycle" || action === "detect") {
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
 
+      // Only detect page_error — checkout_abandon and payment_error are ISOLATED
       const { data: recentErrors } = await supabase
         .from("analytics_events")
         .select("event_type, event_data, created_at")
-        .in("event_type", ["checkout_abandon", "payment_error", "page_error"])
+        .in("event_type", ["page_error"])
         .gte("created_at", oneHourAgo)
         .limit(100);
 
@@ -204,6 +206,12 @@ Respond using the prioritize_tasks function.`,
       for (const [eventType, count] of Object.entries(errorCounts)) {
         if (count < 3) continue;
 
+        // PAYMENT ISOLATION: Skip any payment/checkout related events
+        if (/payment|checkout|stripe|betalning|kassa/i.test(eventType)) {
+          console.log(`[PAYMENT_ISOLATION] Skipped detection for: ${eventType}`);
+          continue;
+        }
+
         const { data: existing } = await supabase
           .from("work_items")
           .select("id")
@@ -214,19 +222,16 @@ Respond using the prioritize_tasks function.`,
           .limit(1);
 
         if (!existing?.length) {
-          const priority = eventType.includes("payment") || eventType.includes("checkout")
-            ? "critical" : "high";
-
           await supabase.from("work_items").insert({
             title: `AI: ${count}x ${eventType} senaste timmen`,
             description: `Automatiskt detekterat: ${count} ${eventType}-händelser under senaste timmen.`,
             status: "open",
-            priority,
+            priority: "high",
             item_type: "anomaly",
             source_type: "ai_detection",
             ai_detected: true,
-            ai_confidence: priority === "critical" ? "high" : "medium",
-            ai_category: eventType.includes("payment") ? "payment" : eventType.includes("checkout") ? "checkout" : "system",
+            ai_confidence: "medium",
+            ai_category: "system",
           });
           results.detected++;
         }

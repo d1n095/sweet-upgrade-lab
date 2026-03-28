@@ -2622,6 +2622,26 @@ serve(async (req) => {
       unified.interaction_failures = filterDevFalsePositives(unified.interaction_failures, systemStage);
       unified.data_issues = filterDevFalsePositives(unified.data_issues, systemStage);
 
+      // ── PAYMENT ISOLATION: Remove all payment/checkout/stripe issues from scan ──
+      console.log("[PAYMENT_ISOLATION] Filtering payment-related issues from all categories...");
+      const preFilterCounts = {
+        broken_flows: unified.broken_flows.length,
+        interaction_failures: unified.interaction_failures.length,
+        data_issues: unified.data_issues.length,
+      };
+      unified.broken_flows = filterPaymentIsolated(unified.broken_flows);
+      unified.interaction_failures = filterPaymentIsolated(unified.interaction_failures);
+      unified.data_issues = filterPaymentIsolated(unified.data_issues);
+      const postFilterCounts = {
+        broken_flows: unified.broken_flows.length,
+        interaction_failures: unified.interaction_failures.length,
+        data_issues: unified.data_issues.length,
+      };
+      const totalFiltered = (preFilterCounts.broken_flows - postFilterCounts.broken_flows) +
+        (preFilterCounts.interaction_failures - postFilterCounts.interaction_failures) +
+        (preFilterCounts.data_issues - postFilterCounts.data_issues);
+      console.log(`[PAYMENT_ISOLATION] Removed ${totalFiltered} payment-related issues`);
+
       // Merge integrity issues
       for (const issue of integrityResult.issues || []) {
         unified.data_issues.push({ title: issue.title, description: issue.description, severity: issue.severity, type: issue.type, entity: issue.entity, entity_id: issue.entity_id, step: issue.step, root_cause: issue.root_cause, source: "integrity_scan", component: issue.component || "integrity" });
