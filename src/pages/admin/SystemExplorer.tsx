@@ -257,52 +257,6 @@ const SystemExplorer = () => {
     setSearchResults(results.slice(0, 50));
   }
 
-  async function runSystemScan(mode: string) {
-    if (isScanning) {
-      console.warn("Scan already running");
-      return;
-    }
-    setIsScanning(true);
-    logAction({ type: "SCAN", status: "started", mode });
-    try {
-      if (mode === "files") {
-        const files = Object.keys(getRawSources() || {});
-        const result = {
-          total: files.length,
-          empty: files.filter(f => !getRawSources()[f]?.trim()).length
-        };
-        setFileScanResult({ total: result.total, emptyFiles: result.empty, largeFiles: 0 });
-        logAction({ type: "SCAN", status: "success", mode });
-      }
-      if (mode === "code") {
-        const results: { type: string; message: string; file: string }[] = [];
-        Object.entries(getRawSources() || {}).forEach(([path, content]) => {
-          const issues = scanFileContent(path, content as string);
-          results.push(...issues);
-        });
-        console.log("[FILE ISSUES FOUND]:", results.length);
-        setCodeScanResult(results);
-        logAction({ type: "SCAN", status: "success", mode });
-      }
-      if (mode === "full") {
-        console.log("[FULL SCAN TRIGGERED]");
-        await tracedInvoke("run-full-scan", {
-          body: { action: "start", scan_mode: "full" },
-        });
-        logAction({ type: "SCAN", status: "success", mode });
-      }
-    } catch (err: any) {
-      console.error("[SCAN ERROR]:", err);
-      logAction({
-        type: "SCAN",
-        status: "error",
-        mode,
-        message: err.message
-      });
-    } finally {
-      setIsScanning(false);
-    }
-  }
 
   async function verifyWorkItemsCreated(beforeCount: number) {
     const { data } = await supabase
@@ -321,16 +275,16 @@ const SystemExplorer = () => {
   const [verifyingFix, setVerifyingFix] = useState(false);
   const [verifyResult, setVerifyResult] = useState<{ itemId: string; status: "confirmed" | "failed"; scanId?: string } | null>(null);
 
-  // Backend scan latest
+  // Backend scan latest — single source of truth: scan_runs
   const { data: latestBackendScan, isLoading: backendScanLoading } = useQuery({
     queryKey: ["backend-scan-latest"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("ai_scan_results")
+        .from("scan_runs")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(1)
-        .maybeSingle();
+        .single();
       if (error) throw error;
       return data;
     },
@@ -487,6 +441,8 @@ const SystemExplorer = () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["system-explorer-work-items"] }),
       queryClient.invalidateQueries({ queryKey: ["system-explorer-latest-scan"] }),
+      queryClient.invalidateQueries({ queryKey: ["system-explorer-latest-run"] }),
+      queryClient.invalidateQueries({ queryKey: ["backend-scan-latest"] }),
       queryClient.invalidateQueries({ queryKey: ["system-explorer-structure-map"] }),
       queryClient.invalidateQueries({ queryKey: ["admin-work-items"] }),
       queryClient.invalidateQueries({ queryKey: ["system-explorer-runtime-errors"] }),
@@ -496,58 +452,12 @@ const SystemExplorer = () => {
     setIsRefreshing(false);
   };
 
-  const handleRunFullScan = async () => {
-    console.log("[SCAN TRIGGERED]");
-    setIsScanning(true);
-    
-    try {
-      const before = await supabase.from("work_items").select("id");
-      const beforeCount = before.data?.length || 0;
-      logAction({ type: "Full Scan", status: "started" });
-      console.log("🚀 STARTING FULL SCAN");
-      const structure_map = Object.keys(getRawSources() || {}).map(path => ({
-        path
-      }));
-      console.log("[SENDING STRUCTURE MAP]:", structure_map.length);
-      const res = await tracedInvoke("run-full-scan", {
-        body: { action: "start", scan_mode: "full", structure_map },
-      });
-      console.log("📡 RESPONSE:", res);
-      const verify = await verifyWorkItemsCreated(beforeCount);
-      if (verify.created === 0) {
-        logAction({
-          type: "Full Scan",
-          status: "no-effect",
-          message: "Scan ran but created 0 work_items ❌"
-        });
-      } else {
-        logAction({
-          type: "Full Scan",
-          status: "verified",
-          message: `Created ${verify.created} work_items ✔`
-        });
-      }
-      console.log("[DEBUG] FULL SCAN RESPONSE:", res);
-      const json = res?.data ?? res;
-      console.log("[DEBUG] FULL SCAN JSON:", json);
-      if (json?.success === false) {
-        console.error("[DEBUG] FULL SCAN ERROR:", json?.error);
-      }
-      await handleRefresh();
-    } catch (err) {
-      console.error("[FULL SCAN UI ERROR]:", err);
-    } finally {
-      
-      setIsScanning(false);
-    }
-  };
-
-  // 2. Latest scan
+  // 2. Latest scan — single source of truth: scan_runs
   const { data: latestScan, isLoading: scanLoading } = useQuery({
     queryKey: ["system-explorer-latest-scan"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("ai_scan_results")
+        .from("scan_runs")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(1)
@@ -557,13 +467,13 @@ const SystemExplorer = () => {
     },
   });
 
-  // 2c. Last 3 scans for no-issue detection
+  // 2c. Last 3 scans for no-issue detection — single source of truth: scan_runs
   const { data: last3Scans = [] } = useQuery({
     queryKey: ["system-explorer-last-3-scans"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("ai_scan_results")
-        .select("results")
+        .from("scan_runs")
+        .select("unified_result")
         .order("created_at", { ascending: false })
         .limit(3);
       if (error) throw error;
@@ -625,8 +535,10 @@ const SystemExplorer = () => {
 
   const activeSnapshot = selectedSnapshotId ? scanSnapshots.find((s: any) => s.id === selectedSnapshotId) : null;
 
-  const scanResults = latestBackendScan?.results as Record<string, any> | null;
-  const detectedIssues = scanResults?.master_list?.total ?? scanResults?.detected_issues?.length ?? (activeSnapshot ? activeSnapshot.total_detected : latestScan?.issues_count) ?? 0;
+  // Single source of truth: scan_runs.unified_result
+  const scanResults = latestBackendScan?.unified_result as Record<string, any> | null;
+  const detectedIssues = scanResults?.master_list?.total ?? scanResults?.detected_issues?.length ?? (activeSnapshot ? activeSnapshot.total_detected : latestRun?.total_new_issues) ?? 0;
+  console.log("[LATEST RUN]", latestRun);
 
   // Regression detection: compare last 2 snapshots
   const regressions = useMemo(() => {
@@ -712,7 +624,7 @@ const SystemExplorer = () => {
     // Collect all issue targets/names across last 3 scans
     const issuedTargets = new Set<string>();
     for (const scan of last3Scans) {
-      const res = scan.results as Record<string, any> | null;
+      const res = scan.unified_result as Record<string, any> | null;
       if (!res) continue;
       const issues = (res.issues ?? res.master_list?.items ?? []) as any[];
       for (const issue of issues) {
@@ -780,7 +692,7 @@ const SystemExplorer = () => {
     // Collect issue targets from last 3 scans (reuse logic)
     const issuedTargets = new Set<string>();
     for (const scan of last3Scans) {
-      const res = scan.results as Record<string, any> | null;
+      const res = scan.unified_result as Record<string, any> | null;
       if (!res) continue;
       const issues = (res.issues ?? res.master_list?.items ?? []) as any[];
       for (const issue of issues) {
@@ -859,7 +771,7 @@ const SystemExplorer = () => {
     const recentIssueTitles = new Set<string>();
     const scansToCheck = last3Scans.slice(0, 2);
     for (const scan of scansToCheck) {
-      const res = scan.results as Record<string, any> | null;
+      const res = scan.unified_result as Record<string, any> | null;
       if (!res) continue;
       const issues = (res.issues ?? res.detected_issues ?? []) as any[];
       for (const issue of issues) {
@@ -1279,11 +1191,11 @@ const SystemExplorer = () => {
           if (!latestBackendScan) {
             console.error("❌ NO BACKEND SCAN FOUND");
           }
-          const r = latestBackendScan?.results as any;
-          const latestRun = r;
+          // scan_runs.unified_result is the single source of truth
+          const r = latestBackendScan?.unified_result as any;
           return (
             <div className="space-y-3">
-            {latestBackendScan && latestRun && latestRun.work_items_created === 0 && (
+            {latestBackendScan && latestBackendScan.work_items_created === 0 && (
               <p className="text-[10px] text-yellow-500 font-mono">⚠ Scan produced no work_items (possible over-filtering / dedup block)</p>
             )}
             <Card>
@@ -1300,18 +1212,18 @@ const SystemExplorer = () => {
                     <div className="grid grid-cols-2 gap-2 text-[10px]">
                       <div><span className="text-muted-foreground">Scan ID:</span> <span className="font-mono text-foreground">{latestBackendScan.id?.slice(0, 8)}</span></div>
                       <div><span className="text-muted-foreground">Created:</span> <span className="text-foreground">{format(new Date(latestBackendScan.created_at), "yyyy-MM-dd HH:mm")}</span></div>
-                      <div><span className="text-muted-foreground">Detected:</span> <span className="text-foreground">{r?.detected_count ?? latestBackendScan.issues_count ?? "—"}</span></div>
-                      <div><span className="text-muted-foreground">Created:</span> <span className="text-foreground">{r?.created_count ?? latestBackendScan.tasks_created ?? "—"}</span></div>
+                      <div><span className="text-muted-foreground">Detected:</span> <span className="text-foreground">{r?.detected_count ?? latestBackendScan.total_new_issues ?? "—"}</span></div>
+                      <div><span className="text-muted-foreground">Created:</span> <span className="text-foreground">{r?.created_count ?? latestBackendScan.work_items_created ?? "—"}</span></div>
                       <div><span className="text-muted-foreground">Filtered:</span> <span className="text-foreground">{r?.filtered_count ?? "—"}</span></div>
                       <div><span className="text-muted-foreground">Skipped:</span> <span className="text-foreground">{r?.skipped_count ?? "—"}</span></div>
                     </div>
-                    {latestBackendScan.overall_status && (
-                      <Badge className={`text-[8px] ${latestBackendScan.overall_status === "healthy" ? "bg-green-500/20 text-green-500 border-green-500/30" : "bg-yellow-500/20 text-yellow-500 border-yellow-500/30"}`}>{latestBackendScan.overall_status}</Badge>
+                    {latestBackendScan.status && (
+                      <Badge className={`text-[8px] ${latestBackendScan.status === "done" ? "bg-green-500/20 text-green-500 border-green-500/30" : "bg-yellow-500/20 text-yellow-500 border-yellow-500/30"}`}>{latestBackendScan.status}</Badge>
                     )}
-                    {latestBackendScan.executive_summary && (
-                      <p className="text-[9px] text-muted-foreground mt-1">{latestBackendScan.executive_summary}</p>
+                    {(r?.executive_summary) && (
+                      <p className="text-[9px] text-muted-foreground mt-1">{r.executive_summary}</p>
                     )}
-                    {(r?.detected_count ?? latestBackendScan.issues_count ?? 0) === 0 && (
+                    {(r?.detected_count ?? latestBackendScan.total_new_issues ?? 0) === 0 && (
                       <p className="text-[10px] text-yellow-500 mt-1">⚠ Scan returned no data — check input or scanner connection</p>
                     )}
                   </div>
@@ -1326,7 +1238,7 @@ const SystemExplorer = () => {
               </CardHeader>
               <CardContent className="p-3">
                 {(() => {
-                  const stepResults = r?.step_results || r?.steps_results || r?.scanners || null;
+                  const stepResults = latestBackendScan?.steps_results || r?.step_results || r?.steps_results || r?.scanners || null;
                   if (!stepResults || typeof stepResults !== "object" || Object.keys(stepResults).length === 0) {
                     return <p className="text-[10px] text-muted-foreground">No scanner execution data</p>;
                   }
@@ -1358,10 +1270,10 @@ const SystemExplorer = () => {
               </CardHeader>
               <CardContent className="p-3">
                 {(() => {
-                  const scanned = r?.detected_count ?? r?.scanned ?? latestBackendScan?.issues_count ?? 0;
+                  const scanned = r?.detected_count ?? r?.scanned ?? latestBackendScan?.total_new_issues ?? 0;
                   const afterFilter = r?.after_filter ?? r?.filtered_count ?? "—";
                   const skippedDedup = r?.skipped_dedup ?? r?.skipped_count ?? r?.deduplicated ?? "—";
-                  const created = r?.created_count ?? latestBackendScan?.tasks_created ?? 0;
+                  const created = r?.created_count ?? latestBackendScan?.work_items_created ?? 0;
                   return (
                     <div className="flex items-center gap-1 text-[10px]">
                       <div className="flex flex-col items-center px-3 py-2 rounded-md bg-muted/30 border border-border">
@@ -1399,10 +1311,10 @@ const SystemExplorer = () => {
               </CardHeader>
               {showBackendRaw && (
                 <CardContent className="p-3">
-                  {!latestBackendScan?.results ? (
+                  {!latestBackendScan?.unified_result ? (
                     <p className="text-[10px] text-muted-foreground">No raw data available</p>
                   ) : (() => {
-                    const raw = latestBackendScan.results as any;
+                    const raw = latestBackendScan.unified_result as any;
                     const issues = raw?.issues || raw?.broken_flows || raw?.data_issues || raw?.fake_features || raw?.interaction_failures || [];
                     const allIssues = Array.isArray(issues) ? issues.slice(0, 50) : [];
                     return allIssues.length === 0 ? (
