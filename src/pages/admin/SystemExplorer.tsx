@@ -1213,10 +1213,22 @@ const SystemExplorer = () => {
                     }
                   } catch (_) {}
                 }, 2000);
+                console.log("SCAN CLICKED");
                 try {
-                  const { data, error } = await tracedInvoke("run-full-scan", {
-                    body: { action: "start", scan_mode: "full" }
+                  console.log("INVOKING run-full-scan");
+                  const res = await supabase.functions.invoke("run-full-scan", {
+                    body: {
+                      action: "start",
+                      scan_mode: "full",
+                      structure_map
+                    }
                   });
+                  console.log("INVOKE RESPONSE:", res);
+                  console.log("FULL RESPONSE:", res);
+                  if (res.error) {
+                    console.error("INVOKE ERROR:", res.error);
+                  }
+                  const { data, error } = res;
                   if (error) throw error;
                   console.log("[SCAN STARTED]", data);
                   if (!data?.success) {
