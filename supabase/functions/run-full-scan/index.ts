@@ -33,6 +33,31 @@ const STEPS = [
 
 const MAX_ITERATIONS = 3;
 
+// ── FAST LANE: critical scanners that run first in parallel ──
+const FAST_LANE_IDS = new Set([
+  "blocker_detection",
+  "data_flow_validation",
+  "regression_detection",
+]);
+
+// ── Deterministic input hash for delta detection ──
+function computeInputHash(input: string): string {
+  let h = 5381;
+  for (let i = 0; i < input.length; i++) {
+    h = ((h << 5) + h) ^ input.charCodeAt(i);
+    h = h >>> 0;
+  }
+  return h.toString(16);
+}
+
+// ── Priority model: priority = severity × frequency × recency ──
+const SEVERITY_WEIGHT: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1, info: 0.5 };
+function computePriority(severity: string, frequency: number, ageMs: number): number {
+  const sev = SEVERITY_WEIGHT[severity] ?? 1;
+  const recency = Math.max(0.1, 1 - ageMs / (7 * 24 * 60 * 60 * 1000));
+  return Math.round(sev * Math.max(1, frequency) * recency * 10) / 10;
+}
+
 // ── SYSTEM STAGE: Context awareness ──
 type SystemStage = "development" | "staging" | "production";
 
@@ -2216,19 +2241,26 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
   return { created: workItemsCreated, createTrace };
 }
 
-// ── Helper: Persist per-step scan results ──
+// ── Helper: Persist per-step scan results — batched to reduce DB writes ──
+// Note: cached (_from_cache) and skipped (_skipped) steps are intentionally excluded from ai_scan_results
+// to avoid duplicate audit entries. The delta-scan hash cache is persisted separately in
+// scan_runs.steps_results._step_hashes by the run_parallel action.
 async function persistStepResults(supabase: any, steps: typeof STEPS, results: Record<string, any>, startedBy: string) {
+  const rows: any[] = [];
   for (const stepDef of steps) {
     const stepRes = results[stepDef.id];
-    if (!stepRes || stepRes.failed) continue;
+    if (!stepRes || stepRes.failed || stepRes._from_cache || stepRes._skipped) continue;
     const stepScore = stepRes.overall_score ?? stepRes.system_score ?? stepRes.score ?? stepRes.health_score ?? stepRes.sync_score ?? stepRes.ux_score ?? stepRes.interaction_score ?? null;
     const stepIssues = stepRes.issues_found ?? stepRes.issues?.length ?? stepRes.dead_elements?.length ?? stepRes.mismatches?.length ?? 0;
-    await supabase.from("ai_scan_results").insert({
+    rows.push({
       scan_type: stepDef.scanType, results: stepRes, overall_score: stepScore,
       overall_status: stepScore != null ? (stepScore >= 75 ? "healthy" : stepScore >= 50 ? "warning" : "critical") : null,
       executive_summary: stepRes.executive_summary || `${stepDef.id}: score ${stepScore ?? '?'}, ${stepIssues} issues`,
       issues_count: stepIssues, tasks_created: stepRes.tasks_created || 0, scanned_by: startedBy,
     });
+  }
+  if (rows.length > 0) {
+    await supabase.from("ai_scan_results").insert(rows).catch((e: any) => console.warn("[persistStepResults] batch insert failed:", e?.message));
   }
 }
 
@@ -2340,11 +2372,11 @@ serve(async (req) => {
         return new Response(JSON.stringify({ success: false, error: "NO_INPUT_DATA" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
-      console.log("[SCAN] running scanners — chaining first step");
+      console.log("[SCAN] running scanners — chaining parallel scan");
       fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
-        body: JSON.stringify({ action: "process_step", scan_run_id: scanRun.id, step_index: 0, iteration: 1 }),
-      }).catch((e) => console.error("Failed to chain first step:", e));
+        body: JSON.stringify({ action: "run_parallel", scan_run_id: scanRun.id }),
+      }).catch((e) => console.error("Failed to chain parallel scan:", e));
 
       return new Response(JSON.stringify({ success: true, scan_id: scanRun.id, status: "started", system_stage: systemStage, scan_mode: isTargeted ? "targeted" : "full" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
@@ -2485,6 +2517,151 @@ serve(async (req) => {
       }
 
       return new Response(JSON.stringify({ success: true, ok: true, step: step.id, step_index, iteration: currentIteration }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
+    }
+
+    // ── RUN_PARALLEL: parallelized fast-lane + slow-lane execution ──
+    if (action === "run_parallel" && scan_run_id) {
+      const { data: scanRun } = await supabase.from("scan_runs").select("*").eq("id", scan_run_id).single();
+      if (!scanRun || scanRun.status !== "running") return new Response(JSON.stringify({ success: false, error: "Scan not running" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+      const existingResults: Record<string, any> = scanRun.steps_results || {};
+      const cachedHashes: Record<string, string> = (existingResults._step_hashes as Record<string, string>) || {};
+      const scanStart = Date.now();
+      let stepsSkipped = 0;
+
+      // Compute a stable signature of the current DB state for delta detection (5-min window)
+      const { data: structureSnapshot } = await supabase.from("system_structure_map").select("entity_type, entity_name, scan_count").limit(500);
+      const inputSignature = JSON.stringify({ structureLen: structureSnapshot?.length ?? 0, window: Math.floor(Date.now() / (5 * 60 * 1000)) });
+      const inputHash = computeInputHash(inputSignature);
+
+      // Helper: execute a single step with cache/delta check
+      async function executeStep(step: (typeof STEPS)[0]): Promise<any> {
+        // Delta hit: reuse cached result when input hash matches
+        if (cachedHashes[step.id] === inputHash && existingResults[step.id] && !existingResults[step.id].failed && !existingResults[step.id]._skipped) {
+          stepsSkipped++;
+          return { ...existingResults[step.id], _from_cache: true, _cache_hit: true };
+        }
+        const stepStart = Date.now();
+        let result: any;
+        try {
+          const realScanner = REAL_DB_SCANNERS[step.scanType];
+          if (realScanner) {
+            console.log(`[run_parallel] Running REAL DB scanner for ${step.scanType}`);
+            const dbResult = await realScanner(supabase, scan_run_id);
+            result = { ...dbResult, ai_suggestions: [], ai_summary: null };
+          } else {
+            result = { overall_score: 100, issues_found: 0, issues: [], _deterministic: true, _ai_disabled: true };
+          }
+        } catch (e: any) {
+          result = { error: e.message, failed: true };
+        }
+        const duration_ms = Date.now() - stepStart;
+        result._duration_ms = duration_ms;
+        result._step_id = step.id;
+        result._executed = !result.failed && !result.error;
+        if (!Array.isArray(result.issues)) result.issues = result.issues ?? [];
+        return result;
+      }
+
+      // ── FAST LANE (critical scanners) ──
+      const fastSteps = STEPS.filter(s => FAST_LANE_IDS.has(s.id));
+      const slowSteps = STEPS.filter(s => !FAST_LANE_IDS.has(s.id));
+
+      await supabase.from("scan_runs").update({ current_step_label: `Fast lane — ${fastSteps.length} steg parallellt...` }).eq("id", scan_run_id);
+
+      const fastSettled = await Promise.allSettled(fastSteps.map(s => executeStep(s)));
+      const batchResults: Record<string, any> = { ...existingResults };
+      for (let i = 0; i < fastSteps.length; i++) {
+        const r = fastSettled[i];
+        batchResults[fastSteps[i].id] = r.status === "fulfilled" ? r.value : { failed: true, error: String((r as PromiseRejectedResult).reason) };
+      }
+
+      // ── EARLY EXIT: skip slow lane if fast lane found nothing critical ──
+      const fastLaneIssueCount = fastSteps.reduce((sum, s) => sum + ((batchResults[s.id]?.issues || []).length), 0);
+      const fastLaneHasCritical = fastSteps.some(s => (batchResults[s.id]?.issues || []).some((i: any) => i.severity === "critical" || i.severity === "high"));
+
+      if (fastLaneIssueCount === 0 && !fastLaneHasCritical) {
+        // Run only key validators from slow lane; skip the rest
+        const keySlowIds = new Set(["interaction_qa", "ui_data_binding"]);
+        const keySlowSteps = slowSteps.filter(s => keySlowIds.has(s.id));
+        const skipSlowSteps = slowSteps.filter(s => !keySlowIds.has(s.id));
+
+        for (const s of skipSlowSteps) {
+          batchResults[s.id] = existingResults[s.id] || { overall_score: 100, issues: [], _skipped: true, _skip_reason: "early_exit_no_critical" };
+          stepsSkipped++;
+        }
+
+        await supabase.from("scan_runs").update({ current_step_label: `Nyckelvalidatorer (${keySlowSteps.length} steg)...` }).eq("id", scan_run_id);
+        const keySettled = await Promise.allSettled(keySlowSteps.map(s => executeStep(s)));
+        for (let i = 0; i < keySlowSteps.length; i++) {
+          const r = keySettled[i];
+          batchResults[keySlowSteps[i].id] = r.status === "fulfilled" ? r.value : { failed: true, error: String((r as PromiseRejectedResult).reason) };
+        }
+        console.log(`[run_parallel] early exit — ${stepsSkipped} slow-lane steps skipped`);
+      } else {
+        // ── SLOW LANE (deep analysis) ──
+        await supabase.from("scan_runs").update({ current_step_label: `Slow lane — ${slowSteps.length} steg parallellt...` }).eq("id", scan_run_id);
+        const slowSettled = await Promise.allSettled(slowSteps.map(s => executeStep(s)));
+        for (let i = 0; i < slowSteps.length; i++) {
+          const r = slowSettled[i];
+          batchResults[slowSteps[i].id] = r.status === "fulfilled" ? r.value : { failed: true, error: String((r as PromiseRejectedResult).reason) };
+        }
+      }
+
+      // ── Apply priority model to all collected issues ──
+      const now = Date.now();
+      const focusMem: any[] = await loadFocusMemory(supabase);
+      const focusFreqMap: Record<string, number> = {};
+      for (const m of focusMem) focusFreqMap[(m.label || "").toLowerCase()] = m.issue_count || 1;
+      for (const step of STEPS) {
+        const r = batchResults[step.id];
+        if (!r || r._skipped || r._from_cache) continue;
+        for (const issue of (r.issues || [])) {
+          const label = (issue.component || issue.route || issue.element || "").toLowerCase();
+          const freq = focusFreqMap[label] || 1;
+          const ageMs = now - new Date(issue.detected_at || now).getTime();
+          issue._priority_score = computePriority(issue.severity || "medium", freq, ageMs);
+        }
+      }
+
+      // ── Update hash cache for next delta scan ──
+      const newHashes: Record<string, string> = { ...cachedHashes };
+      for (const step of STEPS) {
+        const r = batchResults[step.id];
+        if (r && !r.failed && !r._skipped && !r._from_cache) {
+          newHashes[step.id] = inputHash;
+        }
+      }
+      batchResults._step_hashes = newHashes;
+
+      const duration_ms = Date.now() - scanStart;
+      batchResults._perf = {
+        duration_ms,
+        steps_skipped: stepsSkipped,
+        total_steps: STEPS.length,
+        performance_gain: `${Math.round((stepsSkipped / STEPS.length) * 100)}% steps skipped`,
+      };
+
+      // ── Single batch DB write for all step results ──
+      await supabase.from("scan_runs").update({
+        steps_results: batchResults,
+        current_step: STEPS.length,
+        current_step_label: `Parallell skanning klar — ${stepsSkipped} steg hoppades`,
+      }).eq("id", scan_run_id);
+
+      // Chain to evaluate_iteration
+      fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
+        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
+        body: JSON.stringify({ action: "evaluate_iteration", scan_run_id, iteration: 1 }),
+      }).catch((e: any) => console.error("Failed to chain evaluation:", e));
+
+      console.log(`[run_parallel] done — ${stepsSkipped}/${STEPS.length} steps skipped, ${duration_ms}ms`);
+      return new Response(JSON.stringify({
+        success: true,
+        steps_skipped: stepsSkipped,
+        duration_ms,
+        performance_gain: `${Math.round((stepsSkipped / STEPS.length) * 100)}% steps skipped`,
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
     }
 
     // ── EVALUATE_ITERATION ──
@@ -2642,6 +2819,17 @@ serve(async (req) => {
         ...unified.data_issues.filter((i: any) => !i._dev_expected),
       ];
       const issuesCount = actionableIssues.length;
+
+      // ── PRIORITY MODEL: score = severity × frequency × recency ──
+      const now = Date.now();
+      const focusFreqMapFinal: Record<string, number> = {};
+      for (const m of (updatedFocusMemory || [])) focusFreqMapFinal[(m.label || "").toLowerCase()] = m.issue_count || 1;
+      for (const issue of actionableIssues) {
+        const label = ((issue as any).component || (issue as any).route || (issue as any).element || "").toLowerCase();
+        const freq = focusFreqMapFinal[label] || 1;
+        const ageMs = now - new Date((issue as any).detected_at || now).getTime();
+        (issue as any)._priority_score = computePriority((issue as any).severity || "medium", freq, ageMs);
+      }
 
       const iterationsCompleted = scanRun.iteration || 1;
       const patternDiscoveries = scanRun.pattern_discoveries || [];
@@ -3087,7 +3275,15 @@ serve(async (req) => {
       }
 
       console.log("[SCAN] finished — detected:", issuesCount, "created:", workItemsCreated, "scanContext:", JSON.stringify(scanContext));
-      return new Response(JSON.stringify({ success: true, scan_id: scan_run_id, detected: issuesCount, created: workItemsCreated, filtered: issuesCount - workItemsCreated, skipped: skippedCount, action: "finalized", iterations: iterationsCompleted, system_stage: systemStage, scanContext }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
+      const perfMeta = (updatedResults._perf as any) || {};
+      return new Response(JSON.stringify({
+        success: true, scan_id: scan_run_id, detected: issuesCount, created: workItemsCreated,
+        filtered: issuesCount - workItemsCreated, skipped: skippedCount, action: "finalized",
+        iterations: iterationsCompleted, system_stage: systemStage, scanContext,
+        scan_duration_ms: perfMeta.duration_ms ?? null,
+        steps_skipped: perfMeta.steps_skipped ?? 0,
+        performance_gain: perfMeta.performance_gain ?? null,
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
     }
 
     // ── STATUS ──

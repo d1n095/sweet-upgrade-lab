@@ -62,6 +62,7 @@ const callAIForScan = async (type: string, payload: Record<string, any> = {}) =>
   }
   throw new Error('AI_DISABLED — all AI calls must go through run-full-scan');
   // ────────────────────────────────────────────────────────────────────
+};
 
 export const useScannerStore = create<ScannerState>((set, get) => ({
   scanning: false,
