@@ -97,6 +97,28 @@ function groupSimilarIssues(issues: any[]): any[] {
   return result;
 }
 
+// ── PAYMENT ISOLATION: AI must NOT touch payment/checkout/stripe systems ──
+const PAYMENT_ISOLATION_PATTERNS = [
+  /payment/i, /checkout/i, /stripe/i, /create-checkout/i,
+  /payment_status/i, /payment_intent/i, /payment_method/i,
+  /betalning/i, /kassa/i, /betald/i, /betalad/i,
+];
+
+function isPaymentRelated(issue: any): boolean {
+  const text = JSON.stringify(issue || {});
+  return PAYMENT_ISOLATION_PATTERNS.some(p => p.test(text));
+}
+
+function filterPaymentIsolated(issues: any[]): any[] {
+  return issues.filter(issue => {
+    if (isPaymentRelated(issue)) {
+      console.log(`[PAYMENT_ISOLATION] Filtered out: ${issue.title || issue.description || "unknown"}`);
+      return false;
+    }
+    return true;
+  });
+}
+
 // ── Context-aware filtering: suppress false positives based on stage ──
 // DEBUG MODE: Relaxed — only suppress clearly invalid/placeholder patterns
 function filterDevFalsePositives(issues: any[], stage: SystemStage): any[] {
@@ -1100,14 +1122,9 @@ async function runFunctionalBehaviorScan(supabase: any, scanRunId: string): Prom
       }
     }
 
-    // ACTION CHAIN 6: Order → lifecycle
-    const { data: paidOrders } = await supabase.from("orders").select("id, status, payment_status, fulfillment_status").eq("payment_status", "paid").in("fulfillment_status", ["shipped", "delivered"]).is("deleted_at", null).limit(50);
-    for (const order of paidOrders || []) {
-      const { data: activeWi } = await supabase.from("work_items").select("id, title, item_type").eq("related_order_id", order.id).in("status", ["open", "claimed", "in_progress"]).in("item_type", ["pack_order", "packing", "shipping"]).limit(1);
-      if (activeWi?.length) {
-        failures.push({ chain: "order_lifecycle", action: "Order shipped → close tasks", expected: "No active packing tasks", actual: `Active: "${activeWi[0].title}"`, failure_type: "stale_state", step: "order status → work_items", severity: "medium", entity_id: activeWi[0].id });
-      }
-    }
+    // ACTION CHAIN 6: Order → lifecycle — PAYMENT ISOLATED: skipped
+    // AI must not scan or create issues for order payment lifecycle
+    console.log("[PAYMENT_ISOLATION] Skipped order lifecycle behavior check");
 
     // ACTION CHAIN 7: Notification on incident
     const { data: recentNotifIncidents } = await supabase.from("order_incidents").select("id, title, created_at").gte("created_at", new Date(Date.now() - 60 * 60 * 1000).toISOString()).order("created_at", { ascending: false }).limit(10);
@@ -1179,13 +1196,8 @@ async function runRealSyncScan(supabase: any, scanRunId: string): Promise<any> {
       if (p.status === "active" && !p.handle) issues.push({ title: `Aktiv produkt utan handle: "${p.title_sv}"`, severity: "high", field: "handle", component: "products" });
     }
 
-    // Orders: status consistency
-    const { data: orders } = await supabase.from("orders").select("id, status, payment_status, fulfillment_status, shipped_at, delivered_at, packed_at").is("deleted_at", null).order("created_at", { ascending: false }).limit(200);
-    for (const o of orders || []) {
-      if (o.fulfillment_status === "shipped" && !o.shipped_at) issues.push({ title: `Order ${o.id.slice(0, 8)} status=shipped utan shipped_at`, severity: "high", field: "shipped_at", component: "orders" });
-      if (o.fulfillment_status === "delivered" && !o.delivered_at) issues.push({ title: `Order ${o.id.slice(0, 8)} status=delivered utan delivered_at`, severity: "high", field: "delivered_at", component: "orders" });
-      if (o.payment_status === "paid" && o.status === "cancelled") issues.push({ title: `Order ${o.id.slice(0, 8)} betalad men avbruten`, severity: "critical", field: "status", component: "orders" });
-    }
+    // Orders: status consistency — PAYMENT ISOLATED: skipped
+    console.log("[PAYMENT_ISOLATION] Skipped order status consistency check");
 
     // Affiliates
     const { data: affiliates } = await supabase.from("affiliates").select("id, name, code, is_active, email").eq("is_active", true).limit(100);
@@ -2599,6 +2611,26 @@ serve(async (req) => {
       unified.broken_flows = filterDevFalsePositives(unified.broken_flows, systemStage);
       unified.interaction_failures = filterDevFalsePositives(unified.interaction_failures, systemStage);
       unified.data_issues = filterDevFalsePositives(unified.data_issues, systemStage);
+
+      // ── PAYMENT ISOLATION: Remove all payment/checkout/stripe issues from scan ──
+      console.log("[PAYMENT_ISOLATION] Filtering payment-related issues from all categories...");
+      const preFilterCounts = {
+        broken_flows: unified.broken_flows.length,
+        interaction_failures: unified.interaction_failures.length,
+        data_issues: unified.data_issues.length,
+      };
+      unified.broken_flows = filterPaymentIsolated(unified.broken_flows);
+      unified.interaction_failures = filterPaymentIsolated(unified.interaction_failures);
+      unified.data_issues = filterPaymentIsolated(unified.data_issues);
+      const postFilterCounts = {
+        broken_flows: unified.broken_flows.length,
+        interaction_failures: unified.interaction_failures.length,
+        data_issues: unified.data_issues.length,
+      };
+      const totalFiltered = (preFilterCounts.broken_flows - postFilterCounts.broken_flows) +
+        (preFilterCounts.interaction_failures - postFilterCounts.interaction_failures) +
+        (preFilterCounts.data_issues - postFilterCounts.data_issues);
+      console.log(`[PAYMENT_ISOLATION] Removed ${totalFiltered} payment-related issues`);
 
       // Merge integrity issues
       for (const issue of integrityResult.issues || []) {

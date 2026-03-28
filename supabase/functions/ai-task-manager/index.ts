@@ -95,7 +95,7 @@ serve(async (req) => {
    - task: manual/admin operational task
 
 Priority rules:
-- checkout/payment issues → critical
+- checkout/payment issues → SKIP (payment system is isolated from AI)
 - order fulfillment issues → high  
 - bugs affecting users → high
 - UI issues → medium
@@ -186,13 +186,15 @@ Respond using the prioritize_tasks function.`,
     }
 
     // ─── 3. AI AUTO-DETECTION ───
+    // PAYMENT ISOLATION: AI is blocked from detecting/creating payment/checkout/stripe issues
     if (action === "full_cycle" || action === "detect") {
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
 
+      // Only detect page_error — checkout_abandon and payment_error are ISOLATED
       const { data: recentErrors } = await supabase
         .from("analytics_events")
         .select("event_type, event_data, created_at")
-        .in("event_type", ["checkout_abandon", "payment_error", "page_error"])
+        .in("event_type", ["page_error"])
         .gte("created_at", oneHourAgo)
         .limit(100);
 
@@ -204,6 +206,12 @@ Respond using the prioritize_tasks function.`,
       for (const [eventType, count] of Object.entries(errorCounts)) {
         if (count < 3) continue;
 
+        // PAYMENT ISOLATION: Skip any payment/checkout related events
+        if (/payment|checkout|stripe|betalning|kassa/i.test(eventType)) {
+          console.log(`[PAYMENT_ISOLATION] Skipped detection for: ${eventType}`);
+          continue;
+        }
+
         const { data: existing } = await supabase
           .from("work_items")
           .select("id")
@@ -214,60 +222,24 @@ Respond using the prioritize_tasks function.`,
           .limit(1);
 
         if (!existing?.length) {
-          const priority = eventType.includes("payment") || eventType.includes("checkout")
-            ? "critical" : "high";
-
           await supabase.from("work_items").insert({
             title: `AI: ${count}x ${eventType} senaste timmen`,
             description: `Automatiskt detekterat: ${count} ${eventType}-händelser under senaste timmen.`,
             status: "open",
-            priority,
+            priority: "high",
             item_type: "anomaly",
             source_type: "ai_detection",
             ai_detected: true,
-            ai_confidence: priority === "critical" ? "high" : "medium",
-            ai_category: eventType.includes("payment") ? "payment" : eventType.includes("checkout") ? "checkout" : "system",
+            ai_confidence: "medium",
+            ai_category: "system",
           });
           results.detected++;
         }
       }
 
-      // Stuck orders
-      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      const { data: stuckOrders } = await supabase
-        .from("orders")
-        .select("id, order_number, created_at, total_amount")
-        .eq("payment_status", "paid")
-        .in("fulfillment_status", ["pending", "unfulfilled"])
-        .is("deleted_at", null)
-        .lt("created_at", oneDayAgo)
-        .limit(10);
-
-      for (const order of stuckOrders || []) {
-        const { data: existingItem } = await supabase
-          .from("work_items")
-          .select("id")
-          .eq("related_order_id", order.id)
-          .eq("ai_detected", true)
-          .in("status", ["open", "claimed", "in_progress"])
-          .limit(1);
-
-        if (!existingItem?.length) {
-          await supabase.from("work_items").insert({
-            title: `AI: Order ${order.order_number || order.id.slice(0, 8)} väntar >24h`,
-            description: `Order betald ${order.created_at} (${order.total_amount} kr) men inte packad.`,
-            status: "open",
-            priority: order.total_amount >= 500 ? "critical" : "high",
-            item_type: "order_action",
-            source_type: "ai_detection",
-            related_order_id: order.id,
-            ai_detected: true,
-            ai_confidence: "high",
-            ai_category: "fulfillment",
-          });
-          results.detected++;
-        }
-      }
+      // PAYMENT ISOLATION: Stuck orders detection is DISABLED
+      // AI must not create work items related to orders/payments
+      console.log("[PAYMENT_ISOLATION] Skipped stuck orders detection (isolated)");
     }
 
     // ─── 4. AI RESOLUTION DETECTION ───
