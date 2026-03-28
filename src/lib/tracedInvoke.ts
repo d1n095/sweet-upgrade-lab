@@ -15,10 +15,14 @@ export async function tracedInvoke<T = any>(
     request_trace_id,
   };
 
+  console.log("[INVOKE SENT]", functionName, { request_trace_id, body });
+
   const { data, error } = await supabase.functions.invoke(functionName, {
     ...options,
     body,
   });
+
+  console.log("[INVOKE RESPONSE]", functionName, { request_trace_id, data, error });
 
   return { data, error, request_trace_id };
 }

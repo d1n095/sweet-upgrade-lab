@@ -258,6 +258,8 @@ export const useFullScanOrchestrator = create<FullScanOrchestratorState>((set, g
 
     try {
       // Call the server-side edge function to start the scan
+      console.log("[START SCAN CLICK]", { action: "start", url: `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/run-full-scan` });
+      console.log("[INVOKE SENT]", "run-full-scan (fetch)");
       const resp = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/run-full-scan`,
         {
@@ -269,6 +271,7 @@ export const useFullScanOrchestrator = create<FullScanOrchestratorState>((set, g
           body: JSON.stringify({ action: 'start' }),
         }
       );
+      console.log("[INVOKE RESPONSE]", "run-full-scan (fetch)", { status: resp.status, ok: resp.ok });
 
       if (resp.status === 409) {
         const err = await resp.json();

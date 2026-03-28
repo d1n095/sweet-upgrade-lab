@@ -2341,6 +2341,8 @@ async function persistStepResults(supabase: any, steps: typeof STEPS, results: R
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  console.log("[EDGE FUNCTION REACHED] run-full-scan", req.method, req.url);
+
   try {
     console.log("🚨 SCAN STARTED");
     console.log("[SCAN START]");

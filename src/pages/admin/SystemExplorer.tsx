@@ -1214,9 +1214,12 @@ const SystemExplorer = () => {
                   } catch (_) {}
                 }, 2000);
                 try {
-                  await supabase.functions.invoke("run-full-scan", {
+                  console.log("[START SCAN CLICK]", { action: "start", scan_mode: "full", structure_map_count: structure_map.length });
+                  console.log("[INVOKE SENT]", "run-full-scan");
+                  const invokeResult = await supabase.functions.invoke("run-full-scan", {
                     body: { action: "start", scan_mode: "full", structure_map: structure_map.map(p => ({ path: p })) }
                   });
+                  console.log("[INVOKE RESPONSE]", "run-full-scan", { data: invokeResult.data, error: invokeResult.error });
                 } finally {
                   clearInterval(pollInterval);
                   setIsScanning(false);
