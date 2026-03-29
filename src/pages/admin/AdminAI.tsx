@@ -27,7 +27,6 @@ import { useFullScanOrchestrator, ORCHESTRATED_STEPS } from '@/stores/fullScanOr
 import type { UnifiedScanResult } from '@/stores/fullScanOrchestrator';
 import { filterRelevantIssues } from '@/stores/fullScanOrchestrator';
 import AdminAiReadLog from '@/components/admin/AdminAiReadLog';
-import AiQueueControl from '@/components/admin/AiQueueControl';
 import DataFlowValidator from '@/components/admin/DataFlowValidator';
 import UiRealityCheck from '@/components/admin/UiRealityCheck';
 import SystemTrustScore from '@/components/admin/SystemTrustScore';

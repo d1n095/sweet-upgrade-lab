@@ -1909,6 +1909,295 @@ async function runUiFlowIntegrityScan(supabase: any, scanRunId: string): Promise
   return { issues, issues_found: issues.length, flows_scanned: flowsScanned, overall_score: score, duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
 }
 
+// ── REAL DB SCAN: Navigation Verification ──
+// Checks that all navigable entities (products, categories, pages) have valid URL handles/slugs.
+async function runNavScan(supabase: any, _scanRunId: string): Promise<any> {
+  const issues: any[] = [];
+  const startMs = Date.now();
+  let checked = 0;
+
+  try {
+    // 1. Products must have a handle
+    const { data: products } = await supabase.from("products").select("id, handle, title_sv, is_visible").eq("is_visible", true).limit(300);
+    checked += (products || []).length;
+    for (const p of products || []) {
+      if (!p.handle || p.handle.trim() === "") {
+        issues.push({ title: `Nav broken: product "${p.title_sv || p.id.slice(0,8)}" missing URL handle`, severity: "high", component: "products", element: "ProductDetail", category: "navigation", type: "missing_handle", location: `/shop/${p.id}` });
+      }
+    }
+
+    // 2. Categories must have a slug
+    const { data: categories } = await supabase.from("categories").select("id, name_sv, slug, is_visible").eq("is_visible", true).limit(100);
+    checked += (categories || []).length;
+    for (const c of categories || []) {
+      if (!c.slug || c.slug.trim() === "") {
+        issues.push({ title: `Nav broken: category "${c.name_sv || c.id.slice(0,8)}" missing slug`, severity: "high", component: "categories", element: "CategoryFilter", category: "navigation", type: "missing_slug" });
+      }
+    }
+
+    // 3. Page sections must reference a valid page key
+    const VALID_PAGES = new Set(["home","shop","produkter","about","contact","checkout","donations","cbd","business","whats-new","track-order","suggest-product","affiliate","balance","member"]);
+    const { data: sections } = await supabase.from("page_sections").select("id, section_key, page, is_visible").eq("is_visible", true).limit(200);
+    checked += (sections || []).length;
+    for (const s of sections || []) {
+      if (!s.page || (!VALID_PAGES.has(s.page) && !s.page.startsWith("admin"))) {
+        issues.push({ title: `Nav broken: section "${s.section_key}" references unknown page "${s.page}"`, severity: "medium", component: "page_sections", element: "PageLayout", category: "navigation", type: "invalid_page_ref" });
+      }
+    }
+
+    // 4. Navigation config entries pointing to non-existent products/categories
+    const productHandles = new Set((products || []).map((p: any) => p.handle).filter(Boolean));
+    const categorySlugs = new Set((categories || []).map((c: any) => c.slug).filter(Boolean));
+
+    const { data: navItems } = await supabase.from("navigation_items").select("id, label_sv, url, item_type, reference_id").limit(200);
+    checked += (navItems || []).length;
+    for (const n of navItems || []) {
+      if (n.item_type === "product" && n.reference_id) {
+        const handle = typeof n.reference_id === "string" ? n.reference_id : null;
+        if (handle && !productHandles.has(handle)) {
+          issues.push({ title: `Nav broken: nav item "${n.label_sv}" links to missing product "${handle}"`, severity: "high", component: "navigation", element: "NavBar", category: "navigation", type: "broken_link" });
+        }
+      }
+      if (n.item_type === "category" && n.reference_id) {
+        const slug = typeof n.reference_id === "string" ? n.reference_id : null;
+        if (slug && !categorySlugs.has(slug)) {
+          issues.push({ title: `Nav broken: nav item "${n.label_sv}" links to missing category "${slug}"`, severity: "high", component: "navigation", element: "NavBar", category: "navigation", type: "broken_link" });
+        }
+      }
+    }
+
+  } catch (e: any) { issues.push({ title: `Nav scan error: ${e.message}`, severity: "critical", component: "nav_scan", category: "navigation" }); }
+
+  const durationMs = Date.now() - startMs;
+  const score = Math.max(0, 100 - issues.length * 8);
+  return { issues, issues_found: issues.length, items_checked: checked, overall_score: score, duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
+}
+
+// ── REAL DB SCAN: Human Behaviour Simulation ──
+// Simulates user-visible behaviour by validating key data paths the frontend depends on.
+async function runHumanTestScan(supabase: any, _scanRunId: string): Promise<any> {
+  const issues: any[] = [];
+  const startMs = Date.now();
+  let tested = 0;
+
+  const fail = (title: string, severity: string, component: string, element: string, description?: string) =>
+    issues.push({ title, severity, component, element, category: "human_test", type: "user_visible_failure", description: description ?? title });
+
+  try {
+    // TEST 1: Shop loads — visible products exist
+    const { count: visibleProducts } = await supabase.from("products").select("id", { count: "exact", head: true }).eq("is_visible", true);
+    tested++;
+    if (!visibleProducts || visibleProducts === 0) {
+      fail("Shop broken: no visible products (shop page would be empty)", "critical", "products", "ProductGrid");
+    }
+
+    // TEST 2: Cart usable — at least one product has a price
+    const { data: priceCheck } = await supabase.from("product_variants").select("id, price").gt("price", 0).limit(1);
+    tested++;
+    if (!priceCheck || priceCheck.length === 0) {
+      fail("Cart broken: no product variants with a positive price", "critical", "product_variants", "AddToCart");
+    }
+
+    // TEST 3: Checkout reachable — checkout config exists and is enabled
+    const { data: checkoutConfig } = await supabase.from("checkout_settings").select("id, is_enabled").limit(1);
+    tested++;
+    if (checkoutConfig && checkoutConfig.length > 0 && checkoutConfig[0].is_enabled === false) {
+      fail("Checkout disabled: checkout_settings.is_enabled = false", "critical", "checkout", "CheckoutPage");
+    }
+
+    // TEST 4: Orders visible — order listing works (no missing FK)
+    const { data: recentOrders, error: orderErr } = await supabase.from("orders").select("id, status, total_amount").order("created_at", { ascending: false }).limit(5);
+    tested++;
+    if (orderErr) {
+      fail(`Order listing broken: ${orderErr.message}`, "high", "orders", "OrderHistory");
+    }
+
+    // TEST 5: Member profile accessible — profiles table has rows with user_id
+    const { data: profiles } = await supabase.from("profiles").select("id, user_id").not("user_id", "is", null).limit(5);
+    tested++;
+    if (profiles && profiles.length === 0) {
+      fail("Member profile broken: no profiles linked to users", "medium", "profiles", "MemberProfile");
+    }
+
+    // TEST 6: Affiliate page works — affiliate_applications table readable
+    const { error: affErr } = await supabase.from("affiliate_applications").select("id").limit(1);
+    tested++;
+    if (affErr && !affErr.message.includes("does not exist")) {
+      fail(`Affiliate page broken: ${affErr.message}`, "medium", "affiliate_applications", "AffiliatePage");
+    }
+
+    // TEST 7: Donations page — donation_orders or donations table readable
+    const { error: donErr } = await supabase.from("donation_orders").select("id").limit(1);
+    tested++;
+    if (donErr && !donErr.message.includes("does not exist")) {
+      fail(`Donations page broken: ${donErr.message}`, "medium", "donation_orders", "DonationsPage");
+    }
+
+    // TEST 8: Search usable — products have searchable text
+    const { data: searchable } = await supabase.from("products").select("id").or("title_sv.neq.,title_en.neq.").limit(1);
+    tested++;
+    if (!searchable || searchable.length === 0) {
+      fail("Search broken: no products with searchable title", "high", "products", "SearchBar");
+    }
+
+  } catch (e: any) { issues.push({ title: `Human test scan error: ${e.message}`, severity: "critical", component: "human_test", category: "human_test" }); }
+
+  const durationMs = Date.now() - startMs;
+  const passed = tested - issues.filter(i => i.category === "human_test").length;
+  const score = tested > 0 ? Math.round((passed / tested) * 100) : 100;
+  return { issues, issues_found: issues.length, tests_run: tested, tests_passed: passed, overall_score: score, duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
+}
+
+// ── REAL DB SCAN: Blocker Detection ──
+// Detects critical blockers that would prevent users from completing core flows.
+async function runBlockerDetectionScan(supabase: any, _scanRunId: string): Promise<any> {
+  const issues: any[] = [];
+  const startMs = Date.now();
+  const blockers: string[] = [];
+
+  try {
+    // BLOCKER 1: No visible products in shop
+    const { count: vpCount } = await supabase.from("products").select("id", { count: "exact", head: true }).eq("is_visible", true);
+    if (!vpCount || vpCount === 0) {
+      blockers.push("shop_empty");
+      issues.push({ title: "BLOCKER: Shop has zero visible products", severity: "critical", component: "products", element: "ProductGrid", category: "blocker", type: "shop_empty", description: "Users cannot browse or purchase anything", blocker_statement: "Shop is completely empty — no visible products found" });
+    }
+
+    // BLOCKER 2: No product variants with price
+    const { count: pvCount } = await supabase.from("product_variants").select("id", { count: "exact", head: true }).gt("price", 0);
+    if (!pvCount || pvCount === 0) {
+      blockers.push("no_priced_variants");
+      issues.push({ title: "BLOCKER: No product variants have a price > 0", severity: "critical", component: "product_variants", element: "PriceDisplay", category: "blocker", type: "no_priced_variants", description: "All products would show 0 price; add-to-cart may fail", blocker_statement: "No priced product variants — checkout would break" });
+    }
+
+    // BLOCKER 3: Cart cannot be completed — missing stripe/payment config
+    const { data: stripeConfig } = await supabase.from("site_settings").select("value").eq("key", "stripe_enabled").limit(1);
+    if (stripeConfig && stripeConfig.length > 0 && stripeConfig[0].value === "false") {
+      blockers.push("payment_disabled");
+      issues.push({ title: "BLOCKER: Stripe payment is disabled in site_settings", severity: "critical", component: "checkout", element: "PaymentForm", category: "blocker", type: "payment_disabled", description: "Customers cannot complete purchases", blocker_statement: "Stripe disabled — no payment method available" });
+    }
+
+    // BLOCKER 4: Work items with status 'escalated' and priority 'critical' — system-wide blockers
+    const { data: escalated } = await supabase.from("work_items").select("id, title, priority").eq("status", "escalated").eq("priority", "critical").limit(10);
+    for (const item of escalated || []) {
+      blockers.push(`escalated_${item.id.slice(0,8)}`);
+      issues.push({ title: `BLOCKER: Escalated critical issue — "${item.title}"`, severity: "critical", component: "system", element: "WorkItemBoard", category: "blocker", type: "escalated_critical", entity_id: item.id });
+    }
+
+    // BLOCKER 5: Active scan_run in error state (scanner infrastructure broken)
+    const { data: brokenRuns } = await supabase.from("scan_runs").select("id, scan_mode").eq("status", "error").order("created_at", { ascending: false }).limit(3);
+    if (brokenRuns && brokenRuns.length > 0) {
+      issues.push({ title: `BLOCKER: ${brokenRuns.length} recent scan run(s) ended in error`, severity: "high", component: "scan_runs", element: "ScannerDashboard", category: "blocker", type: "scan_error", description: "Scanner infrastructure may be broken" });
+    }
+
+    // BLOCKER 6: Email queue stuck (many unsent emails > 24h)
+    const { count: stuckEmails } = await supabase.from("email_queue").select("id", { count: "exact", head: true }).eq("status", "pending").lt("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+    if (stuckEmails && stuckEmails > 5) {
+      issues.push({ title: `BLOCKER: ${stuckEmails} emails stuck in queue for >24h`, severity: "high", component: "email_queue", element: "EmailService", category: "blocker", type: "stuck_email_queue", description: "Customer emails (order confirmations, etc.) not being sent", blocker_statement: `${stuckEmails} emails stuck in queue` });
+    }
+
+  } catch (e: any) { issues.push({ title: `Blocker detection error: ${e.message}`, severity: "critical", component: "blocker_detection", category: "blocker" }); }
+
+  const durationMs = Date.now() - startMs;
+  const primaryBlocker = issues.find(i => i.blocker_statement)?.blocker_statement || null;
+  const score = blockers.length === 0 ? 100 : Math.max(0, 100 - blockers.length * 30);
+  return { issues, issues_found: issues.length, detected_blockers: blockers, primary_blocker: primaryBlocker, overall_score: score, duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
+}
+
+// ── REAL DB SCAN: Decision Engine ──
+// Analyses accumulated scan data to surface the highest-priority action item.
+async function runDecisionEngineScan(supabase: any, scanRunId: string): Promise<any> {
+  const issues: any[] = [];
+  const startMs = Date.now();
+
+  try {
+    // Collect counts by severity from work_items
+    const { data: openItems } = await supabase
+      .from("work_items")
+      .select("id, title, priority, item_type, status, affected_components")
+      .in("status", ["open", "in_progress", "escalated", "new", "detected"])
+      .limit(500);
+
+    const bySeverity: Record<string, any[]> = { critical: [], high: [], medium: [], low: [] };
+    for (const item of openItems || []) {
+      const p = item.priority || "medium";
+      if (bySeverity[p]) bySeverity[p].push(item);
+    }
+
+    // Decision: if critical > 0 → flag
+    if (bySeverity.critical.length > 0) {
+      issues.push({
+        title: `Decision: ${bySeverity.critical.length} critical issue(s) require immediate attention`,
+        severity: "critical",
+        component: "decision_engine",
+        element: "WorkItemBoard",
+        category: "decision",
+        type: "critical_backlog",
+        description: `Top critical: ${bySeverity.critical.slice(0,3).map((i: any) => i.title).join("; ")}`,
+      });
+    }
+
+    // Decision: if total open > 20 → warn about backlog
+    const totalOpen = (openItems || []).length;
+    if (totalOpen > 20) {
+      issues.push({
+        title: `Decision: Large backlog — ${totalOpen} open work items`,
+        severity: "high",
+        component: "decision_engine",
+        element: "WorkItemBoard",
+        category: "decision",
+        type: "large_backlog",
+        description: `${bySeverity.high.length} high + ${bySeverity.medium.length} medium + ${bySeverity.low.length} low priority items pending`,
+      });
+    }
+
+    // Fetch the latest scan results to surface biggest single scanner issue
+    const { data: latestResults } = await supabase
+      .from("ai_scan_results")
+      .select("scan_type, overall_score, issues_count, executive_summary")
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    const worstResult = (latestResults || []).sort((a: any, b: any) => (a.overall_score ?? 100) - (b.overall_score ?? 100))[0];
+    if (worstResult && (worstResult.overall_score ?? 100) < 50) {
+      issues.push({
+        title: `Decision: Scanner "${worstResult.scan_type}" has critical health (score ${worstResult.overall_score})`,
+        severity: "high",
+        component: "decision_engine",
+        element: "ScannerDashboard",
+        category: "decision",
+        type: "low_scanner_score",
+        description: worstResult.executive_summary || `${worstResult.issues_count} issues detected`,
+      });
+    }
+
+    // Aggregate component hotspots: component with most open items
+    const componentCounts: Record<string, number> = {};
+    for (const item of openItems || []) {
+      for (const comp of item.affected_components || []) {
+        componentCounts[comp] = (componentCounts[comp] || 0) + 1;
+      }
+    }
+    const topComponent = Object.entries(componentCounts).sort(([,a],[,b]) => b-a)[0];
+    if (topComponent && topComponent[1] >= 3) {
+      issues.push({
+        title: `Decision: Component "${topComponent[0]}" has ${topComponent[1]} open issues — focus area`,
+        severity: "medium",
+        component: "decision_engine",
+        element: topComponent[0],
+        category: "decision",
+        type: "component_hotspot",
+      });
+    }
+
+  } catch (e: any) { issues.push({ title: `Decision engine error: ${e.message}`, severity: "critical", component: "decision_engine", category: "decision" }); }
+
+  const durationMs = Date.now() - startMs;
+  const score = issues.filter(i => i.severity === "critical").length > 0 ? 20
+    : issues.filter(i => i.severity === "high").length > 0 ? 50 : 80;
+  return { issues, issues_found: issues.length, overall_score: score, duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
+}
+
 // ── Map scan types to real DB functions ──
 const REAL_DB_SCANNERS: Record<string, (supabase: any, scanRunId: string) => Promise<any>> = {
   data_integrity: runDataIntegrityScan,
@@ -1918,6 +2207,10 @@ const REAL_DB_SCANNERS: Record<string, (supabase: any, scanRunId: string) => Pro
   interaction_qa: runRealInteractionQA,
   component_map: runRealComponentMapScan,
   ui_flow_integrity: runUiFlowIntegrityScan,
+  nav_scan: runNavScan,
+  human_test: runHumanTestScan,
+  blocker_detection: runBlockerDetectionScan,
+  decision_engine: runDecisionEngineScan,
 };
 
 // ── SCAN CONSISTENCY GUARD ──
@@ -2501,8 +2794,7 @@ serve(async (req) => {
           const dbResult = await realScanner(supabase, scan_run_id);
           stepResult = { ...dbResult };
         } else {
-          console.log(`[scan] No scanner registered for ${step.scanType} — skipping`);
-          stepResult = { issues: [], issues_found: 0, overall_score: null, _empty_reason: "no_scanner" };
+          throw new Error(`SCANNER NOT IMPLEMENTED: ${step.scanType}`);
         }
       } catch (e: any) { stepResult = { error: e.message, failed: true, _timed_out: e.name === "AbortError" }; }
 
