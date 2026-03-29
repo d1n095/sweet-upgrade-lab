@@ -154,7 +154,7 @@ const AdminChangeHistory = () => {
           <SelectContent>
             <SelectItem value="all">Alla källor</SelectItem>
             <SelectItem value="lovable">Lovable</SelectItem>
-            <SelectItem value="ai">AI</SelectItem>
+            <SelectItem value="ai">System</SelectItem>
             <SelectItem value="manual">Manuell</SelectItem>
             <SelectItem value="automation">Automation</SelectItem>
             <SelectItem value="system">System</SelectItem>
