@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils';
 
 const SOURCE_META: Record<string, { label: string; icon: typeof Bot; color: string }> = {
   lovable: { label: 'Lovable', icon: Bot, color: 'text-purple-600 bg-purple-600/10' },
-  ai: { label: 'AI', icon: Zap, color: 'text-blue-600 bg-blue-600/10' },
+  ai: { label: 'System', icon: Zap, color: 'text-blue-600 bg-blue-600/10' },
   manual: { label: 'Manuell', icon: Wrench, color: 'text-muted-foreground bg-secondary' },
   automation: { label: 'Automation', icon: RefreshCw, color: 'text-orange-600 bg-orange-600/10' },
   system: { label: 'System', icon: FileCode, color: 'text-cyan-600 bg-cyan-600/10' },

@@ -712,22 +712,8 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                           bug_report_id: item.source_type === 'bug_report' ? item.source_id : null,
                           metadata: { ai_confidence: item.ai_pre_verify_result?.confidence, action: 'reject', escalated_to: newPriority },
                         });
-                        toast.info('🔍 Avvisad — AI kör fördjupad re-analys...', { duration: 4000 });
-                        // 3. Trigger targeted rejection re-analysis
-                        const { data: { session } } = await supabase.auth.getSession();
-                        if (session) {
-                          fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-                            body: JSON.stringify({ type: 'rejection_reanalysis', work_item_id: item.id }),
-                          }).then(async (r) => {
-                            if (r.ok) {
-                              toast.success('AI re-analys klar — nya förslag tillgängliga', { duration: 5000 });
-                            } else {
-                              toast.error('AI re-analys misslyckades');
-                            }
-                            onRefresh?.();
-                          }).catch(() => {});
+                        toast.info('🔍 Avvisad — eskalerad för manuell granskning', { duration: 4000 });
+                        onRefresh?.();
                         }
                         onRefresh?.();
                       } catch { toast.error('Fel'); }
