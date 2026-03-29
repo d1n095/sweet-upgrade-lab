@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, createContext, useContext, useCallback } from 'react';
 import { logAICall } from '@/utils/aiGuard';
+import { runAISafe } from '@/core/aiGateway';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Sparkles, Bug, BarChart3, Copy, Loader2, Send, AlertTriangle, Lightbulb, Info, RefreshCw, Bot, CheckCircle, XCircle, Shield, Clock, Zap, Activity, TrendingUp, Package, AlertCircle, Database, Wrench, Radar, ArrowRight, Layers, Monitor, Smartphone, Tablet, Eye, Compass, LayoutGrid, GitMerge, ArrowRightLeft, ShieldCheck, Play, Settings2, ToggleRight, Maximize2, Gavel, ChevronDown, History, User, Brain } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger, ScrollableTabs } from '@/components/ui/tabs';
@@ -90,35 +91,27 @@ interface UnifiedReport {
 
 const callAI = async (_type: string, _payload: Record<string, any> = {}) => {
   logAICall({ source: 'AdminAI', file: 'AdminAI.tsx', action: _type, status: 'ATTEMPT' });
-  // ai-assistant is DISABLED — all scans must go through run-full-scan
-  logAICall({ source: 'AdminAI', file: 'AdminAI.tsx', action: _type, status: 'BLOCKED' });
-  console.warn('[callAI] ai-assistant is disabled; use run-full-scan instead');
-  return null;
+  const result = await runAISafe({ source: 'ADMIN', feature: _type, payload: _payload });
+  logAICall({ source: 'AdminAI', file: 'AdminAI.tsx', action: _type, status: result ? 'EXECUTED' : 'BLOCKED' });
+  return result;
 };
 
 const callTaskManager = async (action: string) => {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) { toast.error('Ej inloggad'); return null; }
 
-  const resp = await fetch(
-    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-task-manager`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ action }),
-    }
-  );
+  const data = await runAISafe({
+    source: 'ADMIN',
+    feature: 'ai-task-manager',
+    payload: { action },
+    functionName: 'ai-task-manager',
+  });
 
-  if (!resp.ok) {
-    const err = await resp.json().catch(() => ({}));
-    toast.error(err.error || 'AI Task Manager-fel');
+  if (!data) {
+    toast.error('AI Task Manager-fel');
     return null;
   }
 
-  const data = await resp.json();
   return data.results;
 };
 
@@ -6566,14 +6559,13 @@ const AiUserManagementTab = () => {
   const [roleFilter, setRoleFilter] = useState('all');
 
   const callMgmt = async (body: Record<string, any>) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { toast.error('Ej inloggad'); return null; }
-    const resp = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-user-management`,
-      { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify(body) }
-    );
-    const data = await resp.json();
-    if (!resp.ok) throw new Error(data.error || 'Request failed');
+    const data = await runAISafe({
+      source: 'ADMIN',
+      feature: 'ai-user-management',
+      payload: body,
+      functionName: 'ai-user-management',
+    });
+    if (!data) throw new Error('AI user management unavailable');
     return data;
   };
 

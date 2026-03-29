@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { runAISafe } from '@/core/aiGateway';
 import { Bug, CheckCircle2, Loader2, Clock, MapPin, User, ChevronDown, ChevronUp, AlertCircle, Sparkles, Tag, Search, RefreshCw, BookOpen, Copy, Filter, Crosshair, Wrench, FileCode, ClipboardCopy } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -165,17 +166,12 @@ const AdminBugReports = () => {
     console.log(`[BugEnrich] Auto-processing ${unprocessed.length} bugs`);
     for (const bug of unprocessed) {
       try {
-        await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-bug-report`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify({ bug_id: bug.id }),
-          }
-        );
+        await runAISafe({
+          source: 'SYSTEM',
+          feature: 'process-bug-report',
+          payload: { bug_id: bug.id },
+          functionName: 'process-bug-report',
+        });
       } catch (e) {
         console.warn(`[BugEnrich] Failed for ${bug.id}:`, e);
       }
@@ -198,28 +194,19 @@ const AdminBugReports = () => {
   const processWithAI = async (bugId: string) => {
     setProcessingAI(bugId);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { toast.error('Ej inloggad'); return; }
+      const result_data = await runAISafe({
+        source: 'USER_ACTION',
+        feature: 'process-bug-report',
+        payload: { bug_id: bugId },
+        functionName: 'process-bug-report',
+      });
 
-      const resp = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-bug-report`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ bug_id: bugId }),
-        }
-      );
-
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({}));
-        toast.error(err.error || 'AI-bearbetning misslyckades');
+      if (!result_data) {
+        toast.error('AI-bearbetning misslyckades');
         return;
       }
 
-      const { result } = await resp.json();
+      const { result } = result_data;
       setReports(prev => prev.map(r =>
         r.id === bugId
           ? {
