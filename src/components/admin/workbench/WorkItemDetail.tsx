@@ -705,30 +705,14 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                         // 2. Log rejection
                         await supabase.from('change_log').insert({
                           change_type: 'rejection',
-                          description: `Användare avvisade AI-förslag: ${item.title} — prioritet eskalerad till ${newPriority}`,
+                          description: `Användare avvisade förslag: ${item.title} — prioritet eskalerad till ${newPriority}`,
                           affected_components: [item.item_type, 'ai_pre_verify'],
                           source: 'human_rejection',
                           work_item_id: item.id,
                           bug_report_id: item.source_type === 'bug_report' ? item.source_id : null,
                           metadata: { ai_confidence: item.ai_pre_verify_result?.confidence, action: 'reject', escalated_to: newPriority },
                         });
-                        toast.info('🔍 Avvisad — AI kör fördjupad re-analys...', { duration: 4000 });
-                        // 3. Trigger targeted rejection re-analysis
-                        const { data: { session } } = await supabase.auth.getSession();
-                        if (session) {
-                          fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-                            body: JSON.stringify({ type: 'rejection_reanalysis', work_item_id: item.id }),
-                          }).then(async (r) => {
-                            if (r.ok) {
-                              toast.success('AI re-analys klar — nya förslag tillgängliga', { duration: 5000 });
-                            } else {
-                              toast.error('AI re-analys misslyckades');
-                            }
-                            onRefresh?.();
-                          }).catch(() => {});
-                        }
+                        toast.info('🔍 Avvisad — eskalerad för manuell granskning', { duration: 4000 });
                         onRefresh?.();
                       } catch { toast.error('Fel'); }
                       finally { setRunningPreVerify(false); }
@@ -745,7 +729,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
             {/* Pre-Verify Button for open items */}
             {isOpen && (
               <Button size="sm" variant="outline" className="w-full gap-1.5"
-                onClick={() => toast.info('AI är avaktiverad — verifiera manuellt')}
+                onClick={() => toast.info('Verifiera manuellt')}
               >
                 <Sparkles className="w-3.5 h-3.5" />
                 Kontrollera om löst

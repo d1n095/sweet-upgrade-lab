@@ -100,7 +100,7 @@ const callAI = async (type: string, payload: Record<string, any> = {}) => {
   }
 
   // Non-scan AI calls are disabled
-  toast.info('AI är avaktiverad — denna funktion kräver manuell hantering');
+  toast.info('Denna funktion kräver manuell hantering');
   return null;
 };
 
@@ -839,7 +839,7 @@ const TaskAITab = () => {
       setLastResults(results);
       refetchItems();
       const total = Object.values(results).reduce((s: number, v: any) => s + (v || 0), 0);
-      toast.success(`AI slutfört: ${total} åtgärder`);
+      toast.success(`Slutfört: ${total} åtgärder`);
     }
     setRunning(null);
   };
@@ -853,7 +853,7 @@ const TaskAITab = () => {
     if (updates.status === 'done') {
       const reviewResult = await triggerAiReviewForWorkItem(itemId, { context: 'admin_ai_override_done' });
       if (!reviewResult.ok) {
-        toast.warning('AI-granskning misslyckades — satt till manuell granskning');
+        toast.warning('Granskning misslyckades — satt till manuell granskning');
       }
     }
 
@@ -8103,7 +8103,7 @@ const OrchestrationTab = () => {
     <div className="flex flex-col min-h-0 h-full">
       <SafeModeBanner />
       <div className="min-h-0 flex-1 flex flex-col">
-        <AiCenterTabs defaultValue="ai-dashboard">
+        <AiCenterTabs defaultValue="scan-dashboard">
           {/* Dashboard */}
           <div data-value="system-state"><SystemStateDashboard /></div>
           <div data-value="unified-pipeline"><UnifiedPipelineDashboard /></div>
@@ -8111,8 +8111,6 @@ const OrchestrationTab = () => {
           <div data-value="insights"><DataInsightsTab /></div>
 
           {/* Operations */}
-          <div data-value="lova-chat"><LovaChatTab /></div>
-          <div data-value="autopilot"><AiAutopilotTab /></div>
           <div data-value="actions"><ActionEngineTab /></div>
           <div data-value="tasks"><TaskAITab /></div>
           <div data-value="bugs" className="flex flex-col min-h-0 h-full"><BugAITab /></div>
@@ -8133,7 +8131,7 @@ const OrchestrationTab = () => {
           <div data-value="data-flow"><DataFlowValidator /></div>
           <div data-value="cleanup"><DataCleanupTab /></div>
           <div data-value="change-log"><ChangeLogTab /></div>
-          <div data-value="ai-reads"><AdminAiReadLog /></div>
+          <div data-value="system-log"><AdminAiReadLog /></div>
         </AiCenterTabs>
       </div>
 

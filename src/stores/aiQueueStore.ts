@@ -209,7 +209,7 @@ async function createChangeLogForTask(task: QueueTask) {
     change_type: 'fix',
     description: task.title,
     affected_components: [],
-    source: 'ai',
+    source: 'system',
     work_item_id: task.id,
     metadata: {
       priority: task.priority,

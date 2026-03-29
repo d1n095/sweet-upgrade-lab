@@ -1046,7 +1046,7 @@ const SystemExplorer = () => {
     setAiAnswer(null);
     try {
       // AI is disabled — show manual guidance instead
-      setAiAnswer("AI-analys är avaktiverad. Använd skanningsknapparna för regelbaserad systemanalys, eller granska Work Items manuellt.");
+      setAiAnswer("Använd skanningsknapparna för regelbaserad systemanalys, eller granska Work Items manuellt.");
     } catch (e: any) {
       setAiAnswer(`Fel: ${e.message || "Kunde inte analysera."}`);
     } finally {

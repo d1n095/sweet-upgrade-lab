@@ -3,17 +3,16 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import {
-  Bot, Play, TrendingUp, Radar, Activity, Monitor,
+  TrendingUp, Radar, Activity, Monitor,
   Database, Shield, Eye, GitMerge,
   ArrowRightLeft, Layers, ChevronRight, Menu, X,
-  Sparkles, Bug, Wrench, Clock, Lock,
+  Bug, Wrench, Clock, Lock,
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { AnimatePresence, motion } from 'framer-motion';
-import AiControlBar from '@/components/admin/AiControlBar';
 
 // ── Tab & Group definitions ──
 
@@ -36,7 +35,7 @@ const TAB_GROUPS: TabGroup[] = [
     label: 'Dashboard',
     icon: Activity,
     tabs: [
-      { value: 'ai-dashboard', label: 'Översikt', icon: Activity },
+      { value: 'scan-dashboard', label: 'Översikt', icon: Activity },
       { value: 'system-state', label: 'Systemkarta', icon: Monitor },
       { value: 'unified-pipeline', label: 'Pipeline', icon: GitMerge },
       { value: 'health', label: 'Systemhälsa', icon: Shield },
@@ -48,8 +47,6 @@ const TAB_GROUPS: TabGroup[] = [
     label: 'Operations',
     icon: Wrench,
     tabs: [
-      { value: 'lova-chat', label: 'Lova Chat', icon: Bot },
-      { value: 'autopilot', label: 'Autopilot', icon: Play },
       { value: 'actions', label: 'Åtgärder', icon: TrendingUp },
       { value: 'tasks', label: 'Uppgifter', icon: Layers },
       { value: 'bugs', label: 'Buggar', icon: Bug },
@@ -78,7 +75,7 @@ const TAB_GROUPS: TabGroup[] = [
       { value: 'data-flow', label: 'Dataflöde', icon: ArrowRightLeft },
       { value: 'cleanup', label: 'Rensning', icon: Database },
       { value: 'change-log', label: 'Ändringslogg', icon: Clock },
-      { value: 'ai-reads', label: 'AI-läslogg', icon: Eye },
+      { value: 'system-log', label: 'Systemlogg', icon: Eye },
     ],
   },
 ];
@@ -96,10 +93,10 @@ interface DashboardOverviewProps {
 }
 
 const quickActions = [
-  { label: 'Prata med Lova', icon: Bot, tab: 'lova-chat', color: 'text-primary' },
   { label: 'Full skanning', icon: Radar, tab: 'scan', color: 'text-blue-500' },
-  { label: 'Autopilot', icon: Play, tab: 'autopilot', color: 'text-green-500' },
   { label: 'Buggar', icon: Bug, tab: 'bugs', color: 'text-destructive' },
+  { label: 'Uppgifter', icon: Layers, tab: 'tasks', color: 'text-primary' },
+  { label: 'Systemhälsa', icon: Shield, tab: 'health', color: 'text-green-500' },
 ];
 
 const DashboardOverview = ({ onNavigate }: DashboardOverviewProps) => (
@@ -166,12 +163,12 @@ const DashboardOverview = ({ onNavigate }: DashboardOverviewProps) => (
 
 // ── Main Component ──
 
-interface AiCenterTabsProps {
+interface ScanCenterTabsProps {
   defaultValue?: string;
   children: React.ReactNode;
 }
 
-const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsProps) => {
+const AiCenterTabs = ({ defaultValue = 'scan-dashboard', children }: ScanCenterTabsProps) => {
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
   const initialTab = (tabParam && ALL_TABS.some(t => t.value === tabParam)) ? tabParam : defaultValue;
@@ -187,7 +184,6 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
     setMobileNavOpen(false);
   };
 
-  // Listen for external navigation events (from AiControlBar)
   useEffect(() => {
     const handler = (e: Event) => {
       const tab = (e as CustomEvent).detail;
@@ -195,11 +191,10 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
         handleNavigate(tab);
       }
     };
-    window.addEventListener('ai-center-navigate', handler);
-    return () => window.removeEventListener('ai-center-navigate', handler);
+    window.addEventListener('scan-center-navigate', handler);
+    return () => window.removeEventListener('scan-center-navigate', handler);
   }, []);
 
-  // Sync with URL param changes
   useEffect(() => {
     if (tabParam && ALL_TABS.some(t => t.value === tabParam) && tabParam !== activeTab) {
       handleNavigate(tabParam);
@@ -211,10 +206,10 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
   const sidebarContent = (
     <nav className="space-y-1 px-2">
       <button
-        onClick={() => handleNavigate('ai-dashboard')}
+        onClick={() => handleNavigate('scan-dashboard')}
         className={cn(
           'flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-          activeTab === 'ai-dashboard'
+          activeTab === 'scan-dashboard'
             ? 'bg-primary/10 text-primary'
             : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
         )}
@@ -274,14 +269,13 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
 
   return (
     <div className="-mx-4 md:-mx-6 flex flex-col min-h-0 flex-1 overflow-hidden">
-      {/* Top navigation (no permanent sidebar) */}
       <div className="border-b border-border bg-card/50 shrink-0">
         <div className="md:hidden px-2 py-1.5 flex items-center gap-2 safe-area-inset-bottom">
           <Button
-            variant={activeTab === 'ai-dashboard' ? 'secondary' : 'ghost'}
+            variant={activeTab === 'scan-dashboard' ? 'secondary' : 'ghost'}
             size="sm"
             className="gap-1.5 text-xs h-9"
-            onClick={() => handleNavigate('ai-dashboard')}
+            onClick={() => handleNavigate('scan-dashboard')}
           >
             <Activity className="w-4 h-4" />
             Översikt
@@ -295,10 +289,10 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
 
         <div className="hidden md:flex items-center gap-2 px-4 md:px-8 py-2 overflow-x-auto scrollbar-hide">
           <Button
-            variant={activeTab === 'ai-dashboard' ? 'secondary' : 'ghost'}
+            variant={activeTab === 'scan-dashboard' ? 'secondary' : 'ghost'}
             size="sm"
             className="gap-1.5 text-xs shrink-0 h-8"
-            onClick={() => handleNavigate('ai-dashboard')}
+            onClick={() => handleNavigate('scan-dashboard')}
           >
             <Activity className="w-3.5 h-3.5" />
             Dashboard
@@ -360,8 +354,8 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
             >
               <div className="h-12 px-3 border-b border-border flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-semibold">AI Center</span>
+                  <Radar className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-semibold">Scan Center</span>
                 </div>
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setMobileNavOpen(false)}>
                   <X className="w-4 h-4" />
@@ -375,13 +369,12 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
         )}
       </AnimatePresence>
 
-      {/* Main Content — independently scrollable */}
       <div className="flex-1 min-h-0 overflow-y-auto">
         <div className="px-4 md:px-6 pb-4 pt-3">
-          {activeTab !== 'ai-dashboard' && activeTabDef && (
+          {activeTab !== 'scan-dashboard' && activeTabDef && (
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-4 pt-1 shrink-0">
-              <button onClick={() => handleNavigate('ai-dashboard')} className="hover:text-foreground transition-colors">
-                AI Center
+              <button onClick={() => handleNavigate('scan-dashboard')} className="hover:text-foreground transition-colors">
+                Scan Center
               </button>
               <ChevronRight className="w-3 h-3" />
               <span className="text-foreground font-medium">{activeTabDef.label}</span>
@@ -389,7 +382,7 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
           )}
 
           <div>
-            {activeTab === 'ai-dashboard' ? (
+            {activeTab === 'scan-dashboard' ? (
               <DashboardOverview onNavigate={handleNavigate} />
             ) : (
               <div>
