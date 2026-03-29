@@ -206,6 +206,7 @@ export const runUnifiedPipeline = async (
       } else {
         emit(makeEvent('work_items', 'log_exists', item.id, 'work_item', true,
           'Ändringslogg finns redan'));
+        console.log("📊 EVENT:", { stage: 'work_items', action: 'log_exists', itemId: item.id });
       }
     }
 
@@ -252,6 +253,7 @@ export const runUnifiedPipeline = async (
       } else if (bug) {
         emit(makeEvent('change_log', 'bug_already_resolved', change.id, 'change_log', true,
           'Bugg redan löst'));
+        console.log("📊 EVENT:", { stage: 'change_log', action: 'bug_already_resolved', changeId: change.id, bugId: bug.id });
       }
     }
 

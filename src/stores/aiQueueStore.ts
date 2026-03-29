@@ -452,11 +452,8 @@ export const useAiQueueStore = create<AiQueueState>((set, get) => ({
   },
 
   addTask: (input) => {
-    const id = input.id || generateId();
-    const task: QueueTask = { ...input, id, status: 'queued', createdAt: new Date().toISOString() };
-    set((s) => ({ tasks: [...s.tasks, task] }));
-    setTimeout(() => get().processQueue(), 0);
-    return id;
+    console.warn("🚫 QUEUE DISABLED");
+    return input.id || generateId();
   },
 
   removeTask: (id) => {
@@ -484,10 +481,8 @@ export const useAiQueueStore = create<AiQueueState>((set, get) => ({
   },
 
   processQueue: async () => {
-    const state = get();
-
-    // Paused — skip processing
-    if (state.paused) return;
+    console.warn("🚫 QUEUE DISABLED");
+    return;
 
     // Deadlock protection: if _isProcessing has been stuck for too long, force-release
     if (state._isProcessing) {

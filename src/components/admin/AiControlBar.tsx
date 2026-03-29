@@ -17,7 +17,7 @@ const AiControlBar = ({ onNavigateTab, compact = false }: AiControlBarProps) => 
   const [bugCount, setBugCount] = useState(0);
   const [scanRunning, setScanRunning] = useState(false);
 
-  const isOnScanPage = location.pathname === '/admin/ai';
+  const isOnScanPage = location.pathname === '/admin/system-explorer';
 
   useEffect(() => {
     const fetchBugCount = async () => {
@@ -43,10 +43,10 @@ const AiControlBar = ({ onNavigateTab, compact = false }: AiControlBarProps) => 
     if (onNavigateTab) {
       onNavigateTab(tab);
     } else if (isOnScanPage) {
-      navigate(`/admin/ai?tab=${tab}`, { replace: true });
+      navigate(`/admin/system-explorer?tab=${tab}`, { replace: true });
       window.dispatchEvent(new CustomEvent('scan-center-navigate', { detail: tab }));
     } else {
-      navigate(`/admin/ai?tab=${tab}`);
+      navigate(`/admin/system-explorer?tab=${tab}`);
     }
   };
 
