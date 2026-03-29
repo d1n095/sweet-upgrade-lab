@@ -714,8 +714,6 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                         });
                         toast.info('🔍 Avvisad — eskalerad för manuell granskning', { duration: 4000 });
                         onRefresh?.();
-                        }
-                        onRefresh?.();
                       } catch { toast.error('Fel'); }
                       finally { setRunningPreVerify(false); }
                     }}
