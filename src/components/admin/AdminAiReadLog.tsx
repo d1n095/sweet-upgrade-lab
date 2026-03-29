@@ -34,7 +34,7 @@ const ACTION_LABELS: Record<string, string> = {
   analyze: 'Analys',
   deep_analysis: 'Djupanalys',
   snapshot: 'Systemöversikt',
-  chat: 'Lova-chatt',
+  chat: 'Chatt',
   review: 'Granskning',
 };
 
