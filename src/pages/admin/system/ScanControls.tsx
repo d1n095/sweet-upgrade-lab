@@ -1,0 +1,18 @@
+import { Loader2, Radar } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useScanRunner } from "./useScanRunner";
+
+export function ScanControls() {
+  const { runFullScan, isScanning } = useScanRunner();
+
+  return (
+    <Button variant="default" size="sm" onClick={runFullScan} disabled={isScanning}>
+      {isScanning ? (
+        <Loader2 className="h-4 w-4 animate-spin mr-1" />
+      ) : (
+        <Radar className="h-4 w-4 mr-1" />
+      )}
+      {isScanning ? "Scanning..." : "Run Full Scan"}
+    </Button>
+  );
+}

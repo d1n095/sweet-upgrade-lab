@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { tracedInvoke } from "@/lib/tracedInvoke";
 import { useAiQueueStore } from "@/stores/aiQueueStore";
+import { ScanControls } from "./system/ScanControls";
 import { fileSystemMap, type FileEntry, getFileContent, getCodeIndex, getDuplicatedLines, getCodeIssues, getRawSources, scanFileContent } from "@/lib/fileSystemMap";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useFounderRole } from "@/hooks/useFounderRole";
@@ -492,52 +493,6 @@ const SystemExplorer = () => {
     setIsRefreshing(false);
   };
 
-  const handleRunFullScan = async () => {
-    console.log("[SCAN TRIGGERED]");
-    setIsScanning(true);
-    
-    try {
-      const before = await supabase.from("work_items").select("id");
-      const beforeCount = before.data?.length || 0;
-      logAction({ type: "Full Scan", status: "started" });
-      console.log("🚀 STARTING FULL SCAN");
-      const structure_map = Object.keys(getRawSources() || {}).map(path => ({
-        path
-      }));
-      console.log("[SENDING STRUCTURE MAP]:", structure_map.length);
-      const res = await tracedInvoke("run-full-scan", {
-        body: { action: "start", scan_mode: "full", structure_map },
-      });
-      console.log("📡 RESPONSE:", res);
-      const verify = await verifyWorkItemsCreated(beforeCount);
-      if (verify.created === 0) {
-        logAction({
-          type: "Full Scan",
-          status: "no-effect",
-          message: "Scan ran but created 0 work_items ❌"
-        });
-      } else {
-        logAction({
-          type: "Full Scan",
-          status: "verified",
-          message: `Created ${verify.created} work_items ✔`
-        });
-      }
-      console.log("[DEBUG] FULL SCAN RESPONSE:", res);
-      const json = res?.data ?? res;
-      console.log("[DEBUG] FULL SCAN JSON:", json);
-      if (json?.success === false) {
-        console.error("[DEBUG] FULL SCAN ERROR:", json?.error);
-      }
-      await handleRefresh();
-    } catch (err) {
-      console.error("[FULL SCAN UI ERROR]:", err);
-    } finally {
-      
-      setIsScanning(false);
-    }
-  };
-
   // 2. Latest scan
   const { data: latestScan, isLoading: scanLoading } = useQuery({
     queryKey: ["system-explorer-latest-scan"],
@@ -551,6 +506,8 @@ const SystemExplorer = () => {
       if (error) throw error;
       return data;
     },
+    staleTime: 0,
+    refetchOnWindowFocus: false,
   });
 
   // 2c. Last 3 scans for no-issue detection
@@ -580,6 +537,8 @@ const SystemExplorer = () => {
       if (error) throw error;
       return data;
     },
+    staleTime: 0,
+    refetchOnWindowFocus: false,
   });
 
   // 3b. History for selected item
@@ -1182,50 +1141,7 @@ const SystemExplorer = () => {
             Refresh
           </Button>
           {isSystemAdmin && (
-            <>
-            <Button variant="default" size="sm" onClick={() =>
-              validateAction("FULL_SCAN", async () => {
-                const structure_map = Object.keys(getRawSources() || {});
-                if (!structure_map.length) {
-                  throw new Error("No structure map");
-                }
-                setIsScanning(true);
-                setScanProgress({ step: 0, total: 11, label: "Startar..." });
-                const pollInterval = setInterval(async () => {
-                  try {
-                    const { data } = await supabase.from("scan_runs").select("current_step, current_step_label").order("created_at", { ascending: false }).limit(1).single();
-                    if (data) {
-                      setScanProgress({ step: data.current_step || 0, total: 11, label: data.current_step_label || "Scanning..." });
-                    }
-                  } catch (_) {}
-                }, 2000);
-                try {
-                  console.log("[START SCAN CLICK]", { action: "start", scan_mode: "full", structure_map_count: structure_map.length });
-                  console.log("[INVOKE SENT]", "run-full-scan");
-                  const invokeResult = await supabase.functions.invoke("run-full-scan", {
-                    body: { action: "start", scan_mode: "full", structure_map: structure_map.map(p => ({ path: p })) }
-                  });
-                  console.log("[INVOKE RESPONSE]", "run-full-scan", { data: invokeResult.data, error: invokeResult.error });
-                } finally {
-                  clearInterval(pollInterval);
-                  setIsScanning(false);
-                  setScanProgress(null);
-                }
-                return true;
-              })
-            } disabled={isScanning}>
-              {isScanning ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Radar className="h-4 w-4 mr-1" />}
-              {isScanning && scanProgress ? `Scanning... (${scanProgress.step}/${scanProgress.total})` : isScanning ? "Scanning..." : "Run Full Scan"}
-            </Button>
-            {isScanning && scanProgress && (
-              <div className="flex items-center gap-2 ml-2">
-                <div className="w-32 h-1.5 bg-muted rounded-full overflow-hidden">
-                  <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${Math.round((scanProgress.step / scanProgress.total) * 100)}%` }} />
-                </div>
-                <span className="text-[9px] text-muted-foreground truncate max-w-[200px]">{scanProgress.label}</span>
-              </div>
-            )}
-            </>
+            <ScanControls />
           )}
            {isSystemAdmin && (
              <Button variant="outline" size="sm" onClick={() => setShowRawScan(!showRawScan)}>
