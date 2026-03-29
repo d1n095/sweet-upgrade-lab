@@ -19,6 +19,21 @@ const languages: { code: Language; name: string; flag: string }[] = [
   { code: 'fr', name: 'Français', flag: '🇫🇷' },
   { code: 'es', name: 'Español', flag: '🇪🇸' },
   { code: 'pl', name: 'Polski', flag: '🇵🇱' },
+  { code: 'it', name: 'Italiano', flag: '🇮🇹' },
+  { code: 'pt', name: 'Português', flag: '🇵🇹' },
+  { code: 'ro', name: 'Română', flag: '🇷🇴' },
+  { code: 'cs', name: 'Čeština', flag: '🇨🇿' },
+  { code: 'hu', name: 'Magyar', flag: '🇭🇺' },
+  { code: 'el', name: 'Ελληνικά', flag: '🇬🇷' },
+  { code: 'sk', name: 'Slovenčina', flag: '🇸🇰' },
+  { code: 'bg', name: 'Български', flag: '🇧🇬' },
+  { code: 'hr', name: 'Hrvatski', flag: '🇭🇷' },
+  { code: 'sl', name: 'Slovenščina', flag: '🇸🇮' },
+  { code: 'lt', name: 'Lietuvių', flag: '🇱🇹' },
+  { code: 'lv', name: 'Latviešu', flag: '🇱🇻' },
+  { code: 'et', name: 'Eesti', flag: '🇪🇪' },
+  { code: 'mt', name: 'Malti', flag: '🇲🇹' },
+  { code: 'ga', name: 'Gaeilge', flag: '🇮🇪' },
 ];
 
 export const LanguageSwitcher = () => {
