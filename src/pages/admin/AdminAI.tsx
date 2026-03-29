@@ -1359,7 +1359,7 @@ const BugAITab = () => {
                   <div className="space-y-2">
                     <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
                       <Sparkles className="w-3.5 h-3.5" />
-                      {selectedFix._deep ? 'AI Djupanalys' : 'AI Output'}
+                      {selectedFix._deep ? 'Djupanalys' : 'Output'}
                     </div>
                     {selectedFix.diagnosis?.summary && (
                       <div className="text-xs border rounded-md p-2 bg-muted/30">{selectedFix.diagnosis.summary}</div>
@@ -3815,7 +3815,7 @@ Förslag: ${issue.fix_suggestion}`,
         toast.error('Kunde inte skapa auto-fix uppgift');
       }
     } else if (decision === 'ignore') {
-      setIssueStatus(idx, 'ignored', analysis.decision_reason || 'AI bedömde som ej åtgärdskrävande');
+      setIssueStatus(idx, 'ignored', analysis.decision_reason || 'Bedömt som ej åtgärdskrävande');
       toast.info(`⏭️ AI ignorerade: ${issue.title}`);
     }
     // needs_prompt: stays open with generated prompt visible
@@ -4700,7 +4700,7 @@ const AiAutopilotTab = () => {
     if (res) {
       setExecutionResult(res);
       if (res.executed_count > 0) {
-        toast.success(`AI utförde ${res.executed_count} åtgärder`);
+        toast.success(`Utförde ${res.executed_count} åtgärder`);
         queryClient.invalidateQueries({ queryKey: ['work-items'] });
       }
     }
@@ -4708,9 +4708,9 @@ const AiAutopilotTab = () => {
   };
 
   const modeConfig = {
-    manual: { label: 'Manuell', desc: 'AI föreslår — du utför', color: 'border-blue-500 bg-blue-50 text-blue-800' },
-    assisted: { label: 'Assisterad', desc: 'AI utför säkra åtgärder automatiskt', color: 'border-yellow-500 bg-yellow-50 text-yellow-800' },
-    autonomous: { label: 'Autonom', desc: 'AI utför allt utom raderingar', color: 'border-red-500 bg-red-50 text-red-800' },
+    manual: { label: 'Manuell', desc: 'System föreslår — du utför', color: 'border-blue-500 bg-blue-50 text-blue-800' },
+    assisted: { label: 'Assisterad', desc: 'Utför säkra åtgärder automatiskt', color: 'border-yellow-500 bg-yellow-50 text-yellow-800' },
+    autonomous: { label: 'Autonom', desc: 'Utför allt utom raderingar', color: 'border-red-500 bg-red-50 text-red-800' },
   };
 
   const isAnyScanRunning = scanning || orchestrator.running;
@@ -4752,12 +4752,12 @@ const AiAutopilotTab = () => {
         <CardContent className="space-y-3">
           {scanMode === 'orchestrated' ? (
             <>
-               <p className="text-[10px] text-muted-foreground">Adaptiv rekursiv skanning — lär sig mönster och djupskannar högriskområden (max 3 iterationer). Körs på servern.</p>
+               <p className="text-[10px] text-muted-foreground">Rekursiv skanning — djupskannar högriskområden (max 3 iterationer). Körs på servern.</p>
                <Button onClick={() => orchestrator.runOrchestrated(queryClient)} disabled={isAnyScanRunning} className="w-full gap-2" size="lg">
                  {orchestrator.running ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
                  {orchestrator.running
                    ? `${orchestrator.currentStepLabel || orchCurrentStep?.progressLabel || 'Kör...'}`
-                   : 'Kör Adaptiv Full Scan'}
+                   : 'Kör Full Scan'}
                </Button>
                {orchestrator.running && orchestrator.steps.length > 0 && (
                  <div className="space-y-1.5">
