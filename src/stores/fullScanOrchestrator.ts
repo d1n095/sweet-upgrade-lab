@@ -286,7 +286,7 @@ export const useFullScanOrchestrator = create<FullScanOrchestratorState>((set, g
       }
 
       const result = await resp.json();
-      const scanRunId = result.scan_run_id;
+      const scanRunId = result.scan_id;
 
       set({ scanRunId });
 
