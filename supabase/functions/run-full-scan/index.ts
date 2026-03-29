@@ -394,72 +394,6 @@ function extractPatterns(unified: any, rootCauseData: any[]): { patterns: any[];
   return { patterns, highRiskAreas, systemicIssues };
 }
 
-// ── Helper: Build targeted re-scan steps based on patterns ──
-function buildTargetedSteps(patterns: any[], highRiskAreas: any[], iteration: number): typeof STEPS {
-  const targeted: typeof STEPS = [];
-  const addedTypes = new Set<string>();
-
-  for (const area of highRiskAreas) {
-    const comp = area.component?.toLowerCase() || "";
-    if ((comp.includes("modal") || comp.includes("dialog") || comp.includes("drawer") || comp.includes("scroll")) && !addedTypes.has("interaction_qa")) {
-      targeted.push({ id: `rescan_interaction_${iteration}`, scanType: "interaction_qa", label: `Djupskannar interaktioner (iteration ${iteration})...` });
-      addedTypes.add("interaction_qa");
-    }
-    if ((comp.includes("form") || comp.includes("input") || comp.includes("checkout")) && !addedTypes.has("sync_scan")) {
-      targeted.push({ id: `rescan_sync_${iteration}`, scanType: "sync_scan", label: `Djupskannar databindning (iteration ${iteration})...` });
-      addedTypes.add("sync_scan");
-    }
-    if ((comp.includes("nav") || comp.includes("route") || comp.includes("link") || comp.includes("page")) && !addedTypes.has("nav_scan")) {
-      targeted.push({ id: `rescan_nav_${iteration}`, scanType: "nav_scan", label: `Djupskannar navigering (iteration ${iteration})...` });
-      addedTypes.add("nav_scan");
-    }
-    if ((comp.includes("button") || comp.includes("click") || comp.includes("action")) && !addedTypes.has("human_test")) {
-      targeted.push({ id: `rescan_human_${iteration}`, scanType: "human_test", label: `Djupskannar användarbeteende (iteration ${iteration})...` });
-      addedTypes.add("human_test");
-    }
-  }
-
-  for (const pattern of patterns) {
-    const sys = pattern.affected_system?.toLowerCase() || "";
-    if ((sys.includes("data") || sys.includes("sync") || sys.includes("binding")) && !addedTypes.has("data_integrity")) {
-      targeted.push({ id: `rescan_data_${iteration}`, scanType: "data_integrity", label: `Djupskannar dataflöden (iteration ${iteration})...` });
-      addedTypes.add("data_integrity");
-    }
-    if ((sys.includes("feature") || sys.includes("fake") || sys.includes("ui")) && !addedTypes.has("feature_detection")) {
-      targeted.push({ id: `rescan_features_${iteration}`, scanType: "feature_detection", label: `Djupskannar funktioner (iteration ${iteration})...` });
-      addedTypes.add("feature_detection");
-    }
-    if ((sys.includes("regression") || sys.includes("system")) && !addedTypes.has("system_scan")) {
-      targeted.push({ id: `rescan_system_${iteration}`, scanType: "system_scan", label: `Djupskannar regressioner (iteration ${iteration})...` });
-      addedTypes.add("system_scan");
-    }
-  }
-
-  if (targeted.length === 0 && (highRiskAreas.length > 0 || patterns.length > 0)) {
-    targeted.push({ id: `rescan_broad_interaction_${iteration}`, scanType: "interaction_qa", label: `Bred djupskanning (iteration ${iteration})...` });
-    targeted.push({ id: `rescan_broad_system_${iteration}`, scanType: "system_scan", label: `Systemverifiering (iteration ${iteration})...` });
-  }
-
-  return targeted;
-}
-
-// ── Helper: Count new issues not seen in previous iterations ──
-function countNewIssues(currentUnified: any, previousIssueKeys: Set<string>): { newCount: number; newKeys: Set<string> } {
-  const allIssues = [
-    ...(currentUnified.broken_flows || []),
-    ...(currentUnified.fake_features || []),
-    ...(currentUnified.interaction_failures || []),
-    ...(currentUnified.data_issues || []),
-  ];
-  const newKeys = new Set<string>();
-  let newCount = 0;
-  for (const issue of allIssues) {
-    const key = (issue.title || issue.description || issue.element || issue.component || issue.route || JSON.stringify(issue)).substring(0, 80).toLowerCase();
-    if (!previousIssueKeys.has(key)) { newCount++; newKeys.add(key); }
-  }
-  return { newCount, newKeys };
-}
-
 // ── DATA INTEGRITY SCAN ──
 async function runDataIntegrityScan(supabase: any, scanRunId: string): Promise<any> {
   const issues: any[] = [];
@@ -1593,7 +1527,7 @@ async function runConsistencyGuard(supabase: any, currentFingerprints: Map<strin
   const { data: activeItems } = await supabase
     .from("work_items")
     .select("id, title, status, priority, issue_fingerprint, created_at")
-    .eq("source_type", "ai_scan")
+    .eq("source_type", "scanner")
     .not("issue_fingerprint", "is", null)
     .in("status", ["open", "claimed", "in_progress", "escalated", "new", "pending", "detected"])
     .limit(500);
@@ -1955,7 +1889,6 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
       priority: issue.priority,
       item_type: issue.item_type,
       source_type: "scanner",
-      ai_detected: true,
       issue_fingerprint: issue.fingerprint,
       source_path: source_file_path || issue.source_path || null,
       source_file: source_file_path || issue.source_file || null,
@@ -2706,12 +2639,12 @@ serve(async (req) => {
         if (!error) workItemsCreated++;
       }
 
-      const execSummary = `${unified.system_health_score}/100 — ${issuesCount} issues (${systemStage}) — ${iterationsCompleted} iter — ${coverageScore}% — ${workItemsCreated} uppgifter`;
+      const execSummary = `${unified.system_health_score}/100 — ${issuesCount} issues (${systemStage}) — ${1} iter — ${coverageScore}% — ${workItemsCreated} uppgifter`;
       await supabase.from("scan_runs").update({
         status: "done", completed_at: new Date().toISOString(), steps_results: updatedResults,
         unified_result: adaptiveResult, system_health_score: unified.system_health_score,
         executive_summary: execSummary, work_items_created: workItemsCreated,
-        current_step: STEPS.length, current_step_label: `Klar ✓ (${iterationsCompleted} iter, ${systemStage})`,
+        current_step: STEPS.length, current_step_label: `Klar ✓ (${1} iter, ${systemStage})`,
       }).eq("id", scan_run_id);
 
       // Store scan snapshot for historical tracking
@@ -2740,7 +2673,7 @@ serve(async (req) => {
 
       // Generate rule-based diagnosis summary (max 10 lines)
       const diagLines: string[] = [];
-      diagLines.push(`Health: ${unified.system_health_score}/100 — ${systemStage} — ${iterationsCompleted} iteration(s)`);
+      diagLines.push(`Health: ${unified.system_health_score}/100 — ${systemStage} — ${1} iteration(s)`);
       diagLines.push(`Detected: ${totalDetected} issues → ${workItemsCreated} created, ${totalSkipped} skipped`);
       diagLines.push(`Coverage: ${coverageUniqueTargets} unique targets / ${coverageTotal} total scope`);
       if (highAttentionCount > 0) diagLines.push(`⚠️ ${highAttentionCount} high-attention issues (impact ≥ 4)`);
