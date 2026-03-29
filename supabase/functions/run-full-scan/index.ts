@@ -2214,6 +2214,7 @@ serve(async (req) => {
       const cachedHashes: Record<string, string> = (existingResults._step_hashes as Record<string, string>) || {};
       const scanStart = Date.now();
       let stepsSkipped = 0;
+      let cacheHits = 0;
 
       // Compute a stable signature of the current DB state for delta detection (5-min window)
       const { data: structureSnapshot } = await supabase.from("system_structure_map").select("entity_type, entity_name, scan_count").limit(500);
@@ -2225,6 +2226,7 @@ serve(async (req) => {
         // Delta hit: reuse cached result when input hash matches
         if (cachedHashes[step.id] === inputHash && existingResults[step.id] && !existingResults[step.id].failed && !existingResults[step.id]._skipped) {
           stepsSkipped++;
+          cacheHits++;
           return { ...existingResults[step.id], _from_cache: true, _cache_hit: true };
         }
         const stepStart = Date.now();
@@ -2319,6 +2321,8 @@ serve(async (req) => {
       batchResults._perf = {
         duration_ms,
         steps_skipped: stepsSkipped,
+        steps_executed: STEPS.length - stepsSkipped,
+        cache_hits: cacheHits,
         total_steps: STEPS.length,
         performance_gain: `${Math.round((stepsSkipped / STEPS.length) * 100)}% steps skipped`,
       };
@@ -2336,10 +2340,12 @@ serve(async (req) => {
         body: JSON.stringify({ action: "evaluate_iteration", scan_run_id, iteration: 1 }),
       }).catch((e: any) => console.error("Failed to chain evaluation:", e));
 
-      console.log(`[run_parallel] done — ${stepsSkipped}/${STEPS.length} steps skipped, ${duration_ms}ms`);
+      console.log(`[run_parallel] done — ${stepsSkipped}/${STEPS.length} steps skipped (${cacheHits} cache hits), ${duration_ms}ms`);
       return new Response(JSON.stringify({
         success: true,
+        steps_executed: STEPS.length - stepsSkipped,
         steps_skipped: stepsSkipped,
+        cache_hits: cacheHits,
         duration_ms,
         performance_gain: `${Math.round((stepsSkipped / STEPS.length) * 100)}% steps skipped`,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
@@ -2908,13 +2914,20 @@ serve(async (req) => {
 
       console.log("[SCAN] finished — detected:", issuesCount, "created:", workItemsCreated, "scanContext:", JSON.stringify(scanContext));
       const perfMeta = (updatedResults._perf as any) || {};
+      const allFinalIssues: any[] = adaptiveResult?.issues ?? [];
+      const fastLayer = allFinalIssues.filter((i: any) => i.severity === "critical" || i.severity === "high" || i._impact_score >= 4);
+      const fullLayer = allFinalIssues;
       return new Response(JSON.stringify({
         success: true, scan_id: scan_run_id, detected: issuesCount, created: workItemsCreated,
         filtered: issuesCount - workItemsCreated, skipped: skippedCount, action: "finalized",
         system_stage: systemStage, scanContext,
         scan_duration_ms: perfMeta.duration_ms ?? null,
+        steps_executed: perfMeta.steps_executed ?? (STEPS.length - (perfMeta.steps_skipped ?? 0)),
         steps_skipped: perfMeta.steps_skipped ?? 0,
+        cache_hits: perfMeta.cache_hits ?? 0,
         performance_gain: perfMeta.performance_gain ?? null,
+        fast_layer: { count: fastLayer.length, issues: fastLayer.slice(0, 20) },
+        full_layer: { count: fullLayer.length },
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
     }
 
