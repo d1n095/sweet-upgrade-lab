@@ -54,16 +54,6 @@ interface ScannerState {
   runAllScans: (queryClient?: QueryClient) => Promise<void>;
 }
 
-const callAIForScan = async (type: string, payload: Record<string, any> = {}) => {
-  // ── HARD BLOCK: direct ai-assistant calls are permanently disabled ──
-  console.log("[AI COST CALL BLOCKED FROM]: scannerStore.ts — type:", type);
-  if (process.env.DISABLE_AI === "true") {
-    console.log("[AI BLOCKED] Scanner running in deterministic mode");
-  }
-  throw new Error('AI_DISABLED — all AI calls must go through run-full-scan');
-  // ────────────────────────────────────────────────────────────────────
-};
-
 export const useScannerStore = create<ScannerState>((set, get) => ({
   scanning: false,
   steps: [],
@@ -121,22 +111,22 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
       toRun.map(async (step, i) => {
         const start = Date.now();
         try {
-          const res = await callAIForScan(
-            step.type,
-            step.type === 'content_validation' ? { auto_fix: false } : {}
-          );
+          const { data: res, error } = await supabase.functions.invoke('run-full-scan', {
+            body: { action: 'start', scan_type: step.type },
+          });
 
-          if (res) {
-            const duration_ms = Date.now() - start;
+          const duration_ms = Date.now() - start;
+          if (error || !res) {
+            const errMsg = error?.message || 'Inget resultat';
+            observeError(`Skanningsfel: ${step.label}`, new Error(errMsg), { trace_id: traceId, component: step.type, duration_ms });
+            set(state => ({
+              steps: state.steps.map((s, idx) => idx === i ? { ...s, status: 'error' as const, error: errMsg, duration_ms } : s),
+            }));
+          } else {
             trace('scan_update', 'ScannerStore', `Step done: ${step.label} (${duration_ms}ms)`, { traceId: debugTraceId, details: { stepType: step.type, duration_ms } });
             observeScanStep(`Steg klart: ${step.label}`, { trace_id: traceId, component: step.type, duration_ms });
             set(state => ({
               steps: state.steps.map((s, idx) => idx === i ? { ...s, status: 'done' as const, result: res, duration_ms } : s),
-            }));
-          } else {
-            observeError(`Inget resultat: ${step.label}`, undefined, { trace_id: traceId, component: step.type, duration_ms: Date.now() - start });
-            set(state => ({
-              steps: state.steps.map((s, idx) => idx === i ? { ...s, status: 'error' as const, error: 'Inget resultat', duration_ms: Date.now() - start } : s),
             }));
           }
         } catch (err: any) {
