@@ -742,7 +742,17 @@ serve(async (req) => {
       current_step:STEPS.length, current_step_label:"Klar ✓",
     }).eq("id", scanRun.id);
 
-    return new Response(JSON.stringify({ success:true, scan_id:scanRun.id, detected:issuesCount, created:workItemsCreated, unified_result:unified }), { headers:{ ...corsHeaders, "Content-Type":"application/json" }, status:200 });
+    // Fetch the completed scan_run row for the response
+    const { data: scanRunRow } = await supabase.from("scan_runs").select("*").eq("id", scanRun.id).single();
+
+    return new Response(JSON.stringify({
+      success:           true,
+      scan_id:           scanRun.id,
+      scan_run:          scanRunRow || null,
+      unified_result:    unified,
+      total_new_issues:  issuesCount,
+      work_items_created: workItemsCreated,
+    }), { headers:{ ...corsHeaders, "Content-Type":"application/json" }, status:200 });
 
   } catch (e: any) {
     console.error("[run-full-scan error]:", e?.message || e);
