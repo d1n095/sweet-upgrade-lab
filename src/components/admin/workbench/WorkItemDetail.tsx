@@ -705,7 +705,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                         // 2. Log rejection
                         await supabase.from('change_log').insert({
                           change_type: 'rejection',
-                          description: `Användare avvisade AI-förslag: ${item.title} — prioritet eskalerad till ${newPriority}`,
+                          description: `Användare avvisade förslag: ${item.title} — prioritet eskalerad till ${newPriority}`,
                           affected_components: [item.item_type, 'ai_pre_verify'],
                           source: 'human_rejection',
                           work_item_id: item.id,
@@ -729,7 +729,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
             {/* Pre-Verify Button for open items */}
             {isOpen && (
               <Button size="sm" variant="outline" className="w-full gap-1.5"
-                onClick={() => toast.info('AI är avaktiverad — verifiera manuellt')}
+                onClick={() => toast.info('Verifiera manuellt')}
               >
                 <Sparkles className="w-3.5 h-3.5" />
                 Kontrollera om löst
