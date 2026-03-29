@@ -171,16 +171,21 @@ export interface CodeIssue {
 export function scanFileContent(path: string, content: string) {
   const issues: { type: string; message: string; file: string }[] = [];
   if (!content) return issues;
-  // RULE 1 — API CALL IN COMPONENT
-  if (
-    path.includes("/components/") &&
-    (content.includes("fetch(") || content.includes("supabase"))
-  ) {
-    issues.push({
-      type: "structure",
-      message: "API call inside component",
-      file: path
-    });
+  // RULE 1 — UNSAFE API CALL IN COMPONENT
+  // Only flag fetch() calls that lack lifecycle wrapping, loading state, and error handling.
+  // Supabase calls via useQuery/useMutation are always considered safe and are never flagged.
+  if (path.includes("/components/") || path.includes("/pages/")) {
+    const hasFetch = content.includes("fetch(");
+    const hasUseEffect = content.includes("useEffect(");
+    const hasLoadingState = content.includes("loading") || content.includes("setLoading");
+    const hasErrorHandling = content.includes("catch") || content.includes("error");
+    if (hasFetch && !hasUseEffect && !hasLoadingState && !hasErrorHandling) {
+      issues.push({
+        type: "structure",
+        message: "Unsafe API call (no lifecycle or error handling)",
+        file: path
+      });
+    }
   }
   // RULE 2 — MISSING ERROR HANDLING
   if (content.includes("fetch(") && !content.includes("catch")) {
