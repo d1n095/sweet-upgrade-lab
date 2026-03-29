@@ -2001,6 +2001,7 @@ async function persistStepResults(supabase: any, steps: typeof STEPS, results: R
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  console.log("EDGE FUNCTION HIT");
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;

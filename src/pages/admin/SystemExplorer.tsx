@@ -186,7 +186,7 @@ const SystemExplorer = () => {
   const [showBackendRaw, setShowBackendRaw] = useState(false);
   const [fileScanResult, setFileScanResult] = useState<{ total: number; emptyFiles: number; largeFiles: number } | null>(null);
   const [codeScanResult, setCodeScanResult] = useState<{ type: string; message: string; file: string }[] | null>(null);
-  const [scanProgress, setScanProgress] = useState<{ step: number; total: number; label: string } | null>(null);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<{ path: string; lineNumber: number; line: string }[]>([]);
   const [lastAction, setLastAction] = useState("");
@@ -281,13 +281,6 @@ const SystemExplorer = () => {
         setCodeScanResult(results);
         logAction({ type: "SCAN", status: "success", mode });
       }
-      if (mode === "full") {
-        console.log("[FULL SCAN TRIGGERED]");
-        await tracedInvoke("run-full-scan", {
-          body: { action: "start", scan_mode: "full" },
-        });
-        logAction({ type: "SCAN", status: "success", mode });
-      }
     } catch (err: any) {
       console.error("[SCAN ERROR]:", err);
       logAction({
@@ -299,19 +292,6 @@ const SystemExplorer = () => {
     } finally {
       setIsScanning(false);
     }
-  }
-
-  async function verifyWorkItemsCreated(beforeCount: number) {
-    const { data } = await supabase
-      .from("work_items")
-      .select("id")
-      .limit(1000);
-    const afterCount = data?.length || 0;
-    return {
-      before: beforeCount,
-      after: afterCount,
-      created: afterCount - beforeCount
-    };
   }
 
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | null>(null);
@@ -331,6 +311,8 @@ const SystemExplorer = () => {
       if (error) throw error;
       return data;
     },
+    staleTime: 0,
+    refetchOnWindowFocus: false,
   });
 
   // 1. ALL work_items
