@@ -3,6 +3,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { resumeInterruptedJob } from "@/lib/scanEngine";
+import ScanEngineStatus from "@/components/admin/ScanEngineStatus";
 import { HelmetProvider } from "react-helmet-async";
 import { LanguageProvider } from "./context/LanguageContext";
 import ScrollToTop from "./components/ScrollToTop";
@@ -72,6 +74,9 @@ import AdminChangeHistory from "./pages/admin/AdminChangeHistory";
 import AdminPOS from "./pages/admin/AdminPOS";
 import ScanPackingMode from "./components/admin/warehouse/ScanPackingMode";
 import SystemExplorer from "./pages/admin/SystemExplorer";
+
+// Resume any scan job that was interrupted by a page refresh
+resumeInterruptedJob();
 
 const queryClient = new QueryClient();
 
@@ -166,6 +171,7 @@ const App = () => (
           </MaintenanceGuard>
           <CookieBanner />
           <MiniWorkbench />
+          <ScanEngineStatus />
         </BrowserRouter>
       </TooltipProvider>
     </LanguageProvider>
