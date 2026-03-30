@@ -84,6 +84,81 @@ const TermsConditions = () => {
         { title: 'Force Majeure', text: 'Wir haften nicht für Verzögerungen außerhalb unserer Kontrolle.' },
         { title: 'Streitbeilegung', text: 'Streitigkeiten werden nach schwedischem Recht geregelt.' }
       ]
+    },
+    fi: {
+      title: 'Käyttöehdot',
+      badge: 'Ehdot',
+      sections: [
+        { title: 'Yleistä', text: 'Nämä ehdot koskevat kaikkia verkkosivustomme kautta tehtyjä ostoksia.' },
+        { title: 'Yritystiedot', text: '4ThePeople on eurooppalainen verkkokauppayritys, jolla on kotipaikka EU:ssa.' },
+        { title: 'Hinnat ja maksaminen', text: 'Kaikki hinnat ovat SEK sisältäen ALV:n. Maksu tapahtuu turvallisten maksuratkaisujen kautta.' },
+        { title: 'Tilausvahvistus', text: 'Tilauksesi jälkeen saat tilausvahvistuksen sähköpostitse.' },
+        { title: 'Toimitus', text: 'Normaali toimitusaika on 7-10 arkipäivää.' },
+        { title: 'Peruutusoikeus', text: `Sinulla on ${storeConfig.returns.period} päivän peruutusoikeus.` },
+        { title: 'Reklamaatio', text: 'Sinulla on vähintään 3 vuoden takuu valmistusvirheille.' },
+        { title: 'Force Majeure', text: 'Emme vastaa hallintamme ulkopuolisista viivästyksistä.' },
+        { title: 'Riitojen ratkaisu', text: 'Riidat ratkaistaan Ruotsin lain mukaan.' }
+      ]
+    },
+    nl: {
+      title: 'Algemene Voorwaarden',
+      badge: 'Voorwaarden',
+      sections: [
+        { title: 'Algemeen', text: 'Deze voorwaarden zijn van toepassing op alle aankopen via onze website.' },
+        { title: 'Bedrijfsinformatie', text: '4ThePeople is een Europees e-commercebedrijf gevestigd in de EU.' },
+        { title: 'Prijzen en betaling', text: 'Alle prijzen zijn in SEK inclusief BTW. Betaling via veilige betaaloplossingen.' },
+        { title: 'Orderbevestiging', text: 'Na voltooiing ontvangt u een orderbevestiging per e-mail.' },
+        { title: 'Levering', text: 'Normale levertijd is 7-10 werkdagen.' },
+        { title: 'Herroepingsrecht', text: `U heeft ${storeConfig.returns.period} dagen herroepingsrecht.` },
+        { title: 'Klachten', text: 'U heeft minimaal 3 jaar garantie op fabricagefouten.' },
+        { title: 'Overmacht', text: 'Wij zijn niet aansprakelijk voor vertragingen buiten onze controle.' },
+        { title: 'Geschillenbeslechting', text: 'Geschillen worden geregeld naar Zweeds recht.' }
+      ]
+    },
+    fr: {
+      title: 'Conditions Générales de Vente',
+      badge: 'CGV',
+      sections: [
+        { title: 'Généralités', text: 'Ces CGV s\'appliquent à tous les achats effectués sur notre site.' },
+        { title: 'Informations sur l\'entreprise', text: '4ThePeople est une entreprise européenne de commerce en ligne basée dans l\'UE.' },
+        { title: 'Prix et paiement', text: 'Tous les prix sont en SEK TTC. Le paiement s\'effectue via des solutions de paiement sécurisées.' },
+        { title: 'Confirmation de commande', text: 'Après validation, vous recevrez une confirmation de commande par e-mail.' },
+        { title: 'Livraison', text: 'Le délai de livraison normal est de 7 à 10 jours ouvrables.' },
+        { title: 'Droit de rétractation', text: `Vous disposez de ${storeConfig.returns.period} jours de droit de rétractation.` },
+        { title: 'Réclamation', text: 'Vous bénéficiez d\'au moins 3 ans de garantie contre les défauts de fabrication.' },
+        { title: 'Force Majeure', text: 'Nous ne sommes pas responsables des retards indépendants de notre volonté.' },
+        { title: 'Résolution des litiges', text: 'Les litiges sont réglés selon le droit suédois.' }
+      ]
+    },
+    es: {
+      title: 'Términos y Condiciones',
+      badge: 'T&C',
+      sections: [
+        { title: 'General', text: 'Estos términos se aplican a todas las compras realizadas en nuestro sitio web.' },
+        { title: 'Información de la empresa', text: '4ThePeople es una empresa europea de comercio electrónico con sede en la UE.' },
+        { title: 'Precios y pago', text: 'Todos los precios están en SEK con IVA incluido. El pago se realiza a través de soluciones de pago seguras.' },
+        { title: 'Confirmación de pedido', text: 'Tras la compra, recibirá una confirmación de pedido por correo electrónico.' },
+        { title: 'Entrega', text: 'El plazo de entrega normal es de 7 a 10 días hábiles.' },
+        { title: 'Derecho de desistimiento', text: `Tiene ${storeConfig.returns.period} días de derecho de desistimiento.` },
+        { title: 'Reclamación', text: 'Dispone de al menos 3 años de garantía por defectos de fabricación.' },
+        { title: 'Fuerza Mayor', text: 'No somos responsables de retrasos fuera de nuestro control.' },
+        { title: 'Resolución de disputas', text: 'Las disputas se resuelven según el derecho sueco.' }
+      ]
+    },
+    pl: {
+      title: 'Regulamin',
+      badge: 'Regulamin',
+      sections: [
+        { title: 'Postanowienia ogólne', text: 'Niniejszy regulamin dotyczy wszystkich zakupów dokonanych za pośrednictwem naszej strony.' },
+        { title: 'Informacje o firmie', text: '4ThePeople to europejska firma e-commerce z siedzibą w UE.' },
+        { title: 'Ceny i płatności', text: 'Wszystkie ceny podane są w SEK z VAT. Płatność realizowana jest przez bezpieczne rozwiązania płatnicze.' },
+        { title: 'Potwierdzenie zamówienia', text: 'Po złożeniu zamówienia otrzymasz potwierdzenie zamówienia e-mailem.' },
+        { title: 'Dostawa', text: 'Normalny czas dostawy wynosi 7-10 dni roboczych.' },
+        { title: 'Prawo do odstąpienia', text: `Masz ${storeConfig.returns.period} dni prawa do odstąpienia od umowy.` },
+        { title: 'Reklamacja', text: 'Przysługuje Ci co najmniej 3 lata gwarancji na wady produkcyjne.' },
+        { title: 'Siła wyższa', text: 'Nie ponosimy odpowiedzialności za opóźnienia poza naszą kontrolą.' },
+        { title: 'Rozstrzyganie sporów', text: 'Spory regulowane są zgodnie z prawem szwedzkim.' }
+      ]
     }
   };
 

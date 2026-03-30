@@ -160,6 +160,71 @@ const ReturnsPolicy = () => {
       ],
       refundInfo: { title: 'Erstattung', text: 'Erstattung erfolgt innerhalb von 14 Tagen auf dieselbe Zahlungsmethode.' },
       defectInfo: { title: 'Defekte Produkte', text: 'Kontaktieren Sie uns sofort bei defekten Produkten.' }
+    },
+    fi: {
+      title: 'Palautus & Hyvitys',
+      badge: 'Palautus',
+      intro: `Haluamme, että olet täysin tyytyväinen ostokseesi. Jos et ole, sinulla on ${storeConfig.returns.period} päivän peruutusoikeus.`,
+      sections: [
+        { title: 'Peruutusoikeus', icon: CheckCircle, items: [`Sinulla on ${storeConfig.returns.period} päivän peruutusoikeus vastaanottamisesta.`, 'Ei vaadi perusteluja.'] },
+        { title: 'Palautusehdot', icon: Package, items: ['Tuotteen on oltava käyttämätön ja alkuperäispakkauksessa.'] },
+        { title: 'Näin palautat', icon: RotateCcw, items: [`1. Ota yhteyttä osoitteessa ${storeConfig.contact.email}`, '2. Palauta tuote 14 päivän kuluessa.'] },
+        { title: 'Poikkeukset', icon: AlertCircle, items: ['Hygieniatuotteet, joiden sinetti on rikki.'] }
+      ],
+      refundInfo: { title: 'Hyvitys', text: 'Hyvitys suoritetaan 14 päivän kuluessa samalle maksutavalle.' },
+      defectInfo: { title: 'Vialliset tuotteet', text: 'Ota yhteyttä välittömästi viallisista tuotteista.' }
+    },
+    nl: {
+      title: 'Retour & Terugbetaling',
+      badge: 'Retour',
+      intro: `We willen dat u volledig tevreden bent met uw aankoop. Als dat niet het geval is, heeft u ${storeConfig.returns.period} dagen herroepingsrecht.`,
+      sections: [
+        { title: 'Herroepingsrecht', icon: CheckCircle, items: [`U heeft ${storeConfig.returns.period} dagen herroepingsrecht na ontvangst.`, 'Geen reden nodig.'] },
+        { title: 'Retourvoorwaarden', icon: Package, items: ['Het product moet ongebruikt en in originele verpakking zijn.'] },
+        { title: 'Zo retourneert u', icon: RotateCcw, items: [`1. Neem contact met ons op via ${storeConfig.contact.email}`, '2. Stuur het product binnen 14 dagen terug.'] },
+        { title: 'Uitzonderingen', icon: AlertCircle, items: ['Hygiëneproducten met gebroken zegel.'] }
+      ],
+      refundInfo: { title: 'Terugbetaling', text: 'Terugbetaling vindt plaats binnen 14 dagen op dezelfde betaalmethode.' },
+      defectInfo: { title: 'Defecte producten', text: 'Neem onmiddellijk contact met ons op bij defecte producten.' }
+    },
+    fr: {
+      title: 'Retour & Remboursement',
+      badge: 'Retour',
+      intro: `Nous voulons que vous soyez entièrement satisfait de votre achat. Sinon, vous disposez de ${storeConfig.returns.period} jours de droit de rétractation.`,
+      sections: [
+        { title: 'Droit de rétractation', icon: CheckCircle, items: [`Vous disposez de ${storeConfig.returns.period} jours de droit de rétractation à compter de la réception.`, 'Aucune justification requise.'] },
+        { title: 'Conditions de retour', icon: Package, items: ['Le produit doit être inutilisé et dans son emballage d\'origine.'] },
+        { title: 'Comment retourner', icon: RotateCcw, items: [`1. Contactez-nous à ${storeConfig.contact.email}`, '2. Renvoyez le produit dans les 14 jours.'] },
+        { title: 'Exceptions', icon: AlertCircle, items: ['Articles d\'hygiène avec sceau brisé.'] }
+      ],
+      refundInfo: { title: 'Remboursement', text: 'Le remboursement est effectué dans les 14 jours sur le même moyen de paiement.' },
+      defectInfo: { title: 'Produits défectueux', text: 'Contactez-nous immédiatement en cas de produits défectueux.' }
+    },
+    es: {
+      title: 'Devoluciones & Reembolso',
+      badge: 'Devolución',
+      intro: `Queremos que esté completamente satisfecho con su compra. Si no es así, tiene ${storeConfig.returns.period} días de derecho de desistimiento.`,
+      sections: [
+        { title: 'Derecho de desistimiento', icon: CheckCircle, items: [`Tiene ${storeConfig.returns.period} días de derecho de desistimiento desde la recepción.`, 'No se requiere justificación.'] },
+        { title: 'Condiciones de devolución', icon: Package, items: ['El producto debe estar sin usar y en su embalaje original.'] },
+        { title: 'Cómo devolver', icon: RotateCcw, items: [`1. Contáctenos en ${storeConfig.contact.email}`, '2. Devuelva el producto en 14 días.'] },
+        { title: 'Excepciones', icon: AlertCircle, items: ['Artículos de higiene con sello roto.'] }
+      ],
+      refundInfo: { title: 'Reembolso', text: 'El reembolso se realiza en 14 días al mismo método de pago.' },
+      defectInfo: { title: 'Productos defectuosos', text: 'Contáctenos inmediatamente ante productos defectuosos.' }
+    },
+    pl: {
+      title: 'Zwroty & Refundacja',
+      badge: 'Zwrot',
+      intro: `Chcemy, abyś był w pełni zadowolony z zakupu. Jeśli nie, przysługuje Ci ${storeConfig.returns.period} dni prawa do odstąpienia od umowy.`,
+      sections: [
+        { title: 'Prawo do odstąpienia', icon: CheckCircle, items: [`Masz ${storeConfig.returns.period} dni prawa do odstąpienia od daty odbioru.`, 'Nie wymaga uzasadnienia.'] },
+        { title: 'Warunki zwrotu', icon: Package, items: ['Produkt musi być nieużywany i w oryginalnym opakowaniu.'] },
+        { title: 'Jak zwrócić', icon: RotateCcw, items: [`1. Skontaktuj się z nami pod adresem ${storeConfig.contact.email}`, '2. Odeślij produkt w ciągu 14 dni.'] },
+        { title: 'Wyjątki', icon: AlertCircle, items: ['Artykuły higieniczne z uszkodzonym opakowaniem.'] }
+      ],
+      refundInfo: { title: 'Refundacja', text: 'Refundacja następuje w ciągu 14 dni tą samą metodą płatności.' },
+      defectInfo: { title: 'Wadliwe produkty', text: 'Skontaktuj się z nami natychmiast w przypadku wadliwych produktów.' }
     }
   };
 

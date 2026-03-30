@@ -179,6 +179,96 @@ We always work to give you the best possible experience and resolve any issues q
         { title: 'Sendungsverfolgung', icon: MapPin, text: 'Sobald Ihre Bestellung versandt wurde, erhalten Sie eine E-Mail mit Tracking-Informationen.' },
         { title: 'Wichtig zu wissen', icon: AlertTriangle, text: 'Wir können keine exakten Liefertermine garantieren. Verzögerungen können während Feiertagen auftreten.' }
       ]
+    },
+    fi: {
+      title: 'Toimitusehdot',
+      badge: 'Toimitus',
+      intro: 'Pyrimme toimittamaan tuotteesi mahdollisimman nopeasti ja sujuvasti. Täältä löydät kaikki tiedot toimitusvaihtoehdoistamme.',
+      infoCards: [
+        { label: 'Toimituskulut', value: `${storeConfig.shipping.cost} kr`, highlight: false },
+        { label: 'Ilmainen toimitus yli', value: `${storeConfig.shipping.freeShippingThreshold} kr`, highlight: true },
+        { label: 'Toimitusaika', value: storeConfig.shipping.deliveryTime.en, highlight: false },
+        { label: 'Palautusoikeus', value: `${storeConfig.returns.period} päivää`, highlight: false },
+      ],
+      sections: [
+        { title: 'Miten toimitus toimii', icon: Package, text: 'Teemme yhteistyötä huolellisesti valittujen toimittajien kanssa, jotka lähettävät tuotteet suoraan EU-varastoista.' },
+        { title: 'Toimitusajat', icon: Clock, text: 'Normaali toimitusaika on 7-10 arkipäivää. Tämä sisältää 1-3 arkipäivää tilauksen käsittelyyn ja 4-7 arkipäivää toimitukseen.' },
+        { title: 'Toimitusmaat', icon: Globe, text: 'Toimitamme kaikkialle Eurooppaan. Ei tullimaksuja EU-maihin.' },
+        { title: 'Tilauksen seuranta', icon: MapPin, text: 'Kun tilauksesi on lähetetty, saat sähköpostin, jossa on seurantatiedot.' },
+        { title: 'Tärkeää tietää', icon: AlertTriangle, text: 'Emme voi taata tarkkoja toimituspäiviä. Viivästyksiä voi esiintyä pyhäpäivinä.' }
+      ]
+    },
+    nl: {
+      title: 'Verzendinformatie',
+      badge: 'Verzending',
+      intro: 'We streven ernaar uw producten zo snel en soepel mogelijk te leveren. Hier vindt u alle informatie over onze leveringsopties.',
+      infoCards: [
+        { label: 'Verzendkosten', value: `${storeConfig.shipping.cost} kr`, highlight: false },
+        { label: 'Gratis verzending vanaf', value: `${storeConfig.shipping.freeShippingThreshold} kr`, highlight: true },
+        { label: 'Levertijd', value: storeConfig.shipping.deliveryTime.en, highlight: false },
+        { label: 'Retourrecht', value: `${storeConfig.returns.period} dagen`, highlight: false },
+      ],
+      sections: [
+        { title: 'Hoe levering werkt', icon: Package, text: 'We werken samen met zorgvuldig geselecteerde leveranciers die producten rechtstreeks vanuit EU-magazijnen verzenden.' },
+        { title: 'Levertijden', icon: Clock, text: 'Normale levertijd is 7-10 werkdagen. Dit omvat 1-3 werkdagen voor orderverwerking en 4-7 werkdagen voor levering.' },
+        { title: 'Leveringsgebied', icon: Globe, text: 'We leveren door heel Europa. Geen douanekosten of invoerkosten voor EU-landen.' },
+        { title: 'Zending volgen', icon: MapPin, text: 'Zodra uw bestelling is verzonden, ontvangt u een e-mail met trackinginformatie.' },
+        { title: 'Belangrijk om te weten', icon: AlertTriangle, text: 'We kunnen geen exacte leverdata garanderen. Vertragingen kunnen optreden tijdens feestdagen.' }
+      ]
+    },
+    fr: {
+      title: 'Informations de livraison',
+      badge: 'Livraison',
+      intro: 'Nous nous efforçons de livrer vos produits aussi rapidement et facilement que possible. Vous trouverez ici toutes les informations sur nos options de livraison.',
+      infoCards: [
+        { label: 'Frais de livraison', value: `${storeConfig.shipping.cost} kr`, highlight: false },
+        { label: 'Livraison gratuite dès', value: `${storeConfig.shipping.freeShippingThreshold} kr`, highlight: true },
+        { label: 'Délai de livraison', value: storeConfig.shipping.deliveryTime.en, highlight: false },
+        { label: 'Droit de retour', value: `${storeConfig.returns.period} jours`, highlight: false },
+      ],
+      sections: [
+        { title: 'Comment fonctionne la livraison', icon: Package, text: 'Nous travaillons avec des fournisseurs soigneusement sélectionnés qui expédient les produits directement depuis des entrepôts de l\'UE.' },
+        { title: 'Délais de livraison', icon: Clock, text: 'Le délai de livraison normal est de 7 à 10 jours ouvrables. Cela comprend 1 à 3 jours pour le traitement et 4 à 7 jours pour la livraison.' },
+        { title: 'Zone de livraison', icon: Globe, text: 'Nous livrons dans toute l\'Europe. Pas de frais de douane pour les pays de l\'UE.' },
+        { title: 'Suivi de colis', icon: MapPin, text: 'Dès l\'expédition de votre commande, vous recevrez un e-mail avec les informations de suivi.' },
+        { title: 'Important à savoir', icon: AlertTriangle, text: 'Nous ne pouvons pas garantir des dates de livraison exactes. Des retards peuvent survenir pendant les jours fériés.' }
+      ]
+    },
+    es: {
+      title: 'Información de envío',
+      badge: 'Envío',
+      intro: 'Nos esforzamos por entregar sus productos de la manera más rápida y fluida posible. Aquí encontrará toda la información sobre nuestras opciones de entrega.',
+      infoCards: [
+        { label: 'Gastos de envío', value: `${storeConfig.shipping.cost} kr`, highlight: false },
+        { label: 'Envío gratuito desde', value: `${storeConfig.shipping.freeShippingThreshold} kr`, highlight: true },
+        { label: 'Plazo de entrega', value: storeConfig.shipping.deliveryTime.en, highlight: false },
+        { label: 'Derecho de devolución', value: `${storeConfig.returns.period} días`, highlight: false },
+      ],
+      sections: [
+        { title: 'Cómo funciona la entrega', icon: Package, text: 'Trabajamos con proveedores cuidadosamente seleccionados que envían productos directamente desde almacenes de la UE.' },
+        { title: 'Plazos de entrega', icon: Clock, text: 'El plazo de entrega normal es de 7 a 10 días hábiles. Esto incluye 1-3 días para procesar el pedido y 4-7 días para la entrega.' },
+        { title: 'Zona de entrega', icon: Globe, text: 'Entregamos en toda Europa. Sin aranceles para los países de la UE.' },
+        { title: 'Seguimiento del envío', icon: MapPin, text: 'Una vez enviado su pedido, recibirá un correo electrónico con la información de seguimiento.' },
+        { title: 'Importante saber', icon: AlertTriangle, text: 'No podemos garantizar fechas de entrega exactas. Pueden producirse retrasos durante los días festivos.' }
+      ]
+    },
+    pl: {
+      title: 'Informacje o wysyłce',
+      badge: 'Wysyłka',
+      intro: 'Staramy się dostarczać produkty jak najszybciej i sprawnie. Tutaj znajdziesz wszystkie informacje o opcjach dostawy.',
+      infoCards: [
+        { label: 'Koszty wysyłki', value: `${storeConfig.shipping.cost} kr`, highlight: false },
+        { label: 'Darmowa wysyłka od', value: `${storeConfig.shipping.freeShippingThreshold} kr`, highlight: true },
+        { label: 'Czas dostawy', value: storeConfig.shipping.deliveryTime.en, highlight: false },
+        { label: 'Prawo zwrotu', value: `${storeConfig.returns.period} dni`, highlight: false },
+      ],
+      sections: [
+        { title: 'Jak działa dostawa', icon: Package, text: 'Współpracujemy ze starannie wybranymi dostawcami, którzy wysyłają produkty bezpośrednio z magazynów w UE.' },
+        { title: 'Terminy dostawy', icon: Clock, text: 'Normalny czas dostawy wynosi 7-10 dni roboczych. Obejmuje to 1-3 dni na przetworzenie zamówienia i 4-7 dni na dostawę.' },
+        { title: 'Obszar dostawy', icon: Globe, text: 'Dostarczamy na terenie całej Europy. Brak opłat celnych dla krajów UE.' },
+        { title: 'Śledzenie przesyłki', icon: MapPin, text: 'Po wysłaniu zamówienia otrzymasz e-mail z informacjami o śledzeniu.' },
+        { title: 'Ważne informacje', icon: AlertTriangle, text: 'Nie możemy zagwarantować dokładnych dat dostawy. Opóźnienia mogą wystąpić w święta.' }
+      ]
     }
   };
 
