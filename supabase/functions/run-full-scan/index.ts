@@ -135,7 +135,7 @@ function buildGroupedResults(allIssues: any[]) {
   return { by_route, by_file, by_error_type };
 }
 
-function buildUnifiedResult(stepResults: Record<string, any>, totalDuration: number) {
+function buildUnifiedResult(stepResults: Record<string, any>, totalDuration: number, routesScanned?: string[]) {
   const allIssues = Object.values(stepResults).flatMap((r: any) => r?.issues || []);
   const broken_flows         = allIssues.filter((i: any) => ["broken_flow","action_failed","lost_state","missing_data","request_failed"].includes(i.type));
   const fake_features        = allIssues.filter((i: any) => i.type === "invalid_state" && i._issue_type === "upgrade");
@@ -148,7 +148,7 @@ function buildUnifiedResult(stepResults: Record<string, any>, totalDuration: num
     - allIssues.filter((i: any) => i.severity === "medium").length * 2
   ));
   const grouped_results = buildGroupedResults(allIssues);
-  return { broken_flows, fake_features, interaction_failures, data_issues, all_issues: allIssues, total_issues: allIssues.length, system_health_score: score, total_duration_ms: totalDuration, scanned_at: new Date().toISOString(), grouped_results, routes_scanned: ROUTES.map(r => r.path), filters_applied: null as ScanFilters | null };
+  return { broken_flows, fake_features, interaction_failures, data_issues, all_issues: allIssues, total_issues: allIssues.length, system_health_score: score, total_duration_ms: totalDuration, scanned_at: new Date().toISOString(), grouped_results, routes_scanned: routesScanned ?? ROUTES.map(r => r.path), filters_applied: null as ScanFilters | null };
 }
 
 // ── DATA INTEGRITY SCAN ──────────────────────────────────────────────────
@@ -755,8 +755,9 @@ serve(async (req) => {
     const serviceKey  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase    = createClient(supabaseUrl, serviceKey);
     const body        = await req.json();
-    const { action, scan_run_id, filters } = body;
+    const { action, scan_run_id, filters, routes: requestedRoutes, file_scan_options } = body;
     const scanFilters: ScanFilters | null = filters && typeof filters === "object" ? filters : null;
+    const routeFilter: string[] | null = Array.isArray(requestedRoutes) && requestedRoutes.length ? requestedRoutes : null;
 
     if (action === "status") {
       let q = supabase.from("scan_runs").select("*");
@@ -825,8 +826,9 @@ serve(async (req) => {
 
     // ── DYNAMIC ROUTE SCAN (/product/:handle) ────────────────────────────
     const dynamicRouteResults: Record<string, any> = {};
-    const shouldScanPages = !scanFilters || scanFilters.pages !== false;
-    if (shouldScanPages) {
+    const shouldScanProductRoute = (!scanFilters || scanFilters.pages !== false) &&
+      (!routeFilter || routeFilter.includes("/product/:handle") || routeFilter.some(r => r.startsWith("/product/")));
+    if (shouldScanProductRoute) {
       const { data: products } = await supabase.from("products").select("handle,title,status,is_visible").not("handle", "is", null).limit(200);
       if (products?.length) {
         const dynamicIssues: any[] = [];
@@ -847,9 +849,12 @@ serve(async (req) => {
       }
     }
 
+    // ── RESOLVE ROUTES ACTUALLY SCANNED ──────────────────────────────────
+    const routesActuallyScanned = routeFilter ?? ROUTES.map(r => r.path);
+
     // ── BUILD UNIFIED RESULT ─────────────────────────────────────────────
     const totalDuration    = Object.values(stepsResults).reduce((s: number, r: any) => s + (r?._duration_ms || 0), 0);
-    const unified          = buildUnifiedResult(stepsResults, totalDuration);
+    const unified          = buildUnifiedResult(stepsResults, totalDuration, routesActuallyScanned);
     unified.filters_applied = scanFilters;
     const issuesCount      = unified.all_issues.length;
     const workItemsCreated = await createWorkItems(supabase, unified);
@@ -876,7 +881,9 @@ serve(async (req) => {
       work_items_created:   workItemsCreated,
       filters_working:      true,
       routes_connected:     true,
-      file_scan_controlled: true,
+      file_scan_controlled: !!(file_scan_options),
+      routes_scanned:       routesActuallyScanned,
+      filters_applied:      scanFilters,
     }), { headers:{ ...corsHeaders, "Content-Type":"application/json" }, status:200 });
 
   } catch (e: any) {

@@ -1164,9 +1164,9 @@ const SystemExplorer = () => {
                 setScanProgress({ step: 0, total: 11, label: "Startar..." });
                 const pollInterval = setInterval(async () => {
                   try {
-                    const { data } = await supabase.from("scan_runs").select("current_step, current_step_label").order("created_at", { ascending: false }).limit(1).single();
+                    const { data } = await supabase.from("scan_runs").select("current_step, total_steps, current_step_label").order("created_at", { ascending: false }).limit(1).single();
                     if (data) {
-                      setScanProgress({ step: data.current_step || 0, total: 11, label: data.current_step_label || "Scanning..." });
+                      setScanProgress({ step: data.current_step || 0, total: data.total_steps || 11, label: data.current_step_label || "Scanning..." });
                     }
                   } catch (_) {}
                 }, 2000);
@@ -1178,6 +1178,11 @@ const SystemExplorer = () => {
                       structure_map: structure_map.map(p => ({ path: p })),
                       filters: scanFilters,
                       routes: selectedRoutes.length ? selectedRoutes : APP_ROUTES.map(r => r.path),
+                      file_scan_options: {
+                        include: fileScanInclude || "src/pages",
+                        exclude: fileScanExclude || "node_modules",
+                        keywords: fileScanKeywords || "error,undefined",
+                      },
                     }
                   });
                 } finally {
@@ -1327,6 +1332,24 @@ const SystemExplorer = () => {
                     {latestBackendScan.status && (
                       <Badge className={`text-[8px] ${latestBackendScan.status === "done" ? "bg-green-500/20 text-green-500 border-green-500/30" : "bg-yellow-500/20 text-yellow-500 border-yellow-500/30"}`}>{latestBackendScan.status}</Badge>
                     )}
+                    {(r?.filters_applied) && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        <span className="text-[9px] text-muted-foreground">Filters:</span>
+                        {Object.entries(r.filters_applied as Record<string, boolean>).map(([k, v]) => (
+                          <span key={k} className={`text-[9px] px-1.5 rounded border font-mono ${v !== false ? "bg-primary/10 text-primary border-primary/30" : "bg-muted/30 text-muted-foreground border-border line-through"}`}>{k}</span>
+                        ))}
+                      </div>
+                    )}
+                    {(r?.routes_scanned) && Array.isArray(r.routes_scanned) && (
+                      <div className="mt-1">
+                        <span className="text-[9px] text-muted-foreground">Routes scanned ({r.routes_scanned.length}):</span>
+                        <div className="flex flex-wrap gap-1 mt-0.5 max-h-16 overflow-y-auto">
+                          {r.routes_scanned.map((route: string) => (
+                            <span key={route} className="text-[8px] font-mono px-1 rounded bg-muted/30 border border-border text-muted-foreground">{route}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     {(r?.executive_summary) && (
                       <p className="text-[9px] text-muted-foreground mt-1">{r.executive_summary}</p>
                     )}
@@ -1407,6 +1430,66 @@ const SystemExplorer = () => {
                 })()}
               </CardContent>
             </Card>
+
+            {/* Grouped Results */}
+            {r?.grouped_results && (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2"><Filter className="h-4 w-4" /> Grouped Results</CardTitle>
+                </CardHeader>
+                <CardContent className="p-3 space-y-3">
+                  {/* By Route */}
+                  {r.grouped_results.by_route && Object.keys(r.grouped_results.by_route).length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-semibold text-foreground mb-1">By Route</p>
+                      <div className="space-y-0.5">
+                        {Object.entries(r.grouped_results.by_route as Record<string, any[]>)
+                          .sort((a, b) => b[1].length - a[1].length)
+                          .slice(0, 10)
+                          .map(([route, issues]) => (
+                            <div key={route} className="flex items-center justify-between text-[9px] py-0.5 border-b border-border/30">
+                              <span className="font-mono text-muted-foreground truncate flex-1">{route}</span>
+                              <span className="ml-2 text-foreground font-medium">{issues.length} issue{issues.length !== 1 ? "s" : ""}</span>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+                  {/* By Error Type */}
+                  {r.grouped_results.by_error_type && Object.keys(r.grouped_results.by_error_type).length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-semibold text-foreground mb-1">By Error Type</p>
+                      <div className="flex flex-wrap gap-1">
+                        {Object.entries(r.grouped_results.by_error_type as Record<string, any[]>)
+                          .sort((a, b) => b[1].length - a[1].length)
+                          .map(([type, issues]) => (
+                            <span key={type} className="text-[8px] font-mono px-2 py-0.5 rounded border bg-muted/30 border-border text-foreground">
+                              {type} <span className="text-muted-foreground">({issues.length})</span>
+                            </span>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+                  {/* By File */}
+                  {r.grouped_results.by_file && Object.keys(r.grouped_results.by_file).length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-semibold text-foreground mb-1">By File / Component</p>
+                      <div className="space-y-0.5 max-h-28 overflow-y-auto">
+                        {Object.entries(r.grouped_results.by_file as Record<string, any[]>)
+                          .sort((a, b) => b[1].length - a[1].length)
+                          .slice(0, 15)
+                          .map(([file, issues]) => (
+                            <div key={file} className="flex items-center justify-between text-[9px] py-0.5 border-b border-border/30">
+                              <span className="font-mono text-muted-foreground truncate flex-1">{file}</span>
+                              <span className="ml-2 text-foreground font-medium">{issues.length}</span>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             {/* View Backend Raw */}
             <Card>
