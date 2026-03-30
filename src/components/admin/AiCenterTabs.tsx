@@ -7,6 +7,7 @@ import {
   Database, Shield, Eye, GitMerge,
   ArrowRightLeft, Layers, ChevronRight, Menu, X,
   Sparkles, Bug, Wrench, Clock, Lock,
+  Gavel, Zap, Package, CheckCircle, ShieldCheck, Search, Maximize2,
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -41,6 +42,8 @@ const TAB_GROUPS: TabGroup[] = [
       { value: 'unified-pipeline', label: 'Pipeline', icon: GitMerge },
       { value: 'health', label: 'Systemhälsa', icon: Shield },
       { value: 'insights', label: 'Insikter', icon: TrendingUp },
+      { value: 'trend-analysis', label: 'Trendanalys', icon: TrendingUp },
+      { value: 'unified-dashboard', label: 'Samlad vy', icon: Activity },
     ],
   },
   {
@@ -54,6 +57,13 @@ const TAB_GROUPS: TabGroup[] = [
       { value: 'tasks', label: 'Uppgifter', icon: Layers },
       { value: 'bugs', label: 'Buggar', icon: Bug },
       { value: 'user-management', label: 'Användarhantering', icon: Shield },
+      { value: 'action-governor', label: 'Åtgärdsguvernör', icon: Gavel },
+      { value: 'auto-fix', label: 'Auto-fix', icon: Zap },
+      { value: 'lova-prompts', label: 'Lova Prompts', icon: Bot },
+      { value: 'orchestration', label: 'Orkestrering', icon: GitMerge },
+      { value: 'product-suggestions', label: 'Produktförslag', icon: Package },
+      { value: 'prompt-generator', label: 'Promptgenerator', icon: Sparkles },
+      { value: 'prompt-queue', label: 'Promptkö', icon: Layers },
     ],
   },
   {
@@ -66,6 +76,16 @@ const TAB_GROUPS: TabGroup[] = [
       { value: 'visual-qa', label: 'Visual QA', icon: Monitor },
       { value: 'ux-scanner', label: 'UX-skanner', icon: Eye },
       { value: 'sync-scan', label: 'Synk-skanner', icon: ArrowRightLeft },
+      { value: 'content-validation', label: 'Innehållsvalidering', icon: CheckCircle },
+      { value: 'data-health', label: 'Datahälsa', icon: Database },
+      { value: 'data-integrity', label: 'Dataintegritet', icon: Shield },
+      { value: 'dev-guardian', label: 'DevGuardian', icon: ShieldCheck },
+      { value: 'focused-scan', label: 'Fokussökning', icon: Search },
+      { value: 'interaction-qa', label: 'Interaktions-QA', icon: Radar },
+      { value: 'nav-bug-scan', label: 'Nav Bug Scan', icon: Bug },
+      { value: 'overflow-scan', label: 'Overflow Scan', icon: Maximize2 },
+      { value: 'pattern-detection', label: 'Mönsterdetektering', icon: TrendingUp },
+      { value: 'structure-analysis', label: 'Strukturanalys', icon: Layers },
     ],
   },
   {
@@ -79,6 +99,7 @@ const TAB_GROUPS: TabGroup[] = [
       { value: 'cleanup', label: 'Rensning', icon: Database },
       { value: 'change-log', label: 'Ändringslogg', icon: Clock },
       { value: 'ai-reads', label: 'AI-läslogg', icon: Eye },
+      { value: 'verification-engine', label: 'Verifiering', icon: CheckCircle },
     ],
   },
 ];

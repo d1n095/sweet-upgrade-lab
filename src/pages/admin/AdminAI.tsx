@@ -28,6 +28,26 @@ import { SyncScannerTab } from './tabs/SyncScannerTab';
 import { AiUserManagementTab } from './tabs/AiUserManagementTab';
 import { DataCleanupTab } from './tabs/DataCleanupTab';
 import { ChangeLogTab } from './tabs/ChangeLogTab';
+import { ActionGovernorTab } from './tabs/ActionGovernorTab';
+import { AutoFixTab } from './tabs/AutoFixTab';
+import { ContentValidationTab } from './tabs/ContentValidationTab';
+import { DataHealthTab } from './tabs/DataHealthTab';
+import { DataIntegrityTab } from './tabs/DataIntegrityTab';
+import { DevGuardianTab } from './tabs/DevGuardianTab';
+import { FocusedScanTab } from './tabs/FocusedScanTab';
+import { InteractionQATab } from './tabs/InteractionQATab';
+import { LovaPromptsTab } from './tabs/LovaPromptsTab';
+import { NavBugScanTab } from './tabs/NavBugScanTab';
+import { OrchestrationTab } from './tabs/OrchestrationTab';
+import { OverflowScanTab } from './tabs/OverflowScanTab';
+import { PatternDetectionTab } from './tabs/PatternDetectionTab';
+import { ProductSuggestionsTab } from './tabs/ProductSuggestionsTab';
+import { PromptGeneratorTab } from './tabs/PromptGeneratorTab';
+import { PromptQueueTab } from './tabs/PromptQueueTab';
+import { StructureAnalysisTab } from './tabs/StructureAnalysisTab';
+import { TrendAnalysisPanel } from './tabs/TrendAnalysisPanel';
+import { UnifiedDashboardTab } from './tabs/UnifiedDashboardTab';
+import { VerificationEngineTab } from './tabs/VerificationEngineTab';
 
 const AdminAI = () => {
   const [detailItem, setDetailItem] = useState<any>(null);
@@ -68,6 +88,8 @@ const AdminAI = () => {
           <div data-value="unified-pipeline"><UnifiedPipelineDashboard /></div>
           <div data-value="health"><SystemHealthTab /></div>
           <div data-value="insights"><DataInsightsTab /></div>
+          <div data-value="trend-analysis"><TrendAnalysisPanel /></div>
+          <div data-value="unified-dashboard"><UnifiedDashboardTab /></div>
 
           {/* Operations */}
           <div data-value="lova-chat"><LovaChatTab /></div>
@@ -78,6 +100,13 @@ const AdminAI = () => {
 
           {/* User management */}
           <div data-value="user-management"><AiUserManagementTab /></div>
+          <div data-value="action-governor"><ActionGovernorTab /></div>
+          <div data-value="auto-fix"><AutoFixTab /></div>
+          <div data-value="lova-prompts"><LovaPromptsTab /></div>
+          <div data-value="orchestration"><OrchestrationTab /></div>
+          <div data-value="product-suggestions"><ProductSuggestionsTab /></div>
+          <div data-value="prompt-generator"><PromptGeneratorTab /></div>
+          <div data-value="prompt-queue"><PromptQueueTab /></div>
 
           {/* Scanners */}
           <div data-value="scan"><SystemScanTab /></div>
@@ -85,6 +114,16 @@ const AdminAI = () => {
           <div data-value="visual-qa"><VisualQATab /></div>
           <div data-value="ux-scanner"><UxScannerTab /></div>
           <div data-value="sync-scan"><SyncScannerTab /></div>
+          <div data-value="content-validation"><ContentValidationTab /></div>
+          <div data-value="data-health"><DataHealthTab /></div>
+          <div data-value="data-integrity"><DataIntegrityTab /></div>
+          <div data-value="dev-guardian"><DevGuardianTab /></div>
+          <div data-value="focused-scan"><FocusedScanTab /></div>
+          <div data-value="interaction-qa"><InteractionQATab /></div>
+          <div data-value="nav-bug-scan"><NavBugScanTab /></div>
+          <div data-value="overflow-scan"><OverflowScanTab /></div>
+          <div data-value="pattern-detection"><PatternDetectionTab /></div>
+          <div data-value="structure-analysis"><StructureAnalysisTab /></div>
 
           {/* System */}
           <div data-value="safe-mode"><SafeModePanel /></div>
@@ -93,6 +132,7 @@ const AdminAI = () => {
           <div data-value="cleanup"><DataCleanupTab /></div>
           <div data-value="change-log"><ChangeLogTab /></div>
           <div data-value="ai-reads"><AdminAiReadLog /></div>
+          <div data-value="verification-engine"><VerificationEngineTab /></div>
         </AiCenterTabs>
       </div>
 
