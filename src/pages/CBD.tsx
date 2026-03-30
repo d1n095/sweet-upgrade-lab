@@ -32,10 +32,9 @@ const CBD = () => {
 
     setIsSubmitted(true);
     setIsLoading(false);
-    toast.success(
-      language === 'sv' 
-        ? 'Tack! Vi meddelar dig när CBD-produkter finns tillgängliga.' 
-        : 'Thanks! We\'ll notify you when CBD products are available.'
+    toast.success(content[language as keyof typeof content]?.form.submitting
+      ? (content[language as keyof typeof content] || content.en).success.title
+      : content.en.success.title
     );
   };
 
@@ -47,26 +46,10 @@ const CBD = () => {
         subtitle: 'Vi förbereder ett noggrant utvalt sortiment av högkvalitativa CBD- och hampaprodukter. Var först att få veta när de finns tillgängliga.',
       },
       benefits: [
-        {
-          icon: Shield,
-          title: 'Labbtestade',
-          description: 'Alla produkter är tredjepartsverifierade för renhet och styrka.',
-        },
-        {
-          icon: Leaf,
-          title: 'Ekologiskt odlat',
-          description: 'Från hållbara europeiska odlingar med full spårbarhet.',
-        },
-        {
-          icon: Sparkles,
-          title: 'Premiumkvalitet',
-          description: 'Endast de bästa extraktionsmetoderna för maximal effekt.',
-        },
-        {
-          icon: Heart,
-          title: 'Naturligt välmående',
-          description: 'Produkter för balans, återhämtning och dagligt välbefinnande.',
-        },
+        { icon: Shield, title: 'Labbtestade', description: 'Alla produkter är tredjepartsverifierade för renhet och styrka.' },
+        { icon: Leaf, title: 'Ekologiskt odlat', description: 'Från hållbara europeiska odlingar med full spårbarhet.' },
+        { icon: Sparkles, title: 'Premiumkvalitet', description: 'Endast de bästa extraktionsmetoderna för maximal effekt.' },
+        { icon: Heart, title: 'Naturligt välmående', description: 'Produkter för balans, återhämtning och dagligt välbefinnande.' },
       ],
       form: {
         title: 'Bli notifierad',
@@ -89,26 +72,10 @@ const CBD = () => {
         subtitle: 'We\'re preparing a carefully curated selection of high-quality CBD and hemp products. Be the first to know when they\'re available.',
       },
       benefits: [
-        {
-          icon: Shield,
-          title: 'Lab Tested',
-          description: 'All products are third-party verified for purity and potency.',
-        },
-        {
-          icon: Leaf,
-          title: 'Organically Grown',
-          description: 'From sustainable European farms with full traceability.',
-        },
-        {
-          icon: Sparkles,
-          title: 'Premium Quality',
-          description: 'Only the best extraction methods for maximum effectiveness.',
-        },
-        {
-          icon: Heart,
-          title: 'Natural Wellness',
-          description: 'Products for balance, recovery, and daily wellbeing.',
-        },
+        { icon: Shield, title: 'Lab Tested', description: 'All products are third-party verified for purity and potency.' },
+        { icon: Leaf, title: 'Organically Grown', description: 'From sustainable European farms with full traceability.' },
+        { icon: Sparkles, title: 'Premium Quality', description: 'Only the best extraction methods for maximum effectiveness.' },
+        { icon: Heart, title: 'Natural Wellness', description: 'Products for balance, recovery, and daily wellbeing.' },
       ],
       form: {
         title: 'Get Notified',
@@ -124,9 +91,217 @@ const CBD = () => {
       },
       legal: 'We comply with all Swedish and EU regulations for CBD products. All products contain less than 0.2% THC.',
     },
+    no: {
+      hero: {
+        badge: 'Kommer snart',
+        title: 'CBD & Hampeprodukter',
+        subtitle: 'Vi forbereder et nøye utvalgt sortiment av høykvalitets CBD- og hampeprodukter. Bli den første som vet når de er tilgjengelige.',
+      },
+      benefits: [
+        { icon: Shield, title: 'Laboratorietestet', description: 'Alle produkter er tredjeparts verifisert for renhet og styrke.' },
+        { icon: Leaf, title: 'Økologisk dyrket', description: 'Fra bærekraftige europeiske gårder med full sporbarhet.' },
+        { icon: Sparkles, title: 'Premiumkvalitet', description: 'Kun de beste ekstraksjonmetodene for maksimal effekt.' },
+        { icon: Heart, title: 'Naturlig velvære', description: 'Produkter for balanse, restitusjon og daglig velvære.' },
+      ],
+      form: {
+        title: 'Bli varslet',
+        subtitle: 'Meld deg på for å være den første som vet når vi lanserer vårt CBD-sortiment.',
+        emailPlaceholder: 'Din e-postadresse',
+        messagePlaceholder: 'Er det noe spesielt du leter etter? (valgfritt)',
+        button: 'Varsle meg',
+        submitting: 'Sender...',
+      },
+      success: {
+        title: 'Takk for din interesse!',
+        subtitle: 'Vi sender deg en e-post når CBD-produktene er tilgjengelige.',
+      },
+      legal: 'Vi følger alle norske og EU-regler for CBD-produkter. Alle produkter inneholder mindre enn 0,2 % THC.',
+    },
+    da: {
+      hero: {
+        badge: 'Kommer snart',
+        title: 'CBD & Hempeprodukter',
+        subtitle: 'Vi forbereder et omhyggeligt udvalgt sortiment af højakvalitets CBD- og hempeprodukter. Vær den første til at vide, når de er tilgængelige.',
+      },
+      benefits: [
+        { icon: Shield, title: 'Laboratorietestet', description: 'Alle produkter er tredjeparts verificeret for renhed og styrke.' },
+        { icon: Leaf, title: 'Økologisk dyrket', description: 'Fra bæredygtige europæiske gårde med fuld sporbarhed.' },
+        { icon: Sparkles, title: 'Premiumkvalitet', description: 'Kun de bedste ekstraktionsmetoder for maksimal effekt.' },
+        { icon: Heart, title: 'Naturligt velvære', description: 'Produkter til balance, restitution og dagligt velvære.' },
+      ],
+      form: {
+        title: 'Bliv notificeret',
+        subtitle: 'Tilmeld dig for at være den første til at vide, når vi lancerer vores CBD-sortiment.',
+        emailPlaceholder: 'Din e-mailadresse',
+        messagePlaceholder: 'Er der noget bestemt du leder efter? (valgfrit)',
+        button: 'Giv mig besked',
+        submitting: 'Sender...',
+      },
+      success: {
+        title: 'Tak for din interesse!',
+        subtitle: 'Vi sender dig en e-mail, når CBD-produkterne er tilgængelige.',
+      },
+      legal: 'Vi overholder alle danske og EU-regler for CBD-produkter. Alle produkter indeholder mindre end 0,2 % THC.',
+    },
+    de: {
+      hero: {
+        badge: 'Demnächst verfügbar',
+        title: 'CBD & Hanfprodukte',
+        subtitle: 'Wir bereiten eine sorgfältig zusammengestellte Auswahl hochwertiger CBD- und Hanfprodukte vor. Sei der Erste, der es erfährt.',
+      },
+      benefits: [
+        { icon: Shield, title: 'Laborgetestet', description: 'Alle Produkte werden von Dritten auf Reinheit und Potenz geprüft.' },
+        { icon: Leaf, title: 'Biologisch angebaut', description: 'Von nachhaltigen europäischen Betrieben mit vollständiger Rückverfolgbarkeit.' },
+        { icon: Sparkles, title: 'Premiumqualität', description: 'Nur die besten Extraktionsmethoden für maximale Wirksamkeit.' },
+        { icon: Heart, title: 'Natürliches Wohlbefinden', description: 'Produkte für Balance, Erholung und tägliches Wohlbefinden.' },
+      ],
+      form: {
+        title: 'Benachrichtigt werden',
+        subtitle: 'Melde dich an, um als Erster zu erfahren, wenn wir unser CBD-Sortiment launchen.',
+        emailPlaceholder: 'Deine E-Mail-Adresse',
+        messagePlaceholder: 'Suchst du etwas Bestimmtes? (optional)',
+        button: 'Benachrichtige mich',
+        submitting: 'Wird gesendet...',
+      },
+      success: {
+        title: 'Danke für dein Interesse!',
+        subtitle: 'Wir senden dir eine E-Mail, wenn CBD-Produkte verfügbar sind.',
+      },
+      legal: 'Wir halten alle deutschen und EU-Vorschriften für CBD-Produkte ein. Alle Produkte enthalten weniger als 0,2 % THC.',
+    },
+    fi: {
+      hero: {
+        badge: 'Tulossa pian',
+        title: 'CBD & Hampputuotteet',
+        subtitle: 'Valmistelemme huolellisesti valittua valikoimaa korkealaatuisia CBD- ja hampputuotteita. Ole ensimmäinen, joka saa tietää.',
+      },
+      benefits: [
+        { icon: Shield, title: 'Laboratoriotestattu', description: 'Kaikki tuotteet ovat kolmannen osapuolen varmentamia puhtauden ja tehokkuuden osalta.' },
+        { icon: Leaf, title: 'Luonnonmukaisesti viljelty', description: 'Kestäviltä eurooppalaisilta tiloilta täydellä jäljitettävyydellä.' },
+        { icon: Sparkles, title: 'Huippulaatu', description: 'Vain parhaat uuttomenetelmät maksimaalisen tehokkuuden saavuttamiseksi.' },
+        { icon: Heart, title: 'Luonnollinen hyvinvointi', description: 'Tuotteet tasapainoon, palautumiseen ja päivittäiseen hyvinvointiin.' },
+      ],
+      form: {
+        title: 'Saa ilmoitus',
+        subtitle: 'Ilmoittaudu saadaksesi ensimmäisenä tietää, kun lanseeraamme CBD-valikoimamme.',
+        emailPlaceholder: 'Sähköpostiosoitteesi',
+        messagePlaceholder: 'Etsitkö jotain erityistä? (valinnainen)',
+        button: 'Ilmoita minulle',
+        submitting: 'Lähetetään...',
+      },
+      success: {
+        title: 'Kiitos kiinnostuksestasi!',
+        subtitle: 'Lähetämme sinulle sähköpostin, kun CBD-tuotteet ovat saatavilla.',
+      },
+      legal: 'Noudatamme kaikkia suomalaisia ja EU:n CBD-tuotteita koskevia säännöksiä. Kaikki tuotteet sisältävät alle 0,2 % THC:tä.',
+    },
+    nl: {
+      hero: {
+        badge: 'Binnenkort beschikbaar',
+        title: 'CBD & Hennepproducten',
+        subtitle: 'We bereiden een zorgvuldig samengesteld assortiment van hoogwaardige CBD- en hennepproducten voor. Wees de eerste die het weet.',
+      },
+      benefits: [
+        { icon: Shield, title: 'Laboratoriumgetest', description: 'Alle producten zijn door derden geverifieerd op zuiverheid en potentie.' },
+        { icon: Leaf, title: 'Biologisch geteeld', description: 'Van duurzame Europese boerderijen met volledige traceerbaarheid.' },
+        { icon: Sparkles, title: 'Premiumkwaliteit', description: 'Alleen de beste extractiemethoden voor maximale effectiviteit.' },
+        { icon: Heart, title: 'Natuurlijk welzijn', description: 'Producten voor balans, herstel en dagelijks welzijn.' },
+      ],
+      form: {
+        title: 'Ontvang een melding',
+        subtitle: 'Schrijf je in om als eerste te weten wanneer we ons CBD-assortiment lanceren.',
+        emailPlaceholder: 'Jouw e-mailadres',
+        messagePlaceholder: 'Is er iets specifieks waarnaar je op zoek bent? (optioneel)',
+        button: 'Meld mij',
+        submitting: 'Verzenden...',
+      },
+      success: {
+        title: 'Bedankt voor je interesse!',
+        subtitle: 'We sturen je een e-mail wanneer CBD-producten beschikbaar zijn.',
+      },
+      legal: 'We voldoen aan alle Nederlandse en EU-regelgeving voor CBD-producten. Alle producten bevatten minder dan 0,2% THC.',
+    },
+    fr: {
+      hero: {
+        badge: 'Bientôt disponible',
+        title: 'Produits CBD & Chanvre',
+        subtitle: 'Nous préparons une sélection soigneusement choisie de produits CBD et chanvre de haute qualité. Soyez le premier à le savoir.',
+      },
+      benefits: [
+        { icon: Shield, title: 'Testé en laboratoire', description: 'Tous les produits sont vérifiés par des tiers pour leur pureté et leur puissance.' },
+        { icon: Leaf, title: 'Cultivé biologiquement', description: "Provenant de fermes européennes durables avec une traçabilité complète." },
+        { icon: Sparkles, title: 'Qualité premium', description: 'Uniquement les meilleures méthodes d\'extraction pour une efficacité maximale.' },
+        { icon: Heart, title: 'Bien-être naturel', description: 'Produits pour l\'équilibre, la récupération et le bien-être quotidien.' },
+      ],
+      form: {
+        title: 'Être notifié',
+        subtitle: 'Inscrivez-vous pour être le premier informé du lancement de notre gamme CBD.',
+        emailPlaceholder: 'Votre adresse e-mail',
+        messagePlaceholder: 'Y a-t-il quelque chose de spécifique que vous recherchez ? (optionnel)',
+        button: 'Me notifier',
+        submitting: 'Envoi en cours...',
+      },
+      success: {
+        title: 'Merci pour votre intérêt !',
+        subtitle: 'Nous vous enverrons un e-mail lorsque les produits CBD seront disponibles.',
+      },
+      legal: 'Nous respectons toutes les réglementations françaises et européennes relatives aux produits CBD. Tous les produits contiennent moins de 0,2 % de THC.',
+    },
+    es: {
+      hero: {
+        badge: 'Próximamente',
+        title: 'Productos CBD & Cáñamo',
+        subtitle: 'Estamos preparando una selección cuidadosamente elegida de productos CBD y cáñamo de alta calidad. Sé el primero en saberlo.',
+      },
+      benefits: [
+        { icon: Shield, title: 'Probado en laboratorio', description: 'Todos los productos están verificados por terceros en cuanto a pureza y potencia.' },
+        { icon: Leaf, title: 'Cultivado ecológicamente', description: 'De granjas europeas sostenibles con plena trazabilidad.' },
+        { icon: Sparkles, title: 'Calidad premium', description: 'Solo los mejores métodos de extracción para máxima efectividad.' },
+        { icon: Heart, title: 'Bienestar natural', description: 'Productos para el equilibrio, la recuperación y el bienestar diario.' },
+      ],
+      form: {
+        title: 'Recibir notificación',
+        subtitle: 'Regístrate para ser el primero en saber cuándo lanzamos nuestra gama CBD.',
+        emailPlaceholder: 'Tu dirección de correo electrónico',
+        messagePlaceholder: '¿Hay algo específico que estás buscando? (opcional)',
+        button: 'Notificarme',
+        submitting: 'Enviando...',
+      },
+      success: {
+        title: '¡Gracias por tu interés!',
+        subtitle: 'Te enviaremos un correo electrónico cuando los productos CBD estén disponibles.',
+      },
+      legal: 'Cumplimos con todas las normativas españolas y de la UE sobre productos CBD. Todos los productos contienen menos del 0,2 % de THC.',
+    },
+    pl: {
+      hero: {
+        badge: 'Wkrótce dostępne',
+        title: 'Produkty CBD & Konopie',
+        subtitle: 'Przygotowujemy starannie dobrany asortyment wysokiej jakości produktów CBD i konopnych. Bądź pierwszym, który się dowie.',
+      },
+      benefits: [
+        { icon: Shield, title: 'Przetestowane laboratoryjnie', description: 'Wszystkie produkty są weryfikowane przez strony trzecie pod kątem czystości i mocy.' },
+        { icon: Leaf, title: 'Uprawiane ekologicznie', description: 'Z zrównoważonych europejskich gospodarstw z pełną identyfikowalnością.' },
+        { icon: Sparkles, title: 'Jakość premium', description: 'Tylko najlepsze metody ekstrakcji dla maksymalnej skuteczności.' },
+        { icon: Heart, title: 'Naturalne samopoczucie', description: 'Produkty dla równowagi, regeneracji i codziennego dobrostanu.' },
+      ],
+      form: {
+        title: 'Otrzymaj powiadomienie',
+        subtitle: 'Zapisz się, aby jako pierwszy dowiedzieć się o uruchomieniu naszej oferty CBD.',
+        emailPlaceholder: 'Twój adres e-mail',
+        messagePlaceholder: 'Czy szukasz czegoś konkretnego? (opcjonalnie)',
+        button: 'Powiadom mnie',
+        submitting: 'Wysyłanie...',
+      },
+      success: {
+        title: 'Dziękujemy za zainteresowanie!',
+        subtitle: 'Wyślemy Ci e-mail, gdy produkty CBD będą dostępne.',
+      },
+      legal: 'Przestrzegamy wszystkich polskich i unijnych przepisów dotyczących produktów CBD. Wszystkie produkty zawierają mniej niż 0,2% THC.',
+    },
   };
 
-  const t = content[getContentLang(language)];
+  const t = content[language as keyof typeof content] || content.en;
 
   return (
     <div className="min-h-screen bg-background">
