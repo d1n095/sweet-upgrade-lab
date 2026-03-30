@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { ACTIVE_WORK_ITEM_STATUSES, useAdminWorkItems } from '@/hooks/useAdminData';
 import { useUiStateSync } from '@/hooks/useUiStateSync';
+import { runAISafe } from '@/core/aiGateway';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -222,7 +223,13 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const runOrchestrator = async () => {
     setRunningOrchestrator(true);
     try {
-      const { data, error } = await supabase.functions.invoke('ai-task-manager', { body: { action: 'orchestrate' } });
+      const data = await runAISafe({
+        source: 'ADMIN',
+        feature: 'ai-task-manager',
+        payload: { action: 'orchestrate' },
+        functionName: 'ai-task-manager',
+      });
+      const error = data === null ? new Error('AI task manager unavailable') : null;
       if (error) throw error;
       const r = data?.results;
       const scanned = r?.orchestrator_scanned || 0;

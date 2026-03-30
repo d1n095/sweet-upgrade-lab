@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { runAISafe } from '@/core/aiGateway';
 
 type AiReviewStatus = 'verified' | 'needs_review' | 'incomplete' | 'pending' | null;
 
@@ -21,11 +22,14 @@ export const triggerAiReviewForWorkItem = async (
   console.info('[ai-review] trigger', { workItemId, context });
 
   try {
-    const { data, error } = await supabase.functions.invoke('ai-review-fix', {
-      body: { work_item_id: workItemId },
+    const data = await runAISafe({
+      source: 'SYSTEM',
+      feature: 'ai-review-fix',
+      payload: { work_item_id: workItemId },
+      functionName: 'ai-review-fix',
     });
 
-    if (error) throw error;
+    if (!data) throw new Error('AI review unavailable');
 
     const review = (data as any)?.review;
     const status = (review?.status as AiReviewStatus) ?? null;
