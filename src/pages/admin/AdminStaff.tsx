@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import React from 'react';
 import {
   Shield, Users, Crown, ClipboardList, LayoutDashboard, UserCog, Zap,
 } from 'lucide-react';
@@ -27,35 +28,57 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-// ─── Permission Model ───
-const PERMISSIONS = {
-  dashboard: true,
-  orders: true,
-  products: true,
-  users: true,
-  roles: true,
-  finance: true,
-  settings: true,
-  system: true,
-};
+// ─── Granular permissions type ───
+type ModuleActions = { read: boolean; write: boolean; delete: boolean; approve: boolean };
+type GranularPermissions = Record<string, ModuleActions>;
 
-// ─── Role Templates (auto-assign permissions) ───
-const ROLE_TEMPLATES: Record<string, Record<string, boolean> | { all: boolean }> = {
-  founder: { all: true },
-  admin: { dashboard: true, orders: true, products: true, users: true, roles: true },
-  staff: { dashboard: true, orders: true },
-};
-
-// ─── Apply role → permissions ───
-const applyRole = (role: string, setPermissions: (p: Record<string, boolean>) => void) => {
-  const template = ROLE_TEMPLATES[role];
-  if (!template) return;
-  if ('all' in template && template.all) {
-    setPermissions(Object.fromEntries(Object.keys(PERMISSIONS).map(k => [k, true])));
-  } else {
-    setPermissions(template as Record<string, boolean>);
+// ─── Merge multiple role permissions (union — true overrides false) ───
+const mergePermissions = (perms: GranularPermissions[]): GranularPermissions => {
+  const result: GranularPermissions = {};
+  for (const p of perms) {
+    for (const [mod, actions] of Object.entries(p)) {
+      if (!result[mod]) result[mod] = { read: false, write: false, delete: false, approve: false };
+      result[mod].read = result[mod].read || actions.read;
+      result[mod].write = result[mod].write || actions.write;
+      result[mod].delete = result[mod].delete || actions.delete;
+      result[mod].approve = result[mod].approve || actions.approve;
+    }
   }
-  console.log('🔄 ROLE APPLIED:', role);
+  return result;
+};
+
+// ─── Apply role → modules from DB template (replaces hardcoded ROLE_TEMPLATES) ───
+const applyRolePermissions = (
+  roleKey: string,
+  templates: RoleTemplate[],
+  userId: string,
+  setEditModules: React.Dispatch<React.SetStateAction<Record<string, string[]>>>,
+  setEditRole: React.Dispatch<React.SetStateAction<Record<string, string>>>,
+) => {
+  const tmpl = templates.find(t => t.role_key === roleKey);
+  const modules = tmpl?.default_modules ?? [];
+  setEditModules(prev => ({ ...prev, [userId]: modules.length ? modules : ADMIN_MODULES.map(m => m.key) }));
+  setEditRole(prev => ({ ...prev, [userId]: roleKey }));
+  console.log('🔐 ROLE APPLIED:', roleKey);
+};
+
+// ─── Write audit log entry (best-effort, non-blocking) ───
+const writeAuditLog = async (
+  actorId: string,
+  action: string,
+  targetTable: string,
+  targetId: string,
+  changes: Record<string, unknown>,
+) => {
+  try {
+    await supabase.from('audit_logs' as any).insert({
+      actor_id: actorId,
+      action,
+      target_table: targetTable,
+      target_id: targetId,
+      changes,
+    });
+  } catch (_) { /* non-blocking */ }
 };
 
 // ─── Constants ───
@@ -91,12 +114,13 @@ const ROLE_COLORS: Record<string, string> = {
 
 interface RoleTemplate {
   id: string; role_key: string; name_sv: string; description_sv: string | null;
-  default_modules: string[]; is_locked: boolean;
+  default_modules: string[]; permissions: GranularPermissions; is_locked: boolean;
 }
 
 interface StaffMember {
   user_id: string; email: string; username: string | null; role: string;
   allowed_modules: string[]; notes: string | null; permissions_id: string | null;
+  roles: string[]; // all roles for multi-role support
 }
 
 // ─── Role Templates Tab ───
@@ -113,6 +137,7 @@ const RoleTemplatesTab = ({ isFounder }: { isFounder: boolean }) => {
       if (error) throw error;
       return (data || []) as RoleTemplate[];
     },
+    staleTime: 5 * 60 * 1000,
   });
 
   const startEdit = (t: RoleTemplate) => { setEditingId(t.id); setEditModules([...t.default_modules]); };
@@ -227,6 +252,7 @@ const StaffManagementTab = () => {
   const { data: templates = [] } = useQuery({
     queryKey: ['role-templates'],
     queryFn: async () => { const { data } = await supabase.from('role_templates').select('*'); return (data || []) as RoleTemplate[]; },
+    staleTime: 5 * 60 * 1000,
   });
 
   const { data: staffMembers = [], isLoading } = useQuery({
@@ -253,10 +279,12 @@ const StaffManagementTab = () => {
           user_id: uid, email: profile?.username || uid.substring(0, 8) + '...', username: profile?.username || null,
           role: highestRole, allowed_modules: (perm as any)?.allowed_modules || [],
           notes: (perm as any)?.notes || null, permissions_id: (perm as any)?.id || null,
+          roles: userRoles.map(r => r.role), // multi-role support
         } as StaffMember;
       }).sort((a, b) => roleOrder.indexOf(a.role) - roleOrder.indexOf(b.role));
     },
     enabled: isFounder,
+    staleTime: 30 * 1000,
   });
 
   const filtered = useMemo(() => {
@@ -276,23 +304,8 @@ const StaffManagementTab = () => {
     }
   };
 
-  const applyTemplate = (userId: string, roleKey: string) => {
-    // Use ROLE_TEMPLATES for auto-assign if available, fall back to DB template
-    const roleTemplate = ROLE_TEMPLATES[roleKey];
-    if (roleTemplate) {
-      if ('all' in roleTemplate && roleTemplate.all) {
-        setEditModules(prev => ({ ...prev, [userId]: ADMIN_MODULES.map(m => m.key) }));
-      } else {
-        const permKeys = Object.keys(roleTemplate as Record<string, boolean>).filter(k => (roleTemplate as Record<string, boolean>)[k]);
-        const mapped = ADMIN_MODULES.filter(m => permKeys.includes(m.key)).map(m => m.key);
-        setEditModules(prev => ({ ...prev, [userId]: mapped.length ? mapped : ADMIN_MODULES.map(m => m.key) }));
-      }
-    } else {
-      const tmpl = templates.find(t => t.role_key === roleKey);
-      if (tmpl) setEditModules(prev => ({ ...prev, [userId]: [...tmpl.default_modules] }));
-    }
-    applyRole(roleKey, (_perms) => {});
-    setEditRole(prev => ({ ...prev, [userId]: roleKey }));
+  const handleRoleChange = (userId: string, roleKey: string) => {
+    applyRolePermissions(roleKey, templates, userId, setEditModules, setEditRole);
   };
 
   const toggleModule = (userId: string, key: string) => {
@@ -304,23 +317,39 @@ const StaffManagementTab = () => {
 
   const handleSave = async (member: StaffMember) => {
     if (!user) return;
+    // Deny-by-default guard
+    if (!member) return;
     if (member.user_id === user.id) { toast.error('Du kan inte ändra dig själv'); return; }
+    // Separation of duties: cannot self-escalate
+    const newRole = editRole[member.user_id] || member.role;
+    if (member.user_id === user.id && ['founder', 'admin'].includes(newRole)) {
+      toast.error('Du kan inte ge dig själv en högre roll'); return;
+    }
     if (member.role === 'founder') {
       console.log('👑 FOUNDER MODE — FULL ACCESS');
     }
     setSaving(member.user_id);
     try {
-      const newRole = editRole[member.user_id] || member.role;
       const newModules = editModules[member.user_id] || member.allowed_modules;
       const newNotes = editNotes[member.user_id] ?? member.notes;
+      const changes: Record<string, unknown> = {};
       if (newRole !== member.role) {
+        changes.role_before = member.role;
+        changes.role_after = newRole;
         await supabase.from('user_roles').delete().eq('user_id', member.user_id).eq('role', member.role as any);
         await supabase.from('user_roles').insert({ user_id: member.user_id, role: newRole as any });
+      }
+      if (JSON.stringify(newModules) !== JSON.stringify(member.allowed_modules)) {
+        changes.modules_before = member.allowed_modules;
+        changes.modules_after = newModules;
       }
       if (member.permissions_id) {
         await supabase.from('staff_permissions').update({ allowed_modules: newModules, notes: newNotes || null } as any).eq('id', member.permissions_id);
       } else {
         await supabase.from('staff_permissions').insert({ user_id: member.user_id, allowed_modules: newModules, notes: newNotes || null, granted_by: user.id } as any);
+      }
+      if (Object.keys(changes).length > 0) {
+        await writeAuditLog(user.id, 'update_staff', 'staff_permissions', member.user_id, changes);
       }
       toast.success('Sparat!');
       queryClient.invalidateQueries({ queryKey: ['admin-staff-members'] });
@@ -334,6 +363,7 @@ const StaffManagementTab = () => {
     try {
       await supabase.from('user_roles').delete().eq('user_id', member.user_id).eq('role', member.role as any);
       if (member.permissions_id) await supabase.from('staff_permissions').delete().eq('id', member.permissions_id);
+      await writeAuditLog(user.id, 'remove_staff', 'user_roles', member.user_id, { role: member.role });
       toast.success('Borttagen');
       queryClient.invalidateQueries({ queryKey: ['admin-staff-members'] });
     } catch (err: any) { toast.error(err?.message || 'Fel'); }
@@ -352,6 +382,7 @@ const StaffManagementTab = () => {
       const defaultTmpl = templates.find(t => t.role_key === 'moderator');
       await supabase.from('user_roles').insert({ user_id: target.user_id, role: 'moderator' as any });
       await supabase.from('staff_permissions').insert({ user_id: target.user_id, allowed_modules: defaultTmpl?.default_modules || ['dashboard', 'orders'], granted_by: user.id } as any);
+      await writeAuditLog(user.id, 'add_staff', 'user_roles', target.user_id, { role: 'moderator' });
       toast.success('Tillagd!'); setNewUserEmail('');
       queryClient.invalidateQueries({ queryKey: ['admin-staff-members'] });
     } catch (err: any) { toast.error(err?.message || 'Fel'); } finally { setAddingUser(false); }
@@ -386,6 +417,11 @@ const StaffManagementTab = () => {
           const isFounderRole = member.role === 'founder';
           const currentModules = editModules[member.user_id] || member.allowed_modules;
           const currentRole = editRole[member.user_id] || member.role;
+          // Multi-role: merge permissions from all roles (union)
+          const mergedPerms = mergePermissions(
+            member.roles.map(r => templates.find(t => t.role_key === r)?.permissions || {})
+          );
+          const effectiveModules = Object.keys(mergedPerms).filter(k => mergedPerms[k]?.read);
 
           return (
             <Card key={member.user_id} className={cn('border-border transition-shadow', isExpanded && 'shadow-md')}>
@@ -396,13 +432,23 @@ const StaffManagementTab = () => {
                       {isFounderRole ? <Crown className="w-5 h-5 text-yellow-600" /> : <Shield className="w-5 h-5 text-muted-foreground" />}
                     </div>
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-semibold text-sm truncate">{member.username || member.email}</h3>
                         {isSelf && <Badge variant="outline" className="text-[10px] py-0">Du</Badge>}
+                        {member.roles.length > 1 && (
+                          <Badge variant="secondary" className="text-[10px] py-0">{member.roles.length} roller</Badge>
+                        )}
                       </div>
-                      <span className={cn('text-xs font-medium', ROLE_COLORS[member.role])}>
-                        {templates.find(t => t.role_key === member.role)?.name_sv || member.role}
-                      </span>
+                      <div className="flex gap-1 flex-wrap mt-0.5">
+                        {member.roles.map(r => (
+                          <span key={r} className={cn('text-xs font-medium', ROLE_COLORS[r])}>
+                            {templates.find(t => t.role_key === r)?.name_sv || r}
+                          </span>
+                        ))}
+                      </div>
+                      {effectiveModules.length > 0 && (
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{effectiveModules.length} moduler via roll</p>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
@@ -430,7 +476,7 @@ const StaffManagementTab = () => {
                               <Crown className="w-3.5 h-3.5 shrink-0" /> Grundare — full åtkomst aktiverad
                             </div>
                           )}
-                          <Select value={currentRole} onValueChange={v => applyTemplate(member.user_id, v)}>
+                          <Select value={currentRole} onValueChange={v => handleRoleChange(member.user_id, v)}>
                             <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
                             <SelectContent>
                               {templates.map(t => (
