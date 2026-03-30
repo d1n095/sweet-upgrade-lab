@@ -20,7 +20,6 @@ import { logAuthEvent } from '@/utils/activityLogger';
 import AdminGlobalSearch from '@/components/admin/AdminGlobalSearch';
 import AdminNotificationBell from '@/components/admin/AdminNotificationBell';
 import BugReportButton from '@/components/admin/BugReportButton';
-import AiControlBar from '@/components/admin/AiControlBar';
 import { AnimatePresence, motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useAdminRealtime } from '@/hooks/useAdminRealtime';
@@ -88,7 +87,7 @@ const navGroups: NavGroup[] = [
   {
     label: 'SYSTEM',
     items: [
-      { to: '/admin/ai', label: 'AI Center', icon: Sparkles, role: 'admin' },
+      { to: '/admin/system-explorer', label: 'Scan & Data Center', icon: Sparkles, role: 'admin' },
       { to: '/admin/history', label: 'Historik', icon: History, role: 'admin' },
       { to: '/admin/members', label: 'Användare', icon: Users, role: 'admin' },
       { to: '/admin/content', label: 'Innehåll', icon: FileText, role: 'admin' },
@@ -216,7 +215,6 @@ const AdminLayout = () => {
             <AdminGlobalSearch />
           </div>
           <div className="flex items-center gap-2">
-            <AiControlBar />
             <BugReportButton />
             <AdminNotificationBell />
             {!siteActive && (

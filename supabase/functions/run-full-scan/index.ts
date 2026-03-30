@@ -2083,6 +2083,7 @@ serve(async (req) => {
       }
 
       trace(scanRun.id, `start → user=${userId.slice(0, 8)} stage=${systemStage} mode=${isTargeted ? "targeted" : "full"} steps=${prioritizedSteps.length} input=`, scanInput);
+      console.log(`🚨 SCAN STARTED scan_id=${scanRun.id} stage=${systemStage} mode=${isTargeted ? "targeted" : "full"} steps=${prioritizedSteps.length}`);
       trace(scanRun.id, `→ chain: process_step[0]`);
       fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
@@ -2356,6 +2357,7 @@ serve(async (req) => {
         ...unified.data_issues.filter((i: any) => !i._dev_expected),
       ];
       const issuesCount = actionableIssues.length;
+      console.log(`TOTAL ISSUES: ${issuesCount} scan_id=${scan_run_id}`);
 
       const iterationsCompleted = scanRun.iteration || 1;
       const coverageScore = scanRun.coverage_score || 0;
