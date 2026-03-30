@@ -1,11 +1,7 @@
 import { create } from 'zustand';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
-import { useExecutionLockStore } from './executionLockStore';
-import { useFeedbackLoopStore } from './feedbackLoopStore';
 import { QueryClient } from '@tanstack/react-query';
-import { createTraceId, observeScanStep, observeError, observeAction, flushObservabilityBuffer } from '@/utils/observabilityLogger';
-import { trace, newTraceId as newDebugTraceId } from '@/utils/deepDebugTrace';
+import { useFullScanOrchestrator } from './fullScanOrchestrator';
+import { toast } from 'sonner';
 
 export type ScanStepStatus = 'pending' | 'running' | 'done' | 'error';
 
@@ -18,7 +14,7 @@ export interface ScanStepResult {
   duration_ms?: number;
 }
 
-const SCAN_STEPS = [
+export const SCAN_STEPS = [
   { type: 'system_scan', label: 'Systemskanning', desc: 'Full skanning av alla datakällor' },
   { type: 'data_integrity', label: 'Dataintegritet', desc: 'Brutna relationer, felaktiga tillstånd' },
   { type: 'content_validation', label: 'Innehåll QA', desc: 'Verifierar UI-påståenden mot data' },
@@ -32,16 +28,6 @@ const SCAN_STEPS = [
   { type: 'feature_detection', label: 'Feature Detection', desc: 'Real vs Fake — klassificerar funktioner' },
 ] as const;
 
-export { SCAN_STEPS };
-
-/** Keys to invalidate after scans complete */
-const POST_SCAN_QUERY_KEYS = [
-  'admin-scan-results',
-  'admin-work-items',
-  'admin-bugs',
-  'mini-workbench-items',
-];
-
 interface ScannerState {
   scanning: boolean;
   steps: ScanStepResult[];
@@ -53,24 +39,8 @@ interface ScannerState {
 }
 
 /**
- * AI-FREE scan caller: calls run-full-scan edge function directly.
- * No AI gateway involved — all scanning is rule-based.
+ * Scanner store — delegates to fullScanOrchestrator which calls run-full-scan edge function.
  */
-const callScanFunction = async (type: string, payload: Record<string, any> = {}) => {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error('Ej inloggad');
-
-  const { data, error } = await supabase.functions.invoke('run-full-scan', {
-    body: { scan_type: type, ...payload },
-  });
-
-  if (error) {
-    throw new Error(error.message || `Skanningsfel (${type})`);
-  }
-
-  return data;
-};
-
 export const useScannerStore = create<ScannerState>((set, get) => ({
   scanning: false,
   steps: [],
@@ -88,96 +58,31 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
   selectNone: () => set({ selectedSteps: new Set() }),
 
   runAllScans: async (queryClient?: QueryClient) => {
-    const { scanning, selectedSteps } = get();
-    if (scanning) return;
+    if (get().scanning) return;
 
-    // Acquire scans lock
-    const lockStore = useExecutionLockStore.getState();
-    const lockId = `scanner-${Date.now()}`;
-    const acquired = lockStore.acquire('scans', lockId, 'Full scanner run');
-    if (!acquired) {
-      const holder = lockStore.getHolder('scans');
-      toast.error(`Skanningar blockerade — område låst av ${holder?.description || 'annan uppgift'}`);
-      lockStore.logConflict(lockId, 'Scanner run', 'scans', holder?.lockedBy || 'unknown');
+    const orchestrator = useFullScanOrchestrator.getState();
+    if (orchestrator.running) {
+      toast.info('En skanning körs redan');
       return;
     }
 
-    const toRun = SCAN_STEPS.filter(s => selectedSteps.has(s.type));
-    if (toRun.length === 0) { toast.error('Välj minst en skanning'); lockStore.release(lockId); return; }
+    set({ scanning: true });
 
-    // Capture before-snapshot for feedback loop
-    await useFeedbackLoopStore.getState().captureBeforeAction();
-
-    set({
-      scanning: true,
-      steps: toRun.map(s => ({ type: s.type, label: s.label, status: 'pending' as const })),
-    });
-
-    // Mark all as running
-    set(state => ({
-      steps: state.steps.map(s => ({ ...s, status: 'running' as const })),
-    }));
-
-    // Run all scans in parallel for speed
-    const traceId = createTraceId('quick-scan');
-    const debugTraceId = newDebugTraceId('scan');
-    trace('issue_detected', 'ScannerStore', `Starting scan (${toRun.length} steps)`, { traceId: debugTraceId, details: { steps: toRun.map(s => s.type) } });
-    observeAction(`Startar skanning (${toRun.length} steg)`, { trace_id: traceId, source: 'scanner' });
-
-    await Promise.allSettled(
-      toRun.map(async (step, i) => {
-        const start = Date.now();
-        try {
-          const res = await callScanFunction(
-            step.type,
-            step.type === 'content_validation' ? { auto_fix: false } : {}
-          );
-
-          if (res) {
-            const duration_ms = Date.now() - start;
-            trace('scan_update', 'ScannerStore', `Step done: ${step.label} (${duration_ms}ms)`, { traceId: debugTraceId, details: { stepType: step.type, duration_ms } });
-            observeScanStep(`Steg klart: ${step.label}`, { trace_id: traceId, component: step.type, duration_ms });
-            set(state => ({
-              steps: state.steps.map((s, idx) => idx === i ? { ...s, status: 'done' as const, result: res, duration_ms } : s),
-            }));
-          } else {
-            observeError(`Inget resultat: ${step.label}`, undefined, { trace_id: traceId, component: step.type, duration_ms: Date.now() - start });
-            set(state => ({
-              steps: state.steps.map((s, idx) => idx === i ? { ...s, status: 'error' as const, error: 'Inget resultat', duration_ms: Date.now() - start } : s),
-            }));
-          }
-        } catch (err: any) {
-          observeError(`Skanningsfel: ${step.label}`, err, { trace_id: traceId, component: step.type, duration_ms: Date.now() - start });
-          set(state => ({
-            steps: state.steps.map((s, idx) => idx === i ? { ...s, status: 'error' as const, error: err?.message || 'Fel', duration_ms: Date.now() - start } : s),
-          }));
+    try {
+      await orchestrator.runOrchestrated(queryClient);
+      
+      // Poll orchestrator state until done
+      const checkDone = () => {
+        const state = useFullScanOrchestrator.getState();
+        if (!state.running) {
+          set({ scanning: false });
+          return;
         }
-      })
-    );
-
-    observeAction(`Skanning klar (${toRun.length} steg)`, { trace_id: traceId, source: 'scanner' });
-    flushObservabilityBuffer();
-
-    // Invalidate relevant queries so UI reflects new scan results + work items
-    if (queryClient) {
-      for (const key of POST_SCAN_QUERY_KEYS) {
-        queryClient.invalidateQueries({ queryKey: [key] });
-      }
+        setTimeout(checkDone, 2000);
+      };
+      setTimeout(checkDone, 3000);
+    } catch {
+      set({ scanning: false });
     }
-
-    // Evaluate feedback loop after scans
-    const steps = get().steps;
-    const errorCount = steps.filter(s => s.status === 'error').length;
-    const fbEntry = await useFeedbackLoopStore.getState().evaluateAfterAction(
-      'scan', `Skanning (${toRun.length} steg)`, { failed: errorCount, regressed: 0, errors: errorCount }
-    );
-
-    const verdictLabel = fbEntry?.verdict === 'improved' ? '📈 Förbättrat' :
-      fbEntry?.verdict === 'degraded' ? '📉 Försämrat' : '➡️ Stabilt';
-    toast.success(`Skanningar klara (${toRun.length} st) — ${verdictLabel}`);
-    if (fbEntry?.suggestion) toast.warning(fbEntry.suggestion, { duration: 8000 });
-
-    lockStore.release(lockId);
-    set({ scanning: false });
   },
 }));

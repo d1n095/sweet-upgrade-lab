@@ -88,20 +88,97 @@ interface UnifiedReport {
 }
 
 const callAI = async (type: string, payload: Record<string, any> = {}) => {
-  // AI is disabled — redirect scan types to run-full-scan, others return null
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) { toast.error('Ej inloggad'); return null; }
+
+  // Scan types → start a full scan via run-full-scan edge function
   const scanTypes = ['system_scan', 'data_integrity', 'content_validation', 'sync_scan', 'interaction_qa', 'visual_qa', 'nav_scan', 'ux_scan', 'human_test', 'action_governor', 'feature_detection'];
   
   if (scanTypes.includes(type)) {
     const { data, error } = await supabase.functions.invoke('run-full-scan', {
-      body: { scan_type: type, ...payload },
+      body: { action: 'start', ...payload },
     });
     if (error) { toast.error(error.message || 'Skanningsfel'); return null; }
+    if (data?.success === false) { toast.error(data.error || 'Skanningsfel'); return null; }
+    toast.success('Skanning startad i bakgrunden');
     return data;
   }
 
-  // Non-scan AI calls are disabled
+  // DB-based analysis types — query directly
+  if (type === 'system_health' || type === 'data_insights' || type === 'action_engine') {
+    return await runLocalAnalysis(type, payload);
+  }
+
+  // Non-scan calls — disabled
   toast.info('Denna funktion kräver manuell hantering');
   return null;
+};
+
+/** Local rule-based analysis using direct DB queries */
+const runLocalAnalysis = async (type: string, _payload: Record<string, any> = {}) => {
+  try {
+    const [ordersRes, bugsRes, workItemsRes, incidentsRes] = await Promise.all([
+      supabase.from('orders').select('id, status, payment_status, total_amount, created_at', { count: 'exact' }).order('created_at', { ascending: false }).limit(100),
+      supabase.from('bug_reports').select('id, status, ai_severity', { count: 'exact' }).eq('status', 'open'),
+      supabase.from('work_items' as any).select('id, status, priority', { count: 'exact' }).in('status', ['open', 'in_progress', 'claimed']),
+      supabase.from('order_incidents').select('id, status, priority, sla_status', { count: 'exact' }).in('status', ['open', 'investigating']),
+    ]);
+
+    const openBugs = bugsRes.count || 0;
+    const openItems = workItemsRes.count || 0;
+    const openIncidents = incidentsRes.count || 0;
+    const totalOrders = ordersRes.count || 0;
+    const recentOrders = ordersRes.data || [];
+    const revenue = recentOrders.reduce((s, o) => s + (o.total_amount || 0), 0);
+
+    const healthScore = Math.max(0, 100 - (openBugs * 5) - (openIncidents * 10) - (openItems > 20 ? 15 : 0));
+
+    if (type === 'system_health') {
+      const criticalBugs = (bugsRes.data || []).filter((b: any) => b.ai_severity === 'critical');
+      return {
+        health_score: healthScore,
+        summary: `${openBugs} öppna buggar, ${openIncidents} ärenden, ${openItems} uppgifter`,
+        critical_issues: criticalBugs.map((b: any) => ({
+          severity: 'critical',
+          title: `Bugg #${b.id.slice(0, 8)}`,
+          description: 'Kritisk bugg markerad av skanning',
+          suggested_action: 'Granska och åtgärda',
+        })),
+        duplicate_bugs: [],
+        missing_fixes: [],
+      };
+    }
+
+    if (type === 'data_insights') {
+      const insights = [];
+      if (openBugs > 5) insights.push({ type: 'warning' as const, title: `${openBugs} öppna buggar`, description: 'Många buggar väntar på åtgärd', action: 'Prioritera och åtgärda de äldsta' });
+      if (openIncidents > 0) insights.push({ type: 'warning' as const, title: `${openIncidents} öppna ärenden`, description: 'Ärenden som behöver hanteras', action: 'Granska ärenden i Ops-modulen' });
+      if (totalOrders > 0) insights.push({ type: 'info' as const, title: `${totalOrders} ordrar totalt`, description: `Senaste intäkter: ${Math.round(revenue)} kr`, action: 'Se detaljerad orderrapport' });
+      if (openItems > 20) insights.push({ type: 'opportunity' as const, title: `${openItems} öppna uppgifter`, description: 'Uppgiftskön växer', action: 'Rensa eller prioritera uppgifter' });
+      return {
+        health_score: healthScore,
+        summary: `Systemhälsa: ${healthScore}/100`,
+        insights,
+        raw_metrics: { openBugs, openItems, openIncidents, totalOrders, revenue: Math.round(revenue) },
+      };
+    }
+
+    if (type === 'action_engine') {
+      const actions = [];
+      if (openBugs > 0) actions.push({ type: 'fix', title: 'Åtgärda öppna buggar', priority: openBugs > 5 ? 'high' : 'medium', action: `${openBugs} buggar behöver åtgärdas`, revenue_impact: 'medium' });
+      if (openIncidents > 0) actions.push({ type: 'fix', title: 'Hantera ärenden', priority: 'high', action: `${openIncidents} ärenden väntar`, revenue_impact: 'high' });
+      return {
+        summary: `${actions.length} rekommenderade åtgärder baserat på systemdata`,
+        actions,
+        total_estimated_revenue_opportunity: null,
+      };
+    }
+
+    return null;
+  } catch (err: any) {
+    toast.error('Analysfel: ' + (err.message || 'okänt'));
+    return null;
+  }
 };
 
 const callTaskManager = async (action: string) => {
@@ -2005,25 +2082,32 @@ const SystemScanTab = () => {
   const runScan = async () => {
     setLoading(true);
     const res = await callAI('system_scan');
-    if (res) {
-      setScanResult(res);
-      // Persist to DB
-      const { data: { session } } = await supabase.auth.getSession();
-      const { data: scanRow } = await supabase.from('ai_scan_results' as any).insert({
-        scan_type: 'system_scan',
-        results: res,
-        overall_score: res.system_score || null,
-        overall_status: res.system_score >= 70 ? 'healthy' : res.system_score >= 40 ? 'warning' : 'critical',
-        executive_summary: res.executive_summary || null,
-        issues_count: res.issues_found || 0,
-        tasks_created: res.tasks_created || 0,
-        scanned_by: session?.user?.id || null,
-      } as any).select('id').single();
-      const savedScanId = (scanRow as any)?.id || null;
-      setCurrentScanId(savedScanId);
-      logChange({ change_type: 'scan', description: `Systemskanning klar — poäng: ${res.system_score || '?'}, ${res.issues_found || 0} problem`, source: 'ai', affected_components: ['system_scan'], scan_id: savedScanId });
-      queryClient.invalidateQueries({ queryKey: ['last-scan-result'] });
-      queryClient.invalidateQueries({ queryKey: ['scan-history'] });
+    if (res?.success && res?.scan_id) {
+      setCurrentScanId(res.scan_id);
+      // Poll for completion
+      const pollForResult = async () => {
+        for (let i = 0; i < 60; i++) {
+          await new Promise(r => setTimeout(r, 5000));
+          const { data: scanRun } = await supabase.from('scan_runs' as any).select('status, unified_result, system_health_score, work_items_created').eq('id', res.scan_id).maybeSingle();
+          if (!scanRun) continue;
+          if ((scanRun as any).status === 'done') {
+            const unified = (scanRun as any).unified_result;
+            if (unified) {
+              setScanResult({ ...unified, system_score: (scanRun as any).system_health_score });
+            }
+            queryClient.invalidateQueries({ queryKey: ['last-scan-result'] });
+            queryClient.invalidateQueries({ queryKey: ['scan-history'] });
+            queryClient.invalidateQueries({ queryKey: ['scan-work-items'] });
+            toast.success(`Skanning klar — ${(scanRun as any).system_health_score || 0}/100`);
+            break;
+          }
+          if ((scanRun as any).status === 'error') {
+            toast.error('Skanning misslyckades');
+            break;
+          }
+        }
+      };
+      pollForResult();
     }
     setLoading(false);
   };
