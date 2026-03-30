@@ -69,7 +69,7 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
     set({ scanning: true });
 
     try {
-      await orchestrator.startScan(queryClient);
+      await orchestrator.runOrchestrated(queryClient);
       
       // Poll orchestrator state until done
       const checkDone = () => {
