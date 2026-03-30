@@ -219,9 +219,23 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 export const LanguageProvider = ({ children }: { children: ReactNode }) => {
   const [language, setLanguage] = useState<Language>(() => {
     try {
-      const saved = localStorage.getItem('preferred-language') as Language | null;
       const valid: Language[] = ['sv', 'en', 'no', 'da', 'de', 'fi', 'nl', 'fr', 'es', 'pl'];
-      return saved && valid.includes(saved) ? saved : 'sv';
+
+      // 1. Use saved preference if available
+      const saved = localStorage.getItem('preferred-language') as Language | null;
+      if (saved && valid.includes(saved)) return saved;
+
+      // 2. Auto-detect from browser language
+      if (typeof navigator !== 'undefined' && navigator.language) {
+        const raw = navigator.language.slice(0, 2).toLowerCase();
+        // Map non-standard codes to our supported set
+        const mapped: Record<string, Language> = { nb: 'no', nn: 'no' };
+        const detected = (mapped[raw] ?? raw) as Language;
+        if (valid.includes(detected)) return detected;
+      }
+
+      // 3. Final fallback
+      return 'sv';
     } catch {
       return 'sv';
     }
