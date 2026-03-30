@@ -54,7 +54,7 @@ const validateUsername = (username: string, lang: string): string | null => {
   return null;
 };
 
-const SUPPORTED_EMAIL_LANGUAGES = ['sv', 'en', 'no', 'da', 'de'] as const;
+const SUPPORTED_EMAIL_LANGUAGES = ['sv', 'en', 'no', 'da', 'de', 'fi', 'nl', 'fr', 'es', 'pl'] as const;
 type EmailLanguage = typeof SUPPORTED_EMAIL_LANGUAGES[number];
 
 /**

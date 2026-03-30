@@ -18,7 +18,7 @@ const corsHeaders = {
 
 interface WelcomeEmailRequest {
   email: string;
-  language?: 'sv' | 'en' | 'no' | 'da' | 'de';
+  language?: 'sv' | 'en' | 'no' | 'da' | 'de' | 'fi' | 'nl' | 'fr' | 'es' | 'pl';
 }
 
 interface EmailTemplate {
@@ -48,7 +48,7 @@ type LanguageContent = {
   benefitsTitle: string;
 };
 
-const getDefaultTemplate = (language: 'sv' | 'en' | 'no' | 'da' | 'de'): LanguageContent => {
+const getDefaultTemplate = (language: 'sv' | 'en' | 'no' | 'da' | 'de' | 'fi' | 'nl' | 'fr' | 'es' | 'pl'): LanguageContent => {
   const templates: Record<string, LanguageContent> = {
     sv: {
       subject: 'Välkommen till 4thepeople! 🌿',
@@ -105,6 +105,61 @@ const getDefaultTemplate = (language: 'sv' | 'en' | 'no' | 'da' | 'de'): Languag
       contact: 'Fragen? Kontaktieren Sie uns unter support@4thepeople.se',
       benefitsTitle: 'Ihre Mitgliedsvorteile:',
     },
+    fi: {
+      subject: 'Tervetuloa 4thepeople! 🌿',
+      greeting: 'Tervetuloa perheeseen!',
+      intro: 'Kiitos rekisteröitymisestä. Olet nyt jäsen ja sinulla on pääsy eksklusiivisiin etuihin.',
+      benefits: ['💰 Eksklusiiviset jäsenhinnat kaikille tuotteille', '📦 Automaattiset määräalennukset', '🎁 Pääsy pakettihintaan ja tarjouksiin', '⭐ Mahdollisuus kirjoittaa arvosteluja ja saada alennuksia'],
+      cta: 'Aloita ostokset',
+      footer: 'Olemme iloisia, että olet mukana! 💚',
+      team: '4thepeople-tiimi',
+      contact: 'Kysymyksiä? Ota yhteyttä osoitteeseen support@4thepeople.se',
+      benefitsTitle: 'Jäsenedusi:',
+    },
+    nl: {
+      subject: 'Welkom bij 4thepeople! 🌿',
+      greeting: 'Welkom in de familie!',
+      intro: 'Bedankt voor je aanmelding. Je bent nu lid en hebt toegang tot exclusieve voordelen.',
+      benefits: ['💰 Exclusieve ledenprijzen op alle producten', '📦 Automatische hoeveelheidskortingen', '🎁 Toegang tot bundelprijzen en aanbiedingen', '⭐ Mogelijkheid om beoordelingen te schrijven en kortingen te verdienen'],
+      cta: 'Begin met winkelen',
+      footer: 'We zijn blij dat je er bent! 💚',
+      team: 'Het 4thepeople-team',
+      contact: 'Vragen? Neem contact op via support@4thepeople.se',
+      benefitsTitle: 'Jouw ledenvoordelen:',
+    },
+    fr: {
+      subject: 'Bienvenue chez 4thepeople ! 🌿',
+      greeting: 'Bienvenue dans la famille !',
+      intro: 'Merci de vous être inscrit. Vous êtes maintenant membre et avez accès à des avantages exclusifs.',
+      benefits: ['💰 Prix membres exclusifs sur tous les produits', '📦 Remises automatiques sur les volumes', '🎁 Accès aux prix groupés et aux offres', '⭐ Possibilité d\'écrire des avis et d\'obtenir des réductions'],
+      cta: 'Commencer à acheter',
+      footer: 'Nous sommes heureux de vous avoir parmi nous ! 💚',
+      team: 'L\'équipe 4thepeople',
+      contact: 'Des questions ? Contactez-nous à support@4thepeople.se',
+      benefitsTitle: 'Vos avantages membres :',
+    },
+    es: {
+      subject: '¡Bienvenido a 4thepeople! 🌿',
+      greeting: '¡Bienvenido a la familia!',
+      intro: 'Gracias por registrarte. Ahora eres miembro y tienes acceso a beneficios exclusivos.',
+      benefits: ['💰 Precios exclusivos para miembros en todos los productos', '📦 Descuentos automáticos por volumen', '🎁 Acceso a precios de paquetes y ofertas', '⭐ Posibilidad de escribir reseñas y obtener descuentos'],
+      cta: 'Empezar a comprar',
+      footer: '¡Estamos felices de tenerte con nosotros! 💚',
+      team: 'El equipo de 4thepeople',
+      contact: '¿Preguntas? Contáctanos en support@4thepeople.se',
+      benefitsTitle: 'Tus beneficios de miembro:',
+    },
+    pl: {
+      subject: 'Witamy w 4thepeople! 🌿',
+      greeting: 'Witamy w rodzinie!',
+      intro: 'Dziękujemy za rejestrację. Jesteś teraz członkiem i masz dostęp do ekskluzywnych korzyści.',
+      benefits: ['💰 Ekskluzywne ceny dla członków na wszystkie produkty', '📦 Automatyczne rabaty ilościowe', '🎁 Dostęp do cen pakietowych i ofert', '⭐ Możliwość pisania recenzji i zdobywania rabatów'],
+      cta: 'Zacznij robić zakupy',
+      footer: 'Cieszymy się, że jesteś z nami! 💚',
+      team: 'Zespół 4thepeople',
+      contact: 'Pytania? Skontaktuj się z nami pod adresem support@4thepeople.se',
+      benefitsTitle: 'Twoje korzyści jako członka:',
+    },
   };
   return templates[language] || templates.en;
 };
@@ -124,9 +179,9 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const { email, language: rawLang = 'en' }: WelcomeEmailRequest = await req.json();
     // Normalize locale codes (e.g. "sv-SE" → "sv") and validate against supported set
-    const supported = ['sv', 'en', 'no', 'da', 'de'];
+    const supported = ['sv', 'en', 'no', 'da', 'de', 'fi', 'nl', 'fr', 'es', 'pl'];
     const normalized = rawLang.slice(0, 2).toLowerCase();
-    const language = supported.includes(normalized) ? normalized as 'sv' | 'en' | 'no' | 'da' | 'de' : 'en';
+    const language = supported.includes(normalized) ? normalized as 'sv' | 'en' | 'no' | 'da' | 'de' | 'fi' | 'nl' | 'fr' | 'es' | 'pl' : 'en';
 
     if (!email) {
       return new Response(
