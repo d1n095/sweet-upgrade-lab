@@ -328,6 +328,26 @@ serve(async (req) => {
       }
     }
 
+    // ── RULE: admin access FAILS → CRITICAL endpoint = HIGH, else = IGNORE ──
+    // IF admin access FAILS AND endpoint is CRITICAL → risk = "high"
+    // ELSE (admin access fails, non-critical endpoint) → IGNORE (severity = "low", type = "info")
+    const criticalAdminEndpoints = ["orders", "finance", "users", "members", "system", "settings", "staff"];
+    const adminRoles = ["admin", "founder", "it"];
+    for (const test of tests) {
+      if (!test.passed && adminRoles.some(r => test.role.includes(r))) {
+        const onCritical = criticalAdminEndpoints.some(ep => test.target.includes(ep));
+        if (onCritical) {
+          test.risk = "high";
+          test.severity = "high";
+          test.type = undefined;
+        } else {
+          test.risk = "low";
+          test.severity = "low";
+          test.type = "info";
+        }
+      }
+    }
+
     // Sort: failures first, then by risk
     const riskOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
     tests.sort((a, b) => {
