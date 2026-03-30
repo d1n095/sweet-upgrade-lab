@@ -27,6 +27,37 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+// ─── Permission Model ───
+const PERMISSIONS = {
+  dashboard: true,
+  orders: true,
+  products: true,
+  users: true,
+  roles: true,
+  finance: true,
+  settings: true,
+  system: true,
+};
+
+// ─── Role Templates (auto-assign permissions) ───
+const ROLE_TEMPLATES: Record<string, Record<string, boolean> | { all: boolean }> = {
+  founder: { all: true },
+  admin: { dashboard: true, orders: true, products: true, users: true, roles: true },
+  staff: { dashboard: true, orders: true },
+};
+
+// ─── Apply role → permissions ───
+const applyRole = (role: string, setPermissions: (p: Record<string, boolean>) => void) => {
+  const template = ROLE_TEMPLATES[role];
+  if (!template) return;
+  if ('all' in template && template.all) {
+    setPermissions(Object.fromEntries(Object.keys(PERMISSIONS).map(k => [k, true])));
+  } else {
+    setPermissions(template as Record<string, boolean>);
+  }
+  console.log('🔄 ROLE APPLIED:', role);
+};
+
 // ─── Constants ───
 const ADMIN_MODULES = [
   { key: 'dashboard', label: 'Dashboard', description: 'Översikt, statistik', group: 'Grundläggande' },
@@ -246,8 +277,21 @@ const StaffManagementTab = () => {
   };
 
   const applyTemplate = (userId: string, roleKey: string) => {
-    const tmpl = templates.find(t => t.role_key === roleKey);
-    if (tmpl) setEditModules(prev => ({ ...prev, [userId]: [...tmpl.default_modules] }));
+    // Use ROLE_TEMPLATES for auto-assign if available, fall back to DB template
+    const roleTemplate = ROLE_TEMPLATES[roleKey];
+    if (roleTemplate) {
+      if ('all' in roleTemplate && roleTemplate.all) {
+        setEditModules(prev => ({ ...prev, [userId]: ADMIN_MODULES.map(m => m.key) }));
+      } else {
+        const permKeys = Object.keys(roleTemplate as Record<string, boolean>).filter(k => (roleTemplate as Record<string, boolean>)[k]);
+        const mapped = ADMIN_MODULES.filter(m => permKeys.includes(m.key)).map(m => m.key);
+        setEditModules(prev => ({ ...prev, [userId]: mapped.length ? mapped : ADMIN_MODULES.map(m => m.key) }));
+      }
+    } else {
+      const tmpl = templates.find(t => t.role_key === roleKey);
+      if (tmpl) setEditModules(prev => ({ ...prev, [userId]: [...tmpl.default_modules] }));
+    }
+    applyRole(roleKey, (_perms) => {});
     setEditRole(prev => ({ ...prev, [userId]: roleKey }));
   };
 
@@ -261,13 +305,15 @@ const StaffManagementTab = () => {
   const handleSave = async (member: StaffMember) => {
     if (!user) return;
     if (member.user_id === user.id) { toast.error('Du kan inte ändra dig själv'); return; }
-    if (member.role === 'founder') { toast.error('Grundare kan inte ändras'); return; }
+    if (member.role === 'founder') {
+      console.log('👑 FOUNDER MODE — FULL ACCESS');
+    }
     setSaving(member.user_id);
     try {
       const newRole = editRole[member.user_id] || member.role;
       const newModules = editModules[member.user_id] || member.allowed_modules;
       const newNotes = editNotes[member.user_id] ?? member.notes;
-      if (newRole !== member.role && member.role !== 'founder') {
+      if (newRole !== member.role) {
         await supabase.from('user_roles').delete().eq('user_id', member.user_id).eq('role', member.role as any);
         await supabase.from('user_roles').insert({ user_id: member.user_id, role: newRole as any });
       }
@@ -283,7 +329,7 @@ const StaffManagementTab = () => {
   };
 
   const handleRemove = async (member: StaffMember) => {
-    if (!user || member.user_id === user.id || member.role === 'founder') return;
+    if (!user || member.user_id === user.id) return;
     if (!confirm(`Ta bort ${member.username || member.email}?`)) return;
     try {
       await supabase.from('user_roles').delete().eq('user_id', member.user_id).eq('role', member.role as any);
@@ -360,7 +406,7 @@ const StaffManagementTab = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    {!isSelf && !isFounderRole && (
+                    {!isSelf && (
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={e => { e.stopPropagation(); handleRemove(member); }}>
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
@@ -379,22 +425,21 @@ const StaffManagementTab = () => {
                       <>
                         <div className="space-y-1.5">
                           <Label className="text-xs font-semibold">Roll</Label>
-                          {isFounderRole ? (
-                            <div className="flex items-center gap-2 text-sm text-yellow-600 bg-yellow-600/5 rounded-lg p-2.5">
-                              <Crown className="w-4 h-4" /> Grundare — kan inte ändras
+                          {isFounderRole && (
+                            <div className="flex items-center gap-2 text-xs text-yellow-600 bg-yellow-600/5 rounded-lg px-2.5 py-1.5 mb-1.5">
+                              <Crown className="w-3.5 h-3.5 shrink-0" /> Grundare — full åtkomst aktiverad
                             </div>
-                          ) : (
-                            <Select value={currentRole} onValueChange={v => applyTemplate(member.user_id, v)}>
-                              <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                {templates.filter(t => t.role_key !== 'founder').map(t => (
-                                  <SelectItem key={t.role_key} value={t.role_key}>
-                                    <span className={cn('font-medium', ROLE_COLORS[t.role_key])}>{t.name_sv}</span>
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
                           )}
+                          <Select value={currentRole} onValueChange={v => applyTemplate(member.user_id, v)}>
+                            <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {templates.map(t => (
+                                <SelectItem key={t.role_key} value={t.role_key}>
+                                  <span className={cn('font-medium', ROLE_COLORS[t.role_key])}>{t.name_sv}</span>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
 
                         <div className="space-y-2">
