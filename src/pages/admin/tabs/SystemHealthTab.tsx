@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Bug, Loader2, AlertTriangle, Lightbulb, Shield, Zap, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -6,15 +6,34 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { callAI } from './_shared';
+import { analyzeSystemHealth } from "@/lib/systemHealth";
 
 export const SystemHealthTab = () => {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
+  const [health, setHealth] = useState<any>(null);
+  const [globalIssues, setGlobalIssues] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (globalIssues.length > 0) {
+      const result = analyzeSystemHealth(globalIssues);
+      setHealth(result);
+    }
+  }, [globalIssues]);
 
   const run = async () => {
     setLoading(true);
+    console.log("🧪 RUN HEALTH ANALYSIS");
+    console.log("HEALTH INPUT:", globalIssues.length);
     const res = await callAI('system_health');
-    if (res) setData(res);
+    if (res) {
+      setData(res);
+      const issues = res.critical_issues || [];
+      setGlobalIssues(issues);
+      const result = analyzeSystemHealth(issues);
+      setHealth(result);
+      console.log("HEALTH OUTPUT:", result);
+    }
     setLoading(false);
   };
 
@@ -32,34 +51,39 @@ export const SystemHealthTab = () => {
 
   return (
     <div className="space-y-4">
-      <Button onClick={run} disabled={loading} className="w-full gap-2">
+      <Button onClick={() => {
+        console.log("🧪 RUN HEALTH ANALYSIS");
+        const result = analyzeSystemHealth(globalIssues);
+        setHealth(result);
+        run();
+      }} disabled={loading} className="w-full gap-2">
         {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
         Kör systemhälsoanalys
       </Button>
 
-      {data && (
+      {(data || health) && (
         <div className="space-y-4">
           <div className="border rounded-xl p-4 flex items-center gap-4">
             <div className={cn(
               'w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold border-2',
-              data.health_score >= 70 ? 'border-green-500 text-green-700 bg-green-50' :
-              data.health_score >= 40 ? 'border-yellow-500 text-yellow-700 bg-yellow-50' :
+              (health?.score ?? data?.health_score ?? 0) >= 70 ? 'border-green-500 text-green-700 bg-green-50' :
+              (health?.score ?? data?.health_score ?? 0) >= 40 ? 'border-yellow-500 text-yellow-700 bg-yellow-50' :
               'border-red-500 text-red-700 bg-red-50'
             )}>
-              {data.health_score}
+              {health?.score ?? data?.health_score}
             </div>
             <div>
               <h3 className="text-sm font-semibold">Systemhälsa</h3>
-              <p className="text-xs text-muted-foreground">{data.summary}</p>
+              <p className="text-xs text-muted-foreground">{health?.status ?? data?.summary}</p>
             </div>
           </div>
 
-          {data.critical_issues?.length > 0 && (
+          {data?.critical_issues?.length > 0 && (
             <div className="space-y-2">
-              <h4 className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5 text-destructive" /> Kritiska problem ({data.critical_issues.length})</h4>
+              <h4 className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5 text-destructive" /> Kritiska problem ({data?.critical_issues?.length})</h4>
               <ScrollArea className="max-h-[50vh]">
                 <div className="space-y-2 pr-2">
-                  {data.critical_issues.map((issue: any, i: number) => (
+                  {data?.critical_issues?.map((issue: any, i: number) => (
                     <div key={i} className={cn('border rounded-lg p-3 space-y-1', severityColor(issue.severity))}>
                       <div className="flex items-center gap-2">
                         <Badge variant="destructive" className="text-[9px]">{issue.severity}</Badge>
@@ -86,12 +110,12 @@ export const SystemHealthTab = () => {
             </div>
           )}
 
-          {data.duplicate_bugs?.length > 0 && (
+          {data?.duplicate_bugs?.length > 0 && (
             <div className="space-y-2">
-              <h4 className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><Bug className="w-3.5 h-3.5" /> Duplicerade buggar ({data.duplicate_bugs.length})</h4>
+              <h4 className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><Bug className="w-3.5 h-3.5" /> Duplicerade buggar ({data?.duplicate_bugs?.length})</h4>
               <ScrollArea className="max-h-[50vh]">
                 <div className="space-y-2 pr-2">
-                  {data.duplicate_bugs.map((d: any, i: number) => (
+                  {data?.duplicate_bugs?.map((d: any, i: number) => (
                     <div key={i} className="border rounded-lg p-3 space-y-1">
                       <p className="text-xs"><span className="font-medium">Anledning:</span> {d.reason}</p>
                       <p className="text-xs text-muted-foreground">→ {d.suggested_action}</p>
@@ -105,10 +129,10 @@ export const SystemHealthTab = () => {
             </div>
           )}
 
-          {data.missing_fixes?.length > 0 && (
+          {data?.missing_fixes?.length > 0 && (
             <div className="space-y-2">
               <h4 className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" /> Saknade åtgärder</h4>
-              {data.missing_fixes.map((m: any, i: number) => (
+              {data?.missing_fixes?.map((m: any, i: number) => (
                 <div key={i} className="border rounded-lg p-3 space-y-1">
                   <Badge variant="outline" className="text-[9px]">{m.area}</Badge>
                   <p className="text-xs font-medium">{m.problem}</p>
@@ -118,12 +142,12 @@ export const SystemHealthTab = () => {
             </div>
           )}
 
-          {data.improvements?.length > 0 && (
+          {data?.improvements?.length > 0 && (
             <div className="space-y-2">
               <h4 className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><Lightbulb className="w-3.5 h-3.5" /> Förbättringsförslag</h4>
               <ScrollArea className="max-h-[50vh]">
                 <div className="space-y-2 pr-2">
-                  {data.improvements.map((imp: any, i: number) => (
+                  {data?.improvements?.map((imp: any, i: number) => (
                     <div key={i} className="border rounded-lg p-3 space-y-1">
                       <div className="flex items-center gap-2">
                         <Badge variant={impactBadge(imp.impact)} className="text-[9px]">{imp.impact} impact</Badge>
