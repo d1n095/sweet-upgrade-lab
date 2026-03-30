@@ -49,7 +49,6 @@ const PAGES: IndexEntry[] = [
 ];
 
 const COMPONENTS: IndexEntry[] = [
-  { id: 'c-deep-debug', type: 'component', label: 'DeepDebugPanel', path: 'src/components/admin/DeepDebugPanel.tsx', description: 'Deep debug trace panel', tags: ['debug', 'trace', 'admin'] },
   { id: 'c-system-state', type: 'component', label: 'SystemStateDashboard', path: 'src/components/admin/SystemStateDashboard.tsx', description: 'System health dashboard', tags: ['system', 'health', 'admin'] },
   { id: 'c-admin-layout', type: 'component', label: 'AdminLayout', path: 'src/pages/admin/AdminLayout.tsx', description: 'Admin section layout with nav', tags: ['admin', 'layout', 'nav'] },
   { id: 'c-debug-dashboard', type: 'component', label: 'AdminDebug', path: 'src/pages/admin/AdminDebug.tsx', description: 'Full debug dashboard with scanner, index, logs, and test runner', tags: ['debug', 'scanner', 'test', 'index'] },
