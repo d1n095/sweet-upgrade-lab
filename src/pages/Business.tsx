@@ -4,7 +4,7 @@ import { Building2, Package, Users, HandshakeIcon, Mail, Phone, Check, ArrowRigh
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { useLanguage, getContentLang } from '@/context/LanguageContext';
+import { useLanguage } from '@/context/LanguageContext';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import SEOHead from '@/components/seo/SEOHead';
@@ -47,6 +47,11 @@ const Business = () => {
       success: 'Tack för din förfrågan!',
       successDescription: 'Vi har tagit emot ditt meddelande och återkommer inom 24 timmar.',
       note: 'OBS: Vi erbjuder för närvarande inte automatisk momsavdragning eller företagsinloggning. Alla beställningar hanteras manuellt för att ge er personlig service.',
+      fillRequired: 'Fyll i obligatoriska fält',
+      sending: 'Skickar...',
+      submitError: 'Kunde inte skicka förfrågan',
+      newInquiry: 'Skicka ny förfrågan',
+      contactDirectly: 'Eller kontakta oss direkt:',
     },
     en: {
       title: 'Business Customers',
@@ -70,16 +75,245 @@ const Business = () => {
       success: 'Thanks for your inquiry!',
       successDescription: "We've received your message and will respond within 24 hours.",
       note: 'NOTE: We currently do not offer automatic VAT deduction or business login. All orders are handled manually to provide you with personalized service.',
-    }
+      fillRequired: 'Please fill in required fields',
+      sending: 'Sending...',
+      submitError: 'Could not submit inquiry',
+      newInquiry: 'Send new inquiry',
+      contactDirectly: 'Or contact us directly:',
+    },
+    no: {
+      title: 'Bedriftskunder',
+      subtitle: 'Store bestillinger? Kontakt oss for spesialpris og tilpassede løsninger.',
+      description: 'Vi ønsker bedrifter velkommen som ønsker å bestille produktene våre. Kontakt oss for å diskutere behovene dine, volumrabatter og leveringsalternativer.',
+      benefits: [
+        { icon: Package, title: 'Volumrabatter', description: 'Bedre priser for større bestillinger' },
+        { icon: Users, title: 'Personlig kontakt', description: 'Dedikert support for bedriftskunder' },
+        { icon: HandshakeIcon, title: 'Fleksible løsninger', description: 'Tilpasset dine behov' },
+        { icon: Building2, title: 'Faktura', description: 'Fakturabetaling tilgjengelig' },
+      ],
+      formTitle: 'Kontakt oss',
+      formDescription: 'Fyll ut skjemaet nedenfor, så svarer vi innen 24 timer.',
+      companyLabel: 'Firmanavn',
+      contactLabel: 'Kontaktperson',
+      emailLabel: 'E-post',
+      phoneLabel: 'Telefon',
+      messageLabel: 'Beskriv behovene dine',
+      messagePlaceholder: 'Hvilke produkter er dere interessert i? Estimert ordrevolum?',
+      submit: 'Send forespørsel',
+      success: 'Takk for forespørselen din!',
+      successDescription: 'Vi har mottatt meldingen din og svarer innen 24 timer.',
+      note: 'MERK: Vi tilbyr for øyeblikket ikke automatisk momsavtrekk eller bedriftspålogging. Alle bestillinger håndteres manuelt for å gi deg personlig service.',
+      fillRequired: 'Fyll ut obligatoriske felt',
+      sending: 'Sender...',
+      submitError: 'Kunne ikke sende forespørsel',
+      newInquiry: 'Send ny forespørsel',
+      contactDirectly: 'Eller kontakt oss direkte:',
+    },
+    da: {
+      title: 'Erhvervskunder',
+      subtitle: 'Store ordrer? Kontakt os for specialpriser og skræddersyede løsninger.',
+      description: 'Vi byder virksomheder velkomne, der ønsker at bestille vores produkter. Kontakt os for at diskutere dine behov, volumenerabatter og leveringsmuligheder.',
+      benefits: [
+        { icon: Package, title: 'Mængderabatter', description: 'Bedre priser ved større ordrer' },
+        { icon: Users, title: 'Personlig kontakt', description: 'Dedikeret support til erhvervskunder' },
+        { icon: HandshakeIcon, title: 'Fleksible løsninger', description: 'Tilpasset dine behov' },
+        { icon: Building2, title: 'Faktura', description: 'Fakturabetaling tilgængelig' },
+      ],
+      formTitle: 'Kontakt os',
+      formDescription: 'Udfyld formularen nedenfor, og vi vender tilbage inden for 24 timer.',
+      companyLabel: 'Firmanavn',
+      contactLabel: 'Kontaktperson',
+      emailLabel: 'E-mail',
+      phoneLabel: 'Telefon',
+      messageLabel: 'Beskriv jeres behov',
+      messagePlaceholder: 'Hvilke produkter er I interesserede i? Estimeret ordrevolumen?',
+      submit: 'Send forespørgsel',
+      success: 'Tak for din forespørgsel!',
+      successDescription: 'Vi har modtaget din besked og vender tilbage inden for 24 timer.',
+      note: 'BEMÆRK: Vi tilbyder i øjeblikket ikke automatisk momsfradrag eller erhvervslogin. Alle ordrer håndteres manuelt for at give jer personlig service.',
+      fillRequired: 'Udfyld venligst obligatoriske felter',
+      sending: 'Sender...',
+      submitError: 'Kunne ikke sende forespørgsel',
+      newInquiry: 'Send ny forespørgsel',
+      contactDirectly: 'Eller kontakt os direkte:',
+    },
+    de: {
+      title: 'Geschäftskunden',
+      subtitle: 'Große Bestellungen? Kontaktieren Sie uns für Sonderpreise und individuelle Lösungen.',
+      description: 'Wir heißen Unternehmen willkommen, die unsere Produkte bestellen möchten. Kontaktieren Sie uns, um Ihre Bedürfnisse, Mengenrabatte und Liefermöglichkeiten zu besprechen.',
+      benefits: [
+        { icon: Package, title: 'Mengenrabatte', description: 'Bessere Preise bei größeren Bestellungen' },
+        { icon: Users, title: 'Persönlicher Kontakt', description: 'Dedizierter Support für Geschäftskunden' },
+        { icon: HandshakeIcon, title: 'Flexible Lösungen', description: 'Auf Ihre Bedürfnisse zugeschnitten' },
+        { icon: Building2, title: 'Rechnung', description: 'Zahlung per Rechnung möglich' },
+      ],
+      formTitle: 'Kontaktieren Sie uns',
+      formDescription: 'Füllen Sie das Formular unten aus und wir melden uns innerhalb von 24 Stunden.',
+      companyLabel: 'Firmenname',
+      contactLabel: 'Ansprechpartner',
+      emailLabel: 'E-Mail',
+      phoneLabel: 'Telefon',
+      messageLabel: 'Beschreiben Sie Ihren Bedarf',
+      messagePlaceholder: 'Welche Produkte interessieren Sie? Geschätztes Bestellvolumen?',
+      submit: 'Anfrage senden',
+      success: 'Danke für Ihre Anfrage!',
+      successDescription: 'Wir haben Ihre Nachricht erhalten und melden uns innerhalb von 24 Stunden.',
+      note: 'HINWEIS: Wir bieten derzeit keine automatische Mehrwertsteuererstattung oder Unternehmens-Login an. Alle Bestellungen werden manuell bearbeitet, um Ihnen einen persönlichen Service zu bieten.',
+      fillRequired: 'Bitte füllen Sie die Pflichtfelder aus',
+      sending: 'Wird gesendet...',
+      submitError: 'Anfrage konnte nicht gesendet werden',
+      newInquiry: 'Neue Anfrage senden',
+      contactDirectly: 'Oder kontaktieren Sie uns direkt:',
+    },
+    fi: {
+      title: 'Yritysasiakkaat',
+      subtitle: 'Suuret tilaukset? Ota yhteyttä erikoishinnoittelua ja räätälöityjä ratkaisuja varten.',
+      description: 'Toivotamme tervetulleeksi yritykset, jotka haluavat tilata tuotteitamme. Ota yhteyttä keskustellaksesi tarpeistasi, volyymialennuksista ja toimitusmahdollisuuksista.',
+      benefits: [
+        { icon: Package, title: 'Volyymialennukset', description: 'Paremmat hinnat suuremmille tilauksille' },
+        { icon: Users, title: 'Henkilökohtainen yhteyshenkilö', description: 'Omistettu tuki yritysasiakkaille' },
+        { icon: HandshakeIcon, title: 'Joustavat ratkaisut', description: 'Räätälöity tarpeisiisi' },
+        { icon: Building2, title: 'Lasku', description: 'Laskumaksu saatavilla' },
+      ],
+      formTitle: 'Ota yhteyttä',
+      formDescription: 'Täytä alla oleva lomake ja vastaamme 24 tunnin sisällä.',
+      companyLabel: 'Yrityksen nimi',
+      contactLabel: 'Yhteyshenkilö',
+      emailLabel: 'Sähköposti',
+      phoneLabel: 'Puhelin',
+      messageLabel: 'Kuvaile tarpeitasi',
+      messagePlaceholder: 'Mistä tuotteista olette kiinnostuneita? Arvioitu tilausvolyymi?',
+      submit: 'Lähetä pyyntö',
+      success: 'Kiitos tiedustelustasi!',
+      successDescription: 'Olemme vastaanottaneet viestisi ja vastaamme 24 tunnin sisällä.',
+      note: 'HUOM: Emme tällä hetkellä tarjoa automaattista arvonlisäverovähennystä tai yrityskirjautumista. Kaikki tilaukset käsitellään manuaalisesti henkilökohtaisen palvelun takaamiseksi.',
+      fillRequired: 'Täytä pakolliset kentät',
+      sending: 'Lähetetään...',
+      submitError: 'Tiedustelua ei voitu lähettää',
+      newInquiry: 'Lähetä uusi tiedustelu',
+      contactDirectly: 'Tai ota yhteyttä suoraan:',
+    },
+    nl: {
+      title: 'Zakelijke klanten',
+      subtitle: 'Grote bestellingen? Neem contact op voor speciale prijzen en maatwerkoplossingen.',
+      description: 'We verwelkomen bedrijven die onze producten willen bestellen. Neem contact op om uw behoeften, volumekortingen en leveringsmogelijkheden te bespreken.',
+      benefits: [
+        { icon: Package, title: 'Volumekortingen', description: 'Betere prijzen bij grotere bestellingen' },
+        { icon: Users, title: 'Persoonlijk contact', description: 'Toegewijde ondersteuning voor zakelijke klanten' },
+        { icon: HandshakeIcon, title: 'Flexibele oplossingen', description: 'Aangepast aan uw behoeften' },
+        { icon: Building2, title: 'Factuur', description: 'Betaling op factuur mogelijk' },
+      ],
+      formTitle: 'Neem contact op',
+      formDescription: 'Vul het onderstaande formulier in en we reageren binnen 24 uur.',
+      companyLabel: 'Bedrijfsnaam',
+      contactLabel: 'Contactpersoon',
+      emailLabel: 'E-mail',
+      phoneLabel: 'Telefoon',
+      messageLabel: 'Beschrijf uw behoeften',
+      messagePlaceholder: 'Welke producten interesseren u? Geschat bestelvolume?',
+      submit: 'Aanvraag versturen',
+      success: 'Bedankt voor uw aanvraag!',
+      successDescription: 'We hebben uw bericht ontvangen en reageren binnen 24 uur.',
+      note: 'LET OP: We bieden momenteel geen automatische btw-aftrek of zakelijke login. Alle bestellingen worden handmatig verwerkt om u persoonlijke service te bieden.',
+      fillRequired: 'Vul verplichte velden in',
+      sending: 'Verzenden...',
+      submitError: 'Aanvraag kon niet worden verzonden',
+      newInquiry: 'Nieuwe aanvraag versturen',
+      contactDirectly: 'Of neem direct contact op:',
+    },
+    fr: {
+      title: 'Clients professionnels',
+      subtitle: 'Grandes commandes ? Contactez-nous pour des tarifs spéciaux et des solutions personnalisées.',
+      description: 'Nous accueillons les entreprises souhaitant commander nos produits. Contactez-nous pour discuter de vos besoins, remises sur volume et options de livraison.',
+      benefits: [
+        { icon: Package, title: 'Remises sur volume', description: 'Meilleurs prix pour les grandes commandes' },
+        { icon: Users, title: 'Contact personnel', description: 'Support dédié aux clients professionnels' },
+        { icon: HandshakeIcon, title: 'Solutions flexibles', description: 'Adaptées à vos besoins' },
+        { icon: Building2, title: 'Facture', description: 'Paiement par facture disponible' },
+      ],
+      formTitle: 'Contactez-nous',
+      formDescription: 'Remplissez le formulaire ci-dessous et nous vous répondrons sous 24 heures.',
+      companyLabel: 'Nom de l\'entreprise',
+      contactLabel: 'Personne de contact',
+      emailLabel: 'E-mail',
+      phoneLabel: 'Téléphone',
+      messageLabel: 'Décrivez vos besoins',
+      messagePlaceholder: 'Quels produits vous intéressent ? Volume de commande estimé ?',
+      submit: 'Envoyer la demande',
+      success: 'Merci pour votre demande !',
+      successDescription: 'Nous avons reçu votre message et vous répondrons sous 24 heures.',
+      note: "REMARQUE : Nous n'offrons actuellement pas de déduction TVA automatique ni de connexion professionnelle. Toutes les commandes sont traitées manuellement pour vous offrir un service personnalisé.",
+      fillRequired: 'Veuillez remplir les champs obligatoires',
+      sending: 'Envoi en cours...',
+      submitError: "Impossible d'envoyer la demande",
+      newInquiry: 'Envoyer une nouvelle demande',
+      contactDirectly: 'Ou contactez-nous directement :',
+    },
+    es: {
+      title: 'Clientes empresariales',
+      subtitle: '¿Pedidos grandes? Contáctanos para precios especiales y soluciones personalizadas.',
+      description: 'Damos la bienvenida a empresas que deseen pedir nuestros productos. Contáctanos para hablar sobre tus necesidades, descuentos por volumen y opciones de entrega.',
+      benefits: [
+        { icon: Package, title: 'Descuentos por volumen', description: 'Mejores precios en pedidos grandes' },
+        { icon: Users, title: 'Contacto personal', description: 'Soporte dedicado para clientes empresariales' },
+        { icon: HandshakeIcon, title: 'Soluciones flexibles', description: 'Adaptadas a tus necesidades' },
+        { icon: Building2, title: 'Factura', description: 'Pago por factura disponible' },
+      ],
+      formTitle: 'Contáctanos',
+      formDescription: 'Rellena el formulario a continuación y te responderemos en 24 horas.',
+      companyLabel: 'Nombre de la empresa',
+      contactLabel: 'Persona de contacto',
+      emailLabel: 'Correo electrónico',
+      phoneLabel: 'Teléfono',
+      messageLabel: 'Describe tus necesidades',
+      messagePlaceholder: '¿Qué productos os interesan? ¿Volumen de pedido estimado?',
+      submit: 'Enviar consulta',
+      success: '¡Gracias por tu consulta!',
+      successDescription: 'Hemos recibido tu mensaje y responderemos en 24 horas.',
+      note: 'NOTA: Actualmente no ofrecemos deducción automática de IVA ni inicio de sesión empresarial. Todos los pedidos se gestionan manualmente para ofrecerte un servicio personalizado.',
+      fillRequired: 'Por favor rellena los campos obligatorios',
+      sending: 'Enviando...',
+      submitError: 'No se pudo enviar la consulta',
+      newInquiry: 'Enviar nueva consulta',
+      contactDirectly: 'O contáctanos directamente:',
+    },
+    pl: {
+      title: 'Klienci biznesowi',
+      subtitle: 'Duże zamówienia? Skontaktuj się z nami w sprawie specjalnych cen i niestandardowych rozwiązań.',
+      description: 'Witamy firmy, które chcą zamawiać nasze produkty. Skontaktuj się z nami, aby omówić swoje potrzeby, rabaty ilościowe i możliwości dostawy.',
+      benefits: [
+        { icon: Package, title: 'Rabaty ilościowe', description: 'Lepsze ceny przy większych zamówieniach' },
+        { icon: Users, title: 'Osobisty kontakt', description: 'Dedykowane wsparcie dla klientów biznesowych' },
+        { icon: HandshakeIcon, title: 'Elastyczne rozwiązania', description: 'Dostosowane do Twoich potrzeb' },
+        { icon: Building2, title: 'Faktura', description: 'Płatność na fakturę dostępna' },
+      ],
+      formTitle: 'Skontaktuj się z nami',
+      formDescription: 'Wypełnij poniższy formularz, a my odpowiemy w ciągu 24 godzin.',
+      companyLabel: 'Nazwa firmy',
+      contactLabel: 'Osoba kontaktowa',
+      emailLabel: 'E-mail',
+      phoneLabel: 'Telefon',
+      messageLabel: 'Opisz swoje potrzeby',
+      messagePlaceholder: 'Jakie produkty Cię interesują? Szacowana wielkość zamówienia?',
+      submit: 'Wyślij zapytanie',
+      success: 'Dziękujemy za zapytanie!',
+      successDescription: 'Otrzymaliśmy Twoją wiadomość i odpowiemy w ciągu 24 godzin.',
+      note: 'UWAGA: Obecnie nie oferujemy automatycznego odliczenia VAT ani logowania firmowego. Wszystkie zamówienia są obsługiwane ręcznie, aby zapewnić Ci spersonalizowaną obsługę.',
+      fillRequired: 'Proszę wypełnić wymagane pola',
+      sending: 'Wysyłanie...',
+      submitError: 'Nie można wysłać zapytania',
+      newInquiry: 'Wyślij nowe zapytanie',
+      contactDirectly: 'Lub skontaktuj się bezpośrednio:',
+    },
   };
 
-  const t = content[getContentLang(language)];
+  const t = content[language as keyof typeof content] || content.en;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.companyName || !formData.email) {
-      toast.error(language === 'sv' ? 'Fyll i obligatoriska fält' : 'Please fill in required fields');
+      toast.error(t.fillRequired);
       return;
     }
 
@@ -101,7 +335,7 @@ const Business = () => {
       toast.success(t.success);
     } catch (error) {
       console.error('Error submitting inquiry:', error);
-      toast.error(language === 'sv' ? 'Kunde inte skicka förfrågan' : 'Could not submit inquiry');
+      toast.error(t.submitError);
     } finally {
       setIsSubmitting(false);
     }
@@ -175,7 +409,7 @@ const Business = () => {
                   <h3 className="font-display text-xl font-semibold mb-2">{t.success}</h3>
                   <p className="text-muted-foreground mb-6">{t.successDescription}</p>
                   <Button variant="outline" onClick={() => setIsSubmitted(false)}>
-                    {language === 'sv' ? 'Skicka ny förfrågan' : 'Send new inquiry'}
+                    {t.newInquiry}
                   </Button>
                 </div>
               ) : (
@@ -255,7 +489,7 @@ const Business = () => {
                       {isSubmitting ? (
                         <span className="flex items-center gap-2">
                           <span className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-                          {language === 'sv' ? 'Skickar...' : 'Sending...'}
+                          {t.sending}
                         </span>
                       ) : (
                         <span className="flex items-center gap-2">
@@ -276,7 +510,7 @@ const Business = () => {
             {/* Contact Info */}
             <div className="mt-8 text-center">
               <p className="text-muted-foreground mb-4">
-                {language === 'sv' ? 'Eller kontakta oss direkt:' : 'Or contact us directly:'}
+                {t.contactDirectly}
               </p>
               <div className="flex flex-wrap justify-center gap-6">
                 <a

@@ -67,6 +67,12 @@ const AffiliateLanding = () => {
         { q: 'Behöver jag betala skatt?', a: 'Ja, du ansvarar för att redovisa dina intäkter till Skatteverket.' },
         { q: 'Kan jag vara affiliate om jag har få följare?', a: 'Ja! Vi värderar engagemang högre än antal följare.' },
       ],
+      selectPlatform: 'Välj plattform',
+      selectCount: 'Välj antal',
+      other: 'Annat',
+      errorSomethingWrong: 'Något gick fel',
+      seoTitle: 'Affiliate-program - Tjäna pengar',
+      seoDescription: 'Gå med i vårt affiliate-program och tjäna upp till 15% provision på varje försäljning.',
     },
     en: {
       badge: 'Affiliate Program',
@@ -104,7 +110,357 @@ const AffiliateLanding = () => {
         { q: 'Do I need to pay taxes?', a: 'Yes, you are responsible for reporting your income to the tax authorities.' },
         { q: 'Can I be an affiliate with few followers?', a: 'Yes! We value engagement more than follower count.' },
       ],
-    }
+      selectPlatform: 'Select platform',
+      selectCount: 'Select count',
+      other: 'Other',
+      errorSomethingWrong: 'Something went wrong',
+      seoTitle: 'Affiliate Program - Earn Money',
+      seoDescription: 'Join our affiliate program and earn up to 15% commission on every sale.',
+    },
+    no: {
+      badge: 'Affiliateprogram',
+      title: 'Tjen penger ved å dele produkter du elsker',
+      subtitle: 'Bli med i affiliateprogrammet vårt og tjen provisjon på hvert salg. Ingen startavgift, ingen skjulte kostnader.',
+      benefits: [
+        { icon: DollarSign, title: 'Opptil 15% provisjon', desc: 'Tjen på hvert salg du genererer' },
+        { icon: Gift, title: '10% rabatt til følgerne dine', desc: 'Følgerne dine får rabatt med koden din' },
+        { icon: Wallet, title: 'Fleksible utbetalinger', desc: 'Ta ut når som helst' },
+        { icon: TrendingUp, title: 'Sanntidsstatistikk', desc: 'Følg inntektene dine i dashbordet' },
+      ],
+      howItWorks: 'Slik fungerer det',
+      steps: [
+        { step: '1', title: 'Søk', desc: 'Fyll inn skjemaet nedenfor' },
+        { step: '2', title: 'Godkjennes', desc: 'Vi gjennomgår søknaden din innen 24t' },
+        { step: '3', title: 'Del', desc: 'Få din unike kode og begynn å tjene' },
+        { step: '4', title: 'Tjen', desc: 'Provisjon på hvert salg' },
+      ],
+      formTitle: 'Søk nå',
+      formSubtitle: 'Fyll inn detaljene dine, så tar vi kontakt innen 24 timer',
+      name: 'Navn',
+      email: 'E-post',
+      phone: 'Telefon (valgfritt)',
+      socialMedia: 'Sosiale medier-profil',
+      followersCount: 'Antall følgere',
+      platform: 'Hovedplattform',
+      whyJoin: 'Hvorfor vil du bli affiliate?',
+      submit: 'Send søknad',
+      successTitle: 'Takk for søknaden din!',
+      successMessage: 'Vi gjennomgår søknaden din og tar kontakt innen 24 timer.',
+      faq: 'Vanlige spørsmål',
+      faqs: [
+        { q: 'Hvor mye kan jeg tjene?', a: 'Det avhenger av målgruppen din. Våre beste affiliates tjener flere tusen kroner per måned.' },
+        { q: 'Når får jeg provisjonen min?', a: 'Du kan be om utbetaling når som helst direkte i dashbordet ditt.' },
+        { q: 'Må jeg betale skatt?', a: 'Ja, du er ansvarlig for å rapportere inntektene dine til skattemyndighetene.' },
+        { q: 'Kan jeg være affiliate med få følgere?', a: 'Ja! Vi verdsetter engasjement mer enn antall følgere.' },
+      ],
+      selectPlatform: 'Velg plattform',
+      selectCount: 'Velg antall',
+      other: 'Annet',
+      errorSomethingWrong: 'Noe gikk galt',
+      seoTitle: 'Affiliateprogram - Tjen penger',
+      seoDescription: 'Bli med i affiliateprogrammet vårt og tjen opptil 15% provisjon på hvert salg.',
+    },
+    da: {
+      badge: 'Affiliate-program',
+      title: 'Tjen penge ved at dele produkter, du elsker',
+      subtitle: 'Tilmeld dig vores affiliate-program og tjen provision på hvert salg. Ingen startgebyr, ingen skjulte omkostninger.',
+      benefits: [
+        { icon: DollarSign, title: 'Op til 15% provision', desc: 'Tjen på hvert salg, du genererer' },
+        { icon: Gift, title: '10% rabat til dine følgere', desc: 'Dine følgere får rabat med din kode' },
+        { icon: Wallet, title: 'Fleksible udbetalinger', desc: 'Hæv når som helst' },
+        { icon: TrendingUp, title: 'Realtidsstatistik', desc: 'Følg dine indtægter i dit dashboard' },
+      ],
+      howItWorks: 'Sådan fungerer det',
+      steps: [
+        { step: '1', title: 'Ansøg', desc: 'Udfyld formularen nedenfor' },
+        { step: '2', title: 'Godkendes', desc: 'Vi gennemgår din ansøgning inden for 24t' },
+        { step: '3', title: 'Del', desc: 'Få din unikke kode og begynd at tjene' },
+        { step: '4', title: 'Tjen', desc: 'Provision på hvert salg' },
+      ],
+      formTitle: 'Ansøg nu',
+      formSubtitle: 'Udfyld dine oplysninger, og vi vender tilbage inden for 24 timer',
+      name: 'Navn',
+      email: 'E-mail',
+      phone: 'Telefon (valgfrit)',
+      socialMedia: 'Sociale medier-profil',
+      followersCount: 'Antal følgere',
+      platform: 'Primær platform',
+      whyJoin: 'Hvorfor vil du blive affiliate?',
+      submit: 'Send ansøgning',
+      successTitle: 'Tak for din ansøgning!',
+      successMessage: 'Vi gennemgår din ansøgning og vender tilbage inden for 24 timer.',
+      faq: 'Ofte stillede spørgsmål',
+      faqs: [
+        { q: 'Hvor meget kan jeg tjene?', a: 'Det afhænger af din målgruppe. Vores bedste affiliates tjener flere tusinde kroner om måneden.' },
+        { q: 'Hvornår får jeg min provision?', a: 'Du kan anmode om udbetaling når som helst direkte i dit dashboard.' },
+        { q: 'Skal jeg betale skat?', a: 'Ja, du er ansvarlig for at indberette dine indtægter til skattemyndighederne.' },
+        { q: 'Kan jeg være affiliate med få følgere?', a: 'Ja! Vi værdsætter engagement mere end antallet af følgere.' },
+      ],
+      selectPlatform: 'Vælg platform',
+      selectCount: 'Vælg antal',
+      other: 'Andet',
+      errorSomethingWrong: 'Noget gik galt',
+      seoTitle: 'Affiliate-program - Tjen penge',
+      seoDescription: 'Tilmeld dig vores affiliate-program og tjen op til 15% provision på hvert salg.',
+    },
+    de: {
+      badge: 'Affiliate-Programm',
+      title: 'Verdiene Geld, indem du Produkte teilst, die du liebst',
+      subtitle: 'Tritt unserem Affiliate-Programm bei und verdiene Provision für jeden Verkauf. Kein Startgeld, keine versteckten Kosten.',
+      benefits: [
+        { icon: DollarSign, title: 'Bis zu 15% Provision', desc: 'Verdiene bei jedem Verkauf, den du generierst' },
+        { icon: Gift, title: '10% Rabatt für deine Follower', desc: 'Deine Follower erhalten Rabatt mit deinem Code' },
+        { icon: Wallet, title: 'Flexible Auszahlungen', desc: 'Jederzeit auszahlen lassen' },
+        { icon: TrendingUp, title: 'Echtzeit-Statistiken', desc: 'Verfolge deine Einnahmen im Dashboard' },
+      ],
+      howItWorks: 'So funktioniert es',
+      steps: [
+        { step: '1', title: 'Bewerben', desc: 'Fülle das Formular unten aus' },
+        { step: '2', title: 'Genehmigt werden', desc: 'Wir prüfen deine Bewerbung innerhalb von 24h' },
+        { step: '3', title: 'Teilen', desc: 'Erhalte deinen einzigartigen Code und fange an zu verdienen' },
+        { step: '4', title: 'Verdienen', desc: 'Provision bei jedem Verkauf' },
+      ],
+      formTitle: 'Jetzt bewerben',
+      formSubtitle: 'Fülle deine Daten aus und wir melden uns innerhalb von 24 Stunden',
+      name: 'Name',
+      email: 'E-Mail',
+      phone: 'Telefon (optional)',
+      socialMedia: 'Social-Media-Profil',
+      followersCount: 'Anzahl der Follower',
+      platform: 'Hauptplattform',
+      whyJoin: 'Warum möchtest du Affiliate werden?',
+      submit: 'Bewerbung absenden',
+      successTitle: 'Danke für deine Bewerbung!',
+      successMessage: 'Wir prüfen deine Bewerbung und melden uns innerhalb von 24 Stunden.',
+      faq: 'Häufige Fragen',
+      faqs: [
+        { q: 'Wie viel kann ich verdienen?', a: 'Das hängt von deiner Zielgruppe ab. Unsere besten Affiliates verdienen mehrere tausend Kronen pro Monat.' },
+        { q: 'Wann bekomme ich meine Provision?', a: 'Du kannst jederzeit direkt in deinem Dashboard eine Auszahlung beantragen.' },
+        { q: 'Muss ich Steuern zahlen?', a: 'Ja, du bist dafür verantwortlich, deine Einnahmen den Steuerbehörden zu melden.' },
+        { q: 'Kann ich Affiliate mit wenigen Followern sein?', a: 'Ja! Wir schätzen Engagement mehr als die Follower-Anzahl.' },
+      ],
+      selectPlatform: 'Plattform wählen',
+      selectCount: 'Anzahl wählen',
+      other: 'Sonstiges',
+      errorSomethingWrong: 'Etwas ist schiefgelaufen',
+      seoTitle: 'Affiliate-Programm - Geld verdienen',
+      seoDescription: 'Tritt unserem Affiliate-Programm bei und verdiene bis zu 15% Provision für jeden Verkauf.',
+    },
+    fi: {
+      badge: 'Affiliate-ohjelma',
+      title: 'Ansaitse rahaa jakamalla tuotteita, joita rakastat',
+      subtitle: 'Liity affiliate-ohjelmaanme ja ansaitse provisio jokaisesta myynnistä. Ei aloitusmaksua, ei piilokustannuksia.',
+      benefits: [
+        { icon: DollarSign, title: 'Jopa 15% provisio', desc: 'Ansaitse jokaisesta generoimastasi myynnistä' },
+        { icon: Gift, title: '10% alennus seuraajillesi', desc: 'Seuraajasi saavat alennuksen koodillasi' },
+        { icon: Wallet, title: 'Joustavat maksut', desc: 'Nosta milloin tahansa' },
+        { icon: TrendingUp, title: 'Reaaliaikaiset tilastot', desc: 'Seuraa tulojasi hallintapaneelissa' },
+      ],
+      howItWorks: 'Näin se toimii',
+      steps: [
+        { step: '1', title: 'Hae', desc: 'Täytä alla oleva lomake' },
+        { step: '2', title: 'Hyväksytään', desc: 'Käymme hakemuksesi läpi 24 tunnin sisällä' },
+        { step: '3', title: 'Jaa', desc: 'Saa oma koodisi ja ala ansaita' },
+        { step: '4', title: 'Ansaitse', desc: 'Provisio jokaisesta myynnistä' },
+      ],
+      formTitle: 'Hae nyt',
+      formSubtitle: 'Täytä tietosi ja otamme yhteyttä 24 tunnin sisällä',
+      name: 'Nimi',
+      email: 'Sähköposti',
+      phone: 'Puhelin (valinnainen)',
+      socialMedia: 'Some-profiili',
+      followersCount: 'Seuraajien määrä',
+      platform: 'Pääalusta',
+      whyJoin: 'Miksi haluat tulla affiliateksi?',
+      submit: 'Lähetä hakemus',
+      successTitle: 'Kiitos hakemuksestasi!',
+      successMessage: 'Käymme hakemuksesi läpi ja otamme yhteyttä 24 tunnin sisällä.',
+      faq: 'Usein kysytyt kysymykset',
+      faqs: [
+        { q: 'Kuinka paljon voin ansaita?', a: 'Se riippuu yleisöstäsi. Parhaat affiliatemme ansaitsevat useita tuhansia kruunuja kuukaudessa.' },
+        { q: 'Milloin saan provision?', a: 'Voit pyytää maksua milloin tahansa suoraan hallintapaneelissasi.' },
+        { q: 'Pitääkö minun maksaa veroja?', a: 'Kyllä, olet vastuussa tulojesi ilmoittamisesta veroviranomaisille.' },
+        { q: 'Voinko olla affiliate, vaikka minulla on vähän seuraajia?', a: 'Kyllä! Arvostamme sitoutuneisuutta enemmän kuin seuraajamäärää.' },
+      ],
+      selectPlatform: 'Valitse alusta',
+      selectCount: 'Valitse määrä',
+      other: 'Muu',
+      errorSomethingWrong: 'Jotain meni pieleen',
+      seoTitle: 'Affiliate-ohjelma - Ansaitse rahaa',
+      seoDescription: 'Liity affiliate-ohjelmaanme ja ansaitse jopa 15% provisio jokaisesta myynnistä.',
+    },
+    nl: {
+      badge: 'Affiliate-programma',
+      title: 'Verdien geld door producten te delen die je geweldig vindt',
+      subtitle: 'Doe mee aan ons affiliate-programma en verdien commissie op elke verkoop. Geen startkosten, geen verborgen kosten.',
+      benefits: [
+        { icon: DollarSign, title: 'Tot 15% commissie', desc: 'Verdien op elke verkoop die je genereert' },
+        { icon: Gift, title: '10% korting voor jouw volgers', desc: 'Jouw volgers krijgen korting met jouw code' },
+        { icon: Wallet, title: 'Flexibele uitbetalingen', desc: 'Altijd opnemen wanneer je wil' },
+        { icon: TrendingUp, title: 'Realtime statistieken', desc: 'Volg jouw inkomsten in je dashboard' },
+      ],
+      howItWorks: 'Hoe het werkt',
+      steps: [
+        { step: '1', title: 'Aanmelden', desc: 'Vul het formulier hieronder in' },
+        { step: '2', title: 'Goedgekeurd worden', desc: 'We beoordelen je aanvraag binnen 24u' },
+        { step: '3', title: 'Delen', desc: 'Ontvang jouw unieke code en begin te verdienen' },
+        { step: '4', title: 'Verdienen', desc: 'Commissie op elke verkoop' },
+      ],
+      formTitle: 'Nu aanmelden',
+      formSubtitle: 'Vul jouw gegevens in en we nemen binnen 24 uur contact op',
+      name: 'Naam',
+      email: 'E-mail',
+      phone: 'Telefoon (optioneel)',
+      socialMedia: 'Social media-profiel',
+      followersCount: 'Aantal volgers',
+      platform: 'Primair platform',
+      whyJoin: 'Waarom wil je affiliate worden?',
+      submit: 'Aanvraag indienen',
+      successTitle: 'Bedankt voor je aanvraag!',
+      successMessage: 'We beoordelen je aanvraag en nemen binnen 24 uur contact op.',
+      faq: 'Veelgestelde vragen',
+      faqs: [
+        { q: 'Hoeveel kan ik verdienen?', a: 'Dat hangt af van jouw publiek. Onze beste affiliates verdienen meerdere duizenden kronen per maand.' },
+        { q: 'Wanneer krijg ik mijn commissie?', a: 'Je kunt op elk moment een uitbetaling aanvragen, rechtstreeks in je dashboard.' },
+        { q: 'Moet ik belasting betalen?', a: 'Ja, jij bent verantwoordelijk voor het opgeven van jouw inkomsten aan de belastingdienst.' },
+        { q: 'Kan ik affiliate zijn met weinig volgers?', a: 'Ja! We waarderen betrokkenheid meer dan het aantal volgers.' },
+      ],
+      selectPlatform: 'Selecteer platform',
+      selectCount: 'Selecteer aantal',
+      other: 'Overig',
+      errorSomethingWrong: 'Er is iets misgegaan',
+      seoTitle: 'Affiliate-programma - Geld verdienen',
+      seoDescription: 'Doe mee aan ons affiliate-programma en verdien tot 15% commissie op elke verkoop.',
+    },
+    fr: {
+      badge: 'Programme d\'affiliation',
+      title: 'Gagnez de l\'argent en partageant des produits que vous adorez',
+      subtitle: 'Rejoignez notre programme d\'affiliation et gagnez une commission sur chaque vente. Aucun frais de départ, aucun frais caché.',
+      benefits: [
+        { icon: DollarSign, title: "Jusqu'à 15% de commission", desc: 'Gagnez sur chaque vente que vous générez' },
+        { icon: Gift, title: '10% de réduction pour vos abonnés', desc: 'Vos abonnés bénéficient d\'une réduction avec votre code' },
+        { icon: Wallet, title: 'Paiements flexibles', desc: 'Retirez à tout moment' },
+        { icon: TrendingUp, title: 'Statistiques en temps réel', desc: 'Suivez vos revenus dans votre tableau de bord' },
+      ],
+      howItWorks: 'Comment ça marche',
+      steps: [
+        { step: '1', title: 'Postuler', desc: 'Remplissez le formulaire ci-dessous' },
+        { step: '2', title: 'Être approuvé', desc: 'Nous examinons votre candidature sous 24h' },
+        { step: '3', title: 'Partager', desc: 'Obtenez votre code unique et commencez à gagner' },
+        { step: '4', title: 'Gagner', desc: 'Commission sur chaque vente' },
+      ],
+      formTitle: 'Postuler maintenant',
+      formSubtitle: 'Remplissez vos coordonnées et nous vous répondrons sous 24 heures',
+      name: 'Nom',
+      email: 'E-mail',
+      phone: 'Téléphone (facultatif)',
+      socialMedia: 'Profil réseau social',
+      followersCount: 'Nombre d\'abonnés',
+      platform: 'Plateforme principale',
+      whyJoin: 'Pourquoi voulez-vous devenir affilié ?',
+      submit: 'Soumettre la candidature',
+      successTitle: 'Merci pour votre candidature !',
+      successMessage: 'Nous examinerons votre candidature et vous répondrons sous 24 heures.',
+      faq: 'Questions fréquentes',
+      faqs: [
+        { q: 'Combien puis-je gagner ?', a: "Cela dépend de votre audience. Nos meilleurs affiliés gagnent plusieurs milliers de couronnes par mois." },
+        { q: 'Quand vais-je recevoir ma commission ?', a: 'Vous pouvez demander un paiement à tout moment directement dans votre tableau de bord.' },
+        { q: 'Dois-je payer des impôts ?', a: 'Oui, vous êtes responsable de déclarer vos revenus aux autorités fiscales.' },
+        { q: 'Puis-je être affilié avec peu d\'abonnés ?', a: "Oui ! Nous valorisons l'engagement plus que le nombre d'abonnés." },
+      ],
+      selectPlatform: 'Choisir une plateforme',
+      selectCount: 'Choisir le nombre',
+      other: 'Autre',
+      errorSomethingWrong: 'Quelque chose a mal tourné',
+      seoTitle: "Programme d'affiliation - Gagnez de l'argent",
+      seoDescription: "Rejoignez notre programme d'affiliation et gagnez jusqu'à 15% de commission sur chaque vente.",
+    },
+    es: {
+      badge: 'Programa de afiliados',
+      title: 'Gana dinero compartiendo productos que amas',
+      subtitle: 'Únete a nuestro programa de afiliados y gana comisión en cada venta. Sin tarifa de inicio, sin costos ocultos.',
+      benefits: [
+        { icon: DollarSign, title: 'Hasta un 15% de comisión', desc: 'Gana en cada venta que generes' },
+        { icon: Gift, title: '10% de descuento para tus seguidores', desc: 'Tus seguidores obtienen descuento con tu código' },
+        { icon: Wallet, title: 'Pagos flexibles', desc: 'Retira en cualquier momento' },
+        { icon: TrendingUp, title: 'Estadísticas en tiempo real', desc: 'Sigue tus ingresos en tu panel' },
+      ],
+      howItWorks: 'Cómo funciona',
+      steps: [
+        { step: '1', title: 'Solicitar', desc: 'Rellena el formulario a continuación' },
+        { step: '2', title: 'Ser aprobado', desc: 'Revisamos tu solicitud en 24h' },
+        { step: '3', title: 'Compartir', desc: 'Obtén tu código único y empieza a ganar' },
+        { step: '4', title: 'Ganar', desc: 'Comisión en cada venta' },
+      ],
+      formTitle: 'Solicitar ahora',
+      formSubtitle: 'Rellena tus datos y te responderemos en 24 horas',
+      name: 'Nombre',
+      email: 'Correo electrónico',
+      phone: 'Teléfono (opcional)',
+      socialMedia: 'Perfil en redes sociales',
+      followersCount: 'Número de seguidores',
+      platform: 'Plataforma principal',
+      whyJoin: '¿Por qué quieres convertirte en afiliado?',
+      submit: 'Enviar solicitud',
+      successTitle: '¡Gracias por tu solicitud!',
+      successMessage: 'Revisaremos tu solicitud y te responderemos en 24 horas.',
+      faq: 'Preguntas frecuentes',
+      faqs: [
+        { q: '¿Cuánto puedo ganar?', a: 'Depende de tu audiencia. Nuestros mejores afiliados ganan varios miles de coronas al mes.' },
+        { q: '¿Cuándo recibo mi comisión?', a: 'Puedes solicitar el pago en cualquier momento directamente en tu panel.' },
+        { q: '¿Tengo que pagar impuestos?', a: 'Sí, eres responsable de declarar tus ingresos ante las autoridades fiscales.' },
+        { q: '¿Puedo ser afiliado con pocos seguidores?', a: '¡Sí! Valoramos el compromiso más que el número de seguidores.' },
+      ],
+      selectPlatform: 'Seleccionar plataforma',
+      selectCount: 'Seleccionar cantidad',
+      other: 'Otro',
+      errorSomethingWrong: 'Algo salió mal',
+      seoTitle: 'Programa de afiliados - Gana dinero',
+      seoDescription: 'Únete a nuestro programa de afiliados y gana hasta un 15% de comisión en cada venta.',
+    },
+    pl: {
+      badge: 'Program afiliacyjny',
+      title: 'Zarabiaj, dzieląc się produktami, które kochasz',
+      subtitle: 'Dołącz do naszego programu afiliacyjnego i zarabiaj prowizję od każdej sprzedaży. Brak opłat startowych, brak ukrytych kosztów.',
+      benefits: [
+        { icon: DollarSign, title: 'Do 15% prowizji', desc: 'Zarabiaj na każdej wygenerowanej przez siebie sprzedaży' },
+        { icon: Gift, title: '10% zniżki dla obserwujących', desc: 'Twoi obserwujący otrzymują zniżkę z Twoim kodem' },
+        { icon: Wallet, title: 'Elastyczne wypłaty', desc: 'Wypłacaj w dowolnym momencie' },
+        { icon: TrendingUp, title: 'Statystyki w czasie rzeczywistym', desc: 'Śledź swoje dochody w panelu' },
+      ],
+      howItWorks: 'Jak to działa',
+      steps: [
+        { step: '1', title: 'Aplikuj', desc: 'Wypełnij formularz poniżej' },
+        { step: '2', title: 'Zatwierdź', desc: 'Rozpatrzymy Twoją aplikację w ciągu 24h' },
+        { step: '3', title: 'Udostępniaj', desc: 'Otrzymaj swój unikalny kod i zacznij zarabiać' },
+        { step: '4', title: 'Zarabiaj', desc: 'Prowizja od każdej sprzedaży' },
+      ],
+      formTitle: 'Aplikuj teraz',
+      formSubtitle: 'Wypełnij swoje dane, a my skontaktujemy się w ciągu 24 godzin',
+      name: 'Imię i nazwisko',
+      email: 'E-mail',
+      phone: 'Telefon (opcjonalnie)',
+      socialMedia: 'Profil w mediach społecznościowych',
+      followersCount: 'Liczba obserwujących',
+      platform: 'Główna platforma',
+      whyJoin: 'Dlaczego chcesz zostać afiliatem?',
+      submit: 'Wyślij aplikację',
+      successTitle: 'Dziękujemy za Twoją aplikację!',
+      successMessage: 'Rozpatrzymy Twoją aplikację i skontaktujemy się w ciągu 24 godzin.',
+      faq: 'Często zadawane pytania',
+      faqs: [
+        { q: 'Ile mogę zarobić?', a: 'To zależy od Twojej grupy docelowej. Nasi najlepsi afiliaci zarabiają kilka tysięcy koron miesięcznie.' },
+        { q: 'Kiedy otrzymam prowizję?', a: 'Możesz poprosić o wypłatę w dowolnym momencie bezpośrednio w swoim panelu.' },
+        { q: 'Czy muszę płacić podatki?', a: 'Tak, jesteś odpowiedzialny za zgłaszanie swoich dochodów organom podatkowym.' },
+        { q: 'Czy mogę być afiliatem z małą liczbą obserwujących?', a: 'Tak! Cenimy zaangażowanie bardziej niż liczbę obserwujących.' },
+      ],
+      selectPlatform: 'Wybierz platformę',
+      selectCount: 'Wybierz liczbę',
+      other: 'Inne',
+      errorSomethingWrong: 'Coś poszło nie tak',
+      seoTitle: 'Program afiliacyjny - Zarabiaj',
+      seoDescription: 'Dołącz do naszego programu afiliacyjnego i zarabiaj do 15% prowizji od każdej sprzedaży.',
+    },
   };
 
   const t = content[language as keyof typeof content] || content.en;
@@ -130,7 +486,7 @@ const AffiliateLanding = () => {
       setIsSubmitted(true);
     } catch (error) {
       console.error('Failed to submit application:', error);
-      toast.error(language === 'sv' ? 'Något gick fel' : 'Something went wrong');
+      toast.error(t.errorSomethingWrong);
     } finally {
       setIsSubmitting(false);
     }
@@ -139,10 +495,8 @@ const AffiliateLanding = () => {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead
-        title={language === 'sv' ? 'Affiliate-program - Tjäna pengar' : 'Affiliate Program - Earn Money'}
-        description={language === 'sv'
-          ? 'Gå med i vårt affiliate-program och tjäna upp till 15% provision på varje försäljning.'
-          : 'Join our affiliate program and earn up to 15% commission on every sale.'}
+        title={t.seoTitle}
+        description={t.seoDescription}
         keywords="affiliate, partner, tjäna pengar, provision, influencer"
         canonical="/affiliate"
       />
@@ -294,7 +648,7 @@ const AffiliateLanding = () => {
                           onValueChange={(value) => setFormData({ ...formData, platform: value })}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder={language === 'sv' ? 'Välj plattform' : 'Select platform'} />
+                            <SelectValue placeholder={t.selectPlatform} />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="instagram">Instagram</SelectItem>
@@ -302,7 +656,7 @@ const AffiliateLanding = () => {
                             <SelectItem value="youtube">YouTube</SelectItem>
                             <SelectItem value="facebook">Facebook</SelectItem>
                             <SelectItem value="blog">Blog</SelectItem>
-                            <SelectItem value="other">{language === 'sv' ? 'Annat' : 'Other'}</SelectItem>
+                            <SelectItem value="other">{t.other}</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -313,7 +667,7 @@ const AffiliateLanding = () => {
                           onValueChange={(value) => setFormData({ ...formData, followers_count: value })}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder={language === 'sv' ? 'Välj antal' : 'Select count'} />
+                            <SelectValue placeholder={t.selectCount} />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="0-1000">0 - 1,000</SelectItem>
