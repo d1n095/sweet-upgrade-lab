@@ -21,6 +21,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
+import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   fetchCategories, buildCategoryTree, createCategory, updateCategory, deleteCategory,
@@ -38,6 +39,216 @@ const getIcon = (name: string | null): LucideIcon => iconMap[name || 'Tag'] || T
 
 const AdminCategoryManager = () => {
   const queryClient = useQueryClient();
+  const { language } = useLanguage();
+  const lang = getContentLang(language);
+
+  const content: Record<string, {
+    title: string;
+    subcategories: string;
+    visible: string;
+    hidden: string;
+    validate: string;
+    validating: string;
+    aiSync: string;
+    analyzing: string;
+    newCategory: string;
+    editCategory: string;
+    deleteCategory: string;
+    deleteDescription: string;
+    nameSv: string;
+    nameEn: string;
+    slug: string;
+    icon: string;
+    parentCategory: string;
+    noParent: string;
+    cancel: string;
+    create: string;
+    update: string;
+    created: string;
+    updated: string;
+    deleted: string;
+    error: string;
+    categoryHidden: string;
+    categoryVisible: string;
+    couldNotCreate: string;
+    noCategories: string;
+    children: string;
+    aiDisabledSync: string;
+    aiDisabledValidate: string;
+  }> = {
+    sv: {
+      title: 'Kategorihantering',
+      subcategories: 'underkategorier',
+      visible: 'Synlig',
+      hidden: 'Dold',
+      validate: 'Validera',
+      validating: 'Validerar...',
+      aiSync: 'AI-synk',
+      analyzing: 'Analyserar...',
+      newCategory: 'Ny kategori',
+      editCategory: 'Redigera kategori',
+      deleteCategory: 'Ta bort kategori?',
+      deleteDescription: 'tas bort. Underkategorier flyttas till toppnivå. Produktkopplingar tas bort.',
+      nameSv: 'Namn (svenska) *',
+      nameEn: 'Namn (engelska)',
+      slug: 'Slug',
+      icon: 'Ikon',
+      parentCategory: 'Förälder-kategori',
+      noParent: 'Ingen (toppnivå)',
+      cancel: 'Avbryt',
+      create: 'Skapa',
+      update: 'Uppdatera',
+      created: 'Kategori skapad!',
+      updated: 'Kategori uppdaterad!',
+      deleted: 'Kategori borttagen!',
+      error: 'Fel: ',
+      categoryHidden: 'Kategori dold',
+      categoryVisible: 'Kategori synlig',
+      couldNotCreate: 'Kunde inte skapa: ',
+      noCategories: 'Inga kategorier ännu',
+      children: 'under',
+      aiDisabledSync: 'AI är avaktiverad — hantera kategorier manuellt',
+      aiDisabledValidate: 'AI är avaktiverad — validera kategorier manuellt',
+    },
+    en: {
+      title: 'Category Management',
+      subcategories: 'subcategories',
+      visible: 'Visible',
+      hidden: 'Hidden',
+      validate: 'Validate',
+      validating: 'Validating...',
+      aiSync: 'AI Sync',
+      analyzing: 'Analyzing...',
+      newCategory: 'New Category',
+      editCategory: 'Edit Category',
+      deleteCategory: 'Delete category?',
+      deleteDescription: 'will be deleted. Subcategories will be moved to top level. Product links will be removed.',
+      nameSv: 'Name (Swedish) *',
+      nameEn: 'Name (English)',
+      slug: 'Slug',
+      icon: 'Icon',
+      parentCategory: 'Parent category',
+      noParent: 'None (top level)',
+      cancel: 'Cancel',
+      create: 'Create',
+      update: 'Update',
+      created: 'Category created!',
+      updated: 'Category updated!',
+      deleted: 'Category deleted!',
+      error: 'Error: ',
+      categoryHidden: 'Category hidden',
+      categoryVisible: 'Category visible',
+      couldNotCreate: 'Could not create: ',
+      noCategories: 'No categories yet',
+      children: 'sub',
+      aiDisabledSync: 'AI is disabled — manage categories manually',
+      aiDisabledValidate: 'AI is disabled — validate categories manually',
+    },
+    no: {
+      title: 'Kategorihåndtering',
+      subcategories: 'underkategorier',
+      visible: 'Synlig',
+      hidden: 'Skjult',
+      validate: 'Valider',
+      validating: 'Validerer...',
+      aiSync: 'AI-synk',
+      analyzing: 'Analyserer...',
+      newCategory: 'Ny kategori',
+      editCategory: 'Rediger kategori',
+      deleteCategory: 'Slett kategori?',
+      deleteDescription: 'slettes. Underkategorier flyttes til toppnivå. Produktkoblinger fjernes.',
+      nameSv: 'Navn (svensk) *',
+      nameEn: 'Navn (engelsk)',
+      slug: 'Slug',
+      icon: 'Ikon',
+      parentCategory: 'Overordnet kategori',
+      noParent: 'Ingen (toppnivå)',
+      cancel: 'Avbryt',
+      create: 'Opprett',
+      update: 'Oppdater',
+      created: 'Kategori opprettet!',
+      updated: 'Kategori oppdatert!',
+      deleted: 'Kategori slettet!',
+      error: 'Feil: ',
+      categoryHidden: 'Kategori skjult',
+      categoryVisible: 'Kategori synlig',
+      couldNotCreate: 'Kunne ikke opprette: ',
+      noCategories: 'Ingen kategorier ennå',
+      children: 'under',
+      aiDisabledSync: 'AI er deaktivert — håndter kategorier manuelt',
+      aiDisabledValidate: 'AI er deaktivert — valider kategorier manuelt',
+    },
+    da: {
+      title: 'Kategorihåndtering',
+      subcategories: 'underkategorier',
+      visible: 'Synlig',
+      hidden: 'Skjult',
+      validate: 'Validér',
+      validating: 'Validerer...',
+      aiSync: 'AI-synk',
+      analyzing: 'Analyserer...',
+      newCategory: 'Ny kategori',
+      editCategory: 'Rediger kategori',
+      deleteCategory: 'Slet kategori?',
+      deleteDescription: 'slettes. Underkategorier flyttes til topniveau. Produktforbindelser fjernes.',
+      nameSv: 'Navn (svensk) *',
+      nameEn: 'Navn (engelsk)',
+      slug: 'Slug',
+      icon: 'Ikon',
+      parentCategory: 'Overordnet kategori',
+      noParent: 'Ingen (topniveau)',
+      cancel: 'Annuller',
+      create: 'Opret',
+      update: 'Opdater',
+      created: 'Kategori oprettet!',
+      updated: 'Kategori opdateret!',
+      deleted: 'Kategori slettet!',
+      error: 'Fejl: ',
+      categoryHidden: 'Kategori skjult',
+      categoryVisible: 'Kategori synlig',
+      couldNotCreate: 'Kunne ikke oprette: ',
+      noCategories: 'Ingen kategorier endnu',
+      children: 'under',
+      aiDisabledSync: 'AI er deaktiveret — håndter kategorier manuelt',
+      aiDisabledValidate: 'AI er deaktiveret — validér kategorier manuelt',
+    },
+    de: {
+      title: 'Kategorieverwaltung',
+      subcategories: 'Unterkategorien',
+      visible: 'Sichtbar',
+      hidden: 'Verborgen',
+      validate: 'Validieren',
+      validating: 'Validierung...',
+      aiSync: 'KI-Sync',
+      analyzing: 'Analysiert...',
+      newCategory: 'Neue Kategorie',
+      editCategory: 'Kategorie bearbeiten',
+      deleteCategory: 'Kategorie löschen?',
+      deleteDescription: 'wird gelöscht. Unterkategorien werden auf die oberste Ebene verschoben. Produktverknüpfungen werden entfernt.',
+      nameSv: 'Name (Schwedisch) *',
+      nameEn: 'Name (Englisch)',
+      slug: 'Slug',
+      icon: 'Symbol',
+      parentCategory: 'Übergeordnete Kategorie',
+      noParent: 'Keine (oberste Ebene)',
+      cancel: 'Abbrechen',
+      create: 'Erstellen',
+      update: 'Aktualisieren',
+      created: 'Kategorie erstellt!',
+      updated: 'Kategorie aktualisiert!',
+      deleted: 'Kategorie gelöscht!',
+      error: 'Fehler: ',
+      categoryHidden: 'Kategorie ausgeblendet',
+      categoryVisible: 'Kategorie sichtbar',
+      couldNotCreate: 'Konnte nicht erstellt werden: ',
+      noCategories: 'Noch keine Kategorien',
+      children: 'unter',
+      aiDisabledSync: 'KI ist deaktiviert — Kategorien manuell verwalten',
+      aiDisabledValidate: 'KI ist deaktiviert — Kategorien manuell validieren',
+    },
+  };
+
+  const t = content[lang] || content.en;
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingCat, setEditingCat] = useState<DbCategory | null>(null);
   const [deletingCat, setDeletingCat] = useState<DbCategory | null>(null);
@@ -86,12 +297,12 @@ const AdminCategoryManager = () => {
         display_order: categories.length,
         is_visible: true,
       });
-      toast.success('Kategori skapad!');
+      toast.success(t.created);
       queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
       setIsAddOpen(false);
       resetForm();
     } catch (err: any) {
-      toast.error('Fel: ' + (err?.message || ''));
+      toast.error(t.error + (err?.message || ''));
     } finally {
       setIsSubmitting(false);
     }
@@ -108,12 +319,12 @@ const AdminCategoryManager = () => {
         icon: form.icon || editingCat.icon,
         parent_id: form.parent_id || null,
       });
-      toast.success('Kategori uppdaterad!');
+      toast.success(t.updated);
       queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
       setEditingCat(null);
       resetForm();
     } catch (err: any) {
-      toast.error('Fel: ' + (err?.message || ''));
+      toast.error(t.error + (err?.message || ''));
     } finally {
       setIsSubmitting(false);
     }
@@ -123,10 +334,10 @@ const AdminCategoryManager = () => {
     if (!deletingCat) return;
     try {
       await deleteCategory(deletingCat.id);
-      toast.success('Kategori borttagen!');
+      toast.success(t.deleted);
       queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
     } catch (err: any) {
-      toast.error('Fel: ' + (err?.message || ''));
+      toast.error(t.error + (err?.message || ''));
     } finally {
       setDeletingCat(null);
     }
@@ -136,9 +347,9 @@ const AdminCategoryManager = () => {
     try {
       await updateCategory(cat.id, { is_visible: !cat.is_visible });
       queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
-      toast.success(cat.is_visible ? 'Kategori dold' : 'Kategori synlig');
+      toast.success(cat.is_visible ? t.categoryHidden : t.categoryVisible);
     } catch (err: any) {
-      toast.error('Fel: ' + (err?.message || ''));
+      toast.error(t.error + (err?.message || ''));
     }
   };
 
@@ -153,7 +364,7 @@ const AdminCategoryManager = () => {
     setEditingCat(cat);
   };
   const runAiSync = async () => {
-    toast.info('AI är avaktiverad — hantera kategorier manuellt');
+    toast.info(t.aiDisabledSync);
   };
 
   const acceptPendingSuggestion = async (suggestion: any) => {
@@ -181,12 +392,12 @@ const AdminCategoryManager = () => {
         pending_review: (prev.pending_review || []).filter((s: any) => s.slug !== suggestion.slug),
       } : prev);
     } catch (err: any) {
-      toast.error('Kunde inte skapa: ' + (err?.message || ''));
+      toast.error(t.couldNotCreate + (err?.message || ''));
     }
   };
 
   const runAiValidate = async () => {
-    toast.info('AI är avaktiverad — validera kategorier manuellt');
+    toast.info(t.aiDisabledValidate);
   };
 
   const renderCategoryRow = (cat: DbCategory, depth = 0) => {
@@ -226,12 +437,12 @@ const AdminCategoryManager = () => {
 
           {hasChildren && (
             <Badge variant="secondary" className="text-xs">
-              {cat.children!.length} under
+              {cat.children!.length} {t.children}
             </Badge>
           )}
 
           <Badge variant={cat.is_visible ? 'default' : 'outline'} className="text-xs shrink-0">
-            {cat.is_visible ? 'Synlig' : 'Dold'}
+            {cat.is_visible ? t.visible : t.hidden}
           </Badge>
 
           <div className="flex items-center gap-0.5 shrink-0">
