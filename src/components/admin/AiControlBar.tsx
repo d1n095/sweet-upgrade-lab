@@ -1,21 +1,24 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Radar, Bug } from 'lucide-react';
+import { Radar, Bug, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { useScannerStore } from '@/stores/scannerStore';
+import { useQueryClient } from '@tanstack/react-query';
 
-interface AiControlBarProps {
+interface ScanControlBarProps {
   onNavigateTab?: (tab: string) => void;
   compact?: boolean;
 }
 
-const AiControlBar = ({ onNavigateTab, compact = false }: AiControlBarProps) => {
+const ScanControlBar = ({ onNavigateTab, compact = false }: ScanControlBarProps) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
   const [bugCount, setBugCount] = useState(0);
-  const [scanRunning, setScanRunning] = useState(false);
+  const { scanning, runAllScans } = useScannerStore();
 
   const isOnScanPage = location.pathname === '/admin/ai';
 
@@ -50,12 +53,17 @@ const AiControlBar = ({ onNavigateTab, compact = false }: AiControlBarProps) => 
     }
   };
 
+  const handleQuickScan = async () => {
+    if (scanning) return;
+    await runAllScans(queryClient);
+  };
+
   return (
     <div className={cn(
       'flex items-center gap-1 rounded-lg border border-border bg-secondary/30 px-1 py-0.5',
       compact && 'gap-0.5'
     )}>
-      {/* Scan */}
+      {/* Quick Scan */}
       <Tooltip>
         <TooltipTrigger asChild>
           <Button
@@ -63,15 +71,38 @@ const AiControlBar = ({ onNavigateTab, compact = false }: AiControlBarProps) => 
             size="sm"
             className={cn(
               'gap-1.5 h-7 text-xs px-2',
-              scanRunning && 'text-blue-500'
+              scanning && 'text-blue-500'
             )}
-            onClick={() => goToTab('scan')}
+            onClick={handleQuickScan}
+            disabled={scanning}
           >
-            <Radar className={cn('w-3.5 h-3.5', scanRunning && 'animate-spin')} />
-            <span className="hidden lg:inline">Skanning</span>
+            {scanning ? (
+              <Radar className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Play className="w-3.5 h-3.5" />
+            )}
+            <span className="hidden lg:inline">{scanning ? 'Skannar...' : 'Skanna'}</span>
           </Button>
         </TooltipTrigger>
-        <TooltipContent side="bottom">Full skanning</TooltipContent>
+        <TooltipContent side="bottom">
+          {scanning ? 'Skanning pågår...' : 'Kör full skanning'}
+        </TooltipContent>
+      </Tooltip>
+
+      {/* Go to Scan Center */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5 h-7 text-xs px-2"
+            onClick={() => goToTab('scan')}
+          >
+            <Radar className="w-3.5 h-3.5" />
+            <span className="hidden lg:inline">Scan Center</span>
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">Öppna Scan Center</TooltipContent>
       </Tooltip>
 
       {/* Bugs */}
@@ -100,4 +131,4 @@ const AiControlBar = ({ onNavigateTab, compact = false }: AiControlBarProps) => 
   );
 };
 
-export default AiControlBar;
+export default ScanControlBar;
