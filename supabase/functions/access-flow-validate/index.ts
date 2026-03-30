@@ -15,6 +15,8 @@ interface FlowTest {
   passed: boolean;
   detail: string;
   risk: "critical" | "high" | "medium" | "low";
+  severity?: "critical" | "high" | "medium" | "low" | "info";
+  type?: string;
 }
 
 serve(async (req) => {
@@ -310,6 +312,19 @@ serve(async (req) => {
           detail: `Användare har ${highCount} högnivåroller — onödigt`,
           risk: "medium",
         });
+      }
+    }
+
+    // ── IGNORE RULE: admin saknar behörighet + role-based access ──
+    // IF issue.detail includes "admin saknar behörighet"
+    // AND system uses role-based access (role_module_permissions in use)
+    // THEN severity = "low", type = "info"
+    const usesRoleBased = (allPerms || []).length > 0;
+    for (const test of tests) {
+      if (test.detail.includes("admin saknar behörighet") && usesRoleBased) {
+        test.risk = "low";
+        test.severity = "low";
+        test.type = "info";
       }
     }
 
