@@ -1,13 +1,13 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
 import {
-  Play, Loader2, CheckCircle, XCircle, AlertTriangle,
+  Play, Loader2, CheckCircle, XCircle,
   FileSearch, Bug, ClipboardList, Database, ShieldCheck,
-  ArrowRight, Activity, Trash2, RefreshCw,
+  ArrowRight, Activity, Trash2, ChevronDown, ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { runUnifiedPipeline, type PipelineRun, type PipelineEvent, type PipelineStage } from '@/lib/unifiedPipeline';
@@ -23,19 +23,40 @@ const stageConfig: Record<PipelineStage, { label: string; icon: React.ElementTyp
 
 const STAGES: PipelineStage[] = ['scan', 'issues', 'work_items', 'change_log', 'verification'];
 
+const ACTION_LABELS: Record<string, string> = {
+  log_exists: 'Ändringslogg finns redan',
+  bug_already_resolved: 'Bugg redan löst',
+  auto_linked: 'Automatiskt länkad',
+  already_linked: 'Redan länkad',
+  link_failed: 'Länkning misslyckades',
+  log_created: 'Ändringslogg skapad',
+  bug_resolved: 'Bugg löst',
+  check: 'Kontroll',
+  gap_detected: 'Lucka detekterad',
+  ai_review: 'AI-granskning',
+  review_error: 'Granskningsfel',
+  blocked: 'Blockerad',
+  pipeline_error: 'Pipeline-fel',
+};
+
 const UnifiedPipelineDashboard = () => {
   const [running, setRunning] = useState(false);
   const [run, setRun] = useState<PipelineRun | null>(null);
   const [liveEvents, setLiveEvents] = useState<PipelineEvent[]>([]);
   const [progress, setProgress] = useState(0);
+  const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
 
   const execute = useCallback(async () => {
     setRunning(true);
     setLiveEvents([]);
     setProgress(0);
+    setExpandedIdx(null);
 
     const result = await runUnifiedPipeline((event) => {
-      setLiveEvents(prev => [...prev, event]);
+      setLiveEvents(prev => {
+        const next = [...prev, event];
+        return next;
+      });
       // Estimate progress by stage
       const stageIdx = STAGES.indexOf(event.stage);
       setProgress(Math.min(95, ((stageIdx + 1) / STAGES.length) * 100));
@@ -57,6 +78,12 @@ const UnifiedPipelineDashboard = () => {
 
   const events = run ? run.events : liveEvents;
   const stats = run?.stats;
+
+  useEffect(() => {
+    if (events.length === 0 && !running) {
+      console.log('LOGS:', events);
+    }
+  }, [events, running]);
 
   return (
     <div className="space-y-4">
@@ -184,41 +211,64 @@ const UnifiedPipelineDashboard = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="px-4 pb-3">
-            <ScrollArea className="max-h-[50vh]">
+            <ScrollArea className="max-h-[50vh]" style={{ pointerEvents: 'auto' }}>
               <div className="space-y-1.5 pr-2">
                 {[...events].reverse().map((e, i) => {
                   const cfg = stageConfig[e.stage];
                   const SIcon = cfg.icon;
+                  const isExpanded = expandedIdx === i;
+                  const data = e.linkedIds && Object.keys(e.linkedIds).length > 0
+                    ? e.linkedIds
+                    : { raw: 'no data' };
+                  const actionLabel = ACTION_LABELS[e.action] ?? e.action;
                   return (
-                    <div key={i} className={cn(
-                      'border rounded-lg p-2.5 flex items-start gap-2',
-                      e.success ? 'border-border' : 'border-destructive/30 bg-destructive/5'
-                    )}>
-                      <SIcon className={cn('w-4 h-4 mt-0.5 shrink-0', cfg.color)} />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <Badge variant="outline" className={cn('text-[9px]', cfg.color)}>{cfg.label}</Badge>
-                          <Badge variant="outline" className="text-[9px]">{e.action}</Badge>
-                          {e.success ? (
-                            <CheckCircle className="w-3 h-3 text-green-500" />
-                          ) : (
-                            <XCircle className="w-3 h-3 text-destructive" />
-                          )}
-                          <span className="text-[10px] text-muted-foreground ml-auto">
-                            {new Date(e.timestamp).toLocaleTimeString('sv-SE')}
-                          </span>
+                    <div
+                      key={i}
+                      style={{ pointerEvents: 'auto' }}
+                      className={cn(
+                        'border rounded-lg p-2.5 cursor-pointer select-none transition-colors',
+                        e.success ? 'border-border hover:bg-secondary/30' : 'border-destructive/30 bg-destructive/5 hover:bg-destructive/10'
+                      )}
+                      onClick={() => {
+                        console.log('🧪 LOG CLICK:', e);
+                        setExpandedIdx(isExpanded ? null : i);
+                      }}
+                    >
+                      <div className="flex items-start gap-2">
+                        <SIcon className={cn('w-4 h-4 mt-0.5 shrink-0', cfg.color)} />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <Badge variant="outline" className={cn('text-[9px]', cfg.color)}>{cfg.label}</Badge>
+                            <Badge variant="outline" className="text-[9px]">{actionLabel}</Badge>
+                            {e.success ? (
+                              <CheckCircle className="w-3 h-3 text-green-500" />
+                            ) : (
+                              <XCircle className="w-3 h-3 text-destructive" />
+                            )}
+                            <span className="text-[10px] text-muted-foreground ml-auto flex items-center gap-1">
+                              {new Date(e.timestamp).toLocaleTimeString('sv-SE')}
+                              {isExpanded
+                                ? <ChevronDown className="w-3 h-3" />
+                                : <ChevronRight className="w-3 h-3" />}
+                            </span>
+                          </div>
+                          <p className="text-xs text-foreground mt-0.5">{e.detail}</p>
                         </div>
-                        <p className="text-xs text-foreground mt-0.5">{e.detail}</p>
-                        {e.linkedIds && Object.keys(e.linkedIds).length > 0 && (
+                      </div>
+                      {isExpanded && (
+                        <div className="mt-2 pt-2 border-t border-border/50">
+                          <pre className="text-[10px] font-mono bg-muted/40 rounded p-2 overflow-x-auto whitespace-pre-wrap break-all">
+                            {JSON.stringify(data, null, 2)}
+                          </pre>
                           <div className="flex gap-1 mt-1 flex-wrap">
-                            {Object.entries(e.linkedIds).map(([k, v]) => (
+                            {Object.entries(data).map(([k, v]) => (
                               <Badge key={k} variant="secondary" className="text-[8px] font-mono">
-                                {k}: {v.slice(0, 8)}…
+                                {k}: {String(v).slice(0, 12)}{String(v).length > 12 ? '…' : ''}
                               </Badge>
                             ))}
                           </div>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
