@@ -1,0 +1,213 @@
+import { useState, useEffect, useRef, createContext, useContext, useCallback } from 'react';
+import { logAICall } from '@/utils/aiGuard';
+import { runAISafe } from '@/core/aiGateway';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Sparkles, Bug, BarChart3, Copy, Loader2, Send, AlertTriangle, Lightbulb, Info, RefreshCw, Bot, CheckCircle, XCircle, Shield, Clock, Zap, Activity, TrendingUp, Package, AlertCircle, Database, Wrench, Radar, ArrowRight, Layers, Monitor, Smartphone, Tablet, Eye, Compass, LayoutGrid, GitMerge, ArrowRightLeft, ShieldCheck, Play, Settings2, ToggleRight, Maximize2, Gavel, ChevronDown, History, User, Brain } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger, ScrollableTabs } from '@/components/ui/tabs';
+import AiCenterTabs from '@/components/admin/AiCenterTabs';
+import { createAndVerify } from '@/utils/createVerifyLoop';
+import { createWorkItemWithDedup } from '@/utils/workItemDedup';
+import { trace, newTraceId } from '@/utils/deepDebugTrace';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
+import { logChange } from '@/utils/changeLogger';
+import WorkItemDetail from '@/components/admin/workbench/WorkItemDetail';
+import { useNavigate } from 'react-router-dom';
+import { useScannerStore, SCAN_STEPS } from '@/stores/scannerStore';
+import type { ScanStepResult } from '@/stores/scannerStore';
+import { useFullScanOrchestrator, ORCHESTRATED_STEPS } from '@/stores/fullScanOrchestrator';
+import type { UnifiedScanResult } from '@/stores/fullScanOrchestrator';
+import { filterRelevantIssues } from '@/stores/fullScanOrchestrator';
+import AdminAiReadLog from '@/components/admin/AdminAiReadLog';
+import AiQueueControl from '@/components/admin/AiQueueControl';
+import DataFlowValidator from '@/components/admin/DataFlowValidator';
+import UiRealityCheck from '@/components/admin/UiRealityCheck';
+import SystemTrustScore from '@/components/admin/SystemTrustScore';
+import SafeModePanel, { SafeModeBanner } from '@/components/admin/SafeModePanel';
+import UnifiedPipelineDashboard from '@/components/admin/UnifiedPipelineDashboard';
+import SystemStateDashboard from '@/components/admin/SystemStateDashboard';
+import FailureMemoryPanel from '@/components/admin/FailureMemoryPanel';
+
+// Context to allow any tab to open a work item detail view
+const DetailContext = createContext<{
+  openDetail: (itemId: string) => void;
+}>({ openDetail: () => {} });
+
+const useDetailContext = () => useContext(DetailContext);
+
+interface GeneratedPrompt {
+  title: string;
+  goal: string;
+  problem?: string;
+  steps: string[];
+  expected_result: string;
+  tags: string[];
+  category: string;
+  priority: string;
+  full_prompt: string;
+}
+
+interface DataInsight {
+  type: 'warning' | 'opportunity' | 'info';
+  title: string;
+  description: string;
+  action: string;
+}
+
+interface DataAnalysis {
+  insights: DataInsight[];
+  summary: string;
+  health_score: number;
+  raw_metrics?: Record<string, number>;
+  work_items_created?: number;
+}
+
+interface UnifiedArea {
+  name: string;
+  score: number;
+  status: 'healthy' | 'warning' | 'critical';
+  summary: string;
+  actions: string[];
+}
+
+interface UnifiedReport {
+  overall_score: number;
+  overall_status: 'healthy' | 'warning' | 'critical';
+  executive_summary: string;
+  areas: UnifiedArea[];
+  top_priorities: { title: string; urgency: 'now' | 'today' | 'this_week'; reason: string }[];
+  raw_metrics?: Record<string, number>;
+}
+
+const callAI = async (_type: string, _payload: Record<string, any> = {}) => {
+  logAICall({ source: 'AdminAI', file: 'AdminAI.tsx', action: _type, status: 'ATTEMPT' });
+  const result = await runAISafe({ source: 'ADMIN', feature: _type, payload: _payload });
+  logAICall({ source: 'AdminAI', file: 'AdminAI.tsx', action: _type, status: result ? 'EXECUTED' : 'BLOCKED' });
+  return result;
+};
+
+const callTaskManager = async (action: string) => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) { toast.error('Ej inloggad'); return null; }
+
+  const data = await runAISafe({
+    source: 'ADMIN',
+    feature: 'ai-task-manager',
+    payload: { action },
+    functionName: 'ai-task-manager',
+  });
+
+  if (!data) {
+    toast.error('AI Task Manager-fel');
+    return null;
+  }
+
+  return data.results;
+};
+
+const copyToClipboard = (text: string, buttonId?: string) => {
+  const clean = text.replace(/[#*`_~>]/g, '').replace(/\n{3,}/g, '\n\n').trim();
+  navigator.clipboard.writeText(clean);
+  if (buttonId) {
+    const el = document.getElementById(buttonId);
+    if (el) {
+      el.textContent = '✓ Kopierad';
+      el.classList.add('text-green-600');
+      setTimeout(() => { el.textContent = '📋 Copy Fix'; el.classList.remove('text-green-600'); }, 2000);
+    }
+  }
+  toast.success('Kopierat till urklipp');
+};
+
+const applyFix = async (
+  fixText: string,
+  issueTitle: string,
+  opts?: { category?: string; severity?: string; workItemId?: string; bugId?: string; buttonId?: string }
+): Promise<boolean> => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) { toast.error('Ej inloggad'); return false; }
+
+  // UI feedback: show loading
+  if (opts?.buttonId) {
+    const el = document.getElementById(opts.buttonId);
+    if (el) { el.textContent = '⏳ Analyserar...'; el.setAttribute('disabled', 'true'); }
+  }
+
+  try {
+    const resp = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/apply-fix`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          fix_text: fixText,
+          issue_title: issueTitle,
+          issue_category: opts?.category,
+          issue_severity: opts?.severity,
+          source_work_item_id: opts?.workItemId,
+          source_bug_id: opts?.bugId,
+        }),
+      }
+    );
+
+    const data = await resp.json();
+
+    if (opts?.buttonId) {
+      const el = document.getElementById(opts.buttonId);
+      if (el) el.removeAttribute('disabled');
+    }
+
+    if (!resp.ok) {
+      toast.error(data.error || 'Apply fix misslyckades');
+      if (opts?.buttonId) {
+        const el = document.getElementById(opts.buttonId);
+        if (el) { el.textContent = '❌ Misslyckades'; setTimeout(() => { el.textContent = '⚡ Apply Fix'; }, 2000); }
+      }
+      return false;
+    }
+
+    if (data.executed && data.success) {
+      toast.success(data.message || '✅ Fix applicerad!');
+      if (opts?.buttonId) {
+        const el = document.getElementById(opts.buttonId);
+        if (el) { el.textContent = '✅ Applicerad'; el.classList.add('text-green-600'); setTimeout(() => { el.textContent = '⚡ Apply Fix'; el.classList.remove('text-green-600'); }, 3000); }
+      }
+      return true;
+    } else if (data.executed && !data.success) {
+      toast.warning(data.message || '⚠️ Delvis applicerad');
+      return false;
+    } else {
+      // Not executable — fallback to copy
+      const reason = data.plan?.fix_type === 'code_change' ? 'Kräver kodändring — kopierad till urklipp' : (data.message || 'Kan inte auto-appliceras');
+      toast.info(`📋 ${reason}`);
+      copyToClipboard(fixText);
+      if (opts?.buttonId) {
+        const el = document.getElementById(opts.buttonId);
+        if (el) { el.textContent = '📋 Kopierad'; setTimeout(() => { el.textContent = '⚡ Apply Fix'; }, 2000); }
+      }
+      return false;
+    }
+  } catch (e: any) {
+    toast.error('Apply fix fel: ' + (e.message || 'okänt'));
+    if (opts?.buttonId) {
+      const el = document.getElementById(opts.buttonId);
+      if (el) { el.removeAttribute('disabled'); el.textContent = '⚡ Apply Fix'; }
+    }
+    return false;
+  }
+};
+
+// ── Lova 0.5 Chat Tab ──
