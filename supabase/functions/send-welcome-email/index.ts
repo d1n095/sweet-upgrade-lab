@@ -122,8 +122,11 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { email, language: rawLang = 'sv' }: WelcomeEmailRequest = await req.json();
-    const language = ['sv', 'en', 'no', 'da', 'de'].includes(rawLang) ? rawLang as 'sv' | 'en' | 'no' | 'da' | 'de' : 'sv';
+    const { email, language: rawLang = 'en' }: WelcomeEmailRequest = await req.json();
+    // Normalize locale codes (e.g. "sv-SE" → "sv") and validate against supported set
+    const supported = ['sv', 'en', 'no', 'da', 'de'];
+    const normalized = (rawLang ?? 'en').slice(0, 2).toLowerCase();
+    const language = supported.includes(normalized) ? normalized as 'sv' | 'en' | 'no' | 'da' | 'de' : 'en';
 
     if (!email) {
       return new Response(

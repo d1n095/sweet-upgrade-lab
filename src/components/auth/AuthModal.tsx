@@ -54,6 +54,30 @@ const validateUsername = (username: string, lang: string): string | null => {
   return null;
 };
 
+const SUPPORTED_EMAIL_LANGUAGES = ['sv', 'en', 'no', 'da', 'de'] as const;
+type EmailLanguage = typeof SUPPORTED_EMAIL_LANGUAGES[number];
+
+/**
+ * Resolves the best language for the welcome email.
+ * Priority: app language → browser language → 'en'.
+ * Normalizes locale codes (e.g. "sv-SE" → "sv").
+ */
+function resolveEmailLanguage(appLang: string): EmailLanguage {
+  const normalize = (code: string | undefined) =>
+    code?.slice(0, 2).toLowerCase() ?? '';
+  const supported = (s: string): s is EmailLanguage =>
+    (SUPPORTED_EMAIL_LANGUAGES as readonly string[]).includes(s);
+
+  const fromApp = normalize(appLang);
+  if (supported(fromApp)) return fromApp;
+
+  const browserLang = typeof navigator !== 'undefined' ? navigator.language : undefined;
+  const fromBrowser = normalize(browserLang);
+  if (supported(fromBrowser)) return fromBrowser;
+
+  return 'en';
+}
+
 const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
   const { language } = useLanguage();
   const lang = getContentLang(language);
@@ -194,9 +218,10 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
           return;
         }
         
-        // Send welcome email in background
+        // Send welcome email in background using resolved language
+        const finalLang = resolveEmailLanguage(language);
         supabase.functions.invoke('send-welcome-email', {
-          body: { email, language }
+          body: { email, language: finalLang }
         }).catch(err => console.error('Welcome email failed:', err));
         
         logAuthEvent('login', email, { type: 'signup' });
