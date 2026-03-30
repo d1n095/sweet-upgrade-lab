@@ -186,6 +186,8 @@ const SystemExplorer = () => {
   const [showBackendRaw, setShowBackendRaw] = useState(false);
   const [fileScanResult, setFileScanResult] = useState<{ total: number; emptyFiles: number; largeFiles: number } | null>(null);
   const [codeScanResult, setCodeScanResult] = useState<{ type: string; message: string; file: string }[] | null>(null);
+  const [lastScan, setLastScan] = useState(0);
+  const [expandedIssues, setExpandedIssues] = useState<Record<number, boolean>>({});
 
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<{ path: string; lineNumber: number; line: string }[]>([]);
@@ -217,13 +219,23 @@ const SystemExplorer = () => {
     const allIssues: { type: string; message: string; file: string }[] = [];
     Object.entries(rawSources).forEach(([path, content]) => {
       if (!content) return;
+      if ((content as string).includes("fetch(") && !(content as string).includes("catch")) {
+        allIssues.push({ type: "no-catch", message: "fetch() without error handling", file: path });
+      }
+      if ((content as string).length < 15) {
+        allIssues.push({ type: "empty-file", message: "empty file", file: path });
+      }
       const issues = scanFileContent(path, content as string);
       allIssues.push(...issues);
     });
-    console.log("🚨 AUTO SCAN FOUND:", allIssues.length);
-    setCodeScanResult(allIssues);
-    setGlobalIssues(allIssues);
-  }, []);
+    const unique = [...new Map(allIssues.map(i => [i.file + i.message, i])).values()];
+    console.log("🚨 AUTO SCAN FOUND:", unique.length);
+    setCodeScanResult(unique);
+    setGlobalIssues(unique);
+    if (lastScan > 0) {
+      console.log("🔄 UI UPDATED", { lastScan, issues: unique.length });
+    }
+  }, [lastScan]);
 
   function handleSearch() {
     logAction({ type: "Search", status: "started" });
@@ -462,6 +474,7 @@ const SystemExplorer = () => {
   });
 
   const handleRefresh = async () => {
+    console.log("🧪 CLICK: Refresh");
     setIsRefreshing(true);
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["system-explorer-work-items"] }),
@@ -1123,7 +1136,7 @@ const SystemExplorer = () => {
             Refresh
           </Button>
           {isSystemAdmin && (
-            <ScanControls />
+            <ScanControls onScanComplete={() => setLastScan(Date.now())} />
           )}
            {isSystemAdmin && (
              <Button variant="outline" size="sm" onClick={() => setShowRawScan(!showRawScan)}>
@@ -1322,7 +1335,8 @@ const SystemExplorer = () => {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2"><Layers className="h-4 w-4" /> Code Index ({index.length} files)</CardTitle>
-                <Button variant="outline" size="sm" className="text-[10px] h-6 ml-auto" onClick={() =>
+                <Button variant="outline" size="sm" className="text-[10px] h-6 ml-auto" onClick={() => {
+                  console.log("🧪 CLICK: Scan Code");
                   validateAction("SCAN_CODE", () => {
                     const sources = getRawSources() || {};
                     const results: { type: string; message: string; file: string }[] = [];
@@ -1336,8 +1350,8 @@ const SystemExplorer = () => {
                     console.log("[FILE ISSUES FOUND]:", results.length);
                     setCodeScanResult(results);
                     return true;
-                  })
-                }>
+                  });
+                }}>
                   Scan Code
                 </Button>
               </CardHeader>
@@ -1423,13 +1437,28 @@ const SystemExplorer = () => {
                     <Bug className="h-4 w-4" /> Live Code Issues ({globalIssues.length})
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="pt-0 max-h-[300px] overflow-y-auto space-y-1">
-                  {globalIssues.map((issue, i) => (
-                    <div key={i} className="text-xs border-b border-border/50 pb-1">
-                      <div className="font-semibold text-foreground">{issue.file}</div>
-                      <div className="text-muted-foreground">{issue.message}</div>
-                    </div>
-                  ))}
+                <CardContent className="pt-0 max-h-[400px] overflow-y-auto space-y-1">
+                  {globalIssues.map((issue, i) => {
+                    const isOpen = expandedIssues[i] ?? false;
+                    return (
+                      <div
+                        key={i}
+                        className="border-b border-border/50 pb-1 cursor-pointer"
+                        onClick={() => {
+                          console.log("🧪 CLICK: expand issue", i, issue.file);
+                          setExpandedIssues(prev => ({ ...prev, [i]: !prev[i] }));
+                        }}
+                      >
+                        <div className="flex items-center gap-1 text-xs">
+                          {isOpen ? <ChevronDown className="h-3 w-3 shrink-0" /> : <ChevronRight className="h-3 w-3 shrink-0" />}
+                          <span className="font-semibold text-foreground truncate">{issue.file}</span>
+                        </div>
+                        {isOpen && (
+                          <div className="ml-4 mt-0.5 text-[10px] text-muted-foreground break-words">{issue.message}</div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </CardContent>
               </Card>
             )}
@@ -1580,7 +1609,8 @@ const SystemExplorer = () => {
                   {f === "all" ? `All (${fileSystemMap.length})` : f === "orphan" ? `Orphan (${fileSystemMap.filter(fi => fi.used_in.length === 0 && fi.type !== "page" && fi.type !== "edge_function").length})` : `Has Issues (${fileSystemMap.filter(fi => structureIssues.some(si => si.path === fi.path)).length})`}
                 </button>
               ))}
-              <Button variant="outline" size="sm" className="text-[10px] h-6 ml-auto" onClick={() =>
+              <Button variant="outline" size="sm" className="text-[10px] h-6 ml-auto" onClick={() => {
+                console.log("🧪 CLICK: Scan Files");
                 validateAction("SCAN_FILES", () => {
                   const files = Object.keys(getRawSources() || {});
                   if (!files.length) {
@@ -1590,8 +1620,8 @@ const SystemExplorer = () => {
                   console.log("[FILES FOUND]:", result);
                   setFileScanResult({ total: result, emptyFiles: files.filter(f => !getRawSources()[f]?.trim()).length, largeFiles: 0 });
                   return true;
-                })
-              }>
+                });
+              }}>
                 Scan Files
               </Button>
             </div>

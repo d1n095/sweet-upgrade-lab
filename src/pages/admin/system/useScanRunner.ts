@@ -11,7 +11,7 @@ declare global {
 
 window.__SCAN_DEBUG__ = true;
 
-export function useScanRunner() {
+export function useScanRunner(onScanComplete?: () => void) {
   const [isScanning, setIsScanning] = useState(false);
   const queryClient = useQueryClient();
 
@@ -23,11 +23,20 @@ export function useScanRunner() {
     setIsScanning(true);
 
     try {
+      // Kill stuck running scans before starting a new one
+      await supabase
+        .from("scan_runs" as any)
+        .update({ status: "killed" } as any)
+        .eq("status", "running");
+      console.log("🧹 KILLED OLD SCANS");
+
       const structure_map = Object.keys(getRawSources() || {}).map((path) => ({ path }));
 
       if (window.__SCAN_DEBUG__) {
         console.log("INVOKE SENT", { function: "run-full-scan", structure_map_count: structure_map.length });
       }
+
+      console.log("🚀 STARTING FULL SCAN");
 
       const res = await supabase.functions.invoke("run-full-scan", {
         body: { action: "start", scan_mode: "full", structure_map },
@@ -38,14 +47,18 @@ export function useScanRunner() {
       }
 
       if (res.error) {
-        console.error("[useScanRunner] Invoke error:", res.error);
+        console.error("❌ FULL SCAN FAIL:", res.error);
+      } else {
+        console.log("✅ SCAN OK:", res.data);
       }
 
       await queryClient.invalidateQueries({ queryKey: ["system-explorer-latest-run"] });
       await queryClient.invalidateQueries({ queryKey: ["backend-scan-latest"] });
       await queryClient.invalidateQueries({ queryKey: ["system-explorer-latest-scan"] });
+
+      onScanComplete?.();
     } catch (err) {
-      console.error("[useScanRunner] Unexpected error:", err);
+      console.error("❌ FULL SCAN FAIL:", err);
     } finally {
       setIsScanning(false);
     }
