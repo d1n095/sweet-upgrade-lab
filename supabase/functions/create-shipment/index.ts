@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { createShipment } from "../_shared/shipmondo.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,7 +23,6 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const shipmondoKey = Deno.env.get("SHIPMONDO_API_KEY");
 
     // Verify caller is staff
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -119,63 +119,26 @@ Deno.serve(async (req) => {
     let carrier = "postnord";
     let shipmondo_used = false;
 
-    // Try Shipmondo API if key exists
-    if (shipmondoKey) {
-      try {
-        const addr = order.shipping_address as any;
-        const shipmentPayload = {
-          own_agreement: true,
-          label_format: "a4_pdf",
-          product_code: "MYPACK_HOME",
-          service_codes: "EMAIL_NT,SMS_NT",
-          sender: {
-            name: "Naturligt Snygg",
-            address1: "Företagsvägen 1",
-            zipcode: "11122",
-            city: "Stockholm",
-            country_code: "SE",
-            email: "info@naturligtsnygg.se",
-          },
-          receiver: {
-            name: addr?.name || order.order_email,
-            address1: addr?.address || "",
-            zipcode: addr?.zip || "",
-            city: addr?.city || "",
-            country_code: addr?.country || "SE",
-            email: order.order_email,
-            mobile: addr?.phone || "",
-          },
-          parcels: [{ weight: 1000 }],
-        };
-
-        const shipmondoResp = await fetch(
-          "https://app.shipmondo.com/api/public/v3/shipments",
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Basic ${btoa(shipmondoKey + ":")}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(shipmentPayload),
-          }
-        );
-
-        if (shipmondoResp.ok) {
-          const shipData = await shipmondoResp.json();
-          tracking_number = shipData.pkg_no || shipData.shipment_id || null;
-          label_url = shipData.labels?.[0]?.base64
-            ? `data:application/pdf;base64,${shipData.labels[0].base64}`
-            : shipData.labels?.[0]?.file_url || null;
-          carrier = shipData.carrier_code || "postnord";
-          shipmondo_used = true;
-        } else {
-          const errBody = await shipmondoResp.text();
-          console.error("Shipmondo API error:", shipmondoResp.status, errBody);
-          // Fall through to manual flow
-        }
-      } catch (apiErr) {
-        console.error("Shipmondo call failed:", apiErr);
-      }
+    // Try Shipmondo API using shared client
+    try {
+      const addr = order.shipping_address as any;
+      const shipmentResult = await createShipment({
+        shippingMethod: (order as any).shipping_method || "",
+        weight_in_grams: undefined,
+        customer: {
+          name: addr?.name || order.order_email,
+          address: addr?.address || "",
+          zipcode: addr?.zip || "",
+          city: addr?.city || "",
+          email: order.order_email,
+        },
+      });
+      tracking_number = shipmentResult.tracking_number;
+      label_url = shipmentResult.label_url;
+      shipmondo_used = true;
+    } catch (apiErr: any) {
+      console.error("Shipmondo call failed:", apiErr?.message);
+      // Fall through to manual flow
     }
 
     // Update order: mark as packed with shipment data

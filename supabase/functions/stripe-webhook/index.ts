@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
+import { createShipment } from "../_shared/shipmondo.ts";
 
 async function logRuntimeTrace(source: string, function_name: string, endpoint: string, error_message: string, payload_snapshot: any, request_trace_id?: string) {
   try {
@@ -142,6 +143,42 @@ serve(async (req) => {
         },
         ensured.orderId,
       );
+
+      // Auto-create Shipmondo shipment
+      try {
+        const addr = ensured.order?.shipping_address as any;
+        const shipmentResult = await createShipment({
+          shippingMethod: session.metadata?.shipping_method || "",
+          weight_in_grams: undefined,
+          customer: {
+            name: addr?.name || ensured.order?.order_email || "",
+            address: addr?.address || "",
+            zipcode: addr?.zip || "",
+            city: addr?.city || "",
+            email: ensured.order?.order_email || "",
+          },
+        });
+
+        if (shipmentResult.shipment_id || shipmentResult.tracking_number) {
+          const updateFields: Record<string, any> = {};
+          if (shipmentResult.tracking_number) updateFields.tracking_number = shipmentResult.tracking_number;
+          if (shipmentResult.label_url) updateFields.label_url = shipmentResult.label_url;
+          if (Object.keys(updateFields).length > 0) {
+            await supabase.from("orders").update(updateFields).eq("id", ensured.orderId);
+          }
+          console.log("[stripe-webhook] Shipmondo shipment created, tracking:", shipmentResult.tracking_number);
+          await logEvent(supabase, "success", "fulfillment", "Shipmondo shipment created automatically", {
+            shipment_id: shipmentResult.shipment_id,
+            tracking_number: shipmentResult.tracking_number,
+          }, ensured.orderId);
+        }
+      } catch (shipErr: any) {
+        console.warn("[stripe-webhook] Shipmondo shipment failed:", shipErr?.message);
+        await logEvent(supabase, "error", "fulfillment", "Shipmondo shipment failed", {
+          error: "SHIPMONDO_ERROR",
+          details: shipErr?.message,
+        }, ensured.orderId);
+      }
 
       // Send order confirmation email
       try {
