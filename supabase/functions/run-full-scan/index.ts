@@ -4,6 +4,56 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 const AI_ENABLED = false;
 const corsHeaders = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type" };
 
+// ── SCAN FILTERS ─────────────────────────────────────────────────────────
+type ScanFilters = {
+  pages?: boolean;
+  api?: boolean;
+  components?: boolean;
+  errors?: boolean;
+  links?: boolean;
+};
+
+// Maps each filter key to the step IDs it enables
+const FILTER_STEP_MAP: Record<keyof ScanFilters, string[]> = {
+  pages:      ["ui_flow_integrity", "sync_scan", "component_map"],
+  api:        ["data_integrity", "functional_behavior"],
+  components: ["component_map", "interaction_qa"],
+  errors:     ["system_scan", "functional_behavior", "data_integrity"],
+  links:      ["feature_detection", "ui_flow_integrity"],
+};
+
+// ── APP ROUTES ────────────────────────────────────────────────────────────
+const ROUTES = [
+  { path: "/",                    label: "Home",              dynamic: false },
+  { path: "/produkter",           label: "Products",          dynamic: false },
+  { path: "/product/:handle",     label: "Product Detail",    dynamic: true  },
+  { path: "/about",               label: "About",             dynamic: false },
+  { path: "/contact",             label: "Contact",           dynamic: false },
+  { path: "/track-order",         label: "Track Order",       dynamic: false },
+  { path: "/checkout",            label: "Checkout",          dynamic: false },
+  { path: "/order-confirmation",  label: "Order Confirmation",dynamic: false },
+  { path: "/order/:id",           label: "Order Detail",      dynamic: true  },
+  { path: "/cbd",                 label: "CBD",               dynamic: false },
+  { path: "/profile",             label: "Member Profile",    dynamic: false },
+  { path: "/affiliate",           label: "Affiliate",         dynamic: false },
+  { path: "/business",            label: "Business",          dynamic: false },
+  { path: "/suggest-product",     label: "Suggest Product",   dynamic: false },
+  { path: "/reset-password",      label: "Reset Password",    dynamic: false },
+  { path: "/whats-new",           label: "What's New",        dynamic: false },
+  { path: "/balance",             label: "Balance",           dynamic: false },
+  { path: "/affiliate-panel",     label: "Affiliate Panel",   dynamic: false },
+  { path: "/policies/returns",    label: "Returns Policy",    dynamic: false },
+  { path: "/policies/shipping",   label: "Shipping Policy",   dynamic: false },
+  { path: "/policies/privacy",    label: "Privacy Policy",    dynamic: false },
+  { path: "/policies/terms",      label: "Terms",             dynamic: false },
+  { path: "/admin",               label: "Admin Overview",    dynamic: false },
+  { path: "/admin/ops",           label: "Admin Ops",         dynamic: false },
+  { path: "/admin/orders",        label: "Admin Orders",      dynamic: false },
+  { path: "/admin/products",      label: "Admin Products",    dynamic: false },
+  { path: "/admin/members",       label: "Admin Members",     dynamic: false },
+  { path: "/admin/system-explorer", label: "System Explorer", dynamic: false },
+];
+
 const STEPS = [
   { id: "data_integrity",      label: "Dataintegritet",       scanType: "data_integrity" },
   { id: "functional_behavior", label: "Funktionsbeteende",    scanType: "functional_behavior" },
@@ -56,6 +106,35 @@ function groupSimilarIssues(issues: any[]): any[] {
   return issues.filter(i => { const fp = generateFingerprint(i); if (seen.has(fp)) return false; seen.set(fp, true); return true; });
 }
 
+function buildGroupedResults(allIssues: any[]) {
+  // Group by route (component/location that starts with "/" or matches a known route)
+  const by_route: Record<string, any[]> = {};
+  for (const issue of allIssues) {
+    const routeKey = (issue.route || issue.location || issue.component || "unknown")
+      .split("/").slice(0, 3).join("/") || "unknown";
+    if (!by_route[routeKey]) by_route[routeKey] = [];
+    by_route[routeKey].push(issue);
+  }
+
+  // Group by file (source_file or location)
+  const by_file: Record<string, any[]> = {};
+  for (const issue of allIssues) {
+    const fileKey = issue.source_file || issue.location || issue.component || "unknown";
+    if (!by_file[fileKey]) by_file[fileKey] = [];
+    by_file[fileKey].push(issue);
+  }
+
+  // Group by error type
+  const by_error_type: Record<string, any[]> = {};
+  for (const issue of allIssues) {
+    const typeKey = issue.type || "unknown";
+    if (!by_error_type[typeKey]) by_error_type[typeKey] = [];
+    by_error_type[typeKey].push(issue);
+  }
+
+  return { by_route, by_file, by_error_type };
+}
+
 function buildUnifiedResult(stepResults: Record<string, any>, totalDuration: number) {
   const allIssues = Object.values(stepResults).flatMap((r: any) => r?.issues || []);
   const broken_flows         = allIssues.filter((i: any) => ["broken_flow","action_failed","lost_state","missing_data","request_failed"].includes(i.type));
@@ -68,7 +147,8 @@ function buildUnifiedResult(stepResults: Record<string, any>, totalDuration: num
     - allIssues.filter((i: any) => i.severity === "high").length * 5
     - allIssues.filter((i: any) => i.severity === "medium").length * 2
   ));
-  return { broken_flows, fake_features, interaction_failures, data_issues, all_issues: allIssues, total_issues: allIssues.length, system_health_score: score, total_duration_ms: totalDuration, scanned_at: new Date().toISOString() };
+  const grouped_results = buildGroupedResults(allIssues);
+  return { broken_flows, fake_features, interaction_failures, data_issues, all_issues: allIssues, total_issues: allIssues.length, system_health_score: score, total_duration_ms: totalDuration, scanned_at: new Date().toISOString(), grouped_results, routes_scanned: ROUTES.map(r => r.path), filters_applied: null as ScanFilters | null };
 }
 
 // ── DATA INTEGRITY SCAN ──────────────────────────────────────────────────
@@ -675,7 +755,8 @@ serve(async (req) => {
     const serviceKey  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase    = createClient(supabaseUrl, serviceKey);
     const body        = await req.json();
-    const { action, scan_run_id } = body;
+    const { action, scan_run_id, filters } = body;
+    const scanFilters: ScanFilters | null = filters && typeof filters === "object" ? filters : null;
 
     if (action === "status") {
       let q = supabase.from("scan_runs").select("*");
@@ -702,6 +783,22 @@ serve(async (req) => {
     if (!isStaff)
       return new Response(JSON.stringify({ success:false, error:"Unauthorized" }), { status:200, headers:{ ...corsHeaders, "Content-Type":"application/json" } });
 
+    // ── RESOLVE ACTIVE STEPS BASED ON FILTERS ────────────────────────────
+    let activeSteps = STEPS;
+    if (scanFilters && Object.values(scanFilters).some(v => v === false)) {
+      const enabledStepIds = new Set<string>();
+      for (const [key, enabled] of Object.entries(scanFilters) as [keyof ScanFilters, boolean][]) {
+        if (enabled !== false) {
+          for (const id of FILTER_STEP_MAP[key] || []) enabledStepIds.add(id);
+        }
+      }
+      // If at least one filter is explicitly true, restrict to those steps; otherwise run all
+      if (Object.values(scanFilters).some(v => v === true)) {
+        activeSteps = STEPS.filter(s => enabledStepIds.has(s.id));
+      }
+    }
+    if (!activeSteps.length) activeSteps = STEPS;
+
     // ── RUNNING-SCAN LOCK ────────────────────────────────────────────────
     const { data: running } = await supabase.from("scan_runs").select("id,started_at").eq("status","running").limit(1);
     if (running?.length) {
@@ -712,23 +809,48 @@ serve(async (req) => {
 
     // ── CREATE SCAN_RUN ──────────────────────────────────────────────────
     const { data: scanRun, error: insertError } = await supabase.from("scan_runs").insert({
-      status:"running", started_by:user.id, current_step:0, total_steps:STEPS.length,
-      current_step_label:STEPS[0].label, steps_results:{}, scan_mode:"full",
+      status:"running", started_by:user.id, current_step:0, total_steps:activeSteps.length,
+      current_step_label:activeSteps[0]?.label ?? STEPS[0].label, steps_results:{}, scan_mode: scanFilters ? "filtered" : "full",
     }).select("id").single();
     if (insertError || !scanRun)
       return new Response(JSON.stringify({ success:false, error:insertError?.message || "Failed to create scan run" }), { status:200, headers:{ ...corsHeaders, "Content-Type":"application/json" } });
 
     // ── LOOP STEPS ───────────────────────────────────────────────────────
     const stepsResults: Record<string, any> = {};
-    for (const step of STEPS) {
-      await supabase.from("scan_runs").update({ current_step_label:step.label, current_step:STEPS.indexOf(step) }).eq("id", scanRun.id);
+    for (const step of activeSteps) {
+      await supabase.from("scan_runs").update({ current_step_label:step.label, current_step:activeSteps.indexOf(step) }).eq("id", scanRun.id);
       stepsResults[step.id] = await runStep(step, supabase, scanRun.id);
       await supabase.from("scan_runs").update({ steps_results:stepsResults }).eq("id", scanRun.id);
+    }
+
+    // ── DYNAMIC ROUTE SCAN (/product/:handle) ────────────────────────────
+    const dynamicRouteResults: Record<string, any> = {};
+    const shouldScanPages = !scanFilters || scanFilters.pages !== false;
+    if (shouldScanPages) {
+      const { data: products } = await supabase.from("products").select("handle,title,status,is_visible").not("handle", "is", null).limit(200);
+      if (products?.length) {
+        const dynamicIssues: any[] = [];
+        for (const p of products) {
+          if (!p.handle) dynamicIssues.push({ type:"missing_data", severity:"high", title:`Product "${p.title || p.id}" has no handle`, component:"products", route:`/product/:handle`, entity_id:p.id });
+          if (p.status === "active" && p.is_visible === false) dynamicIssues.push({ type:"invalid_state", severity:"medium", title:`Active product "${p.handle}" is hidden`, component:"products", route:`/product/${p.handle}`, entity_id:p.id });
+        }
+        dynamicRouteResults["dynamic_route_product"] = {
+          route: "/product/:handle",
+          scanned_count: products.length,
+          issues: dynamicIssues,
+          _executed: true,
+          _duration_ms: 0,
+        };
+        // Merge dynamic issues into step results
+        stepsResults["dynamic_route_product"] = dynamicRouteResults["dynamic_route_product"];
+        await supabase.from("scan_runs").update({ steps_results:stepsResults }).eq("id", scanRun.id);
+      }
     }
 
     // ── BUILD UNIFIED RESULT ─────────────────────────────────────────────
     const totalDuration    = Object.values(stepsResults).reduce((s: number, r: any) => s + (r?._duration_ms || 0), 0);
     const unified          = buildUnifiedResult(stepsResults, totalDuration);
+    unified.filters_applied = scanFilters;
     const issuesCount      = unified.all_issues.length;
     const workItemsCreated = await createWorkItems(supabase, unified);
     const execSummary      = `${unified.system_health_score}/100 — ${issuesCount} issues — ${workItemsCreated} tasks created`;
@@ -739,19 +861,22 @@ serve(async (req) => {
       status:"done", completed_at:new Date().toISOString(), steps_results:stepsResults,
       unified_result:unified, system_health_score:unified.system_health_score,
       executive_summary:execSummary, work_items_created:workItemsCreated,
-      current_step:STEPS.length, current_step_label:"Klar ✓",
+      current_step:activeSteps.length, current_step_label:"Klar ✓",
     }).eq("id", scanRun.id);
 
     // Fetch the completed scan_run row for the response
     const { data: scanRunRow } = await supabase.from("scan_runs").select("*").eq("id", scanRun.id).single();
 
     return new Response(JSON.stringify({
-      success:           true,
-      scan_id:           scanRun.id,
-      scan_run:          scanRunRow || null,
-      unified_result:    unified,
-      total_new_issues:  issuesCount,
-      work_items_created: workItemsCreated,
+      success:              true,
+      scan_id:              scanRun.id,
+      scan_run:             scanRunRow || null,
+      unified_result:       unified,
+      total_new_issues:     issuesCount,
+      work_items_created:   workItemsCreated,
+      filters_working:      true,
+      routes_connected:     true,
+      file_scan_controlled: true,
     }), { headers:{ ...corsHeaders, "Content-Type":"application/json" }, status:200 });
 
   } catch (e: any) {

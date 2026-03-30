@@ -159,6 +159,30 @@ const RuntimeTraceSection = ({ traceId }: { traceId?: string }) => {
   );
 };
 
+// ── SCAN FILTERS ─────────────────────────────────────────────────────────
+type ScanFilters = {
+  pages?: boolean;
+  api?: boolean;
+  components?: boolean;
+  errors?: boolean;
+  links?: boolean;
+};
+
+// ── APP ROUTES ─────────────────────────────────────────────────────────────
+const APP_ROUTES = [
+  { path: "/",                  label: "Home",              dynamic: false },
+  { path: "/produkter",         label: "Products",          dynamic: false },
+  { path: "/product/:handle",   label: "Product Detail",    dynamic: true  },
+  { path: "/about",             label: "About",             dynamic: false },
+  { path: "/contact",           label: "Contact",           dynamic: false },
+  { path: "/checkout",          label: "Checkout",          dynamic: false },
+  { path: "/order/:id",         label: "Order Detail",      dynamic: true  },
+  { path: "/profile",           label: "Member Profile",    dynamic: false },
+  { path: "/affiliate",         label: "Affiliate",         dynamic: false },
+  { path: "/admin",             label: "Admin",             dynamic: false },
+  { path: "/admin/system-explorer", label: "System Explorer", dynamic: false },
+];
+
 const SystemExplorer = () => {
   const queryClient = useQueryClient();
   const { isAdmin, isLoading: adminLoading } = useAdminRole();
@@ -195,6 +219,14 @@ const SystemExplorer = () => {
   const [lastAction, setLastAction] = useState("");
   const [actionLogs, setActionLogs] = useState<{ time: string; [key: string]: any }[]>([]);
   const [globalIssues, setGlobalIssues] = useState<{ type: string; message: string; file: string }[]>([]);
+  // ── Scan Filters ──────────────────────────────────────────────────────────
+  const [scanFilters, setScanFilters] = useState<ScanFilters>({ pages: true, api: true, components: true, errors: true, links: true });
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [selectedRoutes, setSelectedRoutes] = useState<string[]>([]);
+  // ── File Scan Options ────────────────────────────────────────────────────
+  const [fileScanInclude, setFileScanInclude] = useState("src/pages");
+  const [fileScanExclude, setFileScanExclude] = useState("node_modules");
+  const [fileScanKeywords, setFileScanKeywords] = useState("error,undefined");
 
   function logAction(action: Record<string, any>) {
     console.log("🟢 ACTION:", action);
@@ -1111,13 +1143,17 @@ const SystemExplorer = () => {
           {isSystemAdmin && <Badge className="bg-primary/10 text-primary text-[10px]"><Shield className="h-3 w-3 mr-1" />SYSTEM ADMIN</Badge>}
           {isViewerAdmin && <Badge variant="secondary" className="text-[10px]"><Lock className="h-3 w-3 mr-1" />VIEWER</Badge>}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing}>
             <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
             Refresh
           </Button>
           {isSystemAdmin && (
             <>
+            <Button variant="outline" size="sm" onClick={() => setShowFilterPanel(p => !p)}>
+              <Filter className="h-4 w-4 mr-1" />
+              Filters {Object.values(scanFilters).filter(v => v === false).length > 0 ? `(${Object.values(scanFilters).filter(v => v === false).length} off)` : ""}
+            </Button>
             <Button variant="default" size="sm" onClick={() =>
               validateAction("FULL_SCAN", async () => {
                 const structure_map = Object.keys(getRawSources() || {});
@@ -1136,7 +1172,13 @@ const SystemExplorer = () => {
                 }, 2000);
                 try {
                   await supabase.functions.invoke("run-full-scan", {
-                    body: { action: "start", scan_mode: "full", structure_map: structure_map.map(p => ({ path: p })) }
+                    body: {
+                      action: "start",
+                      scan_mode: Object.values(scanFilters).some(v => v === false) ? "filtered" : "full",
+                      structure_map: structure_map.map(p => ({ path: p })),
+                      filters: scanFilters,
+                      routes: selectedRoutes.length ? selectedRoutes : APP_ROUTES.map(r => r.path),
+                    }
                   });
                 } finally {
                   clearInterval(pollInterval);
@@ -1169,6 +1211,68 @@ const SystemExplorer = () => {
              </Button>
            )}
         </div>
+
+        {/* FILTER PANEL */}
+        {isSystemAdmin && showFilterPanel && (
+          <div className="border border-border rounded-md p-3 space-y-3 bg-muted/20">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-foreground flex items-center gap-1"><Filter className="h-3 w-3" /> Scan Filters</span>
+              <button onClick={() => setScanFilters({ pages: true, api: true, components: true, errors: true, links: true })} className="text-[9px] text-muted-foreground hover:text-foreground">Reset all</button>
+            </div>
+            {/* Filter toggles */}
+            <div className="flex flex-wrap gap-2">
+              {(Object.keys(scanFilters) as (keyof ScanFilters)[]).map(key => (
+                <button
+                  key={key}
+                  onClick={() => setScanFilters(prev => ({ ...prev, [key]: !prev[key] }))}
+                  className={`px-2.5 py-1 text-[10px] rounded-md border font-medium transition-colors ${scanFilters[key] !== false ? "bg-primary/10 text-primary border-primary/30" : "bg-muted/30 text-muted-foreground border-border"}`}
+                >
+                  {key}
+                  <span className="ml-1">{scanFilters[key] !== false ? "✓" : "✗"}</span>
+                </button>
+              ))}
+            </div>
+            {/* Route selector */}
+            <div className="space-y-1">
+              <span className="text-[10px] text-muted-foreground font-medium">Routes</span>
+              <div className="flex flex-wrap gap-1 max-h-28 overflow-y-auto">
+                {APP_ROUTES.map(route => {
+                  const selected = selectedRoutes.length === 0 || selectedRoutes.includes(route.path);
+                  return (
+                    <button
+                      key={route.path}
+                      onClick={() => setSelectedRoutes(prev => {
+                        if (prev.length === 0) return APP_ROUTES.map(r => r.path).filter(p => p !== route.path);
+                        return prev.includes(route.path) ? prev.filter(p => p !== route.path) : [...prev, route.path];
+                      })}
+                      className={`px-2 py-0.5 text-[9px] rounded border font-mono transition-colors ${selected ? "bg-primary/10 text-primary border-primary/30" : "bg-muted/30 text-muted-foreground border-border line-through"}`}
+                    >
+                      {route.path}{route.dynamic ? " *" : ""}
+                    </button>
+                  );
+                })}
+              </div>
+              {selectedRoutes.length > 0 && (
+                <button onClick={() => setSelectedRoutes([])} className="text-[9px] text-muted-foreground hover:text-foreground">Select all routes</button>
+              )}
+            </div>
+            {/* File scan options */}
+            <div className="grid grid-cols-3 gap-2">
+              <div className="space-y-1">
+                <label className="text-[9px] text-muted-foreground">Include paths</label>
+                <Input value={fileScanInclude} onChange={e => setFileScanInclude(e.target.value)} placeholder="src/pages" className="h-6 text-[9px]" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[9px] text-muted-foreground">Exclude paths</label>
+                <Input value={fileScanExclude} onChange={e => setFileScanExclude(e.target.value)} placeholder="node_modules" className="h-6 text-[9px]" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[9px] text-muted-foreground">Keywords</label>
+                <Input value={fileScanKeywords} onChange={e => setFileScanKeywords(e.target.value)} placeholder="error,undefined" className="h-6 text-[9px]" />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* TAB BAR */}
         <div className="flex gap-1 border-b border-border">
