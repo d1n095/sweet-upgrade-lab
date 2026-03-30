@@ -109,6 +109,61 @@ const EmployeeDashboard = () => {
       },
       reviews: { empty: 'Keine ausstehenden Bewertungen', approve: 'Genehmigen', reject: 'Ablehnen', approved: 'Genehmigt!', rejected: 'Abgelehnt' }
     },
+    fi: {
+      title: 'Tukipaneeli',
+      subtitle: 'Hallinnoi tilauksia ja arvosteluja',
+      tabs: { orders: 'Tilaukset', reviews: 'Odottavat arvostelut' },
+      orders: {
+        search: 'Hae tilausnumeroa tai sähköpostia...',
+        empty: 'Tilauksia ei löydy',
+        status: { pending: 'Odottaa', processing: 'Käsitellään', shipped: 'Lähetetty', delivered: 'Toimitettu', cancelled: 'Peruutettu' }
+      },
+      reviews: { empty: 'Ei odottavia arvosteluja', approve: 'Hyväksy', reject: 'Hylkää', approved: 'Hyväksytty!', rejected: 'Hylätty' }
+    },
+    nl: {
+      title: 'Ondersteuningspaneel',
+      subtitle: 'Beheer bestellingen en beoordelingen',
+      tabs: { orders: 'Bestellingen', reviews: 'Openstaande beoordelingen' },
+      orders: {
+        search: 'Zoek bestelnummer of e-mail...',
+        empty: 'Geen bestellingen gevonden',
+        status: { pending: 'In behandeling', processing: 'Verwerken', shipped: 'Verzonden', delivered: 'Geleverd', cancelled: 'Geannuleerd' }
+      },
+      reviews: { empty: 'Geen openstaande beoordelingen', approve: 'Goedkeuren', reject: 'Afwijzen', approved: 'Goedgekeurd!', rejected: 'Afgewezen' }
+    },
+    fr: {
+      title: 'Panneau de support',
+      subtitle: 'Gérer les commandes et les avis',
+      tabs: { orders: 'Commandes', reviews: 'Avis en attente' },
+      orders: {
+        search: 'Rechercher numéro de commande ou e-mail...',
+        empty: 'Aucune commande trouvée',
+        status: { pending: 'En attente', processing: 'En cours', shipped: 'Expédié', delivered: 'Livré', cancelled: 'Annulé' }
+      },
+      reviews: { empty: 'Aucun avis en attente', approve: 'Approuver', reject: 'Rejeter', approved: 'Approuvé !', rejected: 'Rejeté' }
+    },
+    es: {
+      title: 'Panel de soporte',
+      subtitle: 'Gestionar pedidos y reseñas',
+      tabs: { orders: 'Pedidos', reviews: 'Reseñas pendientes' },
+      orders: {
+        search: 'Buscar número de pedido o correo...',
+        empty: 'No se encontraron pedidos',
+        status: { pending: 'Pendiente', processing: 'Procesando', shipped: 'Enviado', delivered: 'Entregado', cancelled: 'Cancelado' }
+      },
+      reviews: { empty: 'No hay reseñas pendientes', approve: 'Aprobar', reject: 'Rechazar', approved: '¡Aprobado!', rejected: 'Rechazado' }
+    },
+    pl: {
+      title: 'Panel wsparcia',
+      subtitle: 'Zarządzaj zamówieniami i recenzjami',
+      tabs: { orders: 'Zamówienia', reviews: 'Oczekujące recenzje' },
+      orders: {
+        search: 'Szukaj numeru zamówienia lub e-maila...',
+        empty: 'Nie znaleziono zamówień',
+        status: { pending: 'Oczekuje', processing: 'Przetwarzanie', shipped: 'Wysłane', delivered: 'Dostarczone', cancelled: 'Anulowane' }
+      },
+      reviews: { empty: 'Brak oczekujących recenzji', approve: 'Zatwierdź', reject: 'Odrzuć', approved: 'Zatwierdzone!', rejected: 'Odrzucone' }
+    },
   };
 
   const t = content[language as keyof typeof content] || content.en;
