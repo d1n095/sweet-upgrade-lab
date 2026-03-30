@@ -20,5 +20,5 @@ export const triggerAiReviewForWorkItem = async (
   console.info('[ai-review] trigger', { workItemId, context });
 
   console.log("[PIPELINE] AI DISABLED — workItemAiReview skipping ai-review-fix call");
-  return { ok: true, status: 'verified', review: { ai_summary: "AI disabled", ai_suggestions: [] } };
+  return { ok: true, status: 'verified' };
 };

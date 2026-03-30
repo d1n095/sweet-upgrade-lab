@@ -398,113 +398,29 @@ function parseTags(value: string): string[] {
 // ─── AI Content Generator ───
 function AiContentGenerator({
   language,
-  formData,
-  setFormData,
 }: {
   language: string;
   formData: ProductFormData;
   setFormData: React.Dispatch<React.SetStateAction<ProductFormData>>;
 }) {
-  const [generating, setGenerating] = React.useState(false);
   const sv = language === 'sv';
-
-  const handleGenerate = async () => {
-    if (!formData.title.trim()) {
-      toast.error(sv ? 'Ange ett produktnamn först' : 'Enter a product name first');
-      return;
-    }
-    setGenerating(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('generate-product-content', {
-        body: {
-          productName: formData.title,
-          category: formData.productType || null,
-          ingredients: formData.ingredients || null,
-          existingData: {
-            description: formData.description,
-            feeling: formData.feeling,
-            effects: formData.effects,
-            usage: formData.usage,
-            shelfLife: formData.shelfLife,
-            material: formData.material,
-            specialEffects: formData.specialEffects,
-            usageArea: formData.usageArea,
-            usageSteps: [formData.usageStep1, formData.usageStep2, formData.usageStep3].filter(Boolean),
-            isConcentrate: formData.isConcentrate,
-          },
-          language: sv ? 'sv' : 'en',
-        },
-      });
-
-      if (error) throw error;
-      const content = data?.content;
-      if (!content) throw new Error('No content returned');
-
-      // Build hook + description combo
-      const hookLine = content.hook ? content.hook : '';
-      const descWithHook = hookLine
-        ? `${hookLine}\n\n${content.description || ''}`
-        : (content.description || '');
-
-      // Build extended description with trust + upsell
-      let extDesc = content.extended_description || '';
-      if (content.trust_badges) {
-        extDesc += `\n\n🛡️ ${content.trust_badges}`;
-      }
-      if (content.upsell_text) {
-        extDesc += `\n\n💡 ${content.upsell_text}`;
-      }
-
-      setFormData(prev => ({
-        ...prev,
-        description: prev.description || descWithHook,
-        extendedDescription: prev.extendedDescription || extDesc,
-        effects: prev.effects || content.effects || '',
-        feeling: prev.feeling || content.feeling || '',
-        usage: prev.usage || content.usage || '',
-        hook: prev.hook || content.hook || '',
-        dosage: prev.dosage || content.dosage || '',
-        variants: prev.variants || content.variants || '',
-        storage: prev.storage || content.storage || '',
-        safety: prev.safety || content.safety || '',
-        specifications: prev.specifications || (typeof content.specifications === 'object' ? JSON.stringify(content.specifications) : content.specifications || ''),
-        metaTitle: prev.metaTitle || content.seo_title || '',
-        metaDescription: prev.metaDescription || content.meta_description || '',
-        metaKeywords: prev.metaKeywords || content.meta_keywords || '',
-      }));
-
-      toast.success(sv ? 'Innehåll genererat! Redigera efter behov.' : 'Content generated! Edit as needed.');
-    } catch (err: any) {
-      console.error('AI generation failed:', err);
-      toast.error(sv ? 'Kunde inte generera innehåll' : 'Failed to generate content');
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  const hasEmptyFields = !formData.description || !formData.extendedDescription || !formData.effects || !formData.feeling || !formData.usage;
 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-          {sv ? '🤖 AI-assistent' : '🤖 AI Assistant'}
+          {sv ? 'Innehållsassistent' : 'Content Assistant'}
         </p>
-        {hasEmptyFields && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="gap-1.5 text-xs h-7"
-            onClick={handleGenerate}
-            disabled={generating || !formData.title.trim()}
-          >
-            {generating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
-            {generating
-              ? (sv ? 'Genererar...' : 'Generating...')
-              : (sv ? 'Generera innehåll med AI' : 'Generate content with AI')}
-          </Button>
-        )}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="gap-1.5 text-xs h-7"
+          disabled
+        >
+          <Wand2 className="w-3 h-3" />
+          {sv ? 'Generera innehåll (ej tillgänglig)' : 'Generate content (unavailable)'}
+        </Button>
       </div>
       <p className="text-xs text-muted-foreground">
         {sv
@@ -518,58 +434,12 @@ function AiContentGenerator({
 // ─── AI Metadata Suggestor (auto-categorize) ───
 function AiMetadataSuggestor({
   language,
-  formData,
-  setFormData,
 }: {
   language: string;
   formData: ProductFormData;
   setFormData: React.Dispatch<React.SetStateAction<ProductFormData>>;
 }) {
-  const [suggesting, setSuggesting] = React.useState(false);
   const sv = language === 'sv';
-
-  const handleSuggest = async () => {
-    if (!formData.title.trim()) {
-      toast.error(sv ? 'Ange ett produktnamn först' : 'Enter a product name first');
-      return;
-    }
-    setSuggesting(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('suggest-product-metadata', {
-        body: {
-          productName: formData.title,
-          description: formData.description || null,
-          ingredients: formData.ingredients || null,
-        },
-      });
-
-      if (error) throw error;
-      const s = data?.suggestions;
-      if (!s) throw new Error('No suggestions returned');
-
-      setFormData(prev => ({
-        ...prev,
-        categoryIds: s.categoryIds?.length ? s.categoryIds : prev.categoryIds,
-        tagIds: s.tagIds?.length ? s.tagIds : prev.tagIds,
-      }));
-
-      const newTagNames = s.suggestedNewTags || [];
-      if (newTagNames.length > 0) {
-        toast.info(
-          sv
-            ? `AI föreslår nya taggar: ${newTagNames.join(', ')}`
-            : `AI suggests new tags: ${newTagNames.join(', ')}`
-        );
-      }
-
-      toast.success(sv ? 'Kategorier & taggar föreslagna!' : 'Categories & tags suggested!');
-    } catch (err: any) {
-      console.error('AI suggest failed:', err);
-      toast.error(sv ? 'Kunde inte hämta förslag' : 'Failed to get suggestions');
-    } finally {
-      setSuggesting(false);
-    }
-  };
 
   return (
     <Button
@@ -577,13 +447,10 @@ function AiMetadataSuggestor({
       variant="outline"
       size="sm"
       className="gap-1.5 text-xs h-7 w-full"
-      onClick={handleSuggest}
-      disabled={suggesting || !formData.title.trim()}
+      disabled
     >
-      {suggesting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-      {suggesting
-        ? (sv ? 'Analyserar...' : 'Analyzing...')
-        : (sv ? '🤖 Föreslå kategorier & taggar med AI' : '🤖 Suggest categories & tags with AI')}
+      <Sparkles className="w-3 h-3" />
+      {sv ? 'Föreslå kategorier & taggar (ej tillgänglig)' : 'Suggest categories & tags (unavailable)'}
     </Button>
   );
 }

@@ -6571,13 +6571,8 @@ const AiUserManagementTab = () => {
   };
 
   const analyzeUsers = async () => {
-    setAnalyzing(true);
-    try {
-      const data = await callMgmt({ action: 'ai_analyze' });
-      if (data) setRecommendations(data);
-      toast.success(`AI-analys klar: ${data?.recommendations?.length || 0} rekommendationer`);
-    } catch (e: any) { toast.error(e.message); }
-    setAnalyzing(false);
+    console.warn('[AdminAI] AI analys inaktiverad — ai_analyze blockerad');
+    toast.info('AI-analys är inaktiverad');
   };
 
   const assignRole = async (userId: string, role: string) => {
