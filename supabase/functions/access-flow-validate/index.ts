@@ -348,6 +348,51 @@ serve(async (req) => {
       }
     }
 
+    // ── RULE: staff DELETE on sensitive module → CRITICAL (privilege escalation) ──
+    // IF a staff role has DELETE on orders/users/finance
+    // THEN severity = "critical", type = "privilege_escalation"
+    for (const test of tests) {
+      if (
+        !test.passed &&
+        test.category === "api" &&
+        /^(orders|users|finance):DELETE$/.test(test.target)
+      ) {
+        test.risk = "critical";
+        test.severity = "critical";
+        test.type = "privilege_escalation";
+      }
+    }
+
+    // ── RULE: orphaned role entries → CRITICAL (abandoned access) ──
+    // IF roles exist for a user not in auth.users (deleted account)
+    // THEN severity = "critical", type = "orphan_role"
+    for (const test of tests) {
+      if (
+        !test.passed &&
+        test.category === "rls" &&
+        test.detail.includes("borttagen användare")
+      ) {
+        test.risk = "critical";
+        test.severity = "critical";
+        test.type = "orphan_role";
+      }
+    }
+
+    // ── RULE: cross-role segregation violation → HIGH ──
+    // IF finance + warehouse are assigned to the same user (segregation of duties)
+    // THEN severity = "high", type = "segregation_violation"
+    for (const test of tests) {
+      if (
+        !test.passed &&
+        test.category === "api" &&
+        test.detail.includes("finance + warehouse")
+      ) {
+        test.risk = "high";
+        test.severity = "high";
+        test.type = "segregation_violation";
+      }
+    }
+
     // Sort: failures first, then by risk
     const riskOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
     tests.sort((a, b) => {
