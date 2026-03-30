@@ -2082,25 +2082,32 @@ const SystemScanTab = () => {
   const runScan = async () => {
     setLoading(true);
     const res = await callAI('system_scan');
-    if (res) {
-      setScanResult(res);
-      // Persist to DB
-      const { data: { session } } = await supabase.auth.getSession();
-      const { data: scanRow } = await supabase.from('ai_scan_results' as any).insert({
-        scan_type: 'system_scan',
-        results: res,
-        overall_score: res.system_score || null,
-        overall_status: res.system_score >= 70 ? 'healthy' : res.system_score >= 40 ? 'warning' : 'critical',
-        executive_summary: res.executive_summary || null,
-        issues_count: res.issues_found || 0,
-        tasks_created: res.tasks_created || 0,
-        scanned_by: session?.user?.id || null,
-      } as any).select('id').single();
-      const savedScanId = (scanRow as any)?.id || null;
-      setCurrentScanId(savedScanId);
-      logChange({ change_type: 'scan', description: `Systemskanning klar — poäng: ${res.system_score || '?'}, ${res.issues_found || 0} problem`, source: 'ai', affected_components: ['system_scan'], scan_id: savedScanId });
-      queryClient.invalidateQueries({ queryKey: ['last-scan-result'] });
-      queryClient.invalidateQueries({ queryKey: ['scan-history'] });
+    if (res?.success && res?.scan_id) {
+      setCurrentScanId(res.scan_id);
+      // Poll for completion
+      const pollForResult = async () => {
+        for (let i = 0; i < 60; i++) {
+          await new Promise(r => setTimeout(r, 5000));
+          const { data: scanRun } = await supabase.from('scan_runs' as any).select('status, unified_result, system_health_score, work_items_created').eq('id', res.scan_id).maybeSingle();
+          if (!scanRun) continue;
+          if ((scanRun as any).status === 'done') {
+            const unified = (scanRun as any).unified_result;
+            if (unified) {
+              setScanResult({ ...unified, system_score: (scanRun as any).system_health_score });
+            }
+            queryClient.invalidateQueries({ queryKey: ['last-scan-result'] });
+            queryClient.invalidateQueries({ queryKey: ['scan-history'] });
+            queryClient.invalidateQueries({ queryKey: ['scan-work-items'] });
+            toast.success(`Skanning klar — ${(scanRun as any).system_health_score || 0}/100`);
+            break;
+          }
+          if ((scanRun as any).status === 'error') {
+            toast.error('Skanning misslyckades');
+            break;
+          }
+        }
+      };
+      pollForResult();
     }
     setLoading(false);
   };
