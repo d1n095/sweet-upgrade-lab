@@ -681,37 +681,67 @@ function classifyIssueType(issue: any, category: string): "bug" | "improvement" 
   return "bug";
 }
 
-// ── CREATE WORK ITEMS ────────────────────────────────────────────────────
-async function createWorkItems(supabase: any, unified: any): Promise<number> {
-  let created = 0;
-  const allIssues: any[] = [
-    ...groupSimilarIssues(unified.broken_flows        || []).slice(0, 15).map((i: any) => ({ ...i, _category:"broken_flows" })),
-    ...groupSimilarIssues(unified.fake_features       || []).slice(0, 10).map((i: any) => ({ ...i, _category:"fake_features" })),
-    ...groupSimilarIssues(unified.interaction_failures || []).slice(0, 15).map((i: any) => ({ ...i, _category:"interaction_failures" })),
-    ...groupSimilarIssues(unified.data_issues         || []).slice(0, 20).map((i: any) => ({ ...i, _category:"data_issues" })),
-  ];
+// ── PRIORITY MAPPING ─────────────────────────────────────────────────────
+function mapPriority(severity: string): string {
+  if (severity === "critical") return "P0";
+  if (severity === "high")     return "P1";
+  if (severity === "medium")   return "P2";
+  return "P3";
+}
 
-  for (const issue of allIssues) {
-    const fp    = generateFingerprint(issue);
-    const title = (issue.title || issue.description || "Unknown issue").slice(0, 120).trim();
+// ── CREATE WORK ITEMS ────────────────────────────────────────────────────
+// Phase 1: source of truth = unified_result.issues (all_issues)
+// Phase 3: dedup by fingerprint OR title+category within 24h
+// Phase 4: priority mapping critical→P0 high→P1 medium→P2 low→P3
+// Phase 5: source_type="scan", source_id=scanRunId
+async function createWorkItems(supabase: any, unified: any, scanRunId: string): Promise<number> {
+  let created = 0;
+  const issues: any[] = unified.all_issues || [];
+  const cutoff = new Date(Date.now() - DEDUP_WINDOW_MS).toISOString();
+
+  for (const issue of issues) {
+    const title    = (issue.title || issue.description || "Unknown issue").slice(0, 120).trim();
     if (!title) continue;
-    const { data: existing } = await supabase.from("work_items").select("id,created_at")
-      .eq("issue_fingerprint",fp).in("status",["open","claimed","in_progress","escalated","new","pending","detected"]).limit(1);
-    if (existing?.length) {
-      if (Date.now() - new Date(existing[0].created_at).getTime() <= DEDUP_WINDOW_MS) {
-        await supabase.from("work_items").update({ last_seen_at:new Date().toISOString() }).eq("id",existing[0].id);
-        continue;
-      }
+    const category = issue.category || issue._category || issue.type || "general";
+    const severity = issue.severity || "medium";
+    const fp       = generateFingerprint(issue);
+    const item_type = classifyIssueType(issue, category);
+
+    // Phase 3 — dedup: fingerprint match within 24h
+    const { data: byFp } = await supabase.from("work_items")
+      .select("id").eq("issue_fingerprint", fp).gte("created_at", cutoff).limit(1);
+    if (byFp?.length) {
+      await supabase.from("work_items").update({ last_seen_at: new Date().toISOString() }).eq("id", byFp[0].id);
+      continue;
     }
-    const priority  = issue.severity === "critical" ? "critical" : issue.severity === "high" ? "high" : "medium";
-    const item_type = classifyIssueType(issue, issue._category || "");
-    const now       = new Date().toISOString();
+
+    // Phase 3 — dedup: title + category match within 24h
+    const { data: byTitle } = await supabase.from("work_items")
+      .select("id").eq("title", title).eq("item_type", item_type).gte("created_at", cutoff).limit(1);
+    if (byTitle?.length) {
+      await supabase.from("work_items").update({ last_seen_at: new Date().toISOString() }).eq("id", byTitle[0].id);
+      continue;
+    }
+
+    // Phase 4 — priority mapping
+    const priority = mapPriority(severity);
+    const now = new Date().toISOString();
+
+    // Phase 2 + 5 — insert with source_scan_id linkage
     const { error } = await supabase.from("work_items").insert({
-      title, description:issue.description || issue.fix_suggestion || "Auto-generated from scan",
-      status:"open", priority, item_type, source_type:"ai_scan",
-      ai_detected:true, issue_fingerprint:fp, first_seen_at:now, last_seen_at:now,
+      title,
+      description:     issue.description || "Auto-generated from scan",
+      status:          "open",
+      priority,
+      item_type,
+      source_type:     "scan",
+      source_id:       scanRunId,
+      ai_detected:     true,
+      issue_fingerprint: fp,
+      first_seen_at:   now,
+      last_seen_at:    now,
     });
-    if (!error) { created++; console.log(`[create-work-item] created: "${title.slice(0,60)}"`); }
+    if (!error) { created++; console.log(`[create-work-item] created: "${title.slice(0, 60)}"`); }
   }
   return created;
 }
@@ -857,7 +887,7 @@ serve(async (req) => {
     const unified          = buildUnifiedResult(stepsResults, totalDuration, routesActuallyScanned);
     unified.filters_applied = scanFilters;
     const issuesCount      = unified.all_issues.length;
-    const workItemsCreated = await createWorkItems(supabase, unified);
+    const workItemsCreated = await createWorkItems(supabase, unified, scanRun.id);
     const execSummary      = `${unified.system_health_score}/100 — ${issuesCount} issues — ${workItemsCreated} tasks created`;
     console.log("[SCAN DONE]", execSummary);
 
@@ -866,6 +896,7 @@ serve(async (req) => {
       status:"done", completed_at:new Date().toISOString(), steps_results:stepsResults,
       unified_result:unified, system_health_score:unified.system_health_score,
       executive_summary:execSummary, work_items_created:workItemsCreated,
+      total_new_issues:issuesCount,
       current_step:activeSteps.length, current_step_label:"Klar ✓",
     }).eq("id", scanRun.id);
 
