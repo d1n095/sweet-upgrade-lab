@@ -186,7 +186,6 @@ const SystemExplorer = () => {
   const [showBackendRaw, setShowBackendRaw] = useState(false);
   const [fileScanResult, setFileScanResult] = useState<{ total: number; emptyFiles: number; largeFiles: number } | null>(null);
   const [codeScanResult, setCodeScanResult] = useState<{ type: string; message: string; file: string }[] | null>(null);
-  const [scanProgress, setScanProgress] = useState<{ step: number; total: number; label: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<{ path: string; lineNumber: number; line: string }[]>([]);
   const [lastAction, setLastAction] = useState("");
@@ -194,12 +193,9 @@ const SystemExplorer = () => {
   const [globalIssues, setGlobalIssues] = useState<{ type: string; message: string; file: string }[]>([]);
 
   function logAction(action: Record<string, any>) {
-    console.log("🟢 ACTION:", action);
     setActionLogs(prev => [
       {
         time: new Date().toISOString(),
-        type: "TEST_ACTION",
-        message: JSON.stringify(action),
         timestamp: Date.now(),
         ...action
       },
@@ -208,12 +204,7 @@ const SystemExplorer = () => {
   }
   useEffect(() => {
     const rawSources = getRawSources();
-    if (!rawSources) {
-      console.warn("❌ NO rawSources — cannot scan");
-      return;
-    }
-    console.log("📦 RAW SOURCES:", Object.keys(rawSources).length);
-    console.log("🔍 AUTO SCAN START");
+    if (!rawSources) return;
     const allIssues: { type: string; message: string; file: string }[] = [];
     Object.entries(rawSources).forEach(([path, content]) => {
       if (!content) {
@@ -230,14 +221,12 @@ const SystemExplorer = () => {
         allIssues.push({ type: "structure", message: "file nearly empty", file: path });
       }
     });
-    console.log("🚨 AUTO SCAN FOUND:", allIssues.length);
     setCodeScanResult(allIssues);
     setGlobalIssues(allIssues);
   }, []);
 
   useEffect(() => {
     if (lastScan === null) return;
-    console.log("🔄 UI REFRESH TRIGGERED");
     handleRefresh();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastScan]);
@@ -294,12 +283,10 @@ const SystemExplorer = () => {
           const issues = scanFileContent(path, content as string);
           results.push(...issues);
         });
-        console.log("[FILE ISSUES FOUND]:", results.length);
         setCodeScanResult(results);
         logAction({ type: "SCAN", status: "success", mode });
       }
       if (mode === "full") {
-        console.log("[FULL SCAN TRIGGERED]");
         await tracedInvoke("run-full-scan", {
           body: { action: "start", scan_mode: "full" },
         });
@@ -529,47 +516,30 @@ const SystemExplorer = () => {
   };
 
   const handleRunFullScan = async () => {
-    console.log("[SCAN TRIGGERED]");
     setIsScanning(true);
-    
     try {
       const before = await supabase.from("work_items").select("id");
       const beforeCount = before.data?.length || 0;
       logAction({ type: "Full Scan", status: "started" });
-      console.log("🚀 STARTING FULL SCAN");
-      const structure_map = Object.keys(getRawSources() || {}).map(path => ({
-        path
-      }));
-      console.log("[SENDING STRUCTURE MAP]:", structure_map.length);
+      const structure_map = Object.keys(getRawSources() || {}).map(path => ({ path }));
       const res = await tracedInvoke("run-full-scan", {
         body: { action: "start", scan_mode: "full", structure_map },
       });
-      console.log("📡 RESPONSE:", res);
       const verify = await verifyWorkItemsCreated(beforeCount);
       if (verify.created === 0) {
-        logAction({
-          type: "Full Scan",
-          status: "no-effect",
-          message: "Scan ran but created 0 work_items ❌"
-        });
+        logAction({ type: "Full Scan", status: "no-effect", message: "Scan ran but created 0 work_items" });
       } else {
-        logAction({
-          type: "Full Scan",
-          status: "verified",
-          message: `Created ${verify.created} work_items ✔`
-        });
+        logAction({ type: "Full Scan", status: "verified", message: `Created ${verify.created} work_items` });
       }
-      console.log("[DEBUG] FULL SCAN RESPONSE:", res);
       const json = res?.data ?? res;
-      console.log("[DEBUG] FULL SCAN JSON:", json);
       if (json?.success === false) {
-        console.error("[DEBUG] FULL SCAN ERROR:", json?.error);
+        logAction({ type: "Full Scan", status: "error", message: json?.error });
       }
       await handleRefresh();
     } catch (err) {
-      console.error("[FULL SCAN UI ERROR]:", err);
+      console.error("[Full Scan error]:", err);
+      logAction({ type: "Full Scan", status: "error", message: (err as any)?.message });
     } finally {
-      
       setIsScanning(false);
     }
   };
@@ -1099,7 +1069,6 @@ const SystemExplorer = () => {
     setAiAnswer(null);
     try {
       // ── HARD BLOCK: direct ai-assistant calls are disabled ──────────
-      console.log("[AI COST CALL BLOCKED FROM]: SystemExplorer.tsx — system_explorer_query");
       setAiAnswer('AI_DISABLED: direktanrop till ai-assistant är blockerat. Använd run-full-scan som enda ingångspunkt.');
       // ─────────────────────────────────────────────────────────────────
     } catch (e: any) {
@@ -1141,21 +1110,6 @@ const SystemExplorer = () => {
         {!systemTruth.workItemsCreated && <p className="text-[10px] text-red-500 font-mono">❌ PIPELINE BLOCKED</p>}
         <p className="text-xs text-green-500 font-mono">TEST BUILD OK — Files detected: {fileSystemMap.length}</p>
         <div className="text-[10px] font-mono text-muted-foreground">Last action: {lastAction || "none"}</div>
-
-        <button onClick={() => {
-          console.log("🧪 TEST BUTTON CLICK");
-          setActionLogs(prev => [
-            {
-              time: new Date().toISOString(),
-              type: "MANUAL_TEST",
-              message: "Button clicked",
-              timestamp: Date.now()
-            },
-            ...prev
-          ]);
-        }} className="px-3 py-1 text-xs bg-primary text-primary-foreground rounded">
-          TEST ACTION
-        </button>
 
         {/* Action Monitor */}
         <details className="border border-border rounded-md">
@@ -1246,28 +1200,14 @@ const SystemExplorer = () => {
           </Button>
           {isSystemAdmin && (
             <>
-            <Button variant="default" size="sm" onClick={() => {
-              console.log("🧪 BUTTON CLICK: FULL_SCAN");
-              handleRunFullScan();
-            }} disabled={isScanning}>
+            <Button variant="default" size="sm" onClick={handleRunFullScan} disabled={isScanning}>
               {isScanning ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Radar className="h-4 w-4 mr-1" />}
-              {isScanning && scanProgress ? `Scanning... (${scanProgress.step}/${scanProgress.total})` : isScanning ? "Scanning..." : "Run Full Scan"}
+              {isScanning ? "Scanning..." : "Run Full Scan"}
             </Button>
-            {isScanning && scanProgress && (
-              <div className="flex items-center gap-2 ml-2">
-                <div className="w-32 h-1.5 bg-muted rounded-full overflow-hidden">
-                  <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${Math.round((scanProgress.step / scanProgress.total) * 100)}%` }} />
-                </div>
-                <span className="text-[9px] text-muted-foreground truncate max-w-[200px]">{scanProgress.label}</span>
-              </div>
-            )}
             </>
           )}
            {isSystemAdmin && (
-             <Button variant="outline" size="sm" onClick={() => {
-               console.log("🧪 BUTTON CLICK: VIEW_RAW_SCAN");
-               setShowRawScan(!showRawScan);
-             }}>
+             <Button variant="outline" size="sm" onClick={() => setShowRawScan(!showRawScan)}>
                <FileText className="h-4 w-4 mr-1" />
                {showRawScan ? "Hide Raw Scan" : "View Raw Scan"}
              </Button>
@@ -1295,9 +1235,6 @@ const SystemExplorer = () => {
 
         {/* BACKEND SCAN TAB */}
         {mainTab === "backendscan" && (() => {
-          if (!latestBackendScan) {
-            console.error("❌ NO BACKEND SCAN FOUND");
-          }
           const r = latestBackendScan?.results as any;
           const latestRun = r;
           return (
@@ -1464,7 +1401,6 @@ const SystemExplorer = () => {
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2"><Layers className="h-4 w-4" /> Code Index ({index.length} files)</CardTitle>
                 <Button variant="outline" size="sm" className="text-[10px] h-6 ml-auto" onClick={() => {
-                  console.log("🧪 BUTTON CLICK: SCAN_CODE");
                   validateAction("SCAN_CODE", () => {
                     const sources = getRawSources() || {};
                     const results: { type: string; message: string; file: string }[] = [];
@@ -1475,7 +1411,6 @@ const SystemExplorer = () => {
                     if (!results || results.length === 0) {
                       throw new Error("Code index empty");
                     }
-                    console.log("[FILE ISSUES FOUND]:", results.length);
                     setCodeScanResult(results);
                     return true;
                   });
@@ -1727,14 +1662,12 @@ const SystemExplorer = () => {
                 </button>
               ))}
               <Button variant="outline" size="sm" className="text-[10px] h-6 ml-auto" onClick={() => {
-                console.log("🧪 BUTTON CLICK: SCAN_FILES");
                 validateAction("SCAN_FILES", () => {
                   const files = Object.keys(getRawSources() || {});
                   if (!files.length) {
                     throw new Error("No files available");
                   }
                   const result = files.length;
-                  console.log("[FILES FOUND]:", result);
                   setFileScanResult({ total: result, emptyFiles: files.filter(f => !getRawSources()[f]?.trim()).length, largeFiles: 0 });
                   return true;
                 });
@@ -2814,6 +2747,7 @@ const SystemExplorer = () => {
                                 <div className="text-center">
                                   <div className="font-bold">{scanner.emptyReason || '–'}</div>
                                   <div className="text-muted-foreground">Empty?</div>
+                                </div>
                               </div>
                               {/* Scan Scope */}
                               {scanner.scanScope && (
@@ -2843,7 +2777,6 @@ const SystemExplorer = () => {
                                     return <div className="font-bold">{scanner.detected} issues / {size} scanned ({ratio}%)</div>;
                                   })()}
                                 </div>
-                              </div>
                               </div>
                               {scannerExpanded && scanner.rawIssues.length > 0 && (
                                 <div className="px-2.5 pb-2 border-t border-border/50 pt-1.5">
@@ -4152,7 +4085,6 @@ const SystemExplorer = () => {
                       const verifyRes = await tracedInvoke("run-full-scan", {
                         body: { action: "start", scan_mode: "targeted", target_area: target, verification_for: selectedItem.id },
                       });
-                      console.log("[DEBUG] VERIFY SCAN RESPONSE:", verifyRes);
                       const scanData = verifyRes?.data ?? verifyRes;
 
                       // 3. Check if issue still found
