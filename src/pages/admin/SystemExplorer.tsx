@@ -1216,7 +1216,7 @@ const SystemExplorer = () => {
            {isSystemAdmin && (
              <Button variant="outline" size="sm" onClick={() => setShowRawScan(!showRawScan)}>
                <FileText className="h-4 w-4 mr-1" />
-               {showRawScan ? "Hide Raw Scan" : "View Raw Scan"}
+               {showRawScan ? "Hide Scan Results" : "View Scan Results"}
              </Button>
            )}
         </div>
@@ -2196,34 +2196,84 @@ const SystemExplorer = () => {
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
                 <FileText className="h-4 w-4" />
-                Raw Scan Results (read-only)
+                Scan Results
               </CardTitle>
             </CardHeader>
             <CardContent>
               {(() => {
                 if (!scanResults) return <p className="text-xs text-muted-foreground">No scan results available</p>;
                 try {
-                  const limited = { ...scanResults };
-                  const allIssues = limited?.issues ?? limited?._create_trace ?? [];
-                  const totalCount = Array.isArray(allIssues) ? allIssues.length : 0;
-                  if (Array.isArray(limited?.issues) && limited.issues.length > 50) {
-                    limited.issues = limited.issues.slice(0, 50);
+                  const allIssues: any[] = scanResults?.issues ?? scanResults?._create_trace ?? [];
+                  const failedTests = allIssues.filter((t: any) => t.status === "failed" || t._filter_decision === "failed" || (t.status !== "passed" && t.status !== "ok" && t.status !== "resolved"));
+                  const displayIssues = failedTests.length > 0 ? failedTests : allIssues;
+                  const totalCount = displayIssues.length;
+
+                  // Group by category
+                  const categoryGroups: Record<string, number> = {};
+                  for (const issue of displayIssues) {
+                    const cat = issue.category || issue.type || issue.source_type || "other";
+                    categoryGroups[cat] = (categoryGroups[cat] || 0) + 1;
                   }
-                  if (Array.isArray(limited?._create_trace) && limited._create_trace.length > 50) {
-                    limited._create_trace = limited._create_trace.slice(0, 50);
-                  }
+                  const apiIssues = (categoryGroups["api"] || 0) + (categoryGroups["api_issues"] || 0);
+                  const routeIssues = (categoryGroups["route"] || 0) + (categoryGroups["route_issues"] || 0);
+
                   return (
-                    <>
-                      {totalCount > 50 && (
-                        <p className="text-[10px] text-muted-foreground mb-2">Showing 50 of {totalCount} issues</p>
+                    <div className="space-y-3">
+                      {/* Summary */}
+                      <div className="rounded-md border border-border bg-muted/20 p-3 space-y-1">
+                        <p className="text-xs font-semibold text-foreground">
+                          {totalCount === 0
+                            ? "✅ No issues found"
+                            : `⚠ ${totalCount} issue${totalCount !== 1 ? "s" : ""} detected`}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">
+                          API Issues: {apiIssues} &nbsp;|&nbsp; Route Issues: {routeIssues}
+                        </p>
+                        {Object.keys(categoryGroups).length > 0 && (
+                          <div className="flex flex-wrap gap-1 pt-1">
+                            {Object.entries(categoryGroups).map(([cat, count]) => (
+                              <span key={cat} className="inline-flex items-center rounded-full border border-border px-2 py-0.5 text-[9px] text-foreground bg-background">
+                                {cat}: {count}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Per-issue human-readable list */}
+                      {totalCount > 0 && (
+                        <div className="max-h-[450px] overflow-y-auto space-y-1.5">
+                          {totalCount > 50 && (
+                            <p className="text-[10px] text-muted-foreground">Showing 50 of {totalCount} issues</p>
+                          )}
+                          {displayIssues.slice(0, 50).map((issue: any, i: number) => {
+                            const title = issue.title || issue.message || issue.description || `Issue #${i + 1}`;
+                            const category = issue.category || issue.type || issue.source_type || "—";
+                            const severity = issue.severity || issue.priority || null;
+                            const where = issue.file || issue.component || issue.element || issue.entity_id || null;
+                            const why = issue._filter_reason || issue.reason || issue.details || null;
+                            const severityColor = severity === "critical" || severity === "high" ? "text-destructive" : severity === "medium" ? "text-yellow-500" : "text-muted-foreground";
+                            return (
+                              <div key={i} className="border border-border rounded-md p-2 bg-muted/10 space-y-0.5">
+                                <div className="flex items-start gap-2">
+                                  <span className="text-destructive mt-0.5 shrink-0">✗</span>
+                                  <span className="text-[11px] font-medium text-foreground leading-snug">{title}</span>
+                                </div>
+                                <div className="flex flex-wrap gap-x-3 gap-y-0.5 pl-4 text-[10px]">
+                                  <span className="text-muted-foreground">Category: <span className="text-foreground">{category}</span></span>
+                                  {severity && <span className={severityColor}>Severity: {severity}</span>}
+                                  {where && <span className="text-muted-foreground">Where: <span className="font-mono text-foreground">{where}</span></span>}
+                                  {why && <span className="text-muted-foreground">Why: <span className="text-foreground">{why}</span></span>}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       )}
-                      <pre className="bg-muted/30 border border-border rounded-md p-3 text-[10px] font-mono overflow-auto max-h-[500px] whitespace-pre-wrap text-foreground select-all">
-                        {JSON.stringify(limited, null, 2)}
-                      </pre>
-                    </>
+                    </div>
                   );
                 } catch (e) {
-                  console.error("[DEBUG] JSON RENDER ERROR:", e);
+                  console.error("[DEBUG] SCAN RENDER ERROR:", e);
                   return <p className="text-xs text-destructive">Error rendering scan results</p>;
                 }
               })()}
