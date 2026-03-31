@@ -28,7 +28,6 @@ import {
   DbCategory,
 } from '@/lib/categories';
 import type { LucideIcon } from 'lucide-react';
-import { AI_ENABLED } from '@/config/ai';
 
 const iconMap: Record<string, LucideIcon> = {
   Cpu, Shirt, Droplets, Flame, Sparkles, Gem, Bed, Grid, Tag, Leaf,

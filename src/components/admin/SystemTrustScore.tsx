@@ -10,7 +10,6 @@ import {
   TrendingUp, Loader2, RefreshCw, Bug, GitMerge, Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAiQueueStore } from '@/stores/aiQueueStore';
 
 type TrustLabel = 'unstable' | 'improving' | 'stable' | 'production_ready';
 
@@ -38,7 +37,6 @@ function getLabel(score: number): TrustLabel {
 }
 
 const SystemTrustScore = () => {
-  const queueStore = useAiQueueStore();
 
   const { data: breakdown, isLoading, refetch } = useQuery({
     queryKey: ['system-trust-score'],
@@ -74,7 +72,7 @@ const SystemTrustScore = () => {
       const verifiedPct = fixItems.length > 0 ? Math.round((verifiedFixes / fixItems.length) * 100) : 100;
 
       // ─── 4. Regression Rate (from queue store + work items) ───
-      const queueRegressions = queueStore.regressionLog.length;
+      const queueRegressions = 0;
       const regressedItems = workItems.filter((w: any) => w.status === 'regressed' || w.status === 'reopened').length;
       const totalCompleted = doneItems + regressedItems || 1;
       const regressionPct = Math.round(((regressedItems + queueRegressions) / totalCompleted) * 100);

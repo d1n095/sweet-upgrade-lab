@@ -18,8 +18,6 @@ import {
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
-import { AI_ENABLED } from '@/config/ai';
 
 interface WorkItemDetailProps {
   item: {

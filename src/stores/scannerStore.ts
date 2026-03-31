@@ -6,7 +6,6 @@ import { useFeedbackLoopStore } from './feedbackLoopStore';
 import { QueryClient } from '@tanstack/react-query';
 import { createTraceId, observeScanStep, observeError, observeAction, flushObservabilityBuffer } from '@/utils/observabilityLogger';
 import { trace, newTraceId as newDebugTraceId } from '@/utils/deepDebugTrace';
-import { AI_ENABLED } from '@/config/ai';
 
 export type ScanStepStatus = 'pending' | 'running' | 'done' | 'error';
 
