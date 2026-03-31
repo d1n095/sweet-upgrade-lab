@@ -9,6 +9,7 @@ import { useInsightLogger } from '@/hooks/useInsightLogger';
 import { toast } from 'sonner';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
+import SEOHead from '@/components/seo/SEOHead';
 
 const CBD = () => {
   const { language } = useLanguage();
@@ -304,6 +305,12 @@ const CBD = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead
+        title={t.hero.title}
+        description={t.hero.subtitle}
+        keywords="CBD, hampa, naturligt välmående, ekologisk, labtestad, 4thepeople"
+        canonical="/cbd"
+      />
       <Header />
       
       <main className="pt-24 md:pt-32">
