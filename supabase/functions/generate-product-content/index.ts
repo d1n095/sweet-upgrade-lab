@@ -24,8 +24,10 @@ serve(async (req) => {
   }
 
   try {
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    return new Response(JSON.stringify({ error: "Ej tillgänglig" }), {
+      status: 501,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
 
     const { productName, category, ingredients, existingData, language } = await req.json();
 
