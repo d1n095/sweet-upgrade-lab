@@ -73,6 +73,7 @@ import AdminChangeHistory from "./pages/admin/AdminChangeHistory";
 import AdminPOS from "./pages/admin/AdminPOS";
 import ScanPackingMode from "./components/admin/warehouse/ScanPackingMode";
 import SystemExplorer from "./pages/admin/SystemExplorer";
+import AdminSecurity from "./pages/admin/AdminSecurity";
 
 const queryClient = new QueryClient();
 
