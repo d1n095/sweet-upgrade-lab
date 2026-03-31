@@ -6932,6 +6932,31 @@ const AccessControlTab = () => {
   const [validating, setValidating] = useState(false);
   const [flowResult, setFlowResult] = useState<any>(null);
   const [flowFilter, setFlowFilter] = useState<string>('all');
+  const [health, setHealth] = useState<Record<string, any>>({});
+
+  // SECTION 1 — derive failed tests from latest flow result
+  const failedTests = (flowResult?.tests || []).filter((t: any) => !t.passed || t.status === 'failed');
+
+  // SECTION 3 — push failed tests into pipeline as work items
+  const pushToPipeline = async (issues: { file: string; message: string; severity: string; type: string }[]) => {
+    for (const issue of issues) {
+      await createWorkItemWithDedup({
+        title: `[Security] ${issue.message}`,
+        description: `File/path: ${issue.file}\nType: ${issue.type}\nSeverity: ${issue.severity}`,
+        priority: issue.severity === 'high' ? 'high' : 'medium',
+        category: 'security',
+        source_type: 'access_flow_validate',
+      });
+    }
+    if (issues.length > 0) toast.success(`${issues.length} säkerhetsproblem skickade till pipeline`);
+  };
+
+  // SECTION 6 — auto-trigger health counter when failed tests exist
+  useEffect(() => {
+    if (failedTests.length > 0) {
+      setHealth(prev => ({ ...prev, apiIssues: failedTests.length }));
+    }
+  }, [failedTests.length]);
 
   const getSession = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -7192,6 +7217,18 @@ const AccessControlTab = () => {
             const data = await resp.json();
             if (!resp.ok) throw new Error(data.error || 'Validation failed');
             setFlowResult(data);
+            // SECTION 1 — extract and log failed tests immediately
+            const failed = (data.tests || []).filter((t: any) => !t.passed || t.status === 'failed');
+            console.log('❌ FAILED TESTS:', failed);
+            if (failed.length === 0) console.log('SECURITY RAW:', data);
+            // SECTION 3 — push to pipeline
+            const apiIssues = failed.map((t: any) => ({
+              file: t.path || t.target || 'api',
+              message: t.error || t.detail || 'API failure',
+              severity: 'high',
+              type: 'api',
+            }));
+            pushToPipeline(apiIssues);
             toast.success(`Validering klar: ${data.summary?.passed}/${data.summary?.total_tests} godkända`);
           } catch (e: any) { toast.error(e.message); }
           setValidating(false);
@@ -7240,6 +7277,27 @@ const AccessControlTab = () => {
             ))}
           </div>
 
+          {/* SECTION 5 — Failed tests summary */}
+          {failedTests.length > 0 && (
+            <Card className="border-red-500/30 bg-red-500/5">
+              <CardContent className="py-3 px-3 flex items-center gap-3">
+                <XCircle className="w-5 h-5 text-red-500 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-red-700">{failedTests.length} misslyckade tester</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {failedTests.filter((t: any) => t.category === 'api').length} API ·{' '}
+                    {failedTests.filter((t: any) => t.category === 'rls').length} RLS ·{' '}
+                    {failedTests.filter((t: any) => t.category === 'route').length} Route ·{' '}
+                    {failedTests.filter((t: any) => t.category === 'ui').length} UI
+                  </p>
+                </div>
+                {health.apiIssues > 0 && (
+                  <Badge variant="destructive" className="text-[9px] shrink-0">⚠️ {health.apiIssues} i pipeline</Badge>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Test results */}
           <Card>
             <CardContent className="py-3">
@@ -7263,6 +7321,22 @@ const AccessControlTab = () => {
                         <p className="text-muted-foreground mt-0.5">{test.detail}</p>
                       </div>
                       {!test.passed && <Badge variant="destructive" className="text-[8px] shrink-0">{test.risk}</Badge>}
+                      {!test.passed && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-5 px-2 text-[9px] gap-1 shrink-0 border-red-500/40 text-red-700 hover:bg-red-500/10"
+                          onClick={() => pushToPipeline([{
+                            file: test.path || test.target || 'api',
+                            message: test.error || test.detail || 'API failure',
+                            severity: 'high',
+                            type: test.category || 'api',
+                          }])}
+                        >
+                          <Wrench className="w-2.5 h-2.5" />
+                          Åtgärda
+                        </Button>
+                      )}
                     </div>
                   ))}
                 </div>
