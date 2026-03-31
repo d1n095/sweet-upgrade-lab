@@ -221,7 +221,20 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
     try {
       const saved = localStorage.getItem('preferred-language') as Language | null;
       const valid: Language[] = ['sv', 'en', 'no', 'da', 'de', 'fi', 'nl', 'fr', 'es', 'pl'];
-      return saved && valid.includes(saved) ? saved : 'sv';
+      if (saved && valid.includes(saved)) return saved;
+      // Auto-detect from browser on first visit
+      const browser = (navigator.language || '').toLowerCase();
+      if (browser.startsWith('sv')) return 'sv';
+      if (browser.startsWith('no') || browser.startsWith('nb') || browser.startsWith('nn')) return 'no';
+      if (browser.startsWith('da')) return 'da';
+      if (browser.startsWith('de')) return 'de';
+      if (browser.startsWith('fi')) return 'fi';
+      if (browser.startsWith('nl')) return 'nl';
+      if (browser.startsWith('fr')) return 'fr';
+      if (browser.startsWith('es')) return 'es';
+      if (browser.startsWith('pl')) return 'pl';
+      if (browser.startsWith('en')) return 'en';
+      return 'sv';
     } catch {
       return 'sv';
     }
