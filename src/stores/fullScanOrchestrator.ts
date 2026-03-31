@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { QueryClient } from '@tanstack/react-query';
+import { getCodeIssues } from '@/lib/fileSystemMap';
 
 export type OrchestratorStepStatus = 'pending' | 'running' | 'done' | 'error' | 'skipped';
 
@@ -297,11 +298,74 @@ export const useFullScanOrchestrator = create<FullScanOrchestratorState>((set, g
 
       toast.info('Skanning startad i bakgrunden — du kan navigera bort', { duration: 5000 });
     } catch (err: any) {
+      // If the edge function is unreachable (not deployed / no VITE_SUPABASE_URL),
+      // fall back to a fully client-side scan so the button always does something useful.
+      const isNetworkErr =
+        !import.meta.env.VITE_SUPABASE_URL ||
+        err instanceof TypeError ||
+        String(err?.message).toLowerCase().includes('fetch') ||
+        String(err?.message).toLowerCase().includes('edge function') ||
+        String(err?.message).toLowerCase().includes('failed to send');
+
+      if (isNetworkErr) {
+        toast.info('Edge function inte tillgänglig — kör lokal skanning...', { duration: 4000 });
+        try {
+          await runLocalScan(set, queryClient);
+        } catch (localErr: any) {
+          toast.error(localErr.message || 'Lokal skanning misslyckades');
+          set({ running: false, steps: [] });
+        }
+        return;
+      }
+
       toast.error(err.message || 'Kunde inte starta skanning');
       set({ running: false, steps: [] });
     }
   },
 }));
+
+/**
+ * Client-side scan fallback — runs when the edge function is unavailable.
+ * Uses getCodeIssues() from fileSystemMap and writes results to work_items.
+ */
+async function runLocalScan(set: any, queryClient?: QueryClient) {
+  set({ running: true, currentStepLabel: 'Lokal skanning pågår...' });
+
+  const issues = getCodeIssues();
+  let created = 0;
+
+  for (const issue of issues.slice(0, 100)) {
+    const raw = issue.path + ':' + issue.message;
+    const fingerprint = btoa(encodeURIComponent(raw)).replace(/[^a-zA-Z0-9]/g, '').slice(0, 64);
+    const { error } = await (supabase as any).from('work_items').upsert(
+      {
+        title: issue.message,
+        item_type: 'scan',
+        status: 'open',
+        priority: (issue.analysis_confidence ?? 0) >= 4 ? 'high' : 'medium',
+        source_type: 'ai_scan',
+        source_id: issue.path,
+        issue_fingerprint: fingerprint,
+        ai_detected: true,
+        created_by: 'local_scan',
+      },
+      { onConflict: 'issue_fingerprint', ignoreDuplicates: true }
+    );
+    if (!error) created++;
+  }
+
+  set({
+    running: false,
+    steps: [],
+    postScanStatus: 'done',
+    workItemsCreated: created,
+  });
+
+  toast.success(`Lokal skanning klar — ${created} nya uppgifter skapade`, { duration: 6000 });
+
+  queryClient?.invalidateQueries({ queryKey: ['admin-work-items'] });
+  queryClient?.invalidateQueries({ queryKey: ['system-explorer-work-items'] });
+}
 
 /** Poll a scan run for progress */
 async function pollScanRun(

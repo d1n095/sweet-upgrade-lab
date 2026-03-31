@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { startScanJob, getCurrentJob } from "@/lib/scanEngine";
 
 export function useScanRunner(onScanComplete?: () => void) {
@@ -9,6 +10,7 @@ export function useScanRunner(onScanComplete?: () => void) {
   const runFullScan = async () => {
     // Block if engine already has a running job
     if (getCurrentJob()) {
+      toast.info("En skanning körs redan");
       console.warn("⚠️ SCAN BLOCKED — JOB RUNNING");
       return;
     }
@@ -23,8 +25,9 @@ export function useScanRunner(onScanComplete?: () => void) {
       await queryClient.invalidateQueries({ queryKey: ["system-explorer-latest-scan"] });
 
       onScanComplete?.();
-    } catch (err) {
+    } catch (err: any) {
       console.error("❌ FULL SCAN FAIL:", err);
+      toast.error(err?.message || "Skanning misslyckades");
     } finally {
       setIsScanning(false);
     }
