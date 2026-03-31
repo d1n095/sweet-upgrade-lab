@@ -8,9 +8,11 @@ import {
   Play, Loader2, CheckCircle, XCircle,
   FileSearch, Bug, ClipboardList, Database, ShieldCheck,
   ArrowRight, Activity, Trash2, ChevronDown, ChevronRight,
+  AlertTriangle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { runUnifiedPipeline, type PipelineRun, type PipelineEvent, type PipelineStage } from '@/lib/unifiedPipeline';
+import { usePipelineStore, getPrioritized, type PipelineStatus } from '@/stores/pipelineStore';
 import { toast } from 'sonner';
 
 const stageConfig: Record<PipelineStage, { label: string; icon: React.ElementType; color: string }> = {
@@ -45,6 +47,9 @@ const UnifiedPipelineDashboard = () => {
   const [liveEvents, setLiveEvents] = useState<PipelineEvent[]>([]);
   const [progress, setProgress] = useState(0);
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
+
+  const { workItems, updateStatus, clearDone } = usePipelineStore();
+  const prioritized = getPrioritized(workItems);
 
   const execute = useCallback(async () => {
     setRunning(true);
@@ -291,6 +296,73 @@ const UnifiedPipelineDashboard = () => {
             <Button size="sm" onClick={execute} className="mt-4 gap-1.5 text-xs">
               <Play className="w-3.5 h-3.5" /> Starta pipeline
             </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Pipeline Work Items */}
+      {prioritized.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2 pt-3 px-4">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Bug className="w-4 h-4 text-orange-500" />
+              Pipeline Work Items ({prioritized.length})
+              {prioritized.filter(i => i.status === 'new').length > 0 && (
+                <Badge variant="destructive" className="text-[9px] ml-1">
+                  {prioritized.filter(i => i.status === 'new').length} nya
+                </Badge>
+              )}
+              <Button size="sm" variant="ghost" className="ml-auto text-[10px] h-6 px-2" onClick={clearDone}>
+                <Trash2 className="w-3 h-3 mr-1" /> Rensa klara
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-3">
+            <ScrollArea className="max-h-[40vh]">
+              <div className="space-y-1.5 pr-2">
+                {prioritized.map(item => {
+                  const severityColor = item.severity === 'high' ? 'text-destructive' :
+                    item.severity === 'medium' ? 'text-orange-500' : 'text-muted-foreground';
+                  const statusNext: Record<string, { label: string; next: PipelineStatus }> = {
+                    new: { label: 'Starta', next: 'in_progress' },
+                    in_progress: { label: 'Klar', next: 'done' },
+                    done: { label: 'Avfärda', next: 'dismissed' },
+                    dismissed: { label: 'Återöppna', next: 'new' },
+                  };
+                  const action = statusNext[item.status];
+                  return (
+                    <div key={item.id} className={cn(
+                      'border rounded-lg p-2.5 flex items-start gap-2',
+                      item.status === 'done' || item.status === 'dismissed' ? 'opacity-50' : '',
+                      item.severity === 'high' ? 'border-destructive/30 bg-destructive/5' : 'border-border',
+                    )}>
+                      <AlertTriangle className={cn('w-3.5 h-3.5 mt-0.5 shrink-0', severityColor)} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1 flex-wrap">
+                          <Badge variant="outline" className={cn('text-[9px]', severityColor)}>{item.severity}</Badge>
+                          <Badge variant="outline" className="text-[9px]">{item.status}</Badge>
+                          <span className="text-[10px] text-muted-foreground ml-auto">
+                            {new Date(item.createdAt).toLocaleTimeString('sv-SE')}
+                          </span>
+                        </div>
+                        <p className="text-[11px] font-medium text-foreground mt-0.5 truncate">{item.file}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{item.message}</p>
+                      </div>
+                      {action && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-[10px] h-6 px-2 shrink-0"
+                          onClick={() => updateStatus(item.id, action.next)}
+                        >
+                          {action.label}
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </ScrollArea>
           </CardContent>
         </Card>
       )}

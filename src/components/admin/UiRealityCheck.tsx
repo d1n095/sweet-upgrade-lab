@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
+import { usePipelineStore } from '@/stores/pipelineStore';
 import {
   Activity, AlertTriangle, CheckCircle, XCircle, Loader2,
   Play, Trash2, MousePointer, Database, Layers, ScrollText,
@@ -108,6 +109,7 @@ const UiRealityCheck = () => {
   const [status, setStatus] = useState<ScanStatus>('idle');
   const [checks, setChecks] = useState<UICheck[]>([]);
   const [progress, setProgress] = useState(0);
+  const { pushToPipeline } = usePipelineStore();
 
   const makeCheck = (
     category: CheckCategory,
@@ -645,6 +647,11 @@ const UiRealityCheck = () => {
     const issues = results.filter(c => c.verdict !== 'working');
     if (issues.length > 0) {
       toast.warning(`UI Reality Check: ${issues.length} problem hittade`);
+      pushToPipeline(issues.map(c => ({
+        file: c.selector || c.element || 'ui',
+        message: `[${c.category}] ${c.detail}`,
+        severity: c.verdict === 'broken' ? 'high' : 'medium',
+      })));
     } else {
       toast.success('UI Reality Check: Allt fungerar!');
     }

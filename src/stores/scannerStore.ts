@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useExecutionLockStore } from './executionLockStore';
 import { useFeedbackLoopStore } from './feedbackLoopStore';
+import { usePipelineStore } from './pipelineStore';
 import { QueryClient } from '@tanstack/react-query';
 import { createTraceId, observeScanStep, observeError, observeAction, flushObservabilityBuffer } from '@/utils/observabilityLogger';
 import { trace, newTraceId as newDebugTraceId } from '@/utils/deepDebugTrace';
@@ -50,6 +51,7 @@ interface ScannerState {
   selectAll: () => void;
   selectNone: () => void;
   runAllScans: (queryClient?: QueryClient) => Promise<void>;
+  startScanJob: (scope?: string, queryClient?: QueryClient) => Promise<void>;
 }
 
 export const useScannerStore = create<ScannerState>((set, get) => ({
@@ -131,6 +133,27 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
         set(state => ({
           steps: state.steps.map(s => ({ ...s, status: 'done' as const, result, duration_ms })),
         }));
+        // Push scan result issues to the pipeline
+        const rawIssues: { file: string; message: string; severity?: string }[] = [];
+        const unified = result.unified_result || result.result?.unified_result;
+        if (unified) {
+          const collect = (arr: any[], severity: string) => {
+            (arr || []).forEach((i: any) => rawIssues.push({
+              file: i.source_file || i.source_path || i.source_component || 'unknown',
+              message: i.title || i.description || i.message || 'Issue detected',
+              severity,
+            }));
+          };
+          collect(unified.critical_issues, 'high');
+          collect(unified.broken_flows, 'high');
+          collect(unified.interaction_failures, 'medium');
+          collect(unified.data_issues, 'medium');
+          collect(unified.ui_issues, 'low');
+        }
+        if (rawIssues.length > 0) {
+          usePipelineStore.getState().pushToPipeline(rawIssues);
+        }
+        console.log({ scan_id: result.scan_id, pipeline: rawIssues.length });
       } else {
         const errMsg = result.error || 'Skanningsfel';
         observeError('Skanningsfel', undefined, { trace_id: traceId, component: 'run-full-scan', duration_ms });
@@ -170,5 +193,9 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
 
     lockStore.release(lockId);
     set({ scanning: false });
+  },
+
+  startScanJob: async (_scope = 'system', queryClient?: QueryClient) => {
+    return get().runAllScans(queryClient);
   },
 }));

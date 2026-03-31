@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { tracedInvoke } from "@/lib/tracedInvoke";
 import { useAiQueueStore } from "@/stores/aiQueueStore";
+import { usePipelineStore } from "@/stores/pipelineStore";
 import { fileSystemMap, type FileEntry, getFileContent, getCodeIndex, getDuplicatedLines, getCodeIssues, getRawSources, scanFileContent } from "@/lib/fileSystemMap";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useFounderRole } from "@/hooks/useFounderRole";
@@ -189,6 +190,7 @@ const SystemExplorer = () => {
   const { isFounder, isLoading: founderLoading } = useFounderRole();
   const isSystemAdmin = isFounder || false; // founder = full access
   const isViewerAdmin = isAdmin && !isFounder; // admin without founder = read-only viewer
+  const { pushToPipeline } = usePipelineStore();
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ workItems: true, scanResults: true, aiFlow: true, scanners: true, noIssueAreas: false, orphanElements: false, issueClusters: false, priorityView: true, systemDiagnosis: true, expectedVsActual: true });
   const [expandedScanners, setExpandedScanners] = useState<Record<string, boolean>>({});
   const [scannerIssueFilter, setScannerIssueFilter] = useState<"all" | "bug" | "improvement" | "upgrade">("all");
@@ -258,6 +260,8 @@ const SystemExplorer = () => {
     console.log("🚨 AUTO SCAN FOUND:", allIssues.length);
     setCodeScanResult(allIssues);
     setGlobalIssues(allIssues);
+    pushToPipeline(allIssues);
+    console.log("📦 pushed to pipeline:", allIssues.length, "issues");
   }, []);
 
   function handleSearch() {
@@ -1639,21 +1643,15 @@ const SystemExplorer = () => {
               </Card>
             )}
 
-            {/* Live Code Issues */}
+            {/* Live Code Issues → forwarded to Pipeline */}
             {globalIssues.length > 0 && (
               <Card className="mt-3">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Bug className="h-4 w-4" /> Live Code Issues ({globalIssues.length})
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0 max-h-[300px] overflow-y-auto space-y-1">
-                  {globalIssues.map((issue, i) => (
-                    <div key={i} className="text-xs border-b border-border/50 pb-1">
-                      <div className="font-semibold text-foreground">{issue.file}</div>
-                      <div className="text-muted-foreground">{issue.message}</div>
-                    </div>
-                  ))}
+                <CardContent className="py-3 flex items-center gap-2 text-xs text-muted-foreground">
+                  <Bug className="h-4 w-4 text-orange-500 shrink-0" />
+                  <span>
+                    <span className="font-semibold text-foreground">{globalIssues.length} Live Code Issues</span>
+                    {' '}skickade till Pipeline Work Items
+                  </span>
                 </CardContent>
               </Card>
             )}

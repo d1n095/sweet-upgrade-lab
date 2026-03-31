@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { usePipelineStore } from '@/stores/pipelineStore';
 
 type IssueType = 'layout_break' | 'overflow_x' | 'grid_failure' | 'sidebar_conflict' | 'element_overlap' | 'clipped_content';
 type IssueSeverity = 'warning' | 'error' | 'critical';
@@ -288,6 +289,7 @@ const ResponsiveLayoutDetector = () => {
   const [issues, setIssues] = useState<ResponsiveIssue[]>([]);
   const [progress, setProgress] = useState(0);
   const [currentBreakpoint, setCurrentBreakpoint] = useState<Breakpoint | null>(null);
+  const { pushToPipeline } = usePipelineStore();
 
   const makeIssue = (
     type: IssueType, severity: IssueSeverity, breakpoint: Breakpoint,
@@ -341,6 +343,11 @@ const ResponsiveLayoutDetector = () => {
 
     if (deduped.length > 0) {
       toast.warning(`Responsiv Layout: ${deduped.length} problem hittade`);
+      pushToPipeline(deduped.map(i => ({
+        file: i.selector || i.element || 'layout',
+        message: `[${i.breakpoint}] ${i.detail}`,
+        severity: i.severity === 'critical' || i.severity === 'error' ? 'high' : 'medium',
+      })));
     } else {
       toast.success('Responsiv Layout: Inga problem!');
     }
