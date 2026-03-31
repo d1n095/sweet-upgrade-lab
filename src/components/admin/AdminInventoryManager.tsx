@@ -194,7 +194,7 @@ const AdminInventoryManager = () => {
                   <div className="w-12 h-12 rounded-md bg-muted flex-shrink-0 overflow-hidden">
                     {product.node.images.edges[0]?.node ? (
                       <img
-                        src={product.node.images.edges[0].node.url}
+                        src={product.node.images.edges[0]?.node?.url}
                         alt={product.node.title}
                         className="w-full h-full object-cover"
                       />
