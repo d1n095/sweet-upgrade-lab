@@ -157,15 +157,7 @@ const MiniWorkbench = () => {
         await supabase.from('work_items').update({
           status: 'done', completed_at: new Date().toISOString(),
         }).eq('id', taskId);
-        const reviewResult = await triggerAiReviewForWorkItem(taskId, { context: 'mini_workbench_done' });
         toast.success('Uppgift klar ✓');
-        if (!reviewResult.ok) {
-          toast.error('AI-granskning misslyckades — satt till manuell granskning');
-        } else if (reviewResult.status === 'needs_review') {
-          toast.warning('AI: ⚠️ Behöver granskning');
-        } else if (reviewResult.status === 'incomplete') {
-          toast.error('AI: ❌ Ofullständig lösning');
-        }
       } else if (action === 'escalate') {
         await supabase.from('work_items').update({
           status: 'escalated', priority: 'high',

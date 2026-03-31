@@ -13,7 +13,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
 import {
   Bug, ShieldAlert, Package, Clock, User, MapPin, FileText, AlertCircle,
-  CheckCircle2, Loader2, ExternalLink, Wrench, Bot,
+  CheckCircle2, Loader2, ExternalLink, Wrench,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -34,16 +34,9 @@ interface WorkItemDetailProps {
     assigned_to: string | null;
     claimed_by: string | null;
     created_by: string | null;
-    ai_review_status?: string;
-    ai_review_result?: any;
-    ai_review_at?: string;
-    ai_pre_verify_status?: string;
-    ai_pre_verify_result?: any;
-    ai_pre_verify_at?: string;
     resolution_notes?: string;
     ignored?: boolean;
     ignored_reason?: string;
-    ai_root_causes?: any;
     human_selected_cause?: string;
     human_custom_cause?: string;
     human_custom_fix?: string;

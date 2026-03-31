@@ -254,27 +254,6 @@ export const runUnifiedPipeline = async (
       }
     }
 
-    // ─── STAGE 5: VERIFICATION ───
-    // Trigger AI review on recently completed work items that lack verification
-    const { data: unverified } = await supabase
-      .from('work_items' as any)
-      .select('id, title, ai_review_status')
-      .eq('status', 'done')
-      .in('ai_review_status', ['pending', null as any])
-      .order('completed_at', { ascending: false })
-      .limit(5);
-
-    for (const item of (unverified || []) as any[]) {
-      try {
-        const result = await triggerAiReviewForWorkItem(item.id, { context: 'unified_pipeline' });
-        emit(makeEvent('verification', 'ai_review', item.id, 'work_item', result.ok,
-          result.ok ? `Verifierat: ${result.status}` : `Granskning misslyckades: ${result.error}`,
-          { work_item_id: item.id }));
-      } catch (err: any) {
-        emit(makeEvent('verification', 'review_error', item.id, 'work_item', false,
-          err?.message || 'AI review kraschade'));
-      }
-    }
   } catch (err: any) {
     emit(makeEvent('scan', 'pipeline_error', runId, 'pipeline', false, err?.message || 'Pipeline kraschade'));
     useSafeModeStore.getState().activate('critical_error', `Pipeline kraschade: ${err?.message}`, 'pipeline');
