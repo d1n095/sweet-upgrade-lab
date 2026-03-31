@@ -17,12 +17,6 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-
-    if (!lovableKey) {
-      return new Response(JSON.stringify({ error: "AI not configured" }), { status: 500, headers: corsHeaders });
-    }
-
     const supabase = createClient(supabaseUrl, serviceKey);
 
     // Verify caller is staff
@@ -61,173 +55,70 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Bug not found" }), { status: 404, headers: corsHeaders });
     }
 
-    // Gather system context for smarter analysis
-    const systemContext = await gatherSystemContext(supabase, bug.page_url);
+    // Rule-based bug classification
+    const desc = (bug.description || "").toLowerCase();
+    const url = (bug.page_url || "").toLowerCase();
 
-    // Call AI with enhanced analysis prompt
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${lovableKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          {
-            role: "system",
-            content: `You are an expert bug analyst for a Swedish e-commerce web application built with React, Supabase, and Stripe.
-Your job is to produce ACTIONABLE, EXECUTABLE fix instructions — not vague descriptions.
-Every analysis must include: exact file paths, exact function names, exact step-by-step fix instructions, and a ready-to-copy Lovable prompt.
-Always respond by calling the analyze_bug function. Write all text in Swedish. Use English for enum values and file paths only.`,
-          },
-          {
-            role: "user",
-            content: `Analyze this bug report and produce an actionable fix:
-
-Page: ${bug.page_url}
-Reported: ${bug.created_at}
-Description: ${bug.description}
-
-System context:
-${systemContext}
-
-Your output MUST follow this exact structure:
-1. BLOCKER: One sentence describing what is broken
-2. ROOT CAUSE: The exact technical cause (specific code/logic issue)
-3. LOCATION: Exact file path, function name, and line area
-4. FIX: Step-by-step concrete fix instructions (no vague wording — say exactly what to add/change/remove)
-5. COPY PROMPT: A complete, ready-to-paste Lovable prompt that fixes this issue. Include DO/Ensure/Fields sections.
-6. Classification metadata (severity, category, tags)
-7. Root cause analysis with confidence scores
-8. Reproducibility assessment`,
-          },
-        ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "analyze_bug",
-              description: "Actionable bug analysis with executable fix instructions",
-              parameters: {
-                type: "object",
-                properties: {
-                  summary: {
-                    type: "string",
-                    description: "Short clear summary in Swedish, max 120 chars",
-                  },
-                  severity: {
-                    type: "string",
-                    enum: ["low", "medium", "high", "critical"],
-                  },
-                  category: {
-                    type: "string",
-                    enum: ["UI", "payment", "auth", "system", "performance", "data", "navigation", "unclear"],
-                  },
-                  blocker_statement: {
-                    type: "string",
-                    description: "One sentence in Swedish describing what is broken for the user",
-                  },
-                  root_cause_exact: {
-                    type: "string",
-                    description: "The exact technical root cause in Swedish — specific code/logic issue, not vague",
-                  },
-                  location: {
-                    type: "object",
-                    properties: {
-                      file_path: { type: "string", description: "Exact file path e.g. src/components/cart/CartDrawer.tsx" },
-                      function_name: { type: "string", description: "Function or component name e.g. CartDrawer, handleSubmit" },
-                      system_area: { type: "string", description: "System area e.g. checkout, cart, admin, auth" },
-                    },
-                    required: ["file_path", "function_name", "system_area"],
-                  },
-                  fix_steps: {
-                    type: "array",
-                    items: { type: "string" },
-                    description: "Ordered list of exact, concrete fix steps in Swedish. Each step must say exactly what to do (e.g. 'Lägg till onClick={() => navigate(\"/checkout\")} på Button-elementet på rad 128')",
-                  },
-                  copy_prompt: {
-                    type: "string",
-                    description: "A complete, ready-to-paste Lovable prompt in Swedish. Must include sections: what to fix, DO steps, Ensure requirements. Must reference exact files and functions. No vague wording.",
-                  },
-                  repro_steps: {
-                    type: "string",
-                    description: "Step-by-step reproduction instructions in Swedish",
-                  },
-                  tags: {
-                    type: "array",
-                    items: { type: "string" },
-                    description: "Relevant tags in Swedish",
-                  },
-                  root_causes: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        cause: { type: "string", description: "Description of potential cause in Swedish" },
-                        confidence: { type: "number", description: "Confidence 0-100" },
-                        affected_area: { type: "string", description: "Which system area" },
-                      },
-                      required: ["cause", "confidence", "affected_area"],
-                    },
-                    description: "2-5 possible root causes ranked by confidence",
-                  },
-                  is_reproducible: {
-                    type: "boolean",
-                    description: "Whether the issue seems reproducible",
-                  },
-                  reproducibility_reasoning: {
-                    type: "string",
-                    description: "Why the issue is or isn't likely reproducible, in Swedish",
-                  },
-                  fix_suggestions: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        suggestion: { type: "string", description: "Fix suggestion in Swedish" },
-                        effort: { type: "string", enum: ["low", "medium", "high"] },
-                        risk: { type: "string", enum: ["low", "medium", "high"] },
-                      },
-                      required: ["suggestion", "effort", "risk"],
-                    },
-                    description: "1-3 concrete fix suggestions",
-                  },
-                  affected_components: {
-                    type: "array",
-                    items: { type: "string" },
-                    description: "List of likely affected file paths",
-                  },
-                },
-                required: ["summary", "severity", "category", "blocker_statement", "root_cause_exact", "location", "fix_steps", "copy_prompt", "tags", "root_causes", "is_reproducible", "reproducibility_reasoning", "fix_suggestions"],
-                additionalProperties: false,
-              },
-            },
-          },
-        ],
-        tool_choice: { type: "function", function: { name: "analyze_bug" } },
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      const status = aiResponse.status;
-      if (status === 429) {
-        return new Response(JSON.stringify({ error: "AI rate limited, try again later" }), { status: 429, headers: corsHeaders });
-      }
-      if (status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted" }), { status: 402, headers: corsHeaders });
-      }
-      console.error("AI error:", status, await aiResponse.text());
-      return new Response(JSON.stringify({ error: "AI processing failed" }), { status: 500, headers: corsHeaders });
+    let category = "unclear";
+    if (/betaln|stripe|kort|checkout|order|transaktion|payment|faktura/.test(desc) || url.includes("/checkout") || url.includes("/payment")) {
+      category = "payment";
+    } else if (/logga in|login|lösenord|password|registrer|auth|session|behörighet/.test(desc) || url.includes("/auth") || url.includes("/login")) {
+      category = "auth";
+    } else if (/knapp|button|visas inte|display|layout|css|stil|design|modal|dialog|färg|font|ikon/.test(desc)) {
+      category = "UI";
+    } else if (/navigat|länk|link|redirect|sida|page|router/.test(desc)) {
+      category = "navigation";
+    } else if (/långsam|slow|laddning|loading|timeout|prestanda|performance/.test(desc)) {
+      category = "performance";
+    } else if (/data|databas|database|supabase|tabell|spara|save|uppdater|update|hämta|fetch/.test(desc)) {
+      category = "data";
+    } else if (/admin|panel|dashboard|system|fel|error|crash|server/.test(desc) || url.includes("/admin")) {
+      category = "system";
     }
 
-    const aiData = await aiResponse.json();
-    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall) {
-      return new Response(JSON.stringify({ error: "AI did not return structured data" }), { status: 500, headers: corsHeaders });
+    let severity = "medium";
+    if (/kan inte betaln|payment fail|kritisk|kritiskt|critical|kraschar|crash|ingen kan|hela sidan/.test(desc)) {
+      severity = "critical";
+    } else if (/betaln|stripe|logga in|login|checkout|order/.test(desc)) {
+      severity = "high";
+    } else if (/stavfel|typo|liten|small|minor|kosmetisk|cosmetic/.test(desc)) {
+      severity = "low";
     }
 
-    const result = JSON.parse(toolCall.function.arguments);
+    let systemArea = "general";
+    if (url.includes("/admin")) systemArea = "admin";
+    else if (url.includes("/checkout")) systemArea = "checkout";
+    else if (url.includes("/cart")) systemArea = "cart";
+    else if (url.includes("/product")) systemArea = "product";
+    else if (url.includes("/auth") || url.includes("/login")) systemArea = "auth";
+    else if (url.includes("/profile") || url.includes("/member")) systemArea = "member";
+
+    const tags: string[] = [category];
+    if (/mobil|mobile|telefon/.test(desc)) tags.push("mobil");
+    if (/safari|firefox|chrome|browser/.test(desc)) tags.push("webbläsare");
+    if (url.includes("/admin")) tags.push("admin");
+
+    const summary = bug.description.length > 120
+      ? bug.description.slice(0, 117) + "..."
+      : bug.description;
+
+    const result = {
+      summary,
+      severity,
+      category,
+      blocker_statement: bug.description,
+      root_cause_exact: "Automatisk klassificering — manuell analys krävs",
+      location: { file_path: "okänd", function_name: "okänd", system_area: systemArea },
+      fix_steps: ["Granska bugrapporten manuellt och identifiera rotorsaken"],
+      copy_prompt: `Fixa följande bugg:\n\nSida: ${bug.page_url}\nBeskrivning: ${bug.description}`,
+      repro_steps: null,
+      tags,
+      root_causes: [{ cause: "Automatisk klassificering — granskning krävs", confidence: 50, affected_area: systemArea }],
+      is_reproducible: true,
+      reproducibility_reasoning: "Okänd — kräver manuell granskning",
+      fix_suggestions: [{ suggestion: "Granska bugrapporten och implementera en fix", effort: "medium", risk: "low" }],
+      affected_components: [],
+    };
 
     // Observability: log AI analysis completion
     const traceId = `bug-analysis-${bug_id.slice(0, 8)}-${Date.now()}`;

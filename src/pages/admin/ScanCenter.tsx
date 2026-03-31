@@ -49,7 +49,7 @@ import { TrendAnalysisPanel } from './tabs/TrendAnalysisPanel';
 import { UnifiedDashboardTab } from './tabs/UnifiedDashboardTab';
 import { VerificationEngineTab } from './tabs/VerificationEngineTab';
 
-const AdminAI = () => {
+const ScanCenter = () => {
   const [detailItem, setDetailItem] = useState<any>(null);
   const queryClient = useQueryClient();
 
@@ -156,4 +156,4 @@ const AdminAI = () => {
   );
 };
 
-export default AdminAI;
+export default ScanCenter;

@@ -216,11 +216,8 @@ serve(async (req) => {
         });
       }
 
-      // ── AI: Analyze & recommend changes ──
+      // ── Rule-based: Analyze & recommend changes ──
       case "ai_analyze": {
-        if (!lovableKey) throw new Error("LOVABLE_API_KEY not configured");
-
-        // Gather data
         const { data: { users: authUsers } } = await sb.auth.admin.listUsers({ perPage: 1000 });
         const { data: allRoles } = await sb.from("user_roles").select("user_id, role");
         const { data: allPerms } = await sb.from("role_module_permissions").select("*");
@@ -232,137 +229,93 @@ serve(async (req) => {
           roleMap.get(r.user_id)!.push(r.role);
         }
 
+        const rolesWithPerms = new Set((allPerms || []).map((p: any) => p.role));
+
         const usersData = (authUsers || []).map(u => {
           const profile = (allProfiles || []).find((p: any) => p.user_id === u.id);
           return {
+            id: u.id,
             email: u.email,
             roles: roleMap.get(u.id) || [],
             last_sign_in: u.last_sign_in_at,
             created: u.created_at,
             username: profile?.username,
-            is_member: profile?.is_member,
-            level: profile?.level,
           };
-        }).filter(u => (u.roles.length > 0)); // Only analyze users with roles
+        }).filter(u => u.roles.length > 0);
 
-        const permsSummary: Record<string, string[]> = {};
-        for (const p of allPerms || []) {
-          if (!permsSummary[p.role]) permsSummary[p.role] = [];
-          const actions = [];
-          if (p.can_read) actions.push("read");
-          if (p.can_create) actions.push("create");
-          if (p.can_update) actions.push("update");
-          if (p.can_delete) actions.push("delete");
-          permsSummary[p.role].push(`${p.module}(${actions.join(",")})`);
-        }
+        const now = new Date();
+        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        const highPriv = ["admin", "founder", "it"];
+        const recommendations: any[] = [];
 
-        const systemPrompt = `Du är Lova, en AI-säkerhetsoperatör för ett e-handelsföretag.
-Analysera användare och roller och ge konkreta rekommendationer.
+        for (const u of usersData) {
+          const lastSignIn = u.last_sign_in ? new Date(u.last_sign_in) : null;
+          const hasHighPriv = u.roles.some((r: string) => highPriv.includes(r));
+          const hasFinance = u.roles.includes("finance");
+          const hasWarehouse = u.roles.includes("warehouse");
+          const highPrivCount = u.roles.filter((r: string) => highPriv.includes(r)).length;
+          const missingPerms = u.roles.some((r: string) => !rolesWithPerms.has(r));
 
-Regler:
-- Följ principen om minsta privilegium
-- Inaktiva admin-konton (>30 dagar) bör flaggas
-- Användare med flera högnivåroller bör förenklas
-- Finance + warehouse = intressekonflikt
-- Roller utan modulbehörigheter = trasig åtkomst
-- Svara på svenska
-- Returnera EXAKT JSON med "recommendations" array
+          if (hasHighPriv && lastSignIn && lastSignIn < thirtyDaysAgo) {
+            const days = Math.floor((now.getTime() - lastSignIn.getTime()) / (24 * 60 * 60 * 1000));
+            recommendations.push({
+              user_email: u.email,
+              current_roles: u.roles,
+              suggested_action: "deactivate",
+              reason: `Inaktivt admin-konto sedan ${days} dagar`,
+              risk: "high",
+            });
+          }
 
-Tillgängliga roller: ${validRoles.join(", ")}
+          if (hasFinance && hasWarehouse) {
+            recommendations.push({
+              user_email: u.email,
+              current_roles: u.roles,
+              suggested_action: "remove_role",
+              suggested_role: "warehouse",
+              reason: "Intressekonflikt: finance + warehouse bör inte kombineras",
+              risk: "high",
+            });
+          }
 
-Varje rekommendation ska ha:
-- user_email (string)
-- current_roles (string[])
-- suggested_action: "downgrade" | "upgrade" | "remove_role" | "add_role" | "deactivate" | "no_change"
-- suggested_role (string, optional)
-- reason (string)
-- risk: "critical" | "high" | "medium" | "low"`;
+          if (highPrivCount >= 2) {
+            recommendations.push({
+              user_email: u.email,
+              current_roles: u.roles,
+              suggested_action: "downgrade",
+              reason: `Har ${highPrivCount} högnivåroller — följer inte principen om minsta privilegium`,
+              risk: "medium",
+            });
+          }
 
-        const userPrompt = `Analysera dessa användare och ge rekommendationer:
-
-ANVÄNDARE:
-${JSON.stringify(usersData, null, 2)}
-
-ROLLBEHÖRIGHETER:
-${JSON.stringify(permsSummary, null, 2)}
-
-Idag: ${new Date().toISOString().split("T")[0]}`;
-
-        const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${lovableKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "google/gemini-3-flash-preview",
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: userPrompt },
-            ],
-            tools: [{
-              type: "function",
-              function: {
-                name: "provide_recommendations",
-                description: "Return user management recommendations",
-                parameters: {
-                  type: "object",
-                  properties: {
-                    summary: { type: "string", description: "Executive summary in Swedish" },
-                    recommendations: {
-                      type: "array",
-                      items: {
-                        type: "object",
-                        properties: {
-                          user_email: { type: "string" },
-                          current_roles: { type: "array", items: { type: "string" } },
-                          suggested_action: { type: "string", enum: ["downgrade", "upgrade", "remove_role", "add_role", "deactivate", "no_change"] },
-                          suggested_role: { type: "string" },
-                          reason: { type: "string" },
-                          risk: { type: "string", enum: ["critical", "high", "medium", "low"] },
-                        },
-                        required: ["user_email", "current_roles", "suggested_action", "reason", "risk"],
-                      },
-                    },
-                  },
-                  required: ["summary", "recommendations"],
-                },
-              },
-            }],
-            tool_choice: { type: "function", function: { name: "provide_recommendations" } },
-          }),
-        });
-
-        if (!aiResp.ok) {
-          if (aiResp.status === 429) throw new Error("AI rate limit — försök igen om en stund");
-          if (aiResp.status === 402) throw new Error("AI-krediter slut — fyll på i Settings > Workspace > Usage");
-          throw new Error(`AI gateway error: ${aiResp.status}`);
-        }
-
-        const aiData = await aiResp.json();
-        const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-        let recommendations: any = { summary: "Ingen AI-analys tillgänglig", recommendations: [] };
-
-        if (toolCall?.function?.arguments) {
-          try {
-            recommendations = JSON.parse(toolCall.function.arguments);
-          } catch {
-            recommendations = { summary: "Kunde inte tolka AI-svar", recommendations: [] };
+          if (missingPerms) {
+            recommendations.push({
+              user_email: u.email,
+              current_roles: u.roles,
+              suggested_action: "no_change",
+              reason: "En eller flera roller saknar modulbehörigheter — kontrollera role_module_permissions",
+              risk: "low",
+            });
           }
         }
+
+        const summary = recommendations.length === 0
+          ? `Analyserade ${usersData.length} användare — inga problem hittades`
+          : `Analyserade ${usersData.length} användare — ${recommendations.length} rekommendationer`;
 
         await sb.from("ai_read_log").insert({
           action_type: "ai_user_analysis",
           target_type: "user",
           result: "analyzed",
-          summary: recommendations.summary,
+          summary,
           triggered_by: user.id,
-          metadata: { recommendations_count: recommendations.recommendations?.length || 0 },
+          metadata: { recommendations_count: recommendations.length },
         });
 
         return new Response(JSON.stringify({
           success: true,
-          ...recommendations,
+          summary,
+          recommendations,
           analyzed_users: usersData.length,
         }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
