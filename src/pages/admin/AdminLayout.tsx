@@ -88,6 +88,7 @@ const navGroups: NavGroup[] = [
     label: 'SYSTEM',
     items: [
       { to: '/admin/system-explorer', label: 'Scan & Data Center', icon: Sparkles, role: 'admin' },
+      { to: '/admin/audit', label: 'Route Audit', icon: AlertTriangle, role: 'admin' },
       { to: '/admin/history', label: 'Historik', icon: History, role: 'admin' },
       { to: '/admin/members', label: 'Användare', icon: Users, role: 'admin' },
       { to: '/admin/content', label: 'Innehåll', icon: FileText, role: 'admin' },
