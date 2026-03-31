@@ -48,6 +48,7 @@ interface ScannerState {
   scanning: boolean;
   steps: ScanStepResult[];
   selectedSteps: Set<string>;
+  lastScan: number | null;
   toggleStep: (type: string) => void;
   selectAll: () => void;
   selectNone: () => void;
@@ -58,6 +59,7 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
   scanning: false,
   steps: [],
   selectedSteps: new Set(SCAN_STEPS.map(s => s.type)),
+  lastScan: null,
 
   toggleStep: (type: string) => {
     set(state => {
@@ -73,6 +75,8 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
   runAllScans: async (queryClient?: QueryClient) => {
     const { scanning, selectedSteps } = get();
     if (scanning) return;
+
+    console.log("🚀 RUN FULL SCAN TRIGGERED");
 
     // Acquire scans lock
     const lockStore = useExecutionLockStore.getState();
@@ -161,6 +165,6 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
     if (fbEntry?.suggestion) toast.warning(fbEntry.suggestion, { duration: 8000 });
 
     lockStore.release(lockId);
-    set({ scanning: false });
+    set({ scanning: false, lastScan: Date.now() });
   },
 }));

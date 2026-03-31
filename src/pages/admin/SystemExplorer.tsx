@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { tracedInvoke } from "@/lib/tracedInvoke";
 import { useAiQueueStore } from "@/stores/aiQueueStore";
+import { useScannerStore } from "@/stores/scannerStore";
 import { fileSystemMap, type FileEntry, getFileContent, getCodeIndex, getDuplicatedLines, getCodeIssues, getRawSources, scanFileContent } from "@/lib/fileSystemMap";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useFounderRole } from "@/hooks/useFounderRole";
@@ -159,6 +160,7 @@ const SystemExplorer = () => {
   const { isAdmin, isLoading: adminLoading } = useAdminRole();
   const { isFounder, isLoading: founderLoading } = useFounderRole();
   const isSystemAdmin = isFounder || false; // founder = full access
+  const lastScan = useScannerStore(s => s.lastScan);
   const isViewerAdmin = isAdmin && !isFounder; // admin without founder = read-only viewer
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ workItems: true, scanResults: true, aiFlow: true, scanners: true, noIssueAreas: false, orphanElements: false, issueClusters: false, priorityView: true, systemDiagnosis: true, expectedVsActual: true, systemActivity: true, executionTrace: true });
   const [expandedScanners, setExpandedScanners] = useState<Record<string, boolean>>({});
@@ -210,18 +212,35 @@ const SystemExplorer = () => {
       console.warn("❌ NO rawSources — cannot scan");
       return;
     }
-    console.log("RAW SOURCES COUNT:", Object.keys(rawSources).length);
+    console.log("📦 RAW SOURCES:", Object.keys(rawSources).length);
     console.log("🔍 AUTO SCAN START");
     const allIssues: { type: string; message: string; file: string }[] = [];
     Object.entries(rawSources).forEach(([path, content]) => {
-      if (!content) return;
+      if (!content) {
+        allIssues.push({ type: "structure", message: "file nearly empty", file: path });
+        return;
+      }
       const issues = scanFileContent(path, content as string);
       allIssues.push(...issues);
+      // Direct detection rules
+      if (content.includes("fetch(") && !content.includes(".catch(") && !content.includes("} catch")) {
+        allIssues.push({ type: "bug", message: "fetch without error handling", file: path });
+      }
+      if (content.length < 20) {
+        allIssues.push({ type: "structure", message: "file nearly empty", file: path });
+      }
     });
     console.log("🚨 AUTO SCAN FOUND:", allIssues.length);
     setCodeScanResult(allIssues);
     setGlobalIssues(allIssues);
   }, []);
+
+  useEffect(() => {
+    if (lastScan === null) return;
+    console.log("🔄 UI REFRESH TRIGGERED");
+    handleRefresh();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastScan]);
 
   function handleSearch() {
     logAction({ type: "Search", status: "started" });
@@ -1227,34 +1246,10 @@ const SystemExplorer = () => {
           </Button>
           {isSystemAdmin && (
             <>
-            <Button variant="default" size="sm" onClick={() =>
-              validateAction("FULL_SCAN", async () => {
-                const structure_map = Object.keys(getRawSources() || {});
-                if (!structure_map.length) {
-                  throw new Error("No structure map");
-                }
-                setIsScanning(true);
-                setScanProgress({ step: 0, total: 11, label: "Startar..." });
-                const pollInterval = setInterval(async () => {
-                  try {
-                    const { data } = await supabase.from("scan_runs").select("current_step, current_step_label").order("created_at", { ascending: false }).limit(1).single();
-                    if (data) {
-                      setScanProgress({ step: data.current_step || 0, total: 11, label: data.current_step_label || "Scanning..." });
-                    }
-                  } catch (_) {}
-                }, 2000);
-                try {
-                  await supabase.functions.invoke("run-full-scan", {
-                    body: { action: "start", scan_mode: "full", structure_map: structure_map.map(p => ({ path: p })) }
-                  });
-                } finally {
-                  clearInterval(pollInterval);
-                  setIsScanning(false);
-                  setScanProgress(null);
-                }
-                return true;
-              })
-            } disabled={isScanning}>
+            <Button variant="default" size="sm" onClick={() => {
+              console.log("🧪 BUTTON CLICK: FULL_SCAN");
+              handleRunFullScan();
+            }} disabled={isScanning}>
               {isScanning ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Radar className="h-4 w-4 mr-1" />}
               {isScanning && scanProgress ? `Scanning... (${scanProgress.step}/${scanProgress.total})` : isScanning ? "Scanning..." : "Run Full Scan"}
             </Button>
@@ -1269,7 +1264,10 @@ const SystemExplorer = () => {
             </>
           )}
            {isSystemAdmin && (
-             <Button variant="outline" size="sm" onClick={() => setShowRawScan(!showRawScan)}>
+             <Button variant="outline" size="sm" onClick={() => {
+               console.log("🧪 BUTTON CLICK: VIEW_RAW_SCAN");
+               setShowRawScan(!showRawScan);
+             }}>
                <FileText className="h-4 w-4 mr-1" />
                {showRawScan ? "Hide Raw Scan" : "View Raw Scan"}
              </Button>
@@ -1465,7 +1463,8 @@ const SystemExplorer = () => {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2"><Layers className="h-4 w-4" /> Code Index ({index.length} files)</CardTitle>
-                <Button variant="outline" size="sm" className="text-[10px] h-6 ml-auto" onClick={() =>
+                <Button variant="outline" size="sm" className="text-[10px] h-6 ml-auto" onClick={() => {
+                  console.log("🧪 BUTTON CLICK: SCAN_CODE");
                   validateAction("SCAN_CODE", () => {
                     const sources = getRawSources() || {};
                     const results: { type: string; message: string; file: string }[] = [];
@@ -1479,8 +1478,8 @@ const SystemExplorer = () => {
                     console.log("[FILE ISSUES FOUND]:", results.length);
                     setCodeScanResult(results);
                     return true;
-                  })
-                }>
+                  });
+                }}>
                   Scan Code
                 </Button>
               </CardHeader>
@@ -1561,19 +1560,23 @@ const SystemExplorer = () => {
             {/* Live Code Issues */}
             {globalIssues.length > 0 && (
               <Card className="mt-3">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Bug className="h-4 w-4" /> Live Code Issues ({globalIssues.length})
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0 max-h-[300px] overflow-y-auto space-y-1">
-                  {globalIssues.map((issue, i) => (
-                    <div key={i} className="text-xs border-b border-border/50 pb-1">
-                      <div className="font-semibold text-foreground">{issue.file}</div>
-                      <div className="text-muted-foreground">{issue.message}</div>
+                <CardHeader className="pb-0">
+                  <details open>
+                    <summary className="flex items-center gap-2 text-sm font-semibold cursor-pointer list-none select-none py-2">
+                      <Bug className="h-4 w-4" /> Live Code Issues ({globalIssues.length})
+                    </summary>
+                    <div className="max-h-[400px] overflow-y-auto space-y-1 pt-2">
+                      {globalIssues.map((issue, i) => (
+                        <details key={i} className="border-b border-border/50 pb-1">
+                          <summary className="text-xs font-semibold text-foreground cursor-pointer list-none hover:text-primary transition-colors truncate">
+                            {issue.file}
+                          </summary>
+                          <div className="text-[11px] text-muted-foreground pl-2 pt-0.5">{issue.message}</div>
+                        </details>
+                      ))}
                     </div>
-                  ))}
-                </CardContent>
+                  </details>
+                </CardHeader>
               </Card>
             )}
 
@@ -1723,7 +1726,8 @@ const SystemExplorer = () => {
                   {f === "all" ? `All (${fileSystemMap.length})` : f === "orphan" ? `Orphan (${fileSystemMap.filter(fi => fi.used_in.length === 0 && fi.type !== "page" && fi.type !== "edge_function").length})` : `Has Issues (${fileSystemMap.filter(fi => structureIssues.some(si => si.path === fi.path)).length})`}
                 </button>
               ))}
-              <Button variant="outline" size="sm" className="text-[10px] h-6 ml-auto" onClick={() =>
+              <Button variant="outline" size="sm" className="text-[10px] h-6 ml-auto" onClick={() => {
+                console.log("🧪 BUTTON CLICK: SCAN_FILES");
                 validateAction("SCAN_FILES", () => {
                   const files = Object.keys(getRawSources() || {});
                   if (!files.length) {
@@ -1733,8 +1737,8 @@ const SystemExplorer = () => {
                   console.log("[FILES FOUND]:", result);
                   setFileScanResult({ total: result, emptyFiles: files.filter(f => !getRawSources()[f]?.trim()).length, largeFiles: 0 });
                   return true;
-                })
-              }>
+                });
+              }}>
                 Scan Files
               </Button>
             </div>
@@ -2403,6 +2407,31 @@ const SystemExplorer = () => {
             <div>Cleanup (orphan fn): <Badge variant="outline">available</Badge></div>
           </CardContent>
         </Card>
+
+        {/* DEBUG PANEL — live state snapshot */}
+        {isSystemAdmin && (
+          <Card>
+            <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("debugPanel")}>
+              <CardTitle className="text-sm flex items-center gap-2">
+                {expandedSections.debugPanel ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                <Bug className="h-4 w-4 text-yellow-500" />
+                Debug Panel
+              </CardTitle>
+            </CardHeader>
+            {expandedSections.debugPanel && (
+              <CardContent className="pt-0">
+                <pre className="bg-muted/20 border border-border rounded-md p-2 max-h-[300px] overflow-y-auto font-mono text-[10px] whitespace-pre-wrap break-all text-foreground">
+                  {JSON.stringify({
+                    rawSources: Object.keys(getRawSources() || {}).length,
+                    globalIssues: globalIssues.length,
+                    loading: isScanning,
+                    lastScan,
+                  }, null, 2)}
+                </pre>
+              </CardContent>
+            )}
+          </Card>
+        )}
 
         {/* AI FLOW */}
         <Card>

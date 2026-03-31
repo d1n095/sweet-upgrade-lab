@@ -2098,7 +2098,7 @@ serve(async (req) => {
           console.log("[AI COST CALL BLOCKED FROM]: run-full-scan/index.ts — ai-only scanner step blocked (deterministic mode)");
           stepResult = { overall_score: 100, issues_found: 0, issues: [], _deterministic: true, _ai_disabled: true };
         }
-      } catch (e: any) { stepResult = { error: e.message, failed: true, _timed_out: e.name === "AbortError" }; }
+      } catch (e: any) { console.error("❌ SCAN STEP FAILED:", step.id, e.message); stepResult = { error: e.message, failed: true, _timed_out: e.name === "AbortError" }; }
 
       const duration_ms = Date.now() - stepStart;
       const scanFinishedAt = new Date().toISOString();
@@ -2241,6 +2241,7 @@ serve(async (req) => {
             result = { overall_score: 100, issues_found: 0, issues: [], _deterministic: true, _ai_disabled: true };
           }
         } catch (e: any) {
+          console.error("❌ SCAN STEP FAILED:", step.id, e.message);
           result = { error: e.message, failed: true };
         }
         const duration_ms = Date.now() - stepStart;
