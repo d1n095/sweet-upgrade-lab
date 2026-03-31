@@ -332,7 +332,7 @@ async function runFunctionalBehaviorScan(supabase: any, scanRunId: string): Prom
 }
 
 // ── SYNC SCAN ────────────────────────────────────────────────────────────
-async function runRealSyncScan(supabase: any, scanRunId: string): Promise<any> {
+async function runSyncScan(supabase: any, scanRunId: string): Promise<any> {
   const issues: any[] = [];
   const startMs = Date.now();
   try {
@@ -369,7 +369,7 @@ async function runRealSyncScan(supabase: any, scanRunId: string): Promise<any> {
 }
 
 // ── SYSTEM SCAN ──────────────────────────────────────────────────────────
-async function runRealSystemScan(supabase: any, scanRunId: string): Promise<any> {
+async function runSystemScan(supabase: any, scanRunId: string): Promise<any> {
   const issues: any[] = [];
   const metrics: Record<string, number> = {};
   const startMs = Date.now();
@@ -410,8 +410,8 @@ async function runRealSystemScan(supabase: any, scanRunId: string): Promise<any>
   return { issues:normalized, issues_found:normalized.length, metrics, input_size:Object.keys(metrics).length, rules_applied:SYSTEM_RULES, ...(normalized.length === 0 ? { _empty_reason:"no_detection" } : {}), duration_ms:Date.now()-startMs, scanned_at:new Date().toISOString() };
 }
 
-// ── FEATURE DETECTION ────────────────────────────────────────────────────
-async function runRealFeatureDetection(supabase: any, scanRunId: string): Promise<any> {
+// ── FEATURE DETECTION SCAN ───────────────────────────────────────────────
+async function runFeatureDetectionScan(supabase: any, scanRunId: string): Promise<any> {
   const features: any[] = [];
   const startMs = Date.now();
   for (const { name, table, query } of [
@@ -453,8 +453,8 @@ async function runRealFeatureDetection(supabase: any, scanRunId: string): Promis
   return { features, issues, issues_found:broken, input_size:features.length, rules_applied:FEATURE_RULES, ...(broken === 0 ? { _empty_reason:"no_detection" } : {}), duration_ms:Date.now()-startMs, scanned_at:new Date().toISOString() };
 }
 
-// ── INTERACTION QA ───────────────────────────────────────────────────────
-async function runRealInteractionQA(supabase: any, scanRunId: string): Promise<any> {
+// ── INTERACTION QA SCAN ──────────────────────────────────────────────────
+async function runInteractionQaScan(supabase: any, scanRunId: string): Promise<any> {
   const issues: any[] = [];
   const startMs = Date.now();
   try {
@@ -514,7 +514,7 @@ async function runRealInteractionQA(supabase: any, scanRunId: string): Promise<a
 }
 
 // ── COMPONENT MAP SCAN ───────────────────────────────────────────────────
-async function runRealComponentMapScan(supabase: any, scanRunId: string): Promise<any> {
+async function runComponentMapScan(supabase: any, scanRunId: string): Promise<any> {
   const issues: any[] = [];
   const startMs = Date.now();
   let componentsScanned = 0;
@@ -641,16 +641,22 @@ async function runUiFlowIntegrityScan(supabase: any, scanRunId: string): Promise
   return { issues:normalized, issues_found:normalized.length, flows_scanned:flowsScanned, input_size:flowsScanned, rules_applied:FLOW_RULES, ...(normalized.length === 0 ? { _empty_reason:"no_detection" } : {}), duration_ms:Date.now()-startMs, scanned_at:new Date().toISOString() };
 }
 
-// ── SCANNER DISPATCH ─────────────────────────────────────────────────────
-const REAL_DB_SCANNERS: Record<string, (supabase: any, scanRunId: string) => Promise<any>> = {
+// ── SCAN REGISTRY ────────────────────────────────────────────────────────
+// Single source of truth: ALL scans are dispatched exclusively via this registry.
+// Ordered: data scans → ui scans → flow scans → integrity checks
+const SCAN_REGISTRY: Record<string, (supabase: any, scanRunId: string) => Promise<any>> = {
+  // data scans
   data_integrity:      runDataIntegrityScan,
   functional_behavior: runFunctionalBehaviorScan,
-  sync_scan:           runRealSyncScan,
-  system_scan:         runRealSystemScan,
-  feature_detection:   runRealFeatureDetection,
-  interaction_qa:      runRealInteractionQA,
-  component_map:       runRealComponentMapScan,
+  sync_scan:           runSyncScan,
+  // ui scans
+  interaction_qa:      runInteractionQaScan,
+  component_map:       runComponentMapScan,
+  // flow scans
   ui_flow_integrity:   runUiFlowIntegrityScan,
+  // integrity checks
+  system_scan:         runSystemScan,
+  feature_detection:   runFeatureDetectionScan,
 };
 
 // ── CONSISTENCY GUARD ────────────────────────────────────────────────────
@@ -752,7 +758,7 @@ async function runStep(step: { id: string; label: string; scanType: string }, su
   console.log(`[SCAN START] ${step.id}`);
   let result: any = { issues:[], _executed:false, _empty_reason:"", _input_size:0, _duration_ms:0 };
   try {
-    const scanner = REAL_DB_SCANNERS[step.scanType];
+    const scanner = SCAN_REGISTRY[step.scanType];
     if (scanner) {
       result = { ...await scanner(supabase, scan_run_id), ai_suggestions:[], ai_summary:null };
     } else if (!AI_ENABLED) {
