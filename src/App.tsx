@@ -160,6 +160,7 @@ const App = () => (
                 <Route path="database" element={<AdminDatabase />} />
                 <Route path="warehouse" element={<ScanPackingMode />} />
                 <Route path="system-explorer" element={<SystemExplorer />} />
+                <Route path="security" element={<AdminSecurity />} />
               </Route>
 
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
