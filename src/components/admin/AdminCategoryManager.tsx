@@ -27,6 +27,7 @@ import {
   DbCategory,
 } from '@/lib/categories';
 import type { LucideIcon } from 'lucide-react';
+import { useLanguage } from '@/context/LanguageContext';
 
 const iconMap: Record<string, LucideIcon> = {
   Cpu, Shirt, Droplets, Flame, Sparkles, Gem, Bed, Grid, Tag, Leaf,
@@ -38,6 +39,51 @@ const getIcon = (name: string | null): LucideIcon => iconMap[name || 'Tag'] || T
 
 const AdminCategoryManager = () => {
   const queryClient = useQueryClient();
+  const { language } = useLanguage();
+
+  const t = {
+    sv: {
+      title: 'Kategorihantering', categories: 'kategorier', subcategories: 'underkategorier',
+      validate: 'Validera', validating: 'Validerar...', aiSync: 'AI-synk', analyzing: 'Analyserar...',
+      newCategory: 'Ny kategori', noCategories: 'Inga kategorier ännu', editTitle: 'Redigera kategori',
+      deleteTitle: 'Ta bort kategori?', deleteDesc: (n: string) => `"${n}" tas bort. Underkategorier flyttas till toppnivå. Produktkopplingar tas bort.`,
+      cancel: 'Avbryt', delete: 'Ta bort', create: 'Skapa', update: 'Uppdatera', close: 'Stäng',
+      aiAnalysis: 'AI Kategorianalys', allCategorized: 'Alla produkter är korrekt kategoriserade',
+      autoCreated: 'Skapade automatiskt', needsReview: 'Behöver granskning',
+      alreadyExists: 'förslag redan existerande', productsAnalyzed: 'produkter analyserade',
+      existingCategories: 'befintliga kategorier', categoryValidation: 'Kategorivalidering',
+      noIssues: 'Inga problem hittades — kategoristrukturen är ren', autoFixed: 'Åtgärdat automatiskt',
+      manualReview: 'Kräver manuell granskning', tasksCreated: 'uppgifter skapade i Workbench',
+      totalCategories: 'kategorier', productLinks: 'produktkopplingar',
+    },
+    en: {
+      title: 'Category Management', categories: 'categories', subcategories: 'subcategories',
+      validate: 'Validate', validating: 'Validating...', aiSync: 'AI Sync', analyzing: 'Analyzing...',
+      newCategory: 'New category', noCategories: 'No categories yet', editTitle: 'Edit category',
+      deleteTitle: 'Delete category?', deleteDesc: (n: string) => `"${n}" will be deleted. Subcategories will move to top level. Product links will be removed.`,
+      cancel: 'Cancel', delete: 'Delete', create: 'Create', update: 'Update', close: 'Close',
+      aiAnalysis: 'AI Category Analysis', allCategorized: 'All products are correctly categorized',
+      autoCreated: 'Created automatically', needsReview: 'Needs review',
+      alreadyExists: 'suggestions already exist', productsAnalyzed: 'products analyzed',
+      existingCategories: 'existing categories', categoryValidation: 'Category Validation',
+      noIssues: 'No issues found — category structure is clean', autoFixed: 'Auto-fixed',
+      manualReview: 'Requires manual review', tasksCreated: 'tasks created in Workbench',
+      totalCategories: 'categories', productLinks: 'product links',
+    },
+  }[language as 'sv' | 'en'] ?? {
+    title: 'Category Management', categories: 'categories', subcategories: 'subcategories',
+    validate: 'Validate', validating: 'Validating...', aiSync: 'AI Sync', analyzing: 'Analyzing...',
+    newCategory: 'New category', noCategories: 'No categories yet', editTitle: 'Edit category',
+    deleteTitle: 'Delete category?', deleteDesc: (n: string) => `"${n}" will be deleted. Subcategories will move to top level. Product links will be removed.`,
+    cancel: 'Cancel', delete: 'Delete', create: 'Create', update: 'Update', close: 'Close',
+    aiAnalysis: 'AI Category Analysis', allCategorized: 'All products are correctly categorized',
+    autoCreated: 'Created automatically', needsReview: 'Needs review',
+    alreadyExists: 'suggestions already exist', productsAnalyzed: 'products analyzed',
+    existingCategories: 'existing categories', categoryValidation: 'Category Validation',
+    noIssues: 'No issues found — category structure is clean', autoFixed: 'Auto-fixed',
+    manualReview: 'Requires manual review', tasksCreated: 'tasks created in Workbench',
+    totalCategories: 'categories', productLinks: 'product links',
+  };
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingCat, setEditingCat] = useState<DbCategory | null>(null);
   const [deletingCat, setDeletingCat] = useState<DbCategory | null>(null);
@@ -331,7 +377,7 @@ const AdminCategoryManager = () => {
           className="flex-1"
           onClick={() => { setIsAddOpen(false); setEditingCat(null); resetForm(); }}
         >
-          Avbryt
+          {t.cancel}
         </Button>
         <Button className="flex-1 gap-2" onClick={onSubmit} disabled={isSubmitting || !form.name_sv.trim()}>
           {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
@@ -357,9 +403,9 @@ const AdminCategoryManager = () => {
             <Grid className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <h3 className="font-semibold">Kategorihantering</h3>
+            <h3 className="font-semibold">{t.title}</h3>
             <p className="text-sm text-muted-foreground">
-              {categories.length} kategorier · {categories.filter(c => c.parent_id).length} underkategorier
+              {categories.length} {t.categories} · {categories.filter(c => c.parent_id).length} {t.subcategories}
             </p>
           </div>
         </div>
@@ -367,26 +413,26 @@ const AdminCategoryManager = () => {
         <div className="flex gap-2">
           <Button size="sm" variant="outline" className="gap-2" onClick={runAiValidate} disabled={aiValidating}>
             {aiValidating ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
-            {aiValidating ? 'Validerar...' : 'Validera'}
+            {aiValidating ? t.validating : t.validate}
           </Button>
           <Button size="sm" variant="outline" className="gap-2" onClick={runAiSync} disabled={aiSyncing}>
             {aiSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
-            {aiSyncing ? 'Analyserar...' : 'AI-synk'}
+            {aiSyncing ? t.analyzing : t.aiSync}
           </Button>
 
           <Dialog open={isAddOpen} onOpenChange={open => { setIsAddOpen(open); if (!open) resetForm(); }}>
             <DialogTrigger asChild>
               <Button size="sm" className="gap-2">
-                <Plus className="w-4 h-4" /> Ny kategori
+                <Plus className="w-4 h-4" /> {t.newCategory}
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
-                  <Grid className="w-5 h-5 text-primary" /> Ny kategori
+                  <Grid className="w-5 h-5 text-primary" /> {t.newCategory}
                 </DialogTitle>
               </DialogHeader>
-              <CategoryForm onSubmit={handleAdd} submitLabel="Skapa" />
+              <CategoryForm onSubmit={handleAdd} submitLabel={t.create} />
             </DialogContent>
           </Dialog>
         </div>
@@ -397,7 +443,7 @@ const AdminCategoryManager = () => {
         <div className="border border-border rounded-lg p-4 space-y-3 bg-secondary/20">
           <div className="flex items-center gap-2">
             <Wand2 className="w-4 h-4 text-primary" />
-            <h4 className="text-sm font-semibold">AI Kategorianalys</h4>
+            <h4 className="text-sm font-semibold">{t.aiAnalysis}</h4>
           </div>
           
           {aiResult.analysis && (
@@ -407,7 +453,7 @@ const AdminCategoryManager = () => {
           {aiResult.no_changes_needed && (
             <div className="flex items-center gap-2 text-accent text-xs">
               <CheckCircle className="w-4 h-4" />
-              Alla produkter är korrekt kategoriserade
+              {t.allCategorized}
             </div>
           )}
 
