@@ -12,6 +12,7 @@ import { storeConfig } from '@/config/storeConfig';
 import { toast } from 'sonner';
 import SEOHead from '@/components/seo/SEOHead';
 import { usePageSections } from '@/hooks/usePageSections';
+import { supabase } from '@/integrations/supabase/client';
 
 const Contact = () => {
   const { t, language, contentLang } = useLanguage();
@@ -36,10 +37,21 @@ const Contact = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    toast.success(t('contact.thankyou'));
-    setFormData({ name: '', email: '', subject: '', message: '' });
-    setIsSubmitting(false);
+    try {
+      const { error } = await supabase.from('interest_logs').insert({
+        interest_type: 'contact',
+        category: formData.subject,
+        message: `${formData.name}: ${formData.message}`,
+        email: formData.email,
+      });
+      if (error) throw error;
+      toast.success(t('contact.thankyou'));
+      setFormData({ name: '', email: '', subject: '', message: '' });
+    } catch {
+      toast.error(language === 'sv' ? 'Något gick fel, försök igen.' : 'Something went wrong, please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const contactInfo = [

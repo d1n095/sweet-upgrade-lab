@@ -159,7 +159,7 @@ const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
                     <motion.div key={item.variantId} layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -100 }} className="flex gap-4 p-4 rounded-lg bg-secondary/50">
                       <div className="w-20 h-20 rounded-lg bg-muted flex-shrink-0 overflow-hidden">
                         {item.product.node.images?.edges?.[0]?.node && (
-                          <img src={item.product.node.images.edges[0].node.url} alt={item.product.node.title} loading="lazy" className="w-full h-full object-cover" />
+                          <img src={item.product.node.images?.edges?.[0]?.node?.url} alt={item.product.node.title} loading="lazy" className="w-full h-full object-cover" />
                         )}
                       </div>
                       <div className="flex-1 min-w-0">

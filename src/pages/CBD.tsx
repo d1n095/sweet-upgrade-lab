@@ -32,9 +32,8 @@ const CBD = () => {
 
     setIsSubmitted(true);
     setIsLoading(false);
-    toast.success(content[language as keyof typeof content]?.form.submitting
-      ? (content[language as keyof typeof content] || content.en).success.title
-      : content.en.success.title
+    toast.success(
+      (content[language as keyof typeof content] || content.en).success.title
     );
   };
 
