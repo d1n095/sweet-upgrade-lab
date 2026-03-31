@@ -18,6 +18,7 @@ import { useAdminRole } from '@/hooks/useAdminRole';
 import { useEmployeeRole } from '@/hooks/useEmployeeRole';
 import { useLanguage } from '@/context/LanguageContext';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import SEOHead from '@/components/seo/SEOHead';
 import { toast } from 'sonner';
 import OrderTracker from '@/components/orders/OrderTracker';
 import InfluencerDashboard from '@/components/dashboard/InfluencerDashboard';
@@ -253,10 +254,12 @@ const MemberProfile = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead
+        title={language === 'sv' ? 'Min profil' : 'My Profile'}
+        description={language === 'sv' ? 'Hantera din profil, dina beställningar och dina inställningar.' : 'Manage your profile, orders, and account settings.'}
+        noindex={true}
+      />
       <Header />
-      <main className="pt-24 pb-20">
-        <div className="container mx-auto px-4">
-          {/* Profile Header */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

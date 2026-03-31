@@ -13,6 +13,7 @@ import { tracedInvoke } from '@/lib/tracedInvoke';
 import { storeConfig } from '@/config/storeConfig';
 import { toast } from 'sonner';
 import { getOrderDisplayId } from '@/utils/orderDisplay';
+import SEOHead from '@/components/seo/SEOHead';
 
 interface OrderData {
   id: string;

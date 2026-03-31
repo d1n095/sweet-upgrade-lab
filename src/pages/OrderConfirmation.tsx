@@ -12,6 +12,7 @@ import { tracedInvoke } from '@/lib/tracedInvoke';
 import { useCartStore } from '@/stores/cartStore';
 import { getOrderDisplayId } from '@/utils/orderDisplay';
 import { trackCheckoutComplete } from '@/utils/analyticsTracker';
+import SEOHead from '@/components/seo/SEOHead';
 
 interface RecommendedProduct {
   id: string;
@@ -148,10 +149,12 @@ const OrderConfirmation = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead
+        title={language === 'sv' ? 'Orderbekräftelse' : 'Order Confirmation'}
+        description={language === 'sv' ? 'Tack för din beställning! Din order är bekräftad.' : 'Thank you for your order! Your order is confirmed.'}
+        noindex={true}
+      />
       <Header />
-      <main className="pt-24 pb-20">
-        <div className="container mx-auto px-4 max-w-3xl">
-          {/* Success Header */}
           <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center mb-12">
             <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2, type: 'spring' }} className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
               <CheckCircle className="w-10 h-10 text-primary" />

@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import AffiliateDashboard from '@/components/dashboard/AffiliateDashboard';
+import SEOHead from '@/components/seo/SEOHead';
 
 const AffiliatePanel = () => {
   const { user, loading: authLoading } = useAuth();
@@ -101,12 +102,12 @@ const AffiliatePanel = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead
+        title={language === 'sv' ? 'Affiliate-panel' : 'Affiliate Panel'}
+        description={language === 'sv' ? 'Hantera dina affiliate-intäkter och statistik.' : 'Manage your affiliate earnings and statistics.'}
+        noindex={true}
+      />
       <Header />
-      <main className="pt-24 pb-20">
-        <div className="container mx-auto px-4 max-w-4xl">
-          {/* Header */}
-          <div className="flex items-center gap-3 mb-2">
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate('/profile')}>
               <ArrowLeft className="w-4 h-4" />
             </Button>
             <div>

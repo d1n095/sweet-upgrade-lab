@@ -15,6 +15,7 @@ import { useStoreSettings } from '@/stores/storeSettingsStore';
 import { logActivity } from '@/utils/activityLogger';
 import { trackCheckoutStart, trackCheckoutAbandon, trackEvent } from '@/utils/analyticsTracker';
 import { useAuth } from '@/hooks/useAuth';
+import SEOHead from '@/components/seo/SEOHead';
 
 
 // Swedish postal code → city lookup
@@ -381,6 +382,11 @@ const Checkout = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead
+        title={isSv ? 'Kassa' : 'Checkout'}
+        description={isSv ? 'Slutför ditt köp säkert och enkelt.' : 'Complete your purchase securely and easily.'}
+        noindex={true}
+      />
       {/* Minimal distraction-free header — logo + secure badge only */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-background border-b border-border">
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">

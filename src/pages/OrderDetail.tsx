@@ -12,6 +12,7 @@ import Footer from '@/components/layout/Footer';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/context/LanguageContext';
+import SEOHead from '@/components/seo/SEOHead';
 
 const statusConfig: Record<string, { icon: React.ElementType; color: string; step: number }> = {
   pending: { icon: Clock, color: 'text-yellow-600', step: 1 },
@@ -136,8 +137,12 @@ const OrderDetail = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead
+        title={language === 'sv' ? 'Min beställning' : 'My Order'}
+        description={language === 'sv' ? 'Visa detaljer och status för din beställning.' : 'View details and status of your order.'}
+        noindex={true}
+      />
       <Header />
-      <div className="max-w-3xl mx-auto px-4 py-8">
         {/* Back link */}
         <Link to="/profile?tab=orders" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors">
           <ArrowLeft className="w-4 h-4" />

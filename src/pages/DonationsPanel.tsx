@@ -11,6 +11,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import DonationImpact from '@/components/donations/DonationImpact';
+import SEOHead from '@/components/seo/SEOHead';
 
 interface DonationSummary {
   totalDonated: number;
@@ -79,13 +80,12 @@ const DonationsPanel = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead
+        title={language === 'sv' ? 'Mina donationer' : 'My Donations'}
+        description={language === 'sv' ? 'Följ dina donationer och deras påverkan.' : 'Track your donations and their impact.'}
+        noindex={true}
+      />
       <Header />
-      <main className="pt-24 pb-20">
-        <div className="container mx-auto px-4 max-w-4xl">
-          {/* Header */}
-          <div className="flex items-center gap-3 mb-2">
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate('/profile')}>
-              <ArrowLeft className="w-4 h-4" />
             </Button>
             <div>
               <h1 className="text-2xl font-semibold">
