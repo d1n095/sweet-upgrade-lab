@@ -244,7 +244,6 @@ const AdminDbProductManager = () => {
       metaTitle: (product as any).meta_title || '',
       metaDescription: (product as any).meta_description || '',
       metaKeywords: (product as any).meta_keywords || '',
-      seoMode: ((product as any).meta_title || (product as any).meta_description || (product as any).meta_keywords) ? 'manual' : 'auto',
       weightGrams: (product as any).weight_grams?.toString() || '',
       hook: (product as any).hook_sv || '',
       dosage: (product as any).dosage_sv || '',
@@ -356,9 +355,9 @@ const AdminDbProductManager = () => {
         effects_sv: formData.effects || null,
         usage_sv: formData.usage || null,
         extended_description_sv: formData.extendedDescription || null,
-        meta_title: formData.seoMode === 'manual' ? (formData.metaTitle || null) : null,
-        meta_description: formData.seoMode === 'manual' ? (formData.metaDescription || null) : null,
-        meta_keywords: formData.seoMode === 'manual' ? (formData.metaKeywords || null) : null,
+        meta_title: formData.metaTitle?.trim() ? formData.metaTitle : null,
+        meta_description: formData.metaDescription?.trim() ? formData.metaDescription : null,
+        meta_keywords: formData.metaKeywords?.trim() ? formData.metaKeywords : null,
       } as any);
       if (formData.categoryIds.length > 0) await setProductCategories(newProduct.id, formData.categoryIds);
       await setProductTags(newProduct.id, formData.tagIds);
@@ -398,9 +397,9 @@ const AdminDbProductManager = () => {
         effects_sv: formData.effects || null,
         usage_sv: formData.usage || null,
         extended_description_sv: formData.extendedDescription || null,
-        meta_title: formData.metaTitle || null,
-        meta_description: formData.metaDescription || null,
-        meta_keywords: formData.metaKeywords || null,
+        meta_title: formData.metaTitle?.trim() ? formData.metaTitle : null,
+        meta_description: formData.metaDescription?.trim() ? formData.metaDescription : null,
+        meta_keywords: formData.metaKeywords?.trim() ? formData.metaKeywords : null,
         weight_grams: formData.weightGrams ? parseInt(formData.weightGrams) : null,
         hook_sv: formData.hook || null,
         dosage_sv: formData.dosage || null,

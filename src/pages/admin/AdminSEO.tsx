@@ -212,9 +212,9 @@ const AdminSEO = () => {
     setSaving(true);
     try {
       await updateDbProduct(productId, {
-        meta_title: editData.metaTitle || null,
-        meta_description: editData.metaDescription || null,
-        meta_keywords: editData.metaKeywords || null,
+        meta_title: editData.metaTitle?.trim() ? editData.metaTitle : null,
+        meta_description: editData.metaDescription?.trim() ? editData.metaDescription : null,
+        meta_keywords: editData.metaKeywords?.trim() ? editData.metaKeywords : null,
       });
       toast.success('SEO uppdaterat!');
       queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });
