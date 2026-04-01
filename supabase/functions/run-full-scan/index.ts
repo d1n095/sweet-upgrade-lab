@@ -2370,7 +2370,18 @@ serve(async (req) => {
       const step = currentIteration === 1 ? STEPS[step_index] : (scanRun._targeted_steps || STEPS)[step_index];
       if (!step) return new Response(JSON.stringify({ success: false, error: "Invalid step index" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-      await supabase.from("scan_runs").update({ current_step: step_index, current_step_label: `[Iteration ${currentIteration}/${MAX_ITERATIONS}] ${step.label}`, iteration: currentIteration }).eq("id", scan_run_id);
+      const totalSteps = scanRun.total_steps || STEPS.length;
+      const progressPct = Math.min(95, Math.round((step_index / totalSteps) * 100));
+      const stepLog = { ts: new Date().toISOString(), msg: `Startar: ${step.label}`, step: step.id };
+      const existingLogs = Array.isArray(scanRun.step_logs) ? scanRun.step_logs : [];
+      await supabase.from("scan_runs").update({
+        current_step: step_index,
+        current_step_label: `[Iteration ${currentIteration}/${MAX_ITERATIONS}] ${step.label}`,
+        iteration: currentIteration,
+        progress: progressPct,
+        completed_steps: step_index,
+        step_logs: [...existingLogs.slice(-50), stepLog],
+      }).eq("id", scan_run_id);
 
       let stepResult: any = { error: "unknown", failed: true };
       const stepStart = Date.now();
