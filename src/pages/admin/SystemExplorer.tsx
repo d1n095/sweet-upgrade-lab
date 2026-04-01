@@ -266,30 +266,38 @@ const SystemExplorer = () => {
       return;
     }
     setIsScanning(true);
+    const scanStart = Date.now();
+    console.log("[SCAN START]", { mode, ts: new Date().toISOString() });
     logAction({ type: "SCAN", status: "started", mode });
     try {
       if (mode === "files") {
+        console.log("[SCAN STEP]", { step: "files", status: "running" });
         const files = Object.keys(getRawSources() || {});
         const result = {
           total: files.length,
           empty: files.filter(f => !getRawSources()[f]?.trim()).length
         };
         setFileScanResult({ total: result.total, emptyFiles: result.empty, largeFiles: 0 });
+        console.log("[SCAN STEP]", { step: "files", status: "done", total: result.total, empty: result.empty });
         logAction({ type: "SCAN", status: "success", mode });
       }
       if (mode === "code") {
+        console.log("[SCAN STEP]", { step: "code", status: "running" });
         const results: { type: string; message: string; file: string }[] = [];
         Object.entries(getRawSources() || {}).forEach(([path, content]) => {
           const issues = scanFileContent(path, content as string);
           results.push(...issues);
         });
         setCodeScanResult(results);
+        console.log("[SCAN STEP]", { step: "code", status: "done", issues: results.length });
         logAction({ type: "SCAN", status: "success", mode });
       }
       if (mode === "full") {
+        console.log("[SCAN STEP]", { step: "full", status: "running" });
         await tracedInvoke("run-full-scan", {
           body: { action: "start", scan_mode: "full" },
         });
+        console.log("[SCAN STEP]", { step: "full", status: "done" });
         logAction({ type: "SCAN", status: "success", mode });
       }
     } catch (err: any) {
@@ -301,6 +309,7 @@ const SystemExplorer = () => {
         message: err.message
       });
     } finally {
+      console.log("[SCAN TOTAL]", { mode, durationMs: Date.now() - scanStart });
       setIsScanning(false);
     }
   }
@@ -517,15 +526,21 @@ const SystemExplorer = () => {
 
   const handleRunFullScan = async () => {
     setIsScanning(true);
+    const scanStart = Date.now();
+    console.log("[SCAN START]", { mode: "full-scan", ts: new Date().toISOString() });
     try {
       const before = await supabase.from("work_items").select("id");
       const beforeCount = before.data?.length || 0;
       logAction({ type: "Full Scan", status: "started" });
+      console.log("[SCAN STEP]", { step: "invoke", status: "running" });
       const structure_map = Object.keys(getRawSources() || {}).map(path => ({ path }));
       const res = await tracedInvoke("run-full-scan", {
         body: { action: "start", scan_mode: "full", structure_map },
       });
+      console.log("[SCAN STEP]", { step: "invoke", status: "done" });
+      console.log("[SCAN STEP]", { step: "verify", status: "running" });
       const verify = await verifyWorkItemsCreated(beforeCount);
+      console.log("[SCAN STEP]", { step: "verify", status: "done", created: verify.created });
       if (verify.created === 0) {
         logAction({ type: "Full Scan", status: "no-effect", message: "Scan ran but created 0 work_items" });
       } else {
@@ -540,6 +555,7 @@ const SystemExplorer = () => {
       console.error("[Full Scan error]:", err);
       logAction({ type: "Full Scan", status: "error", message: (err as any)?.message });
     } finally {
+      console.log("[SCAN TOTAL]", { mode: "full-scan", durationMs: Date.now() - scanStart });
       setIsScanning(false);
     }
   };
@@ -2081,7 +2097,7 @@ const SystemExplorer = () => {
                     </>
                   );
                 } catch (e) {
-                  console.error("[DEBUG] JSON RENDER ERROR:", e);
+                  console.error("[SCAN ERROR] JSON render failed:", e);
                   return <p className="text-xs text-destructive">Error rendering scan results</p>;
                 }
               })()}
