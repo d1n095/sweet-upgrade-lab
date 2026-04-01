@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
-import { Search, AlertTriangle, CheckCircle2, Edit2, Save, X, Globe, ToggleLeft, ToggleRight, Wand2 } from 'lucide-react';
+import { Search, AlertTriangle, CheckCircle2, Edit2, Save, X, Globe, Wand2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -150,6 +150,12 @@ function generateTitle(p: DbProduct): string {
   return base.substring(0, 60);
 }
 
+// --- Helper ---
+
+function normalizeSeo(value?: string | null): string | null {
+  return value?.trim() ? value : null;
+}
+
 // --- Types ---
 
 type SeoMode = 'auto' | 'manual';
@@ -166,7 +172,6 @@ const AdminSEO = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editData, setEditData] = useState({ metaTitle: '', metaDescription: '', metaKeywords: '' });
   const [saving, setSaving] = useState(false);
-  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ['admin-db-products'],
