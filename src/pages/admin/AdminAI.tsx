@@ -35,6 +35,7 @@ import SafeModePanel, { SafeModeBanner } from '@/components/admin/SafeModePanel'
 import UnifiedPipelineDashboard from '@/components/admin/UnifiedPipelineDashboard';
 import SystemStateDashboard from '@/components/admin/SystemStateDashboard';
 import FailureMemoryPanel from '@/components/admin/FailureMemoryPanel';
+import ScanProgress from '@/components/admin/ScanProgress';
 
 // Context to allow any tab to open a work item detail view
 const DetailContext = createContext<{
@@ -4851,17 +4852,8 @@ const AiAutopilotTab = () => {
                    ? `${orchestrator.currentStepLabel || orchCurrentStep?.progressLabel || 'Kör...'}`
                    : 'Kör Adaptiv Full Scan'}
                </Button>
-               {orchestrator.running && orchestrator.steps.length > 0 && (
-                 <div className="space-y-1.5">
-                   <div className="flex items-center justify-between text-xs">
-                     <span className="text-muted-foreground truncate max-w-[60%]">{orchestrator.currentStepLabel || orchCurrentStep?.progressLabel || 'Väntar...'}</span>
-                     <span className="font-bold text-primary">{orchPct}%</span>
-                   </div>
-                   <Progress value={orchPct} className="h-2.5" />
-                   <p className="text-[10px] text-muted-foreground text-center">
-                     Iteration {orchestrator.currentIteration}/3 — {orchCompleted + orchErrors} av {orchestrator.steps.length} klara 🖥️
-                   </p>
-                 </div>
+               {(orchestrator.running || orchestrator.scanRunId) && (
+                 <ScanProgress scanRunId={orchestrator.scanRunId} />
                )}
             </>
           ) : (

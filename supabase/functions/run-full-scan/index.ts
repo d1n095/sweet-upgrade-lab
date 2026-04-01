@@ -2321,6 +2321,8 @@ serve(async (req) => {
         high_risk_areas: focusMemory.slice(0, 10).map((m: any) => ({ component: m.label, issue_count: m.issue_count, risk_level: m.severity, source: "focus_memory" })),
         coverage_score: 0, total_new_issues: 0,
         system_stage: systemStage,
+        progress: 0, completed_steps: 0, eta_seconds: null,
+        step_logs: [{ ts: new Date().toISOString(), msg: "Skanning initierad", step: "init" }],
         ...(isTargeted ? { scan_mode: "targeted", target_area, verification_for } : { scan_mode: "full" }),
       }).select("id").single();
 
@@ -2368,7 +2370,18 @@ serve(async (req) => {
       const step = currentIteration === 1 ? STEPS[step_index] : (scanRun._targeted_steps || STEPS)[step_index];
       if (!step) return new Response(JSON.stringify({ success: false, error: "Invalid step index" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-      await supabase.from("scan_runs").update({ current_step: step_index, current_step_label: `[Iteration ${currentIteration}/${MAX_ITERATIONS}] ${step.label}`, iteration: currentIteration }).eq("id", scan_run_id);
+      const totalSteps = scanRun.total_steps || STEPS.length;
+      const progressPct = Math.min(95, Math.round((step_index / totalSteps) * 100));
+      const stepLog = { ts: new Date().toISOString(), msg: `Startar: ${step.label}`, step: step.id };
+      const existingLogs = Array.isArray(scanRun.step_logs) ? scanRun.step_logs : [];
+      await supabase.from("scan_runs").update({
+        current_step: step_index,
+        current_step_label: `[Iteration ${currentIteration}/${MAX_ITERATIONS}] ${step.label}`,
+        iteration: currentIteration,
+        progress: progressPct,
+        completed_steps: step_index,
+        step_logs: [...existingLogs.slice(-50), stepLog],
+      }).eq("id", scan_run_id);
 
       let stepResult: any = { error: "unknown", failed: true };
       const stepStart = Date.now();
@@ -2501,13 +2514,32 @@ serve(async (req) => {
         scan_id: scan_run_id, trace_id: `full-scan-${scan_run_id.slice(0, 8)}`, component: step.scanType, duration_ms,
       }).catch(() => {});
 
+      // Compute progress after step completion
+      const completedStepCount = step_index + 1;
+      const totalStepsAll = scanRun.total_steps || STEPS.length;
+      const stepProgressPct = Math.min(95, Math.round((completedStepCount / totalStepsAll) * 100));
+      // ETA: average time per step * remaining steps
+      const avgStepMs = duration_ms; // approximate with current step
+      const remainingSteps = totalStepsAll - completedStepCount;
+      const etaSeconds = Math.max(0, Math.round((avgStepMs * remainingSteps) / 1000));
+      const completionLog = { ts: new Date().toISOString(), msg: stepResult.failed ? `❌ Misslyckades: ${step.label}` : `✅ Klar: ${step.label} (${(duration_ms / 1000).toFixed(1)}s, ${stepResult.issues?.length || 0} issues)`, step: step.id };
+      const updatedLogs = [...(Array.isArray(scanRun.step_logs) ? scanRun.step_logs : []).slice(-50), completionLog];
+
       const updatedResults = { ...(scanRun.steps_results || {}), [step.id]: stepResult };
       const stepsForIteration = currentIteration === 1 ? STEPS : (scanRun._targeted_steps || STEPS);
       const isLastStep = step_index + 1 >= stepsForIteration.length;
 
       if (!isLastStep) {
         const nextStep = stepsForIteration[step_index + 1];
-        await supabase.from("scan_runs").update({ steps_results: updatedResults, current_step: step_index + 1, current_step_label: `[Iteration ${currentIteration}/${MAX_ITERATIONS}] ${nextStep.label}` }).eq("id", scan_run_id);
+        await supabase.from("scan_runs").update({
+          steps_results: updatedResults,
+          current_step: step_index + 1,
+          current_step_label: `[Iteration ${currentIteration}/${MAX_ITERATIONS}] ${nextStep.label}`,
+          progress: stepProgressPct,
+          completed_steps: completedStepCount,
+          eta_seconds: etaSeconds,
+          step_logs: updatedLogs,
+        }).eq("id", scan_run_id);
         fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
           method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
           body: JSON.stringify({ action: "process_step", scan_run_id, step_index: step_index + 1, iteration: currentIteration }),
@@ -2876,11 +2908,15 @@ serve(async (req) => {
       }
 
       const execSummary = `${unified.system_health_score}/100 — ${issuesCount} issues (${systemStage}) — ${iterationsCompleted} iter — ${coverageScore}% — ${workItemsCreated} uppgifter`;
+      // Fetch latest logs for final update
+      const { data: finalRunData } = await supabase.from("scan_runs").select("step_logs").eq("id", scan_run_id).single();
+      const finalLogs = [...(Array.isArray(finalRunData?.step_logs) ? finalRunData.step_logs : []).slice(-50), { ts: new Date().toISOString(), msg: `🏁 Skanning klar — ${unified.system_health_score}/100 — ${workItemsCreated} uppgifter skapade`, step: "finalize" }];
       await supabase.from("scan_runs").update({
         status: "done", completed_at: new Date().toISOString(), steps_results: updatedResults,
         unified_result: adaptiveResult, system_health_score: unified.system_health_score,
         executive_summary: execSummary, work_items_created: workItemsCreated,
         current_step: STEPS.length, current_step_label: `Klar ✓ (${iterationsCompleted} iter, ${systemStage})`,
+        progress: 100, completed_steps: STEPS.length, eta_seconds: 0, step_logs: finalLogs,
       }).eq("id", scan_run_id);
 
       // Store scan snapshot for historical tracking
