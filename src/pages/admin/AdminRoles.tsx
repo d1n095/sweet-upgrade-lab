@@ -122,7 +122,7 @@ const AdminRoles = () => {
       const newModules = buildModulesFromPermissions(editPerms);
       const { error } = await supabase
         .from('role_templates')
-        .update({ permissions: editPerms, default_modules: newModules } as any)
+        .update({ permissions: editPerms, default_modules: newModules })
         .eq('id', t.id);
       if (error) throw error;
       toast.success(`Mall "${t.name_sv}" uppdaterad`);
@@ -143,7 +143,7 @@ const AdminRoles = () => {
       const modulesToApply = buildModulesFromPermissions(permsToApply);
       const { error } = await supabase
         .from('staff_permissions')
-        .update({ allowed_modules: modulesToApply, permissions: permsToApply } as any)
+        .update({ allowed_modules: modulesToApply, permissions: permsToApply })
         .in('user_id', userIds);
       if (error) throw error;
       toast.success(`${userIds.length} användare synkade`);

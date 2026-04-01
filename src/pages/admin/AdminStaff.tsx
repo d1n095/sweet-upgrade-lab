@@ -71,7 +71,7 @@ const writeAuditLog = async (
   changes: Record<string, unknown>,
 ) => {
   try {
-    await supabase.from('audit_logs' as any).insert({
+    await supabase.from('audit_logs').insert({
       actor_id: actorId,
       action,
       target_table: targetTable,
@@ -332,6 +332,11 @@ const StaffManagementTab = () => {
     try {
       const newModules = editModules[member.user_id] || member.allowed_modules;
       const newNotes = editNotes[member.user_id] ?? member.notes;
+      // Derive granular permissions from the selected role template
+      const tmpl = templates.find(t => t.role_key === newRole);
+      const newPerms: GranularPermissions = tmpl?.permissions && Object.keys(tmpl.permissions).length > 0
+        ? tmpl.permissions
+        : Object.fromEntries(newModules.map(m => [m, { read: true, write: false, delete: false, approve: false }]));
       const changes: Record<string, unknown> = {};
       if (newRole !== member.role) {
         changes.role_before = member.role;
@@ -344,9 +349,9 @@ const StaffManagementTab = () => {
         changes.modules_after = newModules;
       }
       if (member.permissions_id) {
-        await supabase.from('staff_permissions').update({ allowed_modules: newModules, notes: newNotes || null } as any).eq('id', member.permissions_id);
+        await supabase.from('staff_permissions').update({ allowed_modules: newModules, permissions: newPerms, notes: newNotes || null }).eq('id', member.permissions_id);
       } else {
-        await supabase.from('staff_permissions').insert({ user_id: member.user_id, allowed_modules: newModules, notes: newNotes || null, granted_by: user.id } as any);
+        await supabase.from('staff_permissions').insert({ user_id: member.user_id, allowed_modules: newModules, permissions: newPerms, notes: newNotes || null, granted_by: user.id });
       }
       if (Object.keys(changes).length > 0) {
         await writeAuditLog(user.id, 'update_staff', 'staff_permissions', member.user_id, changes);
@@ -380,8 +385,12 @@ const StaffManagementTab = () => {
         toast.error('Redan personal'); setAddingUser(false); return;
       }
       const defaultTmpl = templates.find(t => t.role_key === 'moderator');
+      const defaultModules = defaultTmpl?.default_modules || ['dashboard', 'orders'];
+      const defaultPerms: GranularPermissions = defaultTmpl?.permissions && Object.keys(defaultTmpl.permissions).length > 0
+        ? defaultTmpl.permissions
+        : Object.fromEntries(defaultModules.map(m => [m, { read: true, write: false, delete: false, approve: false }]));
       await supabase.from('user_roles').insert({ user_id: target.user_id, role: 'moderator' as any });
-      await supabase.from('staff_permissions').insert({ user_id: target.user_id, allowed_modules: defaultTmpl?.default_modules || ['dashboard', 'orders'], granted_by: user.id } as any);
+      await supabase.from('staff_permissions').insert({ user_id: target.user_id, allowed_modules: defaultModules, permissions: defaultPerms, granted_by: user.id });
       await writeAuditLog(user.id, 'add_staff', 'user_roles', target.user_id, { role: 'moderator' });
       toast.success('Tillagd!'); setNewUserEmail('');
       queryClient.invalidateQueries({ queryKey: ['admin-staff-members'] });
