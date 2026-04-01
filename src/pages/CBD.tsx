@@ -70,6 +70,10 @@ const CBD = () => {
       legal: 'Vi följer alla svenska och EU-regler för CBD-produkter. Alla produkter innehåller mindre än 0.2% THC.',
     },
     en: {
+      seo: {
+        title: 'CBD – What It Is, Effects and Uses',
+        description: 'Learn what CBD is, how it works, and what effects it may have on the body.',
+      },
       hero: {
         badge: 'Coming Soon',
         title: 'CBD & Hemp Products',
@@ -96,6 +100,10 @@ const CBD = () => {
       legal: 'We comply with all Swedish and EU regulations for CBD products. All products contain less than 0.2% THC.',
     },
     no: {
+      seo: {
+        title: 'CBD – Hva det er, effekter og bruk',
+        description: 'Lær hva CBD er, hvordan det virker og hvilke effekter det kan ha på kroppen.',
+      },
       hero: {
         badge: 'Kommer snart',
         title: 'CBD & Hampeprodukter',
@@ -122,6 +130,10 @@ const CBD = () => {
       legal: 'Vi følger alle norske og EU-regler for CBD-produkter. Alle produkter inneholder mindre enn 0,2 % THC.',
     },
     da: {
+      seo: {
+        title: 'CBD – Hvad det er, effekter og brug',
+        description: 'Lær hvad CBD er, hvordan det virker og hvilke effekter det kan have på kroppen.',
+      },
       hero: {
         badge: 'Kommer snart',
         title: 'CBD & Hempeprodukter',
@@ -148,6 +160,10 @@ const CBD = () => {
       legal: 'Vi overholder alle danske og EU-regler for CBD-produkter. Alle produkter indeholder mindre end 0,2 % THC.',
     },
     de: {
+      seo: {
+        title: 'CBD – Was es ist, Wirkungen und Verwendung',
+        description: 'Erfahren Sie, was CBD ist, wie es wirkt und welche Wirkungen es auf den Körper haben kann.',
+      },
       hero: {
         badge: 'Demnächst verfügbar',
         title: 'CBD & Hanfprodukte',
@@ -174,6 +190,10 @@ const CBD = () => {
       legal: 'Wir halten alle deutschen und EU-Vorschriften für CBD-Produkte ein. Alle Produkte enthalten weniger als 0,2 % THC.',
     },
     fi: {
+      seo: {
+        title: 'CBD – Mitä se on, vaikutukset ja käyttö',
+        description: 'Opi, mitä CBD on, miten se toimii ja millaisia vaikutuksia sillä voi olla kehoon.',
+      },
       hero: {
         badge: 'Tulossa pian',
         title: 'CBD & Hampputuotteet',
@@ -200,6 +220,10 @@ const CBD = () => {
       legal: 'Noudatamme kaikkia suomalaisia ja EU:n CBD-tuotteita koskevia säännöksiä. Kaikki tuotteet sisältävät alle 0,2 % THC:tä.',
     },
     nl: {
+      seo: {
+        title: 'CBD – Wat het is, effecten en gebruik',
+        description: 'Leer wat CBD is, hoe het werkt en welke effecten het op het lichaam kan hebben.',
+      },
       hero: {
         badge: 'Binnenkort beschikbaar',
         title: 'CBD & Hennepproducten',
@@ -226,6 +250,10 @@ const CBD = () => {
       legal: 'We voldoen aan alle Nederlandse en EU-regelgeving voor CBD-producten. Alle producten bevatten minder dan 0,2% THC.',
     },
     fr: {
+      seo: {
+        title: "CBD – Ce que c'est, effets et utilisations",
+        description: "Découvrez ce qu'est le CBD, comment il fonctionne et quels effets il peut avoir sur le corps.",
+      },
       hero: {
         badge: 'Bientôt disponible',
         title: 'Produits CBD & Chanvre',
@@ -252,6 +280,10 @@ const CBD = () => {
       legal: 'Nous respectons toutes les réglementations françaises et européennes relatives aux produits CBD. Tous les produits contiennent moins de 0,2 % de THC.',
     },
     es: {
+      seo: {
+        title: 'CBD – Qué es, efectos y usos',
+        description: 'Aprende qué es el CBD, cómo funciona y qué efectos puede tener en el cuerpo.',
+      },
       hero: {
         badge: 'Próximamente',
         title: 'Productos CBD & Cáñamo',
@@ -278,6 +310,10 @@ const CBD = () => {
       legal: 'Cumplimos con todas las normativas españolas y de la UE sobre productos CBD. Todos los productos contienen menos del 0,2 % de THC.',
     },
     pl: {
+      seo: {
+        title: 'CBD – Co to jest, efekty i zastosowanie',
+        description: 'Dowiedz się, czym jest CBD, jak działa i jakie efekty może mieć na organizm.',
+      },
       hero: {
         badge: 'Wkrótce dostępne',
         title: 'Produkty CBD & Konopie',
@@ -310,8 +346,8 @@ const CBD = () => {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead
-        title={t.hero.title}
-        description={t.hero.subtitle}
+        title={t.seo.title}
+        description={t.seo.description}
         keywords="CBD, hampa, naturligt välmående, ekologisk, labtestad, 4thepeople"
         canonical="/cbd"
       />

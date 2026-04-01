@@ -12,8 +12,8 @@ const NotFound = () => {
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted">
       <SEOHead
-        title="404 – Sidan hittades inte"
-        description="Sidan du letar efter finns inte."
+        title="Sidan kunde inte hittas | 404"
+        description="Sidan du letar efter finns inte längre eller har flyttats. Gå tillbaka till startsidan."
         noindex={true}
       />
       <div className="text-center">
