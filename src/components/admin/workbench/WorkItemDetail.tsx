@@ -76,7 +76,6 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
   const [resolving, setResolving] = useState(false);
   const [fixSuggestion, setFixSuggestion] = useState<any>(null);
   const [analyzingFix, setAnalyzingFix] = useState(false);
-  const [runningReview, setRunningReview] = useState(false);
   const [runningPreVerify, setRunningPreVerify] = useState(false);
   const [expandedCause, setExpandedCause] = useState<number | null>(null);
   const [showIgnoreForm, setShowIgnoreForm] = useState(false);
@@ -187,22 +186,8 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
         await supabase.from('bug_reports').update({ resolution_notes: resolutionNotes.trim() || null }).eq('id', item.source_id);
       }
       await onStatusChange(item.id, 'done');
-      toast.success('Markerad som klar — AI verifierar...');
-
-      // Auto-trigger AI verification after marking as done
-      triggerAiReviewForWorkItem(item.id, { context: 'auto_verify_on_resolve' }).then(reviewResult => {
-        if (reviewResult.ok) {
-          if (reviewResult.status === 'incomplete') {
-            toast.error('⚠️ AI: Fixens verifiering misslyckades — uppgiften återöppnad', { duration: 6000 });
-          } else if (reviewResult.status === 'needs_review') {
-            toast.warning('AI: Behöver manuell granskning', { duration: 4000 });
-          } else {
-            toast.success('✅ AI: Verifierad!', { duration: 3000 });
-          }
-          onRefresh?.();
-        }
-      }).catch(() => { /* non-blocking */ });
-
+      toast.success('Markerad som klar ✓');
+      onRefresh?.();
       onOpenChange(false);
     } catch { toast.error('Något gick fel'); }
     finally { setResolving(false); }
@@ -399,7 +384,6 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                   <div><span className="text-[10px] text-muted-foreground">Sammanfattning</span><p className="text-xs font-medium">{(bugData as any).ai_summary}</p></div>
                 )}
                 <div className="flex gap-1.5 flex-wrap">
-                  {(bugData as any).ai_severity && <Badge variant="outline" className="text-[10px]">{(bugData as any).ai_severity}</Badge>}
                   {(bugData as any).ai_category && <Badge variant="outline" className="text-[10px]">{(bugData as any).ai_category}</Badge>}
                 </div>
                 {(bugData as any).ai_tags?.length > 0 && (
@@ -601,73 +585,6 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                 {bugData?.description || incidentData?.description || item.description || 'Ingen beskrivning'}
               </div>
             </div>
-
-            {/* AI Review Results */}
-            {item.ai_review_status && (
-              <div className={cn('rounded-lg p-3 space-y-2 border', {
-                'bg-accent/5 border-accent/20': item.ai_review_status === 'verified',
-                'bg-yellow-50 border-yellow-200': item.ai_review_status === 'needs_review',
-                'bg-destructive/5 border-destructive/20': item.ai_review_status === 'incomplete',
-              })}>
-                <div className="flex items-center gap-1.5 text-xs font-semibold">
-                  <Bot className="w-3.5 h-3.5" />
-                  AI-granskning
-                  <Badge variant="outline" className={cn('text-[9px] ml-auto', {
-                    'border-accent/30 text-accent': item.ai_review_status === 'verified',
-                    'border-yellow-300 text-yellow-700': item.ai_review_status === 'needs_review',
-                    'border-destructive/30 text-destructive': item.ai_review_status === 'incomplete',
-                  })}>
-                    {item.ai_review_status === 'verified' ? '✅ Verifierad' :
-                     item.ai_review_status === 'needs_review' ? '⚠️ Behöver granskning' : '❌ Ofullständig'}
-                  </Badge>
-                </div>
-                {item.ai_review_result?.verdict && <p className="text-xs">{item.ai_review_result.verdict}</p>}
-                {item.ai_review_result?.confidence != null && (
-                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                    <span>Konfidens: {item.ai_review_result.confidence}%</span>
-                    {item.ai_review_at && <span>• {fmtFull(item.ai_review_at).relative}</span>}
-                  </div>
-                )}
-                {item.ai_review_result?.risks?.length > 0 && (
-                  <div className="text-xs">
-                    <span className="font-medium text-destructive">Risker:</span>
-                    <ul className="list-disc pl-4 mt-0.5 space-y-0.5">
-                      {item.ai_review_result.risks.map((r: string, i: number) => <li key={i}>{r}</li>)}
-                    </ul>
-                  </div>
-                )}
-                {item.ai_review_result?.edge_cases?.length > 0 && (
-                  <div className="text-xs">
-                    <span className="font-medium text-yellow-700">Edge cases:</span>
-                    <ul className="list-disc pl-4 mt-0.5 space-y-0.5">
-                      {item.ai_review_result.edge_cases.map((e: string, i: number) => <li key={i}>{e}</li>)}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Manual AI Review button */}
-            {item.status === 'done' && (
-              <Button size="sm" variant="outline" className="w-full gap-1.5" disabled={runningReview}
-                onClick={async () => {
-                  setRunningReview(true);
-                  try {
-                    const reviewResult = await triggerAiReviewForWorkItem(item.id, { context: 'work_item_detail_manual' });
-                    if (!reviewResult.ok) toast.error('AI-granskning misslyckades');
-                    else {
-                      const s = reviewResult.status;
-                      toast.success(s === 'verified' ? 'AI: ✅ Verifierad' : s === 'needs_review' ? 'AI: ⚠️ Behöver granskning' : 'AI: Granskning klar');
-                    }
-                    onRefresh?.();
-                  } catch { toast.error('Fel vid AI-granskning'); }
-                  finally { setRunningReview(false); }
-                }}
-              >
-                {runningReview ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Bot className="w-3.5 h-3.5" />}
-                {item.ai_review_status ? 'Kör AI-granskning igen' : 'Kör AI-granskning'}
-              </Button>
-            )}
 
             {/* Resolution info */}
             {bugData?.status === 'resolved' && bugData.resolution_notes && (

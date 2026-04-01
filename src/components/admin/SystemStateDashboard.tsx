@@ -57,11 +57,10 @@ const SystemStateDashboard = () => {
       const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
       const [
-        scansRes, bugsRes, workItemsRes, changeLogRes,
+        bugsRes, workItemsRes, changeLogRes,
         readLogRes, productsRes, ordersRes,
       ] = await Promise.all([
-        supabase.from('ai_scan_results').select('scan_type, overall_score, overall_status, issues_count, created_at').order('created_at', { ascending: false }).limit(30),
-        supabase.from('bug_reports').select('status, ai_severity, ai_category, created_at').limit(200),
+        supabase.from('bug_reports').select('status, ai_category, created_at').limit(200),
         supabase.from('work_items' as any).select('status, priority, item_type, ai_detected, source_type, ai_type_classification, created_at, completed_at').limit(300),
         supabase.from('change_log').select('change_type, source, created_at').gte('created_at', weekAgo).limit(200),
         supabase.from('ai_read_log').select('action_type, target_type, result, created_at').order('created_at', { ascending: false }).limit(50),
@@ -69,7 +68,6 @@ const SystemStateDashboard = () => {
         supabase.from('orders').select('payment_status, status, fulfillment_status, created_at').gte('created_at', weekAgo).is('deleted_at', null).limit(500),
       ]);
 
-      const scans = scansRes.data || [];
       const bugs = bugsRes.data || [];
       const workItems = workItemsRes.data || [];
       const changeLog = changeLogRes.data || [];
@@ -80,36 +78,28 @@ const SystemStateDashboard = () => {
       const ts = now.toISOString();
 
       // ── PIPELINE ──
-      const latestScan = scans[0];
-      const scanScore = latestScan?.overall_score ?? 0;
-      const scanAge = latestScan ? (now.getTime() - new Date(latestScan.created_at).getTime()) / 3600000 : 999;
-
       const openBugs = bugs.filter((b: any) => b.status === 'open' || b.status === 'new');
-      const criticalBugs = openBugs.filter((b: any) => b.ai_severity === 'critical');
+      const criticalBugs: any[] = [];
       const openItems = workItems.filter((w: any) => ['open', 'claimed', 'in_progress'].includes(w.status));
       const doneItems = workItems.filter((w: any) => w.status === 'done');
       const aiDetected = workItems.filter((w: any) => w.ai_detected);
 
       // Pipeline: scan → issue → work item → change → verify
-      const pipelineScanScore = scanAge < 24 ? Math.min(100, scanScore) : Math.max(0, scanScore - 20);
+      const pipelineScanScore = 50;
       const pipelineIssueScore = criticalBugs.length === 0 ? 100 : Math.max(0, 100 - criticalBugs.length * 25);
       const pipelineWorkScore = openItems.length < 10 ? 100 : openItems.length < 30 ? 60 : 30;
       const pipelineChangeScore = changeLog.length > 0 ? 90 : 40;
       const pipelineVerifyScore = doneItems.length > 0 ? 85 : 50;
 
       // Fake feature detection
-      const fakeScans = scans.filter((s: any) => s.scan_type === 'feature_detection');
-      const latestFakeScan = fakeScans[0];
-      const fakeScore = latestFakeScan?.overall_score ?? -1;
+      const fakeScore = -1;
 
       const nodes: SystemNode[] = [
         // Pipeline
         {
           id: 'scan-engine', label: 'Skanningsmotor', category: 'pipeline',
           status: deriveStatus(pipelineScanScore), score: pipelineScanScore,
-          detail: scanAge < 24
-            ? `Senaste skanning: ${Math.round(scanAge)}h sedan (score: ${scanScore})`
-            : `Ingen skanning senaste 24h — score: ${scanScore}`,
+          detail: 'Skanning ej tillgänglig',
           lastChecked: ts, icon: Zap,
         },
         {
@@ -149,19 +139,9 @@ const SystemStateDashboard = () => {
         },
         {
           id: 'ui-interactions', label: 'UI-interaktioner', category: 'interaction',
-          status: deriveStatus(
-            (() => {
-              const interactionScans = scans.filter((s: any) => s.scan_type === 'interaction_qa');
-              return interactionScans[0]?.overall_score ?? -1;
-            })() >= 0
-              ? scans.filter((s: any) => s.scan_type === 'interaction_qa')[0]?.overall_score ?? 50
-              : 50
-          ),
-          score: scans.filter((s: any) => s.scan_type === 'interaction_qa')[0]?.overall_score ?? 50,
-          detail: (() => {
-            const iq = scans.filter((s: any) => s.scan_type === 'interaction_qa');
-            return iq.length > 0 ? `Interaction QA score: ${iq[0].overall_score}` : 'Ingen interaction QA körts';
-          })(),
+          status: deriveStatus(50),
+          score: 50,
+          detail: 'Ingen interaction QA körts',
           lastChecked: ts, icon: MousePointer,
         },
 

@@ -343,7 +343,7 @@ async function runLocalScan(set: any, queryClient?: QueryClient) {
         item_type: 'scan',
         status: 'open',
         priority: (issue.analysis_confidence ?? 0) >= 4 ? 'high' : 'medium',
-        source_type: 'ai_scan',
+        source_type: 'scan',
         source_id: issue.path,
         issue_fingerprint: fingerprint,
         ai_detected: true,

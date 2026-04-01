@@ -1047,8 +1047,8 @@ async function runRealSystemScan(supabase: any, scanRunId: string): Promise<any>
       issues.push({ title: `Eskalerat ärende >24h: "${wi.title}"`, severity: "high", component: "work_items", entity_id: wi.id });
     }
 
-    // Score trend
-    const { data: recentScans } = await supabase.from("ai_scan_results").select("overall_score, created_at, scan_type").eq("scan_type", "full_orchestrated").order("created_at", { ascending: false }).limit(3);
+    // Score trend - skipped (ai_scan_results removed)
+    const recentScans: any[] = [];
     if (recentScans?.length >= 2) {
       const current = recentScans[0].overall_score || 0;
       const previous = recentScans[1].overall_score || 0;
@@ -1988,14 +1988,7 @@ async function persistStepResults(supabase: any, steps: typeof STEPS, results: R
   for (const stepDef of steps) {
     const stepRes = results[stepDef.id];
     if (!stepRes || stepRes.failed) continue;
-    const stepScore = stepRes.overall_score ?? stepRes.system_score ?? stepRes.score ?? stepRes.health_score ?? stepRes.sync_score ?? stepRes.ux_score ?? stepRes.interaction_score ?? null;
-    const stepIssues = stepRes.issues_found ?? stepRes.issues?.length ?? stepRes.dead_elements?.length ?? stepRes.mismatches?.length ?? 0;
-    await supabase.from("ai_scan_results").insert({
-      scan_type: stepDef.scanType, results: stepRes, overall_score: stepScore,
-      overall_status: stepScore != null ? (stepScore >= 75 ? "healthy" : stepScore >= 50 ? "warning" : "critical") : null,
-      executive_summary: stepRes.executive_summary || `${stepDef.id}: score ${stepScore ?? '?'}, ${stepIssues} issues`,
-      issues_count: stepIssues, tasks_created: stepRes.tasks_created || 0, scanned_by: startedBy,
-    });
+    // Step results stored in scan_snapshots instead
   }
 }
 
@@ -2459,12 +2452,7 @@ serve(async (req) => {
         })),
       };
 
-      await supabase.from("ai_scan_results").insert({
-        scan_type: "full_orchestrated", results: adaptiveResult, overall_score: unified.system_health_score,
-        overall_status: unified.system_health_score >= 75 ? "healthy" : unified.system_health_score >= 50 ? "warning" : "critical",
-        executive_summary: `Scanner (${systemStage}): ${unified.system_health_score}/100 | ${issuesCount} actionable issues | ${systemicIssues.length} systemic | ${coverageScore}%`,
-        issues_count: issuesCount, scanned_by: scanRun.started_by,
-      });
+      // Scan result stored in scan_snapshots (ai_scan_results removed)
 
       await persistStepResults(supabase, STEPS, updatedResults, scanRun.started_by);
 

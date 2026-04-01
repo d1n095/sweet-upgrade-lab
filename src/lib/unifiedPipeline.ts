@@ -78,37 +78,13 @@ export const runUnifiedPipeline = async (
 
   try {
     // ─── STAGE 1: SCAN → ISSUES ───
-    // Find recent scan results that created tasks but haven't been linked
-    const { data: recentScans } = await supabase
-      .from('ai_scan_results')
-      .select('id, scan_type, issues_count, tasks_created, created_at')
-      .order('created_at', { ascending: false })
-      .limit(10);
-
-    for (const scan of recentScans || []) {
-      emit(makeEvent('scan', 'check', scan.id, 'ai_scan_results', true,
-        `Scan ${scan.scan_type}: ${scan.issues_count || 0} issues, ${scan.tasks_created || 0} tasks`));
-
-      // Check if scan has linked work items
-      const { data: linkedItems } = await supabase
-        .from('work_items' as any)
-        .select('id')
-        .in('source_type', ['ai_scan', 'ai_detection'])
-        .eq('source_id', scan.id)
-        .limit(5);
-
-      if ((scan.tasks_created || 0) > 0 && (!linkedItems || linkedItems.length === 0)) {
-        emit(makeEvent('scan', 'gap_detected', scan.id, 'ai_scan_results', false,
-          `Scan skapade ${scan.tasks_created} uppgifter men inga work_items finns länkade`,
-          { scan_id: scan.id }));
-      }
-    }
+    // Scan results no longer stored in ai_scan_results; skip this stage
 
     // ─── STAGE 2: ISSUES → WORK ITEMS ───
     // Find bugs without work items
     const { data: unlinkedBugs } = await supabase
       .from('bug_reports')
-      .select('id, description, ai_severity, status')
+      .select('id, description, status')
       .in('status', ['open', 'new', 'triaged'])
       .limit(50);
 

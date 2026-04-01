@@ -255,7 +255,6 @@ Your output MUST follow this exact structure:
     await supabase.from("bug_reports").update({
       ai_summary: result.summary,
       ai_category: result.category,
-      ai_severity: result.severity,
       ai_tags: result.tags,
       ai_clean_prompt: result.copy_prompt,
       ai_repro_steps: result.repro_steps || null,

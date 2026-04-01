@@ -271,10 +271,6 @@ const AdminBugReports = () => {
       }).eq('id', id);
       if (wi) {
         await supabase.from('work_items').update({ status: 'done', completed_at: new Date().toISOString() }).eq('id', wi.id);
-        const reviewResult = await triggerAiReviewForWorkItem(wi.id, { context: 'admin_bug_reports_resolve' });
-        if (!reviewResult.ok) {
-          toast.warning('AI-granskning misslyckades — kräver manuell kontroll');
-        }
       }
       setReports(prev => prev.map(r => r.id === id ? { ...r, status: 'resolved', work_item_status: 'done', resolved_at: new Date().toISOString(), resolution_notes: resolutionNotes.trim() || null } : r));
       setExpandedId(null);

@@ -13,7 +13,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  Plus, User, Clock, CheckCircle2, Circle, Play, X, Zap, UserCheck, Bot,
+  Plus, User, Clock, CheckCircle2, Circle, Play, X, Zap, UserCheck,
   AlertTriangle, Package, Headphones, RotateCcw, FileText, Wrench, ShieldAlert,
   FastForward, Pause, ArrowRight, Sparkles, Timer, ToggleRight, Bug, Link2,
   GitBranch, Copy, Layers,
@@ -56,9 +56,6 @@ interface WorkItem {
   orchestrator_result?: any;
   ai_type_classification?: string;
   ai_type_reason?: string;
-  ai_review_status?: string;
-  ai_review_result?: any;
-  ai_review_at?: string;
   resolution_notes?: string;
 }
 
@@ -413,7 +410,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
       if (isMine) return t.status !== 'done';
       return false;
     }
-    if (viewFilter === 'review') return t.status === 'done' && (t as any).ai_review_status !== 'verified';
+    if (viewFilter === 'review') return t.status === 'done';
     if (viewFilter === 'done') return t.status === 'done';
     if (viewFilter === 'escalated') return t.status === 'escalated';
     if (viewFilter === 'bugs') return getClassification(t) === 'bug' && t.status !== 'done';
@@ -688,17 +685,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     if (newStatus === 'done') {
       setCompletedCount(prev => prev + 1);
       setJustCompleted(itemId);
-      toast.success('Klar ✓ — AI granskar...');
-      const reviewResult = await triggerAiReviewForWorkItem(itemId, { context: 'workbench_board_done' });
-      if (!reviewResult.ok) {
-        toast.error('AI-granskning misslyckades — manuell granskning krävs');
-      } else if (reviewResult.status === 'verified') {
-        toast.success('AI: ✅ Verifierad');
-      } else if (reviewResult.status === 'needs_review') {
-        toast.warning('AI: ⚠️ Behöver granskning');
-      } else if (reviewResult.status === 'incomplete') {
-        toast.error('AI: ❌ Ofullständig');
-      }
+      toast.success('Klar ✓');
       queryClient.invalidateQueries({ queryKey: ['work-items'] });
 
       setTimeout(() => {
@@ -773,7 +760,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const escalatedCount = items.filter(t => t.status === 'escalated').length;
   const myCount = items.filter(t => (t.assigned_to === user?.id || t.claimed_by === user?.id) && t.status !== 'done').length;
   const doneCount = items.filter(t => t.status === 'done').length;
-  const reviewCount = items.filter(t => t.status === 'done' && (t as any).ai_review_status !== 'verified').length;
+  const reviewCount = items.filter(t => t.status === 'done').length;
   const activeCount = items.filter(t => !['done', 'cancelled'].includes(t.status)).length;
   const openCount = items.filter(t => t.status === 'open' && !t.assigned_to).length;
   const bugCount = items.filter(t => getClassification(t) === 'bug' && t.status !== 'done').length;
@@ -869,7 +856,6 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
             )}
             {getItemAutomationBadge(item.id) && (
               <Badge variant="outline" className="text-[9px] gap-0.5 bg-purple-100 text-purple-700 border-purple-200">
-                <Bot className="w-2.5 h-2.5" />
                 {getItemAutomationBadge(item.id) === 'escalate' ? 'Auto-eskalerad' :
                  getItemAutomationBadge(item.id) === 'reassign' ? 'Omfördelad' : 'Auto'}
               </Badge>
@@ -1130,7 +1116,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
             </Button>
           )}
           <Button size="sm" variant="outline" className="gap-1.5" onClick={runAutomation} disabled={runningAutomation}>
-            <Bot className="w-4 h-4" /> {runningAutomation ? 'Kör...' : 'Automation'}
+            <Zap className="w-4 h-4" /> {runningAutomation ? 'Kör...' : 'Automation'}
           </Button>
           <Button size="sm" variant="outline" className="gap-1.5" onClick={runOrchestrator} disabled={runningOrchestrator}>
             <Layers className="w-4 h-4" /> {runningOrchestrator ? 'Analyserar...' : 'AI Orchestrator'}

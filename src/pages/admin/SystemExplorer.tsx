@@ -311,16 +311,7 @@ const SystemExplorer = () => {
   // Backend scan latest
   const { data: latestBackendScan, isLoading: backendScanLoading } = useQuery({
     queryKey: ["backend-scan-latest"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("ai_scan_results")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
+    queryFn: async () => null,
     staleTime: 0,
     refetchOnWindowFocus: false,
   });
@@ -489,16 +480,7 @@ const SystemExplorer = () => {
   // 2. Latest scan
   const { data: latestScan, isLoading: scanLoading } = useQuery({
     queryKey: ["system-explorer-latest-scan"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("ai_scan_results")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
+    queryFn: async () => null,
     staleTime: 0,
     refetchOnWindowFocus: false,
   });
@@ -506,15 +488,7 @@ const SystemExplorer = () => {
   // 2c. Last 3 scans for no-issue detection
   const { data: last3Scans = [] } = useQuery({
     queryKey: ["system-explorer-last-3-scans"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("ai_scan_results")
-        .select("results")
-        .order("created_at", { ascending: false })
-        .limit(3);
-      if (error) throw error;
-      return (data || []) as any[];
-    },
+    queryFn: async () => [] as any[],
   });
 
   // 2b. Latest scan_run for pipeline data
