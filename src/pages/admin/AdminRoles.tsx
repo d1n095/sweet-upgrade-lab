@@ -11,7 +11,7 @@ import { Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-import { type ModuleActions, type GranularPermissions } from '@/lib/permissions';
+import { type ModuleActions, type GranularPermissions, validatePermissions, parseDbPermissions } from '@/lib/permissions';
 
 interface RoleTemplate {
   id: string;
@@ -82,8 +82,10 @@ const AdminRoles = () => {
 
   const startEdit = (t: RoleTemplate) => {
     setEditingId(t.id);
-    // permissions is the single source of truth
-    setEditPerms(t.permissions && Object.keys(t.permissions).length > 0 ? t.permissions : {});
+    // permissions is the single source of truth — no fallback
+    const validated = parseDbPermissions(t.permissions, `role_template:${t.role_key}`);
+    if (!validated) { toast.error('Mallen har ogiltiga behörigheter — kontakta administratör'); return; }
+    setEditPerms(validated);
     setExpandedId(t.id);
   };
 
@@ -106,9 +108,11 @@ const AdminRoles = () => {
   const handleSave = async (t: RoleTemplate) => {
     setSaving(true);
     try {
+      // Validate before write — no empty permissions allowed
+      const perms = validatePermissions(editPerms);
       const { error } = await supabase
         .from('role_templates')
-        .update({ permissions: editPerms })
+        .update({ permissions: perms })
         .eq('id', t.id);
       if (error) throw error;
       toast.success(`Mall "${t.name_sv}" uppdaterad`);
@@ -119,18 +123,15 @@ const AdminRoles = () => {
 
   const syncUsersFromTemplate = async (t: RoleTemplate) => {
     if (!confirm(`Synka alla "${t.name_sv}"-användare till mallens behörigheter?`)) return;
-    // Deny sync if template has no permissions
-    if (!t.permissions || Object.keys(t.permissions).length === 0) {
-      toast.error('Mallen saknar behörigheter — spara behörigheter innan synk');
-      return;
-    }
     try {
+      // Validate template permissions before sync — throws if empty
+      const perms = validatePermissions(t.permissions);
       const { data: roleUsers } = await supabase.from('user_roles').select('user_id').eq('role', t.role_key as never);
       if (!roleUsers?.length) { toast.info('Inga användare med den rollen'); return; }
       const userIds = roleUsers.map(r => r.user_id);
       const { error } = await supabase
         .from('staff_permissions')
-        .update({ permissions: t.permissions })
+        .update({ permissions: perms })
         .in('user_id', userIds);
       if (error) throw error;
       toast.success(`${userIds.length} användare synkade`);
@@ -171,7 +172,8 @@ const AdminRoles = () => {
           const isExpanded = expandedId === t.id;
           const displayPerms: GranularPermissions = isEditing
             ? editPerms
-            : (t.permissions && Object.keys(t.permissions).length > 0 ? t.permissions : {});
+            // Section 4: validate DB data before render — skip if invalid
+            : (parseDbPermissions(t.permissions, `render:${t.role_key}`) ?? {});
 
           const moduleCount = Object.values(displayPerms).filter(a => a.read).length;
 

@@ -28,7 +28,10 @@ import {
   type ModuleActions,
   type GranularPermissions,
   mergePermissions,
+  validatePermissions,
+  parseDbPermissions,
 } from '@/lib/permissions';
+import { enforce } from '@/lib/permissionGuard';
 
 // ─── Write audit log entry (best-effort, non-blocking) ───
 const writeAuditLog = async (
