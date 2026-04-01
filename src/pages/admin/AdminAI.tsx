@@ -15,6 +15,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
+import { safeInvoke } from '@/lib/safeInvoke';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
@@ -96,7 +97,7 @@ const callAI = async (type: string, payload: Record<string, any> = {}) => {
   const scanTypes = ['system_scan', 'data_integrity', 'content_validation', 'sync_scan', 'interaction_qa', 'visual_qa', 'nav_scan', 'ux_scan', 'human_test', 'action_governor', 'feature_detection'];
   
   if (scanTypes.includes(type)) {
-    const { data, error } = await supabase.functions.invoke('run-full-scan', {
+    const { data, error } = await safeInvoke('run-full-scan', {
       body: { action: 'start', ...payload },
     });
     if (error) { toast.error(error.message || 'Skanningsfel'); return null; }
@@ -183,29 +184,14 @@ const runLocalAnalysis = async (type: string, _payload: Record<string, any> = {}
 };
 
 const callTaskManager = async (action: string) => {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) { toast.error('Ej inloggad'); return null; }
+  const { data, error } = await safeInvoke('ai-task-manager', { body: { action } });
 
-  const resp = await fetch(
-    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-task-manager`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ action }),
-    }
-  );
-
-  if (!resp.ok) {
-    const err = await resp.json().catch(() => ({}));
-    toast.error(err.error || 'AI Task Manager-fel');
+  if (error) {
+    toast.error(error.message || 'AI Task Manager-fel');
     return null;
   }
 
-  const data = await resp.json();
-  return data.results;
+  return data?.results;
 };
 
 const copyToClipboard = (text: string, buttonId?: string) => {
@@ -237,34 +223,24 @@ const applyFix = async (
   }
 
   try {
-    const resp = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/apply-fix`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          fix_text: fixText,
-          issue_title: issueTitle,
-          issue_category: opts?.category,
-          issue_severity: opts?.severity,
-          source_work_item_id: opts?.workItemId,
-          source_bug_id: opts?.bugId,
-        }),
-      }
-    );
-
-    const data = await resp.json();
+    const { data, error: invokeError } = await safeInvoke('apply-fix', {
+      body: {
+        fix_text: fixText,
+        issue_title: issueTitle,
+        issue_category: opts?.category,
+        issue_severity: opts?.severity,
+        source_work_item_id: opts?.workItemId,
+        source_bug_id: opts?.bugId,
+      },
+    });
 
     if (opts?.buttonId) {
       const el = document.getElementById(opts.buttonId);
       if (el) el.removeAttribute('disabled');
     }
 
-    if (!resp.ok) {
-      toast.error(data.error || 'Apply fix misslyckades');
+    if (invokeError) {
+      toast.error(invokeError.message || 'Apply fix misslyckades');
       if (opts?.buttonId) {
         const el = document.getElementById(opts.buttonId);
         if (el) { el.textContent = '❌ Misslyckades'; setTimeout(() => { el.textContent = '⚡ Apply Fix'; }, 2000); }
@@ -3173,20 +3149,9 @@ const DataHealthTab = () => {
     const isRepair = mode === 'repair';
     if (isRepair) setRepairing(true); else setScanning(true);
 
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { toast.error('Ej inloggad'); setScanning(false); setRepairing(false); return; }
+    const { data, error: syncError } = await safeInvoke('data-sync', { body: { mode } });
 
-    const resp = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/data-sync`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ mode }),
-      }
-    );
-
-    if (resp.ok) {
-      const data = await resp.json();
+    if (!syncError && data) {
       setResults(data.results);
       if (isRepair) toast.success(`${data.results.total_fixed} problem åtgärdade`);
     } else {
@@ -6655,14 +6620,8 @@ const AiUserManagementTab = () => {
   const [roleFilter, setRoleFilter] = useState('all');
 
   const callMgmt = async (body: Record<string, any>) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { toast.error('Ej inloggad'); return null; }
-    const resp = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-user-management`,
-      { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify(body) }
-    );
-    const data = await resp.json();
-    if (!resp.ok) throw new Error(data.error || 'Request failed');
+    const { data, error } = await safeInvoke('ai-user-management', { body });
+    if (error) throw new Error(error.message || 'Request failed');
     return data;
   };
 
@@ -6933,30 +6892,18 @@ const AccessControlTab = () => {
 
   const runScan = async () => {
     setLoading(true);
-    const session = await getSession();
-    if (!session) { setLoading(false); return; }
     try {
-      const resp = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/access-control-scan`,
-        { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` }, body: '{}' }
-      );
-      const data = await resp.json();
-      if (!resp.ok) throw new Error(data.error || 'Scan failed');
+      const { data, error } = await safeInvoke('access-control-scan', { body: {} });
+      if (error) throw error;
       setResult(data);
-      toast.success(`Skanning klar: ${data.issues?.length || 0} problem hittade`);
+      toast.success(`Skanning klar: ${data?.issues?.length || 0} problem hittade`);
     } catch (e: any) { toast.error(e.message); }
     setLoading(false);
   };
 
   const callFix = async (body: Record<string, any>) => {
-    const session = await getSession();
-    if (!session) return null;
-    const resp = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/permission-fix`,
-      { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify(body) }
-    );
-    const data = await resp.json();
-    if (!resp.ok) throw new Error(data.error || 'Fix failed');
+    const { data, error } = await safeInvoke('permission-fix', { body });
+    if (error) throw error;
     return data;
   };
 
@@ -7174,17 +7121,11 @@ const AccessControlTab = () => {
         </div>
         <Button onClick={async () => {
           setValidating(true);
-          const session = await getSession();
-          if (!session) { setValidating(false); return; }
           try {
-            const resp = await fetch(
-              `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/access-flow-validate`,
-              { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` }, body: '{}' }
-            );
-            const data = await resp.json();
-            if (!resp.ok) throw new Error(data.error || 'Validation failed');
+            const { data, error } = await safeInvoke('access-flow-validate', { body: {} });
+            if (error) throw error;
             setFlowResult(data);
-            toast.success(`Validering klar: ${data.summary?.passed}/${data.summary?.total_tests} godkända`);
+            toast.success(`Validering klar: ${data?.summary?.passed}/${data?.summary?.total_tests} godkända`);
           } catch (e: any) { toast.error(e.message); }
           setValidating(false);
         }} disabled={validating} size="sm" variant="outline" className="gap-1">

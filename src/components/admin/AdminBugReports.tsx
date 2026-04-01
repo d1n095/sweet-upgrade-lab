@@ -166,17 +166,7 @@ const AdminBugReports = () => {
     console.log(`[BugEnrich] Auto-processing ${unprocessed.length} bugs`);
     for (const bug of unprocessed) {
       try {
-        await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-bug-report`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify({ bug_id: bug.id }),
-          }
-        );
+        await safeInvoke('process-bug-report', { body: { bug_id: bug.id } });
       } catch (e) {
         console.warn(`[BugEnrich] Failed for ${bug.id}:`, e);
       }
@@ -201,28 +191,14 @@ const AdminBugReports = () => {
     return;
     setProcessingAI(bugId);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { toast.error('Ej inloggad'); return; }
+      const { data: respData, error: invokeError } = await safeInvoke('process-bug-report', { body: { bug_id: bugId } });
 
-      const resp = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-bug-report`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ bug_id: bugId }),
-        }
-      );
-
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({}));
-        toast.error(err.error || 'AI-bearbetning misslyckades');
+      if (invokeError) {
+        toast.error(invokeError.message || 'AI-bearbetning misslyckades');
         return;
       }
 
-      const { result } = await resp.json();
+      const { result } = respData;
       setReports(prev => prev.map(r =>
         r.id === bugId
           ? {
