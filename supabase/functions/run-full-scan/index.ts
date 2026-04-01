@@ -2983,7 +2983,7 @@ serve(async (req) => {
       await supabase.from("scan_snapshots").insert({
         total_scanners: totalScanners,
         total_detected: totalDetected,
-        total_filtered: totalFiltered,
+        total_filtered: totalFilteredFinal,
         total_created: workItemsCreated,
         total_skipped: totalSkipped,
         high_attention_count: highAttentionCount,
