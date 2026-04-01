@@ -6,7 +6,7 @@ import { useStoreSettings } from '@/stores/storeSettingsStore';
 import { useAdminSession } from '@/hooks/useAdminSession';
 import {
   Loader2, Package, ClipboardList, BarChart3, Settings, Grid, Users,
-  Handshake, Heart, Eye, LogOut, Home, Shield, Crown,
+  Handshake, Heart, Eye, LogOut, Home, Shield, Crown, UserCog,
   Activity, User, Menu, X, Star, FileText, Percent, Truck, Wallet, Globe,
   AlertTriangle, ScanLine, Sparkles, History, ShoppingCart, Radar,
 } from 'lucide-react';
@@ -57,6 +57,7 @@ const navGroups: NavGroup[] = [
       { to: '/admin/warehouse', label: 'Warehouse', icon: ScanLine, role: 'all' },
       { to: '/admin/shipping', label: 'Frakt', icon: Truck, role: 'admin' },
       { to: '/admin/staff', label: 'Workbench', icon: Crown, role: 'founder' },
+      { to: '/admin/roles', label: 'Roller', icon: UserCog, role: 'founder' },
     ],
   },
   {

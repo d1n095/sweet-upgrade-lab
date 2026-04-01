@@ -100,6 +100,36 @@ export type Database = {
           },
         ]
       }
+      audit_logs: {
+        Row: {
+          actor_id: string
+          action: string
+          changes: Json | null
+          created_at: string
+          id: string
+          target_id: string | null
+          target_table: string
+        }
+        Insert: {
+          actor_id: string
+          action: string
+          changes?: Json | null
+          created_at?: string
+          id?: string
+          target_id?: string | null
+          target_table: string
+        }
+        Update: {
+          actor_id?: string
+          action?: string
+          changes?: Json | null
+          created_at?: string
+          id?: string
+          target_id?: string | null
+          target_table?: string
+        }
+        Relationships: []
+      }
       affiliate_applications: {
         Row: {
           admin_notes: string | null
@@ -2725,6 +2755,7 @@ export type Database = {
           id: string
           is_locked: boolean
           name_sv: string
+          permissions: Json
           role_key: string
           updated_at: string
         }
@@ -2736,6 +2767,7 @@ export type Database = {
           id?: string
           is_locked?: boolean
           name_sv: string
+          permissions?: Json
           role_key: string
           updated_at?: string
         }
@@ -2747,6 +2779,7 @@ export type Database = {
           id?: string
           is_locked?: boolean
           name_sv?: string
+          permissions?: Json
           role_key?: string
           updated_at?: string
         }
@@ -3329,6 +3362,7 @@ export type Database = {
           granted_by: string | null
           id: string
           notes: string | null
+          permissions: Json
           skill_categories: string[]
           updated_at: string
           user_id: string
@@ -3339,6 +3373,7 @@ export type Database = {
           granted_by?: string | null
           id?: string
           notes?: string | null
+          permissions?: Json
           skill_categories?: string[]
           updated_at?: string
           user_id: string
@@ -3349,6 +3384,7 @@ export type Database = {
           granted_by?: string | null
           id?: string
           notes?: string | null
+          permissions?: Json
           skill_categories?: string[]
           updated_at?: string
           user_id?: string
