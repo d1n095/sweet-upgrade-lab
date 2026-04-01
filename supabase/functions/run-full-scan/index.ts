@@ -31,8 +31,6 @@ const STEPS = [
   { id: "ui_flow_integrity", scanType: "ui_flow_integrity", label: "Verifierar UI-flödesintegritet..." },
 ];
 
-const MAX_ITERATIONS = 3;
-
 // ── FAST LANE: critical scanners that run first in parallel ──
 const FAST_LANE_IDS = new Set([
   "blocker_detection",
@@ -89,38 +87,6 @@ function generateFingerprint(issue: any): string {
   return `${component}::${type}::${location}::${descPattern}`;
 }
 
-// ── Group similar issues by fingerprint prefix ──
-function groupSimilarIssues(issues: any[]): any[] {
-  const groups: Map<string, any[]> = new Map();
-  
-  for (const issue of issues) {
-    const fp = generateFingerprint(issue);
-    // Group by component::type (first 2 segments of 4-part fingerprint)
-    const groupKey = fp.split("::").slice(0, 2).join("::");
-    if (!groups.has(groupKey)) groups.set(groupKey, []);
-    groups.get(groupKey)!.push({ ...issue, _fingerprint: fp });
-  }
-  
-  const result: any[] = [];
-  for (const [groupKey, items] of groups) {
-    if (items.length === 1) {
-      result.push(items[0]);
-    } else {
-      // Use the highest-severity issue as the representative
-      const sorted = items.sort((a, b) => {
-        const sevOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
-        return (sevOrder[a.severity] ?? 2) - (sevOrder[b.severity] ?? 2);
-      });
-      const representative = { ...sorted[0] };
-      representative._similar_count = items.length - 1;
-      representative._similar_issues = items.slice(1).map(i => i.title || i.description || "").filter(Boolean).slice(0, 5);
-      representative._group_key = groupKey;
-      result.push(representative);
-    }
-  }
-  
-  return result;
-}
 
 // ── Context-aware filtering: suppress false positives based on stage ──
 // DEBUG MODE: Relaxed — only suppress clearly invalid/placeholder patterns
@@ -343,25 +309,6 @@ function extractPatterns(unified: any, rootCauseData: any[]): { patterns: any[];
           severity: issues.length >= 3 ? "critical" : "high",
           examples: issues.slice(0, 3).map((i: any) => i.title || i.description || i.element || "unknown"),
         });
-      }
-    }
-  }
-
-  // Cross-bucket detection
-  for (const [compType, compIssues] of Object.entries(componentTypeBucket)) {
-    for (const [interType, interIssues] of Object.entries(interactionTypeBucket)) {
-      const overlap = compIssues.filter((ci: any) => interIssues.some((ii: any) => ci === ii));
-      if (overlap.length >= 2) {
-        const alreadyDetected = systemicIssues.some(s => s.pattern === `${compType}+${interType}`);
-        if (!alreadyDetected) {
-          systemicIssues.push({
-            type: "cross_pattern", pattern: `${compType}+${interType}`,
-            label: `Korsmönster: ${compType} × ${interType}`,
-            description: `${overlap.length} problem där ${interType}-interaktion i ${compType}-komponenter misslyckas.`,
-            affected_count: overlap.length, severity: "critical",
-            examples: overlap.slice(0, 3).map((i: any) => i.title || i.description || i.element || "unknown"),
-          });
-        }
       }
     }
   }
@@ -1570,10 +1517,6 @@ function classifyIssueType(issue: any, category: string): "bug" | "improvement" 
 }
 
 async function createWorkItems(supabase: any, unified: any, stage: SystemStage): Promise<{ created: number; createTrace: any[] }> {
-  console.log("[DEBUG] createWorkItems START", allWorkIssues?.length || 0, "unified keys:", Object.keys(unified || {}));
-  console.log("[DEBUG] SUPABASE TEST START");
-  const test = await supabase.from("work_items").select("id").limit(1);
-  console.log("[DEBUG] SUPABASE TEST RESULT:", test);
   let workItemsCreated = 0;
   const createTrace: any[] = [];
   const allWorkIssues: { title: string; priority: string; item_type: string; description?: string; fingerprint: string; source_path?: string; source_file?: string; source_component?: string; issue_type?: string; suggested_fix?: string; affected_area?: { type: string; target: string } }[] = [];
