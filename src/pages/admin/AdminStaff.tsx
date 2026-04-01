@@ -158,12 +158,15 @@ const StaffManagementTab = () => {
         const highestRole = roleOrder.find(ro => userRoles.some(r => r.role === ro)) || 'user';
         const perm = permMap.get(uid);
         const profile = profileMap.get(uid);
+        // Section 4: validate DB permissions — skip invalid records gracefully
+        const rawPerms = perm?.permissions ?? null;
+        const validatedPerms = parseDbPermissions(rawPerms, `staff_permissions:${uid}`);
         return {
           user_id: uid,
           email: profile?.username || uid.substring(0, 8) + '...',
           username: profile?.username || null,
           role: highestRole,
-          permissions: (perm?.permissions as GranularPermissions) ?? {},
+          permissions: validatedPerms ?? ({} as GranularPermissions),
           notes: perm?.notes || null,
           permissions_id: perm?.id || null,
           roles: userRoles.map(r => r.role),
@@ -196,8 +199,11 @@ const StaffManagementTab = () => {
   // Populate editPerms from the selected role template — permissions are the single source of truth
   const handleRoleChange = (userId: string, roleKey: string) => {
     const tmpl = templates.find(t => t.role_key === roleKey);
-    const perms: GranularPermissions =
-      tmpl?.permissions && Object.keys(tmpl.permissions).length > 0 ? tmpl.permissions : {};
+    const perms = tmpl ? parseDbPermissions(tmpl.permissions, `role_template:${roleKey}`) : null;
+    if (!perms) {
+      toast.error('Rollmallen saknar giltiga behörigheter');
+      return;
+    }
     setEditPerms(prev => ({ ...prev, [userId]: perms }));
     setEditRole(prev => ({ ...prev, [userId]: roleKey }));
   };
@@ -293,13 +299,12 @@ const StaffManagementTab = () => {
         toast.error('Redan personal'); setAddingUser(false); return;
       }
       const defaultTmpl = templates.find(t => t.role_key === 'moderator');
-      const defaultPerms: GranularPermissions =
-        defaultTmpl?.permissions && Object.keys(defaultTmpl.permissions).length > 0
-          ? defaultTmpl.permissions
-          : {
-              dashboard: { read: true, write: false, delete: false, approve: false },
-              orders:    { read: true, write: false, delete: false, approve: false },
-            };
+      const defaultPerms = defaultTmpl ? parseDbPermissions(defaultTmpl.permissions, 'role_template:moderator') : null;
+      if (!defaultPerms) {
+        toast.error('Moderator-mallen saknar giltiga behörigheter — konfigurera rollmallen först');
+        setAddingUser(false);
+        return;
+      }
       await supabase.from('user_roles').insert({ user_id: target.user_id, role: 'moderator' as never });
       await supabase.from('staff_permissions').insert({
         user_id: target.user_id, permissions: defaultPerms, granted_by: user.id,
