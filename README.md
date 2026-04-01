@@ -73,3 +73,4 @@ To connect a domain, navigate to Project > Settings > Domains and click Connect 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
 SYNC TEST 123
 FORCE_RELOAD_1
+FORCE_RELOAD_2
