@@ -11,16 +11,13 @@ import { Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-// ─── Types ───
-type ModuleActions = { read: boolean; write: boolean; delete: boolean; approve: boolean };
-type GranularPermissions = Record<string, ModuleActions>;
+import { type ModuleActions, type GranularPermissions } from '@/lib/permissions';
 
 interface RoleTemplate {
   id: string;
   role_key: string;
   name_sv: string;
   description_sv: string | null;
-  default_modules: string[];
   permissions: GranularPermissions;
   is_locked: boolean;
 }
@@ -65,13 +62,6 @@ const ACTIONS: { key: keyof ModuleActions; label: string }[] = [
 
 const EMPTY_ACTIONS: ModuleActions = { read: false, write: false, delete: false, approve: false };
 
-// ─── Helpers ───
-const buildPermissionsFromModules = (modules: string[]): GranularPermissions =>
-  Object.fromEntries(modules.map(m => [m, { read: true, write: false, delete: false, approve: false }]));
-
-const buildModulesFromPermissions = (perms: GranularPermissions): string[] =>
-  Object.entries(perms).filter(([, a]) => a.read).map(([k]) => k);
-
 const AdminRoles = () => {
   const { isFounder, isLoading: founderLoading } = useFounderRole();
   const queryClient = useQueryClient();
@@ -92,11 +82,8 @@ const AdminRoles = () => {
 
   const startEdit = (t: RoleTemplate) => {
     setEditingId(t.id);
-    // Use stored permissions if present, else derive from default_modules
-    const perms: GranularPermissions = t.permissions && Object.keys(t.permissions).length > 0
-      ? t.permissions
-      : buildPermissionsFromModules(t.default_modules);
-    setEditPerms(perms);
+    // permissions is the single source of truth
+    setEditPerms(t.permissions && Object.keys(t.permissions).length > 0 ? t.permissions : {});
     setExpandedId(t.id);
   };
 
@@ -119,36 +106,36 @@ const AdminRoles = () => {
   const handleSave = async (t: RoleTemplate) => {
     setSaving(true);
     try {
-      const newModules = buildModulesFromPermissions(editPerms);
       const { error } = await supabase
         .from('role_templates')
-        .update({ permissions: editPerms, default_modules: newModules })
+        .update({ permissions: editPerms })
         .eq('id', t.id);
       if (error) throw error;
       toast.success(`Mall "${t.name_sv}" uppdaterad`);
       setEditingId(null);
       queryClient.invalidateQueries({ queryKey: ['role-templates'] });
-    } catch (err: any) { toast.error(err?.message || 'Fel'); } finally { setSaving(false); }
+    } catch (err: unknown) { toast.error(err instanceof Error ? err.message : 'Fel'); } finally { setSaving(false); }
   };
 
   const syncUsersFromTemplate = async (t: RoleTemplate) => {
     if (!confirm(`Synka alla "${t.name_sv}"-användare till mallens behörigheter?`)) return;
+    // Deny sync if template has no permissions
+    if (!t.permissions || Object.keys(t.permissions).length === 0) {
+      toast.error('Mallen saknar behörigheter — spara behörigheter innan synk');
+      return;
+    }
     try {
-      const { data: roleUsers } = await supabase.from('user_roles').select('user_id').eq('role', t.role_key as any);
+      const { data: roleUsers } = await supabase.from('user_roles').select('user_id').eq('role', t.role_key as never);
       if (!roleUsers?.length) { toast.info('Inga användare med den rollen'); return; }
       const userIds = roleUsers.map(r => r.user_id);
-      const permsToApply = t.permissions && Object.keys(t.permissions).length > 0
-        ? t.permissions
-        : buildPermissionsFromModules(t.default_modules);
-      const modulesToApply = buildModulesFromPermissions(permsToApply);
       const { error } = await supabase
         .from('staff_permissions')
-        .update({ allowed_modules: modulesToApply, permissions: permsToApply })
+        .update({ permissions: t.permissions })
         .in('user_id', userIds);
       if (error) throw error;
       toast.success(`${userIds.length} användare synkade`);
       queryClient.invalidateQueries({ queryKey: ['admin-staff-members'] });
-    } catch (err: any) { toast.error(err?.message || 'Fel'); }
+    } catch (err: unknown) { toast.error(err instanceof Error ? err.message : 'Fel'); }
   };
 
   // ─── Guards ───
@@ -184,9 +171,7 @@ const AdminRoles = () => {
           const isExpanded = expandedId === t.id;
           const displayPerms: GranularPermissions = isEditing
             ? editPerms
-            : (t.permissions && Object.keys(t.permissions).length > 0
-                ? t.permissions
-                : buildPermissionsFromModules(t.default_modules));
+            : (t.permissions && Object.keys(t.permissions).length > 0 ? t.permissions : {});
 
           const moduleCount = Object.values(displayPerms).filter(a => a.read).length;
 
