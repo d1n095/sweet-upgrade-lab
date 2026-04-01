@@ -2514,13 +2514,32 @@ serve(async (req) => {
         scan_id: scan_run_id, trace_id: `full-scan-${scan_run_id.slice(0, 8)}`, component: step.scanType, duration_ms,
       }).catch(() => {});
 
+      // Compute progress after step completion
+      const completedStepCount = step_index + 1;
+      const totalStepsAll = scanRun.total_steps || STEPS.length;
+      const stepProgressPct = Math.min(95, Math.round((completedStepCount / totalStepsAll) * 100));
+      // ETA: average time per step * remaining steps
+      const avgStepMs = duration_ms; // approximate with current step
+      const remainingSteps = totalStepsAll - completedStepCount;
+      const etaSeconds = Math.max(0, Math.round((avgStepMs * remainingSteps) / 1000));
+      const completionLog = { ts: new Date().toISOString(), msg: stepResult.failed ? `❌ Misslyckades: ${step.label}` : `✅ Klar: ${step.label} (${(duration_ms / 1000).toFixed(1)}s, ${stepResult.issues?.length || 0} issues)`, step: step.id };
+      const updatedLogs = [...(Array.isArray(scanRun.step_logs) ? scanRun.step_logs : []).slice(-50), completionLog];
+
       const updatedResults = { ...(scanRun.steps_results || {}), [step.id]: stepResult };
       const stepsForIteration = currentIteration === 1 ? STEPS : (scanRun._targeted_steps || STEPS);
       const isLastStep = step_index + 1 >= stepsForIteration.length;
 
       if (!isLastStep) {
         const nextStep = stepsForIteration[step_index + 1];
-        await supabase.from("scan_runs").update({ steps_results: updatedResults, current_step: step_index + 1, current_step_label: `[Iteration ${currentIteration}/${MAX_ITERATIONS}] ${nextStep.label}` }).eq("id", scan_run_id);
+        await supabase.from("scan_runs").update({
+          steps_results: updatedResults,
+          current_step: step_index + 1,
+          current_step_label: `[Iteration ${currentIteration}/${MAX_ITERATIONS}] ${nextStep.label}`,
+          progress: stepProgressPct,
+          completed_steps: completedStepCount,
+          eta_seconds: etaSeconds,
+          step_logs: updatedLogs,
+        }).eq("id", scan_run_id);
         fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
           method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
           body: JSON.stringify({ action: "process_step", scan_run_id, step_index: step_index + 1, iteration: currentIteration }),
