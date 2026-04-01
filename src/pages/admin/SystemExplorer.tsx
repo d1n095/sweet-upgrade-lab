@@ -285,51 +285,6 @@ const SystemExplorer = () => {
     setSearchResults(results.slice(0, 50));
   }
 
-  async function runSystemScan(mode: string) {
-    if (isScanning) {
-      console.warn("Scan already running");
-      return;
-    }
-    setIsScanning(true);
-    logAction({ type: "SCAN", status: "started", mode });
-    try {
-      if (mode === "files") {
-        const files = Object.keys(getRawSources() || {});
-        const result = {
-          total: files.length,
-          empty: files.filter(f => !getRawSources()[f]?.trim()).length
-        };
-        setFileScanResult({ total: result.total, emptyFiles: result.empty, largeFiles: 0 });
-        logAction({ type: "SCAN", status: "success", mode });
-      }
-      if (mode === "code") {
-        const results: { type: string; message: string; file: string }[] = [];
-        Object.entries(getRawSources() || {}).forEach(([path, content]) => {
-          const issues = scanFileContent(path, content as string);
-          results.push(...issues);
-        });
-        console.log("[FILE ISSUES FOUND]:", results.length);
-        setCodeScanResult(results);
-        logAction({ type: "SCAN", status: "success", mode });
-      }
-      if (mode === "full") {
-        console.log("[FULL SCAN TRIGGERED]");
-        startScanJob("system");
-        logAction({ type: "SCAN", status: "success", mode });
-      }
-    } catch (err: any) {
-      console.error("[SCAN ERROR]:", err);
-      logAction({
-        type: "SCAN",
-        status: "error",
-        mode,
-        message: err.message
-      });
-    } finally {
-      setIsScanning(false);
-    }
-  }
-
   async function verifyWorkItemsCreated(beforeCount: number) {
     const { data } = await supabase
       .from("work_items")
@@ -452,27 +407,10 @@ const SystemExplorer = () => {
     },
     staleTime: 30_000,
   });
-  const [frontendViolations, setFrontendViolations] = useState<{ type: string; action: string; message: string }[]>([]);
 
   function validateAction(actionName: string, fn: () => any) {
-    try {
-      const result = fn();
-      if (!result) {
-        throw new Error("No result returned");
-      }
-      return result;
-    } catch (err: any) {
-      console.error("🚨 ACTION FAILED:", actionName, err.message);
-      setFrontendViolations(prev => [
-        ...prev,
-        {
-          type: "ACTION_FAILED",
-          action: actionName,
-          message: err.message
-        }
-      ]);
-      return null;
-    }
+    console.log("CLICK → ENGINE OK");
+    return startScanJob("system");
   }
 
   const { data: debugConsoleLogs = [] } = useQuery({

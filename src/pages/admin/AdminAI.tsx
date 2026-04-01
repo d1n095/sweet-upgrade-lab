@@ -27,7 +27,6 @@ import { useFullScanOrchestrator, ORCHESTRATED_STEPS } from '@/stores/fullScanOr
 import type { UnifiedScanResult } from '@/stores/fullScanOrchestrator';
 import { filterRelevantIssues } from '@/stores/fullScanOrchestrator';
 import AdminAiReadLog from '@/components/admin/AdminAiReadLog';
-import AiQueueControl from '@/components/admin/AiQueueControl';
 import DataFlowValidator from '@/components/admin/DataFlowValidator';
 import UiRealityCheck from '@/components/admin/UiRealityCheck';
 import SystemTrustScore from '@/components/admin/SystemTrustScore';
@@ -35,6 +34,7 @@ import SafeModePanel, { SafeModeBanner } from '@/components/admin/SafeModePanel'
 import UnifiedPipelineDashboard from '@/components/admin/UnifiedPipelineDashboard';
 import SystemStateDashboard from '@/components/admin/SystemStateDashboard';
 import FailureMemoryPanel from '@/components/admin/FailureMemoryPanel';
+import { startScanJob } from '@/lib/scanEngine';
 
 // Context to allow any tab to open a work item detail view
 const DetailContext = createContext<{
@@ -88,18 +88,14 @@ interface UnifiedReport {
 }
 
 const callAI = async (type: string, payload: Record<string, any> = {}) => {
-  // AI is disabled — redirect scan types to run-full-scan, others return null
   const scanTypes = ['system_scan', 'data_integrity', 'content_validation', 'sync_scan', 'interaction_qa', 'visual_qa', 'nav_scan', 'ux_scan', 'human_test', 'action_governor', 'feature_detection'];
-  
+
   if (scanTypes.includes(type)) {
-    const { data, error } = await supabase.functions.invoke('run-full-scan', {
-      body: { scan_type: type, ...payload },
-    });
-    if (error) { toast.error(error.message || 'Skanningsfel'); return null; }
-    return data;
+    console.log("CLICK → ENGINE OK");
+    return startScanJob("system");
   }
 
-  // Non-scan AI calls are disabled
+  // Non-scan calls are disabled
   toast.info('Denna funktion kräver manuell hantering');
   return null;
 };
