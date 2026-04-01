@@ -306,6 +306,11 @@ const BalancePage = () => {
 
   return (
     <div className="space-y-6">
+      <SEOHead
+        title={language === 'sv' ? 'Mitt saldo' : 'My Balance'}
+        description={language === 'sv' ? 'Se ditt affiliate-saldo och donationsöversikt.' : 'View your affiliate balance and donation overview.'}
+        noindex={true}
+      />
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
