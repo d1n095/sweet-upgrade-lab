@@ -35,6 +35,7 @@ import SafeModePanel, { SafeModeBanner } from '@/components/admin/SafeModePanel'
 import UnifiedPipelineDashboard from '@/components/admin/UnifiedPipelineDashboard';
 import SystemStateDashboard from '@/components/admin/SystemStateDashboard';
 import FailureMemoryPanel from '@/components/admin/FailureMemoryPanel';
+import ScanProgress from '@/components/admin/ScanProgress';
 
 // Context to allow any tab to open a work item detail view
 const DetailContext = createContext<{
