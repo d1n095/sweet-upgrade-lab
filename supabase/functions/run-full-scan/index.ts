@@ -3,6 +3,15 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
 const corsHeaders = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type" };
 
+// ── SCAN RESULT TYPE ─────────────────────────────────────────────────────
+// All scanners in SCAN_REGISTRY MUST return this schema.
+// No ai_summary, no ai_suggestions, no randomness, no external API calls.
+type ScanResult = {
+  issues: any[];
+  meta?: Record<string, any>;
+  stats?: Record<string, any>;
+};
+
 // ── SCAN FILTERS ─────────────────────────────────────────────────────────
 type ScanFilters = {
   pages?: boolean;
@@ -396,9 +405,9 @@ async function runSystemScan(supabase: any, scanRunId: string): Promise<any> {
     for (const wi of staleEsc || [])
       issues.push({ title:`Eskalerat ärende >24h: "${wi.title}"`, severity:"high", component:"work_items", entity_id:wi.id });
 
-    const { data: recentScans } = await supabase.from("ai_scan_results").select("overall_score").eq("scan_type","full_orchestrated").order("created_at",{ascending:false}).limit(3);
+    const { data: recentScans } = await supabase.from("scan_runs").select("system_health_score").eq("status","done").order("created_at",{ascending:false}).limit(3);
     if ((recentScans?.length || 0) >= 2) {
-      const [cur, prev] = [recentScans![0].overall_score || 0, recentScans![1].overall_score || 0];
+      const [cur, prev] = [recentScans![0].system_health_score || 0, recentScans![1].system_health_score || 0];
       if (cur < prev - 10) issues.push({ title:`Systempoäng sjunkit: ${prev} → ${cur}`, severity:"high", component:"system_health" });
       metrics.score_delta = cur - prev;
     }
@@ -661,7 +670,7 @@ const SCAN_REGISTRY: Record<string, (supabase: any, scanRunId: string) => Promis
 // ── CONSISTENCY GUARD ────────────────────────────────────────────────────
 async function runConsistencyGuard(supabase: any, currentFingerprints: Map<string, { title: string; priority: string; item_type: string }>) {
   const { data: activeItems } = await supabase.from("work_items")
-    .select("id,title,issue_fingerprint").eq("source_type","ai_scan")
+    .select("id,title,issue_fingerprint").eq("source_type","scan")
     .not("issue_fingerprint","is",null)
     .in("status",["open","claimed","in_progress","escalated","new","pending","detected"]).limit(500);
   const existingByFp = new Map<string, any>();
@@ -741,7 +750,6 @@ async function createWorkItems(supabase: any, unified: any, scanRunId: string): 
       item_type,
       source_type:     "scan",
       source_id:       scanRunId,
-      ai_detected:     true,
       issue_fingerprint: fp,
       first_seen_at:   now,
       last_seen_at:    now,
