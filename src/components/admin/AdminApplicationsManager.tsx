@@ -16,6 +16,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
+import { safeInvoke } from '@/lib/safeInvoke';
 import { useLanguage } from '@/context/LanguageContext';
 import { toast } from 'sonner';
 
@@ -146,13 +147,15 @@ const AdminApplicationsManager = () => {
 
       // Send welcome email
       try {
-        await supabase.functions.invoke('notify-affiliate', {
+        await safeInvoke({
+          action: 'NOTIFY_AFFILIATE',
+          fn: 'notify-affiliate',
           body: {
             email: selectedApp.email,
             name: selectedApp.name,
             code,
             commissionPercent: parseFloat(commissionPercent),
-          }
+          },
         });
       } catch (emailError) {
         console.error('Failed to send welcome email:', emailError);

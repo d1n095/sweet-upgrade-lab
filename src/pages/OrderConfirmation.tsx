@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Link, useSearchParams } from 'react-router-dom';
 import { storeConfig } from '@/config/storeConfig';
 import { supabase } from '@/integrations/supabase/client';
+import { safeInvoke } from '@/lib/safeInvoke';
 import { useCartStore } from '@/stores/cartStore';
 import { getOrderDisplayId } from '@/utils/orderDisplay';
 import { trackCheckoutComplete } from '@/utils/analyticsTracker';
@@ -54,7 +55,9 @@ const OrderConfirmation = () => {
 
       for (let attempt = 0; attempt < maxRetries && !isCancelled; attempt += 1) {
         try {
-          const { data: fnData, error: fnError } = await supabase.functions.invoke('lookup-order', {
+          const { data: fnData, error: fnError } = await safeInvoke({
+            action: 'LOOKUP_ORDER_BY_SESSION',
+            fn: 'lookup-order',
             body: { session_id: sessionId },
           });
 

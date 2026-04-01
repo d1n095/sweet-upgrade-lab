@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
+import { safeInvoke } from '@/lib/safeInvoke';
 import { logAuthEvent } from '@/utils/activityLogger';
 import { useLoginRateLimit } from '@/hooks/useLoginRateLimit';
 import { useStoreSettings } from '@/stores/storeSettingsStore';
@@ -195,8 +196,10 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
         }
         
         // Send welcome email in background
-        supabase.functions.invoke('send-welcome-email', {
-          body: { email, language }
+        safeInvoke({
+          action: 'SEND_WELCOME_EMAIL',
+          fn: 'send-welcome-email',
+          body: { email, language },
         }).catch(err => console.error('Welcome email failed:', err));
         
         logAuthEvent('login', email, { type: 'signup' });

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import ReviewStars from './ReviewStars';
 import { supabase } from '@/integrations/supabase/client';
+import { safeInvoke } from '@/lib/safeInvoke';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/context/LanguageContext';
 import { toast } from 'sonner';
@@ -180,13 +181,15 @@ const ReviewForm = ({ productId, productHandle, productTitle, onReviewSubmitted 
       }
 
       // Notify admin
-      supabase.functions.invoke('notify-review', {
+      safeInvoke({
+        action: 'NOTIFY_REVIEW',
+        fn: 'notify-review',
         body: {
           productTitle,
           rating,
           comment: comment.trim(),
           userEmail: user.email,
-        }
+        },
       }).catch(err => console.error('Failed to notify admin:', err));
 
       // Create reward

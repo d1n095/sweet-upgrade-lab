@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { safeInvoke } from "@/lib/safeInvoke";
 import { fileSystemMap, type FileEntry, getFileContent, getCodeIndex, getDuplicatedLines, getCodeIssues, getRawSources, scanFileContent } from "@/lib/fileSystemMap";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useFounderRole } from "@/hooks/useFounderRole";
@@ -279,8 +280,11 @@ const SystemExplorer = () => {
       }
       if (mode === "full") {
         console.log("[FULL SCAN TRIGGERED]");
-        await supabase.functions.invoke("run-full-scan", {
+        await safeInvoke({
+          action: 'RUN_FULL_SCAN',
+          fn: 'run-full-scan',
           body: { action: "start", scan_mode: "full" },
+          isAdmin,
         });
         logAction({ type: "SCAN", status: "success", mode });
       }
@@ -502,8 +506,11 @@ const SystemExplorer = () => {
         path
       }));
       console.log("[SENDING STRUCTURE MAP]:", structure_map.length);
-      const res = await supabase.functions.invoke("run-full-scan", {
+      const res = await safeInvoke({
+        action: 'RUN_FULL_SCAN',
+        fn: 'run-full-scan',
         body: { action: "start", scan_mode: "full", structure_map },
+        isAdmin,
       });
       console.log("📡 RESPONSE:", res);
       const verify = await verifyWorkItemsCreated(beforeCount);
@@ -1206,8 +1213,11 @@ const SystemExplorer = () => {
                   } catch (_) {}
                 }, 2000);
                 try {
-                  await supabase.functions.invoke("run-full-scan", {
-                    body: { action: "start", scan_mode: "full", structure_map: structure_map.map(p => ({ path: p })) }
+                  await safeInvoke({
+                    action: 'RUN_FULL_SCAN',
+                    fn: 'run-full-scan',
+                    body: { action: "start", scan_mode: "full", structure_map: structure_map.map(p => ({ path: p })) },
+                    isAdmin,
                   });
                 } finally {
                   clearInterval(pollInterval);
@@ -3968,8 +3978,11 @@ const SystemExplorer = () => {
                       const meta = (selectedItem as any).metadata ? (typeof (selectedItem as any).metadata === "string" ? JSON.parse((selectedItem as any).metadata) : (selectedItem as any).metadata) : {};
                       const target = meta?.affected_area?.target || (selectedItem as any).source_component || (selectedItem as any).source_path || selectedItem.item_type;
 
-                      const verifyRes = await supabase.functions.invoke("run-full-scan", {
+                      const verifyRes = await safeInvoke({
+                        action: 'RUN_TARGETED_SCAN',
+                        fn: 'run-full-scan',
                         body: { action: "start", scan_mode: "targeted", target_area: target, verification_for: selectedItem.id },
+                        isAdmin,
                       });
                       console.log("[DEBUG] VERIFY SCAN RESPONSE:", verifyRes);
                       const scanData = verifyRes?.data ?? verifyRes;
