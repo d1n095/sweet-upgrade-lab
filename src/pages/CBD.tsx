@@ -40,6 +40,10 @@ const CBD = () => {
 
   const content = {
     sv: {
+      seo: {
+        title: 'CBD – Vad det är, effekter och användning',
+        description: 'Lär dig vad CBD är, hur det fungerar och vilka effekter det kan ha på kroppen.',
+      },
       hero: {
         badge: 'Kommer snart',
         title: 'CBD & Hampaprodukter',
