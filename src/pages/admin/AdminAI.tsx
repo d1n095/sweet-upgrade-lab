@@ -88,30 +88,9 @@ interface UnifiedReport {
 }
 
 
-const callTaskManager = async (action: string) => {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) { toast.error('Ej inloggad'); return null; }
-
-  const resp = await fetch(
-    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-task-manager`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ action }),
-    }
-  );
-
-  if (!resp.ok) {
-    const err = await resp.json().catch(() => ({}));
-    toast.error(err.error || 'AI Task Manager-fel');
-    return null;
-  }
-
-  const data = await resp.json();
-  return data.results;
+const callTaskManager = async (_action: string) => {
+  toast.info('Denna funktion kräver manuell hantering');
+  return null;
 };
 
 const copyToClipboard = (text: string, buttonId?: string) => {
@@ -1002,7 +981,7 @@ const PromptGeneratorTab = () => {
   const generate = async () => {
     if (!input.trim() || input.trim().length < 5) { toast.error('Skriv minst 5 tecken'); return; }
     setLoading(true);
-    const res = null });
+    const res = null;
     if (res) {
       setResult(res);
       setHistory(prev => [res, ...prev].slice(0, 20));

@@ -1,7 +1,7 @@
-import { supabase } from '@/integrations/supabase/client';
+import { safeInvoke } from '@/lib/safeInvoke';
 
 /**
- * Wraps supabase.functions.invoke with a request_trace_id
+ * Wraps safeInvoke with a request_trace_id
  * so clicks can be tracked end-to-end: click → request → backend → DB
  */
 export async function tracedInvoke<T = any>(
@@ -15,7 +15,7 @@ export async function tracedInvoke<T = any>(
     request_trace_id,
   };
 
-  const { data, error } = await supabase.functions.invoke(functionName, {
+  const { data, error } = await safeInvoke<T>(functionName, {
     ...options,
     body,
   });

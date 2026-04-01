@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '@/integrations/supabase/client';
+import { safeInvoke } from '@/lib/safeInvoke';
 import { toast } from 'sonner';
 import { useExecutionLockStore } from './executionLockStore';
 import { useFeedbackLoopStore } from './feedbackLoopStore';
@@ -60,7 +61,7 @@ const callScanFunction = async (type: string, payload: Record<string, any> = {})
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) throw new Error('Ej inloggad');
 
-  const { data, error } = await supabase.functions.invoke('run-full-scan', {
+  const { data, error } = await safeInvoke('run-full-scan', {
     body: { scan_type: type, ...payload },
   });
 
