@@ -27,6 +27,10 @@ import SEOHead from '@/components/seo/SEOHead';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 
+function generateAutoSeoTitle(product: DbProduct): string {
+  return `${product.title_sv} | 4thepeople`;
+}
+
 function generateAutoSeoDescription(product: DbProduct): string {
   const parts: string[] = [];
   if (product.description_sv) parts.push(product.description_sv.substring(0, 80));
@@ -224,7 +228,7 @@ const ProductDetail = () => {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead
-        title={product.meta_title || `${product.title_sv} — Köp online | 4thepeople`}
+        title={product.meta_title || generateAutoSeoTitle(product)}
         description={product.meta_description || generateAutoSeoDescription(product)}
         keywords={product.meta_keywords || generateAutoSeoKeywords(product)}
         canonical={`/product/${handle}`}

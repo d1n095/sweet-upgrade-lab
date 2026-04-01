@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback } from 'react';
-import { Search, AlertTriangle, CheckCircle2, Edit2, Save, X, Globe, Wand2 } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Search, CheckCircle2, Edit2, Save, X, Globe, Wand2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -143,11 +143,7 @@ function generateDescription(p: DbProduct): string {
 }
 
 function generateTitle(p: DbProduct): string {
-  const mods = pickModifiers(p);
-  const mod = mods[0] ? `${mods[0].charAt(0).toUpperCase() + mods[0].slice(1)} ` : '';
-  const cat = p.category ? ` | ${p.category}` : '';
-  const base = `${mod}${p.title_sv}${cat} — Köp online | 4ThePeople`;
-  return base.substring(0, 60);
+  return `${p.title_sv} | 4thepeople`;
 }
 
 // --- Helper ---
@@ -217,9 +213,9 @@ const AdminSEO = () => {
     setSaving(true);
     try {
       await updateDbProduct(productId, {
-        meta_title: editData.metaTitle?.trim() ? editData.metaTitle : null,
-        meta_description: editData.metaDescription?.trim() ? editData.metaDescription : null,
-        meta_keywords: editData.metaKeywords?.trim() ? editData.metaKeywords : null,
+        meta_title: normalizeSeo(editData.metaTitle),
+        meta_description: normalizeSeo(editData.metaDescription),
+        meta_keywords: normalizeSeo(editData.metaKeywords),
       });
       toast.success('SEO uppdaterat!');
       queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });
@@ -237,36 +233,6 @@ const AdminSEO = () => {
       metaDescription: generateDescription(p),
       metaKeywords: generateKeywords(p),
     });
-  };
-
-  // Toggle between auto and manual
-  const toggleMode = async (p: DbProduct) => {
-    const currentMode = getProductSeoMode(p);
-    setTogglingId(p.id);
-    try {
-      if (currentMode === 'manual') {
-        // Switch to auto: clear manual fields
-        await updateDbProduct(p.id, {
-          meta_title: null,
-          meta_description: null,
-          meta_keywords: null,
-        });
-        toast.success(`${p.title_sv}: Växlat till Auto-SEO`);
-      } else {
-        // Switch to manual: populate with generated values
-        await updateDbProduct(p.id, {
-          meta_title: generateTitle(p),
-          meta_description: generateDescription(p),
-          meta_keywords: generateKeywords(p),
-        });
-        toast.success(`${p.title_sv}: Växlat till Manuell SEO`);
-      }
-      queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });
-    } catch (err: any) {
-      toast.error('Kunde inte växla: ' + (err?.message || 'Okänt fel'));
-    } finally {
-      setTogglingId(null);
-    }
   };
 
   // Bulk auto-generate for all products in auto mode
@@ -302,7 +268,7 @@ const AdminSEO = () => {
             SEO-hantering
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Växla mellan auto och manuell SEO per produkt. Auto genererar baserat på namn, kategori, ingredienser och beskrivning.
+            SEO genereras automatiskt om fälten lämnas tomma.
           </p>
         </div>
         <Button variant="outline" size="sm" className="gap-1.5 shrink-0" onClick={bulkAutoGenerate} disabled={saving}>
@@ -355,7 +321,6 @@ const AdminSEO = () => {
         {filtered.map(p => {
           const mode = getProductSeoMode(p);
           const isEditing = editingId === p.id;
-          const isToggling = togglingId === p.id;
           const currentTitle = p.meta_title || generateTitle(p);
           const currentDesc = p.meta_description || generateDescription(p);
           const currentKeywords = p.meta_keywords || generateKeywords(p);
@@ -375,19 +340,16 @@ const AdminSEO = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    {/* Mode toggle */}
-                    <button
-                      onClick={() => toggleMode(p)}
-                      disabled={isToggling}
-                      className="flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer disabled:opacity-50"
+                    {/* SEO status badge (read-only — DB is source of truth) */}
+                    <span
+                      className="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium"
                       style={{
                         background: mode === 'manual' ? 'hsl(var(--primary) / 0.1)' : 'hsl(var(--secondary))',
                         color: mode === 'manual' ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
                       }}
                     >
-                      {mode === 'manual' ? <ToggleRight className="w-3.5 h-3.5" /> : <ToggleLeft className="w-3.5 h-3.5" />}
                       {mode === 'manual' ? 'Manuell' : 'Auto'}
-                    </button>
+                    </span>
                     {!isEditing && (
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => startEdit(p)}>
                         <Edit2 className="w-3.5 h-3.5" />
