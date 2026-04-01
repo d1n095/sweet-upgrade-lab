@@ -4,6 +4,7 @@ import { Send, Loader2, Gift, CheckCircle, ShieldX, ShieldCheck } from 'lucide-r
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import ReviewStars from './ReviewStars';
+import { safeInvoke } from '@/lib/safeInvoke';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/context/LanguageContext';
@@ -180,7 +181,7 @@ const ReviewForm = ({ productId, productHandle, productTitle, onReviewSubmitted 
       }
 
       // Notify admin
-      supabase.functions.invoke('notify-review', {
+      safeInvoke('notify-review', {
         body: {
           productTitle,
           rating,

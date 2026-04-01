@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { safeInvoke } from '@/lib/safeInvoke';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/context/LanguageContext';
 import { toast } from 'sonner';
@@ -146,7 +147,7 @@ const AdminApplicationsManager = () => {
 
       // Send welcome email
       try {
-        await supabase.functions.invoke('notify-affiliate', {
+        await safeInvoke('notify-affiliate', {
           body: {
             email: selectedApp.email,
             name: selectedApp.name,

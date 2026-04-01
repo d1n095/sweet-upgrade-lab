@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { safeInvoke } from '@/lib/safeInvoke';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/context/LanguageContext';
 import { toast } from 'sonner';
@@ -310,7 +311,7 @@ const AdminOrderManager = () => {
       // Trigger status update email for meaningful status changes
       if (editData.status !== order.status && ['processing', 'shipped', 'delivered', 'returned', 'lost'].includes(editData.status)) {
         try {
-          await supabase.functions.invoke('send-order-email', {
+          await safeInvoke('send-order-email', {
             body: { order_id: order.id, email_type: 'status_update' },
           });
           toast.success(`${content.updated} — mail skickat till ${order.order_email}`);
@@ -383,7 +384,7 @@ const AdminOrderManager = () => {
     try {
       toast.loading(language === 'sv' ? 'Skapar förfrågan...' : 'Creating request...', { id: 'refund' });
 
-      const { data, error } = await supabase.functions.invoke('process-refund', {
+      const { data, error } = await safeInvoke('process-refund', {
         body: { action: 'create_request', order_id: order.id, reason: refundReason },
       });
 

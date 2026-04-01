@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { tracedInvoke } from "@/lib/tracedInvoke";
+import { safeInvoke } from "@/lib/safeInvoke";
 import { useAiQueueStore } from "@/stores/aiQueueStore";
 import { fileSystemMap, type FileEntry, getFileContent, getCodeIndex, getDuplicatedLines, getCodeIssues, getRawSources, scanFileContent } from "@/lib/fileSystemMap";
 import { useAdminRole } from "@/hooks/useAdminRole";
@@ -281,8 +281,9 @@ const SystemExplorer = () => {
       }
       if (mode === "full") {
         console.log("[FULL SCAN TRIGGERED]");
-        await tracedInvoke("run-full-scan", {
+        await safeInvoke("run-full-scan", {
           body: { action: "start", scan_mode: "full" },
+          isAdmin,
         });
         logAction({ type: "SCAN", status: "success", mode });
       }
@@ -504,8 +505,9 @@ const SystemExplorer = () => {
         path
       }));
       console.log("[SENDING STRUCTURE MAP]:", structure_map.length);
-      const res = await tracedInvoke("run-full-scan", {
+      const res = await safeInvoke("run-full-scan", {
         body: { action: "start", scan_mode: "full", structure_map },
+        isAdmin,
       });
       console.log("📡 RESPONSE:", res);
       const verify = await verifyWorkItemsCreated(beforeCount);
@@ -1216,12 +1218,13 @@ const SystemExplorer = () => {
                 console.log("SCAN CLICKED");
                 try {
                   console.log("INVOKING run-full-scan");
-                  const res = await supabase.functions.invoke("run-full-scan", {
+                  const res = await safeInvoke("run-full-scan", {
                     body: {
                       action: "start",
                       scan_mode: "full",
                       structure_map
-                    }
+                    },
+                    isAdmin,
                   });
                   console.log("INVOKE RESPONSE:", res);
                   console.log("FULL RESPONSE:", res);
@@ -4100,8 +4103,9 @@ const SystemExplorer = () => {
                       const meta = (selectedItem as any).metadata ? (typeof (selectedItem as any).metadata === "string" ? JSON.parse((selectedItem as any).metadata) : (selectedItem as any).metadata) : {};
                       const target = meta?.affected_area?.target || (selectedItem as any).source_component || (selectedItem as any).source_path || selectedItem.item_type;
 
-                      const verifyRes = await tracedInvoke("run-full-scan", {
+                      const verifyRes = await safeInvoke("run-full-scan", {
                         body: { action: "start", scan_mode: "targeted", target_area: target, verification_for: selectedItem.id },
+                        isAdmin,
                       });
                       console.log("[DEBUG] VERIFY SCAN RESPONSE:", verifyRes);
                       const scanData = verifyRes?.data ?? verifyRes;

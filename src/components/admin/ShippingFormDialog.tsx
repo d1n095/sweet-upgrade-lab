@@ -9,6 +9,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import { safeInvoke } from '@/lib/safeInvoke';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -119,7 +120,7 @@ const ShippingFormDialog = ({ open, onOpenChange, order, onShipped }: ShippingFo
       let emailSent = false;
       if (deliveryMethod === 'shipping') {
         try {
-          const { error: emailError } = await supabase.functions.invoke('send-order-email', {
+          const { error: emailError } = await safeInvoke('send-order-email', {
             body: { order_id: order.id, email_type: 'status_update' },
           });
           emailSent = !emailError;
