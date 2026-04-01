@@ -8,7 +8,7 @@ import {
   Loader2, Package, ClipboardList, BarChart3, Settings, Grid, Users,
   Handshake, Heart, Eye, LogOut, Home, Shield, Crown,
   Activity, User, Menu, X, Star, FileText, Percent, Truck, Wallet, Globe,
-  AlertTriangle, ScanLine, Sparkles, History, ShoppingCart, Radar, Cpu,
+  AlertTriangle, ScanLine, Sparkles, History, ShoppingCart, Cpu,
   ChevronDown, ChevronRight,
 } from 'lucide-react';
 import { useEmployeeRole } from '@/hooks/useEmployeeRole';
@@ -89,7 +89,6 @@ const navGroups: NavGroup[] = [
   {
     label: 'SYSTEM',
     items: [
-      { to: '/admin/ai', label: 'Scan Center', icon: Radar, role: 'admin' },
       { to: '/admin/advanced', label: 'Advanced System', icon: Cpu, role: 'admin' },
       { to: '/admin/history', label: 'Historik', icon: History, role: 'admin' },
       { to: '/admin/members', label: 'Användare', icon: Users, role: 'admin' },
