@@ -216,7 +216,7 @@ export const useFullScanOrchestrator = create<FullScanOrchestratorState>((set, g
           unifiedResult: null,
         });
         get().stopPolling();
-        const interval = setInterval(() => pollScanRun(scanRun.id, set, get), 10000);
+        const interval = setInterval(() => pollScanRun(scanRun.id, set, get), 2000);
         set({ pollInterval: interval });
       } else if (scanRun.status === 'done' && scanRun.unified_result) {
         // Show the completed result
