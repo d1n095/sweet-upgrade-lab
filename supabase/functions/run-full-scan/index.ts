@@ -2886,7 +2886,7 @@ serve(async (req) => {
       // Store scan snapshot for historical tracking
       const totalScanners = STEPS.length;
       const totalDetected = issuesCount;
-      const totalFiltered = adaptiveResult?.issues?.length ?? 0;
+      const totalFilteredFinal = adaptiveResult?.issues?.length ?? 0;
       const totalSkipped = Math.max(0, totalDetected - workItemsCreated);
       const highAttentionCount = (adaptiveResult?.issues ?? []).filter((i: any) => i._impact_score >= 4).length;
       const deadScannersCount = Object.values(updatedResults || {}).filter((s: any) => s?._executed === false || s?.failed === true).length;
@@ -2983,7 +2983,7 @@ serve(async (req) => {
       await supabase.from("scan_snapshots").insert({
         total_scanners: totalScanners,
         total_detected: totalDetected,
-        total_filtered: totalFiltered,
+        total_filtered: totalFilteredFinal,
         total_created: workItemsCreated,
         total_skipped: totalSkipped,
         high_attention_count: highAttentionCount,
