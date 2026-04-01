@@ -2941,11 +2941,13 @@ export type Database = {
       scan_runs: {
         Row: {
           completed_at: string | null
+          completed_steps: number | null
           coverage_score: number | null
           created_at: string | null
           current_step: number | null
           current_step_label: string | null
           error_message: string | null
+          eta_seconds: number | null
           executive_summary: string | null
           high_risk_areas: Json | null
           id: string
@@ -2953,10 +2955,12 @@ export type Database = {
           iteration_results: Json | null
           max_iterations: number
           pattern_discoveries: Json | null
+          progress: number | null
           scan_mode: string | null
           started_at: string | null
           started_by: string | null
           status: string
+          step_logs: Json | null
           steps_results: Json | null
           system_health_score: number | null
           system_stage: string | null
@@ -2969,11 +2973,13 @@ export type Database = {
         }
         Insert: {
           completed_at?: string | null
+          completed_steps?: number | null
           coverage_score?: number | null
           created_at?: string | null
           current_step?: number | null
           current_step_label?: string | null
           error_message?: string | null
+          eta_seconds?: number | null
           executive_summary?: string | null
           high_risk_areas?: Json | null
           id?: string
@@ -2981,10 +2987,12 @@ export type Database = {
           iteration_results?: Json | null
           max_iterations?: number
           pattern_discoveries?: Json | null
+          progress?: number | null
           scan_mode?: string | null
           started_at?: string | null
           started_by?: string | null
           status?: string
+          step_logs?: Json | null
           steps_results?: Json | null
           system_health_score?: number | null
           system_stage?: string | null
@@ -2997,11 +3005,13 @@ export type Database = {
         }
         Update: {
           completed_at?: string | null
+          completed_steps?: number | null
           coverage_score?: number | null
           created_at?: string | null
           current_step?: number | null
           current_step_label?: string | null
           error_message?: string | null
+          eta_seconds?: number | null
           executive_summary?: string | null
           high_risk_areas?: Json | null
           id?: string
@@ -3009,10 +3019,12 @@ export type Database = {
           iteration_results?: Json | null
           max_iterations?: number
           pattern_discoveries?: Json | null
+          progress?: number | null
           scan_mode?: string | null
           started_at?: string | null
           started_by?: string | null
           status?: string
+          step_logs?: Json | null
           steps_results?: Json | null
           system_health_score?: number | null
           system_stage?: string | null
