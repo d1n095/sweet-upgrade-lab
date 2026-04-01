@@ -9,6 +9,7 @@ import {
   Handshake, Heart, Eye, LogOut, Home, Shield, Crown,
   Activity, User, Menu, X, Star, FileText, Percent, Truck, Wallet, Globe,
   AlertTriangle, ScanLine, Sparkles, History, ShoppingCart, Radar, Cpu,
+  ChevronDown, ChevronRight,
 } from 'lucide-react';
 import { useEmployeeRole } from '@/hooks/useEmployeeRole';
 import { useFounderRole } from '@/hooks/useFounderRole';
@@ -115,6 +116,7 @@ const AdminLayout = () => {
   const location = useLocation();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [recentErrorCount, setRecentErrorCount] = useState(0);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
   // Centralized realtime sync for all admin queries
   useAdminRealtime();
