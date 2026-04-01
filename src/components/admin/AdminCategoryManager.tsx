@@ -27,6 +27,7 @@ import {
   DbCategory,
 } from '@/lib/categories';
 import type { LucideIcon } from 'lucide-react';
+import { useLanguage } from '@/context/LanguageContext';
 
 const iconMap: Record<string, LucideIcon> = {
   Cpu, Shirt, Droplets, Flame, Sparkles, Gem, Bed, Grid, Tag, Leaf,
@@ -38,6 +39,267 @@ const getIcon = (name: string | null): LucideIcon => iconMap[name || 'Tag'] || T
 
 const AdminCategoryManager = () => {
   const queryClient = useQueryClient();
+  const { language } = useLanguage();
+
+  const content = {
+    sv: {
+      title: 'Kategorihantering',
+      categories: 'kategorier',
+      subcategories: 'underkategorier',
+      validate: 'Validera',
+      validating: 'Validerar...',
+      aiSync: 'AI-synk',
+      analyzing: 'Analyserar...',
+      newCategory: 'Ny kategori',
+      visible: 'Synlig',
+      hidden: 'Dold',
+      nameSv: 'Namn (svenska) *',
+      nameEn: 'Namn (engelska)',
+      slug: 'Slug',
+      icon: 'Ikon',
+      parentCategory: 'Förälder-kategori',
+      noParent: 'Ingen (toppnivå)',
+      cancel: 'Avbryt',
+      create: 'Skapa',
+      update: 'Uppdatera',
+      editCategory: 'Redigera kategori',
+      deleteCategory: 'Ta bort kategori?',
+      deleteDescription: 'tas bort. Underkategorier flyttas till toppnivå. Produktkopplingar tas bort.',
+      delete: 'Ta bort',
+      noCategories: 'Inga kategorier ännu',
+      toastCreated: 'Kategori skapad!',
+      toastUpdated: 'Kategori uppdaterad!',
+      toastDeleted: 'Kategori borttagen!',
+      toastHidden: 'Kategori dold',
+      toastVisible: 'Kategori synlig',
+      toastError: 'Fel: ',
+      aiDisabled: 'AI är avaktiverad — hantera kategorier manuellt',
+      aiDisabledValidate: 'AI är avaktiverad — validera kategorier manuellt',
+      aiAnalysis: 'AI Kategorianalys',
+      allCategorized: 'Alla produkter är korrekt kategoriserade',
+      autoCreated: 'Skapade automatiskt',
+      needsReview: 'Behöver granskning',
+      alreadyExists: 'förslag redan existerande',
+      productsAnalyzed: 'produkter analyserade',
+      existingCategories: 'befintliga kategorier',
+      close: 'Stäng',
+      categoryValidation: 'Kategorivalidering',
+      noIssues: 'Inga problem hittades — kategoristrukturen är ren',
+      autoFixed: 'Åtgärdat automatiskt',
+      requiresManual: 'Kräver manuell granskning',
+      tasksCreated: 'uppgifter skapade i Workbench',
+      totalCategories: 'kategorier',
+      productLinks: 'produktkopplingar',
+      toastCreatedSuggestion: (name: string) => `"${name}" skapad!`,
+      toastCreateError: 'Kunde inte skapa: ',
+    },
+    en: {
+      title: 'Category Management',
+      categories: 'categories',
+      subcategories: 'subcategories',
+      validate: 'Validate',
+      validating: 'Validating...',
+      aiSync: 'AI Sync',
+      analyzing: 'Analyzing...',
+      newCategory: 'New Category',
+      visible: 'Visible',
+      hidden: 'Hidden',
+      nameSv: 'Name (Swedish) *',
+      nameEn: 'Name (English)',
+      slug: 'Slug',
+      icon: 'Icon',
+      parentCategory: 'Parent Category',
+      noParent: 'None (top level)',
+      cancel: 'Cancel',
+      create: 'Create',
+      update: 'Update',
+      editCategory: 'Edit Category',
+      deleteCategory: 'Delete category?',
+      deleteDescription: 'will be deleted. Subcategories will move to top level. Product links will be removed.',
+      delete: 'Delete',
+      noCategories: 'No categories yet',
+      toastCreated: 'Category created!',
+      toastUpdated: 'Category updated!',
+      toastDeleted: 'Category deleted!',
+      toastHidden: 'Category hidden',
+      toastVisible: 'Category visible',
+      toastError: 'Error: ',
+      aiDisabled: 'AI is disabled — manage categories manually',
+      aiDisabledValidate: 'AI is disabled — validate categories manually',
+      aiAnalysis: 'AI Category Analysis',
+      allCategorized: 'All products are correctly categorized',
+      autoCreated: 'Created automatically',
+      needsReview: 'Needs review',
+      alreadyExists: 'suggestions already exist',
+      productsAnalyzed: 'products analyzed',
+      existingCategories: 'existing categories',
+      close: 'Close',
+      categoryValidation: 'Category Validation',
+      noIssues: 'No issues found — category structure is clean',
+      autoFixed: 'Fixed automatically',
+      requiresManual: 'Requires manual review',
+      tasksCreated: 'tasks created in Workbench',
+      totalCategories: 'categories',
+      productLinks: 'product links',
+      toastCreatedSuggestion: (name: string) => `"${name}" created!`,
+      toastCreateError: 'Could not create: ',
+    },
+    no: {
+      title: 'Kategoribehandling',
+      categories: 'kategorier',
+      subcategories: 'underkategorier',
+      validate: 'Valider',
+      validating: 'Validerer...',
+      aiSync: 'AI-synk',
+      analyzing: 'Analyserer...',
+      newCategory: 'Ny kategori',
+      visible: 'Synlig',
+      hidden: 'Skjult',
+      nameSv: 'Navn (svensk) *',
+      nameEn: 'Navn (engelsk)',
+      slug: 'Slug',
+      icon: 'Ikon',
+      parentCategory: 'Foreldrekategori',
+      noParent: 'Ingen (toppnivå)',
+      cancel: 'Avbryt',
+      create: 'Opprett',
+      update: 'Oppdater',
+      editCategory: 'Rediger kategori',
+      deleteCategory: 'Slett kategori?',
+      deleteDescription: 'slettes. Underkategorier flyttes til toppnivå. Produktkoblinger fjernes.',
+      delete: 'Slett',
+      noCategories: 'Ingen kategorier ennå',
+      toastCreated: 'Kategori opprettet!',
+      toastUpdated: 'Kategori oppdatert!',
+      toastDeleted: 'Kategori slettet!',
+      toastHidden: 'Kategori skjult',
+      toastVisible: 'Kategori synlig',
+      toastError: 'Feil: ',
+      aiDisabled: 'AI er deaktivert — behandle kategorier manuelt',
+      aiDisabledValidate: 'AI er deaktivert — valider kategorier manuelt',
+      aiAnalysis: 'AI Kategorianalyse',
+      allCategorized: 'Alle produkter er riktig kategorisert',
+      autoCreated: 'Opprettet automatisk',
+      needsReview: 'Trenger gjennomgang',
+      alreadyExists: 'forslag eksisterer allerede',
+      productsAnalyzed: 'produkter analysert',
+      existingCategories: 'eksisterende kategorier',
+      close: 'Lukk',
+      categoryValidation: 'Kategorivalidering',
+      noIssues: 'Ingen problemer funnet — kategoristrukturen er ren',
+      autoFixed: 'Fikset automatisk',
+      requiresManual: 'Krever manuell gjennomgang',
+      tasksCreated: 'oppgaver opprettet i Workbench',
+      totalCategories: 'kategorier',
+      productLinks: 'produktkoblinger',
+      toastCreatedSuggestion: (name: string) => `"${name}" opprettet!`,
+      toastCreateError: 'Kunne ikke opprette: ',
+    },
+    da: {
+      title: 'Kategoristyring',
+      categories: 'kategorier',
+      subcategories: 'underkategorier',
+      validate: 'Valider',
+      validating: 'Validerer...',
+      aiSync: 'AI-synk',
+      analyzing: 'Analyserer...',
+      newCategory: 'Ny kategori',
+      visible: 'Synlig',
+      hidden: 'Skjult',
+      nameSv: 'Navn (svensk) *',
+      nameEn: 'Navn (engelsk)',
+      slug: 'Slug',
+      icon: 'Ikon',
+      parentCategory: 'Forældrekategori',
+      noParent: 'Ingen (øverste niveau)',
+      cancel: 'Annuller',
+      create: 'Opret',
+      update: 'Opdater',
+      editCategory: 'Rediger kategori',
+      deleteCategory: 'Slet kategori?',
+      deleteDescription: 'slettes. Underkategorier flyttes til øverste niveau. Produktforbindelser fjernes.',
+      delete: 'Slet',
+      noCategories: 'Ingen kategorier endnu',
+      toastCreated: 'Kategori oprettet!',
+      toastUpdated: 'Kategori opdateret!',
+      toastDeleted: 'Kategori slettet!',
+      toastHidden: 'Kategori skjult',
+      toastVisible: 'Kategori synlig',
+      toastError: 'Fejl: ',
+      aiDisabled: 'AI er deaktiveret — administrer kategorier manuelt',
+      aiDisabledValidate: 'AI er deaktiveret — valider kategorier manuelt',
+      aiAnalysis: 'AI Kategorianalyse',
+      allCategorized: 'Alle produkter er korrekt kategoriseret',
+      autoCreated: 'Oprettet automatisk',
+      needsReview: 'Skal gennemgås',
+      alreadyExists: 'forslag eksisterer allerede',
+      productsAnalyzed: 'produkter analyseret',
+      existingCategories: 'eksisterende kategorier',
+      close: 'Luk',
+      categoryValidation: 'Kategorivalidering',
+      noIssues: 'Ingen problemer fundet — kategoristrukturen er ren',
+      autoFixed: 'Rettet automatisk',
+      requiresManual: 'Kræver manuel gennemgang',
+      tasksCreated: 'opgaver oprettet i Workbench',
+      totalCategories: 'kategorier',
+      productLinks: 'produktforbindelser',
+      toastCreatedSuggestion: (name: string) => `"${name}" oprettet!`,
+      toastCreateError: 'Kunne ikke oprette: ',
+    },
+    de: {
+      title: 'Kategorieverwaltung',
+      categories: 'Kategorien',
+      subcategories: 'Unterkategorien',
+      validate: 'Validieren',
+      validating: 'Wird validiert...',
+      aiSync: 'KI-Sync',
+      analyzing: 'Analysiert...',
+      newCategory: 'Neue Kategorie',
+      visible: 'Sichtbar',
+      hidden: 'Verborgen',
+      nameSv: 'Name (Schwedisch) *',
+      nameEn: 'Name (Englisch)',
+      slug: 'Slug',
+      icon: 'Symbol',
+      parentCategory: 'Übergeordnete Kategorie',
+      noParent: 'Keine (oberste Ebene)',
+      cancel: 'Abbrechen',
+      create: 'Erstellen',
+      update: 'Aktualisieren',
+      editCategory: 'Kategorie bearbeiten',
+      deleteCategory: 'Kategorie löschen?',
+      deleteDescription: 'wird gelöscht. Unterkategorien werden zur obersten Ebene verschoben. Produktverknüpfungen werden entfernt.',
+      delete: 'Löschen',
+      noCategories: 'Noch keine Kategorien',
+      toastCreated: 'Kategorie erstellt!',
+      toastUpdated: 'Kategorie aktualisiert!',
+      toastDeleted: 'Kategorie gelöscht!',
+      toastHidden: 'Kategorie verborgen',
+      toastVisible: 'Kategorie sichtbar',
+      toastError: 'Fehler: ',
+      aiDisabled: 'KI ist deaktiviert — Kategorien manuell verwalten',
+      aiDisabledValidate: 'KI ist deaktiviert — Kategorien manuell validieren',
+      aiAnalysis: 'KI Kategorieanalyse',
+      allCategorized: 'Alle Produkte sind korrekt kategorisiert',
+      autoCreated: 'Automatisch erstellt',
+      needsReview: 'Überprüfung erforderlich',
+      alreadyExists: 'Vorschläge bereits vorhanden',
+      productsAnalyzed: 'Produkte analysiert',
+      existingCategories: 'vorhandene Kategorien',
+      close: 'Schließen',
+      categoryValidation: 'Kategorievalidierung',
+      noIssues: 'Keine Probleme gefunden — Kategoriestruktur ist sauber',
+      autoFixed: 'Automatisch behoben',
+      requiresManual: 'Manuelle Überprüfung erforderlich',
+      tasksCreated: 'Aufgaben in der Workbench erstellt',
+      totalCategories: 'Kategorien',
+      productLinks: 'Produktverknüpfungen',
+      toastCreatedSuggestion: (name: string) => `"${name}" erstellt!`,
+      toastCreateError: 'Konnte nicht erstellt werden: ',
+    },
+  };
+
+  const t = content[language as keyof typeof content] || content.en;
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingCat, setEditingCat] = useState<DbCategory | null>(null);
   const [deletingCat, setDeletingCat] = useState<DbCategory | null>(null);
@@ -86,12 +348,12 @@ const AdminCategoryManager = () => {
         display_order: categories.length,
         is_visible: true,
       });
-      toast.success('Kategori skapad!');
+      toast.success(t.toastCreated);
       queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
       setIsAddOpen(false);
       resetForm();
     } catch (err: any) {
-      toast.error('Fel: ' + (err?.message || ''));
+      toast.error(t.toastError + (err?.message || ''));
     } finally {
       setIsSubmitting(false);
     }
@@ -108,12 +370,12 @@ const AdminCategoryManager = () => {
         icon: form.icon || editingCat.icon,
         parent_id: form.parent_id || null,
       });
-      toast.success('Kategori uppdaterad!');
+      toast.success(t.toastUpdated);
       queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
       setEditingCat(null);
       resetForm();
     } catch (err: any) {
-      toast.error('Fel: ' + (err?.message || ''));
+      toast.error(t.toastError + (err?.message || ''));
     } finally {
       setIsSubmitting(false);
     }
@@ -123,10 +385,10 @@ const AdminCategoryManager = () => {
     if (!deletingCat) return;
     try {
       await deleteCategory(deletingCat.id);
-      toast.success('Kategori borttagen!');
+      toast.success(t.toastDeleted);
       queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
     } catch (err: any) {
-      toast.error('Fel: ' + (err?.message || ''));
+      toast.error(t.toastError + (err?.message || ''));
     } finally {
       setDeletingCat(null);
     }
@@ -136,9 +398,9 @@ const AdminCategoryManager = () => {
     try {
       await updateCategory(cat.id, { is_visible: !cat.is_visible });
       queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
-      toast.success(cat.is_visible ? 'Kategori dold' : 'Kategori synlig');
+      toast.success(cat.is_visible ? t.toastHidden : t.toastVisible);
     } catch (err: any) {
-      toast.error('Fel: ' + (err?.message || ''));
+      toast.error(t.toastError + (err?.message || ''));
     }
   };
 
@@ -153,7 +415,7 @@ const AdminCategoryManager = () => {
     setEditingCat(cat);
   };
   const runAiSync = async () => {
-    toast.info('AI är avaktiverad — hantera kategorier manuellt');
+    toast.info(t.aiDisabled);
   };
 
   const acceptPendingSuggestion = async (suggestion: any) => {
@@ -174,19 +436,19 @@ const AdminCategoryManager = () => {
         display_order: maxOrder + 1,
         is_visible: true,
       });
-      toast.success(`"${suggestion.name_sv}" skapad!`);
+      toast.success(t.toastCreatedSuggestion(suggestion.name_sv));
       queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
       setAiResult((prev: any) => prev ? {
         ...prev,
         pending_review: (prev.pending_review || []).filter((s: any) => s.slug !== suggestion.slug),
       } : prev);
     } catch (err: any) {
-      toast.error('Kunde inte skapa: ' + (err?.message || ''));
+      toast.error(t.toastCreateError + (err?.message || ''));
     }
   };
 
   const runAiValidate = async () => {
-    toast.info('AI är avaktiverad — validera kategorier manuellt');
+    toast.info(t.aiDisabledValidate);
   };
 
   const renderCategoryRow = (cat: DbCategory, depth = 0) => {
@@ -231,7 +493,7 @@ const AdminCategoryManager = () => {
           )}
 
           <Badge variant={cat.is_visible ? 'default' : 'outline'} className="text-xs shrink-0">
-            {cat.is_visible ? 'Synlig' : 'Dold'}
+            {cat.is_visible ? t.visible : t.hidden}
           </Badge>
 
           <div className="flex items-center gap-0.5 shrink-0">
@@ -255,7 +517,7 @@ const AdminCategoryManager = () => {
   const CategoryForm = ({ onSubmit, submitLabel }: { onSubmit: () => void; submitLabel: string }) => (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label>Namn (svenska) *</Label>
+        <Label>{t.nameSv}</Label>
         <Input
           value={form.name_sv}
           onChange={e => {
@@ -269,7 +531,7 @@ const AdminCategoryManager = () => {
         />
       </div>
       <div className="space-y-2">
-        <Label>Namn (engelska)</Label>
+        <Label>{t.nameEn}</Label>
         <Input
           value={form.name_en}
           onChange={e => setForm(prev => ({ ...prev, name_en: e.target.value }))}
@@ -278,7 +540,7 @@ const AdminCategoryManager = () => {
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">
-          <Label>Slug</Label>
+          <Label>{t.slug}</Label>
           <Input
             value={form.slug}
             onChange={e => setForm(prev => ({ ...prev, slug: e.target.value }))}
@@ -286,7 +548,7 @@ const AdminCategoryManager = () => {
           />
         </div>
         <div className="space-y-2">
-          <Label>Ikon</Label>
+          <Label>{t.icon}</Label>
           <Select value={form.icon} onValueChange={v => setForm(prev => ({ ...prev, icon: v }))}>
             <SelectTrigger>
               <SelectValue />
@@ -308,13 +570,13 @@ const AdminCategoryManager = () => {
         </div>
       </div>
       <div className="space-y-2">
-        <Label>Förälder-kategori</Label>
+        <Label>{t.parentCategory}</Label>
         <Select value={form.parent_id} onValueChange={v => setForm(prev => ({ ...prev, parent_id: v }))}>
           <SelectTrigger>
-            <SelectValue placeholder="Ingen (toppnivå)" />
+            <SelectValue placeholder={t.noParent} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Ingen (toppnivå)</SelectItem>
+            <SelectItem value="">{t.noParent}</SelectItem>
             {parentOptions
               .filter(p => p.id !== editingCat?.id)
               .map(p => (
@@ -329,7 +591,7 @@ const AdminCategoryManager = () => {
           className="flex-1"
           onClick={() => { setIsAddOpen(false); setEditingCat(null); resetForm(); }}
         >
-          Avbryt
+          {t.cancel}
         </Button>
         <Button className="flex-1 gap-2" onClick={onSubmit} disabled={isSubmitting || !form.name_sv.trim()}>
           {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
@@ -355,9 +617,9 @@ const AdminCategoryManager = () => {
             <Grid className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <h3 className="font-semibold">Kategorihantering</h3>
+            <h3 className="font-semibold">{t.title}</h3>
             <p className="text-sm text-muted-foreground">
-              {categories.length} kategorier · {categories.filter(c => c.parent_id).length} underkategorier
+              {categories.length} {t.categories} · {categories.filter(c => c.parent_id).length} {t.subcategories}
             </p>
           </div>
         </div>
@@ -365,26 +627,26 @@ const AdminCategoryManager = () => {
         <div className="flex gap-2">
           <Button size="sm" variant="outline" className="gap-2" onClick={runAiValidate} disabled={aiValidating}>
             {aiValidating ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
-            {aiValidating ? 'Validerar...' : 'Validera'}
+            {aiValidating ? t.validating : t.validate}
           </Button>
           <Button size="sm" variant="outline" className="gap-2" onClick={runAiSync} disabled={aiSyncing}>
             {aiSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
-            {aiSyncing ? 'Analyserar...' : 'AI-synk'}
+            {aiSyncing ? t.analyzing : t.aiSync}
           </Button>
 
           <Dialog open={isAddOpen} onOpenChange={open => { setIsAddOpen(open); if (!open) resetForm(); }}>
             <DialogTrigger asChild>
               <Button size="sm" className="gap-2">
-                <Plus className="w-4 h-4" /> Ny kategori
+                <Plus className="w-4 h-4" /> {t.newCategory}
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
-                  <Grid className="w-5 h-5 text-primary" /> Ny kategori
+                  <Grid className="w-5 h-5 text-primary" /> {t.newCategory}
                 </DialogTitle>
               </DialogHeader>
-              <CategoryForm onSubmit={handleAdd} submitLabel="Skapa" />
+              <CategoryForm onSubmit={handleAdd} submitLabel={t.create} />
             </DialogContent>
           </Dialog>
         </div>
@@ -395,7 +657,7 @@ const AdminCategoryManager = () => {
         <div className="border border-border rounded-lg p-4 space-y-3 bg-secondary/20">
           <div className="flex items-center gap-2">
             <Wand2 className="w-4 h-4 text-primary" />
-            <h4 className="text-sm font-semibold">AI Kategorianalys</h4>
+            <h4 className="text-sm font-semibold">{t.aiAnalysis}</h4>
           </div>
           
           {aiResult.analysis && (
@@ -405,13 +667,13 @@ const AdminCategoryManager = () => {
           {aiResult.no_changes_needed && (
             <div className="flex items-center gap-2 text-accent text-xs">
               <CheckCircle className="w-4 h-4" />
-              Alla produkter är korrekt kategoriserade
+              {t.allCategorized}
             </div>
           )}
 
           {aiResult.created?.length > 0 && (
             <div className="space-y-1.5">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Skapade automatiskt</p>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">{t.autoCreated}</p>
               {aiResult.created.map((c: any) => (
                 <div key={c.id || c.slug} className="flex items-center gap-2 p-2 rounded-lg bg-accent/10 border border-accent/20">
                   <CheckCircle className="w-3.5 h-3.5 text-accent shrink-0" />
@@ -425,7 +687,7 @@ const AdminCategoryManager = () => {
 
           {aiResult.pending_review?.length > 0 && (
             <div className="space-y-1.5">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Behöver granskning</p>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">{t.needsReview}</p>
               {aiResult.pending_review.map((s: any) => (
                 <div key={s.slug} className="flex items-center gap-2 p-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
                   <AlertTriangle className="w-3.5 h-3.5 text-yellow-600 shrink-0" />
@@ -436,7 +698,7 @@ const AdminCategoryManager = () => {
                   </div>
                   <Badge variant="secondary" className="text-[9px] shrink-0">{s.confidence}</Badge>
                   <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1 shrink-0" onClick={() => acceptPendingSuggestion(s)}>
-                    <Plus className="w-3 h-3" /> Skapa
+                    <Plus className="w-3 h-3" /> {t.create}
                   </Button>
                 </div>
               ))}
@@ -446,17 +708,17 @@ const AdminCategoryManager = () => {
           {aiResult.already_exists?.length > 0 && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Info className="w-3.5 h-3.5" />
-              {aiResult.already_exists.length} förslag redan existerande
+              {aiResult.already_exists.length} {t.alreadyExists}
             </div>
           )}
 
           <div className="flex gap-3 text-[10px] text-muted-foreground">
-            <span>{aiResult.total_products_analyzed} produkter analyserade</span>
-            <span>{aiResult.total_categories} befintliga kategorier</span>
+            <span>{aiResult.total_products_analyzed} {t.productsAnalyzed}</span>
+            <span>{aiResult.total_categories} {t.existingCategories}</span>
           </div>
 
           <Button size="sm" variant="ghost" className="text-xs" onClick={() => setAiResult(null)}>
-            <XCircle className="w-3.5 h-3.5 mr-1" /> Stäng
+            <XCircle className="w-3.5 h-3.5 mr-1" /> {t.close}
           </Button>
         </div>
       )}
@@ -466,19 +728,19 @@ const AdminCategoryManager = () => {
         <div className="border border-border rounded-lg p-4 space-y-3 bg-secondary/20">
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-primary" />
-            <h4 className="text-sm font-semibold">Kategorivalidering</h4>
+            <h4 className="text-sm font-semibold">{t.categoryValidation}</h4>
           </div>
 
           {validationResult.issues_found === 0 && (
             <div className="flex items-center gap-2 text-accent text-xs">
               <CheckCircle className="w-4 h-4" />
-              Inga problem hittades — kategoristrukturen är ren
+              {t.noIssues}
             </div>
           )}
 
           {validationResult.auto_fixed?.length > 0 && (
             <div className="space-y-1.5">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Åtgärdat automatiskt</p>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">{t.autoFixed}</p>
               {validationResult.auto_fixed.map((f: any, i: number) => (
                 <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-accent/10 border border-accent/20">
                   <CheckCircle className="w-3.5 h-3.5 text-accent shrink-0" />
@@ -494,7 +756,7 @@ const AdminCategoryManager = () => {
 
           {validationResult.issues?.filter((i: any) => i.type === 'duplicate_slug' || i.type === 'duplicate_name').length > 0 && (
             <div className="space-y-1.5">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Kräver manuell granskning</p>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">{t.requiresManual}</p>
               {validationResult.issues.filter((i: any) => i.type === 'duplicate_slug' || i.type === 'duplicate_name').map((issue: any, i: number) => (
                 <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20">
                   <AlertTriangle className="w-3.5 h-3.5 text-destructive shrink-0" />
@@ -509,17 +771,17 @@ const AdminCategoryManager = () => {
           {validationResult.tasks_created?.length > 0 && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Info className="w-3.5 h-3.5" />
-              {validationResult.tasks_created.length} uppgifter skapade i Workbench
+              {validationResult.tasks_created.length} {t.tasksCreated}
             </div>
           )}
 
           <div className="flex gap-3 text-[10px] text-muted-foreground">
-            <span>{validationResult.total_categories} kategorier</span>
-            <span>{validationResult.total_product_links} produktkopplingar</span>
+            <span>{validationResult.total_categories} {t.totalCategories}</span>
+            <span>{validationResult.total_product_links} {t.productLinks}</span>
           </div>
 
           <Button size="sm" variant="ghost" className="text-xs" onClick={() => setValidationResult(null)}>
-            <XCircle className="w-3.5 h-3.5 mr-1" /> Stäng
+            <XCircle className="w-3.5 h-3.5 mr-1" /> {t.close}
           </Button>
         </div>
       )}
