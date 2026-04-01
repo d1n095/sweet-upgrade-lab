@@ -2908,11 +2908,15 @@ serve(async (req) => {
       }
 
       const execSummary = `${unified.system_health_score}/100 — ${issuesCount} issues (${systemStage}) — ${iterationsCompleted} iter — ${coverageScore}% — ${workItemsCreated} uppgifter`;
+      // Fetch latest logs for final update
+      const { data: finalRunData } = await supabase.from("scan_runs").select("step_logs").eq("id", scan_run_id).single();
+      const finalLogs = [...(Array.isArray(finalRunData?.step_logs) ? finalRunData.step_logs : []).slice(-50), { ts: new Date().toISOString(), msg: `🏁 Skanning klar — ${unified.system_health_score}/100 — ${workItemsCreated} uppgifter skapade`, step: "finalize" }];
       await supabase.from("scan_runs").update({
         status: "done", completed_at: new Date().toISOString(), steps_results: updatedResults,
         unified_result: adaptiveResult, system_health_score: unified.system_health_score,
         executive_summary: execSummary, work_items_created: workItemsCreated,
         current_step: STEPS.length, current_step_label: `Klar ✓ (${iterationsCompleted} iter, ${systemStage})`,
+        progress: 100, completed_steps: STEPS.length, eta_seconds: 0, step_logs: finalLogs,
       }).eq("id", scan_run_id);
 
       // Store scan snapshot for historical tracking
