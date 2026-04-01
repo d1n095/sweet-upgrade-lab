@@ -118,6 +118,15 @@ const AdminLayout = () => {
   const [recentErrorCount, setRecentErrorCount] = useState(0);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
+  const toggleGroup = (label: string) => {
+    setCollapsedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
+      return next;
+    });
+  };
+
   // Centralized realtime sync for all admin queries
   useAdminRealtime();
   const [errorBannerDismissed, setErrorBannerDismissed] = useState(false);
@@ -303,33 +312,47 @@ const AdminLayout = () => {
 
                 <ScrollArea className="flex-1 py-2">
                   <nav className="space-y-4 px-3">
-                    {visibleGroups.map((group, gi) => (
-                      <div key={gi}>
-                        {group.label && (
-                          <p className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider px-3 mb-1">{group.label}</p>
-                        )}
-                        <div className="space-y-0.5">
-                          {group.items.map((item) => (
-                            <NavLink
-                              key={item.to}
-                              to={item.to}
-                              end={item.end}
-                              className={({ isActive }) =>
-                                cn(
-                                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors min-h-[44px]',
-                                  isActive
-                                    ? 'bg-primary/10 text-primary'
-                                    : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
-                                )
-                              }
+                    {visibleGroups.map((group, gi) => {
+                      const isCollapsed = group.label ? collapsedGroups.has(group.label) : false;
+                      return (
+                        <div key={gi}>
+                          {group.label && (
+                            <button
+                              onClick={() => toggleGroup(group.label)}
+                              className="w-full flex items-center justify-between px-3 mb-1 group"
                             >
-                              <item.icon className="w-4 h-4 shrink-0" />
-                              {item.label}
-                            </NavLink>
-                          ))}
+                              <p className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider group-hover:text-muted-foreground/80 transition-colors">{group.label}</p>
+                              {isCollapsed
+                                ? <ChevronRight className="w-3 h-3 text-muted-foreground/40 group-hover:text-muted-foreground/60 transition-colors" />
+                                : <ChevronDown className="w-3 h-3 text-muted-foreground/40 group-hover:text-muted-foreground/60 transition-colors" />
+                              }
+                            </button>
+                          )}
+                          {!isCollapsed && (
+                            <div className="space-y-0.5">
+                              {group.items.map((item) => (
+                                <NavLink
+                                  key={item.to}
+                                  to={item.to}
+                                  end={item.end}
+                                  className={({ isActive }) =>
+                                    cn(
+                                      'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors min-h-[44px]',
+                                      isActive
+                                        ? 'bg-primary/10 text-primary'
+                                        : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
+                                    )
+                                  }
+                                >
+                                  <item.icon className="w-4 h-4 shrink-0" />
+                                  {item.label}
+                                </NavLink>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </nav>
                 </ScrollArea>
 
