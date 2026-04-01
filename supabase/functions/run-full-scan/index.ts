@@ -2321,6 +2321,8 @@ serve(async (req) => {
         high_risk_areas: focusMemory.slice(0, 10).map((m: any) => ({ component: m.label, issue_count: m.issue_count, risk_level: m.severity, source: "focus_memory" })),
         coverage_score: 0, total_new_issues: 0,
         system_stage: systemStage,
+        progress: 0, completed_steps: 0, eta_seconds: null,
+        step_logs: [{ ts: new Date().toISOString(), msg: "Skanning initierad", step: "init" }],
         ...(isTargeted ? { scan_mode: "targeted", target_area, verification_for } : { scan_mode: "full" }),
       }).select("id").single();
 
