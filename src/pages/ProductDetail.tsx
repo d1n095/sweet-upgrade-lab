@@ -10,7 +10,7 @@ import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { fetchDbProductByHandle, DbProduct } from '@/lib/products';
 import { useLanguage } from '@/context/LanguageContext';
-import { useCartStore } from '@/stores/cartStore';
+import { useCartStore, dbVariantId } from '@/stores/cartStore';
 import { useTranslatedProduct } from '@/hooks/useTranslatedProduct';
 import PaymentMethods from '@/components/trust/PaymentMethods';
 import { useProductReviewStats } from '@/hooks/useProductReviewStats';
@@ -101,7 +101,7 @@ const ProductDetail = () => {
     const variantForCart = selectedVariant;
     const effectivePrice = variantForCart ? variantForCart.price : product.price;
     const effectiveStock = variantForCart ? variantForCart.stock : (product.stock - (product.reserved_stock || 0));
-    const variantId = variantForCart ? variantForCart.id : product.id + '-variant';
+    const variantId = variantForCart ? variantForCart.id : dbVariantId(product.id);
     const variantTitle = variantForCart ? variantForCart.size : 'Default';
 
     const cartItem = cartItems.find(i => i.variantId === variantId);

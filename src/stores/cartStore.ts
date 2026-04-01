@@ -1,10 +1,43 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { ShopifyProduct, createStorefrontCheckout } from '@/lib/shopify';
 import { trackAddToCart, trackRemoveFromCart, trackCartUpdate } from '@/utils/analyticsTracker';
 
+/**
+ * Product shape used inside CartItem.
+ * The nested `node.*` structure is intentional — it matches what DbProductCard constructs
+ * when adding items to the cart, and what ShopifyCartDrawer reads when rendering cart items
+ * (e.g. `item.product.node.title`, `item.product.node.images.edges[0].node.url`).
+ * Changing this shape would break localStorage cart deserialization for existing users.
+ */
+export interface CartProduct {
+  dbId: string;
+  node: {
+    id: string;
+    title: string;
+    handle: string;
+    description: string;
+    productType: string;
+    tags: string[];
+    priceRange: { minVariantPrice: { amount: string; currencyCode: string } };
+    images: { edges: Array<{ node: { url: string; altText: string | null } }> };
+    variants: {
+      edges: Array<{
+        node: {
+          id: string;
+          title: string;
+          price: { amount: string; currencyCode: string };
+          availableForSale: boolean;
+          quantityAvailable?: number | null;
+          selectedOptions: Array<{ name: string; value: string }>;
+        };
+      }>;
+    };
+    options?: Array<{ name: string; values: string[] }>;
+  };
+}
+
 export interface CartItem {
-  product: ShopifyProduct;
+  product: CartProduct;
   variantId: string;
   variantTitle: string;
   price: {
@@ -17,6 +50,12 @@ export interface CartItem {
     value: string;
   }>;
 }
+
+/**
+ * Builds a synthetic variant ID for DB products that have no real variants.
+ * Used when constructing CartProduct from a DB product ID.
+ */
+export const dbVariantId = (productId: string) => `${productId}-variant`;
 
 interface CartStore {
   items: CartItem[];
@@ -32,10 +71,7 @@ interface CartStore {
   updateQuantity: (variantId: string, quantity: number) => void;
   removeItem: (variantId: string) => void;
   clearCart: () => void;
-  setCartId: (cartId: string) => void;
-  setCheckoutUrl: (url: string) => void;
   setLoading: (loading: boolean) => void;
-  createCheckout: () => Promise<void>;
   totalItems: () => number;
   totalPrice: () => number;
 }
@@ -79,8 +115,6 @@ export const useCartStore = create<CartStore>()(
   persist(
     (set, get) => ({
       items: [],
-      cartId: null,
-      checkoutUrl: null,
       isLoading: false,
       isHydrated: false,
       _hasHydrated: false,
@@ -151,32 +185,11 @@ export const useCartStore = create<CartStore>()(
       clearCart: () => {
         set({
           items: [],
-          cartId: null,
-          checkoutUrl: null,
           lastUpdatedAt: getTimestamp(),
         });
       },
 
-      setCartId: (cartId) => set({ cartId, lastUpdatedAt: getTimestamp() }),
-      setCheckoutUrl: (checkoutUrl) => set({ checkoutUrl, lastUpdatedAt: getTimestamp() }),
       setLoading: (isLoading) => set({ isLoading }),
-
-      createCheckout: async () => {
-        const { items, setLoading, setCheckoutUrl } = get();
-        if (items.length === 0) return;
-
-        setLoading(true);
-        try {
-          const checkoutUrl = await createStorefrontCheckout(
-            items.map((item) => ({ variantId: item.variantId, quantity: item.quantity }))
-          );
-          setCheckoutUrl(checkoutUrl);
-        } catch (error) {
-          console.error('Failed to create checkout:', error);
-        } finally {
-          setLoading(false);
-        }
-      },
 
       totalItems: () => get().items.reduce((sum, item) => sum + item.quantity, 0),
       totalPrice: () => get().items.reduce((sum, item) => sum + Number.parseFloat(item.price.amount) * item.quantity, 0),
@@ -198,8 +211,6 @@ export const useCartStore = create<CartStore>()(
           items: usePersisted
             ? sanitizeItems(persisted.items || [])
             : sanitizeItems(current.items || []),
-          cartId: usePersisted ? persisted.cartId ?? null : current.cartId,
-          checkoutUrl: usePersisted ? persisted.checkoutUrl ?? null : current.checkoutUrl,
           lastUpdatedAt: Math.max(persistedUpdatedAt, currentUpdatedAt),
           isHydrated: false,
           _hasHydrated: false,
@@ -218,8 +229,6 @@ export const useCartStore = create<CartStore>()(
       },
       partialize: (state) => ({
         items: state.items,
-        cartId: state.cartId,
-        checkoutUrl: state.checkoutUrl,
         lastUpdatedAt: state.lastUpdatedAt,
       }),
     }

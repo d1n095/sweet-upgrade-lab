@@ -5,7 +5,7 @@ import { ShoppingCart, Check, Flame, Package, Star, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DbProduct } from '@/lib/products';
-import { useCartStore } from '@/stores/cartStore';
+import { useCartStore, dbVariantId } from '@/stores/cartStore';
 import { Link } from 'react-router-dom';
 import QuantitySelector from './QuantitySelector';
 import WishlistButton from '@/components/wishlist/WishlistButton';
@@ -98,7 +98,7 @@ const DbProductCard = ({ product, index, compact = false, isPurchased = false }:
         variants: {
           edges: [{
             node: {
-              id: product.id + '-variant',
+              id: dbVariantId(product.id),
               title: 'Default',
               availableForSale: isAvailable,
               price: { amount: product.price.toString(), currencyCode: 'SEK' },
@@ -111,7 +111,7 @@ const DbProductCard = ({ product, index, compact = false, isPurchased = false }:
 
     addItem({
       product: cartProduct,
-      variantId: product.id + '-variant',
+      variantId: dbVariantId(product.id),
       variantTitle: 'Default',
       price: { amount: product.price.toString(), currencyCode: 'SEK' },
       quantity,
@@ -197,7 +197,11 @@ const DbProductCard = ({ product, index, compact = false, isPurchased = false }:
             {/* Wishlist */}
             <div className="absolute top-3 left-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
               <WishlistButton
-                product={{ node: { id: product.id, handle, title, images: { edges: [] }, variants: { edges: [] }, priceRange: { minVariantPrice: { amount: product.price.toString(), currencyCode: 'SEK' } }, tags: [], productType: '', description: '' } } as any}
+                productId={product.id}
+                productHandle={handle}
+                productTitle={title}
+                productPrice={product.price}
+                productImageUrl={imageUrl || null}
                 size="sm"
                 className="bg-background/80 backdrop-blur-sm hover:bg-background"
               />
