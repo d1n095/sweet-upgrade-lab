@@ -1550,18 +1550,16 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     allWorkIssues.push({ title: `BLOCKER: ${unified.blocker.description || unified.blocker.title || "Critical blocker"}`.slice(0, 120), priority: "critical", item_type: "bug", fingerprint: fp, affected_area: CATEGORY_AREA_MAP.blocker });
   }
 
-  // Group broken_flows before creating
-  const groupedFlows = groupSimilarIssues(tagActionable(unified.broken_flows || []).filter(isActionable));
-  for (const flow of groupedFlows.slice(0, 15)) {
+  const actionableFlows = tagActionable(unified.broken_flows || []).filter(isActionable);
+  for (const flow of actionableFlows.slice(0, 15)) {
     const fp = generateFingerprint(flow);
-    const similarNote = flow._similar_count ? ` (+${flow._similar_count} liknande)` : "";
     const issueType = classifyIssueType(flow, "broken_flows");
     flow._issue_type = issueType;
     flow._suggested_fix = suggestedFixForType(issueType);
     flow._affected_area = flow.category === "flow_ui" ? { type: "flow", target: "ui_flows" } : CATEGORY_AREA_MAP.broken_flows;
     flow._origin_source = "scanner";
     allWorkIssues.push({
-      title: `Broken flow: ${flow.description || flow.route || flow.issue || "unknown"}${similarNote}`.slice(0, 120),
+      title: `Broken flow: ${flow.description || flow.route || flow.issue || "unknown"}`.slice(0, 120),
       priority: "high", item_type: "bug", description: flow.fix_suggestion || flow.detail || "",
       fingerprint: fp, issue_type: issueType, suggested_fix: suggestedFixForType(issueType),
       source_path: flow.route || flow.page || null, source_file: flow.file || flow.source_file || null, source_component: flow.component || flow.element || null,
@@ -1569,17 +1567,16 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     });
   }
 
-  const groupedFake = groupSimilarIssues(tagActionable(unified.fake_features || []).filter(isActionable));
-  for (const fake of groupedFake.slice(0, 15)) {
+  const actionableFake = tagActionable(unified.fake_features || []).filter(isActionable);
+  for (const fake of actionableFake.slice(0, 15)) {
     const fp = generateFingerprint(fake);
-    const similarNote = fake._similar_count ? ` (+${fake._similar_count} liknande)` : "";
     const issueType = classifyIssueType(fake, "fake_features");
     fake._issue_type = issueType;
     fake._suggested_fix = suggestedFixForType(issueType);
     fake._affected_area = CATEGORY_AREA_MAP.fake_features;
     fake._origin_source = "scanner";
     allWorkIssues.push({
-      title: `Fake feature: ${fake.name || fake.component || fake.description || "unknown"}${similarNote}`.slice(0, 120),
+      title: `Fake feature: ${fake.name || fake.component || fake.description || "unknown"}`.slice(0, 120),
       priority: "high", item_type: "improvement", description: fake.reason || fake.detail || "",
       fingerprint: fp, issue_type: issueType, suggested_fix: suggestedFixForType(issueType),
       source_path: fake.route || fake.page || null, source_file: fake.file || fake.source_file || null, source_component: fake.component || fake.name || null,
@@ -1587,17 +1584,16 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     });
   }
 
-  const groupedInteraction = groupSimilarIssues(tagActionable(unified.interaction_failures || []).filter(isActionable));
-  for (const fail of groupedInteraction.slice(0, 15)) {
+  const actionableInteractions = tagActionable(unified.interaction_failures || []).filter(isActionable);
+  for (const fail of actionableInteractions.slice(0, 15)) {
     const fp = generateFingerprint(fail);
-    const similarNote = fail._similar_count ? ` (+${fail._similar_count} liknande)` : "";
     const issueType = classifyIssueType(fail, "interaction_failures");
     fail._issue_type = issueType;
     fail._suggested_fix = suggestedFixForType(issueType);
     fail._affected_area = CATEGORY_AREA_MAP.interaction_failures;
     fail._origin_source = "scanner";
     allWorkIssues.push({
-      title: `Interaction: ${fail.title || fail.element || fail.description || "unknown"}${similarNote}`.slice(0, 120),
+      title: `Interaction: ${fail.title || fail.element || fail.description || "unknown"}`.slice(0, 120),
       priority: fail.severity === "critical" ? "critical" : "high", item_type: "bug",
       description: fail.fix_suggestion || fail.detail || fail.issue || "",
       fingerprint: fp, issue_type: issueType, suggested_fix: suggestedFixForType(issueType),
@@ -1606,17 +1602,16 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     });
   }
 
-  const groupedData = groupSimilarIssues(tagActionable(unified.data_issues || []).filter(isActionable));
-  for (const issue of groupedData.slice(0, 15)) {
+  const actionableData = tagActionable(unified.data_issues || []).filter(isActionable);
+  for (const issue of actionableData.slice(0, 15)) {
     const fp = generateFingerprint(issue);
-    const similarNote = issue._similar_count ? ` (+${issue._similar_count} liknande)` : "";
     const issueType = classifyIssueType(issue, "data_issues");
     issue._issue_type = issueType;
     issue._suggested_fix = suggestedFixForType(issueType);
     issue._affected_area = issue.category === "ui_visual" ? { type: "ui", target: "components" } : CATEGORY_AREA_MAP.data_issues;
     issue._origin_source = "scanner";
     allWorkIssues.push({
-      title: `Data: ${issue.title || issue.field || issue.description || "unknown"}${similarNote}`.slice(0, 120),
+      title: `Data: ${issue.title || issue.field || issue.description || "unknown"}`.slice(0, 120),
       priority: issue.severity === "critical" ? "critical" : "medium", item_type: "bug",
       description: issue.fix_suggestion || issue.detail || "",
       fingerprint: fp, issue_type: issueType, suggested_fix: suggestedFixForType(issueType),
@@ -1671,7 +1666,6 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
 
   // ── PROCESS EACH ISSUE with consistency logic ──
   for (const issue of allWorkIssues) {
-    console.log("[DEBUG] processing issue:", (issue as any).fingerprint);
     // Validation checks
     if (!issue.title || issue.title.trim().length === 0) {
       createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'skipped_validation', _validation_reason: 'missing_title', issue_type: issue.issue_type || 'bug', affected_area: issue.affected_area });
@@ -1842,12 +1836,11 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
       ...(matchedTraceId ? { runtime_trace_id: matchedTraceId } : {}),
     };
 
-    console.log("[DEBUG] INSERT PAYLOAD:", insertPayload);
+    console.log("[SCAN STEP] Creating work item: %s", issue.title?.slice(0, 60));
     let verified = false;
     let lastInsertError: string | null = null;
     for (let attempt = 1; attempt <= 2; attempt++) {
       const { data: created, error } = await supabase.from("work_items").insert(insertPayload).select("id, title, status").single();
-      console.log("[DEBUG] INSERT RESULT:", { data: created, error });
       if (error) {
         lastInsertError = error.message || JSON.stringify(error);
         console.error(`[create-verify] INSERT failed (attempt ${attempt}):`, error.message);
@@ -2001,7 +1994,9 @@ serve(async (req) => {
         return new Response(JSON.stringify({ success: false, error: "NO_INPUT_DATA" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
-      console.log("[SCAN] running scanners — chaining parallel scan");
+      console.log("[SCAN START] scan_id=%s stage=%s mode=%s steps=%d", scanRun.id, systemStage, isTargeted ? "targeted" : "full", prioritizedSteps.length);
+
+      // Input debug
       fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
         body: JSON.stringify({ action: "run_parallel", scan_run_id: scanRun.id }),
@@ -2022,7 +2017,7 @@ serve(async (req) => {
       const step = currentIteration === 1 ? STEPS[step_index] : (scanRun._targeted_steps || STEPS)[step_index];
       if (!step) return new Response(JSON.stringify({ success: false, error: "Invalid step index" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-      await supabase.from("scan_runs").update({ current_step: step_index, current_step_label: `[Iteration ${currentIteration}/${MAX_ITERATIONS}] ${step.label}`, iteration: currentIteration }).eq("id", scan_run_id);
+      await supabase.from("scan_runs").update({ current_step: step_index, current_step_label: step.label, iteration: currentIteration }).eq("id", scan_run_id);
 
       let stepResult: any = { error: "unknown", failed: true };
       const stepStart = Date.now();
@@ -2132,7 +2127,7 @@ serve(async (req) => {
 
       if (!isLastStep) {
         const nextStep = stepsForIteration[step_index + 1];
-        await supabase.from("scan_runs").update({ steps_results: updatedResults, current_step: step_index + 1, current_step_label: `[Iteration ${currentIteration}/${MAX_ITERATIONS}] ${nextStep.label}` }).eq("id", scan_run_id);
+        await supabase.from("scan_runs").update({ steps_results: updatedResults, current_step: step_index + 1, current_step_label: nextStep.label }).eq("id", scan_run_id);
         fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
           method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
           body: JSON.stringify({ action: "process_step", scan_run_id, step_index: step_index + 1, iteration: currentIteration }),
@@ -2362,49 +2357,6 @@ serve(async (req) => {
           unified.interaction_failures.push({ title: `[Behavior] ${f.chain}: ${f.action}`, description: `Expected: ${f.expected}\nActual: ${f.actual}`, severity: f.severity, type: f.failure_type, step: f.step, source: "behavior_scan", component: f.chain || "behavior" });
         }
       }
-
-      // ── GROUP SIMILAR ISSUES in final result ──
-      unified.broken_flows = groupSimilarIssues(unified.broken_flows);
-      unified.interaction_failures = groupSimilarIssues(unified.interaction_failures);
-      unified.data_issues = groupSimilarIssues(unified.data_issues);
-      unified.fake_features = groupSimilarIssues(unified.fake_features);
-
-      // ── VIEWPORT TAGGING for UI issues ──
-      const VIEWPORT_CHECKS = [
-        { type: "desktop", width: 1440 },
-        { type: "tablet", width: 768 },
-        { type: "mobile", width: 375 },
-      ];
-      unified._viewport_checks = VIEWPORT_CHECKS;
-
-      const LAYOUT_PATTERN = /overflow|scroll|z-index|position|sticky|fixed|absolute|flex|grid|responsive|mobile|tablet|desktop|breakpoint|truncat|clip|hidden|wrap|width|height|padding|margin|gap|spacing|layout|resize|viewport/i;
-      const UI_PATTERN = /layout|overflow|scroll|z-index|position|css|style|responsive|mobile|tablet|component|button|modal|dialog|drawer|header|footer|nav|sidebar|card|form|input|select|image|icon/i;
-
-      function tagViewport(issues: any[]): any[] {
-        const result: any[] = [];
-        for (const issue of issues) {
-          const text = `${issue.title || ""} ${issue.description || ""} ${issue.component || ""} ${issue.element || ""} ${issue.route || ""}`.toLowerCase();
-          const isLayout = LAYOUT_PATTERN.test(text);
-          const isUi = UI_PATTERN.test(text);
-
-          if (isLayout) {
-            // Duplicate per viewport
-            for (const vp of VIEWPORT_CHECKS) {
-              result.push({ ...issue, _viewport: vp.type, _viewport_width: vp.width });
-            }
-          } else if (isUi) {
-            // Tag as desktop (default viewport)
-            result.push({ ...issue, _viewport: "desktop", _viewport_width: 1440 });
-          } else {
-            result.push(issue);
-          }
-        }
-        return result;
-      }
-
-      unified.broken_flows = tagViewport(unified.broken_flows);
-      unified.interaction_failures = tagViewport(unified.interaction_failures);
-      unified.fake_features = tagViewport(unified.fake_features);
 
       // Count only actionable (non-dev-expected) issues
       const actionableIssues = [
