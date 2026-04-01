@@ -105,7 +105,7 @@ const FUNCTION_INVENTORY: FunctionDef[] = [
   },
   {
     function_name: 'data-sync',
-    where_called_from: ['WorkbenchBoard', 'AdminAI'],
+    where_called_from: ['WorkbenchBoard'],
     has_ui: true,
     trigger_type: 'button',
     risk_level: 'medium',
@@ -135,7 +135,7 @@ const FUNCTION_INVENTORY: FunctionDef[] = [
   },
   {
     function_name: 'apply-fix',
-    where_called_from: ['AdminAI'],
+    where_called_from: ['AdminAdvanced'],
     has_ui: true,
     trigger_type: 'button',
     risk_level: 'high',
@@ -145,7 +145,7 @@ const FUNCTION_INVENTORY: FunctionDef[] = [
   },
   {
     function_name: 'access-control-scan',
-    where_called_from: ['AdminAI'],
+    where_called_from: ['AdminAdvanced'],
     has_ui: true,
     trigger_type: 'button',
     risk_level: 'high',
@@ -155,7 +155,7 @@ const FUNCTION_INVENTORY: FunctionDef[] = [
   },
   {
     function_name: 'permission-fix',
-    where_called_from: ['AdminAI'],
+    where_called_from: ['AdminAdvanced'],
     has_ui: true,
     trigger_type: 'button',
     risk_level: 'high',
@@ -165,7 +165,7 @@ const FUNCTION_INVENTORY: FunctionDef[] = [
   },
   {
     function_name: 'access-flow-validate',
-    where_called_from: ['AdminAI'],
+    where_called_from: ['AdminAdvanced'],
     has_ui: true,
     trigger_type: 'button',
     risk_level: 'high',
@@ -214,16 +214,6 @@ const FUNCTION_INVENTORY: FunctionDef[] = [
     description: 'Sends a welcome email when a new user registers',
   },
   {
-    function_name: 'translate-product',
-    where_called_from: ['useTranslatedProduct'],
-    has_ui: false,
-    trigger_type: 'auto',
-    risk_level: 'low',
-    status: 'active',
-    invisible: true,
-    description: 'Auto-translates product content via background hook',
-  },
-  {
     function_name: 'google-places',
     where_called_from: ['AddressAutocomplete'],
     has_ui: true,
@@ -255,26 +245,6 @@ const FUNCTION_INVENTORY: FunctionDef[] = [
     description: 'General-purpose AI assistant — DISABLED to prevent credit usage',
   },
   {
-    function_name: 'ai-task-manager',
-    where_called_from: ['AdminAI (disabled)', 'WorkbenchBoard (disabled)'],
-    has_ui: true,
-    trigger_type: 'button',
-    risk_level: 'high',
-    status: 'blocked',
-    invisible: false,
-    description: 'AI-powered task scheduling — DISABLED',
-  },
-  {
-    function_name: 'ai-review-fix',
-    where_called_from: ['workItemAiReview (disabled)'],
-    has_ui: false,
-    trigger_type: 'auto',
-    risk_level: 'high',
-    status: 'blocked',
-    invisible: true,
-    description: 'AI auto-fixes for work-item review — DISABLED',
-  },
-  {
     function_name: 'automation-engine',
     where_called_from: ['WorkbenchBoard (disabled)'],
     has_ui: true,
@@ -285,16 +255,6 @@ const FUNCTION_INVENTORY: FunctionDef[] = [
     description: 'General automation orchestrator — DISABLED',
   },
   {
-    function_name: 'ai-user-management',
-    where_called_from: ['AdminAI (disabled)'],
-    has_ui: true,
-    trigger_type: 'button',
-    risk_level: 'high',
-    status: 'blocked',
-    invisible: false,
-    description: 'AI-driven user management — DISABLED',
-  },
-  {
     function_name: 'generate-product-content',
     where_called_from: ['AdminProductForm (disabled)'],
     has_ui: true,
@@ -303,16 +263,6 @@ const FUNCTION_INVENTORY: FunctionDef[] = [
     status: 'blocked',
     invisible: false,
     description: 'AI product content generator — DISABLED',
-  },
-  {
-    function_name: 'suggest-product-metadata',
-    where_called_from: ['AdminProductForm (disabled)'],
-    has_ui: true,
-    trigger_type: 'button',
-    risk_level: 'high',
-    status: 'blocked',
-    invisible: false,
-    description: 'AI product metadata suggestions — DISABLED',
   },
 ];
 
