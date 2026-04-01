@@ -78,7 +78,7 @@ export const runUnifiedPipeline = async (
 
   try {
     // ─── STAGE 1: SCAN → ISSUES ───
-    // Scan results no longer stored in ai_scan_results; skip this stage
+    // Skip scan stage
 
     // ─── STAGE 2: ISSUES → WORK ITEMS ───
     // Find bugs without work items
@@ -101,8 +101,7 @@ export const runUnifiedPipeline = async (
         const patterns = await checkKnownPatterns(bug.description || '');
         const knownFix = patterns.matches.length > 0 ? patterns.matches[0] : null;
 
-        const priority = bug.ai_severity === 'critical' ? 'critical' :
-          bug.ai_severity === 'high' ? 'high' : 'medium';
+        const priority = 'medium';
 
         const description = knownFix
           ? `${bug.description}\n\n🧠 Känt mönster (sett ${knownFix.recurrence_count}x): ${knownFix.root_cause}\n💡 Tidigare fix: ${knownFix.fix_applied}`

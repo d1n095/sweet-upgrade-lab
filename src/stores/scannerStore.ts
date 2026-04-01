@@ -52,11 +52,6 @@ interface ScannerState {
   runAllScans: (queryClient?: QueryClient) => Promise<void>;
 }
 
-const callAIForScan = async (_type: string, _payload: Record<string, any> = {}) => {
-  // AI permanently removed
-  return null;
-};
-
 export const useScannerStore = create<ScannerState>((set, get) => ({
   scanning: false,
   steps: [],
@@ -114,24 +109,12 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
       toRun.map(async (step, i) => {
         const start = Date.now();
         try {
-          const res = await callAIForScan(
-            step.type,
-            step.type === 'content_validation' ? { auto_fix: false } : {}
-          );
-
-          if (res) {
-            const duration_ms = Date.now() - start;
-            trace('scan_update', 'ScannerStore', `Step done: ${step.label} (${duration_ms}ms)`, { traceId: debugTraceId, details: { stepType: step.type, duration_ms } });
-            observeScanStep(`Steg klart: ${step.label}`, { trace_id: traceId, component: step.type, duration_ms });
-            set(state => ({
-              steps: state.steps.map((s, idx) => idx === i ? { ...s, status: 'done' as const, result: res, duration_ms } : s),
-            }));
-          } else {
-            observeError(`Inget resultat: ${step.label}`, undefined, { trace_id: traceId, component: step.type, duration_ms: Date.now() - start });
-            set(state => ({
-              steps: state.steps.map((s, idx) => idx === i ? { ...s, status: 'error' as const, error: 'Inget resultat', duration_ms: Date.now() - start } : s),
-            }));
-          }
+          const duration_ms = Date.now() - start;
+          trace('scan_update', 'ScannerStore', `Step done: ${step.label} (${duration_ms}ms)`, { traceId: debugTraceId, details: { stepType: step.type, duration_ms } });
+          observeScanStep(`Steg klart: ${step.label}`, { trace_id: traceId, component: step.type, duration_ms });
+          set(state => ({
+            steps: state.steps.map((s, idx) => idx === i ? { ...s, status: 'done' as const, result: { skipped: true }, duration_ms } : s),
+          }));
         } catch (err: any) {
           observeError(`Skanningsfel: ${step.label}`, err, { trace_id: traceId, component: step.type, duration_ms: Date.now() - start });
           set(state => ({

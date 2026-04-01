@@ -346,7 +346,6 @@ async function runLocalScan(set: any, queryClient?: QueryClient) {
         source_type: 'scan',
         source_id: issue.path,
         issue_fingerprint: fingerprint,
-        ai_detected: true,
         created_by: 'local_scan',
       },
       { onConflict: 'issue_fingerprint', ignoreDuplicates: true }
