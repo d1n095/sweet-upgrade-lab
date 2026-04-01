@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
   Grid, Plus, Eye, EyeOff, Trash2, Loader2, Save, ChevronRight, ChevronDown,
-  Cpu, Shirt, Droplets, Flame, Sparkles, Gem, Bed, Tag, Leaf, GripVertical, Pencil,
+  Cpu, Shirt, Droplets, Flame, Sparkles, Gem, Bed, Tag, Leaf, Pencil,
   Wand2, CheckCircle, AlertTriangle, Info, XCircle, ShieldCheck,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -96,6 +96,9 @@ const AdminCategoryManager = () => {
     removedOrphanLinks: string;
     duplicateSlugPrefix: string;
     duplicateNamePrefix: string;
+    nameSvPlaceholder: string;
+    nameEnPlaceholder: string;
+    slugPlaceholder: string;
   }> = {
     sv: {
       title: 'Kategorihantering',
@@ -151,8 +154,9 @@ const AdminCategoryManager = () => {
       removedOrphanLinks: 'föräldralösa produktkopplingar borttagna',
       duplicateSlugPrefix: 'Duplicerad slug:',
       duplicateNamePrefix: 'Duplicerat namn:',
-    },
-    en: {
+      nameSvPlaceholder: 'T.ex. Bastudofter',
+      nameEnPlaceholder: 'Sauna Scents',
+      slugPlaceholder: 'bastudofter',
       title: 'Category Management',
       subcategories: 'subcategories',
       categoriesWord: 'categories',
@@ -206,8 +210,9 @@ const AdminCategoryManager = () => {
       removedOrphanLinks: 'orphaned product links removed',
       duplicateSlugPrefix: 'Duplicate slug:',
       duplicateNamePrefix: 'Duplicate name:',
-    },
-    no: {
+      nameSvPlaceholder: 'E.g. Sauna Scents (Swedish)',
+      nameEnPlaceholder: 'E.g. Sauna Scents',
+      slugPlaceholder: 'sauna-scents',
       title: 'Kategorihåndtering',
       subcategories: 'underkategorier',
       categoriesWord: 'kategorier',
@@ -261,8 +266,9 @@ const AdminCategoryManager = () => {
       removedOrphanLinks: 'foreldreløse produktkoblinger fjernet',
       duplicateSlugPrefix: 'Duplikat slug:',
       duplicateNamePrefix: 'Duplikat navn:',
-    },
-    da: {
+      nameSvPlaceholder: 'F.eks. Bastudufter',
+      nameEnPlaceholder: 'Sauna Scents',
+      slugPlaceholder: 'bastudufter',
       title: 'Kategorihåndtering',
       subcategories: 'underkategorier',
       categoriesWord: 'kategorier',
@@ -316,8 +322,9 @@ const AdminCategoryManager = () => {
       removedOrphanLinks: 'forældreløse produktforbindelser fjernet',
       duplicateSlugPrefix: 'Duplikat slug:',
       duplicateNamePrefix: 'Duplikat navn:',
-    },
-    de: {
+      nameSvPlaceholder: 'F.eks. Bastudufter',
+      nameEnPlaceholder: 'Sauna Scents',
+      slugPlaceholder: 'bastudufter',
       title: 'Kategorieverwaltung',
       subcategories: 'Unterkategorien',
       categoriesWord: 'Kategorien',
@@ -371,8 +378,9 @@ const AdminCategoryManager = () => {
       removedOrphanLinks: 'verwaiste Produktverknüpfungen entfernt',
       duplicateSlugPrefix: 'Doppelter Slug:',
       duplicateNamePrefix: 'Doppelter Name:',
-    },
-  };
+      nameSvPlaceholder: 'Z.B. Saunadüfte',
+      nameEnPlaceholder: 'Sauna Scents',
+      slugPlaceholder: 'saunadufte',
 
   const t = content[lang] || content.en;
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -511,7 +519,7 @@ const AdminCategoryManager = () => {
         display_order: maxOrder + 1,
         is_visible: true,
       });
-      toast.success(`"${suggestion.name_sv}" skapad!`);
+      toast.success(t.created);
       queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
       setAiResult((prev: any) => prev ? {
         ...prev,
@@ -602,7 +610,7 @@ const AdminCategoryManager = () => {
               slug: prev.slug || generateSlug(e.target.value),
             }));
           }}
-          placeholder="T.ex. Bastudofter"
+          placeholder={t.nameSvPlaceholder}
         />
       </div>
       <div className="space-y-2">
@@ -610,7 +618,7 @@ const AdminCategoryManager = () => {
         <Input
           value={form.name_en}
           onChange={e => setForm(prev => ({ ...prev, name_en: e.target.value }))}
-          placeholder="Sauna Scents"
+          placeholder={t.nameEnPlaceholder}
         />
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -619,7 +627,7 @@ const AdminCategoryManager = () => {
           <Input
             value={form.slug}
             onChange={e => setForm(prev => ({ ...prev, slug: e.target.value }))}
-            placeholder="bastudofter"
+            placeholder={t.slugPlaceholder}
           />
         </div>
         <div className="space-y-2">
@@ -836,7 +844,7 @@ const AdminCategoryManager = () => {
                 <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20">
                   <AlertTriangle className="w-3.5 h-3.5 text-destructive shrink-0" />
                   <span className="text-xs">
-                    {issue.type === 'duplicate_slug' ? `${t.duplicateSlugPrefix} "${issue.slug}" (${issue.count} st)` : `${t.duplicateNamePrefix} "${issue.name}" (${issue.count} st)`}
+                    {issue.type === 'duplicate_slug' ? `${t.duplicateSlugPrefix} "${issue.slug}" (${issue.count})` : `${t.duplicateNamePrefix} "${issue.name}" (${issue.count})`}
                   </span>
                 </div>
               ))}
