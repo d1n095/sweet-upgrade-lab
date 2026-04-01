@@ -87,18 +87,6 @@ interface UnifiedReport {
   raw_metrics?: Record<string, number>;
 }
 
-const callAI = async (type: string, payload: Record<string, any> = {}) => {
-  const scanTypes = ['system_scan', 'data_integrity', 'content_validation', 'sync_scan', 'interaction_qa', 'visual_qa', 'nav_scan', 'ux_scan', 'human_test', 'action_governor', 'feature_detection'];
-
-  if (scanTypes.includes(type)) {
-    console.log("CLICK → ENGINE OK");
-    return startScanJob("system");
-  }
-
-  // Non-scan calls are disabled
-  toast.info('Denna funktion kräver manuell hantering');
-  return null;
-};
 
 const callTaskManager = async (action: string) => {
   const { data: { session } } = await supabase.auth.getSession();
@@ -310,7 +298,7 @@ const LovaChatTab = () => {
     setMessages(prev => [...prev, tempMsg]);
 
     try {
-      const res = await callAI('lova_chat', { message: text, conversation_id: conversationId });
+      const res = null;
       if (res) {
         if (!conversationId) setConversationId(res.conversation_id);
         const assistantMsg: ChatMessage = {
@@ -658,7 +646,7 @@ const UnifiedDashboardTab = () => {
 
   const runReport = async () => {
     setLoading(true);
-    const res = await callAI('unified_report');
+    const res = null;
     if (res) setReport(res);
     setLoading(false);
   };
@@ -1014,7 +1002,7 @@ const PromptGeneratorTab = () => {
   const generate = async () => {
     if (!input.trim() || input.trim().length < 5) { toast.error('Skriv minst 5 tecken'); return; }
     setLoading(true);
-    const res = await callAI('generate_prompt', { input: input.trim() });
+    const res = null });
     if (res) {
       setResult(res);
       setHistory(prev => [res, ...prev].slice(0, 20));
@@ -1096,7 +1084,7 @@ const DataInsightsTab = () => {
 
   const analyze = async () => {
     setLoading(true);
-    const res = await callAI('data_insights', { auto_action: autoAction });
+    const res = null;
     if (res) {
       setAnalysis(res);
       if (res.work_items_created > 0) {
@@ -1107,13 +1095,7 @@ const DataInsightsTab = () => {
   };
 
   const createTaskFromInsight = async (insight: DataInsight) => {
-    const res = await callAI('create_action', {
-      title: insight.title,
-      description: `${insight.description}\n\nRekommenderad åtgärd: ${insight.action}`,
-      priority: insight.type === 'warning' ? 'high' : 'medium',
-      category: 'business',
-      source_type: 'insight',
-    });
+    const res = null;
     if (res?.created) toast.success('Uppgift skapad i Workbench');
   };
 
@@ -1214,7 +1196,7 @@ const BugAITab = () => {
 
   const analyzeBug = async (bugId: string, deep = false) => {
     setAnalyzing(bugId);
-    const res = await callAI(deep ? 'bug_deep_analysis' : 'bug_fix_suggestion', { bug_id: bugId });
+    const res = null;
     if (res) setFixes(prev => ({ ...prev, [bugId]: deep ? { ...res, _deep: true } : res }));
     setAnalyzing(null);
   };
@@ -1405,7 +1387,7 @@ const ProductSuggestionsTab = () => {
 
   const run = async () => {
     setLoading(true);
-    const res = await callAI('product_suggestions');
+    const res = null;
     if (res) setData(res);
     setLoading(false);
   };
@@ -1494,7 +1476,7 @@ const SystemHealthTab = () => {
 
   const run = async () => {
     setLoading(true);
-    const res = await callAI('system_health');
+    const res = null;
     if (res) setData(res);
     setLoading(false);
   };
@@ -1549,13 +1531,7 @@ const SystemHealthTab = () => {
                       <p className="text-xs">{issue.description}</p>
                       <p className="text-xs font-medium">→ {issue.suggested_action}</p>
                       <Button size="sm" variant="outline" className="h-5 text-[9px] gap-0.5 mt-1" onClick={async () => {
-                        const res = await callAI('create_action', {
-                          title: issue.title,
-                          description: `${issue.description}\n\nÅtgärd: ${issue.suggested_action}`,
-                          priority: issue.severity === 'critical' ? 'critical' : 'high',
-                          category: 'system',
-                          source_type: 'ai_detection',
-                        });
+                        const res = null;
                         if (res?.created) toast.success('Uppgift skapad');
                       }}>
                         <Zap className="w-2.5 h-2.5" /> Skapa uppgift
@@ -1631,7 +1607,7 @@ const TrendAnalysisPanel = () => {
 
   const runTrends = async () => {
     setLoading(true);
-    const res = await callAI('memory_trends');
+    const res = null;
     if (res) {
       setTrends(res);
       if (!res.trend_available) toast.info(res.message);
@@ -2000,7 +1976,7 @@ const SystemScanTab = () => {
 
   const runScan = async () => {
     setLoading(true);
-    const res = await callAI('system_scan');
+    const res = startScanJob("system");
     if (res) {
       setScanResult(res);
       // Persist to DB
@@ -2462,7 +2438,7 @@ const ActionEngineTab = () => {
 
   const run = async () => {
     setLoading(true);
-    const res = await callAI('action_engine');
+    const res = null;
     if (res) setData(res);
     setLoading(false);
   };
@@ -2612,9 +2588,7 @@ const ActionEngineTab = () => {
                           </div>
                           <Button size="sm" variant="outline" className="w-full h-7 text-[10px] gap-1" onClick={async (e) => {
                             e.stopPropagation();
-                            const res = await callAI('create_action', {
-                              title: action.title,
-                              description: `Grundorsak: ${action.root_cause}\nStrategi: ${action.fix_strategy}\n\nSteg:\n${action.implementation_steps.map((s: string, j: number) => `${j + 1}. ${s}`).join('\n')}\n\n📋 Lovable-prompt:\n${action.lovable_prompt}`,
+                            const res = null => `${j + 1}. ${s}`).join('\n')}\n\n📋 Lovable-prompt:\n${action.lovable_prompt}`,
                               priority: action.priority,
                               category: action.type,
                               source_type: 'ai_action_engine',
@@ -2708,7 +2682,7 @@ const DataIntegrityTab = () => {
   const runScan = async () => {
     setLoading(true);
     try {
-      const data = await callAI('data_integrity');
+      const data = startScanJob("system");
       if (data) setResult(data);
     } catch { toast.error('Integrity scan misslyckades'); }
     finally { setLoading(false); }
@@ -2812,7 +2786,7 @@ const ContentValidationTab = () => {
   const runScan = async (autoFix = false) => {
     if (autoFix) setFixing(true); else setLoading(true);
     try {
-      const data = await callAI('content_validation', { auto_fix: autoFix });
+      const data = startScanJob("system");
       if (data) {
         setResult(data);
         if (autoFix && data.auto_fixed > 0) toast.success(`${data.auto_fixed} problem åtgärdade automatiskt`);
@@ -2959,7 +2933,7 @@ const PatternDetectionTab = () => {
   const runScan = async () => {
     setLoading(true);
     try {
-      const data = await callAI('pattern_detection');
+      const data = null;
       if (data) setResult(data);
     } catch { toast.error('Pattern detection misslyckades'); }
     finally { setLoading(false); }
@@ -3227,7 +3201,7 @@ const FocusedScanTab = () => {
   const runScan = async () => {
     setLoading(true);
     try {
-      const data = await callAI('focused_scan');
+      const data = null;
       if (data) setResult(data);
     } catch { toast.error('Fokusscan misslyckades'); }
     finally { setLoading(false); }
@@ -3386,14 +3360,14 @@ const NavBugScanTab = () => {
 
   const runNav = async () => {
     setLoadingNav(true);
-    const r = await callAI('nav_scan');
+    const r = startScanJob("system");
     if (r) { setNavResult(r); toast.success(`Nav-scan klar – ${r.issues?.length || 0} problem, ${r.tasks_created || 0} uppgifter`); }
     setLoadingNav(false);
   };
 
   const runBugRescan = async () => {
     setLoadingBug(true);
-    const r = await callAI('bug_rescan');
+    const r = null;
     if (r) { setBugResult(r); toast.success(`Bugg-rescan klar – ${r.applied?.bugs_updated || 0} uppdaterade`); }
     setLoadingBug(false);
   };
@@ -3687,7 +3661,7 @@ const VisualQATab = () => {
     setExpandedIdx(null);
     setCompareScanId(null);
     setCompareResult(null);
-    const r = await callAI('visual_qa');
+    const r = startScanJob("system");
     if (r) {
       setResult(r);
       toast.success(`QA klar – ${r.issues?.length || 0} problem`);
@@ -3741,9 +3715,7 @@ const VisualQATab = () => {
 
   const analyzeIssue = async (issue: QAIssue, idx: number) => {
     setAnalyzingIdx(idx);
-    const res = await callAI('lova_chat', {
-      message: `Analysera detta Visual QA-problem och bestäm hur det ska hanteras. Svara i JSON-format med fälten:
-- root_cause (string): grundorsak
+    const res = null: grundorsak
 - auto_fixable (boolean): kan fixas automatiskt utan kodändring?
 - fix_steps (array of strings): steg för att fixa
 - impact (string): impact-bedömning
@@ -4329,7 +4301,7 @@ const StructureAnalysisTab = () => {
 
   const runAnalysis = async () => {
     setLoading(true);
-    const res = await callAI('structure_analysis');
+    const res = null;
     if (res) setResult(res);
     setLoading(false);
   };
@@ -4487,7 +4459,7 @@ const DevGuardianTab = () => {
 
   const runGuardian = async () => {
     setLoading(true);
-    const res = await callAI('dev_guardian');
+    const res = null;
     if (res) setResult(res);
     setLoading(false);
   };
@@ -4700,7 +4672,7 @@ const AiAutopilotTab = () => {
 
   const runExecution = async () => {
     setExecutionLoading(true);
-    const res = await callAI('ai_execute', { mode });
+    const res = null;
     if (res) {
       setExecutionResult(res);
       if (res.executed_count > 0) {
@@ -5240,7 +5212,7 @@ const InteractionQATab = () => {
 
   const run = async () => {
     setLoading(true);
-    const r = await callAI('interaction_qa');
+    const r = startScanJob("system");
     if (r) { setResult(r); toast.success(`Interaction QA klar – ${r.dead_elements?.length || 0} döda element, ${r.broken_flows?.length || 0} brutna flöden, ${r.tasks_created || 0} uppgifter`); }
     setLoading(false);
   };
@@ -5551,7 +5523,7 @@ const VerificationEngineTab = () => {
 
   const run = async () => {
     setLoading(true);
-    const r = await callAI('verification_engine');
+    const r = null;
     if (r) {
       setResult(r);
       toast.success(`Verifiering klar – ${r.false_done_items?.length || 0} falska done, ${r.auto_closed_items?.length || 0} auto-stängda, ${r.tasks_created || 0} nya`);
@@ -6070,7 +6042,7 @@ const AutoFixTab = () => {
 
   const run = async () => {
     setLoading(true);
-    const r = await callAI('auto_fix');
+    const r = null;
     if (r) {
       setResult(r);
       toast.success(`Auto-fix klar – ${r.total_fixed || 0} åtgärdade, ${r.total_flagged || 0} flaggade`);
@@ -6223,7 +6195,7 @@ const OverflowScanTab = () => {
 
   const run = async () => {
     setLoading(true);
-    const r = await callAI('ui_overflow_scan');
+    const r = null;
     if (r) { setResult(r); toast.success(`Overflow-skanning klar – ${r.issues_found || 0} problem`); }
     setLoading(false);
   };
@@ -6428,13 +6400,13 @@ const UxScannerTab = () => {
   const runScan = async () => {
     setLoading(true);
     try {
-      const res = await callAI('ux_scan');
+      const res = startScanJob("system");
       if (res) { setResult(res); toast.success(`UX-skanning klar — ${res.issues_found || 0} problem`); }
     } finally { setLoading(false); }
   };
 
   const createTask = async (issue: any) => {
-    const res = await callAI('create_action', { title: `UX: ${issue.title}`, description: `${issue.description}\n\nPåverkan: ${issue.user_impact}\nFix: ${issue.fix_suggestion}`, priority: issue.severity, category: issue.category, source_type: 'ux_scan' });
+    const res = null;
     if (res?.work_item_id) { toast.success('Uppgift skapad'); openDetail(res.work_item_id); }
   };
 
@@ -7208,13 +7180,13 @@ const SyncScannerTab = () => {
   const runScan = async () => {
     setLoading(true);
     try {
-      const res = await callAI('sync_scan');
+      const res = startScanJob("system");
       if (res) { setResult(res); toast.success(`Sync-skanning klar — ${res.issues_found || 0} problem, ${res.auto_fixed_count || 0} auto-fixade`); }
     } finally { setLoading(false); }
   };
 
   const createTask = async (issue: any) => {
-    const res = await callAI('create_action', { title: `Sync: ${issue.title}`, description: `${issue.description}\n\nÅtgärd: ${issue.fix_action}`, priority: issue.severity, category: 'data_integrity', source_type: 'sync_scan' });
+    const res = null;
     if (res?.work_item_id) { toast.success('Uppgift skapad'); openDetail(res.work_item_id); }
   };
 
@@ -7334,7 +7306,7 @@ const ActionGovernorTab = () => {
 
   const runGovernor = async () => {
     setLoading(true);
-    const res = await callAI('action_governor');
+    const res = startScanJob("system");
     if (res) {
       setResult(res);
       // Load action log
@@ -7352,7 +7324,7 @@ const ActionGovernorTab = () => {
 
   const executeAction = async (actionId: string) => {
     setExecutingId(actionId);
-    const res = await callAI('governor_execute', { action_id: actionId, action_classification: 'auto_fix' });
+    const res = null;
     if (res) {
       toast.success(res.executed ? `Utfört: ${res.action_taken}` : res.action_taken);
       runGovernor();
@@ -7783,7 +7755,7 @@ const OrchestrationTab = () => {
   const runOrchestration = async () => {
     setLoading(true);
     setResult(null);
-    const data = await callAI('double_pass', { context });
+    const data = null;
     if (data) setResult(data);
     setLoading(false);
   };

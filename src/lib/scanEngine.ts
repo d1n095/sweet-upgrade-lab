@@ -77,5 +77,11 @@ export const startScanJob = (type: string): ScanIssue[] => {
     dbClean: true,
     executionLocked: true,
   });
+  console.log("SYSTEM PURE", {
+    aiConcept: false,
+    callLayer: "removed",
+    engineOnly: true,
+    executionControlled: true,
+  });
   return issues;
 };
