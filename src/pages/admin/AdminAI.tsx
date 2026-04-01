@@ -4688,7 +4688,7 @@ const SCAN_STEP_ICONS: Record<string, any> = {
 
 const AiAutopilotTab = () => {
   const [mode, setMode] = useState<AiMode>('assisted');
-  const { scanning, steps, selectedSteps, toggleStep: storeToggleStep, selectAll, selectNone, runAllScans } = useScannerStore();
+  const { scanning, steps, selectedSteps, toggleStep: storeToggleStep, selectAll, selectNone, startScan } = useScannerStore();
   const orchestrator = useFullScanOrchestrator();
   const [scanMode, setScanMode] = useState<'orchestrated' | 'custom'>('orchestrated');
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
@@ -4826,7 +4826,7 @@ const AiAutopilotTab = () => {
                   );
                 })}
               </div>
-              <Button onClick={() => runAllScans(queryClient)} disabled={isAnyScanRunning || selectedSteps.size === 0} className="w-full gap-2" size="lg">
+              <Button onClick={() => startScan(queryClient)} disabled={isAnyScanRunning || selectedSteps.size === 0} className="w-full gap-2" size="lg">
                 {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
                 {scanning ? `Skannar... (${completedCount + errorCount}/${steps.length})` : `Kör ${selectedSteps.size} skanningar`}
               </Button>

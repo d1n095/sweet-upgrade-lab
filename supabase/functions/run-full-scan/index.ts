@@ -1,7 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
-const AI_ENABLED = false;
 const corsHeaders = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type" };
 
 // ── SCAN FILTERS ─────────────────────────────────────────────────────────
@@ -760,10 +759,10 @@ async function runStep(step: { id: string; label: string; scanType: string }, su
   try {
     const scanner = SCAN_REGISTRY[step.scanType];
     if (scanner) {
-      result = { ...await scanner(supabase, scan_run_id), ai_suggestions:[], ai_summary:null };
-    } else if (!AI_ENABLED) {
-      console.log(`[AI DISABLED] Skipping: ${step.id}`);
-      result = { issues:[], skipped:true, _reason:"AI_DISABLED" };
+      result = await scanner(supabase, scan_run_id);
+    } else {
+      console.log(`[SCAN SKIP] No scanner registered for type: ${step.scanType}`);
+      result = { issues:[], skipped:true, _reason:"no_scanner" };
     }
     if (!Array.isArray(result.issues)) result.issues = result.issues ?? [];
     const duration_ms = Date.now() - start;
