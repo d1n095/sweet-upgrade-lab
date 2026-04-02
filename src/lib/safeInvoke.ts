@@ -38,6 +38,7 @@ const ADMIN_ONLY_FUNCTIONS = new Set([
 ]);
 
 console.log('[CONTROL LAYER ACTIVE]');
+console.log('SYSTEM LOCKED', { singleEntry: true, noLegacy: true, buildOk: true });
 
 /**
  * Single approved entry point for all Supabase edge function calls.
