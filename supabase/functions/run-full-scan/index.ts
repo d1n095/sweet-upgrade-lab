@@ -2577,6 +2577,9 @@ serve(async (req) => {
       const currentIteration = iteration || 1;
       const { data: scanRun } = await supabase.from("scan_runs").select("*").eq("id", scan_run_id).single();
       if (!scanRun || scanRun.status !== "running") return new Response(JSON.stringify({ success: false, error: "Scan not running" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (await enforceScanTimeout(supabase, scanRun, `process_step:${step_index}`)) {
+        return new Response(JSON.stringify({ success: false, error: "Scan timed out", scan_run_id }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
 
       const step = currentIteration === 1 ? STEPS[step_index] : (scanRun._targeted_steps || STEPS)[step_index];
       if (!step) return new Response(JSON.stringify({ success: false, error: "Invalid step index" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -2598,49 +2601,13 @@ serve(async (req) => {
       const stepStart = Date.now();
 
       try {
-        const STEP_TIMEOUT_MS = 30000;
         const realScanner = REAL_DB_SCANNERS[step.scanType];
-        if (realScanner) {
-          console.log(`[scan] Running REAL DB scanner for ${step.scanType}`);
-          const dbResult = await realScanner(supabase, scan_run_id);
-          let aiEnrichment: any = null;
-          try {
-            const aiController = new AbortController();
-            const aiTimeout = setTimeout(() => aiController.abort(), STEP_TIMEOUT_MS);
-            const resp = await fetch(`${supabaseUrl}/functions/v1/ai-assistant`, {
-              method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
-              body: JSON.stringify({ type: step.scanType, orchestrated: true, step_index, real_db_findings: { issues_count: dbResult.issues_found || dbResult.total_issues || 0, score: dbResult.overall_score, sample_issues: (dbResult.issues || dbResult.mismatches || dbResult.features || []).slice(0, 5).map((i: any) => i.title || i.name || "") } }),
-              signal: aiController.signal,
-            });
-            clearTimeout(aiTimeout);
-            if (resp.ok) { const data = await resp.json(); aiEnrichment = data.result || data; }
-          } catch (_) {}
-          stepResult = { ...dbResult, ai_suggestions: aiEnrichment?.suggestions || aiEnrichment?.recommendations || [], ai_summary: aiEnrichment?.summary || aiEnrichment?.executive_summary || null };
-        } else {
-          console.log(`[scan] Running AI-only scanner for ${step.scanType}`);
-          const previousContext: Record<string, any> = {};
-          const existingResults = scanRun.steps_results || {};
-          for (const [key, val] of Object.entries(existingResults)) {
-            const v = val as any;
-            if (v?.overall_score != null) previousContext[key] = { score: v.overall_score };
-            if (v?.issues_count != null) previousContext[key] = { ...previousContext[key], issues: v.issues_count };
-          }
-          let deepScanContext: any = undefined;
-          if (currentIteration > 1) {
-            deepScanContext = { iteration: currentIteration, previous_patterns: scanRun.pattern_discoveries || [], high_risk_areas: scanRun.high_risk_areas || [], instruction: "DEEP RE-SCAN. Focus on high_risk_areas and patterns." };
-          }
-          const stepController = new AbortController();
-          const stepTimeout = setTimeout(() => stepController.abort(), STEP_TIMEOUT_MS);
-          const resp = await fetch(`${supabaseUrl}/functions/v1/ai-assistant`, {
-            method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
-            body: JSON.stringify({ type: step.scanType, orchestrated: true, step_index, previous_context: Object.keys(previousContext).length > 0 ? previousContext : undefined, deep_scan_context: deepScanContext }),
-            signal: stepController.signal,
-          });
-          clearTimeout(stepTimeout);
-          if (resp.ok) { const data = await resp.json(); stepResult = data.result || data; }
-          else { const errBody = await resp.text().catch(() => ""); stepResult = { error: `HTTP ${resp.status}: ${errBody.substring(0, 200)}`, failed: true }; }
+        if (!realScanner) {
+          throw new Error(`No rule-based scanner implemented for ${step.scanType}`);
         }
-      } catch (e: any) { stepResult = { error: e.message, failed: true, _timed_out: e.name === "AbortError" }; }
+        console.log(`[scan] Running rule-based scanner for ${step.scanType}`);
+        stepResult = await withTimeout(realScanner(supabase, scan_run_id), STEP_TIMEOUT_MS, `step ${step.scanType}`);
+      } catch (e: any) { stepResult = { error: e.message, failed: true, _timed_out: e.name === "AbortError" || /timeout/i.test(e.message || "") }; }
 
       const duration_ms = Date.now() - stepStart;
       const scanFinishedAt = new Date().toISOString();
@@ -2740,6 +2707,18 @@ serve(async (req) => {
       const stepsForIteration = currentIteration === 1 ? STEPS : (scanRun._targeted_steps || STEPS);
       const isLastStep = step_index + 1 >= stepsForIteration.length;
 
+      if (stepResult.failed) {
+        await markScanFailed(supabase, scan_run_id, stepResult.error || `Step failed: ${step.label}`, {
+          steps_results: updatedResults,
+          current_step: step_index,
+          current_step_label: `Misslyckades: ${step.label}`,
+          progress: Math.min(99, stepProgressPct),
+          completed_steps: step_index,
+          step_logs: updatedLogs,
+        });
+        return new Response(JSON.stringify({ success: false, error: stepResult.error || "Step failed", step: step.id, scan_run_id }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
+      }
+
       if (!isLastStep) {
         const nextStep = stepsForIteration[step_index + 1];
         await supabase.from("scan_runs").update({
@@ -2751,16 +2730,10 @@ serve(async (req) => {
           eta_seconds: etaSeconds,
           step_logs: updatedLogs,
         }).eq("id", scan_run_id);
-        fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
-          method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
-          body: JSON.stringify({ action: "process_step", scan_run_id, step_index: step_index + 1, iteration: currentIteration }),
-        }).catch((e) => console.error("Failed to chain next step:", e));
+        await invokeChainedScanAction(supabase, supabaseUrl, serviceKey, scan_run_id, { action: "process_step", scan_run_id, step_index: step_index + 1, iteration: currentIteration });
       } else {
         await supabase.from("scan_runs").update({ steps_results: updatedResults }).eq("id", scan_run_id);
-        fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
-          method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
-          body: JSON.stringify({ action: "evaluate_iteration", scan_run_id, iteration: currentIteration }),
-        }).catch((e) => console.error("Failed to chain evaluation:", e));
+        await invokeChainedScanAction(supabase, supabaseUrl, serviceKey, scan_run_id, { action: "evaluate_iteration", scan_run_id, iteration: currentIteration });
       }
 
       return new Response(JSON.stringify({ success: true, ok: true, step: step.id, step_index, iteration: currentIteration }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
