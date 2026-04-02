@@ -10,6 +10,7 @@ import { useCartStore } from '@/stores/cartStore';
 import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import PaymentMethods from '@/components/trust/PaymentMethods';
 import { supabase } from '@/integrations/supabase/client';
+import { safeFetch } from '@/lib/safeInvoke';
 import { toast } from 'sonner';
 import { useStoreSettings } from '@/stores/storeSettingsStore';
 import { logActivity } from '@/utils/activityLogger';
@@ -285,7 +286,7 @@ const Checkout = () => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout`, {
+      const res = await safeFetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
