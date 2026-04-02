@@ -25,7 +25,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { getOrderDisplayId } from '@/utils/orderDisplay';
 import WorkItemDetail from './WorkItemDetail';
 import { useNavigate } from 'react-router-dom';
-import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
+import { triggerAiReviewForWorkItem } from '@/lib/workItemReview';
 import { createAndVerify } from '@/utils/createVerifyLoop';
 import { trace, newTraceId, traceUIFetch } from '@/utils/deepDebugTrace';
 import { verifyAction } from '@/utils/actionVerificationEngine';
@@ -222,7 +222,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const runOrchestrator = async () => {
     setRunningOrchestrator(true);
     try {
-      const { data, error } = await supabase.functions.invoke('ai-task-manager', { body: { action: 'orchestrate' } });
+      const { data, error } = await supabase.functions.invoke('task-manager', { body: { action: 'orchestrate' } });
       if (error) throw error;
       const r = data?.results;
       const scanned = r?.orchestrator_scanned || 0;

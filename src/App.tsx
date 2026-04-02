@@ -67,7 +67,7 @@ import AdminDatabase from "./pages/admin/AdminDatabase";
 import AdminData from "./pages/admin/AdminData";
 import AdminOps from "./pages/admin/AdminOps";
 import AdminGrowth from "./pages/admin/AdminGrowth";
-import AdminAI from "./pages/admin/AdminAI";
+import AdminScanCenter from "./pages/admin/AdminAI";
 import AdminHistory from "./pages/admin/AdminHistory";
 import AdminChangeHistory from "./pages/admin/AdminChangeHistory";
 import AdminPOS from "./pages/admin/AdminPOS";

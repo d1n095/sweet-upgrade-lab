@@ -18,7 +18,7 @@ import {
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
+import { triggerAiReviewForWorkItem } from '@/lib/workItemReview';
 
 interface WorkItemDetailProps {
   item: {

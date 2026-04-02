@@ -13,7 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
+import { triggerAiReviewForWorkItem } from '@/lib/workItemReview';
 
 interface ActionableFix {
   blocker_statement?: string;

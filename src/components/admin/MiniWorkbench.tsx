@@ -18,7 +18,7 @@ import {
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
-import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
+import { triggerAiReviewForWorkItem } from '@/lib/workItemReview';
 
 const PRIORITY_COLORS: Record<string, string> = {
   critical: 'bg-destructive/10 text-destructive border-destructive/20',

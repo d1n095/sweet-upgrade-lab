@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { logChange } from '@/utils/changeLogger';
-import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
+import { triggerAiReviewForWorkItem } from '@/lib/workItemReview';
 import { useSafeModeStore } from '@/stores/safeModeStore';
 import { recordRootCause, checkKnownPatterns } from '@/lib/rootCauseMemory';
 

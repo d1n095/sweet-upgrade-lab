@@ -10,7 +10,7 @@ import {
   TrendingUp, Loader2, RefreshCw, Bug, GitMerge, Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAiQueueStore } from '@/stores/aiQueueStore';
+import { useAiQueueStore } from '@/stores/taskQueueStore';
 
 type TrustLabel = 'unstable' | 'improving' | 'stable' | 'production_ready';
 

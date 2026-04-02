@@ -1,4 +1,4 @@
-import { useAiQueueStore, type QueueTask, type QueueTaskPriority, type QueueTaskStatus, type FailureReport, type RegressionEntry } from '@/stores/aiQueueStore';
+import { useAiQueueStore, type QueueTask, type QueueTaskPriority, type QueueTaskStatus, type FailureReport, type RegressionEntry } from '@/stores/taskQueueStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
