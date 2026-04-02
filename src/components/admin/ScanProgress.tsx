@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -34,6 +34,8 @@ interface ScanProgressData {
 interface ScanProgressProps {
   scanRunId: string | null;
   className?: string;
+  /** Called once when the scan reaches a terminal state (done or error). */
+  onComplete?: () => void;
 }
 
 function formatEta(seconds: number | null): string {
@@ -53,9 +55,10 @@ function formatTime(iso: string): string {
   }
 }
 
-export default function ScanProgress({ scanRunId, className }: ScanProgressProps) {
+export default function ScanProgress({ scanRunId, className, onComplete }: ScanProgressProps) {
   const [data, setData] = useState<ScanProgressData | null>(null);
   const [showLogs, setShowLogs] = useState(false);
+  const completedRef = useRef(false);
 
   // Poll for progress every 2 seconds when running
   useEffect(() => {
@@ -95,6 +98,16 @@ export default function ScanProgress({ scanRunId, className }: ScanProgressProps
       supabase.removeChannel(channel);
     };
   }, [scanRunId]);
+
+  // Fire onComplete once when scan reaches a terminal state
+  useEffect(() => {
+    if (!data) return;
+    const isTerminal = data.status === 'done' || data.status === 'error';
+    if (isTerminal && !completedRef.current) {
+      completedRef.current = true;
+      onComplete?.();
+    }
+  }, [data?.status, onComplete]);
 
   if (!scanRunId || !data) return null;
 

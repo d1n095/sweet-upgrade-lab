@@ -65,6 +65,8 @@ export interface SafeInvokeGuardError {
  * - Normalized error handling (Supabase FunctionsHttpError → plain object)
  * - Optional caller-supplied traceId; otherwise generates a UUID automatically
  * - Injects `_traceId` into the request body so backend logs can correlate
+ * - GET support: pass `method: 'GET'` and `params` for URL query parameters
+ * - Timeout/abort: pass `signal` to cancel the request
  */
 export async function safeInvoke<T = any>(
   functionName: string,
@@ -73,6 +75,12 @@ export async function safeInvoke<T = any>(
     headers?: Record<string, string>;
     traceId?: string;
     isAdmin?: boolean;
+    /** Use 'GET' for health-check or query-parameter-based edge functions. */
+    method?: 'GET' | 'POST';
+    /** Query parameters appended to the URL when method is 'GET'. */
+    params?: Record<string, string>;
+    /** AbortSignal for timeout / cancellation. */
+    signal?: AbortSignal;
   }
 ): Promise<{ data: T | null; error: any; traceId: string }> {
   const traceId = options?.traceId ?? crypto.randomUUID();
@@ -104,15 +112,51 @@ export async function safeInvoke<T = any>(
     return { data: null, error: err, traceId };
   }
 
-  console.log(`[safeInvoke] → ${functionName}`, { traceId, body: options?.body });
+  console.log(`[safeInvoke] → ${functionName}`, { traceId, method: options?.method ?? 'POST', body: options?.body });
 
+  // ── GET path: native fetch with URL query parameters ─────────────────────
+  if (options?.method === 'GET') {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const baseUrl = (supabase as any).supabaseUrl as string;
+      const qs = options.params ? '?' + new URLSearchParams(options.params).toString() : '';
+      const url = `${baseUrl}/functions/v1/${functionName}${qs}`;
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          apikey: (supabase as any).supabaseKey as string,
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+          ...options.headers,
+        },
+        signal: options.signal,
+      });
+
+      if (!response.ok) {
+        const msg = `HTTP ${response.status}`;
+        console.warn(`[safeInvoke] ✗ ${functionName} GET ${msg}`, { traceId });
+        const err = Object.assign(new Error(msg), { success: false, error: msg, traceId, status: response.status });
+        return { data: null, error: err, traceId };
+      }
+
+      const data: T = await response.json();
+      console.log(`[safeInvoke] ✓ ${functionName} GET`, { traceId });
+      return { data, error: null, traceId };
+    } catch (caught: any) {
+      console.error(`[safeInvoke] ✗ ${functionName} GET (network error)`, { traceId, error: caught?.message ?? String(caught) });
+      return { data: null, error: caught, traceId };
+    }
+  }
+
+  // ── POST path (default): supabase.functions.invoke ────────────────────────
   try {
     const body = options?.body ? { ...options.body, _traceId: traceId } : undefined;
 
     const { data, error } = await supabase.functions.invoke<T>(functionName, {
       body,
       headers: options?.headers,
-    });
+      signal: options?.signal,
+    } as any);
 
     if (error) {
       // Normalize: extract a human-readable message from FunctionsHttpError context
