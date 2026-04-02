@@ -143,7 +143,9 @@ const OrderDetail = () => {
         noindex={true}
       />
       <Header />
-        {/* Back link */}
+      <main className="pt-24 pb-20">
+        <div className="max-w-2xl mx-auto px-4">
+          {/* Back link */}
         <Link to="/profile?tab=orders" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors">
           <ArrowLeft className="w-4 h-4" />
           {t.back}
@@ -279,7 +281,8 @@ const OrderDetail = () => {
             </p>
           )}
         </div>
-      </div>
+        </div>
+      </main>
       <Footer />
     </div>
   );

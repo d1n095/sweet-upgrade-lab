@@ -155,6 +155,8 @@ const OrderConfirmation = () => {
         noindex={true}
       />
       <Header />
+      <main className="pt-24 pb-20">
+        <div className="max-w-2xl mx-auto px-4">
           <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center mb-12">
             <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2, type: 'spring' }} className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
               <CheckCircle className="w-10 h-10 text-primary" />

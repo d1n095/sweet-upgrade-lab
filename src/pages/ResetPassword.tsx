@@ -89,6 +89,7 @@ const ResetPassword = () => {
         noindex={true}
       />
       <Header />
+      <main className="pt-24 pb-20">
         <div className="max-w-md mx-auto">
           <div className="bg-card rounded-2xl p-8 shadow-lg border">
             {success ? (

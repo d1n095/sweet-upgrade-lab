@@ -108,6 +108,10 @@ const AffiliatePanel = () => {
         noindex={true}
       />
       <Header />
+      <main className="pt-24 pb-20">
+        <div className="max-w-2xl mx-auto px-4">
+          <div className="flex items-center gap-4 mb-6">
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
               <ArrowLeft className="w-4 h-4" />
             </Button>
             <div>
