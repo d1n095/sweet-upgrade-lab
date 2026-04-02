@@ -2500,8 +2500,10 @@ serve(async (req) => {
       const { data: running } = await supabase.from("scan_runs").select("id, started_by, current_step_label, started_at").eq("status", "running").limit(1);
       if (running?.length) {
         const startedAt = new Date(running[0].started_at).getTime();
-        if (Date.now() - startedAt > 5 * 60 * 1000) {
-          await supabase.from("scan_runs").update({ status: "error", error_message: "Timeout 15 min", completed_at: new Date().toISOString() }).eq("id", running[0].id);
+        if (Date.now() - startedAt > SCAN_TIMEOUT_MS) {
+          await markScanFailed(supabase, running[0].id, "timeout before new scan start", {
+            current_step_label: "Timeout before new scan start",
+          });
         } else {
           return new Response(JSON.stringify({ success: false, error: "En skanning körs redan", running_scan: running[0] }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
@@ -2534,6 +2536,7 @@ serve(async (req) => {
         ...(isTargeted ? { scan_mode: "targeted", target_area, verification_for } : { scan_mode: "full" }),
       }).select("id").single();
 
+      activeScanRunId = scanRun?.id || null;
       console.log("[SCAN] insert result:", scanRun, "error:", insertError);
       if (insertError || !scanRun) return new Response(JSON.stringify({ success: false, error: "Failed to create scan run", detail: insertError?.message }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
@@ -2554,16 +2557,16 @@ serve(async (req) => {
 
       if (!structure_map || structure_map.length === 0) {
         console.error("❌ SCAN ABORT: NO STRUCTURE MAP");
+        await markScanFailed(supabase, scanRun.id, "NO_INPUT_DATA", {
+          current_step_label: "Misslyckades: ingen structure map",
+        });
         return new Response(JSON.stringify({ success: false, error: "NO_INPUT_DATA" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
       console.log("[SCAN] running scanners — chaining first step");
-      fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
-        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
-        body: JSON.stringify({ action: "process_step", scan_run_id: scanRun.id, step_index: 0, iteration: 1 }),
-      }).catch((e) => console.error("Failed to chain first step:", e));
+      await invokeChainedScanAction(supabase, supabaseUrl, serviceKey, scanRun.id, { action: "process_step", scan_run_id: scanRun.id, step_index: 0, iteration: 1 });
 
-      return new Response(JSON.stringify({ success: true, scan_id: scanRun.id, status: "started", system_stage: systemStage, scan_mode: isTargeted ? "targeted" : "full" }), {
+      return new Response(JSON.stringify({ success: true, scan_id: scanRun.id, scan_run_id: scanRun.id, status: "started", system_stage: systemStage, scan_mode: isTargeted ? "targeted" : "full" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
       });
     }
