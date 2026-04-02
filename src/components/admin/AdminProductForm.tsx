@@ -3,6 +3,7 @@ import { Sparkles } from 'lucide-react';
 import { DollarSign, Tag, Save, Eye, EyeOff, Boxes, Minus, Plus, Upload, X, Image, FlaskConical, ChefHat, Weight, Wand2, Loader2, Check } from 'lucide-react';
 import { RecipeTemplatePicker } from './RecipeTemplatePicker';
 import { supabase } from '@/integrations/supabase/client';
+import { safeInvoke } from '@/lib/safeInvoke';
 import { useQuery } from '@tanstack/react-query';
 import { fetchCategories, DbCategory } from '@/lib/categories';
 import { fetchTags, DbTag } from '@/lib/tags';
@@ -415,7 +416,8 @@ function AiContentGenerator({
     }
     setGenerating(true);
     try {
-      const { data, error } = await supabase.functions.invoke('generate-product-content', {
+      const { data, error } = await safeInvoke('generate-product-content', {
+        isAdmin: true,
         body: {
           productName: formData.title,
           category: formData.productType || null,
@@ -535,7 +537,8 @@ function AiMetadataSuggestor({
     }
     setSuggesting(true);
     try {
-      const { data, error } = await supabase.functions.invoke('suggest-product-metadata', {
+      const { data, error } = await safeInvoke('suggest-product-metadata', {
+        isAdmin: true,
         body: {
           productName: formData.title,
           description: formData.description || null,

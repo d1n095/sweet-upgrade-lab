@@ -15,6 +15,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
+import { safeInvoke } from '@/lib/safeInvoke';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
@@ -96,7 +97,8 @@ const callAI = async (type: string, payload: Record<string, any> = {}) => {
   const scanTypes = ['system_scan', 'data_integrity', 'content_validation', 'sync_scan', 'interaction_qa', 'visual_qa', 'nav_scan', 'ux_scan', 'human_test', 'action_governor', 'feature_detection'];
   
   if (scanTypes.includes(type)) {
-    const { data, error } = await supabase.functions.invoke('run-full-scan', {
+    const { data, error } = await safeInvoke('run-full-scan', {
+      isAdmin: true,
       body: { action: 'start', ...payload },
     });
     if (error) { toast.error(error.message || 'Skanningsfel'); return null; }
