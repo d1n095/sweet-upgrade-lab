@@ -404,20 +404,6 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     return () => { supabase.removeChannel(channel); };
   }, [queryClient]);
 
-  const { data: userSkills = [] } = useQuery({
-    queryKey: ['user-skills', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      const { data } = await supabase
-        .from('staff_permissions')
-        .select('skill_categories')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      return (data?.skill_categories as string[]) || [];
-    },
-    enabled: !!user?.id,
-  });
-
   const getClassification = (item: WorkItem) => item.ai_type_classification || (item.item_type === 'bug' ? 'bug' : null);
 
   const filteredItems = items.filter(t => {

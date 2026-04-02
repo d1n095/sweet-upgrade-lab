@@ -19,19 +19,9 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import {
-  type ModuleActions,
-  type GranularPermissions,
-  mergePermissions,
-  validatePermissions,
-  parseDbPermissions,
-} from '@/lib/permissions';
-import { enforce } from '@/lib/permissionGuard';
 
 // ─── Write audit log entry (best-effort, non-blocking) ───
 const writeAuditLog = async (
@@ -83,22 +73,12 @@ const ROLE_COLORS: Record<string, string> = {
   marketing: 'text-pink-600', finance: 'text-emerald-600', warehouse: 'text-orange-600',
 };
 
-const ACTIONS: { key: keyof ModuleActions; label: string }[] = [
-  { key: 'read',    label: 'Läs'     },
-  { key: 'write',   label: 'Skriv'   },
-  { key: 'delete',  label: 'Radera'  },
-  { key: 'approve', label: 'Godkänn' },
-];
-
-const EMPTY_ACTIONS: ModuleActions = { read: false, write: false, delete: false, approve: false };
-
 // ─── Interfaces ───
 interface RoleTemplate {
   id: string;
   role_key: string;
   name_sv: string;
   description_sv: string | null;
-  permissions: GranularPermissions;
   is_locked: boolean;
 }
 
@@ -107,10 +87,6 @@ interface StaffMember {
   email: string;
   username: string | null;
   role: string;
-  /** Granular permissions — single source of truth */
-  permissions: GranularPermissions;
-  notes: string | null;
-  permissions_id: string | null;
   /** All roles assigned to this user (multi-role support) */
   roles: string[];
 }
@@ -123,8 +99,6 @@ const StaffManagementTab = () => {
   const [search, setSearch] = useState('');
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
-  const [editPerms, setEditPerms] = useState<Record<string, GranularPermissions>>({});
-  const [editNotes, setEditNotes] = useState<Record<string, string>>({});
   const [editRole, setEditRole] = useState<Record<string, string>>({});
   const [newUserEmail, setNewUserEmail] = useState('');
   const [addingUser, setAddingUser] = useState(false);
@@ -132,7 +106,7 @@ const StaffManagementTab = () => {
   const { data: templates = [] } = useQuery({
     queryKey: ['role-templates'],
     queryFn: async () => {
-      const { data } = await supabase.from('role_templates').select('*');
+      const { data } = await supabase.from('role_templates').select('id, role_key, name_sv, description_sv, is_locked');
       return (data || []) as RoleTemplate[];
     },
     staleTime: 5 * 60 * 1000,
@@ -145,30 +119,19 @@ const StaffManagementTab = () => {
       if (error) throw error;
       if (!roles?.length) return [];
       const userIds = [...new Set(roles.map(r => r.user_id))];
-      const [profilesRes, permsRes] = await Promise.all([
-        supabase.from('profiles').select('user_id, username').in('user_id', userIds),
-        supabase.from('staff_permissions').select('*').in('user_id', userIds),
-      ]);
-      const permMap = new Map((permsRes.data || []).map(p => [p.user_id, p]));
-      const profileMap = new Map((profilesRes.data || []).map(p => [p.user_id, p]));
+      const { data: profiles } = await supabase.from('profiles').select('user_id, username').in('user_id', userIds);
+      const profileMap = new Map((profiles || []).map(p => [p.user_id, p]));
       const roleOrder = ['founder', 'admin', 'it', 'manager', 'moderator', 'support', 'marketing', 'finance', 'warehouse'];
 
       return userIds.map(uid => {
         const userRoles = roles.filter(r => r.user_id === uid);
         const highestRole = roleOrder.find(ro => userRoles.some(r => r.role === ro)) || 'user';
-        const perm = permMap.get(uid);
         const profile = profileMap.get(uid);
-        // Section 4: validate DB permissions — skip invalid records gracefully
-        const rawPerms = perm?.permissions ?? null;
-        const validatedPerms = parseDbPermissions(rawPerms, `staff_permissions:${uid}`);
         return {
           user_id: uid,
           email: profile?.username || uid.substring(0, 8) + '...',
           username: profile?.username || null,
           role: highestRole,
-          permissions: validatedPerms ?? ({} as GranularPermissions),
-          notes: perm?.notes || null,
-          permissions_id: perm?.id || null,
           roles: userRoles.map(r => r.role),
         } as StaffMember;
       }).sort((a, b) => roleOrder.indexOf(a.role) - roleOrder.indexOf(b.role));
@@ -190,79 +153,26 @@ const StaffManagementTab = () => {
     setExpandedUser(userId);
     const member = staffMembers.find(m => m.user_id === userId);
     if (member) {
-      setEditPerms(prev => ({ ...prev, [userId]: { ...member.permissions } }));
-      setEditNotes(prev => ({ ...prev, [userId]: member.notes || '' }));
       setEditRole(prev => ({ ...prev, [userId]: member.role }));
     }
   };
 
-  // Populate editPerms from the selected role template — permissions are the single source of truth
   const handleRoleChange = (userId: string, roleKey: string) => {
-    const tmpl = templates.find(t => t.role_key === roleKey);
-    const perms = tmpl ? parseDbPermissions(tmpl.permissions, `role_template:${roleKey}`) : null;
-    if (!perms) {
-      toast.error('Rollmallen saknar giltiga behörigheter');
-      return;
-    }
-    setEditPerms(prev => ({ ...prev, [userId]: perms }));
     setEditRole(prev => ({ ...prev, [userId]: roleKey }));
-  };
-
-  // Toggle a single action for a module, maintaining read-dependency rules
-  const toggleUserAction = (userId: string, modKey: string, action: keyof ModuleActions) => {
-    setEditPerms(prev => {
-      const userPerms = prev[userId] ?? {};
-      const current = userPerms[modKey] ?? { ...EMPTY_ACTIONS };
-      const updated = { ...current, [action]: !current[action] };
-      // Turning off read clears all actions
-      if (action === 'read' && !updated.read) {
-        return { ...prev, [userId]: { ...userPerms, [modKey]: { ...EMPTY_ACTIONS } } };
-      }
-      // Enabling write/delete/approve auto-enables read
-      if (action !== 'read' && updated[action]) {
-        updated.read = true;
-      }
-      return { ...prev, [userId]: { ...userPerms, [modKey]: updated } };
-    });
   };
 
   const handleSave = async (member: StaffMember) => {
     if (!user) return;
     if (member.user_id === user.id) { toast.error('Du kan inte ändra dig själv'); return; }
     const newRole = editRole[member.user_id] || member.role;
-    if (member.user_id === user.id && ['founder', 'admin'].includes(newRole)) {
-      toast.error('Du kan inte ge dig själv en högre roll'); return;
-    }
-    const newPerms = editPerms[member.user_id] ?? member.permissions;
-    // Reject writes with empty/null permissions
-    if (!newPerms || Object.keys(newPerms).length === 0) {
-      toast.error('Behörigheter får inte vara tomma'); return;
-    }
     setSaving(member.user_id);
     try {
-      const newNotes = editNotes[member.user_id] ?? member.notes;
-      const changes: Record<string, unknown> = {};
-
       if (newRole !== member.role) {
-        changes.role_before = member.role;
-        changes.role_after = newRole;
         await supabase.from('user_roles').delete().eq('user_id', member.user_id).eq('role', member.role as never);
         await supabase.from('user_roles').insert({ user_id: member.user_id, role: newRole as never });
-      }
-      if (JSON.stringify(newPerms) !== JSON.stringify(member.permissions)) {
-        changes.before_permissions = member.permissions;
-        changes.after_permissions = newPerms;
-      }
-      if (member.permissions_id) {
-        await supabase.from('staff_permissions')
-          .update({ permissions: newPerms, notes: newNotes || null })
-          .eq('id', member.permissions_id);
-      } else {
-        await supabase.from('staff_permissions')
-          .insert({ user_id: member.user_id, permissions: newPerms, notes: newNotes || null, granted_by: user.id });
-      }
-      if (Object.keys(changes).length > 0) {
-        await writeAuditLog(user.id, 'update_staff', 'staff_permissions', member.user_id, changes);
+        await writeAuditLog(user.id, 'update_staff_role', 'user_roles', member.user_id, {
+          role_before: member.role, role_after: newRole,
+        });
       }
       toast.success('Sparat!');
       queryClient.invalidateQueries({ queryKey: ['admin-staff-members'] });
@@ -277,9 +187,6 @@ const StaffManagementTab = () => {
     if (!confirm(`Ta bort ${member.username || member.email}?`)) return;
     try {
       await supabase.from('user_roles').delete().eq('user_id', member.user_id).eq('role', member.role as never);
-      if (member.permissions_id) {
-        await supabase.from('staff_permissions').delete().eq('id', member.permissions_id);
-      }
       await writeAuditLog(user.id, 'remove_staff', 'user_roles', member.user_id, { role: member.role });
       toast.success('Borttagen');
       queryClient.invalidateQueries({ queryKey: ['admin-staff-members'] });
@@ -298,20 +205,8 @@ const StaffManagementTab = () => {
       if (target.user_id === user.id || staffMembers.find(m => m.user_id === target.user_id)) {
         toast.error('Redan personal'); setAddingUser(false); return;
       }
-      const defaultTmpl = templates.find(t => t.role_key === 'moderator');
-      const defaultPerms = defaultTmpl ? parseDbPermissions(defaultTmpl.permissions, 'role_template:moderator') : null;
-      if (!defaultPerms) {
-        toast.error('Moderator-mallen saknar giltiga behörigheter — konfigurera rollmallen först');
-        setAddingUser(false);
-        return;
-      }
       await supabase.from('user_roles').insert({ user_id: target.user_id, role: 'moderator' as never });
-      await supabase.from('staff_permissions').insert({
-        user_id: target.user_id, permissions: defaultPerms, granted_by: user.id,
-      });
-      await writeAuditLog(user.id, 'add_staff', 'user_roles', target.user_id, {
-        role: 'moderator', after_permissions: defaultPerms,
-      });
+      await writeAuditLog(user.id, 'add_staff', 'user_roles', target.user_id, { role: 'moderator' });
       toast.success('Tillagd!'); setNewUserEmail('');
       queryClient.invalidateQueries({ queryKey: ['admin-staff-members'] });
     } catch (err: unknown) {
@@ -357,11 +252,6 @@ const StaffManagementTab = () => {
           const isSelf = member.user_id === user?.id;
           const isFounderRole = member.role === 'founder';
           const currentRole = editRole[member.user_id] || member.role;
-          // Effective permissions = union of all role templates (multi-role)
-          const mergedPerms = mergePermissions(
-            member.roles.map(r => templates.find(t => t.role_key === r)?.permissions || {}),
-          );
-          const moduleCount = Object.values(member.permissions).filter(a => a.read).length;
 
           return (
             <Card key={member.user_id} className={cn('border-border transition-shadow', isExpanded && 'shadow-md')}>
@@ -395,11 +285,6 @@ const StaffManagementTab = () => {
                           </span>
                         ))}
                       </div>
-                      {moduleCount > 0 && (
-                        <p className="text-[10px] text-muted-foreground mt-0.5">
-                          {moduleCount} moduler · {Object.values(mergedPerms).filter(a => a.read).length} via roll
-                        </p>
-                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
@@ -444,62 +329,6 @@ const StaffManagementTab = () => {
                               ))}
                             </SelectContent>
                           </Select>
-                        </div>
-
-                        {/* Granular permissions matrix — single source of truth */}
-                        <div className="space-y-2">
-                          <Label className="text-xs font-semibold">Behörigheter per modul</Label>
-                          {MODULE_GROUPS.map(group => {
-                            const groupMods = ADMIN_MODULES.filter(m => m.group === group);
-                            return (
-                              <div key={group} className="space-y-1">
-                                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider pt-1">{group}</p>
-                                {/* Column headers */}
-                                <div className="grid grid-cols-[1fr_repeat(4,_44px)] gap-1 px-3 mb-1">
-                                  <span />
-                                  {ACTIONS.map(a => (
-                                    <span key={a.key} className="text-[10px] font-semibold text-muted-foreground text-center">{a.label}</span>
-                                  ))}
-                                </div>
-                                {groupMods.map(mod => {
-                                  const currentPerms = editPerms[member.user_id] ?? member.permissions;
-                                  const actions = currentPerms[mod.key] ?? EMPTY_ACTIONS;
-                                  return (
-                                    <div
-                                      key={mod.key}
-                                      className={cn(
-                                        'grid grid-cols-[1fr_repeat(4,_44px)] gap-1 items-center px-3 py-2 rounded-lg',
-                                        actions.read
-                                          ? 'bg-primary/5 border border-primary/20'
-                                          : 'bg-secondary/30 border border-transparent',
-                                      )}
-                                    >
-                                      <span className="text-xs font-medium truncate">{mod.label}</span>
-                                      {ACTIONS.map(a => (
-                                        <div key={a.key} className="flex justify-center">
-                                          <Checkbox
-                                            checked={!!actions[a.key]}
-                                            onCheckedChange={() => toggleUserAction(member.user_id, mod.key, a.key)}
-                                          />
-                                        </div>
-                                      ))}
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        {/* Notes */}
-                        <div className="space-y-1.5">
-                          <Label className="text-xs font-semibold">Anteckningar</Label>
-                          <Textarea
-                            value={editNotes[member.user_id] || ''}
-                            onChange={e => setEditNotes(prev => ({ ...prev, [member.user_id]: e.target.value }))}
-                            rows={2}
-                            className="text-sm"
-                          />
                         </div>
 
                         <div className="flex gap-2 pt-1">

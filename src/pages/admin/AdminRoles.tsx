@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { UserCog, Lock, Unlock, RefreshCw, Save, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { UserCog, Lock, Unlock, Save, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -121,24 +121,6 @@ const AdminRoles = () => {
     } catch (err: unknown) { toast.error(err instanceof Error ? err.message : 'Fel'); } finally { setSaving(false); }
   };
 
-  const syncUsersFromTemplate = async (t: RoleTemplate) => {
-    if (!confirm(`Synka alla "${t.name_sv}"-användare till mallens behörigheter?`)) return;
-    try {
-      // Validate template permissions before sync — throws if empty
-      const perms = validatePermissions(t.permissions);
-      const { data: roleUsers } = await supabase.from('user_roles').select('user_id').eq('role', t.role_key as never);
-      if (!roleUsers?.length) { toast.info('Inga användare med den rollen'); return; }
-      const userIds = roleUsers.map(r => r.user_id);
-      const { error } = await supabase
-        .from('staff_permissions')
-        .update({ permissions: perms })
-        .in('user_id', userIds);
-      if (error) throw error;
-      toast.success(`${userIds.length} användare synkade`);
-      queryClient.invalidateQueries({ queryKey: ['admin-staff-members'] });
-    } catch (err: unknown) { toast.error(err instanceof Error ? err.message : 'Fel'); }
-  };
-
   // ─── Guards ───
   if (founderLoading) return <div className="flex items-center justify-center py-20 text-muted-foreground">Laddar...</div>;
   if (!isFounder) {
@@ -196,9 +178,6 @@ const AdminRoles = () => {
                     {!isEditing ? (
                       <>
                         <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => startEdit(t)}>Redigera</Button>
-                        <Button variant="ghost" size="sm" className="text-xs h-7 gap-1" onClick={() => syncUsersFromTemplate(t)}>
-                          <RefreshCw className="w-3 h-3" /> Synka
-                        </Button>
                       </>
                     ) : (
                       <>
