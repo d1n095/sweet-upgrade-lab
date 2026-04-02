@@ -1,24 +1,13 @@
-import { supabase } from '@/integrations/supabase/client';
+import { safeInvoke } from '@/lib/safeInvoke';
 
 /**
- * Wraps supabase.functions.invoke with a request_trace_id
- * so clicks can be tracked end-to-end: click → request → backend → DB
+ * @deprecated Use safeInvoke from '@/lib/safeInvoke' directly.
+ * This shim exists for backwards compatibility during migration.
  */
 export async function tracedInvoke<T = any>(
   functionName: string,
-  options?: { body?: Record<string, any>; headers?: Record<string, string> }
+  options?: { body?: Record<string, any>; headers?: Record<string, string>; isAdmin?: boolean }
 ): Promise<{ data: T | null; error: any; request_trace_id: string }> {
-  const request_trace_id = crypto.randomUUID();
-
-  const body = {
-    ...(options?.body || {}),
-    request_trace_id,
-  };
-
-  const { data, error } = await supabase.functions.invoke(functionName, {
-    ...options,
-    body,
-  });
-
-  return { data, error, request_trace_id };
+  const { data, error, traceId } = await safeInvoke<T>(functionName, options);
+  return { data, error, request_trace_id: traceId };
 }

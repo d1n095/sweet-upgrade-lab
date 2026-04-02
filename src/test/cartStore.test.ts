@@ -2,12 +2,6 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { CartItem } from '@/stores/cartStore';
 
 // ── Mocks ──────────────────────────────────────────────────────────────────
-vi.mock('@/utils/analyticsTracker', () => ({
-  trackAddToCart: vi.fn(),
-  trackRemoveFromCart: vi.fn(),
-  trackCartUpdate: vi.fn(),
-}));
-
 vi.mock('@/lib/catalog', () => ({}));
 
 // ── Helpers ────────────────────────────────────────────────────────────────
