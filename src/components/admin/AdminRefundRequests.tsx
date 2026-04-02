@@ -5,7 +5,6 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
-import { tracedInvoke } from '@/lib/tracedInvoke';
 import { useAdminRole } from '@/hooks/useAdminRole';
 import { toast } from 'sonner';
 
@@ -47,7 +46,7 @@ const AdminRefundRequests = () => {
     if (!confirm('Godkänn återbetalning? Stripe debiteras.')) return;
     setProcessingId(id);
     try {
-      const { data, error } = await tracedInvoke('process-refund', {
+      const { data, error } = await supabase.functions.invoke('process-refund', {
         body: { action: 'approve', refund_request_id: id },
       });
       if (error) throw error;
@@ -63,7 +62,7 @@ const AdminRefundRequests = () => {
   const handleReject = async (id: string) => {
     setProcessingId(id);
     try {
-      const { error } = await tracedInvoke('process-refund', {
+      const { error } = await supabase.functions.invoke('process-refund', {
         body: { action: 'reject', refund_request_id: id, admin_notes: rejectNotes[id] || '' },
       });
       if (error) throw error;
