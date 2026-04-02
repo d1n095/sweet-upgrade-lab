@@ -552,7 +552,7 @@ const LovaPromptsTab = () => {
       // Fetch from both prompt_queue AND work_items (legacy chat prompts)
       const [pqRes, wiRes] = await Promise.all([
         supabase.from('prompt_queue').select('*').order('created_at', { ascending: false }).limit(50),
-        supabase.from('work_items' as any).select('id, title, description, priority, status, created_at, source_type, item_type').eq('source_type', 'ai_chat').order('created_at', { ascending: false }).limit(50),
+        supabase.from('work_items' as any).select('id, title, description, priority, status, created_at, source_type, item_type').eq('source_type', 'chat').order('created_at', { ascending: false }).limit(50),
       ]);
       const pqItems = (pqRes.data || []).map((p: any) => ({ ...p, _source: 'pq' }));
       const wiItems = (wiRes.data || []).map((w: any) => ({
