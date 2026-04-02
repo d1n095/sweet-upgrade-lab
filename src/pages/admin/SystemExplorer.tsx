@@ -283,6 +283,7 @@ const SystemExplorer = () => {
         console.log("[FULL SCAN TRIGGERED]");
         await safeInvoke("run-full-scan", {
           body: { action: "start", scan_mode: "full" },
+          isAdmin: true,
         });
         logAction({ type: "SCAN", status: "success", mode });
       }
@@ -506,6 +507,7 @@ const SystemExplorer = () => {
       console.log("[SENDING STRUCTURE MAP]:", structure_map.length);
       const res = await safeInvoke("run-full-scan", {
         body: { action: "start", scan_mode: "full", structure_map },
+        isAdmin: true,
       });
       console.log("📡 RESPONSE:", res);
       const verify = await verifyWorkItemsCreated(beforeCount);
@@ -1209,7 +1211,8 @@ const SystemExplorer = () => {
                 }, 2000);
                 try {
                   await safeInvoke("run-full-scan", {
-                    body: { action: "start", scan_mode: "full", structure_map: structure_map.map(p => ({ path: p })) }
+                    body: { action: "start", scan_mode: "full", structure_map: structure_map.map(p => ({ path: p })) },
+                    isAdmin: true,
                   });
                 } finally {
                   clearInterval(pollInterval);
@@ -3972,6 +3975,7 @@ const SystemExplorer = () => {
 
                       const verifyRes = await safeInvoke("run-full-scan", {
                         body: { action: "start", scan_mode: "targeted", target_area: target, verification_for: selectedItem.id },
+                        isAdmin: true,
                       });
                       console.log("[DEBUG] VERIFY SCAN RESPONSE:", verifyRes);
                       const scanData = verifyRes?.data ?? verifyRes;

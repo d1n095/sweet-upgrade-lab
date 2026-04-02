@@ -99,6 +99,7 @@ const callAI = async (type: string, payload: Record<string, any> = {}) => {
   if (scanTypes.includes(type)) {
     const { data, error } = await safeInvoke('run-full-scan', {
       body: { action: 'start', ...payload },
+      isAdmin: true,
     });
     if (error) { toast.error(error.message || 'Skanningsfel'); return null; }
     if (data?.success === false) { toast.error(data.error || 'Skanningsfel'); return null; }
@@ -232,6 +233,7 @@ const applyFix = async (
         source_work_item_id: opts?.workItemId,
         source_bug_id: opts?.bugId,
       },
+      isAdmin: true,
     });
 
     if (opts?.buttonId) {
@@ -6893,7 +6895,7 @@ const AccessControlTab = () => {
   const runScan = async () => {
     setLoading(true);
     try {
-      const { data, error } = await safeInvoke('access-control-scan', { body: {} });
+      const { data, error } = await safeInvoke('access-control-scan', { body: {}, isAdmin: true });
       if (error) throw error;
       setResult(data);
       toast.success(`Skanning klar: ${data?.issues?.length || 0} problem hittade`);
@@ -6902,7 +6904,7 @@ const AccessControlTab = () => {
   };
 
   const callFix = async (body: Record<string, any>) => {
-    const { data, error } = await safeInvoke('permission-fix', { body });
+    const { data, error } = await safeInvoke('permission-fix', { body, isAdmin: true });
     if (error) throw error;
     return data;
   };
@@ -7122,7 +7124,7 @@ const AccessControlTab = () => {
         <Button onClick={async () => {
           setValidating(true);
           try {
-            const { data, error } = await safeInvoke('access-flow-validate', { body: {} });
+            const { data, error } = await safeInvoke('access-flow-validate', { body: {}, isAdmin: true });
             if (error) throw error;
             setFlowResult(data);
             toast.success(`Validering klar: ${data?.summary?.passed}/${data?.summary?.total_tests} godkända`);
