@@ -219,7 +219,7 @@ const TaskRow = ({ task }: { task: QueueTask }) => {
   );
 };
 
-const AiQueueControl = () => {
+const TaskQueuePanel = () => {
   const { tasks, maxConcurrent, clearCompleted, addTask, processQueue, failureLog, clearFailureLog, regressionLog, clearRegressionLog } = useAiQueueStore();
 
   const running = tasks.filter((t) => t.status === 'running' || t.status === 'validating');
@@ -528,4 +528,4 @@ const AiQueueControl = () => {
   );
 };
 
-export default AiQueueControl;
+export default TaskQueuePanel;

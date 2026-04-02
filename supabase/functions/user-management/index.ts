@@ -52,7 +52,7 @@ serve(async (req) => {
           detail,
           actor_email: user.email,
           target_email: targetEmail || null,
-          source: "ai-user-management",
+          source: "user-management",
         });
       } catch (e) { console.error("[audit] Failed:", e); }
     };

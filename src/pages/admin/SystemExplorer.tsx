@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { tracedInvoke } from "@/lib/tracedInvoke";
 import { useAiQueueStore } from "@/stores/taskQueueStore";
 import { fileSystemMap, type FileEntry, getFileContent, getCodeIndex, getDuplicatedLines, getCodeIssues, getRawSources, scanFileContent } from "@/lib/fileSystemMap";
 import { useAdminRole } from "@/hooks/useAdminRole";
@@ -281,7 +280,7 @@ const SystemExplorer = () => {
       }
       if (mode === "full") {
         console.log("[FULL SCAN TRIGGERED]");
-        await tracedInvoke("run-full-scan", {
+        await supabase.functions.invoke("run-full-scan", {
           body: { action: "start", scan_mode: "full" },
         });
         logAction({ type: "SCAN", status: "success", mode });
@@ -504,7 +503,7 @@ const SystemExplorer = () => {
         path
       }));
       console.log("[SENDING STRUCTURE MAP]:", structure_map.length);
-      const res = await tracedInvoke("run-full-scan", {
+      const res = await supabase.functions.invoke("run-full-scan", {
         body: { action: "start", scan_mode: "full", structure_map },
       });
       console.log("📡 RESPONSE:", res);
@@ -3970,7 +3969,7 @@ const SystemExplorer = () => {
                       const meta = (selectedItem as any).metadata ? (typeof (selectedItem as any).metadata === "string" ? JSON.parse((selectedItem as any).metadata) : (selectedItem as any).metadata) : {};
                       const target = meta?.affected_area?.target || (selectedItem as any).source_component || (selectedItem as any).source_path || selectedItem.item_type;
 
-                      const verifyRes = await tracedInvoke("run-full-scan", {
+                      const verifyRes = await supabase.functions.invoke("run-full-scan", {
                         body: { action: "start", scan_mode: "targeted", target_area: target, verification_for: selectedItem.id },
                       });
                       console.log("[DEBUG] VERIFY SCAN RESPONSE:", verifyRes);

@@ -38,7 +38,7 @@ const ACTION_LABELS: Record<string, string> = {
   review: 'Granskning',
 };
 
-const AdminAiReadLog = () => {
+const AdminAuditLog = () => {
   const [search, setSearch] = useState('');
   const [resultFilter, setResultFilter] = useState('all');
   const [dateRange, setDateRange] = useState('7');
@@ -404,4 +404,4 @@ const AdminAiReadLog = () => {
   );
 };
 
-export default AdminAiReadLog;
+export default AdminAuditLog;

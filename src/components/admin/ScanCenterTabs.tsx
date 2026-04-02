@@ -168,7 +168,7 @@ interface ScanCenterTabsProps {
   children: React.ReactNode;
 }
 
-const AiCenterTabs = ({ defaultValue = 'scan-dashboard', children }: ScanCenterTabsProps) => {
+const ScanCenterTabs = ({ defaultValue = 'scan-dashboard', children }: ScanCenterTabsProps) => {
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
   const initialTab = (tabParam && ALL_TABS.some(t => t.value === tabParam)) ? tabParam : defaultValue;
@@ -400,4 +400,4 @@ const AiCenterTabs = ({ defaultValue = 'scan-dashboard', children }: ScanCenterT
   );
 };
 
-export default AiCenterTabs;
+export default ScanCenterTabs;

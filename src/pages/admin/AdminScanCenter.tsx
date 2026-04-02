@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, createContext, useContext, useCallback } f
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Sparkles, Bug, BarChart3, Copy, Loader2, Send, AlertTriangle, Lightbulb, Info, RefreshCw, Bot, CheckCircle, XCircle, Shield, Clock, Zap, Activity, TrendingUp, Package, AlertCircle, Database, Wrench, Radar, ArrowRight, Layers, Monitor, Smartphone, Tablet, Eye, Compass, LayoutGrid, GitMerge, ArrowRightLeft, ShieldCheck, Play, Settings2, ToggleRight, Maximize2, Gavel, ChevronDown, History, User, Brain } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger, ScrollableTabs } from '@/components/ui/tabs';
-import AiCenterTabs from '@/components/admin/ScanCenterTabs';
+import ScanCenterTabs from '@/components/admin/ScanCenterTabs';
 import { createAndVerify } from '@/utils/createVerifyLoop';
 import { createWorkItemWithDedup } from '@/utils/workItemDedup';
 import { trace, newTraceId } from '@/utils/deepDebugTrace';
@@ -26,8 +26,8 @@ import type { ScanStepResult } from '@/stores/scannerStore';
 import { useFullScanOrchestrator, ORCHESTRATED_STEPS } from '@/stores/fullScanOrchestrator';
 import type { UnifiedScanResult } from '@/stores/fullScanOrchestrator';
 import { filterRelevantIssues } from '@/stores/fullScanOrchestrator';
-import AdminAiReadLog from '@/components/admin/AdminAuditLog';
-import AiQueueControl from '@/components/admin/TaskQueuePanel';
+import AdminAuditLog from '@/components/admin/AdminAuditLog';
+import TaskQueuePanel from '@/components/admin/TaskQueuePanel';
 import DataFlowValidator from '@/components/admin/DataFlowValidator';
 import UiRealityCheck from '@/components/admin/UiRealityCheck';
 import SystemTrustScore from '@/components/admin/SystemTrustScore';
@@ -88,7 +88,7 @@ interface UnifiedReport {
   raw_metrics?: Record<string, number>;
 }
 
-const callAI = async (type: string, payload: Record<string, any> = {}) => {
+const runAnalysis = async (type: string, payload: Record<string, any> = {}) => {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) { toast.error('Ej inloggad'); return null; }
 
@@ -183,29 +183,11 @@ const runLocalAnalysis = async (type: string, _payload: Record<string, any> = {}
 };
 
 const callTaskManager = async (action: string) => {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) { toast.error('Ej inloggad'); return null; }
-
-  const resp = await fetch(
-    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-task-manager`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ action }),
-    }
-  );
-
-  if (!resp.ok) {
-    const err = await resp.json().catch(() => ({}));
-    toast.error(err.error || 'AI Task Manager-fel');
-    return null;
-  }
-
-  const data = await resp.json();
-  return data.results;
+  const { data, error } = await supabase.functions.invoke('task-manager', {
+    body: { action },
+  });
+  if (error) { toast.error(error.message || 'Task Manager-fel'); return null; }
+  return data?.results ?? null;
 };
 
 const copyToClipboard = (text: string, buttonId?: string) => {
@@ -392,7 +374,7 @@ const LovaChatTab = () => {
     setMessages(prev => [...prev, tempMsg]);
 
     try {
-      const res = await callAI('lova_chat', { message: text, conversation_id: conversationId });
+      const res = await runAnalysis('lova_chat', { message: text, conversation_id: conversationId });
       if (res) {
         if (!conversationId) setConversationId(res.conversation_id);
         const assistantMsg: ChatMessage = {
@@ -740,7 +722,7 @@ const UnifiedDashboardTab = () => {
 
   const runReport = async () => {
     setLoading(true);
-    const res = await callAI('unified_report');
+    const res = await runAnalysis('unified_report');
     if (res) setReport(res);
     setLoading(false);
   };
@@ -1096,7 +1078,7 @@ const PromptGeneratorTab = () => {
   const generate = async () => {
     if (!input.trim() || input.trim().length < 5) { toast.error('Skriv minst 5 tecken'); return; }
     setLoading(true);
-    const res = await callAI('generate_prompt', { input: input.trim() });
+    const res = await runAnalysis('generate_prompt', { input: input.trim() });
     if (res) {
       setResult(res);
       setHistory(prev => [res, ...prev].slice(0, 20));
@@ -1178,7 +1160,7 @@ const DataInsightsTab = () => {
 
   const analyze = async () => {
     setLoading(true);
-    const res = await callAI('data_insights', { auto_action: autoAction });
+    const res = await runAnalysis('data_insights', { auto_action: autoAction });
     if (res) {
       setAnalysis(res);
       if (res.work_items_created > 0) {
@@ -1189,7 +1171,7 @@ const DataInsightsTab = () => {
   };
 
   const createTaskFromInsight = async (insight: DataInsight) => {
-    const res = await callAI('create_action', {
+    const res = await runAnalysis('create_action', {
       title: insight.title,
       description: `${insight.description}\n\nRekommenderad åtgärd: ${insight.action}`,
       priority: insight.type === 'warning' ? 'high' : 'medium',
@@ -1296,7 +1278,7 @@ const BugAITab = () => {
 
   const analyzeBug = async (bugId: string, deep = false) => {
     setAnalyzing(bugId);
-    const res = await callAI(deep ? 'bug_deep_analysis' : 'bug_fix_suggestion', { bug_id: bugId });
+    const res = await runAnalysis(deep ? 'bug_deep_analysis' : 'bug_fix_suggestion', { bug_id: bugId });
     if (res) setFixes(prev => ({ ...prev, [bugId]: deep ? { ...res, _deep: true } : res }));
     setAnalyzing(null);
   };
@@ -1487,7 +1469,7 @@ const ProductSuggestionsTab = () => {
 
   const run = async () => {
     setLoading(true);
-    const res = await callAI('product_suggestions');
+    const res = await runAnalysis('product_suggestions');
     if (res) setData(res);
     setLoading(false);
   };
@@ -1576,7 +1558,7 @@ const SystemHealthTab = () => {
 
   const run = async () => {
     setLoading(true);
-    const res = await callAI('system_health');
+    const res = await runAnalysis('system_health');
     if (res) setData(res);
     setLoading(false);
   };
@@ -1631,7 +1613,7 @@ const SystemHealthTab = () => {
                       <p className="text-xs">{issue.description}</p>
                       <p className="text-xs font-medium">→ {issue.suggested_action}</p>
                       <Button size="sm" variant="outline" className="h-5 text-[9px] gap-0.5 mt-1" onClick={async () => {
-                        const res = await callAI('create_action', {
+                        const res = await runAnalysis('create_action', {
                           title: issue.title,
                           description: `${issue.description}\n\nÅtgärd: ${issue.suggested_action}`,
                           priority: issue.severity === 'critical' ? 'critical' : 'high',
@@ -1713,7 +1695,7 @@ const TrendAnalysisPanel = () => {
 
   const runTrends = async () => {
     setLoading(true);
-    const res = await callAI('memory_trends');
+    const res = await runAnalysis('memory_trends');
     if (res) {
       setTrends(res);
       if (!res.trend_available) toast.info(res.message);
@@ -1947,8 +1929,8 @@ const SystemScanTab = () => {
     if (!session) return;
 
     const createTraceId = newTraceId('scan-wi');
-    trace('issue_detected', 'AdminAI', `Creating WI from scan issue: ${issue.title}`, { traceId: createTraceId, details: { severity: issue.severity, category: issue.category } });
-    trace('db_insert_sent', 'AdminAI', 'Sending INSERT via createAndVerify', { traceId: createTraceId });
+    trace('issue_detected', 'AdminScanCenter', `Creating WI from scan issue: ${issue.title}`, { traceId: createTraceId, details: { severity: issue.severity, category: issue.category } });
+    trace('db_insert_sent', 'AdminScanCenter', 'Sending INSERT via createAndVerify', { traceId: createTraceId });
 
     const result = await createAndVerify({
       table: 'work_items',
@@ -1964,20 +1946,20 @@ const SystemScanTab = () => {
         created_by: session.user.id,
       },
       selectColumns: 'id, title, status, priority, item_type, ai_detected, ai_category, ai_type_classification, ai_confidence, execution_order, depends_on, blocks, conflict_flag, duplicate_of, created_at, ai_type_reason',
-      traceContext: { component: 'AdminAI', scanId: currentScanId || lastScan?.id || undefined },
+      traceContext: { component: 'AdminScanCenter', scanId: currentScanId || lastScan?.id || undefined },
     });
 
     if (!result.success) {
-      trace('db_insert_failed', 'AdminAI', `CREATE-VERIFY FAILED: ${result.error}`, { traceId: createTraceId, details: { attempts: result.attempts } });
-      console.error('[AdminAI] CREATE-VERIFY FAILED:', result.error);
+      trace('db_insert_failed', 'AdminScanCenter', `CREATE-VERIFY FAILED: ${result.error}`, { traceId: createTraceId, details: { attempts: result.attempts } });
+      console.error('[AdminScanCenter] CREATE-VERIFY FAILED:', result.error);
       toast.error(`Kunde inte skapa ärende: ${result.error}`);
       return;
     }
 
     const newItem = result.data as any;
     const wiId = newItem?.id || null;
-    trace('db_verify_confirmed', 'AdminAI', `Work item verified: ${wiId}`, { traceId: createTraceId, entityId: wiId });
-    console.log('[AdminAI] CREATED & VERIFIED:', newItem);
+    trace('db_verify_confirmed', 'AdminScanCenter', `Work item verified: ${wiId}`, { traceId: createTraceId, entityId: wiId });
+    console.log('[AdminScanCenter] CREATED & VERIFIED:', newItem);
     logChange({ change_type: 'task_created', description: `Work item skapat från scan: ${issue.title}`, source: 'ai', affected_components: ['work_items', 'scan'], scan_id: currentScanId || lastScan?.id || null, work_item_id: wiId });
 
     // Remove issue from detected list and add to master list
@@ -2082,7 +2064,7 @@ const SystemScanTab = () => {
 
   const runScan = async () => {
     setLoading(true);
-    const res = await callAI('system_scan');
+    const res = await runAnalysis('system_scan');
     if (res?.success && res?.scan_id) {
       setCurrentScanId(res.scan_id);
       // Poll for completion
@@ -2551,7 +2533,7 @@ const ActionEngineTab = () => {
 
   const run = async () => {
     setLoading(true);
-    const res = await callAI('action_engine');
+    const res = await runAnalysis('action_engine');
     if (res) setData(res);
     setLoading(false);
   };
@@ -2701,7 +2683,7 @@ const ActionEngineTab = () => {
                           </div>
                           <Button size="sm" variant="outline" className="w-full h-7 text-[10px] gap-1" onClick={async (e) => {
                             e.stopPropagation();
-                            const res = await callAI('create_action', {
+                            const res = await runAnalysis('create_action', {
                               title: action.title,
                               description: `Grundorsak: ${action.root_cause}\nStrategi: ${action.fix_strategy}\n\nSteg:\n${action.implementation_steps.map((s: string, j: number) => `${j + 1}. ${s}`).join('\n')}\n\n📋 Lovable-prompt:\n${action.lovable_prompt}`,
                               priority: action.priority,
@@ -2797,7 +2779,7 @@ const DataIntegrityTab = () => {
   const runScan = async () => {
     setLoading(true);
     try {
-      const data = await callAI('data_integrity');
+      const data = await runAnalysis('data_integrity');
       if (data) setResult(data);
     } catch { toast.error('Integrity scan misslyckades'); }
     finally { setLoading(false); }
@@ -2901,7 +2883,7 @@ const ContentValidationTab = () => {
   const runScan = async (autoFix = false) => {
     if (autoFix) setFixing(true); else setLoading(true);
     try {
-      const data = await callAI('content_validation', { auto_fix: autoFix });
+      const data = await runAnalysis('content_validation', { auto_fix: autoFix });
       if (data) {
         setResult(data);
         if (autoFix && data.auto_fixed > 0) toast.success(`${data.auto_fixed} problem åtgärdade automatiskt`);
@@ -3048,7 +3030,7 @@ const PatternDetectionTab = () => {
   const runScan = async () => {
     setLoading(true);
     try {
-      const data = await callAI('pattern_detection');
+      const data = await runAnalysis('pattern_detection');
       if (data) setResult(data);
     } catch { toast.error('Pattern detection misslyckades'); }
     finally { setLoading(false); }
@@ -3316,7 +3298,7 @@ const FocusedScanTab = () => {
   const runScan = async () => {
     setLoading(true);
     try {
-      const data = await callAI('focused_scan');
+      const data = await runAnalysis('focused_scan');
       if (data) setResult(data);
     } catch { toast.error('Fokusscan misslyckades'); }
     finally { setLoading(false); }
@@ -3475,14 +3457,14 @@ const NavBugScanTab = () => {
 
   const runNav = async () => {
     setLoadingNav(true);
-    const r = await callAI('nav_scan');
+    const r = await runAnalysis('nav_scan');
     if (r) { setNavResult(r); toast.success(`Nav-scan klar – ${r.issues?.length || 0} problem, ${r.tasks_created || 0} uppgifter`); }
     setLoadingNav(false);
   };
 
   const runBugRescan = async () => {
     setLoadingBug(true);
-    const r = await callAI('bug_rescan');
+    const r = await runAnalysis('bug_rescan');
     if (r) { setBugResult(r); toast.success(`Bugg-rescan klar – ${r.applied?.bugs_updated || 0} uppdaterade`); }
     setLoadingBug(false);
   };
@@ -3776,7 +3758,7 @@ const VisualQATab = () => {
     setExpandedIdx(null);
     setCompareScanId(null);
     setCompareResult(null);
-    const r = await callAI('visual_qa');
+    const r = await runAnalysis('visual_qa');
     if (r) {
       setResult(r);
       toast.success(`QA klar – ${r.issues?.length || 0} problem`);
@@ -3830,7 +3812,7 @@ const VisualQATab = () => {
 
   const analyzeIssue = async (issue: QAIssue, idx: number) => {
     setAnalyzingIdx(idx);
-    const res = await callAI('lova_chat', {
+    const res = await runAnalysis('lova_chat', {
       message: `Analysera detta Visual QA-problem och bestäm hur det ska hanteras. Svara i JSON-format med fälten:
 - root_cause (string): grundorsak
 - auto_fixable (boolean): kan fixas automatiskt utan kodändring?
@@ -4418,7 +4400,7 @@ const StructureAnalysisTab = () => {
 
   const runAnalysis = async () => {
     setLoading(true);
-    const res = await callAI('structure_analysis');
+    const res = await runAnalysis('structure_analysis');
     if (res) setResult(res);
     setLoading(false);
   };
@@ -4576,7 +4558,7 @@ const DevGuardianTab = () => {
 
   const runGuardian = async () => {
     setLoading(true);
-    const res = await callAI('dev_guardian');
+    const res = await runAnalysis('dev_guardian');
     if (res) setResult(res);
     setLoading(false);
   };
@@ -4789,7 +4771,7 @@ const AiAutopilotTab = () => {
 
   const runExecution = async () => {
     setExecutionLoading(true);
-    const res = await callAI('ai_execute', { mode });
+    const res = await runAnalysis('ai_execute', { mode });
     if (res) {
       setExecutionResult(res);
       if (res.executed_count > 0) {
@@ -5320,7 +5302,7 @@ const InteractionQATab = () => {
 
   const run = async () => {
     setLoading(true);
-    const r = await callAI('interaction_qa');
+    const r = await runAnalysis('interaction_qa');
     if (r) { setResult(r); toast.success(`Interaction QA klar – ${r.dead_elements?.length || 0} döda element, ${r.broken_flows?.length || 0} brutna flöden, ${r.tasks_created || 0} uppgifter`); }
     setLoading(false);
   };
@@ -5631,7 +5613,7 @@ const VerificationEngineTab = () => {
 
   const run = async () => {
     setLoading(true);
-    const r = await callAI('verification_engine');
+    const r = await runAnalysis('verification_engine');
     if (r) {
       setResult(r);
       toast.success(`Verifiering klar – ${r.false_done_items?.length || 0} falska done, ${r.auto_closed_items?.length || 0} auto-stängda, ${r.tasks_created || 0} nya`);
@@ -6150,7 +6132,7 @@ const AutoFixTab = () => {
 
   const run = async () => {
     setLoading(true);
-    const r = await callAI('auto_fix');
+    const r = await runAnalysis('auto_fix');
     if (r) {
       setResult(r);
       toast.success(`Auto-fix klar – ${r.total_fixed || 0} åtgärdade, ${r.total_flagged || 0} flaggade`);
@@ -6303,7 +6285,7 @@ const OverflowScanTab = () => {
 
   const run = async () => {
     setLoading(true);
-    const r = await callAI('ui_overflow_scan');
+    const r = await runAnalysis('ui_overflow_scan');
     if (r) { setResult(r); toast.success(`Overflow-skanning klar – ${r.issues_found || 0} problem`); }
     setLoading(false);
   };
@@ -6508,13 +6490,13 @@ const UxScannerTab = () => {
   const runScan = async () => {
     setLoading(true);
     try {
-      const res = await callAI('ux_scan');
+      const res = await runAnalysis('ux_scan');
       if (res) { setResult(res); toast.success(`UX-skanning klar — ${res.issues_found || 0} problem`); }
     } finally { setLoading(false); }
   };
 
   const createTask = async (issue: any) => {
-    const res = await callAI('create_action', { title: `UX: ${issue.title}`, description: `${issue.description}\n\nPåverkan: ${issue.user_impact}\nFix: ${issue.fix_suggestion}`, priority: issue.severity, category: issue.category, source_type: 'ux_scan' });
+    const res = await runAnalysis('create_action', { title: `UX: ${issue.title}`, description: `${issue.description}\n\nPåverkan: ${issue.user_impact}\nFix: ${issue.fix_suggestion}`, priority: issue.severity, category: issue.category, source_type: 'ux_scan' });
     if (res?.work_item_id) { toast.success('Uppgift skapad'); openDetail(res.work_item_id); }
   };
 
@@ -6655,14 +6637,8 @@ const AiUserManagementTab = () => {
   const [roleFilter, setRoleFilter] = useState('all');
 
   const callMgmt = async (body: Record<string, any>) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { toast.error('Ej inloggad'); return null; }
-    const resp = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-user-management`,
-      { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify(body) }
-    );
-    const data = await resp.json();
-    if (!resp.ok) throw new Error(data.error || 'Request failed');
+    const { data, error } = await supabase.functions.invoke('user-management', { body });
+    if (error) throw new Error(error.message || 'Request failed');
     return data;
   };
 
@@ -7288,13 +7264,13 @@ const SyncScannerTab = () => {
   const runScan = async () => {
     setLoading(true);
     try {
-      const res = await callAI('sync_scan');
+      const res = await runAnalysis('sync_scan');
       if (res) { setResult(res); toast.success(`Sync-skanning klar — ${res.issues_found || 0} problem, ${res.auto_fixed_count || 0} auto-fixade`); }
     } finally { setLoading(false); }
   };
 
   const createTask = async (issue: any) => {
-    const res = await callAI('create_action', { title: `Sync: ${issue.title}`, description: `${issue.description}\n\nÅtgärd: ${issue.fix_action}`, priority: issue.severity, category: 'data_integrity', source_type: 'sync_scan' });
+    const res = await runAnalysis('create_action', { title: `Sync: ${issue.title}`, description: `${issue.description}\n\nÅtgärd: ${issue.fix_action}`, priority: issue.severity, category: 'data_integrity', source_type: 'sync_scan' });
     if (res?.work_item_id) { toast.success('Uppgift skapad'); openDetail(res.work_item_id); }
   };
 
@@ -7414,7 +7390,7 @@ const ActionGovernorTab = () => {
 
   const runGovernor = async () => {
     setLoading(true);
-    const res = await callAI('action_governor');
+    const res = await runAnalysis('action_governor');
     if (res) {
       setResult(res);
       // Load action log
@@ -7432,7 +7408,7 @@ const ActionGovernorTab = () => {
 
   const executeAction = async (actionId: string) => {
     setExecutingId(actionId);
-    const res = await callAI('governor_execute', { action_id: actionId, action_classification: 'auto_fix' });
+    const res = await runAnalysis('governor_execute', { action_id: actionId, action_classification: 'auto_fix' });
     if (res) {
       toast.success(res.executed ? `Utfört: ${res.action_taken}` : res.action_taken);
       runGovernor();
@@ -7850,7 +7826,7 @@ const ChangeLogTab = () => {
   );
 };
 
-const AdminAI = () => {
+const AdminScanCenter = () => {
   const [detailItem, setDetailItem] = useState<any>(null);
   const queryClient = useQueryClient();
 
@@ -7863,7 +7839,7 @@ const OrchestrationTab = () => {
   const runOrchestration = async () => {
     setLoading(true);
     setResult(null);
-    const data = await callAI('double_pass', { context });
+    const data = await runAnalysis('double_pass', { context });
     if (data) setResult(data);
     setLoading(false);
   };
@@ -8179,7 +8155,7 @@ const OrchestrationTab = () => {
     <div className="flex flex-col min-h-0 h-full">
       <SafeModeBanner />
       <div className="min-h-0 flex-1 flex flex-col">
-        <AiCenterTabs defaultValue="scan-dashboard">
+        <ScanCenterTabs defaultValue="scan-dashboard">
           {/* Dashboard */}
           <div data-value="system-state"><SystemStateDashboard /></div>
           <div data-value="unified-pipeline"><UnifiedPipelineDashboard /></div>
@@ -8207,8 +8183,8 @@ const OrchestrationTab = () => {
           <div data-value="data-flow"><DataFlowValidator /></div>
           <div data-value="cleanup"><DataCleanupTab /></div>
           <div data-value="change-log"><ChangeLogTab /></div>
-          <div data-value="system-log"><AdminAiReadLog /></div>
-        </AiCenterTabs>
+          <div data-value="system-log"><AdminAuditLog /></div>
+        </ScanCenterTabs>
       </div>
 
       <WorkItemDetail
@@ -8231,4 +8207,4 @@ const OrchestrationTab = () => {
   );
 };
 
-export default AdminAI;
+export default AdminScanCenter;
