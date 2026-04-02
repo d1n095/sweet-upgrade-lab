@@ -117,8 +117,8 @@ export { ORCHESTRATED_STEPS };
 function buildStepsFromScanRun(scanRun: any): OrchestratorStep[] {
   const stepsResults = scanRun.steps_results || {};
   const currentStep = scanRun.current_step || 0;
-  const isDone = scanRun.status === 'done';
-  const isError = scanRun.status === 'error';
+  const isDone = scanRun.status === 'done' || scanRun.status === 'completed';
+  const isError = scanRun.status === 'error' || scanRun.status === 'failed';
 
   return ORCHESTRATED_STEPS.map((def, i) => {
     const result = stepsResults[def.id];
@@ -218,7 +218,7 @@ export const useFullScanOrchestrator = create<FullScanOrchestratorState>((set, g
         get().stopPolling();
         const interval = setInterval(() => pollScanRun(scanRun.id, set, get), 2000);
         set({ pollInterval: interval });
-      } else if (scanRun.status === 'done' && scanRun.unified_result) {
+      } else if ((scanRun.status === 'done' || scanRun.status === 'completed') && scanRun.unified_result) {
         // Show the completed result
         const steps = buildStepsFromScanRun(scanRun);
         set({
@@ -319,7 +319,7 @@ async function pollScanRun(
 
     const steps = buildStepsFromScanRun(scanRun);
 
-    if (scanRun.status === 'done') {
+    if (scanRun.status === 'done' || scanRun.status === 'completed') {
       // Scan completed!
       get().stopPolling();
 
@@ -340,7 +340,7 @@ async function pollScanRun(
           queryClient.invalidateQueries({ queryKey: [key] });
         }
       }
-    } else if (scanRun.status === 'error') {
+    } else if (scanRun.status === 'error' || scanRun.status === 'failed') {
       get().stopPolling();
       set({
         running: false,
