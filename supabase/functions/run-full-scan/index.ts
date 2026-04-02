@@ -2452,6 +2452,8 @@ async function persistStepResults(supabase: any, steps: typeof STEPS, results: R
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  let activeScanRunId: string | null = null;
+
   try {
     console.log("🚨 SCAN STARTED");
     console.log("[SCAN START]");
@@ -2473,6 +2475,7 @@ serve(async (req) => {
     const body = await req.json();
     console.log("FULL SCAN BODY:", body);
     const { action, scan_run_id, step_index, iteration, request_trace_id, scan_mode, target_area, verification_for } = body;
+    activeScanRunId = scan_run_id || null;
     console.log("[SCAN] action:", action);
 
     // ── START ──
