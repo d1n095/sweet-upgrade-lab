@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '@/integrations/supabase/client';
+import { safeFetch } from '@/lib/safeInvoke';
 import { toast } from 'sonner';
 import { QueryClient } from '@tanstack/react-query';
 
@@ -258,17 +259,11 @@ export const useFullScanOrchestrator = create<FullScanOrchestratorState>((set, g
 
     try {
       // Call the server-side edge function to start the scan
-      const resp = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/run-full-scan`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ action: 'start' }),
-        }
-      );
+      const resp = await safeFetch({
+        fn: 'run-full-scan',
+        body: { action: 'start' },
+        isAdmin: true,
+      });
 
       if (resp.status === 409) {
         const err = await resp.json();

@@ -10,6 +10,7 @@ import { useCartStore } from '@/stores/cartStore';
 import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import PaymentMethods from '@/components/trust/PaymentMethods';
 import { supabase } from '@/integrations/supabase/client';
+import { safeFetch } from '@/lib/safeInvoke';
 import { toast } from 'sonner';
 import { useStoreSettings } from '@/stores/storeSettingsStore';
 import { logActivity } from '@/utils/activityLogger';
@@ -277,22 +278,14 @@ const Checkout = () => {
         language: cl,
       };
 
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
-
       setCheckoutStage('creating');
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-        },
-        body: JSON.stringify(checkoutBody),
+      const res = await safeFetch({
+        fn: 'create-checkout',
+        body: checkoutBody,
         signal: controller.signal,
       });
 

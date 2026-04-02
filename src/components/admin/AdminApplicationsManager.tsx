@@ -156,6 +156,7 @@ const AdminApplicationsManager = () => {
             code,
             commissionPercent: parseFloat(commissionPercent),
           },
+          isAdmin: true,
         });
       } catch (emailError) {
         console.error('Failed to send welcome email:', emailError);

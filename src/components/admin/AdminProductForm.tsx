@@ -437,6 +437,7 @@ function AiContentGenerator({
           },
           language: sv ? 'sv' : 'en',
         },
+        isAdmin: true,
       });
 
       if (error) throw error;
@@ -546,6 +547,7 @@ function AiMetadataSuggestor({
           description: formData.description || null,
           ingredients: formData.ingredients || null,
         },
+        isAdmin: true,
       });
 
       if (error) throw error;

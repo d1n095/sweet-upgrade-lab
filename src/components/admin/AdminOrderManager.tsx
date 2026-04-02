@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
-import { safeInvoke } from '@/lib/safeInvoke';
+import { safeInvoke, safeFetch } from '@/lib/safeInvoke';
 import { useLanguage } from '@/context/LanguageContext';
 import { toast } from 'sonner';
 import { logActivity } from '@/utils/activityLogger';
@@ -718,20 +718,11 @@ const AdminOrderManager = () => {
   const handleDownloadReceipt = async (order: Order) => {
     toast.loading('Genererar kvitto...', { id: 'receipt' });
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { toast.error('Ej inloggad', { id: 'receipt' }); return; }
-
-      const resp = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-receipt`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ order_id: order.id }),
-        }
-      );
+      const resp = await safeFetch({
+        fn: 'generate-receipt',
+        body: { order_id: order.id },
+        isAdmin: true,
+      });
 
       if (!resp.ok) throw new Error('Kunde inte generera kvitto');
       const result = await resp.json();
@@ -753,20 +744,11 @@ const AdminOrderManager = () => {
   const handleResendReceipt = async (order: Order) => {
     toast.loading('Skickar kvitto...', { id: 'resend-receipt' });
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { toast.error('Ej inloggad', { id: 'resend-receipt' }); return; }
-
-      const resp = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-receipt`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ order_id: order.id, action: 'resend_email' }),
-        }
-      );
+      const resp = await safeFetch({
+        fn: 'generate-receipt',
+        body: { order_id: order.id, action: 'resend_email' },
+        isAdmin: true,
+      });
 
       if (!resp.ok) throw new Error('Kunde inte skicka kvitto');
       toast.success(`Kvitto skickat till ${order.order_email}`, { id: 'resend-receipt' });

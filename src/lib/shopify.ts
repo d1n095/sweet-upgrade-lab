@@ -1,8 +1,6 @@
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-
-// Shopify proxy endpoint - token is now stored server-side
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+import { safeFetch } from '@/lib/safeInvoke';
 
 export interface ShopifyProduct {
   node: {
@@ -147,21 +145,9 @@ const CART_CREATE_MUTATION = `
 `;
 
 export async function storefrontApiRequest(query: string, variables: Record<string, unknown> = {}) {
-  const { data: sessionData } = await supabase.auth.getSession();
-  
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/shopify-proxy`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-      ...(sessionData?.session?.access_token && {
-        'Authorization': `Bearer ${sessionData.session.access_token}`
-      })
-    },
-    body: JSON.stringify({
-      query,
-      variables,
-    }),
+  const response = await safeFetch({
+    fn: 'shopify-proxy',
+    body: { query, variables },
   });
 
   if (response.status === 402) {
