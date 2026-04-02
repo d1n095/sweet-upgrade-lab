@@ -1,6 +1,4 @@
 import { createContext, useContext } from 'react';
-import { logAICall } from '@/utils/aiGuard';
-import { runAISafe } from '@/core/aiGateway';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -55,30 +53,14 @@ export interface UnifiedReport {
   raw_metrics?: Record<string, number>;
 }
 
-export const callAI = async (_type: string, _payload: Record<string, any> = {}) => {
-  logAICall({ source: 'AdminAI', file: 'AdminAI.tsx', action: _type, status: 'ATTEMPT' });
-  const result = await runAISafe({ source: 'ADMIN', feature: _type, payload: _payload });
-  logAICall({ source: 'AdminAI', file: 'AdminAI.tsx', action: _type, status: result ? 'EXECUTED' : 'BLOCKED' });
-  return result;
+export const callAI = async (_type: string, _payload: Record<string, any> = {}): Promise<any> => {
+  console.warn('[AI DISABLED] callAI blocked:', _type);
+  return null;
 };
 
-export const callTaskManager = async (action: string) => {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) { toast.error('Ej inloggad'); return null; }
-
-  const data = await runAISafe({
-    source: 'ADMIN',
-    feature: 'ai-task-manager',
-    payload: { action },
-    functionName: 'ai-task-manager',
-  });
-
-  if (!data) {
-    toast.error('AI Task Manager-fel');
-    return null;
-  }
-
-  return data.results;
+export const callTaskManager = async (_action: string): Promise<any> => {
+  console.warn('[AI DISABLED] callTaskManager blocked:', _action);
+  return null;
 };
 
 export const copyToClipboard = (text: string, buttonId?: string) => {

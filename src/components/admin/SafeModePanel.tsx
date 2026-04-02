@@ -41,11 +41,9 @@ export const SafeModeBanner = () => {
 /** Full Safe Mode dashboard tab */
 const SafeModePanel = () => {
   const { active, activatedAt, events, isolatedAreas, deactivate, activate, clearEvents } = useSafeModeStore();
-  const queueTasks = useAiQueueStore(s => s.tasks);
-
-  const pausedTasks = active ? queueTasks.filter(t => t.status === 'queued' && t.priority !== 'critical') : [];
-  const failedTasks = queueTasks.filter(t => t.status === 'failed');
-  const regressedTasks = queueTasks.filter(t => t.status === 'regressed');
+  const pausedTasks: { id: string; status: string; priority: string }[] = [];
+  const failedTasks: { id: string; status: string }[] = [];
+  const regressedTasks: { id: string; status: string }[] = [];
 
   return (
     <div className="space-y-4">
