@@ -3390,6 +3390,11 @@ serve(async (req) => {
     console.error("run-full-scan error:", e);
     console.error("[FULL SCAN ERROR]:", e?.message || e);
     try { await logRuntimeTrace("api", "run-full-scan", "/run-full-scan", e?.message || "Unknown", { stack: e?.stack?.slice(0, 500) }); } catch (_) {}
+    if (activeScanRunId) {
+      try {
+        await markScanFailed(createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!), activeScanRunId, e?.message || "Unknown error");
+      } catch (_) {}
+    }
     return new Response(JSON.stringify({ success: false, error: e?.message || "Unknown error" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });

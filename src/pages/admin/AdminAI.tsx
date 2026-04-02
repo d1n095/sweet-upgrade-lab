@@ -2091,7 +2091,7 @@ const SystemScanTab = () => {
           await new Promise(r => setTimeout(r, 5000));
           const { data: scanRun } = await supabase.from('scan_runs' as any).select('status, unified_result, system_health_score, work_items_created').eq('id', res.scan_id).maybeSingle();
           if (!scanRun) continue;
-          if ((scanRun as any).status === 'done') {
+          if ((scanRun as any).status === 'done' || (scanRun as any).status === 'completed') {
             const unified = (scanRun as any).unified_result;
             if (unified) {
               setScanResult({ ...unified, system_score: (scanRun as any).system_health_score });
@@ -2102,7 +2102,7 @@ const SystemScanTab = () => {
             toast.success(`Skanning klar — ${(scanRun as any).system_health_score || 0}/100`);
             break;
           }
-          if ((scanRun as any).status === 'error') {
+          if ((scanRun as any).status === 'error' || (scanRun as any).status === 'failed') {
             toast.error('Skanning misslyckades');
             break;
           }
