@@ -28,6 +28,7 @@ import { toast } from 'sonner';
 import { fetchProducts, ShopifyProduct } from '@/lib/shopify';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { safeInvoke } from '@/lib/safeInvoke';
 import {
   AdminProductForm,
   type AdminProductFormStrings,
@@ -504,11 +505,12 @@ const AdminProductManager = () => {
 
       // Load current inventory/policy via Admin API (non-blocking, silent on failure)
       if (variantNumericId) {
-        supabase.functions.invoke('shopify-proxy', {
+        safeInvoke('shopify-proxy', {
           body: {
             action: 'getVariant',
             data: { variantId: Number(variantNumericId) },
           },
+          isAdmin: true,
         }).then((res) => {
           if (res.error) {
             console.warn('Failed to load variant inventory:', res.error);
@@ -556,7 +558,7 @@ const AdminProductManager = () => {
     setIsSubmitting(true);
 
     try {
-      const response = await supabase.functions.invoke('shopify-proxy', {
+      const response = await safeInvoke('shopify-proxy', {
         body: {
           action: 'createProduct',
           data: {
@@ -573,6 +575,7 @@ const AdminProductManager = () => {
             }],
           },
         },
+        isAdmin: true,
       });
 
       if (response.error) throw response.error;
@@ -607,7 +610,7 @@ const AdminProductManager = () => {
       const targetQuantity = formData.isVisible ? formData.inventory : 0;
       const targetOversell = formData.isVisible ? formData.allowOverselling : false;
 
-      const response = await supabase.functions.invoke('shopify-proxy', {
+      const response = await safeInvoke('shopify-proxy', {
         body: {
           action: 'updateProduct',
           productId: productNumericId,
@@ -627,11 +630,12 @@ const AdminProductManager = () => {
             ],
           },
         },
+        isAdmin: true,
       });
 
       if (response.error) throw response.error;
 
-      const inventoryRes = await supabase.functions.invoke('shopify-proxy', {
+      const inventoryRes = await safeInvoke('shopify-proxy', {
         body: {
           action: 'updateInventory',
           data: {
@@ -639,6 +643,7 @@ const AdminProductManager = () => {
             quantity: targetQuantity,
           },
         },
+        isAdmin: true,
       });
 
       if (inventoryRes.error) throw inventoryRes.error;
@@ -666,11 +671,12 @@ const AdminProductManager = () => {
       const gid = selectedProduct.node.id;
       const numericId = gid.split('/').pop();
 
-      const response = await supabase.functions.invoke('shopify-proxy', {
+      const response = await safeInvoke('shopify-proxy', {
         body: {
           action: 'deleteProduct',
           productId: numericId,
         },
+        isAdmin: true,
       });
 
       if (response.error) throw response.error;

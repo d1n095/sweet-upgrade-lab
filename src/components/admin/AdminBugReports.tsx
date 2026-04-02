@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { safeInvoke, safeFetch } from '@/lib/safeInvoke';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -152,8 +153,6 @@ const AdminBugReports = () => {
   }, [loading, queryReports]);
 
   const autoEnrichBugs = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
     const { data: unprocessed } = await supabase
       .from('bug_reports')
       .select('id')
@@ -165,17 +164,7 @@ const AdminBugReports = () => {
     console.log(`[BugEnrich] Auto-processing ${unprocessed.length} bugs`);
     for (const bug of unprocessed) {
       try {
-        await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-bug-report`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify({ bug_id: bug.id }),
-          }
-        );
+        await safeInvoke('process-bug-report', { body: { bug_id: bug.id }, isAdmin: true });
       } catch (e) {
         console.warn(`[BugEnrich] Failed for ${bug.id}:`, e);
       }
@@ -198,20 +187,10 @@ const AdminBugReports = () => {
   const processWithAI = async (bugId: string) => {
     setProcessingAI(bugId);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { toast.error('Ej inloggad'); return; }
-
-      const resp = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-bug-report`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ bug_id: bugId }),
-        }
-      );
+      const resp = await safeFetch('process-bug-report', {
+        body: { bug_id: bugId },
+        isAdmin: true,
+      });
 
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({}));

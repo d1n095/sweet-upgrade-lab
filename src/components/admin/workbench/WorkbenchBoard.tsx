@@ -3,6 +3,7 @@ import { ACTIVE_WORK_ITEM_STATUSES, useAdminWorkItems } from '@/hooks/useAdminDa
 import { useUiStateSync } from '@/hooks/useUiStateSync';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { safeInvoke, safeFetch } from '@/lib/safeInvoke';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -206,7 +207,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const runAutomation = async () => {
     setRunningAutomation(true);
     try {
-      const { data, error } = await supabase.functions.invoke('automation-engine');
+      const { data, error } = await safeInvoke('automation-engine', { isAdmin: true });
       if (error) throw error;
       const r = data?.results;
       toast.success(`Automation klar: ${r?.escalated || 0} eskalerade, ${r?.reassigned || 0} omfördelade`);
@@ -222,7 +223,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const runOrchestrator = async () => {
     setRunningOrchestrator(true);
     try {
-      const { data, error } = await supabase.functions.invoke('ai-task-manager', { body: { action: 'orchestrate' } });
+      const { data, error } = await safeInvoke('ai-task-manager', { body: { action: 'orchestrate' }, isAdmin: true });
       if (error) throw error;
       const r = data?.results;
       const scanned = r?.orchestrator_scanned || 0;
@@ -247,16 +248,10 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const runValidation = async () => {
     setRunningValidation(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { toast.error('Ej inloggad'); setRunningValidation(false); return; }
-      const resp = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/data-sync`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-          body: JSON.stringify({ mode: 'repair' }),
-        }
-      );
+      const resp = await safeFetch('data-sync', {
+        body: { mode: 'repair' },
+        isAdmin: true,
+      });
       if (resp.ok) {
         const data = await resp.json();
         const r = data.results;
