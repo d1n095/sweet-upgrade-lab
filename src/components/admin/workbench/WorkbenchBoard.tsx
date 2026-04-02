@@ -3,7 +3,7 @@ import { ACTIVE_WORK_ITEM_STATUSES, useAdminWorkItems } from '@/hooks/useAdminDa
 import { useUiStateSync } from '@/hooks/useUiStateSync';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { safeInvoke } from '@/lib/safeInvoke';
+import { safeInvoke, safeFetch } from '@/lib/safeInvoke';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -222,16 +222,10 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const runValidation = async () => {
     setRunningValidation(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { toast.error('Ej inloggad'); setRunningValidation(false); return; }
-      const resp = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/data-sync`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-          body: JSON.stringify({ mode: 'repair' }),
-        }
-      );
+      const resp = await safeFetch('data-sync', {
+        body: { mode: 'repair' },
+        isAdmin: true,
+      });
       if (resp.ok) {
         const data = await resp.json();
         const r = data.results;

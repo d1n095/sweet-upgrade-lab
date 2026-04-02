@@ -15,6 +15,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
+import { safeFetch } from '@/lib/safeInvoke';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
@@ -112,9 +113,6 @@ const applyFix = async (
   issueTitle: string,
   opts?: { category?: string; severity?: string; workItemId?: string; bugId?: string; buttonId?: string }
 ): Promise<boolean> => {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) { toast.error('Ej inloggad'); return false; }
-
   // UI feedback: show loading
   if (opts?.buttonId) {
     const el = document.getElementById(opts.buttonId);
@@ -122,24 +120,17 @@ const applyFix = async (
   }
 
   try {
-    const resp = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/apply-fix`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          fix_text: fixText,
-          issue_title: issueTitle,
-          issue_category: opts?.category,
-          issue_severity: opts?.severity,
-          source_work_item_id: opts?.workItemId,
-          source_bug_id: opts?.bugId,
-        }),
-      }
-    );
+    const resp = await safeFetch('apply-fix', {
+      body: {
+        fix_text: fixText,
+        issue_title: issueTitle,
+        issue_category: opts?.category,
+        issue_severity: opts?.severity,
+        source_work_item_id: opts?.workItemId,
+        source_bug_id: opts?.bugId,
+      },
+      isAdmin: true,
+    });
 
     const data = await resp.json();
 
@@ -3037,17 +3028,10 @@ const DataHealthTab = () => {
     const isRepair = mode === 'repair';
     if (isRepair) setRepairing(true); else setScanning(true);
 
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { toast.error('Ej inloggad'); setScanning(false); setRepairing(false); return; }
-
-    const resp = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/data-sync`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ mode }),
-      }
-    );
+    const resp = await safeFetch('data-sync', {
+      body: { mode },
+      isAdmin: true,
+    });
 
     if (resp.ok) {
       const data = await resp.json();
@@ -6526,12 +6510,10 @@ const AiUserManagementTab = () => {
   const [roleFilter, setRoleFilter] = useState('all');
 
   const callMgmt = async (body: Record<string, any>) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { toast.error('Ej inloggad'); return null; }
-    const resp = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-user-management`,
-      { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify(body) }
-    );
+    const resp = await safeFetch('ai-user-management', {
+      body,
+      isAdmin: true,
+    });
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.error || 'Request failed');
     return data;
@@ -6804,13 +6786,11 @@ const AccessControlTab = () => {
 
   const runScan = async () => {
     setLoading(true);
-    const session = await getSession();
-    if (!session) { setLoading(false); return; }
     try {
-      const resp = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/access-control-scan`,
-        { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` }, body: '{}' }
-      );
+      const resp = await safeFetch('access-control-scan', {
+        body: {},
+        isAdmin: true,
+      });
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error || 'Scan failed');
       setResult(data);
@@ -6820,12 +6800,10 @@ const AccessControlTab = () => {
   };
 
   const callFix = async (body: Record<string, any>) => {
-    const session = await getSession();
-    if (!session) return null;
-    const resp = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/permission-fix`,
-      { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify(body) }
-    );
+    const resp = await safeFetch('permission-fix', {
+      body,
+      isAdmin: true,
+    });
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.error || 'Fix failed');
     return data;
@@ -7045,13 +7023,11 @@ const AccessControlTab = () => {
         </div>
         <Button onClick={async () => {
           setValidating(true);
-          const session = await getSession();
-          if (!session) { setValidating(false); return; }
           try {
-            const resp = await fetch(
-              `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/access-flow-validate`,
-              { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` }, body: '{}' }
-            );
+            const resp = await safeFetch('access-flow-validate', {
+              body: {},
+              isAdmin: true,
+            });
             const data = await resp.json();
             if (!resp.ok) throw new Error(data.error || 'Validation failed');
             setFlowResult(data);
