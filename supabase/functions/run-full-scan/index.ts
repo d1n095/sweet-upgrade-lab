@@ -1918,6 +1918,91 @@ async function runUiFlowIntegrityScan(supabase: any, scanRunId: string): Promise
   return { issues, issues_found: issues.length, flows_scanned: flowsScanned, overall_score: score, duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
 }
 
+function collectStepIssues(stepResults: Record<string, any>) {
+  return Object.entries(stepResults || {})
+    .filter(([key]) => !key.startsWith("_"))
+    .flatMap(([stepId, result]) => {
+      const r = result as any;
+      const issues = [
+        ...(r?.issues || []),
+        ...(r?.mismatches || []),
+        ...(r?.broken_routes || []),
+        ...(r?.broken_links || []),
+        ...(r?.test_failures || []),
+      ];
+      return issues.map((issue: any) => ({ ...issue, _source_step_id: stepId }));
+    });
+}
+
+function severityWeight(severity?: string) {
+  switch ((severity || "").toLowerCase()) {
+    case "critical": return 4;
+    case "high": return 3;
+    case "medium": return 2;
+    case "low": return 1;
+    default: return 0;
+  }
+}
+
+async function runRuleBasedDecisionEngine(supabase: any, scanRunId: string): Promise<any> {
+  const startMs = Date.now();
+  const { data: scanRun } = await supabase.from("scan_runs").select("steps_results").eq("id", scanRunId).maybeSingle();
+  const issues = collectStepIssues(scanRun?.steps_results || {});
+  const criticalCount = issues.filter((issue: any) => severityWeight(issue.severity) >= 4).length;
+  const highCount = issues.filter((issue: any) => severityWeight(issue.severity) >= 3).length;
+  const totalIssues = issues.length;
+  const recommendedPriority = criticalCount > 0 ? "critical" : highCount > 0 ? "high" : totalIssues > 0 ? "medium" : "low";
+
+  return {
+    issues: [],
+    issues_found: 0,
+    overall_score: Math.max(0, 100 - (criticalCount * 20) - (highCount * 10) - Math.min(totalIssues, 20)),
+    decision: {
+      recommended_priority: recommendedPriority,
+      escalate_now: criticalCount > 0,
+      requires_manual_review: highCount > 0 || totalIssues > 10,
+      total_issues: totalIssues,
+      critical_issues: criticalCount,
+      high_issues: highCount,
+    },
+    executive_summary: totalIssues === 0
+      ? "Inga blockerande beslut krävs — inga issues hittades"
+      : `Rule-based beslut: ${recommendedPriority} prioritet (${criticalCount} kritiska, ${highCount} höga)`,
+    real_db_scan: true,
+    duration_ms: Date.now() - startMs,
+    scanned_at: new Date().toISOString(),
+  };
+}
+
+async function runRuleBasedBlockerDetection(supabase: any, scanRunId: string): Promise<any> {
+  const startMs = Date.now();
+  const { data: scanRun } = await supabase.from("scan_runs").select("steps_results").eq("id", scanRunId).maybeSingle();
+  const issues = collectStepIssues(scanRun?.steps_results || {})
+    .sort((a: any, b: any) => severityWeight(b.severity) - severityWeight(a.severity));
+
+  const detectedBlockers = issues.slice(0, 5).map((issue: any) => ({
+    title: issue.title || issue.description || "Unknown blocker",
+    severity: issue.severity || "medium",
+    step: issue._source_step_id,
+    component: issue.component || issue.element || issue.entity || null,
+    description: issue.description || null,
+  }));
+
+  return {
+    issues: detectedBlockers,
+    issues_found: detectedBlockers.length,
+    primary_blocker: detectedBlockers[0] || null,
+    detected_blockers: detectedBlockers,
+    overall_score: detectedBlockers[0] ? Math.max(0, 100 - (severityWeight(detectedBlockers[0].severity) * 20)) : 100,
+    executive_summary: detectedBlockers[0]
+      ? `Primär blockerare: ${detectedBlockers[0].title}`
+      : "Ingen blockerare hittades",
+    real_db_scan: true,
+    duration_ms: Date.now() - startMs,
+    scanned_at: new Date().toISOString(),
+  };
+}
+
 // ── Map scan types to real DB functions ──
 const REAL_DB_SCANNERS: Record<string, (supabase: any, scanRunId: string) => Promise<any>> = {
   data_integrity: runDataIntegrityScan,
@@ -1927,6 +2012,8 @@ const REAL_DB_SCANNERS: Record<string, (supabase: any, scanRunId: string) => Pro
   interaction_qa: runRealInteractionQA,
   component_map: runRealComponentMapScan,
   ui_flow_integrity: runUiFlowIntegrityScan,
+  decision_engine: runRuleBasedDecisionEngine,
+  blocker_detection: runRuleBasedBlockerDetection,
 };
 
 // ── SCAN CONSISTENCY GUARD ──
