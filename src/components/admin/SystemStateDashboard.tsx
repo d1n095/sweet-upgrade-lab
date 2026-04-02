@@ -60,11 +60,11 @@ const SystemStateDashboard = () => {
         scansRes, bugsRes, workItemsRes, changeLogRes,
         readLogRes, productsRes, ordersRes,
       ] = await Promise.all([
-        supabase.from('ai_scan_results').select('scan_type, overall_score, overall_status, issues_count, created_at').order('created_at', { ascending: false }).limit(30),
-        supabase.from('bug_reports').select('status, ai_severity, ai_category, created_at').limit(200),
-        supabase.from('work_items' as any).select('status, priority, item_type, ai_detected, source_type, ai_type_classification, created_at, completed_at').limit(300),
+        supabase.from('scan_results').select('scan_type, overall_score, overall_status, issues_count, created_at').order('created_at', { ascending: false }).limit(30),
+        supabase.from('bug_reports').select('status, severity, category, created_at').limit(200),
+        supabase.from('work_items' as any).select('status, priority, item_type, scan_detected, source_type, type_classification, created_at, completed_at').limit(300),
         supabase.from('change_log').select('change_type, source, created_at').gte('created_at', weekAgo).limit(200),
-        supabase.from('ai_read_log').select('action_type, target_type, result, created_at').order('created_at', { ascending: false }).limit(50),
+        supabase.from('read_log').select('action_type, target_type, result, created_at').order('created_at', { ascending: false }).limit(50),
         supabase.from('products').select('stock, is_visible, is_sellable, price, image_urls, description_sv, category_id').limit(300),
         supabase.from('orders').select('payment_status, status, fulfillment_status, created_at').gte('created_at', weekAgo).is('deleted_at', null).limit(500),
       ]);
@@ -85,10 +85,10 @@ const SystemStateDashboard = () => {
       const scanAge = latestScan ? (now.getTime() - new Date(latestScan.created_at).getTime()) / 3600000 : 999;
 
       const openBugs = bugs.filter((b: any) => b.status === 'open' || b.status === 'new');
-      const criticalBugs = openBugs.filter((b: any) => b.ai_severity === 'critical');
+      const criticalBugs = openBugs.filter((b: any) => b.severity === 'critical');
       const openItems = workItems.filter((w: any) => ['open', 'claimed', 'in_progress'].includes(w.status));
       const doneItems = workItems.filter((w: any) => w.status === 'done');
-      const aiDetected = workItems.filter((w: any) => w.ai_detected);
+      const aiDetected = workItems.filter((w: any) => w.scan_detected);
 
       // Pipeline: scan → issue → work item → change → verify
       const pipelineScanScore = scanAge < 24 ? Math.min(100, scanScore) : Math.max(0, scanScore - 20);
@@ -236,7 +236,7 @@ const SystemStateDashboard = () => {
           lastChecked: ts, icon: ArrowRightLeft,
         },
         {
-          id: 'ai-engine', label: 'AI-motor', category: 'sync',
+          id: 'scan-engine', label: 'Scan-motor', category: 'sync',
           status: deriveStatus(readLog.length > 0 ? 90 : 30),
           score: readLog.length > 0 ? 90 : 30,
           detail: `${readLog.length} AI-aktiviteter loggade nyligen`,

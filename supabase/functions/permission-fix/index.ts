@@ -297,7 +297,7 @@ serve(async (req) => {
     }
 
     // Log the fix action
-    await sb.from("ai_read_log").insert({
+    await sb.from("read_log").insert({
       action_type: "permission_fix",
       target_type: "security",
       result: results.every(r => r.success) ? "fixed" : "partial",

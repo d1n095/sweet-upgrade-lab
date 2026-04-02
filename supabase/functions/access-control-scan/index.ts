@@ -283,8 +283,8 @@ serve(async (req) => {
       low_issues: issues.filter(i => i.risk === "low").length,
     };
 
-    // Log to ai_read_log
-    await sb.from("ai_read_log").insert({
+    // Log to read_log
+    await sb.from("read_log").insert({
       action_type: "access_control_scan",
       target_type: "security",
       result: issues.length > 0 ? "issues_found" : "clean",

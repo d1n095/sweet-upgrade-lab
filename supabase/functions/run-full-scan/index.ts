@@ -1276,7 +1276,7 @@ async function runRealSystemScan(supabase: any, scanRunId: string): Promise<any>
     }
 
     // Score trend
-    const { data: recentScans } = await supabase.from("ai_scan_results").select("overall_score, created_at, scan_type").eq("scan_type", "full_orchestrated").order("created_at", { ascending: false }).limit(3);
+    const { data: recentScans } = await supabase.from("scan_results").select("overall_score, created_at, scan_type").eq("scan_type", "full_orchestrated").order("created_at", { ascending: false }).limit(3);
     if (recentScans?.length >= 2) {
       const current = recentScans[0].overall_score || 0;
       const previous = recentScans[1].overall_score || 0;
@@ -1822,7 +1822,7 @@ async function runConsistencyGuard(supabase: any, currentFingerprints: Map<strin
   const { data: activeItems } = await supabase
     .from("work_items")
     .select("id, title, status, priority, issue_fingerprint, created_at")
-    .eq("source_type", "ai_scan")
+    .eq("source_type", "scan")
     .not("issue_fingerprint", "is", null)
     .in("status", ["open", "claimed", "in_progress", "escalated", "new", "pending", "detected"])
     .limit(500);
@@ -1911,7 +1911,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     flow._issue_type = issueType;
     flow._suggested_fix = suggestedFixForType(issueType);
     flow._affected_area = flow.category === "flow_ui" ? { type: "flow", target: "ui_flows" } : CATEGORY_AREA_MAP.broken_flows;
-    flow._origin_source = "ai_scan";
+    flow._origin_source = "scan";
     allWorkIssues.push({
       title: `Broken flow: ${flow.description || flow.route || flow.issue || "unknown"}${similarNote}`.slice(0, 120),
       priority: "high", item_type: "bug", description: flow.fix_suggestion || flow.detail || "",
@@ -1929,7 +1929,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     fake._issue_type = issueType;
     fake._suggested_fix = suggestedFixForType(issueType);
     fake._affected_area = CATEGORY_AREA_MAP.fake_features;
-    fake._origin_source = "ai_scan";
+    fake._origin_source = "scan";
     allWorkIssues.push({
       title: `Fake feature: ${fake.name || fake.component || fake.description || "unknown"}${similarNote}`.slice(0, 120),
       priority: "high", item_type: "improvement", description: fake.reason || fake.detail || "",
@@ -1947,7 +1947,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     fail._issue_type = issueType;
     fail._suggested_fix = suggestedFixForType(issueType);
     fail._affected_area = CATEGORY_AREA_MAP.interaction_failures;
-    fail._origin_source = "ai_scan";
+    fail._origin_source = "scan";
     allWorkIssues.push({
       title: `Interaction: ${fail.title || fail.element || fail.description || "unknown"}${similarNote}`.slice(0, 120),
       priority: fail.severity === "critical" ? "critical" : "high", item_type: "bug",
@@ -1966,7 +1966,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     issue._issue_type = issueType;
     issue._suggested_fix = suggestedFixForType(issueType);
     issue._affected_area = issue.category === "ui_visual" ? { type: "ui", target: "components" } : CATEGORY_AREA_MAP.data_issues;
-    issue._origin_source = "ai_scan";
+    issue._origin_source = "scan";
     allWorkIssues.push({
       title: `Data: ${issue.title || issue.field || issue.description || "unknown"}${similarNote}`.slice(0, 120),
       priority: issue.severity === "critical" ? "critical" : "medium", item_type: "bug",
@@ -1979,7 +1979,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
 
   // Tag all scanner-created issues with origin_source
   for (const issue of allWorkIssues) {
-    (issue as any)._origin_source = "ai_scan";
+    (issue as any)._origin_source = "scan";
   }
 
   // ── IMPACT SCORING: classify each issue 1–5 ──
@@ -2183,8 +2183,8 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
       status: "open",
       priority: issue.priority,
       item_type: issue.item_type,
-      source_type: "ai_scan",
-      ai_detected: true,
+      source_type: "scan",
+      scan_detected: true,
       issue_fingerprint: issue.fingerprint,
       source_path: source_file_path || issue.source_path || null,
       source_file: source_file_path || issue.source_file || null,
@@ -2215,7 +2215,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
       console.log(`[create-verify] ✅ VERIFIED: ${created.id} "${issue.title.slice(0, 40)}"`);
       workItemsCreated++;
       verified = true;
-      createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'created', created_id: created.id, issue_type: issue.issue_type || 'bug', affected_area: issue.affected_area, _origin_source: 'ai_scan', _impact_score: (issue as any)._impact_score, _impact_label: (issue as any)._impact_label, _insert_success: true, _insert_error: null, _suggested_fix_code: suggested_fix_code, _suggested_fix_type: suggested_fix_type, _fix_confidence: fix_confidence, _source_file_path: source_file_path });
+      createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'created', created_id: created.id, issue_type: issue.issue_type || 'bug', affected_area: issue.affected_area, _origin_source: 'scan', _impact_score: (issue as any)._impact_score, _impact_label: (issue as any)._impact_label, _insert_success: true, _insert_error: null, _suggested_fix_code: suggested_fix_code, _suggested_fix_type: suggested_fix_type, _fix_confidence: fix_confidence, _source_file_path: source_file_path });
       
       break;
     }
@@ -2235,7 +2235,7 @@ async function persistStepResults(supabase: any, steps: typeof STEPS, results: R
     if (!stepRes || stepRes.failed) continue;
     const stepScore = stepRes.overall_score ?? stepRes.system_score ?? stepRes.score ?? stepRes.health_score ?? stepRes.sync_score ?? stepRes.ux_score ?? stepRes.interaction_score ?? null;
     const stepIssues = stepRes.issues_found ?? stepRes.issues?.length ?? stepRes.dead_elements?.length ?? stepRes.mismatches?.length ?? 0;
-    await supabase.from("ai_scan_results").insert({
+    await supabase.from("scan_results").insert({
       scan_type: stepDef.scanType, results: stepRes, overall_score: stepScore,
       overall_status: stepScore != null ? (stepScore >= 75 ? "healthy" : stepScore >= 50 ? "warning" : "critical") : null,
       executive_summary: stepRes.executive_summary || `${stepDef.id}: score ${stepScore ?? '?'}, ${stepIssues} issues`,
@@ -2391,7 +2391,7 @@ serve(async (req) => {
         if (realScanner) {
           console.log(`[scan] Running DB scanner for ${step.scanType}`);
           const dbResult = await realScanner(supabase, scan_run_id);
-          stepResult = { ...dbResult, ai_suggestions: [], ai_summary: null };
+          stepResult = { ...dbResult, suggestions: [], summary: null };
         } else {
           console.log(`[scan] No DB scanner for ${step.scanType} — skipping`);
           stepResult = { skipped: true, issues_found: 0 };
@@ -2799,7 +2799,7 @@ serve(async (req) => {
         },
       };
 
-      await supabase.from("ai_scan_results").insert({
+      await supabase.from("scan_results").insert({
         scan_type: "full_orchestrated", results: adaptiveResult, overall_score: unified.system_health_score,
         overall_status: unified.system_health_score >= 75 ? "healthy" : unified.system_health_score >= 50 ? "warning" : "critical",
         executive_summary: `Adaptive scan (${iterationsCompleted} iter, ${systemStage}): ${unified.system_health_score}/100 | ${issuesCount} actionable issues | ${systemicIssues.length} systemic | ${coverageScore}%`,
@@ -2868,7 +2868,7 @@ serve(async (req) => {
           title: `🔗 ${si.label}`.slice(0, 120),
           description: `${si.description}\n\nExempel: ${si.examples?.join(", ") || "N/A"}\nPåverkade: ${si.affected_components?.join(", ") || "N/A"}`,
           status: "open", priority: si.severity === "critical" ? "critical" : "high",
-          item_type: "bug", source_type: "ai_scan", ai_detected: true, issue_fingerprint: fp,
+          item_type: "bug", source_type: "scan", scan_detected: true, issue_fingerprint: fp,
           ...(sysTraceId ? { runtime_trace_id: sysTraceId } : {}),
         });
         if (!error) workItemsCreated++;

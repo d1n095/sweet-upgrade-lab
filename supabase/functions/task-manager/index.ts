@@ -64,9 +64,9 @@ serve(async (req) => {
     if (action === "full_cycle" || action === "prioritize") {
       const { data: items } = await supabase
         .from("work_items")
-        .select("id, title, description, priority, item_type, source_type, source_id, related_order_id, ai_confidence, status")
+        .select("id, title, description, priority, item_type, source_type, source_id, related_order_id, confidence, status")
         .in("status", ["open", "claimed", "in_progress", "escalated"])
-        .or("ai_confidence.is.null,ai_confidence.eq.none")
+        .or("confidence.is.null,confidence.eq.none")
         .limit(20);
 
       for (const item of items || []) {
@@ -120,10 +120,10 @@ serve(async (req) => {
 
         await supabase.from("work_items").update({
           priority,
-          ai_confidence: confidence,
-          ai_category: category,
-          ai_type_classification: classification,
-          ai_type_reason: "Regelbaserad klassificering",
+          confidence: confidence,
+          category: category,
+          type_classification: classification,
+          type_reason: "Regelbaserad klassificering",
           updated_at: new Date().toISOString(),
         }).eq("id", item.id);
         results.prioritized++;
@@ -134,7 +134,7 @@ serve(async (req) => {
     if (action === "full_cycle" || action === "assign") {
       const { data: unassigned } = await supabase
         .from("work_items")
-        .select("id, item_type, ai_category, priority")
+        .select("id, item_type, category, priority")
         .eq("status", "open")
         .is("assigned_to", null)
         .is("claimed_by", null)
@@ -145,7 +145,7 @@ serve(async (req) => {
         if (assignee) {
           await supabase.from("work_items").update({
             assigned_to: assignee,
-            ai_assigned: true,
+            scan_assigned: true,
             updated_at: new Date().toISOString(),
           }).eq("id", item.id);
 
@@ -183,7 +183,7 @@ serve(async (req) => {
         const { data: existing } = await supabase
           .from("work_items")
           .select("id")
-          .eq("ai_detected", true)
+          .eq("scan_detected", true)
           .eq("item_type", "anomaly")
           .ilike("title", `%${eventType}%`)
           .in("status", ["open", "claimed", "in_progress"])
@@ -196,10 +196,10 @@ serve(async (req) => {
             status: "open",
             priority: "high",
             item_type: "anomaly",
-            source_type: "ai_detection",
-            ai_detected: true,
-            ai_confidence: "medium",
-            ai_category: "system",
+            source_type: "detection",
+            scan_detected: true,
+            confidence: "medium",
+            category: "system",
           });
           results.detected++;
         }
@@ -210,7 +210,7 @@ serve(async (req) => {
     if (action === "full_cycle" || action === "resolve") {
       const { data: bugItems } = await supabase
         .from("work_items")
-        .select("id, source_id, source_type, title, created_at, ai_confidence")
+        .select("id, source_id, source_type, title, created_at, confidence")
         .eq("item_type", "bug")
         .eq("source_type", "bug_report")
         .in("status", ["open", "in_progress"])
@@ -249,8 +249,8 @@ serve(async (req) => {
             const itemAge = Date.now() - new Date(item.created_at).getTime();
             if (itemAge / (1000 * 60 * 60) > 48) {
               await supabase.from("work_items").update({
-                ai_confidence: "medium",
-                ai_resolution_notes: "Inga nya rapporter för samma sida på 24h. Kan vara löst.",
+                confidence: "medium",
+                scan_notes: "Inga nya rapporter för samma sida på 24h. Kan vara löst.",
                 updated_at: new Date().toISOString(),
               }).eq("id", item.id);
               results.flagged++;
@@ -262,9 +262,9 @@ serve(async (req) => {
       // Anomaly resolution
       const { data: anomalyItems } = await supabase
         .from("work_items")
-        .select("id, title, ai_category, created_at")
+        .select("id, title, category, created_at")
         .eq("item_type", "anomaly")
-        .eq("ai_detected", true)
+        .eq("scan_detected", true)
         .in("status", ["open", "claimed", "in_progress"])
         .limit(10);
 
@@ -281,8 +281,8 @@ serve(async (req) => {
 
         if ((count || 0) < 2) {
           await supabase.from("work_items").update({
-            ai_confidence: "medium",
-            ai_resolution_notes: `Felfrekvens sjunkit till ${count || 0} senaste timmen. Troligen löst.`,
+            confidence: "medium",
+            scan_notes: `Felfrekvens sjunkit till ${count || 0} senaste timmen. Troligen löst.`,
             updated_at: new Date().toISOString(),
           }).eq("id", item.id);
           results.flagged++;
@@ -294,11 +294,11 @@ serve(async (req) => {
     if (action === "full_cycle" || action === "auto_close") {
       const { data: highConfItems } = await supabase
         .from("work_items")
-        .select("id, title, ai_confidence, ai_resolution_notes")
-        .eq("ai_confidence", "high")
-        .not("ai_resolution_notes", "is", null)
+        .select("id, title, confidence, scan_notes")
+        .eq("confidence", "high")
+        .not("scan_notes", "is", null)
         .in("status", ["open", "claimed"])
-        .eq("ai_detected", true)
+        .eq("scan_detected", true)
         .limit(10);
 
       for (const item of highConfItems || []) {
@@ -312,7 +312,7 @@ serve(async (req) => {
           action_type: "auto_close",
           target_type: "work_item",
           target_id: item.id,
-          reason: `Auto-stängd (hög konfidens): ${item.ai_resolution_notes}`,
+          reason: `Auto-stängd (hög konfidens): ${item.scan_notes}`,
         });
         results.resolved++;
       }
@@ -322,7 +322,7 @@ serve(async (req) => {
     if (action === "full_cycle" || action === "orchestrate") {
       const { data: activeItems, error: activeItemsError } = await supabase
         .from("work_items")
-        .select("id, title, description, item_type, source_type, ai_category, priority, status, ai_type_classification, depends_on, blocks, created_at")
+        .select("id, title, description, item_type, source_type, category, priority, status, type_classification, depends_on, blocks, created_at")
         .neq("status", "done")
         .neq("status", "cancelled")
         .order("created_at", { ascending: true })
@@ -451,7 +451,7 @@ function buildFallbackOrchestration(activeItems: any[]) {
 
   return sorted.map((item, index) => {
     const text = `${item.title || ""} ${item.description || ""}`.toLowerCase();
-    const isFeatureLike = ["feature", "improvement", "upgrade"].includes(item.ai_type_classification || "");
+    const isFeatureLike = ["feature", "improvement", "upgrade"].includes(item.type_classification || "");
 
     // Find conflicts
     let conflict_with: string | null = null;
@@ -497,7 +497,7 @@ async function autoAssign(supabase: any, item: any): Promise<string | null> {
     manual: ["admin", "founder"],
   };
 
-  const roles = categoryRoleMap[item.ai_category] || typeRoleMap[item.item_type] || ["admin", "founder"];
+  const roles = categoryRoleMap[item.category] || typeRoleMap[item.item_type] || ["admin", "founder"];
 
   const { data: candidates } = await supabase
     .from("user_roles")

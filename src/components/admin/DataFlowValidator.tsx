@@ -125,7 +125,7 @@ const DataFlowValidator = () => {
       // ─── 1. SCAN → WORK ITEMS ───
       setProgress(10);
       const { data: scans } = await supabase
-        .from('ai_scan_results')
+        .from('scan_results')
         .select('id, scan_type, issues_count, tasks_created, created_at')
         .order('created_at', { ascending: false })
         .limit(50);
@@ -190,7 +190,7 @@ const DataFlowValidator = () => {
         // Bug → Work Item
         const { data: wiRaw } = await supabase
           .from('work_items' as any)
-          .select('id, status, ai_review_status')
+          .select('id, status, review_status')
           .eq('source_type', 'bug_report')
           .eq('source_id', bug.id)
           .limit(5);
@@ -223,7 +223,7 @@ const DataFlowValidator = () => {
           // Work Item → Verification (system_history)
           const { data: shLinks } = await supabase
             .from('system_history')
-            .select('id, ai_review_status')
+            .select('id, review_status')
             .eq('work_item_id', wi.id)
             .limit(1);
 
@@ -232,7 +232,7 @@ const DataFlowValidator = () => {
             to: 'verification', toId: shLinks?.[0]?.id || null,
             status: shLinks?.length ? 'ok' : (wi.status === 'done' ? 'missing' : 'ok'),
             detail: shLinks?.length
-              ? `Verifierad: ${shLinks[0].ai_review_status || 'pending'}`
+              ? `Verifierad: ${shLinks[0].review_status || 'pending'}`
               : (wi.status === 'done' ? 'Klar men aldrig verifierad' : 'Ej klar'),
           });
         }
@@ -268,7 +268,7 @@ const DataFlowValidator = () => {
       setProgress(60);
       const { data: wiRaw2 } = await supabase
         .from('work_items' as any)
-        .select('id, title, source_type, source_id, status, ai_review_status, related_order_id')
+        .select('id, title, source_type, source_id, status, review_status, related_order_id')
         .in('status', ['open', 'claimed', 'in_progress', 'done'])
         .limit(200);
       const workItems = (wiRaw2 as any[] | null) || [];
@@ -285,7 +285,7 @@ const DataFlowValidator = () => {
             const { data } = await supabase.from('order_incidents').select('id').eq('id', wi.source_id).limit(1);
             sourceExists = !!data?.length;
           } else if (wi.source_type === 'scan') {
-            const { data } = await supabase.from('ai_scan_results').select('id').eq('id', wi.source_id).limit(1);
+            const { data } = await supabase.from('scan_results').select('id').eq('id', wi.source_id).limit(1);
             sourceExists = !!data?.length;
           }
 

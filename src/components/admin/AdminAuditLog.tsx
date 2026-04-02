@@ -47,10 +47,10 @@ const AdminAuditLog = () => {
   const queryClient = useQueryClient();
 
   const { data: logs = [], isLoading } = useQuery({
-    queryKey: ['ai-read-log', resultFilter, dateRange],
+    queryKey: ['read-log', resultFilter, dateRange],
     queryFn: async () => {
       let query = supabase
-        .from('ai_read_log' as any)
+        .from('read_log' as any)
         .select('*')
         .order('created_at', { ascending: false })
         .limit(200);
@@ -69,7 +69,7 @@ const AdminAuditLog = () => {
   const verifyMutation = useMutation({
     mutationFn: async ({ id, status, note }: { id: string; status: 'confirmed' | 'rejected'; note?: string }) => {
       const { data: { user } } = await supabase.auth.getUser();
-      const { error } = await (supabase.from('ai_read_log' as any) as any)
+      const { error } = await (supabase.from('read_log' as any) as any)
         .update({
           verify_status: status,
           verify_note: note || null,
@@ -80,7 +80,7 @@ const AdminAuditLog = () => {
       if (error) throw error;
     },
     onSuccess: (_, vars) => {
-      queryClient.invalidateQueries({ queryKey: ['ai-read-log'] });
+      queryClient.invalidateQueries({ queryKey: ['read-log'] });
       toast.success(vars.status === 'confirmed' ? 'Bekräftad som fixad ✓' : 'Markerad som ej fixad');
       setVerifyNote('');
     },
@@ -99,7 +99,7 @@ const AdminAuditLog = () => {
   // Stats
   const totalChecks = filtered.length;
   const issueCount = filtered.filter((l: any) => l.result === 'possible_issue').length;
-  const suggestFixed = filtered.filter((l: any) => l.ai_suggestion && !l.verify_status).length;
+  const suggestFixed = filtered.filter((l: any) => l.suggestion && !l.verify_status).length;
   const verifiedCount = filtered.filter((l: any) => l.verify_status === 'confirmed').length;
 
   return (
@@ -173,7 +173,7 @@ const AdminAuditLog = () => {
               const isExpanded = expandedId === log.id;
               const hasTrace = log.file_paths?.length > 0 || log.endpoints?.length > 0 || log.affected_components?.length > 0;
               const hasLinks = log.linked_bug_id || log.linked_work_item_id || log.linked_scan_id;
-              const hasSuggestion = !!log.ai_suggestion;
+              const hasSuggestion = !!log.suggestion;
               const verifyMeta = log.verify_status ? VERIFY_META[log.verify_status] : null;
 
               return (
@@ -243,7 +243,7 @@ const AdminAuditLog = () => {
                               <Sparkles className="w-4 h-4 text-primary mt-0.5 shrink-0" />
                               <div className="flex-1">
                                 <p className="text-xs font-semibold mb-1">AI-förslag</p>
-                                <p className="text-xs text-foreground">{log.ai_suggestion}</p>
+                                <p className="text-xs text-foreground">{log.suggestion}</p>
                               </div>
                             </div>
 

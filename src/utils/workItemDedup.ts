@@ -18,10 +18,10 @@ interface WorkItemPayload {
   status?: string;
   source_type?: string;
   source_id?: string | null;
-  ai_detected?: boolean;
-  ai_confidence?: string;
-  ai_category?: string;
-  ai_type_classification?: string;
+  scan_detected?: boolean;
+  confidence?: string;
+  category?: string;
+  type_classification?: string;
   issue_fingerprint?: string;
   created_by?: string;
   assigned_to?: string;

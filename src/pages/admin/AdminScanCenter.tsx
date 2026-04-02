@@ -120,7 +120,7 @@ const runLocalAnalysis = async (type: string, _payload: Record<string, any> = {}
   try {
     const [ordersRes, bugsRes, workItemsRes, incidentsRes] = await Promise.all([
       supabase.from('orders').select('id, status, payment_status, total_amount, created_at', { count: 'exact' }).order('created_at', { ascending: false }).limit(100),
-      supabase.from('bug_reports').select('id, status, ai_severity', { count: 'exact' }).eq('status', 'open'),
+      supabase.from('bug_reports').select('id, status, severity', { count: 'exact' }).eq('status', 'open'),
       supabase.from('work_items' as any).select('id, status, priority', { count: 'exact' }).in('status', ['open', 'in_progress', 'claimed']),
       supabase.from('order_incidents').select('id, status, priority, sla_status', { count: 'exact' }).in('status', ['open', 'investigating']),
     ]);
@@ -135,7 +135,7 @@ const runLocalAnalysis = async (type: string, _payload: Record<string, any> = {}
     const healthScore = Math.max(0, 100 - (openBugs * 5) - (openIncidents * 10) - (openItems > 20 ? 15 : 0));
 
     if (type === 'system_health') {
-      const criticalBugs = (bugsRes.data || []).filter((b: any) => b.ai_severity === 'critical');
+      const criticalBugs = (bugsRes.data || []).filter((b: any) => b.severity === 'critical');
       return {
         health_score: healthScore,
         summary: `${openBugs} öppna buggar, ${openIncidents} ärenden, ${openItems} uppgifter`,
@@ -340,7 +340,7 @@ const LovaChatTab = () => {
   useEffect(() => {
     (async () => {
       const { data } = await supabase
-        .from('ai_chat_messages' as any)
+        .from('chat_messages' as any)
         .select('*')
         .order('created_at', { ascending: false })
         .limit(1);
@@ -349,7 +349,7 @@ const LovaChatTab = () => {
         const cid = (data[0] as any).conversation_id;
         setConversationId(cid);
         const { data: history } = await supabase
-          .from('ai_chat_messages' as any)
+          .from('chat_messages' as any)
           .select('*')
           .eq('conversation_id', cid)
           .order('created_at', { ascending: true })
@@ -549,7 +549,7 @@ const LovaPromptsTab = () => {
   const { data: prompts, isLoading, refetch } = useQuery({
     queryKey: ['lova-prompts'],
     queryFn: async () => {
-      // Fetch from both prompt_queue AND work_items (legacy ai_chat prompts)
+      // Fetch from both prompt_queue AND work_items (legacy chat prompts)
       const [pqRes, wiRes] = await Promise.all([
         supabase.from('prompt_queue').select('*').order('created_at', { ascending: false }).limit(50),
         supabase.from('work_items' as any).select('id, title, description, priority, status, created_at, source_type, item_type').eq('source_type', 'ai_chat').order('created_at', { ascending: false }).limit(50),
@@ -879,12 +879,12 @@ const TaskAITab = () => {
   const { openDetail } = useDetailContext();
 
   const { data: aiItems, isLoading: loadingItems, refetch: refetchItems } = useQuery({
-    queryKey: ['ai-managed-items'],
+    queryKey: ['managed-items'],
     queryFn: async () => {
       const { data } = await supabase
         .from('work_items' as any)
-        .select('id, title, status, priority, item_type, ai_confidence, ai_detected, ai_category, ai_resolution_notes, ai_assigned, assigned_to, created_at, updated_at')
-        .or('ai_detected.eq.true,ai_confidence.neq.none')
+        .select('id, title, status, priority, item_type, confidence, scan_detected, category, scan_notes, scan_assigned, assigned_to, created_at, updated_at')
+        .or('scan_detected.eq.true,confidence.neq.none')
         .order('created_at', { ascending: false })
         .limit(50);
       return (data || []) as any[];
@@ -929,8 +929,8 @@ const TaskAITab = () => {
 
   const activeItems = aiItems?.filter(i => !['done', 'cancelled'].includes(i.status)) || [];
   const resolvedItems = aiItems?.filter(i => ['done', 'cancelled'].includes(i.status)) || [];
-  const detectedCount = aiItems?.filter(i => i.ai_detected && !['done', 'cancelled'].includes(i.status)).length || 0;
-  const flaggedCount = aiItems?.filter(i => i.ai_resolution_notes && !['done', 'cancelled'].includes(i.status)).length || 0;
+  const detectedCount = aiItems?.filter(i => i.scan_detected && !['done', 'cancelled'].includes(i.status)).length || 0;
+  const flaggedCount = aiItems?.filter(i => i.scan_notes && !['done', 'cancelled'].includes(i.status)).length || 0;
 
   return (
     <div className="space-y-4">
@@ -999,29 +999,29 @@ const TaskAITab = () => {
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
-                      {item.ai_detected && <Bot className="w-3.5 h-3.5 text-primary shrink-0" />}
+                      {item.scan_detected && <Bot className="w-3.5 h-3.5 text-primary shrink-0" />}
                       <p className="text-sm font-medium line-clamp-1">{item.title}</p>
                     </div>
                     <div className="flex gap-1 mt-1 flex-wrap">
                       <Badge variant={item.priority === 'critical' || item.priority === 'high' ? 'destructive' : 'secondary'} className="text-[9px]">
                         {item.priority}
                       </Badge>
-                      {item.ai_category && <Badge variant="outline" className="text-[9px]">{item.ai_category}</Badge>}
-                      {item.ai_confidence && item.ai_confidence !== 'none' && (
-                        <span className={cn('text-[9px] px-1.5 py-0.5 rounded-full border', confidenceColor(item.ai_confidence))}>
-                          Konfidens: {item.ai_confidence}
+                      {item.category && <Badge variant="outline" className="text-[9px]">{item.category}</Badge>}
+                      {item.confidence && item.confidence !== 'none' && (
+                        <span className={cn('text-[9px] px-1.5 py-0.5 rounded-full border', confidenceColor(item.confidence))}>
+                          Konfidens: {item.confidence}
                         </span>
                       )}
                       <Badge variant="outline" className="text-[9px]">{item.status}</Badge>
-                      {item.ai_assigned && <span className="text-[9px] text-primary">🤖 AI-tilldelad</span>}
+                      {item.scan_assigned && <span className="text-[9px] text-primary">🤖 AI-tilldelad</span>}
                     </div>
                   </div>
                 </div>
 
-                {item.ai_resolution_notes && (
+                {item.scan_notes && (
                   <div className="bg-muted/50 rounded-md p-2 text-xs">
                     <span className="font-medium text-muted-foreground">AI-notering:</span>
-                    <p>{item.ai_resolution_notes}</p>
+                    <p>{item.scan_notes}</p>
                   </div>
                 )}
 
@@ -1054,7 +1054,7 @@ const TaskAITab = () => {
               <div key={item.id} className="border rounded-md p-2 flex items-center justify-between gap-2 opacity-60 cursor-pointer hover:opacity-80" onClick={() => openDetail(item.id)}>
                 <div className="min-w-0">
                   <p className="text-xs truncate">{item.title}</p>
-                  <p className="text-[9px] text-muted-foreground">{item.ai_resolution_notes?.substring(0, 80)}</p>
+                  <p className="text-[9px] text-muted-foreground">{item.scan_notes?.substring(0, 80)}</p>
                 </div>
                 <Button size="sm" variant="ghost" className="h-5 text-[9px] shrink-0" onClick={(e) => { e.stopPropagation(); overrideItem(item.id, { status: 'open', completed_at: null }); }}>
                   Återöppna
@@ -1261,7 +1261,7 @@ const BugAITab = () => {
     setLoading(true);
     let query = supabase
       .from('bug_reports')
-      .select('id, description, page_url, status, ai_summary, ai_severity, ai_category, ai_tags, created_at, resolution_notes, resolved_at')
+      .select('id, description, page_url, status, summary, severity, category, tags, created_at, resolution_notes, resolved_at')
       .order('created_at', { ascending: false })
       .limit(30);
 
@@ -1358,9 +1358,9 @@ const BugAITab = () => {
                   selectedBugId === bug.id ? 'border-primary bg-primary/5' : 'hover:bg-muted/30'
                 )}
               >
-                <p className="text-[11px] font-medium line-clamp-1">{bug.ai_summary || bug.description?.substring(0, 60)}</p>
+                <p className="text-[11px] font-medium line-clamp-1">{bug.summary || bug.description?.substring(0, 60)}</p>
                 <div className="flex gap-1 mt-1 items-center">
-                  {bug.ai_severity && <Badge variant={sevBadge(bug.ai_severity)} className="text-[8px] px-1 py-0 leading-tight">{bug.ai_severity}</Badge>}
+                  {bug.severity && <Badge variant={sevBadge(bug.severity)} className="text-[8px] px-1 py-0 leading-tight">{bug.severity}</Badge>}
                   <span className="text-[8px] text-muted-foreground">{new Date(bug.created_at).toLocaleDateString('sv-SE')}</span>
                 </div>
               </button>
@@ -1377,10 +1377,10 @@ const BugAITab = () => {
               <CardContent className="p-4 space-y-4">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <h4 className="text-sm font-semibold">{selectedBug.ai_summary || 'Buggrapport'}</h4>
+                    <h4 className="text-sm font-semibold">{selectedBug.summary || 'Buggrapport'}</h4>
                     <div className="flex gap-1.5 mt-1 flex-wrap items-center">
-                      {selectedBug.ai_severity && <Badge variant={sevBadge(selectedBug.ai_severity)} className="text-[10px]">{selectedBug.ai_severity}</Badge>}
-                      {selectedBug.ai_category && <Badge variant="outline" className="text-[10px]">{selectedBug.ai_category}</Badge>}
+                      {selectedBug.severity && <Badge variant={sevBadge(selectedBug.severity)} className="text-[10px]">{selectedBug.severity}</Badge>}
+                      {selectedBug.category && <Badge variant="outline" className="text-[10px]">{selectedBug.category}</Badge>}
                       <span className="text-[10px] text-muted-foreground">{selectedBug.page_url}</span>
                     </div>
                   </div>
@@ -1440,8 +1440,8 @@ const BugAITab = () => {
                         <Button size="sm" variant="default" className="h-7 text-xs gap-1" onClick={() => {
                           const fixText = selectedFix.lovable_prompt || selectedFix.fix_suggestions?.[0]?.lovable_prompt || '';
                           applyFix(fixText, selectedBug?.description?.slice(0, 80) || 'Bug fix', {
-                            severity: selectedBug?.ai_severity,
-                            category: selectedBug?.ai_category,
+                            severity: selectedBug?.severity,
+                            category: selectedBug?.category,
                             bugId: selectedBug?.id,
                             buttonId: 'apply-fix-bug',
                           });
@@ -1618,7 +1618,7 @@ const SystemHealthTab = () => {
                           description: `${issue.description}\n\nÅtgärd: ${issue.suggested_action}`,
                           priority: issue.severity === 'critical' ? 'critical' : 'high',
                           category: 'system',
-                          source_type: 'ai_detection',
+                          source_type: 'detection',
                         });
                         if (res?.created) toast.success('Uppgift skapad');
                       }}>
@@ -1941,11 +1941,11 @@ const SystemScanTab = () => {
         status: 'open',
         item_type: 'bug',
         source_type: 'scan',
-        ai_detected: true,
+        scan_detected: true,
         source_id: currentScanId || lastScan?.id || null,
         created_by: session.user.id,
       },
-      selectColumns: 'id, title, status, priority, item_type, ai_detected, ai_category, ai_type_classification, ai_confidence, execution_order, depends_on, blocks, conflict_flag, duplicate_of, created_at, ai_type_reason',
+      selectColumns: 'id, title, status, priority, item_type, scan_detected, category, type_classification, confidence, execution_order, depends_on, blocks, conflict_flag, duplicate_of, created_at, type_reason',
       traceContext: { component: 'AdminScanCenter', scanId: currentScanId || lastScan?.id || undefined },
     });
 
@@ -1998,7 +1998,7 @@ const SystemScanTab = () => {
     queryKey: ['last-scan-result'],
     queryFn: async () => {
       const { data } = await supabase
-        .from('ai_scan_results' as any)
+        .from('scan_results' as any)
         .select('*')
         .eq('scan_type', 'system_scan')
         .order('created_at', { ascending: false })
@@ -2013,7 +2013,7 @@ const SystemScanTab = () => {
     queryKey: ['scan-history'],
     queryFn: async () => {
       const { data } = await supabase
-        .from('ai_scan_results' as any)
+        .from('scan_results' as any)
         .select('id, scan_type, overall_score, overall_status, executive_summary, issues_count, tasks_created, created_at')
         .eq('scan_type', 'system_scan')
         .order('created_at', { ascending: false })
@@ -2029,7 +2029,7 @@ const SystemScanTab = () => {
       if (!lastScan?.id) return [];
       const { data } = await supabase
         .from('work_items' as any)
-        .select('id, title, status, priority, item_type, ai_detected, ai_category, ai_type_classification, ai_confidence, execution_order, depends_on, blocks, conflict_flag, duplicate_of, created_at, ai_type_reason, source_type, source_id')
+        .select('id, title, status, priority, item_type, scan_detected, category, type_classification, confidence, execution_order, depends_on, blocks, conflict_flag, duplicate_of, created_at, type_reason, source_type, source_id')
         .or(`source_id.eq.${lastScan.id},source_type.eq.scan`)
         .in('status', ['open', 'claimed', 'in_progress', 'escalated', 'new', 'pending', 'detected'])
         .order('created_at', { ascending: false })
@@ -2096,7 +2096,7 @@ const SystemScanTab = () => {
   };
 
   const loadHistoryScan = async (id: string) => {
-    const { data } = await supabase.from('ai_scan_results' as any).select('*').eq('id', id).maybeSingle();
+    const { data } = await supabase.from('scan_results' as any).select('*').eq('id', id).maybeSingle();
     if (data) {
       if (compareId === id) {
         setCompareData((data as any).results);
@@ -2151,8 +2151,8 @@ const SystemScanTab = () => {
                 <p className="text-xs font-medium line-clamp-1">{task.title}</p>
                 <div className="flex gap-1 mt-0.5 flex-wrap">
                   <Badge variant={task.priority === 'critical' || task.priority === 'high' ? 'destructive' : 'secondary'} className="text-[8px]">{task.priority}</Badge>
-                  {task.ai_type_classification && <Badge variant="outline" className="text-[8px]">{task.ai_type_classification}</Badge>}
-                  {task.ai_category && <span className="text-[8px] bg-muted px-1 py-0.5 rounded">{task.ai_category}</span>}
+                  {task.type_classification && <Badge variant="outline" className="text-[8px]">{task.type_classification}</Badge>}
+                  {task.category && <span className="text-[8px] bg-muted px-1 py-0.5 rounded">{task.category}</span>}
                   {task.conflict_flag && <span className="text-[8px] text-destructive">⚠️ konflikt</span>}
                   {task.duplicate_of && <span className="text-[8px] text-muted-foreground">📎 dubblett</span>}
                 </div>
@@ -2688,7 +2688,7 @@ const ActionEngineTab = () => {
                               description: `Grundorsak: ${action.root_cause}\nStrategi: ${action.fix_strategy}\n\nSteg:\n${action.implementation_steps.map((s: string, j: number) => `${j + 1}. ${s}`).join('\n')}\n\n📋 Lovable-prompt:\n${action.lovable_prompt}`,
                               priority: action.priority,
                               category: action.type,
-                              source_type: 'ai_action_engine',
+                              source_type: 'action_engine',
                             });
                             if (res?.created) toast.success('Uppgift skapad i Workbench');
                           }}>
@@ -2768,7 +2768,7 @@ const DataIntegrityTab = () => {
 
   // Load last scan on mount
   useEffect(() => {
-    (supabase.from('ai_scan_results') as any)
+    (supabase.from('scan_results') as any)
       .select('results, created_at')
       .eq('scan_type', 'data_integrity')
       .order('created_at', { ascending: false })
@@ -2872,7 +2872,7 @@ const ContentValidationTab = () => {
 
   // Load last scan on mount
   useEffect(() => {
-    (supabase.from('ai_scan_results') as any)
+    (supabase.from('scan_results') as any)
       .select('results, created_at')
       .eq('scan_type', 'content_validation')
       .order('created_at', { ascending: false })
@@ -3019,7 +3019,7 @@ const PatternDetectionTab = () => {
 
   // Load last scan on mount
   useEffect(() => {
-    (supabase.from('ai_scan_results') as any)
+    (supabase.from('scan_results') as any)
       .select('results, created_at')
       .eq('scan_type', 'pattern_detection')
       .order('created_at', { ascending: false })
@@ -3285,7 +3285,7 @@ const FocusedScanTab = () => {
 
   // Load last scan on mount
   useEffect(() => {
-    (supabase.from('ai_scan_results') as any)
+    (supabase.from('scan_results') as any)
       .select('results, created_at, overall_score, overall_status, executive_summary')
       .eq('scan_type', 'focused_scan')
       .order('created_at', { ascending: false })
@@ -3720,7 +3720,7 @@ const VisualQATab = () => {
   const [compareResult, setCompareResult] = useState<VisualQAResult | null>(null);
 
   const loadHistory = async () => {
-    const { data } = await (supabase.from('ai_scan_results') as any)
+    const { data } = await (supabase.from('scan_results') as any)
       .select('id, results, created_at, overall_score, issues_count, executive_summary')
       .eq('scan_type', 'visual_qa')
       .order('created_at', { ascending: false })
@@ -3738,7 +3738,7 @@ const VisualQATab = () => {
 
   // Load last scan + history on mount
   useEffect(() => {
-    (supabase.from('ai_scan_results') as any)
+    (supabase.from('scan_results') as any)
       .select('id, results, created_at')
       .eq('scan_type', 'visual_qa')
       .order('created_at', { ascending: false })
@@ -3762,7 +3762,7 @@ const VisualQATab = () => {
     if (r) {
       setResult(r);
       toast.success(`QA klar – ${r.issues?.length || 0} problem`);
-      const { data } = await (supabase.from('ai_scan_results') as any)
+      const { data } = await (supabase.from('scan_results') as any)
         .select('id, created_at')
         .eq('scan_type', 'visual_qa')
         .order('created_at', { ascending: false })
@@ -3774,7 +3774,7 @@ const VisualQATab = () => {
   };
 
   const loadScan = async (scanId: string) => {
-    const { data } = await (supabase.from('ai_scan_results') as any)
+    const { data } = await (supabase.from('scan_results') as any)
       .select('id, results, created_at')
       .eq('id', scanId)
       .single();
@@ -3790,7 +3790,7 @@ const VisualQATab = () => {
 
   const loadCompare = async (scanId: string) => {
     if (compareScanId === scanId) { setCompareScanId(null); setCompareResult(null); return; }
-    const { data } = await (supabase.from('ai_scan_results') as any)
+    const { data } = await (supabase.from('scan_results') as any)
       .select('id, results')
       .eq('id', scanId)
       .single();
@@ -3874,7 +3874,7 @@ Förslag: ${issue.fix_suggestion}`,
           description: `AI-beslut: Auto-fix\n\n${issue.description}\n\nGrundorsak: ${analysis.root_cause}\nFixsteg:\n${(analysis.fix_steps || []).map((s: string, i: number) => `${i + 1}. ${s}`).join('\n')}`,
           item_type: 'bug',
           priority: issue.severity === 'critical' ? 'critical' : issue.severity === 'high' ? 'high' : 'medium',
-          source_type: 'ai_visual_qa',
+          source_type: 'visual_qa',
           source_id: scanMeta?.id || null,
         });
         if (dedupResult.duplicate) {
@@ -3928,7 +3928,7 @@ Förslag: ${issue.fix_suggestion}`,
         description: `${issue.description}\n\nSida: ${issue.page}\nBreakpoint: ${issue.breakpoint}\nFix: ${issue.fix_suggestion}${state.aiAnalysis ? `\n\nAI Root Cause: ${state.aiAnalysis.root_cause}\nAuto-fixable: ${state.aiAnalysis.auto_fixable ? 'Ja' : 'Nej'}\nSteg:\n${state.aiAnalysis.fix_steps.map((s, i) => `${i + 1}. ${s}`).join('\n')}` : ''}`,
         item_type: 'bug',
         priority: issue.severity === 'critical' ? 'critical' : issue.severity === 'high' ? 'high' : 'medium',
-        source_type: 'ai_visual_qa',
+        source_type: 'visual_qa',
         source_id: scanMeta?.id || null,
       });
       if (dedupResult.duplicate) {
@@ -4759,7 +4759,7 @@ const AiAutopilotTab = () => {
     queryKey: ['autopilot-scan-runs'],
     queryFn: async () => {
       const { data } = await supabase
-        .from('ai_scan_results' as any)
+        .from('scan_results' as any)
         .select('id, scan_type, overall_score, overall_status, executive_summary, issues_count, tasks_created, created_at')
         .order('created_at', { ascending: false })
         .limit(50);
@@ -4771,7 +4771,7 @@ const AiAutopilotTab = () => {
 
   const runExecution = async () => {
     setExecutionLoading(true);
-    const res = await runAnalysis('ai_execute', { mode });
+    const res = await runAnalysis('execute', { mode });
     if (res) {
       setExecutionResult(res);
       if (res.executed_count > 0) {
@@ -5292,7 +5292,7 @@ const InteractionQATab = () => {
 
   // Load last scan on mount
   useEffect(() => {
-    (supabase.from('ai_scan_results') as any)
+    (supabase.from('scan_results') as any)
       .select('results, created_at')
       .eq('scan_type', 'interaction_qa')
       .order('created_at', { ascending: false })
@@ -5901,7 +5901,7 @@ const DataCleanupTab = () => {
 
       // ─── 6. Duplicate scan results (same scan_type within 5min) ───
       setProgress(85);
-      const { data: scans } = await supabase.from('ai_scan_results').select('id, scan_type, created_at').order('created_at', { ascending: false }).limit(100);
+      const { data: scans } = await supabase.from('scan_results').select('id, scan_type, created_at').order('created_at', { ascending: false }).limit(100);
       if (scans && scans.length > 1) {
         const dupScans: string[] = [];
         for (let i = 1; i < scans.length; i++) {
@@ -5912,7 +5912,7 @@ const DataCleanupTab = () => {
         }
         if (dupScans.length > 0) {
           results.push({
-            id: makeId(), category: 'duplicate', table: 'ai_scan_results',
+            id: makeId(), category: 'duplicate', table: 'scan_results',
             title: `${dupScans.length} duplicerade skanningar`,
             detail: 'Skanningar av samma typ inom 5 minuter',
             ids: dupScans, autoCleanable: true,
@@ -5958,9 +5958,9 @@ const DataCleanupTab = () => {
         } else if (finding.category === 'outdated' && finding.table === 'bug_reports') {
           // Already resolved — just mark as cleaned (no delete, keep history)
           totalCleaned += finding.ids.length;
-        } else if (finding.category === 'duplicate' && finding.table === 'ai_scan_results') {
+        } else if (finding.category === 'duplicate' && finding.table === 'scan_results') {
           for (const id of finding.ids) {
-            await supabase.from('ai_scan_results').delete().eq('id', id);
+            await supabase.from('scan_results').delete().eq('id', id);
             totalCleaned++;
           }
         }
@@ -6275,7 +6275,7 @@ const OverflowScanTab = () => {
 
   // Load last scan on mount
   useEffect(() => {
-    (supabase.from('ai_scan_results') as any)
+    (supabase.from('scan_results') as any)
       .select('results, created_at')
       .eq('scan_type', 'ui_overflow_scan')
       .order('created_at', { ascending: false })
@@ -6309,11 +6309,11 @@ const OverflowScanTab = () => {
         description: `${issue.description}\n\nSida: ${issue.page}\nContainer: ${issue.container}\nBreakpoint: ${issue.breakpoint}\nTyp: ${issue.overflow_type}\n\nCSS Fix: ${issue.css_fix}`,
         priority: issue.severity === 'critical' ? 'critical' : issue.severity === 'high' ? 'high' : 'medium',
         item_type: 'bug',
-        source_type: 'ai_detection',
-        ai_detected: true,
-        ai_confidence: 'high',
-        ai_category: 'frontend',
-        ai_type_classification: 'ui_overflow',
+        source_type: 'detection',
+        scan_detected: true,
+        confidence: 'high',
+        category: 'frontend',
+        type_classification: 'ui_overflow',
       });
       if (dedupResult.duplicate) {
         toast.info(`Ärende finns redan i masterlistan`);
@@ -6478,7 +6478,7 @@ const UxScannerTab = () => {
   const { data: lastScan } = useQuery({
     queryKey: ['ux-scan-last'],
     queryFn: async () => {
-      const { data } = await supabase.from('ai_scan_results' as any).select('*').eq('scan_type', 'ux_scan').order('created_at', { ascending: false }).limit(1) as any;
+      const { data } = await supabase.from('scan_results' as any).select('*').eq('scan_type', 'ux_scan').order('created_at', { ascending: false }).limit(1) as any;
       return data?.[0] || null;
     },
   });
@@ -6654,7 +6654,7 @@ const AiUserManagementTab = () => {
   const analyzeUsers = async () => {
     setAnalyzing(true);
     try {
-      const data = await callMgmt({ action: 'ai_analyze' });
+      const data = await callMgmt({ action: 'analyze' });
       if (data) setRecommendations(data);
       toast.success(`AI-analys klar: ${data?.recommendations?.length || 0} rekommendationer`);
     } catch (e: any) { toast.error(e.message); }
@@ -7252,7 +7252,7 @@ const SyncScannerTab = () => {
   const { data: lastScan } = useQuery({
     queryKey: ['sync-scan-last'],
     queryFn: async () => {
-      const { data } = await supabase.from('ai_scan_results' as any).select('*').eq('scan_type', 'sync_scan').order('created_at', { ascending: false }).limit(1) as any;
+      const { data } = await supabase.from('scan_results' as any).select('*').eq('scan_type', 'sync_scan').order('created_at', { ascending: false }).limit(1) as any;
       return data?.[0] || null;
     },
   });
@@ -7398,7 +7398,7 @@ const ActionGovernorTab = () => {
         .from('activity_logs')
         .select('*')
         .eq('category', 'ai')
-        .in('log_type', ['ai_governor', 'ai_governor_execute', 'ai_governor_blocked'])
+        .in('log_type', ['governor', 'governor_execute', 'governor_blocked'])
         .order('created_at', { ascending: false })
         .limit(20);
       setActionLog(logs || []);
@@ -7547,8 +7547,8 @@ const ActionGovernorTab = () => {
                 <div className="space-y-1">
                   {actionLog.map((log: any) => (
                     <div key={log.id} className="flex items-start gap-2 text-xs py-1.5 border-b border-border/50">
-                      {log.log_type === 'ai_governor_execute' ? <CheckCircle className="w-3 h-3 text-green-600 mt-0.5 shrink-0" /> :
-                       log.log_type === 'ai_governor_blocked' ? <XCircle className="w-3 h-3 text-destructive mt-0.5 shrink-0" /> :
+                      {log.log_type === 'governor_execute' ? <CheckCircle className="w-3 h-3 text-green-600 mt-0.5 shrink-0" /> :
+                       log.log_type === 'governor_blocked' ? <XCircle className="w-3 h-3 text-destructive mt-0.5 shrink-0" /> :
                        <Info className="w-3 h-3 text-muted-foreground mt-0.5 shrink-0" />}
                       <span className="text-muted-foreground">{log.message}</span>
                     </div>
@@ -8138,12 +8138,12 @@ const OrchestrationTab = () => {
     if (newStatus === 'done') updates.completed_at = now;
     await supabase.from('work_items' as any).update(updates).eq('id', itemId);
     queryClient.invalidateQueries({ queryKey: ['work-items'] });
-    queryClient.invalidateQueries({ queryKey: ['ai-managed-items'] });
+    queryClient.invalidateQueries({ queryKey: ['managed-items'] });
     if (newStatus === 'done') {
       // Look up linked IDs from the work item for full traceability
       const { data: wi } = await supabase.from('work_items' as any).select('source_type, source_id, title').eq('id', itemId).maybeSingle();
       const linkedBugId = (wi as any)?.source_type === 'bug_report' ? (wi as any)?.source_id : null;
-      const linkedScanId = ['scan', 'ai_visual_qa', 'ai_detection'].includes((wi as any)?.source_type) ? (wi as any)?.source_id : null;
+      const linkedScanId = ['scan', 'visual_qa', 'detection'].includes((wi as any)?.source_type) ? (wi as any)?.source_id : null;
       triggerAiReviewForWorkItem(itemId, { context: 'admin_ai_detail' });
       logChange({ change_type: 'fix', description: `Work item slutförd: ${(wi as any)?.title || itemId}`, source: 'manual', affected_components: ['work_items'], work_item_id: itemId, bug_report_id: linkedBugId, scan_id: linkedScanId });
       if (linkedBugId) queryClient.invalidateQueries({ queryKey: ['bug-reports'] });
@@ -8194,7 +8194,7 @@ const OrchestrationTab = () => {
         onStatusChange={handleStatusChange}
         onRefresh={() => {
           queryClient.invalidateQueries({ queryKey: ['work-items'] });
-          queryClient.invalidateQueries({ queryKey: ['ai-managed-items'] });
+          queryClient.invalidateQueries({ queryKey: ['managed-items'] });
           if (detailItem) {
             supabase.from('work_items' as any).select('*').eq('id', detailItem.id).maybeSingle().then(({ data }) => {
               if (data) setDetailItem(data);

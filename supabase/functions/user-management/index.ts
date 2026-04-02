@@ -119,7 +119,7 @@ serve(async (req) => {
 
         await logAudit(user_id, "role_assigned", `Tilldelade rollen "${role}"`, rolesBefore, [...rolesBefore, role], null, body.target_email);
 
-        await sb.from("ai_read_log").insert({
+        await sb.from("read_log").insert({
           action_type: "user_role_assign",
           target_type: "user",
           target_ids: [user_id],
@@ -149,7 +149,7 @@ serve(async (req) => {
 
         await logAudit(user_id, "role_removed", `Tog bort rollen "${role}"`, rolesBeforeRm, rolesBeforeRm.filter((r: string) => r !== role));
 
-        await sb.from("ai_read_log").insert({
+        await sb.from("read_log").insert({
           action_type: "user_role_remove",
           target_type: "user",
           target_ids: [user_id],
@@ -178,7 +178,7 @@ serve(async (req) => {
 
         await logAudit(user_id, "user_deactivated", "Användare inaktiverad", (targetRoles || []).map((r: any) => r.role), (targetRoles || []).map((r: any) => r.role));
 
-        await sb.from("ai_read_log").insert({
+        await sb.from("read_log").insert({
           action_type: "user_deactivate",
           target_type: "user",
           target_ids: [user_id],
@@ -202,7 +202,7 @@ serve(async (req) => {
 
         await logAudit(user_id, "user_reactivated", "Användare återaktiverad");
 
-        await sb.from("ai_read_log").insert({
+        await sb.from("read_log").insert({
           action_type: "user_reactivate",
           target_type: "user",
           target_ids: [user_id],
@@ -217,7 +217,7 @@ serve(async (req) => {
       }
 
       // ── AI: Analyze & recommend changes ──
-      case "ai_analyze": {
+      case "analyze": {
         if (!lovableKey) throw new Error("LOVABLE_API_KEY not configured");
 
         // Gather data
@@ -351,8 +351,8 @@ Idag: ${new Date().toISOString().split("T")[0]}`;
           }
         }
 
-        await sb.from("ai_read_log").insert({
-          action_type: "ai_user_analysis",
+        await sb.from("read_log").insert({
+          action_type: "user_analysis",
           target_type: "user",
           result: "analyzed",
           summary: recommendations.summary,

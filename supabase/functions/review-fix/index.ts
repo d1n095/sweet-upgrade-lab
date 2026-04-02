@@ -49,9 +49,9 @@ serve(async (req) => {
     await supabase
       .from("work_items")
       .update({
-        ai_review_status: reviewResult.status,
-        ai_review_result: reviewResult,
-        ai_review_at: new Date().toISOString(),
+        review_status: reviewResult.status,
+        review_result: reviewResult,
+        review_at: new Date().toISOString(),
       })
       .eq("id", work_item_id);
 

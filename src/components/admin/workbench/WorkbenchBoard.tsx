@@ -55,11 +55,11 @@ interface WorkItem {
   conflict_flag?: boolean;
   execution_order?: number;
   orchestrator_result?: any;
-  ai_type_classification?: string;
-  ai_type_reason?: string;
-  ai_review_status?: string;
-  ai_review_result?: any;
-  ai_review_at?: string;
+  type_classification?: string;
+  type_reason?: string;
+  review_status?: string;
+  review_result?: any;
+  review_at?: string;
   resolution_notes?: string;
 }
 
@@ -418,7 +418,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     enabled: !!user?.id,
   });
 
-  const getClassification = (item: WorkItem) => item.ai_type_classification || (item.item_type === 'bug' ? 'bug' : null);
+  const getClassification = (item: WorkItem) => item.type_classification || (item.item_type === 'bug' ? 'bug' : null);
 
   const filteredItems = items.filter(t => {
     if (viewFilter === 'active') return !['done', 'cancelled'].includes(t.status);
@@ -427,7 +427,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
       if (isMine) return t.status !== 'done';
       return false;
     }
-    if (viewFilter === 'review') return t.status === 'done' && (t as any).ai_review_status !== 'verified';
+    if (viewFilter === 'review') return t.status === 'done' && (t as any).review_status !== 'verified';
     if (viewFilter === 'done') return t.status === 'done';
     if (viewFilter === 'escalated') return t.status === 'escalated';
     if (viewFilter === 'bugs') return getClassification(t) === 'bug' && t.status !== 'done';
@@ -787,7 +787,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const escalatedCount = items.filter(t => t.status === 'escalated').length;
   const myCount = items.filter(t => (t.assigned_to === user?.id || t.claimed_by === user?.id) && t.status !== 'done').length;
   const doneCount = items.filter(t => t.status === 'done').length;
-  const reviewCount = items.filter(t => t.status === 'done' && (t as any).ai_review_status !== 'verified').length;
+  const reviewCount = items.filter(t => t.status === 'done' && (t as any).review_status !== 'verified').length;
   const activeCount = items.filter(t => !['done', 'cancelled'].includes(t.status)).length;
   const openCount = items.filter(t => t.status === 'open' && !t.assigned_to).length;
   const bugCount = items.filter(t => getClassification(t) === 'bug' && t.status !== 'done').length;
@@ -860,8 +860,8 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
               <TypeIcon className="w-2.5 h-2.5" />
               {typeMeta.label}
             </Badge>
-            {item.ai_type_classification && AI_CLASSIFICATION_META[item.ai_type_classification] && (() => {
-              const cls = AI_CLASSIFICATION_META[item.ai_type_classification!];
+            {item.type_classification && AI_CLASSIFICATION_META[item.type_classification] && (() => {
+              const cls = AI_CLASSIFICATION_META[item.type_classification!];
               const ClsIcon = cls.icon;
               return (
                 <Badge variant="outline" className={cn('text-[9px] gap-0.5', cls.color)}>

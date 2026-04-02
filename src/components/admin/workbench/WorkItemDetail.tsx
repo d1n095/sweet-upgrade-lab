@@ -35,16 +35,16 @@ interface WorkItemDetailProps {
     assigned_to: string | null;
     claimed_by: string | null;
     created_by: string | null;
-    ai_review_status?: string;
-    ai_review_result?: any;
-    ai_review_at?: string;
-    ai_pre_verify_status?: string;
-    ai_pre_verify_result?: any;
-    ai_pre_verify_at?: string;
+    review_status?: string;
+    review_result?: any;
+    review_at?: string;
+    pre_verify_status?: string;
+    pre_verify_result?: any;
+    pre_verify_at?: string;
     resolution_notes?: string;
     ignored?: boolean;
     ignored_reason?: string;
-    ai_root_causes?: any;
+    root_causes?: any;
     human_selected_cause?: string;
     human_custom_cause?: string;
     human_custom_fix?: string;
@@ -249,7 +249,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
       const override = { type: 'select_cause', cause: causeText, at: new Date().toISOString(), by: user?.id };
       await supabase.from('work_items').update({
         human_selected_cause: causeText,
-        ai_overrides: [...((item as any).ai_overrides || []), override],
+        overrides: [...((item as any).overrides || []), override],
       } as any).eq('id', item.id);
       toast.success('Orsak vald');
       onRefresh?.();
@@ -265,7 +265,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
       await supabase.from('work_items').update({
         human_custom_cause: customCause.trim(),
         human_custom_fix: customFix.trim() || null,
-        ai_overrides: [...((item as any).ai_overrides || []), override],
+        overrides: [...((item as any).overrides || []), override],
       } as any).eq('id', item.id);
       toast.success('Egen orsak sparad');
       setShowCustomCause(false);
@@ -279,9 +279,9 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
   };
 
   const dt = fmtFull(item.created_at);
-  const reanalysis = (item.ai_root_causes as any)?.refined_diagnosis ? item.ai_root_causes as any : null;
-  const rootCauses = fixSuggestion?.root_causes || (item.ai_root_causes as any)?.root_causes || [];
-  const analysisSummary = reanalysis?.refined_diagnosis?.summary || fixSuggestion?.summary || (item.ai_root_causes as any)?.summary;
+  const reanalysis = (item.root_causes as any)?.refined_diagnosis ? item.root_causes as any : null;
+  const rootCauses = fixSuggestion?.root_causes || (item.root_causes as any)?.root_causes || [];
+  const analysisSummary = reanalysis?.refined_diagnosis?.summary || fixSuggestion?.summary || (item.root_causes as any)?.summary;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -393,41 +393,41 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
             )}
 
             {/* AI Analysis for bugs */}
-            {bugData && (bugData as any).ai_processed_at && (
+            {bugData && (bugData as any).processed_at && (
               <div className="space-y-2 border border-primary/20 rounded-lg p-3 bg-primary/5">
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
                   <Sparkles className="w-3.5 h-3.5" />
                   AI-analys
-                  {(bugData as any).ai_approved && (
+                  {(bugData as any).scan_approved && (
                     <Badge variant="outline" className="text-[9px] ml-1 border-accent/30 text-accent">✓ Godkänd</Badge>
                   )}
                 </div>
-                {(bugData as any).ai_summary && (
-                  <div><span className="text-[10px] text-muted-foreground">Sammanfattning</span><p className="text-xs font-medium">{(bugData as any).ai_summary}</p></div>
+                {(bugData as any).summary && (
+                  <div><span className="text-[10px] text-muted-foreground">Sammanfattning</span><p className="text-xs font-medium">{(bugData as any).summary}</p></div>
                 )}
                 <div className="flex gap-1.5 flex-wrap">
-                  {(bugData as any).ai_severity && <Badge variant="outline" className="text-[10px]">{(bugData as any).ai_severity}</Badge>}
-                  {(bugData as any).ai_category && <Badge variant="outline" className="text-[10px]">{(bugData as any).ai_category}</Badge>}
+                  {(bugData as any).severity && <Badge variant="outline" className="text-[10px]">{(bugData as any).severity}</Badge>}
+                  {(bugData as any).category && <Badge variant="outline" className="text-[10px]">{(bugData as any).category}</Badge>}
                 </div>
-                {(bugData as any).ai_tags?.length > 0 && (
+                {(bugData as any).tags?.length > 0 && (
                   <div className="flex gap-1 flex-wrap">
-                    {((bugData as any).ai_tags as string[]).map((tag: string) => (
+                    {((bugData as any).tags as string[]).map((tag: string) => (
                       <span key={tag} className="text-[9px] bg-muted px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
                         <Tag className="w-2.5 h-2.5" />{tag}
                       </span>
                     ))}
                   </div>
                 )}
-                {(bugData as any).ai_repro_steps && (
+                {(bugData as any).repro_steps && (
                   <div>
                     <span className="text-[10px] text-muted-foreground">Reproduktionssteg</span>
-                    <div className="text-xs bg-background rounded-md p-2 whitespace-pre-wrap border mt-0.5">{(bugData as any).ai_repro_steps}</div>
+                    <div className="text-xs bg-background rounded-md p-2 whitespace-pre-wrap border mt-0.5">{(bugData as any).repro_steps}</div>
                   </div>
                 )}
-                {(bugData as any).ai_clean_prompt && (
+                {(bugData as any).clean_prompt && (
                   <div>
                     <span className="text-[10px] text-muted-foreground">Strukturerad prompt</span>
-                    <div className="text-xs bg-background rounded-md p-2 whitespace-pre-wrap border mt-0.5 font-mono">{(bugData as any).ai_clean_prompt}</div>
+                    <div className="text-xs bg-background rounded-md p-2 whitespace-pre-wrap border mt-0.5 font-mono">{(bugData as any).clean_prompt}</div>
                   </div>
                 )}
               </div>
@@ -610,39 +610,39 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
             </div>
 
             {/* AI Pre-Verification Suggestion */}
-            {item.ai_pre_verify_status && item.ai_pre_verify_status !== 'not_fixed' && item.ai_pre_verify_status !== 'dismissed' && (isOpen || item.ai_pre_verify_status === 'confirmed' || item.ai_pre_verify_status === 'rejected') && (
+            {item.pre_verify_status && item.pre_verify_status !== 'not_fixed' && item.pre_verify_status !== 'dismissed' && (isOpen || item.pre_verify_status === 'confirmed' || item.pre_verify_status === 'rejected') && (
               <div className={cn('rounded-lg p-3 space-y-2.5 border', {
-                'bg-accent/10 border-accent/30': item.ai_pre_verify_status === 'appears_fixed' || item.ai_pre_verify_status === 'confirmed',
-                'bg-primary/5 border-primary/20': item.ai_pre_verify_status === 'possibly_fixed',
-                'bg-destructive/5 border-destructive/20': item.ai_pre_verify_status === 'rejected',
+                'bg-accent/10 border-accent/30': item.pre_verify_status === 'appears_fixed' || item.pre_verify_status === 'confirmed',
+                'bg-primary/5 border-primary/20': item.pre_verify_status === 'possibly_fixed',
+                'bg-destructive/5 border-destructive/20': item.pre_verify_status === 'rejected',
               })}>
                 <div className="flex items-center gap-1.5 text-xs font-semibold">
                   <Sparkles className="w-3.5 h-3.5 text-primary" />
-                  {item.ai_pre_verify_status === 'confirmed' ? 'AI-förslag bekräftat' :
-                   item.ai_pre_verify_status === 'rejected' ? 'AI-förslag avvisat' : 'AI förslag: Verkar löst'}
+                  {item.pre_verify_status === 'confirmed' ? 'AI-förslag bekräftat' :
+                   item.pre_verify_status === 'rejected' ? 'AI-förslag avvisat' : 'AI förslag: Verkar löst'}
                   <Badge variant="outline" className={cn('text-[9px] ml-auto', {
-                    'border-accent/40 text-accent': item.ai_pre_verify_status === 'appears_fixed' || item.ai_pre_verify_status === 'confirmed',
-                    'border-primary/30 text-primary': item.ai_pre_verify_status === 'possibly_fixed',
-                    'border-destructive/30 text-destructive': item.ai_pre_verify_status === 'rejected',
+                    'border-accent/40 text-accent': item.pre_verify_status === 'appears_fixed' || item.pre_verify_status === 'confirmed',
+                    'border-primary/30 text-primary': item.pre_verify_status === 'possibly_fixed',
+                    'border-destructive/30 text-destructive': item.pre_verify_status === 'rejected',
                   })}>
-                    {item.ai_pre_verify_status === 'confirmed' ? '✅ Bekräftad av användare' :
-                     item.ai_pre_verify_status === 'rejected' ? '❌ Avvisad — djupanalys körd' :
-                     item.ai_pre_verify_status === 'appears_fixed' ? '✅ Verkar fixat' : '🔍 Möjligen fixat'}
-                    {item.ai_pre_verify_result?.confidence != null && ` (${item.ai_pre_verify_result.confidence}%)`}
+                    {item.pre_verify_status === 'confirmed' ? '✅ Bekräftad av användare' :
+                     item.pre_verify_status === 'rejected' ? '❌ Avvisad — djupanalys körd' :
+                     item.pre_verify_status === 'appears_fixed' ? '✅ Verkar fixat' : '🔍 Möjligen fixat'}
+                    {item.pre_verify_result?.confidence != null && ` (${item.pre_verify_result.confidence}%)`}
                   </Badge>
                 </div>
-                {item.ai_pre_verify_result?.reasoning && (
-                  <p className="text-xs text-muted-foreground">{item.ai_pre_verify_result.reasoning}</p>
+                {item.pre_verify_result?.reasoning && (
+                  <p className="text-xs text-muted-foreground">{item.pre_verify_result.reasoning}</p>
                 )}
-                {item.ai_pre_verify_result?.related_change && (
+                {item.pre_verify_result?.related_change && (
                   <p className="text-[10px] text-muted-foreground">
-                    <span className="font-medium">Relaterad ändring:</span> {item.ai_pre_verify_result.related_change}
+                    <span className="font-medium">Relaterad ändring:</span> {item.pre_verify_result.related_change}
                   </p>
                 )}
-                {item.ai_pre_verify_at && (
-                  <p className="text-[10px] text-muted-foreground">{fmtFull(item.ai_pre_verify_at).relative}</p>
+                {item.pre_verify_at && (
+                  <p className="text-[10px] text-muted-foreground">{fmtFull(item.pre_verify_at).relative}</p>
                 )}
-                {isOpen && !['confirmed', 'rejected'].includes(item.ai_pre_verify_status || '') && (
+                {isOpen && !['confirmed', 'rejected'].includes(item.pre_verify_status || '') && (
                 <div className="flex gap-2 pt-1">
                   <Button size="sm" variant="default" className="flex-1 gap-1 h-7 text-xs"
                     disabled={runningPreVerify}
@@ -653,24 +653,24 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                         await onStatusChange(item.id, 'done');
                         // 2. Log human confirmation
                         await supabase.from('work_items').update({
-                          ai_pre_verify_status: 'confirmed',
-                          ai_pre_verify_result: {
-                            ...item.ai_pre_verify_result,
+                          pre_verify_status: 'confirmed',
+                          pre_verify_result: {
+                            ...item.pre_verify_result,
                             human_confirmed: true,
                             confirmed_at: new Date().toISOString(),
                             confirmed_by: user?.id,
                           },
-                          resolution_notes: `✅ Bekräftad via AI-förslag (${item.ai_pre_verify_result?.confidence || '?'}% konfidens)`,
+                          resolution_notes: `✅ Bekräftad via AI-förslag (${item.pre_verify_result?.confidence || '?'}% konfidens)`,
                         } as any).eq('id', item.id);
                         // 3. Log to change_log
                         await supabase.from('change_log').insert({
                           change_type: 'verification',
                           description: `Användare bekräftade AI-förslag: ${item.title}`,
-                          affected_components: [item.item_type, 'ai_pre_verify'],
+                          affected_components: [item.item_type, 'pre_verify'],
                           source: 'human_confirmation',
                           work_item_id: item.id,
                           bug_report_id: item.source_type === 'bug_report' ? item.source_id : null,
-                          metadata: { ai_confidence: item.ai_pre_verify_result?.confidence, action: 'confirm' },
+                          metadata: { confidence: item.pre_verify_result?.confidence, action: 'confirm' },
                         });
                         // 4. Trigger post-verify review
                         triggerAiReviewForWorkItem(item.id, { context: 'human_confirmed_pre_verify' });
@@ -692,9 +692,9 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                         // 1. Escalate priority
                         const newPriority = item.priority === 'low' ? 'medium' : item.priority === 'medium' ? 'high' : 'high';
                         await supabase.from('work_items').update({
-                          ai_pre_verify_status: 'rejected',
-                          ai_pre_verify_result: {
-                            ...item.ai_pre_verify_result,
+                          pre_verify_status: 'rejected',
+                          pre_verify_result: {
+                            ...item.pre_verify_result,
                             human_rejected: true,
                             rejected_at: new Date().toISOString(),
                             rejected_by: user?.id,
@@ -706,11 +706,11 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                         await supabase.from('change_log').insert({
                           change_type: 'rejection',
                           description: `Användare avvisade förslag: ${item.title} — prioritet eskalerad till ${newPriority}`,
-                          affected_components: [item.item_type, 'ai_pre_verify'],
+                          affected_components: [item.item_type, 'pre_verify'],
                           source: 'human_rejection',
                           work_item_id: item.id,
                           bug_report_id: item.source_type === 'bug_report' ? item.source_id : null,
-                          metadata: { ai_confidence: item.ai_pre_verify_result?.confidence, action: 'reject', escalated_to: newPriority },
+                          metadata: { confidence: item.pre_verify_result?.confidence, action: 'reject', escalated_to: newPriority },
                         });
                         toast.info('🔍 Avvisad — eskalerad för manuell granskning', { duration: 4000 });
                         onRefresh?.();
@@ -737,44 +737,44 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
             )}
 
             {/* AI Review Results */}
-            {item.ai_review_status && (
+            {item.review_status && (
               <div className={cn('rounded-lg p-3 space-y-2 border', {
-                'bg-accent/5 border-accent/20': item.ai_review_status === 'verified',
-                'bg-yellow-50 border-yellow-200': item.ai_review_status === 'needs_review',
-                'bg-destructive/5 border-destructive/20': item.ai_review_status === 'incomplete',
+                'bg-accent/5 border-accent/20': item.review_status === 'verified',
+                'bg-yellow-50 border-yellow-200': item.review_status === 'needs_review',
+                'bg-destructive/5 border-destructive/20': item.review_status === 'incomplete',
               })}>
                 <div className="flex items-center gap-1.5 text-xs font-semibold">
                   <Bot className="w-3.5 h-3.5" />
                   AI-granskning
                   <Badge variant="outline" className={cn('text-[9px] ml-auto', {
-                    'border-accent/30 text-accent': item.ai_review_status === 'verified',
-                    'border-yellow-300 text-yellow-700': item.ai_review_status === 'needs_review',
-                    'border-destructive/30 text-destructive': item.ai_review_status === 'incomplete',
+                    'border-accent/30 text-accent': item.review_status === 'verified',
+                    'border-yellow-300 text-yellow-700': item.review_status === 'needs_review',
+                    'border-destructive/30 text-destructive': item.review_status === 'incomplete',
                   })}>
-                    {item.ai_review_status === 'verified' ? '✅ Verifierad' :
-                     item.ai_review_status === 'needs_review' ? '⚠️ Behöver granskning' : '❌ Ofullständig'}
+                    {item.review_status === 'verified' ? '✅ Verifierad' :
+                     item.review_status === 'needs_review' ? '⚠️ Behöver granskning' : '❌ Ofullständig'}
                   </Badge>
                 </div>
-                {item.ai_review_result?.verdict && <p className="text-xs">{item.ai_review_result.verdict}</p>}
-                {item.ai_review_result?.confidence != null && (
+                {item.review_result?.verdict && <p className="text-xs">{item.review_result.verdict}</p>}
+                {item.review_result?.confidence != null && (
                   <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                    <span>Konfidens: {item.ai_review_result.confidence}%</span>
-                    {item.ai_review_at && <span>• {fmtFull(item.ai_review_at).relative}</span>}
+                    <span>Konfidens: {item.review_result.confidence}%</span>
+                    {item.review_at && <span>• {fmtFull(item.review_at).relative}</span>}
                   </div>
                 )}
-                {item.ai_review_result?.risks?.length > 0 && (
+                {item.review_result?.risks?.length > 0 && (
                   <div className="text-xs">
                     <span className="font-medium text-destructive">Risker:</span>
                     <ul className="list-disc pl-4 mt-0.5 space-y-0.5">
-                      {item.ai_review_result.risks.map((r: string, i: number) => <li key={i}>{r}</li>)}
+                      {item.review_result.risks.map((r: string, i: number) => <li key={i}>{r}</li>)}
                     </ul>
                   </div>
                 )}
-                {item.ai_review_result?.edge_cases?.length > 0 && (
+                {item.review_result?.edge_cases?.length > 0 && (
                   <div className="text-xs">
                     <span className="font-medium text-yellow-700">Edge cases:</span>
                     <ul className="list-disc pl-4 mt-0.5 space-y-0.5">
-                      {item.ai_review_result.edge_cases.map((e: string, i: number) => <li key={i}>{e}</li>)}
+                      {item.review_result.edge_cases.map((e: string, i: number) => <li key={i}>{e}</li>)}
                     </ul>
                   </div>
                 )}
@@ -799,7 +799,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                 }}
               >
                 {runningReview ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Bot className="w-3.5 h-3.5" />}
-                {item.ai_review_status ? 'Kör AI-granskning igen' : 'Kör AI-granskning'}
+                {item.review_status ? 'Kör AI-granskning igen' : 'Kör AI-granskning'}
               </Button>
             )}
 

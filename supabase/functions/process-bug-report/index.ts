@@ -245,14 +245,14 @@ Your output MUST follow this exact structure:
 
     // Store full analysis in bug_reports
     await supabase.from("bug_reports").update({
-      ai_summary: result.summary,
-      ai_category: result.category,
-      ai_severity: result.severity,
-      ai_tags: result.tags,
-      ai_clean_prompt: result.copy_prompt,
-      ai_repro_steps: result.repro_steps || null,
-      ai_processed_at: new Date().toISOString(),
-      ai_actionable_fix: {
+      summary: result.summary,
+      category: result.category,
+      severity: result.severity,
+      tags: result.tags,
+      clean_prompt: result.copy_prompt,
+      repro_steps: result.repro_steps || null,
+      processed_at: new Date().toISOString(),
+      actionable_fix: {
         blocker_statement: result.blocker_statement,
         root_cause_exact: result.root_cause_exact,
         location: result.location,
@@ -334,7 +334,7 @@ async function gatherSystemContext(supabase: any, pageUrl: string): Promise<stri
     // Recent related bugs on same page
     const { data: relatedBugs } = await supabase
       .from("bug_reports")
-      .select("ai_summary, ai_category, status")
+      .select("summary, category, status")
       .eq("page_url", pageUrl)
       .order("created_at", { ascending: false })
       .limit(5);
@@ -342,7 +342,7 @@ async function gatherSystemContext(supabase: any, pageUrl: string): Promise<stri
     if (relatedBugs?.length) {
       parts.push(`Related bugs on same page (${relatedBugs.length}):`);
       relatedBugs.forEach((b: any) => {
-        parts.push(`  - [${b.status}] ${b.ai_summary || '(unprocessed)'} (${b.ai_category || 'unknown'})`);
+        parts.push(`  - [${b.status}] ${b.summary || '(unprocessed)'} (${b.category || 'unknown'})`);
       });
     }
 

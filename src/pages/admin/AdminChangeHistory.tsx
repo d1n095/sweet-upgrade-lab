@@ -74,7 +74,7 @@ const AdminChangeHistory = () => {
       if (!entry?.bug_report_id) return [];
       const { data } = await supabase
         .from('bug_reports')
-        .select('id, description, status, ai_severity, ai_category, created_at')
+        .select('id, description, status, severity, category, created_at')
         .eq('id', entry.bug_report_id);
       return data || [];
     },
@@ -272,11 +272,11 @@ const AdminChangeHistory = () => {
                                     {bug.status === 'resolved' ? <CheckCircle2 className="w-3 h-3 mr-0.5" /> : <AlertTriangle className="w-3 h-3 mr-0.5" />}
                                     {bug.status}
                                   </Badge>
-                                  {bug.ai_severity && (
-                                    <span>Allvarlighet: {bug.ai_severity}</span>
+                                  {bug.severity && (
+                                    <span>Allvarlighet: {bug.severity}</span>
                                   )}
-                                  {bug.ai_category && (
-                                    <span>Kategori: {bug.ai_category}</span>
+                                  {bug.category && (
+                                    <span>Kategori: {bug.category}</span>
                                   )}
                                 </div>
                               </div>

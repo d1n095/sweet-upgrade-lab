@@ -119,7 +119,7 @@ serve(async (req) => {
       console.log(`[apply-fix] Not executable: ${fixPlan.reason_if_not_executable || fixPlan.fix_type}`);
 
       // Log the attempt
-      await adminClient.from("ai_read_log").insert({
+      await adminClient.from("read_log").insert({
         action_type: "apply_fix",
         target_type: fixPlan.fix_type,
         result: "manual_required",

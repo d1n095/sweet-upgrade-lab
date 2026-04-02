@@ -335,7 +335,7 @@ serve(async (req) => {
     };
 
     // Log
-    await sb.from("ai_read_log").insert({
+    await sb.from("read_log").insert({
       action_type: "access_flow_validate",
       target_type: "security",
       result: summary.failed > 0 ? "failures_found" : "all_passed",

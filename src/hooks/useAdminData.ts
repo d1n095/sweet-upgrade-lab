@@ -155,7 +155,7 @@ export const useAdminBugs = (options?: { enabled?: boolean }) =>
     queryFn: async () => {
       const { data, error } = await supabase
         .from('bug_reports')
-        .select('id, description, status, page_url, ai_severity, ai_category, ai_summary, created_at, user_id, resolved_at')
+        .select('id, description, status, page_url, severity, category, summary, created_at, user_id, resolved_at')
         .order('created_at', { ascending: false })
         .limit(500);
       if (error) throw error;

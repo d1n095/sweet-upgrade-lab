@@ -38,14 +38,14 @@ interface BugReport {
   resolution_notes: string | null;
   resolved_at: string | null;
   resolved_by: string | null;
-  ai_summary: string | null;
-  ai_category: string | null;
-  ai_severity: string | null;
-  ai_tags: string[] | null;
-  ai_clean_prompt: string | null;
-  ai_processed_at: string | null;
-  ai_approved: boolean;
-  ai_actionable_fix: ActionableFix | null;
+  summary: string | null;
+  category: string | null;
+  severity: string | null;
+  tags: string[] | null;
+  clean_prompt: string | null;
+  processed_at: string | null;
+  scan_approved: boolean;
+  actionable_fix: ActionableFix | null;
   work_item_status?: string;
   reporter_name?: string;
 }
@@ -111,8 +111,8 @@ const AdminBugReports = () => {
 
       const mapped = bugs.map(b => ({
         ...b,
-        ai_tags: (b as any).ai_tags || [],
-        ai_approved: (b as any).ai_approved || false,
+        tags: (b as any).tags || [],
+        scan_approved: (b as any).scan_approved || false,
         work_item_status: wiMap.get(b.id) || null,
         reporter_name: profileMap.get(b.user_id) || 'Okänd',
       })) as BugReport[];
@@ -157,7 +157,7 @@ const AdminBugReports = () => {
     const { data: unprocessed } = await supabase
       .from('bug_reports')
       .select('id')
-      .is('ai_processed_at', null)
+      .is('processed_at', null)
       .eq('status', 'open')
       .order('created_at', { ascending: false })
       .limit(5);
@@ -226,13 +226,13 @@ const AdminBugReports = () => {
         r.id === bugId
           ? {
               ...r,
-              ai_summary: result.summary,
-              ai_category: result.category,
-              ai_severity: result.severity,
-              ai_tags: result.tags,
-              ai_clean_prompt: result.copy_prompt,
-              ai_processed_at: new Date().toISOString(),
-              ai_actionable_fix: {
+              summary: result.summary,
+              category: result.category,
+              severity: result.severity,
+              tags: result.tags,
+              clean_prompt: result.copy_prompt,
+              processed_at: new Date().toISOString(),
+              actionable_fix: {
                 blocker_statement: result.blocker_statement,
                 root_cause_exact: result.root_cause_exact,
                 location: result.location,
@@ -256,8 +256,8 @@ const AdminBugReports = () => {
   };
 
   const approveAI = async (bugId: string) => {
-    await supabase.from('bug_reports').update({ ai_approved: true } as any).eq('id', bugId);
-    setReports(prev => prev.map(r => r.id === bugId ? { ...r, ai_approved: true } : r));
+    await supabase.from('bug_reports').update({ scan_approved: true } as any).eq('id', bugId);
+    setReports(prev => prev.map(r => r.id === bugId ? { ...r, scan_approved: true } : r));
     toast.success('AI-analys godkänd');
   };
 
@@ -327,18 +327,18 @@ const AdminBugReports = () => {
 
   if (loading) return <div className="flex justify-center p-8"><Loader2 className="w-6 h-6 animate-spin" /></div>;
 
-  const inbox = reports.filter(r => !r.ai_processed_at);
-  const processed = reports.filter(r => !!r.ai_processed_at);
-  const promptLibrary = processed.filter(r => r.ai_clean_prompt);
+  const inbox = reports.filter(r => !r.processed_at);
+  const processed = reports.filter(r => !!r.processed_at);
+  const promptLibrary = processed.filter(r => r.clean_prompt);
 
   // Collect all unique tags for filter
-  const allTags = [...new Set(promptLibrary.flatMap(r => r.ai_tags || []))].sort();
+  const allTags = [...new Set(promptLibrary.flatMap(r => r.tags || []))].sort();
 
   const filteredPrompts = promptLibrary.filter(r => {
     const matchSearch = !promptSearch || 
-      r.ai_clean_prompt?.toLowerCase().includes(promptSearch.toLowerCase()) ||
-      r.ai_summary?.toLowerCase().includes(promptSearch.toLowerCase());
-    const matchTag = !promptTagFilter || r.ai_tags?.includes(promptTagFilter);
+      r.clean_prompt?.toLowerCase().includes(promptSearch.toLowerCase()) ||
+      r.summary?.toLowerCase().includes(promptSearch.toLowerCase());
+    const matchTag = !promptTagFilter || r.tags?.includes(promptTagFilter);
     return matchSearch && matchTag;
   });
 
@@ -368,31 +368,31 @@ const AdminBugReports = () => {
               <Badge variant={isOpen ? 'destructive' : 'secondary'} className="text-[10px]">
                 {isOpen ? 'Öppen' : 'Löst'}
               </Badge>
-              {showAI && r.ai_severity && (
-                <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full border font-medium', SEVERITY_COLORS[r.ai_severity])}>
-                  {r.ai_severity}
+              {showAI && r.severity && (
+                <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full border font-medium', SEVERITY_COLORS[r.severity])}>
+                  {r.severity}
                 </span>
               )}
-              {showAI && r.ai_category && (
-                <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full font-medium', CATEGORY_COLORS[r.ai_category])}>
-                  {r.ai_category}
+              {showAI && r.category && (
+                <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full font-medium', CATEGORY_COLORS[r.category])}>
+                  {r.category}
                 </span>
               )}
-              {r.ai_approved && (
+              {r.scan_approved && (
                 <Badge variant="outline" className="text-[9px] border-green-300 text-green-700">✓ Godkänd</Badge>
               )}
             </div>
             <p className="text-sm font-medium leading-snug line-clamp-2">
-              {showAI && r.ai_summary ? r.ai_summary : r.description}
+              {showAI && r.summary ? r.summary : r.description}
             </p>
             <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
               <span className="flex items-center gap-1"><User className="w-3 h-3" />{r.reporter_name}</span>
               <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{r.page_url}</span>
               <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{dt.relative}</span>
             </div>
-            {showAI && r.ai_tags && r.ai_tags.length > 0 && (
+            {showAI && r.tags && r.tags.length > 0 && (
               <div className="flex gap-1 flex-wrap mt-0.5">
-                {r.ai_tags.map(tag => (
+                {r.tags.map(tag => (
                   <span key={tag} className="text-[9px] bg-muted px-1.5 py-0.5 rounded-full">{tag}</span>
                 ))}
               </div>
@@ -428,7 +428,7 @@ const AdminBugReports = () => {
             </div>
 
             {/* AI Actionable Fix Section */}
-            {r.ai_processed_at ? (
+            {r.processed_at ? (
               <div className="space-y-3 border border-primary/20 rounded-lg p-3 bg-primary/5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
@@ -436,7 +436,7 @@ const AdminBugReports = () => {
                     AI Actionable Fix
                   </div>
                   <div className="flex gap-1">
-                    {!r.ai_approved && (
+                    {!r.scan_approved && (
                       <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1" onClick={() => approveAI(r.id)}>
                         <CheckCircle2 className="w-3 h-3" /> Godkänn
                       </Button>
@@ -448,23 +448,23 @@ const AdminBugReports = () => {
                 </div>
 
                 {/* BLOCKER */}
-                {(r.ai_actionable_fix?.blocker_statement || r.ai_summary) && (
+                {(r.actionable_fix?.blocker_statement || r.summary) && (
                   <div className="bg-destructive/10 border border-destructive/20 rounded-md p-2.5">
                     <div className="flex items-center gap-1.5 text-[10px] font-bold text-destructive mb-1">🔴 BLOCKER</div>
-                    <p className="text-xs font-medium">{r.ai_actionable_fix?.blocker_statement || r.ai_summary}</p>
+                    <p className="text-xs font-medium">{r.actionable_fix?.blocker_statement || r.summary}</p>
                   </div>
                 )}
 
                 {/* ROOT CAUSE */}
-                {r.ai_actionable_fix?.root_cause_exact && (
+                {r.actionable_fix?.root_cause_exact && (
                   <div className="bg-muted/50 border rounded-md p-2.5">
                     <div className="flex items-center gap-1.5 text-[10px] font-bold text-foreground mb-1">🧠 ROOT CAUSE</div>
-                    <p className="text-xs">{r.ai_actionable_fix.root_cause_exact}</p>
+                    <p className="text-xs">{r.actionable_fix.root_cause_exact}</p>
                   </div>
                 )}
 
                 {/* LOCATION */}
-                {r.ai_actionable_fix?.location && (
+                {r.actionable_fix?.location && (
                   <div className="bg-muted/50 border rounded-md p-2.5">
                     <div className="flex items-center gap-1.5 text-[10px] font-bold text-foreground mb-1">
                       <Crosshair className="w-3 h-3" /> LOCATION
@@ -472,25 +472,25 @@ const AdminBugReports = () => {
                     <div className="space-y-1">
                       <div className="flex items-center gap-2 text-xs">
                         <FileCode className="w-3 h-3 text-muted-foreground shrink-0" />
-                        <code className="bg-background px-1.5 py-0.5 rounded font-mono text-[11px]">{r.ai_actionable_fix.location.file_path}</code>
+                        <code className="bg-background px-1.5 py-0.5 rounded font-mono text-[11px]">{r.actionable_fix.location.file_path}</code>
                       </div>
                       <div className="flex items-center gap-2 text-xs">
                         <span className="text-muted-foreground">→</span>
-                        <span className="font-medium">{r.ai_actionable_fix.location.function_name}</span>
-                        <span className="text-[9px] bg-muted px-1.5 py-0.5 rounded-full">{r.ai_actionable_fix.location.system_area}</span>
+                        <span className="font-medium">{r.actionable_fix.location.function_name}</span>
+                        <span className="text-[9px] bg-muted px-1.5 py-0.5 rounded-full">{r.actionable_fix.location.system_area}</span>
                       </div>
                     </div>
                   </div>
                 )}
 
                 {/* FIX STEPS */}
-                {r.ai_actionable_fix?.fix_steps && r.ai_actionable_fix.fix_steps.length > 0 && (
+                {r.actionable_fix?.fix_steps && r.actionable_fix.fix_steps.length > 0 && (
                   <div className="bg-muted/50 border rounded-md p-2.5">
                     <div className="flex items-center gap-1.5 text-[10px] font-bold text-foreground mb-1.5">
                       <Wrench className="w-3 h-3" /> FIX (EXACT)
                     </div>
                     <ol className="space-y-1.5 ml-0.5">
-                      {r.ai_actionable_fix.fix_steps.map((step, i) => (
+                      {r.actionable_fix.fix_steps.map((step, i) => (
                         <li key={i} className="flex items-start gap-2 text-xs">
                           <span className="shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary font-bold text-[10px] flex items-center justify-center mt-0.5">{i + 1}</span>
                           <span className="flex-1">{step}</span>
@@ -501,7 +501,7 @@ const AdminBugReports = () => {
                 )}
 
                 {/* COPY PROMPT */}
-                {(r.ai_actionable_fix?.copy_prompt || r.ai_clean_prompt) && (
+                {(r.actionable_fix?.copy_prompt || r.clean_prompt) && (
                   <div className="bg-background border-2 border-primary/30 rounded-md p-2.5">
                     <div className="flex items-center justify-between mb-1.5">
                       <div className="flex items-center gap-1.5 text-[10px] font-bold text-foreground">
@@ -512,22 +512,22 @@ const AdminBugReports = () => {
                         variant="default"
                         className="h-6 text-[10px] gap-1"
                         id={`copy-fix-bug-${r.id}`}
-                        onClick={() => copyToClipboard(r.ai_actionable_fix?.copy_prompt || r.ai_clean_prompt!, `copy-fix-bug-${r.id}`)}
+                        onClick={() => copyToClipboard(r.actionable_fix?.copy_prompt || r.clean_prompt!, `copy-fix-bug-${r.id}`)}
                       >
                         📋 Copy Fix
                       </Button>
                     </div>
                     <div className="text-xs bg-muted rounded-md p-2.5 whitespace-pre-wrap font-mono leading-relaxed border max-h-48 overflow-y-auto">
-                      {r.ai_actionable_fix?.copy_prompt || r.ai_clean_prompt}
+                      {r.actionable_fix?.copy_prompt || r.clean_prompt}
                     </div>
                   </div>
                 )}
 
                 {/* Root causes with confidence */}
-                {r.ai_actionable_fix?.root_causes && r.ai_actionable_fix.root_causes.length > 0 && (
+                {r.actionable_fix?.root_causes && r.actionable_fix.root_causes.length > 0 && (
                   <div className="space-y-1.5">
                     <span className="text-[10px] text-muted-foreground font-semibold block">Möjliga orsaker (rankat)</span>
-                    {r.ai_actionable_fix.root_causes.map((rc, i) => (
+                    {r.actionable_fix.root_causes.map((rc, i) => (
                       <div key={i} className="flex items-start gap-2 text-xs bg-background rounded-md p-2 border">
                         <div className={cn(
                           'shrink-0 w-8 h-5 rounded text-[10px] font-bold flex items-center justify-center',
@@ -545,23 +545,23 @@ const AdminBugReports = () => {
                 )}
 
                 {/* Reproducibility */}
-                {r.ai_actionable_fix?.is_reproducible !== undefined && (
+                {r.actionable_fix?.is_reproducible !== undefined && (
                   <div className="text-xs space-y-0.5">
-                    <Badge variant={r.ai_actionable_fix.is_reproducible ? 'destructive' : 'secondary'} className="text-[9px]">
-                      {r.ai_actionable_fix.is_reproducible ? 'Reproducerbar' : 'Ej säkert reproducerbar'}
+                    <Badge variant={r.actionable_fix.is_reproducible ? 'destructive' : 'secondary'} className="text-[9px]">
+                      {r.actionable_fix.is_reproducible ? 'Reproducerbar' : 'Ej säkert reproducerbar'}
                     </Badge>
-                    {r.ai_actionable_fix.reproducibility_reasoning && (
-                      <p className="text-muted-foreground mt-1">{r.ai_actionable_fix.reproducibility_reasoning}</p>
+                    {r.actionable_fix.reproducibility_reasoning && (
+                      <p className="text-muted-foreground mt-1">{r.actionable_fix.reproducibility_reasoning}</p>
                     )}
                   </div>
                 )}
 
                 {/* Affected components */}
-                {r.ai_actionable_fix?.affected_components && r.ai_actionable_fix.affected_components.length > 0 && (
+                {r.actionable_fix?.affected_components && r.actionable_fix.affected_components.length > 0 && (
                   <div>
                     <span className="text-[10px] text-muted-foreground block mb-1">Berörda filer</span>
                     <div className="flex gap-1 flex-wrap">
-                      {r.ai_actionable_fix.affected_components.map((c, i) => (
+                      {r.actionable_fix.affected_components.map((c, i) => (
                         <code key={i} className="text-[9px] bg-muted px-1.5 py-0.5 rounded font-mono">{c}</code>
                       ))}
                     </div>
@@ -722,32 +722,32 @@ const AdminBugReports = () => {
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                          {r.ai_severity && (
-                            <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full border font-medium', SEVERITY_COLORS[r.ai_severity])}>{r.ai_severity}</span>
+                          {r.severity && (
+                            <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full border font-medium', SEVERITY_COLORS[r.severity])}>{r.severity}</span>
                           )}
-                          {r.ai_category && (
-                            <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full font-medium', CATEGORY_COLORS[r.ai_category])}>{r.ai_category}</span>
+                          {r.category && (
+                            <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full font-medium', CATEGORY_COLORS[r.category])}>{r.category}</span>
                           )}
                           <Badge variant={r.status === 'open' ? 'destructive' : 'secondary'} className="text-[9px]">
                             {r.status === 'open' ? 'Öppen' : 'Löst'}
                           </Badge>
                         </div>
-                        <p className="text-xs font-medium mb-1">{r.ai_actionable_fix?.blocker_statement || r.ai_summary}</p>
-                        {r.ai_actionable_fix?.location && (
+                        <p className="text-xs font-medium mb-1">{r.actionable_fix?.blocker_statement || r.summary}</p>
+                        {r.actionable_fix?.location && (
                           <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mb-1">
                             <FileCode className="w-3 h-3" />
-                            <code className="font-mono">{r.ai_actionable_fix.location.file_path}</code>
-                            <span>→ {r.ai_actionable_fix.location.function_name}</span>
+                            <code className="font-mono">{r.actionable_fix.location.file_path}</code>
+                            <span>→ {r.actionable_fix.location.function_name}</span>
                           </div>
                         )}
                       </div>
-                      <Button size="sm" variant="default" className="h-6 text-[10px] gap-0.5 shrink-0" onClick={() => copyToClipboard(r.ai_actionable_fix?.copy_prompt || r.ai_clean_prompt!)}>
+                      <Button size="sm" variant="default" className="h-6 text-[10px] gap-0.5 shrink-0" onClick={() => copyToClipboard(r.actionable_fix?.copy_prompt || r.clean_prompt!)}>
                         <Copy className="w-2.5 h-2.5" /> Kopiera Fix
                       </Button>
                     </div>
-                    {r.ai_actionable_fix?.fix_steps && r.ai_actionable_fix.fix_steps.length > 0 && (
+                    {r.actionable_fix?.fix_steps && r.actionable_fix.fix_steps.length > 0 && (
                       <div className="text-xs space-y-1 bg-muted/30 rounded-md p-2 border">
-                        {r.ai_actionable_fix.fix_steps.map((step, i) => (
+                        {r.actionable_fix.fix_steps.map((step, i) => (
                           <div key={i} className="flex items-start gap-1.5">
                             <span className="shrink-0 text-primary font-bold text-[10px]">{i + 1}.</span>
                             <span>{step}</span>
@@ -756,11 +756,11 @@ const AdminBugReports = () => {
                       </div>
                     )}
                     <div className="text-xs bg-muted/50 rounded-md p-2 whitespace-pre-wrap border font-mono leading-relaxed max-h-32 overflow-y-auto">
-                      {r.ai_actionable_fix?.copy_prompt || r.ai_clean_prompt}
+                      {r.actionable_fix?.copy_prompt || r.clean_prompt}
                     </div>
-                    {r.ai_tags && r.ai_tags.length > 0 && (
+                    {r.tags && r.tags.length > 0 && (
                       <div className="flex gap-1 flex-wrap">
-                        {r.ai_tags.map(tag => (
+                        {r.tags.map(tag => (
                           <span key={tag} className="text-[9px] bg-muted px-1.5 py-0.5 rounded-full">{tag}</span>
                         ))}
                       </div>
