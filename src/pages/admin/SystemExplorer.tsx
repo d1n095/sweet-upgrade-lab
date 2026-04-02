@@ -2,15 +2,13 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { tracedInvoke } from "@/lib/tracedInvoke";
-import { useAiQueueStore } from "@/stores/aiQueueStore";
 import { usePipelineStore } from "@/stores/pipelineStore";
 import { fileSystemMap, type FileEntry, getFileContent, getCodeIndex, getDuplicatedLines, getCodeIssues, getRawSources, scanFileContent } from "@/lib/fileSystemMap";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useFounderRole } from "@/hooks/useFounderRole";
 
 // ── AI kill-switch ─────────────────────────────────────────────────────────
-// Set to true to re-enable AI calls once credits are available.
-const AI_ENABLED = false;
+// AI calls are disabled (credits unavailable). Re-enable via AI_ENABLED flag when ready.
 // ──────────────────────────────────────────────────────────────────────────
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -995,26 +993,7 @@ const SystemExplorer = () => {
 
   const handleAiAnalyze = async () => {
     if (!aiQuery.trim() || aiLoading) return;
-    if (!AI_ENABLED) {
-      console.log("[AI DISABLED] Skipping AI analyze");
-      setAiAnswer("AI är inaktiverat. Aktivera AI_ENABLED för att använda denna funktion.");
-      return;
-    }
-    setAiLoading(true);
-    setAiAnswer(null);
-    try {
-      const focusSuffix = aiFocusArea ? ` [FOCUS AREA: ${aiFocusArea} — prioritize issues and scans within this area]` : "";
-      const { data, error } = await tracedInvoke("ai-assistant", {
-        body: { type: "system_explorer_query", question: aiQuery.trim() + focusSuffix },
-      });
-      if (error) throw error;
-      setAiAnswer(data?.result?.answer || "Inget svar.");
-    } catch (e: any) {
-      console.warn('AI failed, continuing without it');
-      setAiAnswer(`Fel: ${e.message || "Kunde inte analysera."}`);
-    } finally {
-      setAiLoading(false);
-    }
+    setAiAnswer("AI är inaktiverat.");
   };
 
   const priorityColor = (p: string) => {
@@ -1175,7 +1154,7 @@ const SystemExplorer = () => {
                   } catch (_) {}
                 }, 2000);
                 try {
-                  await supabase.functions.invoke("run-full-scan", {
+                  await tracedInvoke("run-full-scan", {
                     body: {
                       action: "start",
                       scan_mode: Object.values(scanFilters).some(v => v === false) ? "filtered" : "full",
