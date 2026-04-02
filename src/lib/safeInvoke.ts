@@ -20,6 +20,8 @@ const ALLOWED_FUNCTIONS = new Set([
   'generate-receipt',
   'generate-product-content',
   'suggest-product-metadata',
+  'google-places',
+  'stripe-webhook',
   // Admin-accessible
   'run-full-scan',
   'apply-fix',
@@ -160,7 +162,21 @@ export async function safeFetch(
 ): Promise<Response> {
   const { _traceId, ...fetchOptions } = options ?? {};
   const traceId = _traceId ?? crypto.randomUUID();
-  const fnName = url.match(/functions\/v1\/([^?/]+)/)?.[1] ?? url;
+
+  // ── Guard 1: only Supabase Edge Function URLs are permitted ──────────────
+  if (!url.includes('/functions/v1/')) {
+    const msg = `safeFetch blocked: URL must target /functions/v1/ (got: ${url})`;
+    console.error('[safeFetch] ✗ BLOCKED_URL', { traceId, url, error: msg });
+    throw Object.assign(new Error(msg), { success: false, error: msg, traceId });
+  }
+
+  // ── Guard 2: function name must be in the approved whitelist ─────────────
+  const fnName = url.match(/functions\/v1\/([^?/]+)/)?.[1] ?? '';
+  if (!ALLOWED_FUNCTIONS.has(fnName)) {
+    const msg = `safeFetch blocked: '${fnName}' is not in the approved whitelist`;
+    console.error(`[safeFetch] ✗ BLOCKED_FN ${fnName}`, { traceId, error: msg });
+    throw Object.assign(new Error(msg), { success: false, error: msg, traceId });
+  }
 
   console.log(`[safeFetch] → ${fnName}`, {
     traceId,
