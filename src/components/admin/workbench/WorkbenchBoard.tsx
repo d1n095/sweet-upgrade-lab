@@ -54,8 +54,6 @@ interface WorkItem {
   conflict_flag?: boolean;
   execution_order?: number;
   orchestrator_result?: any;
-  ai_type_classification?: string;
-  ai_type_reason?: string;
   resolution_notes?: string;
 }
 
@@ -103,14 +101,6 @@ const ITEM_TYPES = [
   { key: 'manual', label: 'Manuell' },
   { key: 'other', label: 'Övrigt' },
 ];
-
-const AI_CLASSIFICATION_META: Record<string, { label: string; icon: typeof Bug; color: string }> = {
-  bug: { label: 'Bugg', icon: Bug, color: 'text-red-600 bg-red-600/10' },
-  improvement: { label: 'Förbättring', icon: Zap, color: 'text-amber-600 bg-amber-600/10' },
-  feature: { label: 'Feature', icon: Sparkles, color: 'text-blue-600 bg-blue-600/10' },
-  upgrade: { label: 'Upgrade', icon: ShieldAlert, color: 'text-purple-600 bg-purple-600/10' },
-  task: { label: 'Uppgift', icon: Wrench, color: 'text-muted-foreground bg-secondary' },
-};
 
 type ViewFilter = 'active' | 'mine' | 'review' | 'done' | 'escalated' | 'bugs' | 'improvements' | 'features';
 
@@ -401,7 +391,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     enabled: !!user?.id,
   });
 
-  const getClassification = (item: WorkItem) => item.ai_type_classification || (item.item_type === 'bug' ? 'bug' : null);
+  const getClassification = (item: WorkItem) => item.item_type === 'bug' ? 'bug' : null;
 
   const filteredItems = items.filter(t => {
     if (viewFilter === 'active') return !['done', 'cancelled'].includes(t.status);
@@ -833,16 +823,6 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
               <TypeIcon className="w-2.5 h-2.5" />
               {typeMeta.label}
             </Badge>
-            {item.ai_type_classification && AI_CLASSIFICATION_META[item.ai_type_classification] && (() => {
-              const cls = AI_CLASSIFICATION_META[item.ai_type_classification!];
-              const ClsIcon = cls.icon;
-              return (
-                <Badge variant="outline" className={cn('text-[9px] gap-0.5', cls.color)}>
-                  <ClsIcon className="w-2.5 h-2.5" />
-                  {cls.label}
-                </Badge>
-              );
-            })()}
             {hasSource && (
               <Badge variant="outline" className="text-[9px] gap-0.5 bg-blue-50 text-blue-600 border-blue-200">
                 <Link2 className="w-2.5 h-2.5" />

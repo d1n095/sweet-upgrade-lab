@@ -58,12 +58,11 @@ const SystemStateDashboard = () => {
 
       const [
         bugsRes, workItemsRes, changeLogRes,
-        readLogRes, productsRes, ordersRes,
+        productsRes, ordersRes,
       ] = await Promise.all([
-        supabase.from('bug_reports').select('status, ai_category, created_at').limit(200),
-        supabase.from('work_items' as any).select('status, priority, item_type, ai_detected, source_type, ai_type_classification, created_at, completed_at').limit(300),
+        supabase.from('bug_reports').select('status, created_at').limit(200),
+        supabase.from('work_items' as any).select('status, priority, item_type, source_type, created_at, completed_at').limit(300),
         supabase.from('change_log').select('change_type, source, created_at').gte('created_at', weekAgo).limit(200),
-        supabase.from('ai_read_log').select('action_type, target_type, result, created_at').order('created_at', { ascending: false }).limit(50),
         supabase.from('products').select('stock, is_visible, is_sellable, price, image_urls, description_sv, category_id').limit(300),
         supabase.from('orders').select('payment_status, status, fulfillment_status, created_at').gte('created_at', weekAgo).is('deleted_at', null).limit(500),
       ]);
@@ -71,7 +70,6 @@ const SystemStateDashboard = () => {
       const bugs = bugsRes.data || [];
       const workItems = workItemsRes.data || [];
       const changeLog = changeLogRes.data || [];
-      const readLog = readLogRes.data || [];
       const products = productsRes.data || [];
       const orders = ordersRes.data || [];
 
@@ -82,7 +80,6 @@ const SystemStateDashboard = () => {
       const criticalBugs: any[] = [];
       const openItems = workItems.filter((w: any) => ['open', 'claimed', 'in_progress'].includes(w.status));
       const doneItems = workItems.filter((w: any) => w.status === 'done');
-      const aiDetected = workItems.filter((w: any) => w.ai_detected);
 
       // Pipeline: scan → issue → work item → change → verify
       const pipelineScanScore = 50;
@@ -111,7 +108,7 @@ const SystemStateDashboard = () => {
         {
           id: 'work-items', label: 'Arbetsuppgifter', category: 'pipeline',
           status: deriveStatus(pipelineWorkScore), score: pipelineWorkScore,
-          detail: `${openItems.length} öppna, ${doneItems.length} klara, ${aiDetected.length} AI-detekterade`,
+          detail: `${openItems.length} öppna, ${doneItems.length} klara`,
           lastChecked: ts, icon: Layers,
         },
         {
@@ -214,13 +211,6 @@ const SystemStateDashboard = () => {
             return ss.length > 0 ? `Synk-score: ${ss[0].overall_score}, ${ss[0].issues_count} avvikelser` : 'Ingen synk-skanning körts';
           })(),
           lastChecked: ts, icon: ArrowRightLeft,
-        },
-        {
-          id: 'ai-engine', label: 'AI-motor', category: 'sync',
-          status: deriveStatus(readLog.length > 0 ? 90 : 30),
-          score: readLog.length > 0 ? 90 : 30,
-          detail: `${readLog.length} AI-aktiviteter loggade nyligen`,
-          lastChecked: ts, icon: Zap,
         },
       ];
 

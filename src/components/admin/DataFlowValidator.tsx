@@ -124,7 +124,7 @@ const DataFlowValidator = () => {
     try {
       // ─── 1. SCAN → WORK ITEMS ───
       setProgress(10);
-      // Scan source validation skipped (ai_scan_results removed)
+      // Scan source validation skipped
 
       // ─── 2. BUG → WORK ITEM → CHANGE LOG → VERIFICATION ───
       setProgress(30);

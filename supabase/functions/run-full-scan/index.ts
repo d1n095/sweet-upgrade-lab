@@ -1047,7 +1047,7 @@ async function runRealSystemScan(supabase: any, scanRunId: string): Promise<any>
       issues.push({ title: `Eskalerat ärende >24h: "${wi.title}"`, severity: "high", component: "work_items", entity_id: wi.id });
     }
 
-    // Score trend - skipped (ai_scan_results removed)
+    // Score trend - skipped
     const recentScans: any[] = [];
     if (recentScans?.length >= 2) {
       const current = recentScans[0].overall_score || 0;
@@ -2452,7 +2452,7 @@ serve(async (req) => {
         })),
       };
 
-      // Scan result stored in scan_snapshots (ai_scan_results removed)
+      // Scan result stored in scan_snapshots
 
       await persistStepResults(supabase, STEPS, updatedResults, scanRun.started_by);
 
