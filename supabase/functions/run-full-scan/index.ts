@@ -32,6 +32,124 @@ const STEPS = [
 ];
 
 const MAX_ITERATIONS = 3;
+const STEP_TIMEOUT_MS = 30_000;
+const FINALIZE_TIMEOUT_MS = 45_000;
+const CHAIN_TIMEOUT_MS = 10_000;
+const SCAN_TIMEOUT_MS = 120_000;
+const STEP_LOG_LIMIT = 100;
+
+function isCompletedStatus(status?: string | null) {
+  return status === "completed" || status === "done";
+}
+
+function isFailedStatus(status?: string | null) {
+  return status === "failed" || status === "error";
+}
+
+async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(`${label} timeout after ${ms}ms`)), ms);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
+
+async function readStepLogs(supabase: any, scanRunId: string): Promise<any[]> {
+  const { data } = await supabase.from("scan_runs").select("step_logs").eq("id", scanRunId).maybeSingle();
+  return Array.isArray(data?.step_logs) ? data.step_logs : [];
+}
+
+async function appendStepLog(supabase: any, scanRunId: string, msg: string, step: string) {
+  const existingLogs = await readStepLogs(supabase, scanRunId).catch(() => []);
+  const nextLogs = [...existingLogs.slice(-(STEP_LOG_LIMIT - 1)), { ts: new Date().toISOString(), msg, step }];
+  await supabase.from("scan_runs").update({ step_logs: nextLogs }).eq("id", scanRunId);
+  return nextLogs;
+}
+
+async function markScanFailed(supabase: any, scanRunId: string, reason: string, extraUpdates: Record<string, any> = {}) {
+  const { data: current } = await supabase
+    .from("scan_runs")
+    .select("status, progress, completed_steps, step_logs, total_steps")
+    .eq("id", scanRunId)
+    .maybeSingle();
+
+  if (isCompletedStatus(current?.status) || isFailedStatus(current?.status)) return;
+
+  const nextLogs = [...(Array.isArray(current?.step_logs) ? current.step_logs : []).slice(-(STEP_LOG_LIMIT - 1)), {
+    ts: new Date().toISOString(),
+    msg: `❌ Scan failed: ${reason}`,
+    step: "failure",
+  }];
+
+  await supabase.from("scan_runs").update({
+    status: "failed",
+    error_message: reason,
+    completed_at: new Date().toISOString(),
+    eta_seconds: 0,
+    current_step_label: extraUpdates.current_step_label || `Misslyckades: ${reason}`,
+    step_logs: extraUpdates.step_logs || nextLogs,
+    progress: extraUpdates.progress ?? current?.progress ?? 0,
+    completed_steps: extraUpdates.completed_steps ?? current?.completed_steps ?? 0,
+    ...extraUpdates,
+  }).eq("id", scanRunId);
+
+  await supabase.from("system_observability_log").insert({
+    event_type: "scan_failed",
+    severity: "error",
+    source: "scanner",
+    message: `Full scan failed: ${reason}`,
+    details: { reason, scan_run_id: scanRunId },
+    scan_id: scanRunId,
+    trace_id: `full-scan-${scanRunId.slice(0, 8)}`,
+    component: "run-full-scan",
+  }).catch(() => {});
+}
+
+async function enforceScanTimeout(supabase: any, scanRun: any, actionLabel: string) {
+  if (!scanRun?.id || !scanRun?.started_at) return false;
+  const startedAtMs = new Date(scanRun.started_at).getTime();
+  if (Number.isNaN(startedAtMs)) return false;
+  if (Date.now() - startedAtMs <= SCAN_TIMEOUT_MS) return false;
+
+  await markScanFailed(supabase, scanRun.id, `timeout during ${actionLabel}`, {
+    current_step_label: `Timeout: ${actionLabel}`,
+  });
+  return true;
+}
+
+async function invokeChainedScanAction(supabase: any, supabaseUrl: string, serviceKey: string, scanRunId: string, body: Record<string, any>) {
+  try {
+    const resp = await withTimeout(fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${serviceKey}`,
+      },
+      body: JSON.stringify(body),
+    }), CHAIN_TIMEOUT_MS, `chain ${body.action}`);
+
+    if (!resp.ok) {
+      const errorText = await resp.text().catch(() => "");
+      throw new Error(`HTTP ${resp.status}${errorText ? `: ${errorText.slice(0, 200)}` : ""}`);
+    }
+
+    const payload = await resp.json().catch(() => null);
+    if (payload?.success === false) {
+      throw new Error(payload.error || `Chained action failed: ${body.action}`);
+    }
+
+    return payload;
+  } catch (error: any) {
+    await markScanFailed(supabase, scanRunId, `chain ${body.action} failed: ${error?.message || "unknown error"}`);
+    throw error;
+  }
+}
 
 // ── SYSTEM STAGE: Context awareness ──
 type SystemStage = "development" | "staging" | "production";
