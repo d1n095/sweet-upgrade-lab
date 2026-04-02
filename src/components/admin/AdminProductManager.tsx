@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useLanguage } from '@/context/LanguageContext';
 import { toast } from 'sonner';
-import { fetchProducts, ShopifyProduct } from '@/lib/shopify';
+import { fetchProducts, Product } from '@/lib/catalog';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -65,7 +65,7 @@ const AdminProductManager = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<ShopifyProduct | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<ProductFormData>({
     ...DEFAULT_PRODUCT_FORM_DATA,
@@ -477,7 +477,7 @@ const AdminProductManager = () => {
     setSelectedProduct(null);
   };
 
-  const handleEditClick = (product: ShopifyProduct) => {
+  const handleEditClick = (product: Product) => {
     try {
       setSelectedProduct(product);
 
@@ -532,7 +532,7 @@ const AdminProductManager = () => {
     }
   };
 
-  const handleDeleteClick = (product: ShopifyProduct) => {
+  const handleDeleteClick = (product: Product) => {
     setSelectedProduct(product);
     setIsDeleteDialogOpen(true);
   };
@@ -754,7 +754,7 @@ const AdminProductManager = () => {
         ) : products.length === 0 ? (
           <p className="text-center text-muted-foreground py-4">{t.noProducts}</p>
         ) : (
-          products.slice(0, 10).map((product: ShopifyProduct) => (
+          products.slice(0, 10).map((product: Product) => (
             <motion.div
               key={product.node.id}
               initial={{ opacity: 0 }}

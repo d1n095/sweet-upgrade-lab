@@ -1,10 +1,10 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { ShopifyProduct, createStorefrontCheckout } from '@/lib/shopify';
+import { Product } from '@/lib/catalog';
 import { trackAddToCart, trackRemoveFromCart, trackCartUpdate } from '@/utils/analyticsTracker';
 
 export interface CartItem {
-  product: ShopifyProduct;
+  product: Product;
   variantId: string;
   variantTitle: string;
   price: {
@@ -35,7 +35,6 @@ interface CartStore {
   setCartId: (cartId: string) => void;
   setCheckoutUrl: (url: string) => void;
   setLoading: (loading: boolean) => void;
-  createCheckout: () => Promise<void>;
   totalItems: () => number;
   totalPrice: () => number;
 }
@@ -161,28 +160,11 @@ export const useCartStore = create<CartStore>()(
       setCheckoutUrl: (checkoutUrl) => set({ checkoutUrl, lastUpdatedAt: getTimestamp() }),
       setLoading: (isLoading) => set({ isLoading }),
 
-      createCheckout: async () => {
-        const { items, setLoading, setCheckoutUrl } = get();
-        if (items.length === 0) return;
-
-        setLoading(true);
-        try {
-          const checkoutUrl = await createStorefrontCheckout(
-            items.map((item) => ({ variantId: item.variantId, quantity: item.quantity }))
-          );
-          setCheckoutUrl(checkoutUrl);
-        } catch (error) {
-          console.error('Failed to create checkout:', error);
-        } finally {
-          setLoading(false);
-        }
-      },
-
       totalItems: () => get().items.reduce((sum, item) => sum + item.quantity, 0),
       totalPrice: () => get().items.reduce((sum, item) => sum + Number.parseFloat(item.price.amount) * item.quantity, 0),
     }),
     {
-      name: 'shopify-cart',
+      name: 'cart',
       version: 2,
       storage: createJSONStorage(() => localStorage),
       merge: (persistedState, currentState) => {

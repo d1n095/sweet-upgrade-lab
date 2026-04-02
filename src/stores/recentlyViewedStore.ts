@@ -1,10 +1,10 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { ShopifyProduct } from '@/lib/shopify';
+import { Product } from '@/lib/catalog';
 
 interface RecentlyViewedStore {
-  products: ShopifyProduct[];
-  addProduct: (product: ShopifyProduct) => void;
+  products: Product[];
+  addProduct: (product: Product) => void;
   clearProducts: () => void;
 }
 
