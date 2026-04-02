@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { logAICall } from '@/utils/aiGuard';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Sparkles, Tag, Copy, Loader2 as Loader2Icon, EyeOff, RotateCcw, PenLine, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,7 +18,6 @@ import {
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
 
 interface WorkItemDetailProps {
   item: {
@@ -196,21 +194,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
         await supabase.from('bug_reports').update({ resolution_notes: resolutionNotes.trim() || null }).eq('id', item.source_id);
       }
       await onStatusChange(item.id, 'done');
-      toast.success('Markerad som klar — AI verifierar...');
-
-      // Auto-trigger AI verification after marking as done
-      triggerAiReviewForWorkItem(item.id, { context: 'auto_verify_on_resolve' }).then(reviewResult => {
-        if (reviewResult.ok) {
-          if (reviewResult.status === 'incomplete') {
-            toast.error('⚠️ AI: Fixens verifiering misslyckades — uppgiften återöppnad', { duration: 6000 });
-          } else if (reviewResult.status === 'needs_review') {
-            toast.warning('AI: Behöver manuell granskning', { duration: 4000 });
-          } else {
-            toast.success('✅ AI: Verifierad!', { duration: 3000 });
-          }
-          onRefresh?.();
-        }
-      }).catch(() => { /* non-blocking */ });
+      toast.success('Markerad som klar ✓');
 
       onOpenChange(false);
     } catch { toast.error('Något gick fel'); }
@@ -276,9 +260,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
   };
 
   const handleRunRootCause = async () => {
-    logAICall({ source: 'WorkItemDetail', file: 'WorkItemDetail.tsx', action: 'root_cause_analysis', status: 'ATTEMPT' });
-    // ai-assistant is disabled — root cause analysis unavailable
-    logAICall({ source: 'WorkItemDetail', file: 'WorkItemDetail.tsx', action: 'root_cause_analysis', status: 'BLOCKED' });
+
     toast.info('AI-rotorsaksanalys är tillfälligt inaktiverat.');
   };
 
@@ -677,7 +659,6 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                           metadata: { ai_confidence: item.ai_pre_verify_result?.confidence, action: 'confirm' },
                         });
                         // 4. Trigger post-verify review
-                        triggerAiReviewForWorkItem(item.id, { context: 'human_confirmed_pre_verify' });
                         toast.success('✅ Bekräftad och verifierad');
                         onRefresh?.();
                         onOpenChange(false);
@@ -716,9 +697,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                           bug_report_id: item.source_type === 'bug_report' ? item.source_id : null,
                           metadata: { ai_confidence: item.ai_pre_verify_result?.confidence, action: 'reject', escalated_to: newPriority },
                         });
-                        logAICall({ source: 'WorkItemDetail', file: 'WorkItemDetail.tsx', action: 'rejection_reanalysis', status: 'ATTEMPT' });
                         toast.info('🔍 Avvisad — re-analys via ai-assistant är inaktiverat.', { duration: 4000 });
-                        logAICall({ source: 'WorkItemDetail', file: 'WorkItemDetail.tsx', action: 'rejection_reanalysis', status: 'BLOCKED' });
                         onRefresh?.();
                       } catch { toast.error('Fel'); }
                       finally { setRunningPreVerify(false); }
@@ -738,9 +717,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                 onClick={async () => {
                   setRunningPreVerify(true);
                   try {
-                    logAICall({ source: 'WorkItemDetail', file: 'WorkItemDetail.tsx', action: 'pre_verify', status: 'ATTEMPT' });
                     // ai-assistant is disabled — pre-verify unavailable
-                    logAICall({ source: 'WorkItemDetail', file: 'WorkItemDetail.tsx', action: 'pre_verify', status: 'BLOCKED' });
                     toast.info('AI pre-verify är tillfälligt inaktiverat.');
                   } finally { setRunningPreVerify(false); }
                 }}
@@ -801,8 +778,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                 onClick={async () => {
                   setRunningReview(true);
                   try {
-                    const reviewResult = await triggerAiReviewForWorkItem(item.id, { context: 'work_item_detail_manual' });
-                    if (!reviewResult.ok) toast.error('AI-granskning misslyckades');
+                    const reviewResult = await                    if (!reviewResult.ok) toast.error('AI-granskning misslyckades');
                     else {
                       const s = reviewResult.status;
                       toast.success(s === 'verified' ? 'AI: ✅ Verifierad' : s === 'needs_review' ? 'AI: ⚠️ Behöver granskning' : 'AI: Granskning klar');

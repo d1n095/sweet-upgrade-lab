@@ -55,7 +55,7 @@ const SCAN_STEP_ICONS: Record<string, any> = {
 };
 
 
-export const AiAutopilotTab = () => {
+export const AutopilotTab = () => {
   const [mode, setMode] = useState<AiMode>('assisted');
   const { scanning, steps, selectedSteps, toggleStep: storeToggleStep, selectAll, selectNone, runAllScans } = useScannerStore();
   const orchestrator = useFullScanOrchestrator();

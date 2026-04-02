@@ -8,11 +8,10 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
 import { callTaskManager, useDetailContext } from './_shared';
 
 // ── Task AI Tab ──
-export const TaskAITab = () => {
+export const TaskTab = () => {
   const [running, setRunning] = useState<string | null>(null);
   const [lastResults, setLastResults] = useState<any>(null);
   const queryClient = useQueryClient();
@@ -51,10 +50,7 @@ export const TaskAITab = () => {
     } as any).eq('id', itemId);
 
     if (updates.status === 'done') {
-      const reviewResult = await triggerAiReviewForWorkItem(itemId, { context: 'admin_ai_override_done' });
-      if (!reviewResult.ok) {
-        toast.warning('AI-granskning misslyckades — satt till manuell granskning');
-      }
+      // AI review disabled
     }
 
     refetchItems();

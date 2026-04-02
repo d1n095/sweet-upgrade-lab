@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { AnimatePresence, motion } from 'framer-motion';
-import AiControlBar from '@/components/admin/AiControlBar';
+import AdminControlBar from '@/components/admin/AdminControlBar';
 
 // ── Tab & Group definitions ──
 
@@ -187,12 +187,12 @@ const DashboardOverview = ({ onNavigate }: DashboardOverviewProps) => (
 
 // ── Main Component ──
 
-interface AiCenterTabsProps {
+interface ScanCenterTabsProps {
   defaultValue?: string;
   children: React.ReactNode;
 }
 
-const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsProps) => {
+const ScanCenterTabs = ({ defaultValue = 'ai-dashboard', children }: ScanCenterTabsProps) => {
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
   const initialTab = (tabParam && ALL_TABS.some(t => t.value === tabParam)) ? tabParam : defaultValue;
@@ -208,7 +208,7 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
     setMobileNavOpen(false);
   };
 
-  // Listen for external navigation events (from AiControlBar)
+  // Listen for external navigation events (from AdminControlBar)
   useEffect(() => {
     const handler = (e: Event) => {
       const tab = (e as CustomEvent).detail;
@@ -428,4 +428,4 @@ const AiCenterTabs = ({ defaultValue = 'ai-dashboard', children }: AiCenterTabsP
   );
 };
 
-export default AiCenterTabs;
+export default ScanCenterTabs;

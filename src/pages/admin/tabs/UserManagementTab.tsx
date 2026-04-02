@@ -17,7 +17,7 @@ const syncTypeLabels: Record<string, string> = {
 };
 
 // ── AI User Management Tab ──
-export const AiUserManagementTab = () => {
+export const UserManagementTab = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);

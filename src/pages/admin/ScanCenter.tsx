@@ -2,30 +2,27 @@ import { useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
 import { logChange } from '@/utils/changeLogger';
 import WorkItemDetail from '@/components/admin/workbench/WorkItemDetail';
-import AiCenterTabs from '@/components/admin/AiCenterTabs';
+import ScanCenterTabs from '@/components/admin/ScanCenterTabs';
 import SafeModePanel, { SafeModeBanner } from '@/components/admin/SafeModePanel';
-import AdminAiReadLog from '@/components/admin/AdminAiReadLog';
 import SystemTrustScore from '@/components/admin/SystemTrustScore';
 import DataFlowValidator from '@/components/admin/DataFlowValidator';
 import UnifiedPipelineDashboard from '@/components/admin/UnifiedPipelineDashboard';
 import SystemStateDashboard from '@/components/admin/SystemStateDashboard';
 import { DetailContext } from './tabs/_shared';
-import { LovaChatTab } from './tabs/LovaChatTab';
 import { SystemHealthTab } from './tabs/SystemHealthTab';
 import { DataInsightsTab } from './tabs/DataInsightsTab';
-import { TaskAITab } from './tabs/TaskAITab';
-import { BugAITab } from './tabs/BugAITab';
+import { TaskTab } from './tabs/TaskTab';
+import { BugTab } from './tabs/BugTab';
 import { ActionEngineTab } from './tabs/ActionEngineTab';
-import { AiAutopilotTab } from './tabs/AiAutopilotTab';
+import { AutopilotTab } from './tabs/AutopilotTab';
 import { SystemScanTab } from './tabs/SystemScanTab';
 import { AccessControlTab } from './tabs/AccessControlTab';
 import { VisualQATab } from './tabs/VisualQATab';
 import { UxScannerTab } from './tabs/UxScannerTab';
 import { SyncScannerTab } from './tabs/SyncScannerTab';
-import { AiUserManagementTab } from './tabs/AiUserManagementTab';
+import { UserManagementTab } from './tabs/UserManagementTab';
 import { DataCleanupTab } from './tabs/DataCleanupTab';
 import { ChangeLogTab } from './tabs/ChangeLogTab';
 import { ActionGovernorTab } from './tabs/ActionGovernorTab';
@@ -42,7 +39,6 @@ import { OrchestrationTab } from './tabs/OrchestrationTab';
 import { OverflowScanTab } from './tabs/OverflowScanTab';
 import { PatternDetectionTab } from './tabs/PatternDetectionTab';
 import { ProductSuggestionsTab } from './tabs/ProductSuggestionsTab';
-import { PromptGeneratorTab } from './tabs/PromptGeneratorTab';
 import { PromptQueueTab } from './tabs/PromptQueueTab';
 import { StructureAnalysisTab } from './tabs/StructureAnalysisTab';
 import { TrendAnalysisPanel } from './tabs/TrendAnalysisPanel';
@@ -71,7 +67,6 @@ const ScanCenter = () => {
       const { data: wi } = await supabase.from('work_items' as any).select('source_type, source_id, title').eq('id', itemId).maybeSingle();
       const linkedBugId = (wi as any)?.source_type === 'bug_report' ? (wi as any)?.source_id : null;
       const linkedScanId = ['scan', 'ai_visual_qa', 'ai_detection'].includes((wi as any)?.source_type) ? (wi as any)?.source_id : null;
-      triggerAiReviewForWorkItem(itemId, { context: 'admin_ai_detail' });
       logChange({ change_type: 'fix', description: `Work item slutförd: ${(wi as any)?.title || itemId}`, source: 'manual', affected_components: ['work_items'], work_item_id: itemId, bug_report_id: linkedBugId, scan_id: linkedScanId });
       if (linkedBugId) queryClient.invalidateQueries({ queryKey: ['bug-reports'] });
     }
@@ -82,7 +77,7 @@ const ScanCenter = () => {
     <div className="flex flex-col min-h-0 h-full">
       <SafeModeBanner />
       <div className="min-h-0 flex-1 flex flex-col">
-        <AiCenterTabs defaultValue="ai-dashboard">
+        <ScanCenterTabs defaultValue="ai-dashboard">
           {/* Dashboard */}
           <div data-value="system-state"><SystemStateDashboard /></div>
           <div data-value="unified-pipeline"><UnifiedPipelineDashboard /></div>
@@ -92,20 +87,18 @@ const ScanCenter = () => {
           <div data-value="unified-dashboard"><UnifiedDashboardTab /></div>
 
           {/* Operations */}
-          <div data-value="lova-chat"><LovaChatTab /></div>
-          <div data-value="autopilot"><AiAutopilotTab /></div>
+          <div data-value="autopilot"><AutopilotTab /></div>
           <div data-value="actions"><ActionEngineTab /></div>
-          <div data-value="tasks"><TaskAITab /></div>
-          <div data-value="bugs" className="flex flex-col min-h-0 h-full"><BugAITab /></div>
+          <div data-value="tasks"><TaskTab /></div>
+          <div data-value="bugs" className="flex flex-col min-h-0 h-full"><BugTab /></div>
 
           {/* User management */}
-          <div data-value="user-management"><AiUserManagementTab /></div>
+          <div data-value="user-management"><UserManagementTab /></div>
           <div data-value="action-governor"><ActionGovernorTab /></div>
           <div data-value="auto-fix"><AutoFixTab /></div>
           <div data-value="lova-prompts"><LovaPromptsTab /></div>
           <div data-value="orchestration"><OrchestrationTab /></div>
           <div data-value="product-suggestions"><ProductSuggestionsTab /></div>
-          <div data-value="prompt-generator"><PromptGeneratorTab /></div>
           <div data-value="prompt-queue"><PromptQueueTab /></div>
 
           {/* Scanners */}
@@ -131,9 +124,8 @@ const ScanCenter = () => {
           <div data-value="data-flow"><DataFlowValidator /></div>
           <div data-value="cleanup"><DataCleanupTab /></div>
           <div data-value="change-log"><ChangeLogTab /></div>
-          <div data-value="ai-reads"><AdminAiReadLog /></div>
           <div data-value="verification-engine"><VerificationEngineTab /></div>
-        </AiCenterTabs>
+        </ScanCenterTabs>
       </div>
 
       <WorkItemDetail

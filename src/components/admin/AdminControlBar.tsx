@@ -8,13 +8,13 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 
-interface AiControlBarProps {
+interface AdminControlBarProps {
   /** If provided, switches tab directly instead of navigating */
   onNavigateTab?: (tab: string) => void;
   compact?: boolean;
 }
 
-const AiControlBar = ({ onNavigateTab, compact = false }: AiControlBarProps) => {
+const AdminControlBar = ({ onNavigateTab, compact = false }: AdminControlBarProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [bugCount, setBugCount] = useState(0);
@@ -153,4 +153,4 @@ const AiControlBar = ({ onNavigateTab, compact = false }: AiControlBarProps) => 
   );
 };
 
-export default AiControlBar;
+export default AdminControlBar;

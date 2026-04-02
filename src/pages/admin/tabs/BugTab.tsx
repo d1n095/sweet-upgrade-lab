@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import { callAI, copyToClipboard, applyFix } from './_shared';
 
 // ── Bug AI Tab ──
-export const BugAITab = () => {
+export const BugTab = () => {
   const [bugs, setBugs] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState<string | null>(null);

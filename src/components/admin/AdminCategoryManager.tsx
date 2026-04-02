@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from 'react';
-import { logAICall } from '@/utils/aiGuard';
 import { motion } from 'framer-motion';
 import {
   Grid, Plus, Eye, EyeOff, Trash2, Loader2, Save, ChevronRight, ChevronDown,
@@ -154,9 +153,7 @@ const AdminCategoryManager = () => {
     setEditingCat(cat);
   };
   const runAiSync = async () => {
-    logAICall({ source: 'AdminCategoryManager', file: 'AdminCategoryManager.tsx', action: 'category_sync', status: 'ATTEMPT' });
     // ai-assistant is disabled — category sync unavailable
-    logAICall({ source: 'AdminCategoryManager', file: 'AdminCategoryManager.tsx', action: 'category_sync', status: 'BLOCKED' });
     toast.info('AI kategori-synk är tillfälligt inaktiverat.');
   };
 
@@ -190,9 +187,7 @@ const AdminCategoryManager = () => {
   };
 
   const runAiValidate = async () => {
-    logAICall({ source: 'AdminCategoryManager', file: 'AdminCategoryManager.tsx', action: 'category_validate', status: 'ATTEMPT' });
     // ai-assistant is disabled — category validation unavailable
-    logAICall({ source: 'AdminCategoryManager', file: 'AdminCategoryManager.tsx', action: 'category_validate', status: 'BLOCKED' });
     toast.info('AI kategori-validering är tillfälligt inaktiverat.');
   };
 

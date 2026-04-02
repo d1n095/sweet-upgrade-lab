@@ -3,7 +3,6 @@ import { Sparkles } from 'lucide-react';
 import { DollarSign, Tag, Save, Eye, EyeOff, Boxes, Minus, Plus, Upload, X, Image, FlaskConical, ChefHat, Weight, Wand2, Loader2, Check } from 'lucide-react';
 import { RecipeTemplatePicker } from './RecipeTemplatePicker';
 import { supabase } from '@/integrations/supabase/client';
-import { runAISafe } from '@/core/aiGateway';
 import { useQuery } from '@tanstack/react-query';
 import { fetchCategories, DbCategory } from '@/lib/categories';
 import { fetchTags, DbTag } from '@/lib/tags';
@@ -536,20 +535,7 @@ function AiMetadataSuggestor({
     }
     setSuggesting(true);
     try {
-      const data = await runAISafe({
-        source: 'USER_ACTION',
-        feature: 'suggest-product-metadata',
-        payload: {
-          productName: formData.title,
-          description: formData.description || null,
-          ingredients: formData.ingredients || null,
-        },
-        functionName: 'suggest-product-metadata',
-      });
-
-      if (!data) throw new Error('No suggestions returned');
-      const s = data?.suggestions;
-      if (!s) throw new Error('No suggestions returned');
+      throw new Error('AI-förslag är inaktiverat.');
 
       setFormData(prev => ({
         ...prev,

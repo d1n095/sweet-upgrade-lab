@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { ACTIVE_WORK_ITEM_STATUSES, useAdminWorkItems } from '@/hooks/useAdminData';
 import { useUiStateSync } from '@/hooks/useUiStateSync';
-import { runAISafe } from '@/core/aiGateway';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -26,7 +25,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { getOrderDisplayId } from '@/utils/orderDisplay';
 import WorkItemDetail from './WorkItemDetail';
 import { useNavigate } from 'react-router-dom';
-import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
 import { createAndVerify } from '@/utils/createVerifyLoop';
 import { trace, newTraceId, traceUIFetch } from '@/utils/deepDebugTrace';
 import { verifyAction } from '@/utils/actionVerificationEngine';
@@ -221,34 +219,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   };
 
   const runOrchestrator = async () => {
-    setRunningOrchestrator(true);
-    try {
-      const data = await runAISafe({
-        source: 'ADMIN',
-        feature: 'ai-task-manager',
-        payload: { action: 'orchestrate' },
-        functionName: 'ai-task-manager',
-      });
-      const error = data === null ? new Error('AI task manager unavailable') : null;
-      if (error) throw error;
-      const r = data?.results;
-      const scanned = r?.orchestrator_scanned || 0;
-      const orchestrated = r?.orchestrated || 0;
-
-      if (scanned === 0) {
-        toast.info('Orchestrator: inga aktiva uppgifter hittades');
-      } else if (orchestrated === 0) {
-        toast.warning(`Orchestrator skannade ${scanned} uppgifter men kunde inte ordna dem automatiskt`);
-      } else {
-        toast.success(`Orchestrator klar: ${orchestrated}/${scanned} uppgifter ordnade (${r?.orchestrator_mode || 'ai'})`);
-      }
-
-      queryClient.invalidateQueries({ queryKey: ['work-items'] });
-    } catch (e: any) {
-      toast.error('Orchestrator misslyckades: ' + e.message);
-    } finally {
-      setRunningOrchestrator(false);
-    }
+    toast.info('Orchestrator är inaktiverat.');
   };
 
   const runValidation = async () => {
@@ -709,17 +680,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     if (newStatus === 'done') {
       setCompletedCount(prev => prev + 1);
       setJustCompleted(itemId);
-      toast.success('Klar ✓ — AI granskar...');
-      const reviewResult = await triggerAiReviewForWorkItem(itemId, { context: 'workbench_board_done' });
-      if (!reviewResult.ok) {
-        toast.error('AI-granskning misslyckades — manuell granskning krävs');
-      } else if (reviewResult.status === 'verified') {
-        toast.success('AI: ✅ Verifierad');
-      } else if (reviewResult.status === 'needs_review') {
-        toast.warning('AI: ⚠️ Behöver granskning');
-      } else if (reviewResult.status === 'incomplete') {
-        toast.error('AI: ❌ Ofullständig');
-      }
+      toast.success('Klar ✓');
       queryClient.invalidateQueries({ queryKey: ['work-items'] });
 
       setTimeout(() => {

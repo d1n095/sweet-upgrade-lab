@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { runAISafe } from '@/core/aiGateway';
 import { Bug, CheckCircle2, Loader2, Clock, MapPin, User, ChevronDown, ChevronUp, AlertCircle, Sparkles, Tag, Search, RefreshCw, BookOpen, Copy, Filter, Crosshair, Wrench, FileCode, ClipboardCopy } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -14,7 +13,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
 
 interface ActionableFix {
   blocker_statement?: string;
@@ -165,16 +163,7 @@ const AdminBugReports = () => {
     if (!unprocessed?.length) return;
     console.log(`[BugEnrich] Auto-processing ${unprocessed.length} bugs`);
     for (const bug of unprocessed) {
-      try {
-        await runAISafe({
-          source: 'SYSTEM',
-          feature: 'process-bug-report',
-          payload: { bug_id: bug.id },
-          functionName: 'process-bug-report',
-        });
-      } catch (e) {
-        console.warn(`[BugEnrich] Failed for ${bug.id}:`, e);
-      }
+      console.info(`[BugEnrich] Skipped (AI disabled): ${bug.id}`);
     }
     // Reload to show enriched data
     refetch();
@@ -191,59 +180,12 @@ const AdminBugReports = () => {
 
   const allChecked = RESOLVE_CHECKLIST.every(c => checklist[c.key]);
 
-  const processWithAI = async (bugId: string) => {
-    setProcessingAI(bugId);
-    try {
-      const result_data = await runAISafe({
-        source: 'USER_ACTION',
-        feature: 'process-bug-report',
-        payload: { bug_id: bugId },
-        functionName: 'process-bug-report',
-      });
-
-      if (!result_data) {
-        toast.error('AI-bearbetning misslyckades');
-        return;
-      }
-
-      const { result } = result_data;
-      setReports(prev => prev.map(r =>
-        r.id === bugId
-          ? {
-              ...r,
-              ai_summary: result.summary,
-              ai_category: result.category,
-              ai_severity: result.severity,
-              ai_tags: result.tags,
-              ai_clean_prompt: result.copy_prompt,
-              ai_processed_at: new Date().toISOString(),
-              ai_actionable_fix: {
-                blocker_statement: result.blocker_statement,
-                root_cause_exact: result.root_cause_exact,
-                location: result.location,
-                fix_steps: result.fix_steps,
-                copy_prompt: result.copy_prompt,
-                root_causes: result.root_causes,
-                is_reproducible: result.is_reproducible,
-                reproducibility_reasoning: result.reproducibility_reasoning,
-                fix_suggestions: result.fix_suggestions,
-                affected_components: result.affected_components || [],
-              },
-            }
-          : r
-      ));
-      toast.success('AI-analys klar ✓');
-    } catch {
-      toast.error('Något gick fel');
-    } finally {
-      setProcessingAI(null);
-    }
+  const processWithAI = async (_bugId: string) => {
+    toast.info('AI-bearbetning är inaktiverat.');
   };
 
-  const approveAI = async (bugId: string) => {
-    await supabase.from('bug_reports').update({ ai_approved: true } as any).eq('id', bugId);
-    setReports(prev => prev.map(r => r.id === bugId ? { ...r, ai_approved: true } : r));
-    toast.success('AI-analys godkänd');
+  const approveAI = async (_bugId: string) => {
+    toast.info('AI-godkännande är inaktiverat.');
   };
 
   const resolve = async (id: string) => {
@@ -259,10 +201,7 @@ const AdminBugReports = () => {
       }).eq('id', id);
       if (wi) {
         await supabase.from('work_items').update({ status: 'done', completed_at: new Date().toISOString() }).eq('id', wi.id);
-        const reviewResult = await triggerAiReviewForWorkItem(wi.id, { context: 'admin_bug_reports_resolve' });
-        if (!reviewResult.ok) {
-          toast.warning('AI-granskning misslyckades — kräver manuell kontroll');
-        }
+
       }
       setReports(prev => prev.map(r => r.id === id ? { ...r, status: 'resolved', work_item_status: 'done', resolved_at: new Date().toISOString(), resolution_notes: resolutionNotes.trim() || null } : r));
       setExpandedId(null);
