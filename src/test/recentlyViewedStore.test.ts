@@ -1,12 +1,9 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import type { ShopifyProduct } from '@/lib/shopify';
-
-// Mock shopify so recentlyViewedStore can be imported without real network calls
-vi.mock('@/lib/shopify', () => ({}));
+import { describe, it, expect, beforeEach } from 'vitest';
+import type { Product } from '@/lib/catalog';
 
 import { useRecentlyViewedStore } from '@/stores/recentlyViewedStore';
 
-function makeProduct(id: string): ShopifyProduct {
+function makeProduct(id: string): Product {
   return {
     node: {
       id,
@@ -20,7 +17,7 @@ function makeProduct(id: string): ShopifyProduct {
       variants: { edges: [] },
       options: [],
     },
-  } as unknown as ShopifyProduct;
+  } as unknown as Product;
 }
 
 describe('useRecentlyViewedStore', () => {

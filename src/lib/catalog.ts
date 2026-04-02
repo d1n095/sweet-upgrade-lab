@@ -1,7 +1,7 @@
 import { fetchDbProducts, DbProduct } from '@/lib/products';
 
 /**
- * Generic product type — mirrors the structure previously known as ShopifyProduct.
+ * Generic product type used throughout the application.
  * All product data is sourced from the local `products` database table.
  */
 export interface Product {
@@ -94,9 +94,9 @@ export function dbProductToProduct(db: DbProduct): Product {
 /**
  * Fetch products from the database.
  *
- * Accepts an optional Shopify-style query string for backward compatibility:
+ * Accepts an optional query string for filtering:
  *   - `product_type:<value>` → filters by category
- *   - `title:*<keyword>*`   → filters by title
+ *   - `title:*<keyword>*`   → filters by title (case-insensitive)
  * Multiple clauses joined with ` AND ` are supported.
  */
 export async function fetchProducts(first = 50, query?: string): Promise<Product[]> {

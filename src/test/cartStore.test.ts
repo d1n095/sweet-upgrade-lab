@@ -8,9 +8,7 @@ vi.mock('@/utils/analyticsTracker', () => ({
   trackCartUpdate: vi.fn(),
 }));
 
-vi.mock('@/lib/shopify', () => ({
-  createStorefrontCheckout: vi.fn().mockResolvedValue('https://checkout.shopify.com/mock'),
-}));
+vi.mock('@/lib/catalog', () => ({}));
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 import { useCartStore } from '@/stores/cartStore';
@@ -19,7 +17,7 @@ function makeItem(variantId: string, quantity = 1, amount = '100'): CartItem {
   return {
     product: {
       node: {
-        id: `gid://shopify/Product/${variantId}`,
+        id: variantId,
         title: `Product ${variantId}`,
         description: '',
         handle: `product-${variantId}`,
