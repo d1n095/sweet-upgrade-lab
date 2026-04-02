@@ -2805,14 +2805,18 @@ serve(async (req) => {
       console.log("[SCAN] creating work items — finalize phase");
       const { data: scanRun } = await supabase.from("scan_runs").select("*").eq("id", scan_run_id).single();
       if (!scanRun || scanRun.status !== "running") return new Response(JSON.stringify({ success: false, error: "Scan not running" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (await enforceScanTimeout(supabase, scanRun, "finalize")) {
+        return new Response(JSON.stringify({ success: false, error: "Scan timed out", scan_run_id }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
 
       const systemStage: SystemStage = scanRun.system_stage || await getSystemStage(supabase);
+      await appendStepLog(supabase, scan_run_id, "Startar finalisering", "finalize").catch(() => []);
 
       await supabase.from("scan_runs").update({ current_step_label: "Kör dataintegritetskontroll..." }).eq("id", scan_run_id);
-      const integrityResult = await runDataIntegrityScan(supabase, scan_run_id);
+      const integrityResult = await withTimeout(runDataIntegrityScan(supabase, scan_run_id), FINALIZE_TIMEOUT_MS, "finalize integrity");
 
       await supabase.from("scan_runs").update({ current_step_label: "Kör funktionell beteendeskanning..." }).eq("id", scan_run_id);
-      const behaviorResult = await runFunctionalBehaviorScan(supabase, scan_run_id);
+      const behaviorResult = await withTimeout(runFunctionalBehaviorScan(supabase, scan_run_id), FINALIZE_TIMEOUT_MS, "finalize behavior");
 
       await supabase.from("scan_runs").update({ current_step_label: "Sammanställer resultat..." }).eq("id", scan_run_id);
 
@@ -2923,7 +2927,7 @@ serve(async (req) => {
       const { data: finalRootCause } = await supabase.from("root_cause_memory").select("pattern_key, affected_system, root_cause, recurrence_count, severity").order("recurrence_count", { ascending: false }).limit(50);
       const { systemicIssues } = extractPatterns(unified, finalRootCause || []);
 
-      await saveFocusMemory(supabase, unified, highRiskAreas, patternDiscoveries);
+      await withTimeout(saveFocusMemory(supabase, unified, highRiskAreas, patternDiscoveries), FINALIZE_TIMEOUT_MS, "save focus memory");
       const updatedFocusMemory = await loadFocusMemory(supabase);
       const predictions = generatePredictions(unified, patternDiscoveries, systemicIssues, updatedFocusMemory, finalRootCause || []);
 
@@ -3023,10 +3027,10 @@ serve(async (req) => {
         issues_count: issuesCount, scanned_by: scanRun.started_by,
       });
 
-      await persistStepResults(supabase, STEPS, updatedResults, scanRun.started_by);
+      await withTimeout(persistStepResults(supabase, STEPS, updatedResults, scanRun.started_by), FINALIZE_TIMEOUT_MS, "persist step results");
 
       // Create work items with context awareness and fingerprint dedup
-      const createResult = await createWorkItems(supabase, unified, systemStage);
+      const createResult = await withTimeout(createWorkItems(supabase, unified, systemStage), FINALIZE_TIMEOUT_MS, "create work items");
       let workItemsCreated = createResult.created;
       unified._create_trace = createResult.createTrace;
       console.log("[ISSUES FOUND]:", issuesCount);
@@ -3096,7 +3100,7 @@ serve(async (req) => {
       const { data: finalRunData } = await supabase.from("scan_runs").select("step_logs").eq("id", scan_run_id).single();
       const finalLogs = [...(Array.isArray(finalRunData?.step_logs) ? finalRunData.step_logs : []).slice(-50), { ts: new Date().toISOString(), msg: `🏁 Skanning klar — ${unified.system_health_score}/100 — ${workItemsCreated} uppgifter skapade`, step: "finalize" }];
       await supabase.from("scan_runs").update({
-        status: "done", completed_at: new Date().toISOString(), steps_results: updatedResults,
+        status: "completed", completed_at: new Date().toISOString(), steps_results: updatedResults,
         unified_result: adaptiveResult, system_health_score: unified.system_health_score,
         executive_summary: execSummary, work_items_created: workItemsCreated,
         current_step: STEPS.length, current_step_label: `Klar ✓ (${iterationsCompleted} iter, ${systemStage})`,
@@ -3359,6 +3363,11 @@ serve(async (req) => {
           explanation: explainViolation(typeof v === "string" ? { message: v } : v, scanContext)
         }));
         console.error("🚨 SYSTEM VIOLATIONS:", enrichedViolations);
+        await markScanFailed(supabase, scan_run_id, enrichedViolations[0]?.message || "scan violations detected", {
+          current_step_label: "Misslyckades: valideringsfel i scan",
+          progress: 100,
+          completed_steps: scanRun.total_steps || STEPS.length,
+        });
         return new Response(JSON.stringify({ success: false, violations: enrichedViolations, context: scanContext, scan_id: scan_run_id }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
       }
 
