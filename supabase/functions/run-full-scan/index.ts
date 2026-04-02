@@ -2744,8 +2744,12 @@ serve(async (req) => {
       const currentIteration = iteration || 1;
       const { data: scanRun } = await supabase.from("scan_runs").select("*").eq("id", scan_run_id).single();
       if (!scanRun || scanRun.status !== "running") return new Response(JSON.stringify({ success: false, error: "Scan not running" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (await enforceScanTimeout(supabase, scanRun, `evaluate_iteration:${currentIteration}`)) {
+        return new Response(JSON.stringify({ success: false, error: "Scan timed out", scan_run_id }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
 
       await supabase.from("scan_runs").update({ current_step_label: `[Iteration ${currentIteration}/${MAX_ITERATIONS}] Analyserar mönster...` }).eq("id", scan_run_id);
+      await appendStepLog(supabase, scan_run_id, `Analyserar iteration ${currentIteration}`, "evaluate_iteration").catch(() => []);
 
       const updatedResults = scanRun.steps_results || {};
       const totalDuration = Object.values(updatedResults).reduce((sum: number, r: any) => sum + (r?._duration_ms || 0), 0);
@@ -2784,18 +2788,14 @@ serve(async (req) => {
         const targetedSteps = buildTargetedSteps(patterns, highRiskAreas, currentIteration + 1);
         if (targetedSteps.length > 0) {
           await supabase.from("scan_runs").update({ current_step_label: `[Iteration ${currentIteration + 1}/${MAX_ITERATIONS}] ${targetedSteps[0].label}`, current_step: 0, total_steps: STEPS.length + targetedSteps.length * currentIteration, _targeted_steps: targetedSteps }).eq("id", scan_run_id);
-          fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
-            method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
-            body: JSON.stringify({ action: "process_step", scan_run_id, step_index: 0, iteration: currentIteration + 1 }),
-          }).catch((e) => console.error("Failed to chain re-scan:", e));
+          await appendStepLog(supabase, scan_run_id, `Startar om riktad iteration ${currentIteration + 1}`, "evaluate_iteration").catch(() => []);
+          await invokeChainedScanAction(supabase, supabaseUrl, serviceKey, scan_run_id, { action: "process_step", scan_run_id, step_index: 0, iteration: currentIteration + 1 });
           return new Response(JSON.stringify({ success: true, ok: true, action: "recursing", iteration: currentIteration + 1 }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
         }
       }
 
-      fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
-        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
-        body: JSON.stringify({ action: "finalize", scan_run_id }),
-      }).catch((e) => console.error("Failed to chain finalize:", e));
+      await appendStepLog(supabase, scan_run_id, "Iteration klar — går till finalisering", "evaluate_iteration").catch(() => []);
+      await invokeChainedScanAction(supabase, supabaseUrl, serviceKey, scan_run_id, { action: "finalize", scan_run_id });
 
       return new Response(JSON.stringify({ success: true, ok: true, action: "finalizing", iterations_completed: currentIteration }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
     }
