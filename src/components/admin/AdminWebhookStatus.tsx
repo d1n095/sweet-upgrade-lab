@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { safeFetch } from '@/lib/safeInvoke';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -29,15 +30,7 @@ const AdminWebhookStatus = () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-webhook`,
-        {
-          method: 'GET',
-          headers: {
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          },
-        }
-      );
+      const res = await safeFetch({ fn: 'stripe-webhook', method: 'GET', isAdmin: true });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setHealth(data);

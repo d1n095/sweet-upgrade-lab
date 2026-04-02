@@ -20,6 +20,7 @@ const ALLOWED_FUNCTIONS = new Set([
   'data-sync',
   'process-bug-report',
   'google-places',
+  'stripe-webhook',
 ]);
 
 const ADMIN_ONLY_FUNCTIONS = new Set([
@@ -33,6 +34,7 @@ const ADMIN_ONLY_FUNCTIONS = new Set([
   'generate-receipt',
   'data-sync',
   'process-bug-report',
+  'stripe-webhook',
 ]);
 
 console.log("CONTROL LAYER ACTIVE", {
