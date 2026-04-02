@@ -32,6 +32,124 @@ const STEPS = [
 ];
 
 const MAX_ITERATIONS = 3;
+const STEP_TIMEOUT_MS = 30_000;
+const FINALIZE_TIMEOUT_MS = 45_000;
+const CHAIN_TIMEOUT_MS = 10_000;
+const SCAN_TIMEOUT_MS = 120_000;
+const STEP_LOG_LIMIT = 100;
+
+function isCompletedStatus(status?: string | null) {
+  return status === "completed" || status === "done";
+}
+
+function isFailedStatus(status?: string | null) {
+  return status === "failed" || status === "error";
+}
+
+async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(`${label} timeout after ${ms}ms`)), ms);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
+
+async function readStepLogs(supabase: any, scanRunId: string): Promise<any[]> {
+  const { data } = await supabase.from("scan_runs").select("step_logs").eq("id", scanRunId).maybeSingle();
+  return Array.isArray(data?.step_logs) ? data.step_logs : [];
+}
+
+async function appendStepLog(supabase: any, scanRunId: string, msg: string, step: string) {
+  const existingLogs = await readStepLogs(supabase, scanRunId).catch(() => []);
+  const nextLogs = [...existingLogs.slice(-(STEP_LOG_LIMIT - 1)), { ts: new Date().toISOString(), msg, step }];
+  await supabase.from("scan_runs").update({ step_logs: nextLogs }).eq("id", scanRunId);
+  return nextLogs;
+}
+
+async function markScanFailed(supabase: any, scanRunId: string, reason: string, extraUpdates: Record<string, any> = {}) {
+  const { data: current } = await supabase
+    .from("scan_runs")
+    .select("status, progress, completed_steps, step_logs, total_steps")
+    .eq("id", scanRunId)
+    .maybeSingle();
+
+  if (isCompletedStatus(current?.status) || isFailedStatus(current?.status)) return;
+
+  const nextLogs = [...(Array.isArray(current?.step_logs) ? current.step_logs : []).slice(-(STEP_LOG_LIMIT - 1)), {
+    ts: new Date().toISOString(),
+    msg: `❌ Scan failed: ${reason}`,
+    step: "failure",
+  }];
+
+  await supabase.from("scan_runs").update({
+    status: "failed",
+    error_message: reason,
+    completed_at: new Date().toISOString(),
+    eta_seconds: 0,
+    current_step_label: extraUpdates.current_step_label || `Misslyckades: ${reason}`,
+    step_logs: extraUpdates.step_logs || nextLogs,
+    progress: extraUpdates.progress ?? current?.progress ?? 0,
+    completed_steps: extraUpdates.completed_steps ?? current?.completed_steps ?? 0,
+    ...extraUpdates,
+  }).eq("id", scanRunId);
+
+  await supabase.from("system_observability_log").insert({
+    event_type: "scan_failed",
+    severity: "error",
+    source: "scanner",
+    message: `Full scan failed: ${reason}`,
+    details: { reason, scan_run_id: scanRunId },
+    scan_id: scanRunId,
+    trace_id: `full-scan-${scanRunId.slice(0, 8)}`,
+    component: "run-full-scan",
+  }).catch(() => {});
+}
+
+async function enforceScanTimeout(supabase: any, scanRun: any, actionLabel: string) {
+  if (!scanRun?.id || !scanRun?.started_at) return false;
+  const startedAtMs = new Date(scanRun.started_at).getTime();
+  if (Number.isNaN(startedAtMs)) return false;
+  if (Date.now() - startedAtMs <= SCAN_TIMEOUT_MS) return false;
+
+  await markScanFailed(supabase, scanRun.id, `timeout during ${actionLabel}`, {
+    current_step_label: `Timeout: ${actionLabel}`,
+  });
+  return true;
+}
+
+async function invokeChainedScanAction(supabase: any, supabaseUrl: string, serviceKey: string, scanRunId: string, body: Record<string, any>) {
+  try {
+    const resp = await withTimeout(fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${serviceKey}`,
+      },
+      body: JSON.stringify(body),
+    }), CHAIN_TIMEOUT_MS, `chain ${body.action}`);
+
+    if (!resp.ok) {
+      const errorText = await resp.text().catch(() => "");
+      throw new Error(`HTTP ${resp.status}${errorText ? `: ${errorText.slice(0, 200)}` : ""}`);
+    }
+
+    const payload = await resp.json().catch(() => null);
+    if (payload?.success === false) {
+      throw new Error(payload.error || `Chained action failed: ${body.action}`);
+    }
+
+    return payload;
+  } catch (error: any) {
+    await markScanFailed(supabase, scanRunId, `chain ${body.action} failed: ${error?.message || "unknown error"}`);
+    throw error;
+  }
+}
 
 // ── SYSTEM STAGE: Context awareness ──
 type SystemStage = "development" | "staging" | "production";
@@ -1800,6 +1918,91 @@ async function runUiFlowIntegrityScan(supabase: any, scanRunId: string): Promise
   return { issues, issues_found: issues.length, flows_scanned: flowsScanned, overall_score: score, duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
 }
 
+function collectStepIssues(stepResults: Record<string, any>) {
+  return Object.entries(stepResults || {})
+    .filter(([key]) => !key.startsWith("_"))
+    .flatMap(([stepId, result]) => {
+      const r = result as any;
+      const issues = [
+        ...(r?.issues || []),
+        ...(r?.mismatches || []),
+        ...(r?.broken_routes || []),
+        ...(r?.broken_links || []),
+        ...(r?.test_failures || []),
+      ];
+      return issues.map((issue: any) => ({ ...issue, _source_step_id: stepId }));
+    });
+}
+
+function severityWeight(severity?: string) {
+  switch ((severity || "").toLowerCase()) {
+    case "critical": return 4;
+    case "high": return 3;
+    case "medium": return 2;
+    case "low": return 1;
+    default: return 0;
+  }
+}
+
+async function runRuleBasedDecisionEngine(supabase: any, scanRunId: string): Promise<any> {
+  const startMs = Date.now();
+  const { data: scanRun } = await supabase.from("scan_runs").select("steps_results").eq("id", scanRunId).maybeSingle();
+  const issues = collectStepIssues(scanRun?.steps_results || {});
+  const criticalCount = issues.filter((issue: any) => severityWeight(issue.severity) >= 4).length;
+  const highCount = issues.filter((issue: any) => severityWeight(issue.severity) >= 3).length;
+  const totalIssues = issues.length;
+  const recommendedPriority = criticalCount > 0 ? "critical" : highCount > 0 ? "high" : totalIssues > 0 ? "medium" : "low";
+
+  return {
+    issues: [],
+    issues_found: 0,
+    overall_score: Math.max(0, 100 - (criticalCount * 20) - (highCount * 10) - Math.min(totalIssues, 20)),
+    decision: {
+      recommended_priority: recommendedPriority,
+      escalate_now: criticalCount > 0,
+      requires_manual_review: highCount > 0 || totalIssues > 10,
+      total_issues: totalIssues,
+      critical_issues: criticalCount,
+      high_issues: highCount,
+    },
+    executive_summary: totalIssues === 0
+      ? "Inga blockerande beslut krävs — inga issues hittades"
+      : `Rule-based beslut: ${recommendedPriority} prioritet (${criticalCount} kritiska, ${highCount} höga)`,
+    real_db_scan: true,
+    duration_ms: Date.now() - startMs,
+    scanned_at: new Date().toISOString(),
+  };
+}
+
+async function runRuleBasedBlockerDetection(supabase: any, scanRunId: string): Promise<any> {
+  const startMs = Date.now();
+  const { data: scanRun } = await supabase.from("scan_runs").select("steps_results").eq("id", scanRunId).maybeSingle();
+  const issues = collectStepIssues(scanRun?.steps_results || {})
+    .sort((a: any, b: any) => severityWeight(b.severity) - severityWeight(a.severity));
+
+  const detectedBlockers = issues.slice(0, 5).map((issue: any) => ({
+    title: issue.title || issue.description || "Unknown blocker",
+    severity: issue.severity || "medium",
+    step: issue._source_step_id,
+    component: issue.component || issue.element || issue.entity || null,
+    description: issue.description || null,
+  }));
+
+  return {
+    issues: detectedBlockers,
+    issues_found: detectedBlockers.length,
+    primary_blocker: detectedBlockers[0] || null,
+    detected_blockers: detectedBlockers,
+    overall_score: detectedBlockers[0] ? Math.max(0, 100 - (severityWeight(detectedBlockers[0].severity) * 20)) : 100,
+    executive_summary: detectedBlockers[0]
+      ? `Primär blockerare: ${detectedBlockers[0].title}`
+      : "Ingen blockerare hittades",
+    real_db_scan: true,
+    duration_ms: Date.now() - startMs,
+    scanned_at: new Date().toISOString(),
+  };
+}
+
 // ── Map scan types to real DB functions ──
 const REAL_DB_SCANNERS: Record<string, (supabase: any, scanRunId: string) => Promise<any>> = {
   data_integrity: runDataIntegrityScan,
@@ -1809,6 +2012,8 @@ const REAL_DB_SCANNERS: Record<string, (supabase: any, scanRunId: string) => Pro
   interaction_qa: runRealInteractionQA,
   component_map: runRealComponentMapScan,
   ui_flow_integrity: runUiFlowIntegrityScan,
+  decision_engine: runRuleBasedDecisionEngine,
+  blocker_detection: runRuleBasedBlockerDetection,
 };
 
 // ── SCAN CONSISTENCY GUARD ──
@@ -2247,6 +2452,8 @@ async function persistStepResults(supabase: any, steps: typeof STEPS, results: R
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  let activeScanRunId: string | null = null;
+
   try {
     console.log("🚨 SCAN STARTED");
     console.log("[SCAN START]");
@@ -2268,6 +2475,7 @@ serve(async (req) => {
     const body = await req.json();
     console.log("FULL SCAN BODY:", body);
     const { action, scan_run_id, step_index, iteration, request_trace_id, scan_mode, target_area, verification_for } = body;
+    activeScanRunId = scan_run_id || null;
     console.log("[SCAN] action:", action);
 
     // ── START ──
@@ -2292,8 +2500,10 @@ serve(async (req) => {
       const { data: running } = await supabase.from("scan_runs").select("id, started_by, current_step_label, started_at").eq("status", "running").limit(1);
       if (running?.length) {
         const startedAt = new Date(running[0].started_at).getTime();
-        if (Date.now() - startedAt > 5 * 60 * 1000) {
-          await supabase.from("scan_runs").update({ status: "error", error_message: "Timeout 15 min", completed_at: new Date().toISOString() }).eq("id", running[0].id);
+        if (Date.now() - startedAt > SCAN_TIMEOUT_MS) {
+          await markScanFailed(supabase, running[0].id, "timeout before new scan start", {
+            current_step_label: "Timeout before new scan start",
+          });
         } else {
           return new Response(JSON.stringify({ success: false, error: "En skanning körs redan", running_scan: running[0] }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
@@ -2326,6 +2536,7 @@ serve(async (req) => {
         ...(isTargeted ? { scan_mode: "targeted", target_area, verification_for } : { scan_mode: "full" }),
       }).select("id").single();
 
+      activeScanRunId = scanRun?.id || null;
       console.log("[SCAN] insert result:", scanRun, "error:", insertError);
       if (insertError || !scanRun) return new Response(JSON.stringify({ success: false, error: "Failed to create scan run", detail: insertError?.message }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
@@ -2346,16 +2557,16 @@ serve(async (req) => {
 
       if (!structure_map || structure_map.length === 0) {
         console.error("❌ SCAN ABORT: NO STRUCTURE MAP");
+        await markScanFailed(supabase, scanRun.id, "NO_INPUT_DATA", {
+          current_step_label: "Misslyckades: ingen structure map",
+        });
         return new Response(JSON.stringify({ success: false, error: "NO_INPUT_DATA" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
       console.log("[SCAN] running scanners — chaining first step");
-      fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
-        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
-        body: JSON.stringify({ action: "process_step", scan_run_id: scanRun.id, step_index: 0, iteration: 1 }),
-      }).catch((e) => console.error("Failed to chain first step:", e));
+      await invokeChainedScanAction(supabase, supabaseUrl, serviceKey, scanRun.id, { action: "process_step", scan_run_id: scanRun.id, step_index: 0, iteration: 1 });
 
-      return new Response(JSON.stringify({ success: true, scan_id: scanRun.id, status: "started", system_stage: systemStage, scan_mode: isTargeted ? "targeted" : "full" }), {
+      return new Response(JSON.stringify({ success: true, scan_id: scanRun.id, scan_run_id: scanRun.id, status: "started", system_stage: systemStage, scan_mode: isTargeted ? "targeted" : "full" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
       });
     }
@@ -2366,6 +2577,9 @@ serve(async (req) => {
       const currentIteration = iteration || 1;
       const { data: scanRun } = await supabase.from("scan_runs").select("*").eq("id", scan_run_id).single();
       if (!scanRun || scanRun.status !== "running") return new Response(JSON.stringify({ success: false, error: "Scan not running" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (await enforceScanTimeout(supabase, scanRun, `process_step:${step_index}`)) {
+        return new Response(JSON.stringify({ success: false, error: "Scan timed out", scan_run_id }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
 
       const step = currentIteration === 1 ? STEPS[step_index] : (scanRun._targeted_steps || STEPS)[step_index];
       if (!step) return new Response(JSON.stringify({ success: false, error: "Invalid step index" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -2387,49 +2601,13 @@ serve(async (req) => {
       const stepStart = Date.now();
 
       try {
-        const STEP_TIMEOUT_MS = 30000;
         const realScanner = REAL_DB_SCANNERS[step.scanType];
-        if (realScanner) {
-          console.log(`[scan] Running REAL DB scanner for ${step.scanType}`);
-          const dbResult = await realScanner(supabase, scan_run_id);
-          let aiEnrichment: any = null;
-          try {
-            const aiController = new AbortController();
-            const aiTimeout = setTimeout(() => aiController.abort(), STEP_TIMEOUT_MS);
-            const resp = await fetch(`${supabaseUrl}/functions/v1/ai-assistant`, {
-              method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
-              body: JSON.stringify({ type: step.scanType, orchestrated: true, step_index, real_db_findings: { issues_count: dbResult.issues_found || dbResult.total_issues || 0, score: dbResult.overall_score, sample_issues: (dbResult.issues || dbResult.mismatches || dbResult.features || []).slice(0, 5).map((i: any) => i.title || i.name || "") } }),
-              signal: aiController.signal,
-            });
-            clearTimeout(aiTimeout);
-            if (resp.ok) { const data = await resp.json(); aiEnrichment = data.result || data; }
-          } catch (_) {}
-          stepResult = { ...dbResult, ai_suggestions: aiEnrichment?.suggestions || aiEnrichment?.recommendations || [], ai_summary: aiEnrichment?.summary || aiEnrichment?.executive_summary || null };
-        } else {
-          console.log(`[scan] Running AI-only scanner for ${step.scanType}`);
-          const previousContext: Record<string, any> = {};
-          const existingResults = scanRun.steps_results || {};
-          for (const [key, val] of Object.entries(existingResults)) {
-            const v = val as any;
-            if (v?.overall_score != null) previousContext[key] = { score: v.overall_score };
-            if (v?.issues_count != null) previousContext[key] = { ...previousContext[key], issues: v.issues_count };
-          }
-          let deepScanContext: any = undefined;
-          if (currentIteration > 1) {
-            deepScanContext = { iteration: currentIteration, previous_patterns: scanRun.pattern_discoveries || [], high_risk_areas: scanRun.high_risk_areas || [], instruction: "DEEP RE-SCAN. Focus on high_risk_areas and patterns." };
-          }
-          const stepController = new AbortController();
-          const stepTimeout = setTimeout(() => stepController.abort(), STEP_TIMEOUT_MS);
-          const resp = await fetch(`${supabaseUrl}/functions/v1/ai-assistant`, {
-            method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
-            body: JSON.stringify({ type: step.scanType, orchestrated: true, step_index, previous_context: Object.keys(previousContext).length > 0 ? previousContext : undefined, deep_scan_context: deepScanContext }),
-            signal: stepController.signal,
-          });
-          clearTimeout(stepTimeout);
-          if (resp.ok) { const data = await resp.json(); stepResult = data.result || data; }
-          else { const errBody = await resp.text().catch(() => ""); stepResult = { error: `HTTP ${resp.status}: ${errBody.substring(0, 200)}`, failed: true }; }
+        if (!realScanner) {
+          throw new Error(`No rule-based scanner implemented for ${step.scanType}`);
         }
-      } catch (e: any) { stepResult = { error: e.message, failed: true, _timed_out: e.name === "AbortError" }; }
+        console.log(`[scan] Running rule-based scanner for ${step.scanType}`);
+        stepResult = await withTimeout(realScanner(supabase, scan_run_id), STEP_TIMEOUT_MS, `step ${step.scanType}`);
+      } catch (e: any) { stepResult = { error: e.message, failed: true, _timed_out: e.name === "AbortError" || /timeout/i.test(e.message || "") }; }
 
       const duration_ms = Date.now() - stepStart;
       const scanFinishedAt = new Date().toISOString();
@@ -2529,6 +2707,18 @@ serve(async (req) => {
       const stepsForIteration = currentIteration === 1 ? STEPS : (scanRun._targeted_steps || STEPS);
       const isLastStep = step_index + 1 >= stepsForIteration.length;
 
+      if (stepResult.failed) {
+        await markScanFailed(supabase, scan_run_id, stepResult.error || `Step failed: ${step.label}`, {
+          steps_results: updatedResults,
+          current_step: step_index,
+          current_step_label: `Misslyckades: ${step.label}`,
+          progress: Math.min(99, stepProgressPct),
+          completed_steps: step_index,
+          step_logs: updatedLogs,
+        });
+        return new Response(JSON.stringify({ success: false, error: stepResult.error || "Step failed", step: step.id, scan_run_id }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
+      }
+
       if (!isLastStep) {
         const nextStep = stepsForIteration[step_index + 1];
         await supabase.from("scan_runs").update({
@@ -2540,16 +2730,10 @@ serve(async (req) => {
           eta_seconds: etaSeconds,
           step_logs: updatedLogs,
         }).eq("id", scan_run_id);
-        fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
-          method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
-          body: JSON.stringify({ action: "process_step", scan_run_id, step_index: step_index + 1, iteration: currentIteration }),
-        }).catch((e) => console.error("Failed to chain next step:", e));
+        await invokeChainedScanAction(supabase, supabaseUrl, serviceKey, scan_run_id, { action: "process_step", scan_run_id, step_index: step_index + 1, iteration: currentIteration });
       } else {
         await supabase.from("scan_runs").update({ steps_results: updatedResults }).eq("id", scan_run_id);
-        fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
-          method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
-          body: JSON.stringify({ action: "evaluate_iteration", scan_run_id, iteration: currentIteration }),
-        }).catch((e) => console.error("Failed to chain evaluation:", e));
+        await invokeChainedScanAction(supabase, supabaseUrl, serviceKey, scan_run_id, { action: "evaluate_iteration", scan_run_id, iteration: currentIteration });
       }
 
       return new Response(JSON.stringify({ success: true, ok: true, step: step.id, step_index, iteration: currentIteration }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
@@ -2560,8 +2744,12 @@ serve(async (req) => {
       const currentIteration = iteration || 1;
       const { data: scanRun } = await supabase.from("scan_runs").select("*").eq("id", scan_run_id).single();
       if (!scanRun || scanRun.status !== "running") return new Response(JSON.stringify({ success: false, error: "Scan not running" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (await enforceScanTimeout(supabase, scanRun, `evaluate_iteration:${currentIteration}`)) {
+        return new Response(JSON.stringify({ success: false, error: "Scan timed out", scan_run_id }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
 
       await supabase.from("scan_runs").update({ current_step_label: `[Iteration ${currentIteration}/${MAX_ITERATIONS}] Analyserar mönster...` }).eq("id", scan_run_id);
+      await appendStepLog(supabase, scan_run_id, `Analyserar iteration ${currentIteration}`, "evaluate_iteration").catch(() => []);
 
       const updatedResults = scanRun.steps_results || {};
       const totalDuration = Object.values(updatedResults).reduce((sum: number, r: any) => sum + (r?._duration_ms || 0), 0);
@@ -2600,18 +2788,14 @@ serve(async (req) => {
         const targetedSteps = buildTargetedSteps(patterns, highRiskAreas, currentIteration + 1);
         if (targetedSteps.length > 0) {
           await supabase.from("scan_runs").update({ current_step_label: `[Iteration ${currentIteration + 1}/${MAX_ITERATIONS}] ${targetedSteps[0].label}`, current_step: 0, total_steps: STEPS.length + targetedSteps.length * currentIteration, _targeted_steps: targetedSteps }).eq("id", scan_run_id);
-          fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
-            method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
-            body: JSON.stringify({ action: "process_step", scan_run_id, step_index: 0, iteration: currentIteration + 1 }),
-          }).catch((e) => console.error("Failed to chain re-scan:", e));
+          await appendStepLog(supabase, scan_run_id, `Startar om riktad iteration ${currentIteration + 1}`, "evaluate_iteration").catch(() => []);
+          await invokeChainedScanAction(supabase, supabaseUrl, serviceKey, scan_run_id, { action: "process_step", scan_run_id, step_index: 0, iteration: currentIteration + 1 });
           return new Response(JSON.stringify({ success: true, ok: true, action: "recursing", iteration: currentIteration + 1 }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
         }
       }
 
-      fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
-        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
-        body: JSON.stringify({ action: "finalize", scan_run_id }),
-      }).catch((e) => console.error("Failed to chain finalize:", e));
+      await appendStepLog(supabase, scan_run_id, "Iteration klar — går till finalisering", "evaluate_iteration").catch(() => []);
+      await invokeChainedScanAction(supabase, supabaseUrl, serviceKey, scan_run_id, { action: "finalize", scan_run_id });
 
       return new Response(JSON.stringify({ success: true, ok: true, action: "finalizing", iterations_completed: currentIteration }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
     }
@@ -2621,14 +2805,18 @@ serve(async (req) => {
       console.log("[SCAN] creating work items — finalize phase");
       const { data: scanRun } = await supabase.from("scan_runs").select("*").eq("id", scan_run_id).single();
       if (!scanRun || scanRun.status !== "running") return new Response(JSON.stringify({ success: false, error: "Scan not running" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (await enforceScanTimeout(supabase, scanRun, "finalize")) {
+        return new Response(JSON.stringify({ success: false, error: "Scan timed out", scan_run_id }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
 
       const systemStage: SystemStage = scanRun.system_stage || await getSystemStage(supabase);
+      await appendStepLog(supabase, scan_run_id, "Startar finalisering", "finalize").catch(() => []);
 
       await supabase.from("scan_runs").update({ current_step_label: "Kör dataintegritetskontroll..." }).eq("id", scan_run_id);
-      const integrityResult = await runDataIntegrityScan(supabase, scan_run_id);
+      const integrityResult = await withTimeout(runDataIntegrityScan(supabase, scan_run_id), FINALIZE_TIMEOUT_MS, "finalize integrity");
 
       await supabase.from("scan_runs").update({ current_step_label: "Kör funktionell beteendeskanning..." }).eq("id", scan_run_id);
-      const behaviorResult = await runFunctionalBehaviorScan(supabase, scan_run_id);
+      const behaviorResult = await withTimeout(runFunctionalBehaviorScan(supabase, scan_run_id), FINALIZE_TIMEOUT_MS, "finalize behavior");
 
       await supabase.from("scan_runs").update({ current_step_label: "Sammanställer resultat..." }).eq("id", scan_run_id);
 
@@ -2739,7 +2927,7 @@ serve(async (req) => {
       const { data: finalRootCause } = await supabase.from("root_cause_memory").select("pattern_key, affected_system, root_cause, recurrence_count, severity").order("recurrence_count", { ascending: false }).limit(50);
       const { systemicIssues } = extractPatterns(unified, finalRootCause || []);
 
-      await saveFocusMemory(supabase, unified, highRiskAreas, patternDiscoveries);
+      await withTimeout(saveFocusMemory(supabase, unified, highRiskAreas, patternDiscoveries), FINALIZE_TIMEOUT_MS, "save focus memory");
       const updatedFocusMemory = await loadFocusMemory(supabase);
       const predictions = generatePredictions(unified, patternDiscoveries, systemicIssues, updatedFocusMemory, finalRootCause || []);
 
@@ -2839,10 +3027,10 @@ serve(async (req) => {
         issues_count: issuesCount, scanned_by: scanRun.started_by,
       });
 
-      await persistStepResults(supabase, STEPS, updatedResults, scanRun.started_by);
+      await withTimeout(persistStepResults(supabase, STEPS, updatedResults, scanRun.started_by), FINALIZE_TIMEOUT_MS, "persist step results");
 
       // Create work items with context awareness and fingerprint dedup
-      const createResult = await createWorkItems(supabase, unified, systemStage);
+      const createResult = await withTimeout(createWorkItems(supabase, unified, systemStage), FINALIZE_TIMEOUT_MS, "create work items");
       let workItemsCreated = createResult.created;
       unified._create_trace = createResult.createTrace;
       console.log("[ISSUES FOUND]:", issuesCount);
@@ -2912,7 +3100,7 @@ serve(async (req) => {
       const { data: finalRunData } = await supabase.from("scan_runs").select("step_logs").eq("id", scan_run_id).single();
       const finalLogs = [...(Array.isArray(finalRunData?.step_logs) ? finalRunData.step_logs : []).slice(-50), { ts: new Date().toISOString(), msg: `🏁 Skanning klar — ${unified.system_health_score}/100 — ${workItemsCreated} uppgifter skapade`, step: "finalize" }];
       await supabase.from("scan_runs").update({
-        status: "done", completed_at: new Date().toISOString(), steps_results: updatedResults,
+        status: "completed", completed_at: new Date().toISOString(), steps_results: updatedResults,
         unified_result: adaptiveResult, system_health_score: unified.system_health_score,
         executive_summary: execSummary, work_items_created: workItemsCreated,
         current_step: STEPS.length, current_step_label: `Klar ✓ (${iterationsCompleted} iter, ${systemStage})`,
@@ -3175,6 +3363,11 @@ serve(async (req) => {
           explanation: explainViolation(typeof v === "string" ? { message: v } : v, scanContext)
         }));
         console.error("🚨 SYSTEM VIOLATIONS:", enrichedViolations);
+        await markScanFailed(supabase, scan_run_id, enrichedViolations[0]?.message || "scan violations detected", {
+          current_step_label: "Misslyckades: valideringsfel i scan",
+          progress: 100,
+          completed_steps: scanRun.total_steps || STEPS.length,
+        });
         return new Response(JSON.stringify({ success: false, violations: enrichedViolations, context: scanContext, scan_id: scan_run_id }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
       }
 
@@ -3197,6 +3390,11 @@ serve(async (req) => {
     console.error("run-full-scan error:", e);
     console.error("[FULL SCAN ERROR]:", e?.message || e);
     try { await logRuntimeTrace("api", "run-full-scan", "/run-full-scan", e?.message || "Unknown", { stack: e?.stack?.slice(0, 500) }); } catch (_) {}
+    if (activeScanRunId) {
+      try {
+        await markScanFailed(createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!), activeScanRunId, e?.message || "Unknown error");
+      } catch (_) {}
+    }
     return new Response(JSON.stringify({ success: false, error: e?.message || "Unknown error" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });

@@ -99,8 +99,8 @@ export default function ScanProgress({ scanRunId, className }: ScanProgressProps
   if (!scanRunId || !data) return null;
 
   const isRunning = data.status === 'running';
-  const isDone = data.status === 'done';
-  const isError = data.status === 'error';
+  const isDone = data.status === 'done' || data.status === 'completed';
+  const isError = data.status === 'error' || data.status === 'failed';
   const logs: StepLog[] = Array.isArray(data.step_logs) ? data.step_logs : [];
   const progress = data.progress ?? 0;
 
