@@ -157,6 +157,8 @@ const AdminCategoryManager = () => {
       nameSvPlaceholder: 'T.ex. Bastudofter',
       nameEnPlaceholder: 'Sauna Scents',
       slugPlaceholder: 'bastudofter',
+    },
+    en: {
       title: 'Category Management',
       subcategories: 'subcategories',
       categoriesWord: 'categories',
@@ -213,18 +215,9 @@ const AdminCategoryManager = () => {
       nameSvPlaceholder: 'E.g. Sauna Scents (Swedish)',
       nameEnPlaceholder: 'E.g. Sauna Scents',
       slugPlaceholder: 'sauna-scents',
+    },
+    nb: {
       title: 'Kategorihåndtering',
-      subcategories: 'underkategorier',
-      categoriesWord: 'kategorier',
-      visible: 'Synlig',
-      hidden: 'Skjult',
-      validate: 'Valider',
-      validating: 'Validerer...',
-      aiSync: 'AI-synk',
-      analyzing: 'Analyserer...',
-      newCategory: 'Ny kategori',
-      editCategory: 'Rediger kategori',
-      deleteCategory: 'Slett kategori?',
       deleteDescription: 'slettes. Underkategorier flyttes til toppnivå. Produktkoblinger fjernes.',
       deleteButton: 'Slett',
       nameSv: 'Navn (svensk) *',
@@ -269,6 +262,8 @@ const AdminCategoryManager = () => {
       nameSvPlaceholder: 'F.eks. Bastudufter',
       nameEnPlaceholder: 'Sauna Scents',
       slugPlaceholder: 'bastudufter',
+    },
+    da: {
       title: 'Kategorihåndtering',
       subcategories: 'underkategorier',
       categoriesWord: 'kategorier',
@@ -325,6 +320,8 @@ const AdminCategoryManager = () => {
       nameSvPlaceholder: 'F.eks. Bastudufter',
       nameEnPlaceholder: 'Sauna Scents',
       slugPlaceholder: 'bastudufter',
+    },
+    de: {
       title: 'Kategorieverwaltung',
       subcategories: 'Unterkategorien',
       categoriesWord: 'Kategorien',
@@ -381,6 +378,8 @@ const AdminCategoryManager = () => {
       nameSvPlaceholder: 'Z.B. Saunadüfte',
       nameEnPlaceholder: 'Sauna Scents',
       slugPlaceholder: 'saunadufte',
+    },
+  };
 
   const t = content[lang] || content.en;
   const [isAddOpen, setIsAddOpen] = useState(false);
