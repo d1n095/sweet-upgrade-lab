@@ -121,8 +121,6 @@ export const useCartStore = create<CartStore>()(
       setHasHydrated: (v: boolean) => set({ isHydrated: v, _hasHydrated: v }),
 
       addItem: (item) => {
-        const productId = (item.product as any)?.dbId || item.variantId;
-
         set((state) => {
           const items = sanitizeItems(state.items);
           const existing = items.find((i) => i.variantId === item.variantId);
@@ -149,10 +147,6 @@ export const useCartStore = create<CartStore>()(
         }
 
         const existing = get().items.find((i) => i.variantId === variantId);
-        if (existing) {
-          const productId = (existing.product as any)?.dbId || variantId;
-          void productId; // reserved for future logging
-        }
 
         set((state) => ({
           items: state.items.map((item) =>
@@ -163,12 +157,6 @@ export const useCartStore = create<CartStore>()(
       },
 
       removeItem: (variantId) => {
-        const existing = get().items.find((i) => i.variantId === variantId);
-        if (existing) {
-          const productId = (existing.product as any)?.dbId || variantId;
-          void productId;
-        }
-
         set((state) => ({
           items: state.items.filter((item) => item.variantId !== variantId),
           lastUpdatedAt: getTimestamp(),

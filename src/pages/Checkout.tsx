@@ -14,7 +14,6 @@ import { safeInvoke } from '@/lib/safeInvoke';
 import { toast } from 'sonner';
 import { useStoreSettings } from '@/stores/storeSettingsStore';
 import { logActivity } from '@/utils/activityLogger';
-import { trackCheckoutStart, trackCheckoutAbandon, trackEvent } from '@/utils/analyticsTracker'; // removed — kept for type-check only
 import { useAuth } from '@/hooks/useAuth';
 
 
@@ -322,14 +321,6 @@ const Checkout = () => {
     event?.preventDefault();
     void startCheckout();
   };
-
-  // Track checkout page view
-  useEffect(() => {
-    // analytics removed
-    return () => {
-      // analytics removed
-    };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!checkoutEnabled) {
     return (
