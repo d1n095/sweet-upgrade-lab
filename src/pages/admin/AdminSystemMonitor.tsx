@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { getInvokeLog, clearInvokeLog, type InvokeLogEntry } from '@/lib/invokeLogger';
 import { supabase } from '@/integrations/supabase/client';
+import { safeInvoke } from '@/lib/safeInvoke';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FUNCTION INVENTORY
@@ -501,26 +502,15 @@ const ScanControlTab = ({ log }: { log: InvokeLogEntry[] }) => {
   const runScan = async () => {
     setRunning(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { toast.error('Ej inloggad'); setRunning(false); return; }
-
-      const resp = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/run-full-scan`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ source: 'system-monitor' }),
-        }
-      );
-      const data = await resp.json();
+      const { data, error } = await safeInvoke('run-full-scan', {
+        body: { source: 'system-monitor' },
+        isAdmin: true,
+      });
       setLastResult(data);
-      if (resp.ok) {
-        toast.success(`Skanning klar: ${data.issues?.length ?? 0} problem hittades`);
+      if (!error) {
+        toast.success(`Skanning klar: ${data?.issues?.length ?? 0} problem hittades`);
       } else {
-        toast.error(data.error || 'Skanning misslyckades');
+        toast.error((error as any)?.message || 'Skanning misslyckades');
       }
     } catch (e: any) {
       toast.error(e.message || 'Okänt fel');
