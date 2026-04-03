@@ -33,6 +33,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/context/LanguageContext';
 import { toast } from 'sonner';
+import { safeInvoke } from '@/lib/safeInvoke';
 
 interface Affiliate {
   id: string;
@@ -214,22 +215,13 @@ const AdminAffiliateManager = () => {
 
       // Send welcome email
       try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-affiliate`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            ...(sessionData?.session?.access_token && {
-              'Authorization': `Bearer ${sessionData.session.access_token}`
-            })
-          },
-          body: JSON.stringify({
+        await safeInvoke('notify-affiliate', {
+          body: {
             email: formData.email.toLowerCase(),
             name: formData.name,
             code,
             commissionPercent: parseFloat(formData.commissionPercent),
-          }),
+          },
         });
       } catch (emailError) {
         console.error('Failed to send email:', emailError);

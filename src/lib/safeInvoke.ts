@@ -89,3 +89,32 @@ export async function safeInvoke<T = any>(
 
   return { data, error, request_trace_id };
 }
+
+/**
+ * Thin approved wrapper around `fetch` for edge-function calls that require
+ * raw Response access (GET requests, AbortSignal, HTTP status inspection, etc.).
+ *
+ * Validates the URL against the approved allowlist and the admin-only guard,
+ * then delegates to the platform `fetch` with all original options intact.
+ */
+export async function safeFetch(
+  url: string,
+  options?: RequestInit & { isAdmin?: boolean }
+): Promise<Response> {
+  const match = url.match(/\/functions\/v1\/([^/?#]+)/);
+  const functionName = match?.[1];
+
+  if (!functionName || !APPROVED_FUNCTIONS.has(functionName)) {
+    console.error('[safeFetch] BLOCKED — unapproved function:', functionName);
+    throw new Error(`safeFetch: function "${functionName ?? url}" is not in the approved list`);
+  }
+
+  if (ADMIN_ONLY_FUNCTIONS.has(functionName) && !options?.isAdmin) {
+    console.error('[safeFetch] BLOCKED — admin access required for:', functionName);
+    throw new Error(`safeFetch: function "${functionName}" requires admin access`);
+  }
+
+  const { isAdmin: _isAdmin, ...fetchOptions } = options ?? {};
+  console.log('[safeFetch]', functionName);
+  return fetch(url, fetchOptions);
+}

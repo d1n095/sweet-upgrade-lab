@@ -27,6 +27,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/context/LanguageContext';
 import { toast } from 'sonner';
+import { safeInvoke } from '@/lib/safeInvoke';
 
 interface Influencer {
   id: string;
@@ -250,24 +251,15 @@ const AdminInfluencerManager = () => {
 
       // Send notification email
       try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-influencer`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            ...(sessionData?.session?.access_token && {
-              'Authorization': `Bearer ${sessionData.session.access_token}`
-            })
-          },
-          body: JSON.stringify({
+        await safeInvoke('notify-influencer', {
+          body: {
             email: formData.email.toLowerCase(),
             name: formData.name,
             code,
             maxProducts: parseInt(formData.maxProducts),
             validUntil: formData.validUntil || null,
             isUpdate: false,
-          }),
+          },
         });
         toast.success(language === 'sv' ? 'Email skickad till influencer!' : 'Email sent to influencer!');
       } catch (emailError) {
@@ -323,24 +315,15 @@ const AdminInfluencerManager = () => {
 
   const resendEmail = async (influencer: Influencer) => {
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-influencer`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          ...(sessionData?.session?.access_token && {
-            'Authorization': `Bearer ${sessionData.session.access_token}`
-          })
-        },
-        body: JSON.stringify({
+      await safeInvoke('notify-influencer', {
+        body: {
           email: influencer.email,
           name: influencer.name,
           code: influencer.code,
           maxProducts: influencer.max_products,
           validUntil: influencer.valid_until,
           isUpdate: true,
-        }),
+        },
       });
       toast.success(t.emailSent);
     } catch (error) {

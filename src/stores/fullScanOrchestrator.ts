@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { QueryClient } from '@tanstack/react-query';
+import { safeFetch } from '@/lib/safeInvoke';
 
 export type OrchestratorStepStatus = 'pending' | 'running' | 'done' | 'error' | 'skipped';
 
@@ -258,7 +259,7 @@ export const useFullScanOrchestrator = create<FullScanOrchestratorState>((set, g
 
     try {
       // Call the server-side edge function to start the scan
-      const resp = await fetch(
+      const resp = await safeFetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/run-full-scan`,
         {
           method: 'POST',
@@ -267,6 +268,7 @@ export const useFullScanOrchestrator = create<FullScanOrchestratorState>((set, g
             Authorization: `Bearer ${session.access_token}`,
           },
           body: JSON.stringify({ action: 'start' }),
+          isAdmin: true,
         }
       );
 

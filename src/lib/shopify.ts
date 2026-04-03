@@ -1,5 +1,6 @@
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { safeFetch } from '@/lib/safeInvoke';
 
 // Shopify proxy endpoint - token is now stored server-side
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -149,7 +150,7 @@ const CART_CREATE_MUTATION = `
 export async function storefrontApiRequest(query: string, variables: Record<string, unknown> = {}) {
   const { data: sessionData } = await supabase.auth.getSession();
   
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/shopify-proxy`, {
+  const response = await safeFetch(`${SUPABASE_URL}/functions/v1/shopify-proxy`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, CheckCircle2, XCircle, AlertTriangle, Wifi, Clock } from 'lucide-react';
+import { safeFetch } from '@/lib/safeInvoke';
 
 interface WebhookHealth {
   status: string;
@@ -29,7 +30,7 @@ const AdminWebhookStatus = () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(
+      const res = await safeFetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-webhook`,
         {
           method: 'GET',

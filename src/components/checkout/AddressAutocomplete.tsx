@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { MapPin } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { safeFetch } from '@/lib/safeInvoke';
 
 interface Prediction {
   place_id: string;
@@ -57,7 +57,7 @@ const AddressAutocomplete = ({
     try {
       const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
       const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      const res = await fetch(
+      const res = await safeFetch(
         `https://${projectId}.supabase.co/functions/v1/google-places?action=autocomplete&input=${encodeURIComponent(input)}`,
         { headers: { apikey: anonKey } }
       );
@@ -90,7 +90,7 @@ const AddressAutocomplete = ({
     try {
       const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
       const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      const res = await fetch(
+      const res = await safeFetch(
         `https://${projectId}.supabase.co/functions/v1/google-places?action=details&place_id=${encodeURIComponent(prediction.place_id)}`,
         { headers: { apikey: anonKey } }
       );
