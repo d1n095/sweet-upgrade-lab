@@ -37,7 +37,7 @@ export const OrchestrationTab = () => {
             <GitMerge className="w-4 h-4 text-primary" />
             Double-Pass Multi-AI Orchestration
           </CardTitle>
-          <p className="text-xs text-muted-foreground">Två-stegs AI-cykel: Generator → Validator → Executor → Governor</p>
+          <p className="text-xs text-muted-foreground">Två-stegs orchestration: Generator → Validator → Executor → Governor</p>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex gap-2">
@@ -69,7 +69,7 @@ export const OrchestrationTab = () => {
                   <Clock className="w-3 h-3" /> Pass 2: Refinement → Final Review → Governor
                 </div>
               </div>
-              <p className="text-[10px] text-muted-foreground">Detta kan ta 30–60 sekunder (5 AI-anrop)</p>
+              <p className="text-[10px] text-muted-foreground">Detta kan ta 30–60 sekunder (5 anrop)</p>
             </div>
           )}
         </CardContent>

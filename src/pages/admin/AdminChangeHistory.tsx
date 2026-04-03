@@ -114,7 +114,7 @@ const AdminChangeHistory = () => {
       <div>
         <h1 className="text-2xl font-semibold">Ändringshistorik</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Alla systemändringar med kopplingar till buggar, uppgifter och AI-verifiering
+          Alla systemändringar med kopplingar till buggar, uppgifter och verifiering
         </p>
       </div>
 

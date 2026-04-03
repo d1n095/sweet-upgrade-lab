@@ -83,7 +83,6 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
   const [resolving, setResolving] = useState(false);
   const [fixSuggestion, setFixSuggestion] = useState<any>(null);
   const [analyzingFix, setAnalyzingFix] = useState(false);
-  const [runningReview, setRunningReview] = useState(false);
   const [runningPreVerify, setRunningPreVerify] = useState(false);
   const [expandedCause, setExpandedCause] = useState<number | null>(null);
   const [showIgnoreForm, setShowIgnoreForm] = useState(false);
@@ -259,11 +258,6 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
     finally { setSavingOverride(false); }
   };
 
-  const handleRunRootCause = async () => {
-
-    toast.info('AI-rotorsaksanalys är tillfälligt inaktiverat.');
-  };
-
   const dt = fmtFull(item.created_at);
   const reanalysis = (item.ai_root_causes as any)?.refined_diagnosis ? item.ai_root_causes as any : null;
   const rootCauses = fixSuggestion?.root_causes || (item.ai_root_causes as any)?.root_causes || [];
@@ -367,7 +361,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                   Manuell bedömning
                 </div>
                 {item.human_selected_cause && (
-                  <div><span className="text-[10px] text-muted-foreground">Vald AI-orsak:</span><p className="text-xs">{item.human_selected_cause}</p></div>
+                  <div><span className="text-[10px] text-muted-foreground">Vald orsak:</span><p className="text-xs">{item.human_selected_cause}</p></div>
                 )}
                 {item.human_custom_cause && (
                   <div><span className="text-[10px] text-muted-foreground">Egen orsak:</span><p className="text-xs">{item.human_custom_cause}</p></div>
@@ -422,11 +416,6 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
             {/* Root Cause Analysis */}
             {bugData && item.item_type === 'bug' && (
               <div className="space-y-2">
-                <Button size="sm" variant="outline" className="w-full gap-1.5" disabled={analyzingFix} onClick={handleRunRootCause}>
-                  {analyzingFix ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                  {rootCauses.length > 0 ? 'Kör ny AI-analys' : 'AI Root Cause-analys'}
-                </Button>
-
                 {rootCauses.length > 0 && (
                   <div className="border border-primary/20 rounded-lg p-3 bg-primary/5 space-y-3">
                     <div className="flex items-center justify-between">
@@ -604,8 +593,8 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
               })}>
                 <div className="flex items-center gap-1.5 text-xs font-semibold">
                   <Sparkles className="w-3.5 h-3.5 text-primary" />
-                  {item.ai_pre_verify_status === 'confirmed' ? 'AI-förslag bekräftat' :
-                   item.ai_pre_verify_status === 'rejected' ? 'AI-förslag avvisat' : 'AI förslag: Verkar löst'}
+                  {item.ai_pre_verify_status === 'confirmed' ? 'Förslag bekräftat' :
+                   item.ai_pre_verify_status === 'rejected' ? 'Förslag avvisat' : 'Förslag: Verkar löst'}
                   <Badge variant="outline" className={cn('text-[9px] ml-auto', {
                     'border-accent/40 text-accent': item.ai_pre_verify_status === 'appears_fixed' || item.ai_pre_verify_status === 'confirmed',
                     'border-primary/30 text-primary': item.ai_pre_verify_status === 'possibly_fixed',
@@ -717,17 +706,16 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                 onClick={async () => {
                   setRunningPreVerify(true);
                   try {
-                    // ai-assistant is disabled — pre-verify unavailable
-                    toast.info('AI pre-verify är tillfälligt inaktiverat.');
+                    toast.info('Förhandsverifiering är tillfälligt inaktiverat.');
                   } finally { setRunningPreVerify(false); }
                 }}
               >
                 {runningPreVerify ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                AI: Kontrollera om löst
+                Kontrollera om löst
               </Button>
             )}
 
-            {/* AI Review Results */}
+            {/* Review Results */}
             {item.ai_review_status && (
               <div className={cn('rounded-lg p-3 space-y-2 border', {
                 'bg-accent/5 border-accent/20': item.ai_review_status === 'verified',
@@ -736,7 +724,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
               })}>
                 <div className="flex items-center gap-1.5 text-xs font-semibold">
                   <Bot className="w-3.5 h-3.5" />
-                  AI-granskning
+                  Granskning
                   <Badge variant="outline" className={cn('text-[9px] ml-auto', {
                     'border-accent/30 text-accent': item.ai_review_status === 'verified',
                     'border-yellow-300 text-yellow-700': item.ai_review_status === 'needs_review',
@@ -770,27 +758,6 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                   </div>
                 )}
               </div>
-            )}
-
-            {/* Manual AI Review button */}
-            {item.status === 'done' && (
-              <Button size="sm" variant="outline" className="w-full gap-1.5" disabled={runningReview}
-                onClick={async () => {
-                  setRunningReview(true);
-                  try {
-                    const reviewResult = await                    if (!reviewResult.ok) toast.error('AI-granskning misslyckades');
-                    else {
-                      const s = reviewResult.status;
-                      toast.success(s === 'verified' ? 'AI: ✅ Verifierad' : s === 'needs_review' ? 'AI: ⚠️ Behöver granskning' : 'AI: Granskning klar');
-                    }
-                    onRefresh?.();
-                  } catch { toast.error('Fel vid AI-granskning'); }
-                  finally { setRunningReview(false); }
-                }}
-              >
-                {runningReview ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Bot className="w-3.5 h-3.5" />}
-                {item.ai_review_status ? 'Kör AI-granskning igen' : 'Kör AI-granskning'}
-              </Button>
             )}
 
             {/* Resolution info */}

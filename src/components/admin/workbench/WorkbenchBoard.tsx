@@ -164,7 +164,6 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const [newType, setNewType] = useState('general');
   const [creating, setCreating] = useState(false);
   const [autoAssigning, setAutoAssigning] = useState(false);
-  const [runningOrchestrator, setRunningOrchestrator] = useState(false);
   const [runningAutomation, setRunningAutomation] = useState(false);
   const [runningValidation, setRunningValidation] = useState(false);
   const [viewFilter, setViewFilter] = useState<ViewFilter>('active');
@@ -216,10 +215,6 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     } finally {
       setRunningAutomation(false);
     }
-  };
-
-  const runOrchestrator = async () => {
-    toast.info('Orchestrator är inaktiverat.');
   };
 
   const runValidation = async () => {
@@ -1113,9 +1108,6 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
           )}
           <Button size="sm" variant="outline" className="gap-1.5" onClick={runAutomation} disabled={runningAutomation}>
             <Bot className="w-4 h-4" /> {runningAutomation ? 'Kör...' : 'Automation'}
-          </Button>
-          <Button size="sm" variant="outline" className="gap-1.5" onClick={runOrchestrator} disabled={runningOrchestrator}>
-            <Layers className="w-4 h-4" /> {runningOrchestrator ? 'Analyserar...' : 'AI Orchestrator'}
           </Button>
           <Button size="sm" variant="outline" className="gap-1.5" onClick={runValidation} disabled={runningValidation}>
             <CheckCircle2 className="w-4 h-4" /> {runningValidation ? 'Validerar...' : 'Validera & Städa'}

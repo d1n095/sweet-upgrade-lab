@@ -471,17 +471,6 @@ const AdminBugReports = () => {
                   </div>
                 )}
               </div>
-            ) : (
-              <Button
-                size="sm"
-                variant="outline"
-                className="w-full gap-1.5"
-                disabled={isProcessing}
-                onClick={() => processWithAI(r.id)}
-              >
-                {isProcessing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                Bearbeta med AI
-              </Button>
             )}
 
             {r.status === 'resolved' && (

@@ -98,7 +98,7 @@ const TAB_GROUPS: TabGroup[] = [
       { value: 'data-flow', label: 'Dataflöde', icon: ArrowRightLeft },
       { value: 'cleanup', label: 'Rensning', icon: Database },
       { value: 'change-log', label: 'Ändringslogg', icon: Clock },
-      { value: 'ai-reads', label: 'AI-läslogg', icon: Eye },
+      { value: 'reads', label: 'Läslogg', icon: Eye },
       { value: 'verification-engine', label: 'Verifiering', icon: CheckCircle },
     ],
   },

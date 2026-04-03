@@ -395,7 +395,7 @@ function parseTags(value: string): string[] {
     .filter(Boolean);
 }
 
-// ─── AI Content Generator ───
+// ─── Content Generator ───
 function AiContentGenerator({
   language,
   formData,
@@ -488,7 +488,7 @@ function AiContentGenerator({
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-          {sv ? '🤖 AI-assistent' : '🤖 AI Assistant'}
+          {sv ? 'Innehållsgenerator' : 'Content Generator'}
         </p>
         {hasEmptyFields && (
           <Button
@@ -502,7 +502,7 @@ function AiContentGenerator({
             {generating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
             {generating
               ? (sv ? 'Genererar...' : 'Generating...')
-              : (sv ? 'Generera innehåll med AI' : 'Generate content with AI')}
+              : (sv ? 'Generera innehåll' : 'Generate content')}
           </Button>
         )}
       </div>
@@ -512,69 +512,6 @@ function AiContentGenerator({
           : 'Auto-fill empty fields based on product name, category and ingredients.'}
       </p>
     </div>
-  );
-}
-
-// ─── AI Metadata Suggestor (auto-categorize) ───
-function AiMetadataSuggestor({
-  language,
-  formData,
-  setFormData,
-}: {
-  language: string;
-  formData: ProductFormData;
-  setFormData: React.Dispatch<React.SetStateAction<ProductFormData>>;
-}) {
-  const [suggesting, setSuggesting] = React.useState(false);
-  const sv = language === 'sv';
-
-  const handleSuggest = async () => {
-    if (!formData.title.trim()) {
-      toast.error(sv ? 'Ange ett produktnamn först' : 'Enter a product name first');
-      return;
-    }
-    setSuggesting(true);
-    try {
-      throw new Error('AI-förslag är inaktiverat.');
-
-      setFormData(prev => ({
-        ...prev,
-        categoryIds: s.categoryIds?.length ? s.categoryIds : prev.categoryIds,
-        tagIds: s.tagIds?.length ? s.tagIds : prev.tagIds,
-      }));
-
-      const newTagNames = s.suggestedNewTags || [];
-      if (newTagNames.length > 0) {
-        toast.info(
-          sv
-            ? `AI föreslår nya taggar: ${newTagNames.join(', ')}`
-            : `AI suggests new tags: ${newTagNames.join(', ')}`
-        );
-      }
-
-      toast.success(sv ? 'Kategorier & taggar föreslagna!' : 'Categories & tags suggested!');
-    } catch (err: any) {
-      console.error('AI suggest failed:', err);
-      toast.error(sv ? 'Kunde inte hämta förslag' : 'Failed to get suggestions');
-    } finally {
-      setSuggesting(false);
-    }
-  };
-
-  return (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      className="gap-1.5 text-xs h-7 w-full"
-      onClick={handleSuggest}
-      disabled={suggesting || !formData.title.trim()}
-    >
-      {suggesting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-      {suggesting
-        ? (sv ? 'Analyserar...' : 'Analyzing...')
-        : (sv ? '🤖 Föreslå kategorier & taggar med AI' : '🤖 Suggest categories & tags with AI')}
-    </Button>
   );
 }
 
@@ -902,13 +839,6 @@ export function AdminProductForm({
           onChange={(ids) => setFormData(prev => ({ ...prev, tagIds: ids }))}
         />
       </div>
-
-      {/* AI Auto-categorize */}
-      <AiMetadataSuggestor
-        language={language}
-        formData={formData}
-        setFormData={setFormData}
-      />
 
       {/* Free-text tags (legacy/custom) */}
       <div className="space-y-2">
