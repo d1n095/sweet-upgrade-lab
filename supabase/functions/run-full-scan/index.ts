@@ -34,8 +34,8 @@ const STEPS = [
 const MAX_ITERATIONS = 3;
 const STEP_TIMEOUT_MS = 30_000;
 const FINALIZE_TIMEOUT_MS = 45_000;
-const CHAIN_TIMEOUT_MS = 10_000;
-const SCAN_TIMEOUT_MS = 120_000;
+const CHAIN_TIMEOUT_MS = 60_000;
+const SCAN_TIMEOUT_MS = 300_000;
 const STEP_LOG_LIMIT = 100;
 
 function isCompletedStatus(status?: string | null) {
@@ -3343,11 +3343,6 @@ serve(async (req) => {
       const allTracedIssues = createResult.createTrace || [];
       if (allTracedIssues.length > 0 && allTracedIssues.some((i: any) => !i.fingerprint)) {
         violations.push("❌ ISSUES MISSING FINGERPRINT");
-      }
-      // STALE DATA
-      const scanTimestamp = new Date(scanRun.started_at).getTime();
-      if (scanTimestamp && Date.now() - scanTimestamp > 60000) {
-        violations.push("⚠ STALE SCAN DATA (>60s old)");
       }
       const scanContext = {
         raw_detected: rawDetected,
