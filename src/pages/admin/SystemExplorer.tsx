@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { tracedInvoke } from "@/lib/tracedInvoke";
 import { usePipelineStore } from "@/stores/pipelineStore";
 import { fileSystemMap, type FileEntry, getFileContent, getCodeIndex, getDuplicatedLines, getCodeIssues, getRawSources, scanFileContent } from "@/lib/fileSystemMap";
 import { useAdminRole } from "@/hooks/useAdminRole";
@@ -13,10 +12,9 @@ import { useFounderRole } from "@/hooks/useFounderRole";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { Database, Activity, Bug, CheckCircle, AlertTriangle, Clock, Shield, ChevronRight, ChevronDown, X, Folder, FolderOpen, FileText, RefreshCw, Cpu, ArrowRight, Filter, Layers, History, Radar, Eye, Bot, Send, Loader2, Lock, Monitor } from "lucide-react";
+import { Database, Activity, Bug, CheckCircle, AlertTriangle, Clock, Shield, ChevronRight, ChevronDown, X, Folder, FolderOpen, FileText, RefreshCw, Cpu, ArrowRight, Filter, Layers, History, Radar, Eye, Send, Loader2, Lock, Monitor } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import ReactMarkdown from "react-markdown";
 
 type WorkItem = {
   id: string;
@@ -198,10 +196,6 @@ const SystemExplorer = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [showRawScan, setShowRawScan] = useState(false);
-  const [aiQuery, setAiQuery] = useState("");
-  const [aiAnswer, setAiAnswer] = useState<string | null>(null);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiFocusArea, setAiFocusArea] = useState<string | null>(null);
   const [mainTab, setMainTab] = useState<"system" | "files" | "patch" | "codeindex" | "backendscan">("system");
   const [filesFilter, setFilesFilter] = useState<"all" | "orphan" | "has_issues">("all");
   const [selectedFile, setSelectedFile] = useState<FileEntry | null>(null);
@@ -991,11 +985,6 @@ const SystemExplorer = () => {
   const toggleSection = (key: string) => setExpandedSections((prev) => ({ ...prev, [key]: !prev[key] }));
   const toggleGroup = (key: string) => setExpandedGroups((prev) => ({ ...prev, [key]: !prev[key] }));
 
-  const handleAiAnalyze = async () => {
-    if (!aiQuery.trim() || aiLoading) return;
-    setAiAnswer("AI är inaktiverat.");
-  };
-
   const priorityColor = (p: string) => {
     switch (p) {
       case "critical": return "destructive";
@@ -1154,7 +1143,7 @@ const SystemExplorer = () => {
                   } catch (_) {}
                 }, 2000);
                 try {
-                  await tracedInvoke("run-full-scan", {
+                  await supabase.functions.invoke("run-full-scan", {
                     body: {
                       action: "start",
                       scan_mode: Object.values(scanFilters).some(v => v === false) ? "filtered" : "full",
@@ -2292,75 +2281,6 @@ const SystemExplorer = () => {
               </p>
             ))}
           </div>
-        )}
-        {isSystemAdmin && (
-        <Card>
-          <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("aiAssistant")}>
-            <CardTitle className="text-sm flex items-center gap-2">
-              {expandedSections.aiAssistant ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-              <Bot className="h-4 w-4 text-primary" />
-              AI Assistant
-              <Badge variant="outline" className="text-[10px]">READ-ONLY</Badge>
-            </CardTitle>
-          </CardHeader>
-          {expandedSections.aiAssistant && (
-            <CardContent className="space-y-3">
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Ask about system state, scanners, work items..."
-                  value={aiQuery}
-                  onChange={(e) => setAiQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleAiAnalyze()}
-                  className="text-sm"
-                />
-                <Button size="sm" onClick={handleAiAnalyze} disabled={aiLoading || !aiQuery.trim()}>
-                  {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  Analyze
-                </Button>
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {["Why was this created?", "Which scanners failed?", "What is broken?", "Summarize system state"].map((q) => (
-                  <button
-                    key={q}
-                    onClick={() => { setAiQuery(q); }}
-                    className="text-[10px] px-2 py-1 rounded-md border border-border hover:bg-muted/50 transition-colors text-muted-foreground"
-                  >
-                    {q}
-                  </button>
-                ))}
-              </div>
-              <div className="flex items-center gap-1 flex-wrap">
-                <span className="text-[10px] text-muted-foreground font-medium mr-1">Focus Area:</span>
-                {[
-                  { key: "UI", label: "UI" },
-                  { key: "Data", label: "Data" },
-                  { key: "Flow", label: "Flow" },
-                  { key: "Business", label: "Business" },
-                ].map((area) => (
-                  <button
-                    key={area.key}
-                    onClick={() => setAiFocusArea(aiFocusArea === area.key ? null : area.key)}
-                    className={`text-[10px] px-2 py-1 rounded-md border transition-colors ${
-                      aiFocusArea === area.key
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "border-border hover:bg-muted/50 text-muted-foreground"
-                    }`}
-                  >
-                    {area.label}
-                  </button>
-                ))}
-                {aiFocusArea && (
-                  <span className="text-[10px] text-muted-foreground ml-1">Active: {aiFocusArea}</span>
-                )}
-              </div>
-              {aiAnswer && (
-                <div className="border border-border rounded-md p-3 bg-muted/30 text-sm prose prose-sm max-w-none dark:prose-invert">
-                  <ReactMarkdown>{aiAnswer}</ReactMarkdown>
-                </div>
-              )}
-            </CardContent>
-          )}
-        </Card>
         )}
 
         {/* DEBUG CONSOLE */}
@@ -4113,7 +4033,7 @@ const SystemExplorer = () => {
                       const meta = (selectedItem as any).metadata ? (typeof (selectedItem as any).metadata === "string" ? JSON.parse((selectedItem as any).metadata) : (selectedItem as any).metadata) : {};
                       const target = meta?.affected_area?.target || (selectedItem as any).source_component || (selectedItem as any).source_path || selectedItem.item_type;
 
-                      const verifyRes = await tracedInvoke("run-full-scan", {
+                      const verifyRes = await supabase.functions.invoke("run-full-scan", {
                         body: { action: "start", scan_mode: "targeted", target_area: target, verification_for: selectedItem.id },
                       });
                       console.log("[DEBUG] VERIFY SCAN RESPONSE:", verifyRes);
