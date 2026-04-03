@@ -1,33 +1,19 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { Bug, CheckCircle2, Loader2, Clock, MapPin, User, ChevronDown, ChevronUp, AlertCircle, Sparkles, Tag, Search, RefreshCw, BookOpen, Copy, Filter, Crosshair, Wrench, FileCode, ClipboardCopy } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Bug, CheckCircle2, Loader2, Clock, MapPin, User, ChevronDown, ChevronUp, AlertCircle, RefreshCw } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { safeInvoke, safeFetch } from '@/lib/safeInvoke';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
 
-interface ActionableFix {
-  blocker_statement?: string;
-  root_cause_exact?: string;
-  location?: { file_path: string; function_name: string; system_area: string };
-  fix_steps?: string[];
-  copy_prompt?: string;
-  root_causes?: { cause: string; confidence: number; affected_area: string }[];
-  is_reproducible?: boolean;
-  reproducibility_reasoning?: string;
-  fix_suggestions?: { suggestion: string; effort: string; risk: string }[];
-  affected_components?: string[];
-}
 
 interface BugReport {
   id: string;
@@ -39,14 +25,6 @@ interface BugReport {
   resolution_notes: string | null;
   resolved_at: string | null;
   resolved_by: string | null;
-  ai_summary: string | null;
-  ai_category: string | null;
-  ai_severity: string | null;
-  ai_tags: string[] | null;
-  ai_clean_prompt: string | null;
-  ai_processed_at: string | null;
-  ai_approved: boolean;
-  ai_actionable_fix: ActionableFix | null;
   work_item_status?: string;
   reporter_name?: string;
 }
@@ -59,22 +37,6 @@ const RESOLVE_CHECKLIST = [
   { key: 'no_regression', label: 'Ingen regression upptäckt' },
 ];
 
-const SEVERITY_COLORS: Record<string, string> = {
-  critical: 'bg-red-500/15 text-red-700 border-red-300',
-  high: 'bg-orange-500/15 text-orange-700 border-orange-300',
-  medium: 'bg-yellow-500/15 text-yellow-700 border-yellow-300',
-  low: 'bg-blue-500/15 text-blue-700 border-blue-300',
-};
-
-const CATEGORY_COLORS: Record<string, string> = {
-  UI: 'bg-purple-500/15 text-purple-700',
-  payment: 'bg-green-500/15 text-green-700',
-  auth: 'bg-red-500/15 text-red-700',
-  system: 'bg-gray-500/15 text-gray-700',
-  performance: 'bg-amber-500/15 text-amber-700',
-  data: 'bg-cyan-500/15 text-cyan-700',
-  unclear: 'bg-muted text-muted-foreground',
-};
 
 const AdminBugReports = () => {
   const { user } = useAuth();
@@ -84,10 +46,7 @@ const AdminBugReports = () => {
   const [checklist, setChecklist] = useState<Record<string, boolean>>({});
   const [resolutionNotes, setResolutionNotes] = useState('');
   const [resolving, setResolving] = useState<string | null>(null);
-  const [processingAI, setProcessingAI] = useState<string | null>(null);
-  const [promptSearch, setPromptSearch] = useState('');
-  const [promptTagFilter, setPromptTagFilter] = useState<string | null>(null);
-  
+
 
   const fetchBugs = async (): Promise<BugReport[]> => {
     const { data: bugs } = await supabase
@@ -112,8 +71,6 @@ const AdminBugReports = () => {
 
       const mapped = bugs.map(b => ({
         ...b,
-        ai_tags: (b as any).ai_tags || [],
-        ai_approved: (b as any).ai_approved || false,
         work_item_status: wiMap.get(b.id) || null,
         reporter_name: profileMap.get(b.user_id) || 'Okänd',
       })) as BugReport[];
