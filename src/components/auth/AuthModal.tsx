@@ -195,9 +195,419 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
         }
         
         // Send welcome email in background
-        supabase.functions.invoke('send-welcome-email', {
-          body: { email, language }
-        }).catch(err => console.error('Welcome email failed:', err));
+        safeInvoke('send-welcome-email', { email, language }).catch(err => console.error('Welcome email failed:', err));
+        
+        logAuthEvent('login', email, { type: 'signup' });
+        
+        // Show verification message instead of closing
+        setSignupEmail(email);
+        setSignupComplete(true);
+      }
+    } catch (error: any) {
+      setFormError(error.message || (lang === 'sv' ? 'Ett fel uppstod. Försök igen.' : 'An error occurred. Please try again.'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleModeChange = (newMode: 'login' | 'register' | 'forgot') => {
+    if (newMode === 'register' && !registrationEnabled) return;
+    setMode(newMode);
+    setResetSent(false);
+    setSignupComplete(false);
+    setFormError('');
+    setUsernameError('');
+    setPhoneError('');
+    setUsernameAvailable(null);
+  };
+
+  // Reset state when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setSignupComplete(false);
+      setResetSent(false);
+      setFormError('');
+      setUsernameError('');
+      setPhoneError('');
+      setUsernameAvailable(null);
+      setUsername('');
+      setPhone('');
+    }
+  }, [isOpen]);
+
+  return (
+    <Sheet open={isOpen} onOpenChange={(open) => {
+      // Prevent closing during loading or after signup (force user to see verify message)
+      if (loading) return;
+      if (signupComplete) return; // Don't let user accidentally close before seeing verify info
+      if (!open) onClose();
+    }}>
+      <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+        <SheetHeader className="text-left mb-6">
+          <div className="flex items-center gap-3 mb-2">
+            {mode === 'forgot' && !resetSent && (
+              <button
+                type="button"
+                onClick={() => handleModeChange('login')}
+                className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center hover:bg-muted/80 transition-colors"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+            )}
+            {mode !== 'forgot' && !signupComplete && (
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Crown className="w-5 h-5 text-primary" />
+              </div>
+            )}
+            {!signupComplete && (
+              <div>
+                <SheetTitle className="font-display text-xl">
+                  {mode === 'forgot'
+                    ? (lang === 'sv' ? 'Glömt lösenord' : 'Forgot Password')
+                    : mode === 'login' 
+                      ? (lang === 'sv' ? 'Logga in' : 'Sign In')
+                      : (lang === 'sv' ? 'Bli medlem' : 'Become a Member')}
+                </SheetTitle>
+                <SheetDescription>
+                  {mode === 'forgot'
+                    ? (lang === 'sv' 
+                        ? 'Vi skickar en återställningslänk till din e-post' 
+                        : "We'll send a reset link to your email")
+                    : (lang === 'sv' 
+                        ? 'Få tillgång till exklusiva medlemspriser'
+                        : 'Get access to exclusive member prices')}
+                </SheetDescription>
+              </div>
+            )}
+          </div>
+        </SheetHeader>
+
+        {/* Signup complete - verification message */}
+        {signupComplete ? (
+          <div className="text-center py-8">
+            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+              <Mail className="w-8 h-8 text-primary" />
+            </div>
+            <h3 className="font-semibold text-lg mb-2">
+              {lang === 'sv' ? 'Verifieringsmail skickat!' : 'Verification Email Sent!'}
+            </h3>
+            <p className="text-muted-foreground text-sm mb-2">
+              {lang === 'sv' 
+                ? 'Vi har skickat en verifieringslänk till:' 
+                : 'We sent a verification link to:'}
+            </p>
+            <p className="font-medium text-sm mb-4">{signupEmail}</p>
+            
+            <div className="mb-6 p-4 rounded-xl bg-secondary border border-border text-left space-y-2">
+              <p className="text-sm font-medium">
+                {lang === 'sv' ? 'Nästa steg:' : 'Next steps:'}
+              </p>
+              <ol className="text-sm text-muted-foreground space-y-1.5 list-decimal list-inside">
+                <li>{lang === 'sv' ? 'Öppna din e-post' : 'Open your email'}</li>
+                <li>{lang === 'sv' ? 'Klicka på verifieringslänken' : 'Click the verification link'}</li>
+                <li>{lang === 'sv' ? 'Logga in med ditt konto' : 'Sign in with your account'}</li>
+              </ol>
+              <p className="text-xs text-muted-foreground mt-2">
+                {lang === 'sv' ? '💡 Kolla även skräpposten om du inte hittar mailet.' : '💡 Check your spam folder if you can\'t find the email.'}
+              </p>
+            </div>
+
+            {username && (
+              <div className="mb-6 p-3 rounded-xl bg-accent/10 border border-accent/20">
+                <p className="text-sm">
+                  {lang === 'sv' ? 'Ditt användarnamn:' : 'Your username:'}{' '}
+                  <span className="font-semibold">{username}</span>
+                </p>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSignupComplete(false);
+                  handleModeChange('login');
+                }}
+                className="rounded-xl w-full"
+              >
+                {lang === 'sv' ? 'Gå till inloggning' : 'Go to login'}
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={onClose}
+                className="rounded-xl w-full text-muted-foreground"
+              >
+                {lang === 'sv' ? 'Stäng' : 'Close'}
+              </Button>
+            </div>
+          </div>
+        ) : mode === 'forgot' && resetSent ? (
+          <div className="text-center py-8">
+            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="w-8 h-8 text-primary" />
+            </div>
+            <h3 className="font-semibold text-lg mb-2">
+              {lang === 'sv' ? 'E-post skickad!' : 'Email Sent!'}
+            </h3>
+            <p className="text-muted-foreground text-sm mb-4">
+              {lang === 'sv' 
+                ? 'Kolla din inkorg och klicka på länken för att återställa ditt lösenord.' 
+                : 'Check your inbox and click the link to reset your password.'}
+            </p>
+            <Button
+              variant="outline"
+              onClick={() => handleModeChange('login')}
+              className="rounded-xl"
+            >
+              {lang === 'sv' ? 'Tillbaka till inloggning' : 'Back to login'}
+            </Button>
+          </div>
+        ) : (
+          <>
+            {/* Benefits */}
+            {mode === 'register' && (
+              <div className="mb-6 p-4 rounded-xl bg-accent/10 border border-accent/20">
+                <p className="text-sm font-medium text-accent mb-2">
+                  {lang === 'sv' ? 'Medlemsfördelar:' : 'Member benefits:'}
+                </p>
+                <ul className="text-sm text-muted-foreground space-y-1">
+                  <li>✓ {lang === 'sv' ? 'Exklusiva medlemspriser' : 'Exclusive member prices'}</li>
+                  <li>✓ {lang === 'sv' ? 'Automatiska mängdrabatter' : 'Automatic volume discounts'}</li>
+                  <li>✓ {lang === 'sv' ? 'Tillgång till paketpriser' : 'Access to bundle pricing'}</li>
+                </ul>
+              </div>
+            )}
+
+            {/* Form error banner */}
+            {formError && (
+              <div className="mb-4 p-3 rounded-xl bg-destructive/10 border border-destructive/20 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
+                <p className="text-sm text-destructive">{formError}</p>
+              </div>
+            )}
+
+            {/* Form */}
+            <form onSubmit={handleSubmit} className="space-y-4" autoComplete={mode === 'login' ? 'on' : 'off'}>
+              {/* Username field for registration - REQUIRED */}
+              {mode === 'register' && (
+                <div>
+                  <div className="relative">
+                    <UserCircle className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <Input
+                      type="text"
+                      name="reg_uname_field"
+                      autoComplete="off"
+                      placeholder={lang === 'sv' ? 'Användarnamn *' : 'Username *'}
+                      value={username}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^a-zA-Z0-9_-]/g, '');
+                        setUsername(val);
+                        setFormError('');
+                        if (val) {
+                          checkUsernameAvailability(val);
+                        } else {
+                          setUsernameError(lang === 'sv' ? 'Användarnamn krävs' : 'Username is required');
+                          setUsernameAvailable(null);
+                        }
+                      }}
+                      className="pl-11 pr-10 h-12 rounded-xl"
+                      maxLength={20}
+                      required
+                    />
+                    {/* Status indicator */}
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      {checkingUsername && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+                      {!checkingUsername && usernameAvailable === true && !usernameError && (
+                        <CheckCircle2 className="w-4 h-4 text-green-600" />
+                      )}
+                      {!checkingUsername && (usernameAvailable === false || usernameError) && username && (
+                        <AlertCircle className="w-4 h-4 text-destructive" />
+                      )}
+                    </div>
+                  </div>
+                  {usernameError && (
+                    <p className="text-xs text-destructive mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" /> {usernameError}
+                    </p>
+                  )}
+                  {!usernameError && usernameAvailable === true && (
+                    <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" /> {lang === 'sv' ? 'Användarnamnet är tillgängligt' : 'Username is available'}
+                    </p>
+                  )}
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    {lang === 'sv' ? '3–20 tecken: bokstäver, siffror, _ och -' : '3–20 characters: letters, numbers, _ and -'}
+                  </p>
+                </div>
+              )}
+
+              {/* Phone field for registration - REQUIRED */}
+              {mode === 'register' && (
+                <div>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <Input
+                      type="tel"
+                      inputMode="tel"
+                      name="reg_phone_field"
+                      autoComplete="tel"
+                      placeholder={lang === 'sv' ? 'Telefonnummer *' : 'Phone number *'}
+                      value={phone}
+                      onChange={(e) => {
+                        setPhone(e.target.value);
+                        setPhoneError('');
+                        setFormError('');
+                      }}
+                      className="pl-11 h-12 rounded-xl"
+                      required
+                    />
+                  </div>
+                  {phoneError && (
+                    <p className="text-xs text-destructive mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" /> {phoneError}
+                    </p>
+                  )}
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    {lang === 'sv' ? 'T.ex. 070-123 45 67' : 'E.g. 070-123 45 67'}
+                  </p>
+                </div>
+              )}
+
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <Input
+                  type="email"
+                  name={mode === 'login' ? 'login_email' : 'reg_email_field'}
+                  autoComplete={mode === 'login' ? 'email' : 'email'}
+                  placeholder={lang === 'sv' ? 'E-postadress' : 'Email address'}
+                  value={email}
+                  onChange={(e) => { setEmail(e.target.value); setFormError(''); }}
+                  className="pl-11 h-12 rounded-xl"
+                  required
+                />
+              </div>
+              
+              {mode !== 'forgot' && (
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  <Input
+                    type={showPassword ? 'text' : 'password'}
+                    name={mode === 'login' ? 'login_pass' : 'reg_pass_field'}
+                    autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                    placeholder={lang === 'sv' ? 'Lösenord' : 'Password'}
+                    value={password}
+                    onChange={(e) => { setPassword(e.target.value); setFormError(''); }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const form = e.currentTarget.closest('form');
+                        if (form) form.requestSubmit();
+                      }
+                    }}
+                    className="pl-11 pr-11 h-12 rounded-xl"
+                    required
+                    minLength={6}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+              )}
+
+              {/* Remember me + Forgot password */}
+              {mode === 'login' && (
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="rounded border-border w-4 h-4 accent-primary"
+                    />
+                    <span className="text-sm text-muted-foreground">
+                      {lang === 'sv' ? 'Kom ihåg mig' : 'Remember me'}
+                    </span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => handleModeChange('forgot')}
+                    className="text-sm text-primary hover:underline"
+                  >
+                    {lang === 'sv' ? 'Glömt lösenord?' : 'Forgot password?'}
+                  </button>
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                disabled={loading || (mode === 'register' && (!!usernameError || !username || checkingUsername || !!phoneError || !phone))}
+                className="w-full h-12 rounded-xl font-semibold"
+              >
+                {loading ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    {mode === 'login'
+                      ? (lang === 'sv' ? 'Loggar in...' : 'Signing in...')
+                      : mode === 'register'
+                        ? (lang === 'sv' ? 'Skapar konto...' : 'Creating account...')
+                        : (lang === 'sv' ? 'Skickar...' : 'Sending...')}
+                  </span>
+                ) : mode === 'forgot' ? (
+                  lang === 'sv' ? 'Skicka återställningslänk' : 'Send Reset Link'
+                ) : mode === 'login' ? (
+                  lang === 'sv' ? 'Logga in' : 'Sign In'
+                ) : (
+                  lang === 'sv' ? 'Skapa konto' : 'Create Account'
+                )}
+              </Button>
+            </form>
+
+            {/* Toggle mode */}
+            {mode !== 'forgot' && (
+              <div className="mt-6 text-center text-sm">
+                {mode === 'login' && registrationEnabled && (
+                  <>
+                    <span className="text-muted-foreground">
+                      {lang === 'sv' ? 'Har du inget konto?' : "Don't have an account?"}
+                    </span>{' '}
+                    <button
+                      type="button"
+                      onClick={() => handleModeChange('register')}
+                      className="text-primary font-medium hover:underline"
+                    >
+                      {lang === 'sv' ? 'Bli medlem' : 'Become a member'}
+                    </button>
+                  </>
+                )}
+                {mode === 'register' && (
+                  <>
+                    <span className="text-muted-foreground">
+                      {lang === 'sv' ? 'Har du redan ett konto?' : 'Already have an account?'}
+                    </span>{' '}
+                    <button
+                      type="button"
+                      onClick={() => handleModeChange('login')}
+                      className="text-primary font-medium hover:underline"
+                    >
+                      {lang === 'sv' ? 'Logga in' : 'Sign in'}
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </SheetContent>
+    </Sheet>
+  );
+};
+
+export default AuthModal;
+).catch(err => console.error('Welcome email failed:', err));
         
         logAuthEvent('login', email, { type: 'signup' });
         

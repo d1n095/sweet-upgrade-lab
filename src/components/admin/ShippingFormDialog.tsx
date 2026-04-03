@@ -119,9 +119,147 @@ const ShippingFormDialog = ({ open, onOpenChange, order, onShipped }: ShippingFo
       let emailSent = false;
       if (deliveryMethod === 'shipping') {
         try {
-          const { error: emailError } = await supabase.functions.invoke('send-order-email', {
-            body: { order_id: order.id, email_type: 'status_update' },
-          });
+          const { error: emailError } = await safeInvoke('send-order-email', { order_id: order.id, email_type: 'status_update' });
+          emailSent = !emailError;
+        } catch {}
+      }
+
+      onShipped(order.id, {
+        carrier: requiresTracking ? carrier : deliveryMethod,
+        tracking_number: requiresTracking ? trackingNumber.trim() : '',
+        tracking_url: requiresTracking ? finalUrl : null,
+        delivery_method: deliveryMethod,
+      });
+
+      const successMsg = deliveryMethod === 'shipping'
+        ? (emailSent ? 'Order skickad ✓ Mail skickat till kund' : 'Order skickad ✓')
+        : deliveryMethod === 'pickup'
+        ? 'Order markerad som upphämtad ✓'
+        : 'Order markerad som levererad ✓';
+
+      toast.success(successMsg);
+      onOpenChange(false);
+      setTrackingNumber('');
+      setTrackingUrl('');
+      setCarrier('postnord');
+      setDeliveryMethod('shipping');
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Kunde inte uppdatera order');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Truck className="w-5 h-5 text-primary" />
+            Leveransmetod
+          </DialogTitle>
+        </DialogHeader>
+
+        {order && (
+          <p className="text-sm text-muted-foreground">
+            Order: <span className="font-mono font-medium">{getOrderDisplayId(order)}</span> — {order.order_email}
+          </p>
+        )}
+
+        <div className="space-y-4">
+          {/* Delivery method selection */}
+          <div className="space-y-2">
+            <Label>Leveransmetod</Label>
+            <div className="grid grid-cols-1 gap-2">
+              {DELIVERY_OPTIONS.map(opt => {
+                const Icon = opt.icon;
+                const isActive = deliveryMethod === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setDeliveryMethod(opt.value)}
+                    className={`flex items-center gap-3 p-3 rounded-lg border text-left transition-colors ${
+                      isActive
+                        ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                        : 'border-border hover:bg-muted/50'
+                    }`}
+                  >
+                    <Icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
+                    <div>
+                      <p className={`text-sm font-medium ${isActive ? 'text-primary' : ''}`}>{opt.label}</p>
+                      <p className="text-xs text-muted-foreground">{opt.description}</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Shipping-specific fields */}
+          {requiresTracking && (
+            <>
+              <div className="space-y-2">
+                <Label>Fraktbolag</Label>
+                <Select value={carrier} onValueChange={setCarrier}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CARRIERS.map(c => (
+                      <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Spårningsnummer *</Label>
+                <Input
+                  placeholder="T.ex. 00123456789SE"
+                  value={trackingNumber}
+                  onChange={e => setTrackingNumber(e.target.value)}
+                  autoFocus
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Spårningslänk (valfri)</Label>
+                <Input
+                  placeholder={autoUrl || 'https://...'}
+                  value={trackingUrl}
+                  onChange={e => setTrackingUrl(e.target.value)}
+                />
+                {autoUrl && !trackingUrl && (
+                  <p className="text-xs text-muted-foreground">
+                    Auto-genererad: <span className="font-mono">{autoUrl.slice(0, 60)}…</span>
+                  </p>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>
+            Avbryt
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={isSaving || (requiresTracking && !trackingNumber.trim())}
+          >
+            {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+            {deliveryMethod === 'shipping' ? 'Markera som skickad' : deliveryMethod === 'pickup' ? 'Markera som upphämtad' : 'Markera som levererad'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+export default ShippingFormDialog;
+);
           emailSent = !emailError;
         } catch {}
       }

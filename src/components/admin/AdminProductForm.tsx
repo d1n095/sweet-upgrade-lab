@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
+import { safeInvoke } from '@/lib/safeInvoke';
 import {
   Select,
   SelectContent,
@@ -415,8 +416,7 @@ function AiContentGenerator({
     }
     setGenerating(true);
     try {
-      const { data, error } = await supabase.functions.invoke('generate-product-content', {
-        body: {
+      const { data, error } = await safeInvoke('generate-product-content', {
           productName: formData.title,
           category: formData.productType || null,
           ingredients: formData.ingredients || null,
@@ -433,7 +433,6 @@ function AiContentGenerator({
             isConcentrate: formData.isConcentrate,
           },
           language: sv ? 'sv' : 'en',
-        },
       });
 
       if (error) throw error;
@@ -535,12 +534,10 @@ function AiMetadataSuggestor({
     }
     setSuggesting(true);
     try {
-      const { data, error } = await supabase.functions.invoke('suggest-product-metadata', {
-        body: {
+      const { data, error } = await safeInvoke('suggest-product-metadata', {
           productName: formData.title,
           description: formData.description || null,
           ingredients: formData.ingredients || null,
-        },
       });
 
       if (error) throw error;

@@ -73,9 +73,47 @@ export function useTranslatedProduct(product: DbProduct | null) {
 
     (async () => {
       try {
-        const { data, error } = await supabase.functions.invoke('translate-product', {
-          body: { texts: textsToTranslate, targetLang: lang, productId: product.id },
-        });
+        const { data, error } = await safeInvoke('translate-product', { texts: textsToTranslate, targetLang: lang, productId: product.id });
+
+        // Only update if this is still the active request
+        if (activeRequestRef.current !== cacheKey) return;
+
+        if (error || !data?.translations) {
+          console.error('Translation failed:', error);
+          setTranslated(fields);
+        } else {
+          const result: TranslatedFields = {
+            title: data.translations.title || fields.title,
+            description: data.translations.description || fields.description,
+            ingredients: data.translations.ingredients || fields.ingredients,
+            feeling: data.translations.feeling || fields.feeling,
+            effects: data.translations.effects || fields.effects,
+            usage: data.translations.usage || fields.usage,
+            extendedDescription: data.translations.extendedDescription || fields.extendedDescription,
+            recipe: data.translations.recipe || fields.recipe,
+          };
+          translationCache.set(cacheKey, result);
+          setTranslated(result);
+        }
+      } catch (err) {
+        if (activeRequestRef.current === cacheKey) {
+          console.error('Translation error:', err);
+          setTranslated(fields);
+        }
+      } finally {
+        if (activeRequestRef.current === cacheKey) {
+          setIsTranslating(false);
+        }
+      }
+    })();
+
+    return () => {
+      activeRequestRef.current = null;
+    };
+  }, [product?.id, lang]);
+
+  return { ...translated, isTranslating };
+});
 
         // Only update if this is still the active request
         if (activeRequestRef.current !== cacheKey) return;

@@ -180,14 +180,126 @@ const ReviewForm = ({ productId, productHandle, productTitle, onReviewSubmitted 
       }
 
       // Notify admin
-      supabase.functions.invoke('notify-review', {
-        body: {
+      safeInvoke('notify-review', {
           productTitle,
           rating,
           comment: comment.trim(),
           userEmail: user.email,
-        }
-      }).catch(err => console.error('Failed to notify admin:', err));
+        }).catch(err => console.error('Failed to notify admin:', err));
+
+      // Create reward
+      const discountCode = `REV${Date.now().toString(36).toUpperCase()}`;
+      await supabase
+        .from('review_rewards')
+        .insert({
+          user_id: user.id,
+          review_id: review.id,
+          discount_code: discountCode,
+          discount_percent: 10,
+        })
+        .then(({ error }) => {
+          if (error) console.error('Failed to create reward:', error);
+        });
+
+      setIsSubmitted(true);
+      toast.success(t.success);
+      onReviewSubmitted?.();
+    } catch (error) {
+      console.error('Failed to submit review:', error);
+      toast.error(t.errorSubmit);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Not logged in — silently hide
+  if (!user) return null;
+
+  // Loading eligibility — silently hide
+  if (isCheckingEligibility) return null;
+
+  // Already reviewed or not a verified buyer — silently hide
+  if (alreadyReviewed || !canReview) return null;
+
+  // Successfully submitted
+  if (isSubmitted) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="bg-primary/10 rounded-2xl p-6 text-center"
+      >
+        <CheckCircle className="w-12 h-12 text-primary mx-auto mb-4" />
+        <h3 className="font-semibold text-lg mb-2">{t.submitted}</h3>
+        <p className="text-muted-foreground text-sm">{t.submittedDesc}</p>
+      </motion.div>
+    );
+  }
+
+  // Review form for verified buyers
+  return (
+    <motion.form
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      onSubmit={handleSubmit}
+      className="bg-card border border-border rounded-2xl p-6"
+    >
+      <h3 className="font-semibold text-lg mb-1">{t.title}</h3>
+      <p className="text-muted-foreground text-sm mb-6">{t.subtitle}</p>
+
+      {/* Reward banner */}
+      <div className="bg-primary/10 rounded-xl p-4 mb-6 flex items-center gap-3">
+        <Gift className="w-6 h-6 text-primary shrink-0" />
+        <span className="text-sm font-medium">{t.reward}</span>
+      </div>
+
+      {/* Rating */}
+      <div className="mb-6">
+        <label className="block text-sm font-medium mb-3">{t.ratingLabel}</label>
+        <ReviewStars
+          rating={rating}
+          size="lg"
+          interactive
+          onRatingChange={setRating}
+        />
+      </div>
+
+      {/* Comment */}
+      <div className="mb-6">
+        <label className="block text-sm font-medium mb-2">{t.commentLabel}</label>
+        <Textarea
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          placeholder={t.commentPlaceholder}
+          rows={4}
+          className="resize-none"
+        />
+      </div>
+
+      {/* Submit */}
+      <Button
+        type="submit"
+        disabled={isSubmitting || rating === 0}
+        className="w-full"
+      >
+        {isSubmitting ? (
+          <>
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            {t.submitting}
+          </>
+        ) : (
+          <>
+            <Send className="w-4 h-4 mr-2" />
+            {t.submit}
+          </>
+        )}
+      </Button>
+    </motion.form>
+  );
+};
+
+export default ReviewForm;
+).catch(err => console.error('Failed to notify admin:', err));
 
       // Create reward
       const discountCode = `REV${Date.now().toString(36).toUpperCase()}`;

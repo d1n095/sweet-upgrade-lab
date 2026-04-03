@@ -504,12 +504,10 @@ const AdminProductManager = () => {
 
       // Load current inventory/policy via Admin API (non-blocking, silent on failure)
       if (variantNumericId) {
-        supabase.functions.invoke('shopify-proxy', {
-          body: {
+        safeInvoke('shopify-proxy', {
             action: 'getVariant',
             data: { variantId: Number(variantNumericId) },
-          },
-        }).then((res) => {
+          }).then((res) => {
           if (res.error) {
             console.warn('Failed to load variant inventory:', res.error);
             return;
@@ -556,7 +554,7 @@ const AdminProductManager = () => {
     setIsSubmitting(true);
 
     try {
-      const response = await supabase.functions.invoke('shopify-proxy', {
+      const response = await safeInvoke('shopify-proxy', {
         body: {
           action: 'createProduct',
           data: {
@@ -607,7 +605,7 @@ const AdminProductManager = () => {
       const targetQuantity = formData.isVisible ? formData.inventory : 0;
       const targetOversell = formData.isVisible ? formData.allowOverselling : false;
 
-      const response = await supabase.functions.invoke('shopify-proxy', {
+      const response = await safeInvoke('shopify-proxy', {
         body: {
           action: 'updateProduct',
           productId: productNumericId,
@@ -631,7 +629,7 @@ const AdminProductManager = () => {
 
       if (response.error) throw response.error;
 
-      const inventoryRes = await supabase.functions.invoke('shopify-proxy', {
+      const inventoryRes = await safeInvoke('shopify-proxy', {
         body: {
           action: 'updateInventory',
           data: {
@@ -666,12 +664,1445 @@ const AdminProductManager = () => {
       const gid = selectedProduct.node.id;
       const numericId = gid.split('/').pop();
 
-      const response = await supabase.functions.invoke('shopify-proxy', {
+      const response = await safeInvoke('shopify-proxy', {
         body: {
           action: 'deleteProduct',
           productId: numericId,
         },
       });
+
+      if (response.error) throw response.error;
+
+      toast.success(t.productDeleted);
+      setSelectedProduct(null);
+      setIsDeleteDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+      queryClient.invalidateQueries({ queryKey: ['shopify-products'] });
+    } catch (error) {
+      console.error('Failed to delete product:', error);
+      toast.error(t.error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const formatPrice = (amount: string, currencyCode: string) => {
+    return new Intl.NumberFormat('sv-SE', {
+      style: 'currency',
+      currency: currencyCode,
+      minimumFractionDigits: 0,
+    }).format(parseFloat(amount));
+  };
+
+  // NOTE: Product form extracted to its own component to prevent remounting on every keystroke
+  // (which caused focus loss + scroll-to-top inside the dialog).
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
+            <Package className="w-5 h-5 text-accent" />
+          </div>
+          <div className="min-w-0">
+            <h3 className="font-semibold truncate">{t.title}</h3>
+            <p className="text-sm text-muted-foreground truncate">{t.subtitle}</p>
+          </div>
+        </div>
+
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <DialogTrigger asChild>
+            <Button size="sm" className="gap-2 flex-shrink-0 w-full sm:w-auto">
+              <Plus className="w-4 h-4" />
+              {t.addProduct}
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Package className="w-5 h-5 text-primary" />
+                {t.addProduct}
+              </DialogTitle>
+            </DialogHeader>
+            <AdminProductForm
+              t={t}
+              language={language}
+              productCategories={productCategories}
+              suggestedTags={suggestedTags}
+              formData={formData}
+              setFormData={setFormData}
+              isEdit={false}
+              isSubmitting={isSubmitting}
+              onCancel={() => {
+                resetForm();
+                setIsAddDialogOpen(false);
+              }}
+              onSubmit={handleSubmit}
+            />
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* Product List */}
+      <div className="space-y-2 max-h-80 overflow-y-auto">
+        {productsLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          </div>
+        ) : products.length === 0 ? (
+          <p className="text-center text-muted-foreground py-4">{t.noProducts}</p>
+        ) : (
+          products.slice(0, 10).map((product: ShopifyProduct) => (
+            <motion.div
+              key={product.node.id}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors group cursor-pointer active:bg-secondary/80"
+              onClick={() => handleEditClick(product)}
+            >
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-md bg-muted flex-shrink-0 overflow-hidden">
+                {product.node.images.edges[0]?.node && (
+                  <img
+                    src={product.node.images.edges[0].node.url}
+                    alt={product.node.title}
+                    className="w-full h-full object-cover"
+                  />
+                )}
+                {!product.node.images.edges[0]?.node && (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <ImageIcon className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm truncate">{product.node.title}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <p className="text-xs text-muted-foreground">
+                    {formatPrice(
+                      product.node.priceRange.minVariantPrice.amount,
+                      product.node.priceRange.minVariantPrice.currencyCode
+                    )}
+                  </p>
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 sm:hidden">
+                    {product.node.variants.edges[0]?.node.availableForSale 
+                      ? t.inStock
+                      : t.outOfStock
+                    }
+                  </Badge>
+                </div>
+              </div>
+              <Badge variant="outline" className="text-xs hidden sm:inline-flex flex-shrink-0">
+                {product.node.variants.edges[0]?.node.availableForSale 
+                  ? t.inStock
+                  : t.outOfStock
+                }
+              </Badge>
+              <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex-shrink-0">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={(e) => { e.stopPropagation(); handleEditClick(product); }}
+                >
+                  <Edit className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-destructive hover:text-destructive"
+                  onClick={(e) => { e.stopPropagation(); handleDeleteClick(product); }}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            </motion.div>
+          ))
+        )}
+      </div>
+
+      {products.length > 10 && (
+        <p className="text-xs text-center text-muted-foreground">
+          + {products.length - 10} {t.moreProducts}
+        </p>
+      )}
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="w-5 h-5 text-primary" />
+              {t.editProduct}
+            </DialogTitle>
+          </DialogHeader>
+          <AdminProductForm
+            t={t}
+            language={language}
+            productCategories={productCategories}
+            suggestedTags={suggestedTags}
+            formData={formData}
+            setFormData={setFormData}
+            isEdit
+            isSubmitting={isSubmitting}
+            onCancel={() => {
+              resetForm();
+              setIsEditDialogOpen(false);
+            }}
+            onSubmit={handleUpdate}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t.deleteConfirm}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t.deleteDescription}
+              {selectedProduct && (
+                <span className="block mt-2 font-medium text-foreground">
+                  {selectedProduct.node.title}
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSelectedProduct(null)}>
+              {t.cancel}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                t.delete
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+};
+
+export default AdminProductManager;
+).then((res) => {
+          if (res.error) {
+            console.warn('Failed to load variant inventory:', res.error);
+            return;
+          }
+          const variant = (res.data as { variant?: { inventory_quantity?: number; inventory_policy?: string } } | null)?.variant;
+          if (variant) {
+            setFormData((prev) => ({
+              ...prev,
+              inventory: typeof variant.inventory_quantity === 'number' ? variant.inventory_quantity : prev.inventory,
+              allowOverselling: variant.inventory_policy === 'continue',
+            }));
+          }
+        }).catch((err) => {
+          console.warn('Failed to load variant inventory:', err);
+        });
+      }
+    } catch (err) {
+      console.error('Error opening edit dialog:', err);
+      toast.error(t.error);
+    }
+  };
+
+  const handleDeleteClick = (product: ShopifyProduct) => {
+    setSelectedProduct(product);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const addTag = (tag: string) => {
+    const currentTags = formData.tags.split(',').map(t => t.trim()).filter(Boolean);
+    if (!currentTags.includes(tag)) {
+      const newTags = [...currentTags, tag].join(', ');
+      setFormData(prev => ({ ...prev, tags: newTags }));
+    }
+  };
+
+  const removeTag = (tagToRemove: string) => {
+    const currentTags = formData.tags.split(',').map(t => t.trim()).filter(Boolean);
+    const newTags = currentTags.filter(t => t !== tagToRemove).join(', ');
+    setFormData(prev => ({ ...prev, tags: newTags }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    try {
+      const response = await safeInvoke('shopify-proxy', {
+          action: 'createProduct',
+          data: {
+            title: formData.title,
+            body_html: formData.description,
+            product_type: formData.productType,
+            tags: formData.tags,
+            vendor: formData.vendor,
+            variants: [{
+              price: formData.price,
+              inventory_quantity: formData.inventory,
+              inventory_management: 'shopify',
+              inventory_policy: formData.allowOverselling ? 'continue' : 'deny',
+            }],
+          },
+        });
+
+      if (response.error) throw response.error;
+
+      toast.success(t.productAdded);
+      resetForm();
+      setIsAddDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+      queryClient.invalidateQueries({ queryKey: ['shopify-products'] });
+    } catch (error) {
+      console.error('Failed to create product:', error);
+      toast.error(t.error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedProduct) return;
+    setIsSubmitting(true);
+
+    try {
+      const productNumericId = gidToNumericId(selectedProduct.node.id);
+      const firstVariantGid = selectedProduct.node.variants.edges[0]?.node.id;
+      const variantNumericId = gidToNumericId(firstVariantGid);
+
+      if (!productNumericId) throw new Error('Missing product id');
+      if (!variantNumericId) throw new Error('Missing variant id');
+
+      // If hidden, force not sellable.
+      const targetQuantity = formData.isVisible ? formData.inventory : 0;
+      const targetOversell = formData.isVisible ? formData.allowOverselling : false;
+
+      const response = await safeInvoke('shopify-proxy', {
+        body: {
+          action: 'updateProduct',
+          productId: productNumericId,
+          data: {
+            id: Number(productNumericId),
+            title: formData.title,
+            body_html: formData.description,
+            product_type: formData.productType,
+            tags: formData.tags,
+            vendor: formData.vendor,
+            variants: [
+              {
+                id: Number(variantNumericId),
+                inventory_management: 'shopify',
+                inventory_policy: targetOversell ? 'continue' : 'deny',
+              },
+            ],
+          },
+        },
+      });
+
+      if (response.error) throw response.error;
+
+      const inventoryRes = await safeInvoke('shopify-proxy', {
+        body: {
+          action: 'updateInventory',
+          data: {
+            variantId: Number(variantNumericId),
+            quantity: targetQuantity,
+          },
+        },
+      });
+
+      if (inventoryRes.error) throw inventoryRes.error;
+
+      toast.success(t.productUpdated);
+      resetForm();
+      setIsEditDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+      queryClient.invalidateQueries({ queryKey: ['shopify-products'] });
+    } catch (error) {
+      console.error('Failed to update product:', error);
+      toast.error(t.error, {
+        description: error instanceof Error ? error.message : undefined,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedProduct) return;
+    setIsSubmitting(true);
+
+    try {
+      const gid = selectedProduct.node.id;
+      const numericId = gid.split('/').pop();
+
+      const response = await safeInvoke('shopify-proxy', {
+        body: {
+          action: 'deleteProduct',
+          productId: numericId,
+        },
+      });
+
+      if (response.error) throw response.error;
+
+      toast.success(t.productDeleted);
+      setSelectedProduct(null);
+      setIsDeleteDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+      queryClient.invalidateQueries({ queryKey: ['shopify-products'] });
+    } catch (error) {
+      console.error('Failed to delete product:', error);
+      toast.error(t.error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const formatPrice = (amount: string, currencyCode: string) => {
+    return new Intl.NumberFormat('sv-SE', {
+      style: 'currency',
+      currency: currencyCode,
+      minimumFractionDigits: 0,
+    }).format(parseFloat(amount));
+  };
+
+  // NOTE: Product form extracted to its own component to prevent remounting on every keystroke
+  // (which caused focus loss + scroll-to-top inside the dialog).
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
+            <Package className="w-5 h-5 text-accent" />
+          </div>
+          <div className="min-w-0">
+            <h3 className="font-semibold truncate">{t.title}</h3>
+            <p className="text-sm text-muted-foreground truncate">{t.subtitle}</p>
+          </div>
+        </div>
+
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <DialogTrigger asChild>
+            <Button size="sm" className="gap-2 flex-shrink-0 w-full sm:w-auto">
+              <Plus className="w-4 h-4" />
+              {t.addProduct}
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Package className="w-5 h-5 text-primary" />
+                {t.addProduct}
+              </DialogTitle>
+            </DialogHeader>
+            <AdminProductForm
+              t={t}
+              language={language}
+              productCategories={productCategories}
+              suggestedTags={suggestedTags}
+              formData={formData}
+              setFormData={setFormData}
+              isEdit={false}
+              isSubmitting={isSubmitting}
+              onCancel={() => {
+                resetForm();
+                setIsAddDialogOpen(false);
+              }}
+              onSubmit={handleSubmit}
+            />
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* Product List */}
+      <div className="space-y-2 max-h-80 overflow-y-auto">
+        {productsLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          </div>
+        ) : products.length === 0 ? (
+          <p className="text-center text-muted-foreground py-4">{t.noProducts}</p>
+        ) : (
+          products.slice(0, 10).map((product: ShopifyProduct) => (
+            <motion.div
+              key={product.node.id}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors group cursor-pointer active:bg-secondary/80"
+              onClick={() => handleEditClick(product)}
+            >
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-md bg-muted flex-shrink-0 overflow-hidden">
+                {product.node.images.edges[0]?.node && (
+                  <img
+                    src={product.node.images.edges[0].node.url}
+                    alt={product.node.title}
+                    className="w-full h-full object-cover"
+                  />
+                )}
+                {!product.node.images.edges[0]?.node && (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <ImageIcon className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm truncate">{product.node.title}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <p className="text-xs text-muted-foreground">
+                    {formatPrice(
+                      product.node.priceRange.minVariantPrice.amount,
+                      product.node.priceRange.minVariantPrice.currencyCode
+                    )}
+                  </p>
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 sm:hidden">
+                    {product.node.variants.edges[0]?.node.availableForSale 
+                      ? t.inStock
+                      : t.outOfStock
+                    }
+                  </Badge>
+                </div>
+              </div>
+              <Badge variant="outline" className="text-xs hidden sm:inline-flex flex-shrink-0">
+                {product.node.variants.edges[0]?.node.availableForSale 
+                  ? t.inStock
+                  : t.outOfStock
+                }
+              </Badge>
+              <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex-shrink-0">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={(e) => { e.stopPropagation(); handleEditClick(product); }}
+                >
+                  <Edit className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-destructive hover:text-destructive"
+                  onClick={(e) => { e.stopPropagation(); handleDeleteClick(product); }}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            </motion.div>
+          ))
+        )}
+      </div>
+
+      {products.length > 10 && (
+        <p className="text-xs text-center text-muted-foreground">
+          + {products.length - 10} {t.moreProducts}
+        </p>
+      )}
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="w-5 h-5 text-primary" />
+              {t.editProduct}
+            </DialogTitle>
+          </DialogHeader>
+          <AdminProductForm
+            t={t}
+            language={language}
+            productCategories={productCategories}
+            suggestedTags={suggestedTags}
+            formData={formData}
+            setFormData={setFormData}
+            isEdit
+            isSubmitting={isSubmitting}
+            onCancel={() => {
+              resetForm();
+              setIsEditDialogOpen(false);
+            }}
+            onSubmit={handleUpdate}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t.deleteConfirm}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t.deleteDescription}
+              {selectedProduct && (
+                <span className="block mt-2 font-medium text-foreground">
+                  {selectedProduct.node.title}
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSelectedProduct(null)}>
+              {t.cancel}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                t.delete
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+};
+
+export default AdminProductManager;
+);
+
+      if (response.error) throw response.error;
+
+      toast.success(t.productAdded);
+      resetForm();
+      setIsAddDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+      queryClient.invalidateQueries({ queryKey: ['shopify-products'] });
+    } catch (error) {
+      console.error('Failed to create product:', error);
+      toast.error(t.error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedProduct) return;
+    setIsSubmitting(true);
+
+    try {
+      const productNumericId = gidToNumericId(selectedProduct.node.id);
+      const firstVariantGid = selectedProduct.node.variants.edges[0]?.node.id;
+      const variantNumericId = gidToNumericId(firstVariantGid);
+
+      if (!productNumericId) throw new Error('Missing product id');
+      if (!variantNumericId) throw new Error('Missing variant id');
+
+      // If hidden, force not sellable.
+      const targetQuantity = formData.isVisible ? formData.inventory : 0;
+      const targetOversell = formData.isVisible ? formData.allowOverselling : false;
+
+      const response = await safeInvoke('shopify-proxy', {
+          action: 'updateProduct',
+          productId: productNumericId,
+          data: {
+            id: Number(productNumericId),
+            title: formData.title,
+            body_html: formData.description,
+            product_type: formData.productType,
+            tags: formData.tags,
+            vendor: formData.vendor,
+            variants: [
+              {
+                id: Number(variantNumericId),
+                inventory_management: 'shopify',
+                inventory_policy: targetOversell ? 'continue' : 'deny',
+              },
+            ],
+          },
+        });
+
+      if (response.error) throw response.error;
+
+      const inventoryRes = await safeInvoke('shopify-proxy', {
+        body: {
+          action: 'updateInventory',
+          data: {
+            variantId: Number(variantNumericId),
+            quantity: targetQuantity,
+          },
+        },
+      });
+
+      if (inventoryRes.error) throw inventoryRes.error;
+
+      toast.success(t.productUpdated);
+      resetForm();
+      setIsEditDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+      queryClient.invalidateQueries({ queryKey: ['shopify-products'] });
+    } catch (error) {
+      console.error('Failed to update product:', error);
+      toast.error(t.error, {
+        description: error instanceof Error ? error.message : undefined,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedProduct) return;
+    setIsSubmitting(true);
+
+    try {
+      const gid = selectedProduct.node.id;
+      const numericId = gid.split('/').pop();
+
+      const response = await safeInvoke('shopify-proxy', {
+        body: {
+          action: 'deleteProduct',
+          productId: numericId,
+        },
+      });
+
+      if (response.error) throw response.error;
+
+      toast.success(t.productDeleted);
+      setSelectedProduct(null);
+      setIsDeleteDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+      queryClient.invalidateQueries({ queryKey: ['shopify-products'] });
+    } catch (error) {
+      console.error('Failed to delete product:', error);
+      toast.error(t.error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const formatPrice = (amount: string, currencyCode: string) => {
+    return new Intl.NumberFormat('sv-SE', {
+      style: 'currency',
+      currency: currencyCode,
+      minimumFractionDigits: 0,
+    }).format(parseFloat(amount));
+  };
+
+  // NOTE: Product form extracted to its own component to prevent remounting on every keystroke
+  // (which caused focus loss + scroll-to-top inside the dialog).
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
+            <Package className="w-5 h-5 text-accent" />
+          </div>
+          <div className="min-w-0">
+            <h3 className="font-semibold truncate">{t.title}</h3>
+            <p className="text-sm text-muted-foreground truncate">{t.subtitle}</p>
+          </div>
+        </div>
+
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <DialogTrigger asChild>
+            <Button size="sm" className="gap-2 flex-shrink-0 w-full sm:w-auto">
+              <Plus className="w-4 h-4" />
+              {t.addProduct}
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Package className="w-5 h-5 text-primary" />
+                {t.addProduct}
+              </DialogTitle>
+            </DialogHeader>
+            <AdminProductForm
+              t={t}
+              language={language}
+              productCategories={productCategories}
+              suggestedTags={suggestedTags}
+              formData={formData}
+              setFormData={setFormData}
+              isEdit={false}
+              isSubmitting={isSubmitting}
+              onCancel={() => {
+                resetForm();
+                setIsAddDialogOpen(false);
+              }}
+              onSubmit={handleSubmit}
+            />
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* Product List */}
+      <div className="space-y-2 max-h-80 overflow-y-auto">
+        {productsLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          </div>
+        ) : products.length === 0 ? (
+          <p className="text-center text-muted-foreground py-4">{t.noProducts}</p>
+        ) : (
+          products.slice(0, 10).map((product: ShopifyProduct) => (
+            <motion.div
+              key={product.node.id}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors group cursor-pointer active:bg-secondary/80"
+              onClick={() => handleEditClick(product)}
+            >
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-md bg-muted flex-shrink-0 overflow-hidden">
+                {product.node.images.edges[0]?.node && (
+                  <img
+                    src={product.node.images.edges[0].node.url}
+                    alt={product.node.title}
+                    className="w-full h-full object-cover"
+                  />
+                )}
+                {!product.node.images.edges[0]?.node && (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <ImageIcon className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm truncate">{product.node.title}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <p className="text-xs text-muted-foreground">
+                    {formatPrice(
+                      product.node.priceRange.minVariantPrice.amount,
+                      product.node.priceRange.minVariantPrice.currencyCode
+                    )}
+                  </p>
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 sm:hidden">
+                    {product.node.variants.edges[0]?.node.availableForSale 
+                      ? t.inStock
+                      : t.outOfStock
+                    }
+                  </Badge>
+                </div>
+              </div>
+              <Badge variant="outline" className="text-xs hidden sm:inline-flex flex-shrink-0">
+                {product.node.variants.edges[0]?.node.availableForSale 
+                  ? t.inStock
+                  : t.outOfStock
+                }
+              </Badge>
+              <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex-shrink-0">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={(e) => { e.stopPropagation(); handleEditClick(product); }}
+                >
+                  <Edit className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-destructive hover:text-destructive"
+                  onClick={(e) => { e.stopPropagation(); handleDeleteClick(product); }}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            </motion.div>
+          ))
+        )}
+      </div>
+
+      {products.length > 10 && (
+        <p className="text-xs text-center text-muted-foreground">
+          + {products.length - 10} {t.moreProducts}
+        </p>
+      )}
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="w-5 h-5 text-primary" />
+              {t.editProduct}
+            </DialogTitle>
+          </DialogHeader>
+          <AdminProductForm
+            t={t}
+            language={language}
+            productCategories={productCategories}
+            suggestedTags={suggestedTags}
+            formData={formData}
+            setFormData={setFormData}
+            isEdit
+            isSubmitting={isSubmitting}
+            onCancel={() => {
+              resetForm();
+              setIsEditDialogOpen(false);
+            }}
+            onSubmit={handleUpdate}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t.deleteConfirm}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t.deleteDescription}
+              {selectedProduct && (
+                <span className="block mt-2 font-medium text-foreground">
+                  {selectedProduct.node.title}
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSelectedProduct(null)}>
+              {t.cancel}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                t.delete
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+};
+
+export default AdminProductManager;
+);
+
+      if (response.error) throw response.error;
+
+      const inventoryRes = await safeInvoke('shopify-proxy', {
+          action: 'updateInventory',
+          data: {
+            variantId: Number(variantNumericId),
+            quantity: targetQuantity,
+          },
+        });
+
+      if (inventoryRes.error) throw inventoryRes.error;
+
+      toast.success(t.productUpdated);
+      resetForm();
+      setIsEditDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+      queryClient.invalidateQueries({ queryKey: ['shopify-products'] });
+    } catch (error) {
+      console.error('Failed to update product:', error);
+      toast.error(t.error, {
+        description: error instanceof Error ? error.message : undefined,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedProduct) return;
+    setIsSubmitting(true);
+
+    try {
+      const gid = selectedProduct.node.id;
+      const numericId = gid.split('/').pop();
+
+      const response = await safeInvoke('shopify-proxy', {
+        body: {
+          action: 'deleteProduct',
+          productId: numericId,
+        },
+      });
+
+      if (response.error) throw response.error;
+
+      toast.success(t.productDeleted);
+      setSelectedProduct(null);
+      setIsDeleteDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+      queryClient.invalidateQueries({ queryKey: ['shopify-products'] });
+    } catch (error) {
+      console.error('Failed to delete product:', error);
+      toast.error(t.error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const formatPrice = (amount: string, currencyCode: string) => {
+    return new Intl.NumberFormat('sv-SE', {
+      style: 'currency',
+      currency: currencyCode,
+      minimumFractionDigits: 0,
+    }).format(parseFloat(amount));
+  };
+
+  // NOTE: Product form extracted to its own component to prevent remounting on every keystroke
+  // (which caused focus loss + scroll-to-top inside the dialog).
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
+            <Package className="w-5 h-5 text-accent" />
+          </div>
+          <div className="min-w-0">
+            <h3 className="font-semibold truncate">{t.title}</h3>
+            <p className="text-sm text-muted-foreground truncate">{t.subtitle}</p>
+          </div>
+        </div>
+
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <DialogTrigger asChild>
+            <Button size="sm" className="gap-2 flex-shrink-0 w-full sm:w-auto">
+              <Plus className="w-4 h-4" />
+              {t.addProduct}
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Package className="w-5 h-5 text-primary" />
+                {t.addProduct}
+              </DialogTitle>
+            </DialogHeader>
+            <AdminProductForm
+              t={t}
+              language={language}
+              productCategories={productCategories}
+              suggestedTags={suggestedTags}
+              formData={formData}
+              setFormData={setFormData}
+              isEdit={false}
+              isSubmitting={isSubmitting}
+              onCancel={() => {
+                resetForm();
+                setIsAddDialogOpen(false);
+              }}
+              onSubmit={handleSubmit}
+            />
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* Product List */}
+      <div className="space-y-2 max-h-80 overflow-y-auto">
+        {productsLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          </div>
+        ) : products.length === 0 ? (
+          <p className="text-center text-muted-foreground py-4">{t.noProducts}</p>
+        ) : (
+          products.slice(0, 10).map((product: ShopifyProduct) => (
+            <motion.div
+              key={product.node.id}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors group cursor-pointer active:bg-secondary/80"
+              onClick={() => handleEditClick(product)}
+            >
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-md bg-muted flex-shrink-0 overflow-hidden">
+                {product.node.images.edges[0]?.node && (
+                  <img
+                    src={product.node.images.edges[0].node.url}
+                    alt={product.node.title}
+                    className="w-full h-full object-cover"
+                  />
+                )}
+                {!product.node.images.edges[0]?.node && (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <ImageIcon className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm truncate">{product.node.title}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <p className="text-xs text-muted-foreground">
+                    {formatPrice(
+                      product.node.priceRange.minVariantPrice.amount,
+                      product.node.priceRange.minVariantPrice.currencyCode
+                    )}
+                  </p>
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 sm:hidden">
+                    {product.node.variants.edges[0]?.node.availableForSale 
+                      ? t.inStock
+                      : t.outOfStock
+                    }
+                  </Badge>
+                </div>
+              </div>
+              <Badge variant="outline" className="text-xs hidden sm:inline-flex flex-shrink-0">
+                {product.node.variants.edges[0]?.node.availableForSale 
+                  ? t.inStock
+                  : t.outOfStock
+                }
+              </Badge>
+              <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex-shrink-0">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={(e) => { e.stopPropagation(); handleEditClick(product); }}
+                >
+                  <Edit className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-destructive hover:text-destructive"
+                  onClick={(e) => { e.stopPropagation(); handleDeleteClick(product); }}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            </motion.div>
+          ))
+        )}
+      </div>
+
+      {products.length > 10 && (
+        <p className="text-xs text-center text-muted-foreground">
+          + {products.length - 10} {t.moreProducts}
+        </p>
+      )}
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="w-5 h-5 text-primary" />
+              {t.editProduct}
+            </DialogTitle>
+          </DialogHeader>
+          <AdminProductForm
+            t={t}
+            language={language}
+            productCategories={productCategories}
+            suggestedTags={suggestedTags}
+            formData={formData}
+            setFormData={setFormData}
+            isEdit
+            isSubmitting={isSubmitting}
+            onCancel={() => {
+              resetForm();
+              setIsEditDialogOpen(false);
+            }}
+            onSubmit={handleUpdate}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t.deleteConfirm}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t.deleteDescription}
+              {selectedProduct && (
+                <span className="block mt-2 font-medium text-foreground">
+                  {selectedProduct.node.title}
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSelectedProduct(null)}>
+              {t.cancel}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                t.delete
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+};
+
+export default AdminProductManager;
+);
+
+      if (inventoryRes.error) throw inventoryRes.error;
+
+      toast.success(t.productUpdated);
+      resetForm();
+      setIsEditDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+      queryClient.invalidateQueries({ queryKey: ['shopify-products'] });
+    } catch (error) {
+      console.error('Failed to update product:', error);
+      toast.error(t.error, {
+        description: error instanceof Error ? error.message : undefined,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedProduct) return;
+    setIsSubmitting(true);
+
+    try {
+      const gid = selectedProduct.node.id;
+      const numericId = gid.split('/').pop();
+
+      const response = await safeInvoke('shopify-proxy', {
+          action: 'deleteProduct',
+          productId: numericId,
+        });
+
+      if (response.error) throw response.error;
+
+      toast.success(t.productDeleted);
+      setSelectedProduct(null);
+      setIsDeleteDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+      queryClient.invalidateQueries({ queryKey: ['shopify-products'] });
+    } catch (error) {
+      console.error('Failed to delete product:', error);
+      toast.error(t.error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const formatPrice = (amount: string, currencyCode: string) => {
+    return new Intl.NumberFormat('sv-SE', {
+      style: 'currency',
+      currency: currencyCode,
+      minimumFractionDigits: 0,
+    }).format(parseFloat(amount));
+  };
+
+  // NOTE: Product form extracted to its own component to prevent remounting on every keystroke
+  // (which caused focus loss + scroll-to-top inside the dialog).
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
+            <Package className="w-5 h-5 text-accent" />
+          </div>
+          <div className="min-w-0">
+            <h3 className="font-semibold truncate">{t.title}</h3>
+            <p className="text-sm text-muted-foreground truncate">{t.subtitle}</p>
+          </div>
+        </div>
+
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <DialogTrigger asChild>
+            <Button size="sm" className="gap-2 flex-shrink-0 w-full sm:w-auto">
+              <Plus className="w-4 h-4" />
+              {t.addProduct}
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Package className="w-5 h-5 text-primary" />
+                {t.addProduct}
+              </DialogTitle>
+            </DialogHeader>
+            <AdminProductForm
+              t={t}
+              language={language}
+              productCategories={productCategories}
+              suggestedTags={suggestedTags}
+              formData={formData}
+              setFormData={setFormData}
+              isEdit={false}
+              isSubmitting={isSubmitting}
+              onCancel={() => {
+                resetForm();
+                setIsAddDialogOpen(false);
+              }}
+              onSubmit={handleSubmit}
+            />
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* Product List */}
+      <div className="space-y-2 max-h-80 overflow-y-auto">
+        {productsLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          </div>
+        ) : products.length === 0 ? (
+          <p className="text-center text-muted-foreground py-4">{t.noProducts}</p>
+        ) : (
+          products.slice(0, 10).map((product: ShopifyProduct) => (
+            <motion.div
+              key={product.node.id}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors group cursor-pointer active:bg-secondary/80"
+              onClick={() => handleEditClick(product)}
+            >
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-md bg-muted flex-shrink-0 overflow-hidden">
+                {product.node.images.edges[0]?.node && (
+                  <img
+                    src={product.node.images.edges[0].node.url}
+                    alt={product.node.title}
+                    className="w-full h-full object-cover"
+                  />
+                )}
+                {!product.node.images.edges[0]?.node && (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <ImageIcon className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm truncate">{product.node.title}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <p className="text-xs text-muted-foreground">
+                    {formatPrice(
+                      product.node.priceRange.minVariantPrice.amount,
+                      product.node.priceRange.minVariantPrice.currencyCode
+                    )}
+                  </p>
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 sm:hidden">
+                    {product.node.variants.edges[0]?.node.availableForSale 
+                      ? t.inStock
+                      : t.outOfStock
+                    }
+                  </Badge>
+                </div>
+              </div>
+              <Badge variant="outline" className="text-xs hidden sm:inline-flex flex-shrink-0">
+                {product.node.variants.edges[0]?.node.availableForSale 
+                  ? t.inStock
+                  : t.outOfStock
+                }
+              </Badge>
+              <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex-shrink-0">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={(e) => { e.stopPropagation(); handleEditClick(product); }}
+                >
+                  <Edit className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-destructive hover:text-destructive"
+                  onClick={(e) => { e.stopPropagation(); handleDeleteClick(product); }}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            </motion.div>
+          ))
+        )}
+      </div>
+
+      {products.length > 10 && (
+        <p className="text-xs text-center text-muted-foreground">
+          + {products.length - 10} {t.moreProducts}
+        </p>
+      )}
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="w-5 h-5 text-primary" />
+              {t.editProduct}
+            </DialogTitle>
+          </DialogHeader>
+          <AdminProductForm
+            t={t}
+            language={language}
+            productCategories={productCategories}
+            suggestedTags={suggestedTags}
+            formData={formData}
+            setFormData={setFormData}
+            isEdit
+            isSubmitting={isSubmitting}
+            onCancel={() => {
+              resetForm();
+              setIsEditDialogOpen(false);
+            }}
+            onSubmit={handleUpdate}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t.deleteConfirm}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t.deleteDescription}
+              {selectedProduct && (
+                <span className="block mt-2 font-medium text-foreground">
+                  {selectedProduct.node.title}
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSelectedProduct(null)}>
+              {t.cancel}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                t.delete
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+};
+
+export default AdminProductManager;
+);
 
       if (response.error) throw response.error;
 
