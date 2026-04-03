@@ -82,9 +82,6 @@ const AdminBugReports = () => {
   const [checklist, setChecklist] = useState<Record<string, boolean>>({});
   const [resolutionNotes, setResolutionNotes] = useState('');
   const [resolving, setResolving] = useState<string | null>(null);
-  const [processingAI, setProcessingAI] = useState<string | null>(null);
-  const [promptSearch, setPromptSearch] = useState('');
-  const [promptTagFilter, setPromptTagFilter] = useState<string | null>(null);
   
 
   const fetchBugs = async (): Promise<BugReport[]> => {
@@ -141,34 +138,6 @@ const AdminBugReports = () => {
     setLocalReports(null); // Reset optimistic state on fresh data
   }, [queryReports]);
 
-  // Auto-enrich on mount
-  const enrichedRef = useRef(false);
-  useEffect(() => {
-    if (!loading && queryReports.length > 0 && !enrichedRef.current) {
-      enrichedRef.current = true;
-      autoEnrichBugs();
-    }
-  }, [loading, queryReports]);
-
-  const autoEnrichBugs = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-    const { data: unprocessed } = await supabase
-      .from('bug_reports')
-      .select('id')
-      .is('ai_processed_at', null)
-      .eq('status', 'open')
-      .order('created_at', { ascending: false })
-      .limit(5);
-    if (!unprocessed?.length) return;
-    console.log(`[BugEnrich] Auto-processing ${unprocessed.length} bugs`);
-    for (const bug of unprocessed) {
-      console.info(`[BugEnrich] Skipped (AI disabled): ${bug.id}`);
-    }
-    // Reload to show enriched data
-    refetch();
-  };
-
   const openBug = useCallback((id: string) => {
     setExpandedId(prev => {
       if (prev === id) return null;
@@ -179,14 +148,6 @@ const AdminBugReports = () => {
   }, []);
 
   const allChecked = RESOLVE_CHECKLIST.every(c => checklist[c.key]);
-
-  const processWithAI = async (_bugId: string) => {
-    toast.info('AI-bearbetning är inaktiverat.');
-  };
-
-  const approveAI = async (_bugId: string) => {
-    toast.info('AI-godkännande är inaktiverat.');
-  };
 
   const resolve = async (id: string) => {
     if (!allChecked) { toast.error('Slutför checklistan'); return; }
@@ -251,28 +212,15 @@ const AdminBugReports = () => {
 
   if (loading) return <div className="flex justify-center p-8"><Loader2 className="w-6 h-6 animate-spin" /></div>;
 
-  const inbox = reports.filter(r => !r.ai_processed_at);
-  const processed = reports.filter(r => !!r.ai_processed_at);
-  const promptLibrary = processed.filter(r => r.ai_clean_prompt);
+  const openBugs = reports.filter(r => r.status === 'open');
+  const resolvedBugs = reports.filter(r => r.status !== 'open');
 
-  // Collect all unique tags for filter
-  const allTags = [...new Set(promptLibrary.flatMap(r => r.ai_tags || []))].sort();
+  const openCount = openBugs.length;
 
-  const filteredPrompts = promptLibrary.filter(r => {
-    const matchSearch = !promptSearch || 
-      r.ai_clean_prompt?.toLowerCase().includes(promptSearch.toLowerCase()) ||
-      r.ai_summary?.toLowerCase().includes(promptSearch.toLowerCase());
-    const matchTag = !promptTagFilter || r.ai_tags?.includes(promptTagFilter);
-    return matchSearch && matchTag;
-  });
-
-  const openCount = reports.filter(r => r.status === 'open').length;
-
-  const renderBugCard = (r: BugReport, showAI = false) => {
+  const renderBugCard = (r: BugReport) => {
     const dt = fmtDateTime(r.created_at);
     const isExpanded = expandedId === r.id;
     const isOpen = r.status === 'open';
-    const isProcessing = processingAI === r.id;
 
     return (
       <div
@@ -292,29 +240,26 @@ const AdminBugReports = () => {
               <Badge variant={isOpen ? 'destructive' : 'secondary'} className="text-[10px]">
                 {isOpen ? 'Öppen' : 'Löst'}
               </Badge>
-              {showAI && r.ai_severity && (
+              {r.ai_severity && (
                 <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full border font-medium', SEVERITY_COLORS[r.ai_severity])}>
                   {r.ai_severity}
                 </span>
               )}
-              {showAI && r.ai_category && (
+              {r.ai_category && (
                 <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full font-medium', CATEGORY_COLORS[r.ai_category])}>
                   {r.ai_category}
                 </span>
               )}
-              {r.ai_approved && (
-                <Badge variant="outline" className="text-[9px] border-green-300 text-green-700">✓ Godkänd</Badge>
-              )}
             </div>
             <p className="text-sm font-medium leading-snug line-clamp-2">
-              {showAI && r.ai_summary ? r.ai_summary : r.description}
+              {r.ai_summary || r.description}
             </p>
             <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
               <span className="flex items-center gap-1"><User className="w-3 h-3" />{r.reporter_name}</span>
               <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{r.page_url}</span>
               <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{dt.relative}</span>
             </div>
-            {showAI && r.ai_tags && r.ai_tags.length > 0 && (
+            {r.ai_tags && r.ai_tags.length > 0 && (
               <div className="flex gap-1 flex-wrap mt-0.5">
                 {r.ai_tags.map(tag => (
                   <span key={tag} className="text-[9px] bg-muted px-1.5 py-0.5 rounded-full">{tag}</span>
@@ -351,26 +296,9 @@ const AdminBugReports = () => {
               <div className="text-sm bg-muted/50 rounded-md p-2.5 whitespace-pre-wrap leading-relaxed">{r.description}</div>
             </div>
 
-            {/* AI Actionable Fix Section */}
-            {r.ai_processed_at ? (
+            {/* Actionable Fix Section */}
+            {r.ai_actionable_fix && (
               <div className="space-y-3 border border-primary/20 rounded-lg p-3 bg-primary/5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    AI Actionable Fix
-                  </div>
-                  <div className="flex gap-1">
-                    {!r.ai_approved && (
-                      <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1" onClick={() => approveAI(r.id)}>
-                        <CheckCircle2 className="w-3 h-3" /> Godkänn
-                      </Button>
-                    )}
-                    <Button size="sm" variant="ghost" className="h-6 text-[10px] gap-1" onClick={() => processWithAI(r.id)}>
-                      <RefreshCw className={cn("w-3 h-3", isProcessing && "animate-spin")} /> Kör igen
-                    </Button>
-                  </div>
-                </div>
-
                 {/* BLOCKER */}
                 {(r.ai_actionable_fix?.blocker_statement || r.ai_summary) && (
                   <div className="bg-destructive/10 border border-destructive/20 rounded-md p-2.5">
@@ -418,6 +346,57 @@ const AdminBugReports = () => {
                         <li key={i} className="flex items-start gap-2 text-xs">
                           <span className="shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary font-bold text-[10px] flex items-center justify-center mt-0.5">{i + 1}</span>
                           <span className="flex-1">{step}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
+
+                {/* COPY PROMPT */}
+                {(r.ai_actionable_fix?.copy_prompt || r.ai_clean_prompt) && (
+                  <div className="bg-background border-2 border-primary/30 rounded-md p-2.5">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-foreground">
+                        <ClipboardCopy className="w-3 h-3" /> COPY PROMPT
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="default"
+                        className="h-6 text-[10px] gap-1"
+                        id={`copy-fix-bug-${r.id}`}
+                        onClick={() => copyToClipboard(r.ai_actionable_fix?.copy_prompt || r.ai_clean_prompt!, `copy-fix-bug-${r.id}`)}
+                      >
+                        📋 Copy Fix
+                      </Button>
+                    </div>
+                    <div className="text-xs bg-muted rounded-md p-2.5 whitespace-pre-wrap font-mono leading-relaxed border max-h-48 overflow-y-auto">
+                      {r.ai_actionable_fix?.copy_prompt || r.ai_clean_prompt}
+                    </div>
+                  </div>
+                )}
+
+                {/* Root causes with confidence */}
+                {r.ai_actionable_fix?.root_causes && r.ai_actionable_fix.root_causes.length > 0 && (
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] text-muted-foreground font-semibold block">Möjliga orsaker (rankat)</span>
+                    {r.ai_actionable_fix.root_causes.map((rc, i) => (
+                      <div key={i} className="flex items-start gap-2 text-xs bg-background rounded-md p-2 border">
+                        <div className={cn(
+                          'shrink-0 w-8 h-5 rounded text-[10px] font-bold flex items-center justify-center',
+                          rc.confidence >= 70 ? 'bg-destructive/15 text-destructive' : rc.confidence >= 40 ? 'bg-amber-500/15 text-amber-700' : 'bg-muted text-muted-foreground'
+                        )}>
+                          {rc.confidence}%
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium">{rc.cause}</p>
+                          <span className="text-[10px] text-muted-foreground">{rc.affected_area}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
                         </li>
                       ))}
                     </ol>
