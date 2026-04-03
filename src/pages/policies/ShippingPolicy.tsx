@@ -278,9 +278,7 @@ We always work to give you the best possible experience and resolve any issues q
     <div className="min-h-screen bg-background">
       <SEOHead
         title={t.title}
-        description={language === 'sv' 
-          ? `Fri frakt över ${storeConfig.shipping.freeShippingThreshold} kr. ${storeConfig.shipping.deliveryTime.sv}. Leverans till hela Europa.`
-          : `Free shipping over ${storeConfig.shipping.freeShippingThreshold} kr. ${storeConfig.shipping.deliveryTime.en}. Delivery throughout Europe.`}
+        description={t.intro}
         canonical="/policies/shipping"
       />
       <Header />

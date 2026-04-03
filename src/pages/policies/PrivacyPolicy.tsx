@@ -11,10 +11,30 @@ const PrivacyPolicy = () => {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead
-        title={language === 'sv' ? 'Integritetspolicy' : 'Privacy Policy'}
-        description={language === 'sv' 
-          ? 'Läs om hur vi hanterar dina personuppgifter och dina rättigheter enligt GDPR.'
-          : 'Read about how we handle your personal data and your rights under GDPR.'}
+        title={({
+          sv: 'Integritetspolicy',
+          en: 'Privacy Policy',
+          no: 'Personvernpolicy',
+          da: 'Privatlivspolitik',
+          de: 'Datenschutzrichtlinie',
+          fi: 'Tietosuojakäytäntö',
+          nl: 'Privacybeleid',
+          fr: 'Politique de confidentialité',
+          es: 'Política de privacidad',
+          pl: 'Polityka prywatności',
+        } as Record<string, string>)[language] ?? 'Privacy Policy'}
+        description={({
+          sv: 'Läs om hur vi hanterar dina personuppgifter och dina rättigheter enligt GDPR.',
+          en: 'Read about how we handle your personal data and your rights under GDPR.',
+          no: 'Les om hvordan vi håndterer dine personopplysninger og dine rettigheter under GDPR.',
+          da: 'Læs om, hvordan vi håndterer dine personoplysninger og dine rettigheder under GDPR.',
+          de: 'Erfahren Sie, wie wir Ihre personenbezogenen Daten verarbeiten und Ihre Rechte gemäß DSGVO.',
+          fi: 'Lue, miten käsittelemme henkilötietojasi ja oikeuksiasi GDPR:n mukaisesti.',
+          nl: 'Lees hoe wij uw persoonsgegevens verwerken en uw rechten onder de AVG.',
+          fr: 'Découvrez comment nous traitons vos données personnelles et vos droits en vertu du RGPD.',
+          es: 'Lea sobre cómo tratamos sus datos personales y sus derechos en virtud del RGPD.',
+          pl: 'Przeczytaj o tym, jak przetwarzamy Twoje dane osobowe i Twoje prawa zgodnie z RODO.',
+        } as Record<string, string>)[language] ?? 'Read about how we handle your personal data and your rights under GDPR.'}
         canonical="/policies/privacy"
       />
       <Header />

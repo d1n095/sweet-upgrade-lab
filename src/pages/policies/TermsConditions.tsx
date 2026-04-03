@@ -168,9 +168,18 @@ const TermsConditions = () => {
     <div className="min-h-screen bg-background">
       <SEOHead
         title={t.title}
-        description={language === 'sv' 
-          ? 'Läs våra allmänna villkor för köp, priser och betalning.'
-          : 'Read our terms and conditions for purchases, prices and payment.'}
+        description={({
+            sv: 'Läs våra allmänna villkor för köp, priser och betalning.',
+            en: 'Read our terms and conditions for purchases, prices and payment.',
+            no: 'Les våre generelle vilkår for kjøp, priser og betaling.',
+            da: 'Læs vores generelle betingelser for køb, priser og betaling.',
+            de: 'Lesen Sie unsere allgemeinen Geschäftsbedingungen für Käufe, Preise und Zahlung.',
+            fi: 'Lue yleiset ehtomme ostoista, hinnoista ja maksamisesta.',
+            nl: 'Lees onze algemene voorwaarden voor aankopen, prijzen en betaling.',
+            fr: 'Lisez nos conditions générales pour les achats, les prix et le paiement.',
+            es: 'Lea nuestros términos y condiciones para compras, precios y pagos.',
+            pl: 'Przeczytaj nasze ogólne warunki dotyczące zakupów, cen i płatności.',
+          } as Record<string, string>)[language] ?? 'Read our terms and conditions for purchases, prices and payment.'}
         canonical="/policies/terms"
       />
       <Header />

@@ -234,9 +234,7 @@ const ReturnsPolicy = () => {
     <div className="min-h-screen bg-background">
       <SEOHead
         title={t.title}
-        description={language === 'sv' 
-          ? `${storeConfig.returns.period} dagars ångerrätt. Läs om hur du returnerar produkter och får återbetalning.`
-          : `${storeConfig.returns.period} days right of withdrawal. Learn how to return products and get refunds.`}
+        description={t.intro}
         canonical="/policies/returns"
       />
       <Header />
