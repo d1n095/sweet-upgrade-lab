@@ -74,7 +74,7 @@ describe('storeConfig', () => {
 
     it('every category has a productType', () => {
       for (const category of storeConfig.categories) {
-        expect(typeof category.productType).toBe('string');
+        expect(typeof category.shopifyProductType).toBe('string');
       }
     });
 

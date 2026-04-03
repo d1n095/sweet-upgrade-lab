@@ -23,7 +23,6 @@ const ALLOWED_FUNCTIONS = new Set([
   'access-control-scan',
   'permission-fix',
   'access-flow-validate',
-  'ai-user-management',
 ]);
 
 const ADMIN_ONLY_FUNCTIONS = new Set([
@@ -32,7 +31,6 @@ const ADMIN_ONLY_FUNCTIONS = new Set([
   'access-control-scan',
   'permission-fix',
   'access-flow-validate',
-  'ai-user-management',
   'data-sync',
   'process-bug-report',
   'generate-receipt',
