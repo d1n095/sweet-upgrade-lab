@@ -123,15 +123,7 @@ const AdminRoles = () => {
 
   // ─── Guards ───
   if (founderLoading) return <div className="flex items-center justify-center py-20 text-muted-foreground">Laddar...</div>;
-  if (!isFounder) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 gap-4">
-        <Shield className="w-16 h-16 text-muted-foreground/30" />
-        <h2 className="text-xl font-semibold text-muted-foreground">Åtkomst nekad</h2>
-        <p className="text-sm text-muted-foreground">Enbart för grundare.</p>
-      </div>
-    );
-  }
+  console.log("FOUNDER MODE ACTIVE");
   if (!templates && !isLoading) return null; // deny-by-default
 
   if (isLoading) return <p className="text-center text-muted-foreground py-8">Laddar...</p>;

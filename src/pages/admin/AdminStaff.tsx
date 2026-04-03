@@ -367,15 +367,7 @@ const AdminStaff = () => {
     <div className="flex items-center justify-center py-20 text-muted-foreground">Laddar...</div>
   );
 
-  if (!isFounder) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 gap-4">
-        <Shield className="w-16 h-16 text-muted-foreground/30" />
-        <h2 className="text-xl font-semibold text-muted-foreground">Åtkomst nekad</h2>
-        <p className="text-sm text-muted-foreground">Enbart för grundare.</p>
-      </div>
-    );
-  }
+  console.log("FOUNDER MODE ACTIVE");
 
   return (
     <div className="space-y-6">
@@ -392,13 +384,9 @@ const AdminStaff = () => {
           <TabsTrigger value="overview"  className="gap-1.5"><LayoutDashboard className="w-3.5 h-3.5" /> Översikt</TabsTrigger>
           <TabsTrigger value="workboard" className="gap-1.5"><ClipboardList   className="w-3.5 h-3.5" /> Workboard</TabsTrigger>
           <TabsTrigger value="quickpack" className="gap-1.5"><Zap             className="w-3.5 h-3.5" /> Snabb packning</TabsTrigger>
-          {isFounder && (
-            <>
-              <TabsTrigger value="staff"  className="gap-1.5"><Users   className="w-3.5 h-3.5" /> Personal</TabsTrigger>
+          <TabsTrigger value="staff"  className="gap-1.5"><Users   className="w-3.5 h-3.5" /> Personal</TabsTrigger>
               <TabsTrigger value="roles"  className="gap-1.5"><UserCog className="w-3.5 h-3.5" /> Roller & Behörigheter</TabsTrigger>
               <TabsTrigger value="manage" className="gap-1.5"><Shield  className="w-3.5 h-3.5" /> Hantera personal</TabsTrigger>
-            </>
-          )}
         </TabsList>
 
         <TabsContent value="overview">

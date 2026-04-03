@@ -555,17 +555,8 @@ const AdminMemberManager = ({ roleFilter = 'all', onStatsUpdate }: AdminMemberMa
       toast.error('Du kan inte ändra din egen roll');
       return;
     }
-    // Security: prevent changing a founder's role (unless you're a founder)
     const currentRole = userRoles[userId];
-    if (currentRole === 'founder' && !isFounder) {
-      toast.error('Bara grundare kan ändra en grundar-roll');
-      return;
-    }
-    // Security: prevent assigning founder role (unless you're a founder)
-    if (role === 'founder' && !isFounder) {
-      toast.error('Bara grundare kan tilldela grundar-rollen');
-      return;
-    }
+    console.log("FOUNDER MODE ACTIVE");
     const member = members.find(m => m.user_id === userId);
     setPendingRoleChange({ userId, role, username: member?.username || member?.email || userId.slice(0, 8) });
   };
@@ -832,8 +823,7 @@ const AdminMemberManager = ({ roleFilter = 'all', onStatsUpdate }: AdminMemberMa
                   onValueChange={(value) => requestRoleChange(member.user_id, value)}
                   disabled={
                     assigningRole ||
-                    member.user_id === currentUserId ||
-                    (userRoles[member.user_id] === 'founder' && !isFounder)
+                    member.user_id === currentUserId
                   }
                 >
                   <SelectTrigger className="w-28 h-8 text-xs">
@@ -841,7 +831,7 @@ const AdminMemberManager = ({ roleFilter = 'all', onStatsUpdate }: AdminMemberMa
                   </SelectTrigger>
                    <SelectContent>
                     <SelectItem value="none">{t.noRole}</SelectItem>
-                    {isFounder && <SelectItem value="founder">👑 Grundare</SelectItem>}
+                    <SelectItem value="founder">👑 Grundare</SelectItem>
                     <SelectItem value="admin">🛡️ {t.admin}</SelectItem>
                     <SelectItem value="it">💻 IT</SelectItem>
                     <SelectItem value="manager">📋 Manager</SelectItem>
@@ -945,7 +935,7 @@ const AdminMemberManager = ({ roleFilter = 'all', onStatsUpdate }: AdminMemberMa
                     ) : (
                       <p className="font-semibold text-base flex items-center gap-2">
                         {selectedMember.username || 'Inget användarnamn'}
-                        {isFounder && (
+                        {(
                           <Button
                             size="icon"
                             variant="ghost"
