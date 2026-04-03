@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { trackAddToCart, trackRemoveFromCart, trackCartUpdate } from '@/utils/analyticsTracker';
 
 /**
  * Product shape used inside CartItem.
@@ -123,7 +122,6 @@ export const useCartStore = create<CartStore>()(
 
       addItem: (item) => {
         const productId = (item.product as any)?.dbId || item.variantId;
-        trackAddToCart(productId, item.product.node.title, Number.parseFloat(item.price.amount), item.quantity);
 
         set((state) => {
           const items = sanitizeItems(state.items);
@@ -153,7 +151,7 @@ export const useCartStore = create<CartStore>()(
         const existing = get().items.find((i) => i.variantId === variantId);
         if (existing) {
           const productId = (existing.product as any)?.dbId || variantId;
-          trackCartUpdate(productId, existing.product.node.title, existing.quantity, quantity);
+          void productId; // reserved for future logging
         }
 
         set((state) => ({
@@ -168,12 +166,7 @@ export const useCartStore = create<CartStore>()(
         const existing = get().items.find((i) => i.variantId === variantId);
         if (existing) {
           const productId = (existing.product as any)?.dbId || variantId;
-          trackRemoveFromCart(
-            productId,
-            existing.product.node.title,
-            Number.parseFloat(existing.price.amount),
-            existing.quantity
-          );
+          void productId;
         }
 
         set((state) => ({

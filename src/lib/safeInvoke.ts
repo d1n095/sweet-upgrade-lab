@@ -1,4 +1,19 @@
 import { supabase } from '@/integrations/supabase/client';
+import { useApiLogStore } from '@/stores/useApiLogStore';
+
+/** Maximum number of attempts (1 initial + 2 retries). */
+const MAX_ATTEMPTS = 3;
+/** Base delay in ms for exponential backoff. */
+const BASE_DELAY_MS = 300;
+
+/** Delay with jitter: BASE * 2^attempt + random up to 100 ms. */
+function backoffMs(attempt: number): number {
+  return BASE_DELAY_MS * Math.pow(2, attempt) + Math.random() * 100;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
 
 /**
  * Strict whitelist of approved Supabase Edge Function names.
@@ -90,6 +105,7 @@ export async function safeInvoke<T = any>(
     const msg = `Function '${functionName}' is not in the approved whitelist`;
     console.error(`[safeInvoke] ✗ BLOCKED ${functionName}`, { traceId, error: msg });
     const err: SafeInvokeGuardError = { success: false, error: msg, traceId };
+    useApiLogStore.getState().push({ traceId, functionName, method: options?.method ?? 'POST', timestamp: Date.now(), attempt: 0, status: 'blocked', errorMessage: msg });
     return { data: null, error: err, traceId };
   }
 
@@ -98,6 +114,7 @@ export async function safeInvoke<T = any>(
     const msg = `Function '${functionName}' requires admin privileges`;
     console.error(`[safeInvoke] ✗ UNAUTHORIZED ${functionName}`, { traceId, error: msg });
     const err: SafeInvokeGuardError = { success: false, error: msg, traceId };
+    useApiLogStore.getState().push({ traceId, functionName, method: options?.method ?? 'POST', timestamp: Date.now(), attempt: 0, status: 'blocked', errorMessage: msg });
     return { data: null, error: err, traceId };
   }
 
@@ -109,84 +126,114 @@ export async function safeInvoke<T = any>(
     const msg = `Invalid body for '${functionName}': must be a plain object`;
     console.error(`[safeInvoke] ✗ INVALID_INPUT ${functionName}`, { traceId, error: msg });
     const err: SafeInvokeGuardError = { success: false, error: msg, traceId };
+    useApiLogStore.getState().push({ traceId, functionName, method: options?.method ?? 'POST', timestamp: Date.now(), attempt: 0, status: 'blocked', errorMessage: msg });
     return { data: null, error: err, traceId };
   }
 
-  console.log(`[safeInvoke] → ${functionName}`, { traceId, method: options?.method ?? 'POST', body: options?.body });
+  const method = options?.method ?? 'POST';
+  console.log(`[safeInvoke] → ${functionName}`, { traceId, method, body: options?.body });
 
-  // ── GET path: native fetch with URL query parameters ─────────────────────
-  if (options?.method === 'GET') {
+  const logStore = useApiLogStore.getState();
+
+  // ── GET path: native fetch with URL query parameters + retry ─────────────
+  if (method === 'GET') {
+    let lastError: any;
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      const t0 = Date.now();
+      logStore.push({ traceId, functionName, method: 'GET', timestamp: Date.now(), attempt, status: 'pending' });
+
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const baseUrl = (supabase as any).supabaseUrl as string;
+        const qs = options.params ? '?' + new URLSearchParams(options.params).toString() : '';
+        const url = `${baseUrl}/functions/v1/${functionName}${qs}`;
+
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            apikey: (supabase as any).supabaseKey as string,
+            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+            ...options.headers,
+          },
+          signal: options.signal,
+        });
+
+        const durationMs = Date.now() - t0;
+
+        if (!response.ok) {
+          const msg = `HTTP ${response.status}`;
+          console.warn(`[safeInvoke] ✗ ${functionName} GET ${msg} (attempt ${attempt + 1})`, { traceId });
+          logStore.update(traceId, attempt, { status: 'error', durationMs, errorMessage: msg });
+          lastError = Object.assign(new Error(msg), { success: false, error: msg, traceId, status: response.status });
+          if (attempt < MAX_ATTEMPTS - 1) { await sleep(backoffMs(attempt)); continue; }
+          return { data: null, error: lastError, traceId };
+        }
+
+        const data: T = await response.json();
+        logStore.update(traceId, attempt, { status: 'success', durationMs });
+        console.log(`[safeInvoke] ✓ ${functionName} GET`, { traceId, attempt: attempt + 1, durationMs });
+        return { data, error: null, traceId };
+      } catch (caught: any) {
+        const durationMs = Date.now() - t0;
+        const msg = caught?.message ?? String(caught);
+        console.error(`[safeInvoke] ✗ ${functionName} GET (attempt ${attempt + 1})`, { traceId, error: msg });
+        logStore.update(traceId, attempt, { status: 'error', durationMs, errorMessage: msg });
+        lastError = caught;
+        if (attempt < MAX_ATTEMPTS - 1) { await sleep(backoffMs(attempt)); continue; }
+      }
+    }
+    return { data: null, error: lastError, traceId };
+  }
+
+  // ── POST path: supabase.functions.invoke + retry ─────────────────────────
+  let lastError: any;
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    const t0 = Date.now();
+    logStore.push({ traceId, functionName, method: 'POST', timestamp: Date.now(), attempt, status: 'pending' });
+
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const baseUrl = (supabase as any).supabaseUrl as string;
-      const qs = options.params ? '?' + new URLSearchParams(options.params).toString() : '';
-      const url = `${baseUrl}/functions/v1/${functionName}${qs}`;
+      const body = options?.body ? { ...options.body, _traceId: traceId } : undefined;
 
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          apikey: (supabase as any).supabaseKey as string,
-          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-          ...options.headers,
-        },
-        signal: options.signal,
-      });
+      const { data, error } = await supabase.functions.invoke<T>(functionName, {
+        body,
+        headers: options?.headers,
+        signal: options?.signal,
+      } as any);
 
-      if (!response.ok) {
-        const msg = `HTTP ${response.status}`;
-        console.warn(`[safeInvoke] ✗ ${functionName} GET ${msg}`, { traceId });
-        const err = Object.assign(new Error(msg), { success: false, error: msg, traceId, status: response.status });
-        return { data: null, error: err, traceId };
+      const durationMs = Date.now() - t0;
+
+      if (error) {
+        const ctx = (error as any)?.context;
+        const serverMessage =
+          (typeof ctx === 'object' && (ctx?.error || ctx?.message)) ||
+          (error as any)?.message ||
+          String(error);
+
+        console.error(`[safeInvoke] ✗ ${functionName} (attempt ${attempt + 1})`, { traceId, error: serverMessage });
+        logStore.update(traceId, attempt, { status: 'error', durationMs, errorMessage: serverMessage });
+
+        lastError = Object.assign(new Error(serverMessage), {
+          success: false,
+          error: serverMessage,
+          traceId,
+          status: (error as any)?.status,
+          originalError: error,
+        });
+        if (attempt < MAX_ATTEMPTS - 1) { await sleep(backoffMs(attempt)); continue; }
+        return { data: null, error: lastError, traceId };
       }
 
-      const data: T = await response.json();
-      console.log(`[safeInvoke] ✓ ${functionName} GET`, { traceId });
+      logStore.update(traceId, attempt, { status: 'success', durationMs });
+      console.log(`[safeInvoke] ✓ ${functionName}`, { traceId, attempt: attempt + 1, durationMs });
       return { data, error: null, traceId };
     } catch (caught: any) {
-      console.error(`[safeInvoke] ✗ ${functionName} GET (network error)`, { traceId, error: caught?.message ?? String(caught) });
-      return { data: null, error: caught, traceId };
+      const durationMs = Date.now() - t0;
+      const msg = caught?.message ?? String(caught);
+      console.error(`[safeInvoke] ✗ ${functionName} (attempt ${attempt + 1}, network error)`, { traceId, error: msg });
+      logStore.update(traceId, attempt, { status: 'error', durationMs, errorMessage: msg });
+      lastError = caught;
+      if (attempt < MAX_ATTEMPTS - 1) { await sleep(backoffMs(attempt)); continue; }
     }
   }
-
-  // ── POST path (default): supabase.functions.invoke ────────────────────────
-  try {
-    const body = options?.body ? { ...options.body, _traceId: traceId } : undefined;
-
-    const { data, error } = await supabase.functions.invoke<T>(functionName, {
-      body,
-      headers: options?.headers,
-      signal: options?.signal,
-    } as any);
-
-    if (error) {
-      // Normalize: extract a human-readable message from FunctionsHttpError context
-      const ctx = (error as any)?.context;
-      const serverMessage =
-        (typeof ctx === 'object' && (ctx?.error || ctx?.message)) ||
-        (error as any)?.message ||
-        String(error);
-
-      const normalized = Object.assign(new Error(serverMessage), {
-        success: false,
-        error: serverMessage,
-        traceId,
-        status: (error as any)?.status,
-        originalError: error,
-      });
-
-      console.error(`[safeInvoke] ✗ ${functionName}`, { traceId, error: serverMessage });
-      return { data: null, error: normalized, traceId };
-    }
-
-    console.log(`[safeInvoke] ✓ ${functionName}`, { traceId });
-    return { data, error: null, traceId };
-  } catch (caught: any) {
-    console.error(`[safeInvoke] ✗ ${functionName} (network error)`, {
-      traceId,
-      error: caught?.message ?? String(caught),
-    });
-    return { data: null, error: caught, traceId };
-  }
+  return { data: null, error: lastError, traceId };
 }
-
-
