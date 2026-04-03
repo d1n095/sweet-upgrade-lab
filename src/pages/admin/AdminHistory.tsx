@@ -209,7 +209,7 @@ const AdminHistory = () => {
                         {aiResult && (
                           <div className="bg-secondary/20 rounded-lg p-3 space-y-2">
                             <p className="text-xs font-bold flex items-center gap-1">
-                              <Bot className="w-3.5 h-3.5" /> AI-granskning
+                              <Bot className="w-3.5 h-3.5" /> Granskning
                             </p>
                             {aiResult.verdict && (
                               <p className="text-sm">{aiResult.verdict}</p>

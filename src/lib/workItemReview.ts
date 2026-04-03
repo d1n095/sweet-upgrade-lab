@@ -1,26 +1,26 @@
 import { supabase } from '@/integrations/supabase/client';
 
-type AiReviewStatus = 'verified' | 'needs_review' | 'incomplete' | 'pending' | null;
+type ReviewStatus = 'verified' | 'needs_review' | 'incomplete' | 'pending' | null;
 
-interface TriggerAiReviewOptions {
+interface TriggerReviewOptions {
   context?: string;
 }
 
-interface TriggerAiReviewResult {
+interface TriggerReviewResult {
   ok: boolean;
-  status: AiReviewStatus;
+  status: ReviewStatus;
   review?: any;
   error?: string;
 }
 
 /**
- * AI-FREE review: Uses rule-based verification instead of AI gateway.
+ * Rule-based review: Uses rule-based verification instead of an AI gateway.
  * Simply marks items as 'needs_review' for manual verification.
  */
-export const triggerAiReviewForWorkItem = async (
+export const triggerReviewForWorkItem = async (
   workItemId: string,
-  options: TriggerAiReviewOptions = {}
-): Promise<TriggerAiReviewResult> => {
+  options: TriggerReviewOptions = {}
+): Promise<TriggerReviewResult> => {
   const context = options.context || 'unknown';
   console.info('[review] trigger (rule-based)', { workItemId, context });
 
@@ -44,7 +44,7 @@ export const triggerAiReviewForWorkItem = async (
     const isDone = item.status === 'done' && !!item.completed_at;
 
     const reviewResult = {
-      status: (hasResolution || isDone) ? 'verified' : 'needs_review' as AiReviewStatus,
+      status: (hasResolution || isDone) ? 'verified' : 'needs_review' as ReviewStatus,
       verdict: hasResolution
         ? 'Regelbaserad verifiering: resolution notes finns'
         : isDone
@@ -65,7 +65,7 @@ export const triggerAiReviewForWorkItem = async (
       .eq('id', workItemId);
 
     console.info('[review] complete (rule-based)', { workItemId, context, status: reviewResult.status });
-    return { ok: true, status: reviewResult.status as AiReviewStatus, review: reviewResult };
+    return { ok: true, status: reviewResult.status as ReviewStatus, review: reviewResult };
   } catch (err: any) {
     const message = err?.message || 'Unknown review error';
     console.error('[review] failed', { workItemId, context, message });

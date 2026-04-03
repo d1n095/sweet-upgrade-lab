@@ -18,7 +18,7 @@ import {
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
+import { triggerReviewForWorkItem } from '@/lib/workItemReview';
 
 interface WorkItemDetailProps {
   item: {
@@ -195,17 +195,17 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
         await supabase.from('bug_reports').update({ resolution_notes: resolutionNotes.trim() || null }).eq('id', item.source_id);
       }
       await onStatusChange(item.id, 'done');
-      toast.success('Markerad som klar — AI verifierar...');
+      toast.success('Markerad som klar — verifierar...');
 
-      // Auto-trigger AI verification after marking as done
-      triggerAiReviewForWorkItem(item.id, { context: 'auto_verify_on_resolve' }).then(reviewResult => {
+      // Auto-trigger verification after marking as done
+      triggerReviewForWorkItem(item.id, { context: 'auto_verify_on_resolve' }).then(reviewResult => {
         if (reviewResult.ok) {
           if (reviewResult.status === 'incomplete') {
-            toast.error('⚠️ AI: Fixens verifiering misslyckades — uppgiften återöppnad', { duration: 6000 });
+            toast.error('⚠️ Fixens verifiering misslyckades — uppgiften återöppnad', { duration: 6000 });
           } else if (reviewResult.status === 'needs_review') {
-            toast.warning('AI: Behöver manuell granskning', { duration: 4000 });
+            toast.warning('Behöver manuell granskning', { duration: 4000 });
           } else {
-            toast.success('✅ AI: Verifierad!', { duration: 3000 });
+            toast.success('✅ Verifierad!', { duration: 3000 });
           }
           onRefresh?.();
         }
@@ -275,7 +275,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
   };
 
   const handleRunRootCause = async () => {
-    toast.info('AI-analys är avaktiverad — analysera grundorsak manuellt');
+    toast.info('Grundorsaksanalys avaktiverad — analysera grundorsak manuellt');
   };
 
   const dt = fmtFull(item.created_at);
@@ -381,7 +381,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                   Manuell bedömning
                 </div>
                 {item.human_selected_cause && (
-                  <div><span className="text-[10px] text-muted-foreground">Vald AI-orsak:</span><p className="text-xs">{item.human_selected_cause}</p></div>
+                  <div><span className="text-[10px] text-muted-foreground">Vald orsak:</span><p className="text-xs">{item.human_selected_cause}</p></div>
                 )}
                 {item.human_custom_cause && (
                   <div><span className="text-[10px] text-muted-foreground">Egen orsak:</span><p className="text-xs">{item.human_custom_cause}</p></div>
@@ -392,53 +392,12 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
               </div>
             )}
 
-            {/* AI Analysis for bugs */}
-            {bugData && (bugData as any).ai_processed_at && (
-              <div className="space-y-2 border border-primary/20 rounded-lg p-3 bg-primary/5">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  AI-analys
-                  {(bugData as any).ai_approved && (
-                    <Badge variant="outline" className="text-[9px] ml-1 border-accent/30 text-accent">✓ Godkänd</Badge>
-                  )}
-                </div>
-                {(bugData as any).ai_summary && (
-                  <div><span className="text-[10px] text-muted-foreground">Sammanfattning</span><p className="text-xs font-medium">{(bugData as any).ai_summary}</p></div>
-                )}
-                <div className="flex gap-1.5 flex-wrap">
-                  {(bugData as any).ai_severity && <Badge variant="outline" className="text-[10px]">{(bugData as any).ai_severity}</Badge>}
-                  {(bugData as any).ai_category && <Badge variant="outline" className="text-[10px]">{(bugData as any).ai_category}</Badge>}
-                </div>
-                {(bugData as any).ai_tags?.length > 0 && (
-                  <div className="flex gap-1 flex-wrap">
-                    {((bugData as any).ai_tags as string[]).map((tag: string) => (
-                      <span key={tag} className="text-[9px] bg-muted px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-                        <Tag className="w-2.5 h-2.5" />{tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                {(bugData as any).ai_repro_steps && (
-                  <div>
-                    <span className="text-[10px] text-muted-foreground">Reproduktionssteg</span>
-                    <div className="text-xs bg-background rounded-md p-2 whitespace-pre-wrap border mt-0.5">{(bugData as any).ai_repro_steps}</div>
-                  </div>
-                )}
-                {(bugData as any).ai_clean_prompt && (
-                  <div>
-                    <span className="text-[10px] text-muted-foreground">Strukturerad prompt</span>
-                    <div className="text-xs bg-background rounded-md p-2 whitespace-pre-wrap border mt-0.5 font-mono">{(bugData as any).ai_clean_prompt}</div>
-                  </div>
-                )}
-              </div>
-            )}
-
             {/* Root Cause Analysis */}
             {bugData && item.item_type === 'bug' && (
               <div className="space-y-2">
                 <Button size="sm" variant="outline" className="w-full gap-1.5" disabled={analyzingFix} onClick={handleRunRootCause}>
                   {analyzingFix ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                  {rootCauses.length > 0 ? 'Kör ny AI-analys' : 'AI Root Cause-analys'}
+                  {rootCauses.length > 0 ? 'Kör ny analys' : 'Root Cause-analys'}
                 </Button>
 
                 {rootCauses.length > 0 && (
@@ -618,8 +577,8 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
               })}>
                 <div className="flex items-center gap-1.5 text-xs font-semibold">
                   <Sparkles className="w-3.5 h-3.5 text-primary" />
-                  {item.ai_pre_verify_status === 'confirmed' ? 'AI-förslag bekräftat' :
-                   item.ai_pre_verify_status === 'rejected' ? 'AI-förslag avvisat' : 'AI förslag: Verkar löst'}
+                  {item.ai_pre_verify_status === 'confirmed' ? 'Förslag bekräftat' :
+                   item.ai_pre_verify_status === 'rejected' ? 'Förslag avvisat' : 'Förslag: Verkar löst'}
                   <Badge variant="outline" className={cn('text-[9px] ml-auto', {
                     'border-accent/40 text-accent': item.ai_pre_verify_status === 'appears_fixed' || item.ai_pre_verify_status === 'confirmed',
                     'border-primary/30 text-primary': item.ai_pre_verify_status === 'possibly_fixed',
@@ -660,12 +619,12 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                             confirmed_at: new Date().toISOString(),
                             confirmed_by: user?.id,
                           },
-                          resolution_notes: `✅ Bekräftad via AI-förslag (${item.ai_pre_verify_result?.confidence || '?'}% konfidens)`,
+                          resolution_notes: `✅ Bekräftad via förslag (${item.ai_pre_verify_result?.confidence || '?'}% konfidens)`,
                         } as any).eq('id', item.id);
                         // 3. Log to change_log
                         await supabase.from('change_log').insert({
                           change_type: 'verification',
-                          description: `Användare bekräftade AI-förslag: ${item.title}`,
+                          description: `Användare bekräftade förslag: ${item.title}`,
                           affected_components: [item.item_type, 'ai_pre_verify'],
                           source: 'human_confirmation',
                           work_item_id: item.id,
@@ -673,7 +632,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                           metadata: { ai_confidence: item.ai_pre_verify_result?.confidence, action: 'confirm' },
                         });
                         // 4. Trigger post-verify review
-                        triggerAiReviewForWorkItem(item.id, { context: 'human_confirmed_pre_verify' });
+                        triggerReviewForWorkItem(item.id, { context: 'human_confirmed_pre_verify' });
                         toast.success('✅ Bekräftad och verifierad');
                         onRefresh?.();
                         onOpenChange(false);
@@ -745,7 +704,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
               })}>
                 <div className="flex items-center gap-1.5 text-xs font-semibold">
                   <Bot className="w-3.5 h-3.5" />
-                  AI-granskning
+                  Granskning
                   <Badge variant="outline" className={cn('text-[9px] ml-auto', {
                     'border-accent/30 text-accent': item.ai_review_status === 'verified',
                     'border-yellow-300 text-yellow-700': item.ai_review_status === 'needs_review',
@@ -781,25 +740,25 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
               </div>
             )}
 
-            {/* Manual AI Review button */}
+            {/* Manual Review button */}
             {item.status === 'done' && (
               <Button size="sm" variant="outline" className="w-full gap-1.5" disabled={runningReview}
                 onClick={async () => {
                   setRunningReview(true);
                   try {
-                    const reviewResult = await triggerAiReviewForWorkItem(item.id, { context: 'work_item_detail_manual' });
-                    if (!reviewResult.ok) toast.error('AI-granskning misslyckades');
+                    const reviewResult = await triggerReviewForWorkItem(item.id, { context: 'work_item_detail_manual' });
+                    if (!reviewResult.ok) toast.error('Granskning misslyckades');
                     else {
                       const s = reviewResult.status;
-                      toast.success(s === 'verified' ? 'AI: ✅ Verifierad' : s === 'needs_review' ? 'AI: ⚠️ Behöver granskning' : 'AI: Granskning klar');
+                      toast.success(s === 'verified' ? '✅ Verifierad' : s === 'needs_review' ? '⚠️ Behöver granskning' : 'Granskning klar');
                     }
                     onRefresh?.();
-                  } catch { toast.error('Fel vid AI-granskning'); }
+                  } catch { toast.error('Fel vid granskning'); }
                   finally { setRunningReview(false); }
                 }}
               >
                 {runningReview ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Bot className="w-3.5 h-3.5" />}
-                {item.ai_review_status ? 'Kör AI-granskning igen' : 'Kör AI-granskning'}
+                {item.ai_review_status ? 'Kör granskning igen' : 'Kör granskning'}
               </Button>
             )}
 
@@ -864,7 +823,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                   {showIgnoreForm && (
                     <div className="border rounded-lg p-3 space-y-2 bg-muted/30">
                       <p className="text-xs font-medium">Ignorera detta ärende</p>
-                      <p className="text-[10px] text-muted-foreground">AI kommer inte att ta upp detta problem igen.</p>
+                      <p className="text-[10px] text-muted-foreground">Systemet kommer inte att ta upp detta problem igen.</p>
                       <Textarea placeholder="Anledning till ignorering..." value={ignoreReason} onChange={e => setIgnoreReason(e.target.value)} rows={2} className="text-xs" />
                       <Button size="sm" variant="destructive" className="w-full h-7 text-xs gap-1" disabled={ignoreSaving || !ignoreReason.trim()} onClick={handleIgnore}>
                         {ignoreSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <EyeOff className="w-3 h-3" />}

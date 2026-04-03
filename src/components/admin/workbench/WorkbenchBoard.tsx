@@ -26,7 +26,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { getOrderDisplayId } from '@/utils/orderDisplay';
 import WorkItemDetail from './WorkItemDetail';
 import { useNavigate } from 'react-router-dom';
-import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
+import { triggerReviewForWorkItem } from '@/lib/workItemReview';
 import { createAndVerify } from '@/utils/createVerifyLoop';
 import { trace, newTraceId, traceUIFetch } from '@/utils/deepDebugTrace';
 import { verifyAction } from '@/utils/actionVerificationEngine';
@@ -672,9 +672,9 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
       setCompletedCount(prev => prev + 1);
       setJustCompleted(itemId);
       toast.success('Klar ✓ — AI granskar...');
-      const reviewResult = await triggerAiReviewForWorkItem(itemId, { context: 'workbench_board_done' });
+      const reviewResult = await triggerReviewForWorkItem(itemId, { context: 'workbench_board_done' });
       if (!reviewResult.ok) {
-        toast.error('AI-granskning misslyckades — manuell granskning krävs');
+        toast.error('Granskning misslyckades — manuell granskning krävs');
       } else if (reviewResult.status === 'verified') {
         toast.success('AI: ✅ Verifierad');
       } else if (reviewResult.status === 'needs_review') {
