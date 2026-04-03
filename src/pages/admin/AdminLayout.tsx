@@ -206,7 +206,6 @@ const AdminLayout = () => {
             <AdminGlobalSearch />
           </div>
           <div className="flex items-center gap-2">
-            <AiControlBar />
             <BugReportButton />
             <AdminNotificationBell />
             {!siteActive && (
