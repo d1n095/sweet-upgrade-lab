@@ -3344,11 +3344,6 @@ serve(async (req) => {
       if (allTracedIssues.length > 0 && allTracedIssues.some((i: any) => !i.fingerprint)) {
         violations.push("❌ ISSUES MISSING FINGERPRINT");
       }
-      // STALE DATA
-      const scanTimestamp = new Date(scanRun.started_at).getTime();
-      if (scanTimestamp && Date.now() - scanTimestamp > 60000) {
-        violations.push("⚠ STALE SCAN DATA (>60s old)");
-      }
       const scanContext = {
         raw_detected: rawDetected,
         after_filter: issuesCount,

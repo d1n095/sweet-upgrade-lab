@@ -109,6 +109,7 @@ const ORCHESTRATED_STEPS: { id: string; label: string; scanType: string; progres
   { id: 'regression_detection', label: 'Regression Detection', scanType: 'system_scan', progressLabel: 'Detekterar regressioner...' },
   { id: 'decision_engine', label: 'Decision Engine', scanType: 'decision_engine', progressLabel: 'Kör beslutsmotor...' },
   { id: 'blocker_detection', label: 'Blocker Detection', scanType: 'blocker_detection', progressLabel: 'Söker blockerare...' },
+  { id: 'ui_flow_integrity', label: 'UI Flow Integrity', scanType: 'ui_flow_integrity', progressLabel: 'Verifierar UI-flödesintegritet...' },
 ];
 
 export { ORCHESTRATED_STEPS };
