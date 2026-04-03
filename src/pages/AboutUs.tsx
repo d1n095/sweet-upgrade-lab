@@ -52,9 +52,20 @@ const AboutUs = () => {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead
-        title={lang === 'sv' ? 'Om oss – 4ThePeople' : 'About Us – 4ThePeople'}
+        title={({
+          sv: 'Om oss – 4ThePeople',
+          en: 'About Us – 4ThePeople',
+          no: 'Om oss – 4ThePeople',
+          da: 'Om os – 4ThePeople',
+          de: 'Über uns – 4ThePeople',
+          fi: 'Meistä – 4ThePeople',
+          nl: 'Over ons – 4ThePeople',
+          fr: 'À propos – 4ThePeople',
+          es: 'Sobre nosotros – 4ThePeople',
+          pl: 'O nas – 4ThePeople',
+        } as Record<string, string>)[lang] ?? 'About Us – 4ThePeople'}
         description={heroSection ? getLang(heroSection.content_sv, heroSection.content_en) : t('about.page.intro')}
-        keywords="om oss, hållbarhet, giftfritt, naturligt"
+        keywords="om oss, hållbarhet, giftfritt, naturligt, about, sustainability"
         canonical="/about"
       />
       <Header />

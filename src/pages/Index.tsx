@@ -34,6 +34,19 @@ const BLOCK_COMPONENTS: Record<string, React.ComponentType<{ sections: PageSecti
 // Main blocks that should render (not sub-items like philosophy_step_*)
 const MAIN_BLOCK_KEYS = ['hero', 'philosophy', 'about_compact', 'bestsellers', 'reviews', 'contact', 'sustainability', 'new_products', 'values', 'timeline'];
 
+const SEO_CONTENT: Record<string, { title: string; description: string; keywords: string }> = {
+  sv: { title: '4thepeople - Giftfria Produkter för Europa', description: 'Noggrant utvalda giftfria produkter till ärliga priser.', keywords: 'giftfri, naturlig, kroppsvård, hållbart, europeisk, ekologisk' },
+  en: { title: '4thepeople - Toxin-Free Products for Europe', description: 'Carefully curated toxin-free products at honest prices.', keywords: 'toxin-free, natural, body care, sustainable, european, organic' },
+  no: { title: '4thepeople - Giftfrie Produkter for Europa', description: 'Nøye utvalgte giftfrie produkter til ærlige priser.', keywords: 'giftfri, naturlig, kroppsstell, bærekraftig, europeisk, økologisk' },
+  da: { title: '4thepeople - Giftfrie Produkter til Europa', description: 'Omhyggeligt udvalgte giftfrie produkter til ærlige priser.', keywords: 'giftfri, naturlig, kropspleje, bæredygtig, europæisk, økologisk' },
+  de: { title: '4thepeople - Schadstofffreie Produkte für Europa', description: 'Sorgfältig kuratierte schadstofffreie Produkte zu fairen Preisen.', keywords: 'schadstoffrei, natürlich, körperpflege, nachhaltig, europäisch, bio' },
+  fi: { title: '4thepeople - Myrkyttömiä Tuotteita Euroopalle', description: 'Huolellisesti valitut myrkyttömät tuotteet rehellisin hinnoin.', keywords: 'myrkytön, luonnollinen, kehonhoito, kestävä, eurooppalainen, luomu' },
+  nl: { title: '4thepeople - Gifvrije Producten voor Europa', description: 'Zorgvuldig geselecteerde gifvrije producten voor eerlijke prijzen.', keywords: 'gifvrij, natuurlijk, lichaamsverzorging, duurzaam, europees, biologisch' },
+  fr: { title: "4thepeople - Produits Sans Toxines pour l'Europe", description: 'Des produits sans toxines soigneusement sélectionnés à des prix honnêtes.', keywords: 'sans toxines, naturel, soins du corps, durable, européen, biologique' },
+  es: { title: '4thepeople - Productos Sin Tóxicos para Europa', description: 'Productos sin tóxicos cuidadosamente seleccionados a precios honestos.', keywords: 'sin tóxicos, natural, cuidado corporal, sostenible, europeo, ecológico' },
+  pl: { title: '4thepeople - Produkty bez Toksyn dla Europy', description: 'Starannie wyselekcjonowane produkty bez toksyn w uczciwych cenach.', keywords: 'bez toksyn, naturalny, pielęgnacja ciała, zrównoważony, europejski, ekologiczny' },
+};
+
 const Index = () => {
   const { language } = useLanguage();
   const lang = getContentLang(language);
@@ -48,14 +61,14 @@ const Index = () => {
     .filter(s => MAIN_BLOCK_KEYS.includes(s.section_key) && s.is_visible)
     .sort((a, b) => a.display_order - b.display_order);
 
+  const seo = SEO_CONTENT[lang] ?? SEO_CONTENT.en;
+
   return (
     <div className="min-h-screen bg-background">
       <SEOHead
-        title={lang === 'sv' ? '4thepeople - Giftfria Produkter för Europa' : '4thepeople - Toxin-Free Products for Europe'}
-        description={lang === 'sv'
-          ? 'Noggrant utvalda giftfria produkter till ärliga priser.'
-          : 'Carefully curated toxin-free products at honest prices.'}
-        keywords="giftfri, naturlig, kroppsvård, hållbart, europeisk, ekologisk"
+        title={seo.title}
+        description={seo.description}
+        keywords={seo.keywords}
         canonical="/"
         schemaType="Store"
       />

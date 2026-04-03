@@ -448,9 +448,9 @@ const TrackOrder = () => {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead
-        title={language === 'sv' ? 'Spåra din order' : 'Track Your Order'}
-        description={language === 'sv' ? 'Spåra din beställning och se aktuell leveransstatus.' : 'Track your order and view current delivery status.'}
-        keywords="orderspårning, leveransstatus, track order"
+        title={t.pageTitle}
+        description={t.pageDescription}
+        keywords="orderspårning, leveransstatus, track order, order tracking"
         canonical="/track"
       />
       <Header />
