@@ -29,6 +29,7 @@ import ProfileInfoForm from '@/components/profile/ProfileInfoForm';
 import CompleteProfileBanner from '@/components/profile/CompleteProfileBanner';
 import BusinessAccountForm from '@/components/profile/BusinessAccountForm';
 import TrustBadges from '@/components/trust/TrustBadges';
+import BalanceOverview from '@/components/profile/BalanceOverview';
 
 interface Review {
   id: string;
@@ -324,6 +325,9 @@ const MemberProfile = () => {
               </Button>
             </div>
           </motion.div>
+
+          {/* Balance Overview */}
+          <BalanceOverview />
 
           {/* Tabs */}
           <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
