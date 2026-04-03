@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { safeInvoke } from "@/lib/safeInvoke";
 import { ScanControls } from "./system/ScanControls";
 import { fileSystemMap, type FileEntry, getFileContent, getCodeIndex, getDuplicatedLines, getCodeIssues, getRawSources, scanFileContent } from "@/lib/fileSystemMap";
 import { useAdminRole } from "@/hooks/useAdminRole";
@@ -3863,8 +3864,9 @@ const SystemExplorer = () => {
                       const meta = (selectedItem as any).metadata ? (typeof (selectedItem as any).metadata === "string" ? JSON.parse((selectedItem as any).metadata) : (selectedItem as any).metadata) : {};
                       const target = meta?.affected_area?.target || (selectedItem as any).source_component || (selectedItem as any).source_path || selectedItem.item_type;
 
-                      const verifyRes = await supabase.functions.invoke("run-full-scan", {
+                      const verifyRes = await safeInvoke("run-full-scan", {
                         body: { action: "start", scan_mode: "targeted", target_area: target, verification_for: selectedItem.id },
+                        isAdmin: true,
                       });
                       console.log("[DEBUG] VERIFY SCAN RESPONSE:", verifyRes);
                       const scanData = verifyRes?.data ?? verifyRes;

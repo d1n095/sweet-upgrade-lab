@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { safeInvoke } from '@/lib/safeInvoke';
 import { useLanguage } from '@/context/LanguageContext';
 import type { DbProduct } from '@/lib/products';
 
@@ -73,7 +74,7 @@ export function useTranslatedProduct(product: DbProduct | null) {
 
     (async () => {
       try {
-        const { data, error } = await supabase.functions.invoke('translate-product', {
+        const { data, error } = await safeInvoke('translate-product', {
           body: { texts: textsToTranslate, targetLang: lang, productId: product.id },
         });
 
