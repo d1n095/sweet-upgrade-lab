@@ -3,7 +3,7 @@ import { ACTIVE_WORK_ITEM_STATUSES, useAdminWorkItems } from '@/hooks/useAdminDa
 import { useUiStateSync } from '@/hooks/useUiStateSync';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { safeInvoke, safeFetch } from '@/lib/safeInvoke';
+import { safeFetch } from '@/lib/safeInvoke';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  Plus, User, Clock, CheckCircle2, Circle, Play, X, Zap, UserCheck, Bot,
+  Plus, User, Clock, CheckCircle2, Circle, Play, X, Zap, UserCheck,
   AlertTriangle, Package, Headphones, RotateCcw, FileText, Wrench, ShieldAlert,
   FastForward, Pause, ArrowRight, Sparkles, Timer, ToggleRight, Bug, Link2,
   GitBranch, Copy, Layers,
@@ -26,8 +26,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { getOrderDisplayId } from '@/utils/orderDisplay';
 import WorkItemDetail from './WorkItemDetail';
 import { useNavigate } from 'react-router-dom';
-import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
-import { createAndVerify } from '@/utils/createVerifyLoop';
+import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';import { createAndVerify } from '@/utils/createVerifyLoop';
 import { trace, newTraceId, traceUIFetch } from '@/utils/deepDebugTrace';
 import { verifyAction } from '@/utils/actionVerificationEngine';
 
@@ -166,8 +165,6 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const [newType, setNewType] = useState('general');
   const [creating, setCreating] = useState(false);
   const [autoAssigning, setAutoAssigning] = useState(false);
-  const [runningOrchestrator, setRunningOrchestrator] = useState(false);
-  const [runningAutomation, setRunningAutomation] = useState(false);
   const [runningValidation, setRunningValidation] = useState(false);
   const [viewFilter, setViewFilter] = useState<ViewFilter>('active');
   const [escalating, setEscalating] = useState<string | null>(null);
@@ -182,68 +179,6 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const [detailItem, setDetailItem] = useState<WorkItem | null>(null);
   const [validationResult, setValidationResult] = useState<any>(null);
   workModeRef.current = workMode;
-
-
-  const { data: automationLogs = [] } = useQuery({
-    queryKey: ['automation-logs-recent'],
-    queryFn: async () => {
-      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      const { data } = await supabase
-        .from('automation_logs')
-        .select('*')
-        .gte('created_at', since)
-        .order('created_at', { ascending: false })
-        .limit(50);
-      return data || [];
-    },
-  });
-
-  const getItemAutomationBadge = (itemId: string) => {
-    const log = automationLogs.find(l => l.target_id === itemId);
-    if (!log) return null;
-    return log.action_type;
-  };
-
-  const runAutomation = async () => {
-    setRunningAutomation(true);
-    try {
-      const { data, error } = await safeInvoke({ action: 'RUN_AUTOMATION_ENGINE', fn: 'automation-engine', isAdmin: true });
-      if (error) throw error;
-      const r = data?.results;
-      toast.success(`Automation klar: ${r?.escalated || 0} eskalerade, ${r?.reassigned || 0} omfördelade`);
-      queryClient.invalidateQueries({ queryKey: ['work-items'] });
-      queryClient.invalidateQueries({ queryKey: ['automation-logs-recent'] });
-    } catch (e: any) {
-      toast.error('Automation misslyckades: ' + e.message);
-    } finally {
-      setRunningAutomation(false);
-    }
-  };
-
-  const runOrchestrator = async () => {
-    setRunningOrchestrator(true);
-    try {
-      const { data, error } = await safeInvoke({ action: 'RUN_AI_ORCHESTRATOR', fn: 'ai-task-manager', body: { action: 'orchestrate' }, isAdmin: true });
-      if (error) throw error;
-      const r = data?.results;
-      const scanned = r?.orchestrator_scanned || 0;
-      const orchestrated = r?.orchestrated || 0;
-
-      if (scanned === 0) {
-        toast.info('Orchestrator: inga aktiva uppgifter hittades');
-      } else if (orchestrated === 0) {
-        toast.warning(`Orchestrator skannade ${scanned} uppgifter men kunde inte ordna dem automatiskt`);
-      } else {
-        toast.success(`Orchestrator klar: ${orchestrated}/${scanned} uppgifter ordnade (${r?.orchestrator_mode || 'ai'})`);
-      }
-
-      queryClient.invalidateQueries({ queryKey: ['work-items'] });
-    } catch (e: any) {
-      toast.error('Orchestrator misslyckades: ' + e.message);
-    } finally {
-      setRunningOrchestrator(false);
-    }
-  };
 
   const runValidation = async () => {
     setRunningValidation(true);
@@ -698,17 +633,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     if (newStatus === 'done') {
       setCompletedCount(prev => prev + 1);
       setJustCompleted(itemId);
-      toast.success('Klar ✓ — AI granskar...');
-      const reviewResult = await triggerAiReviewForWorkItem(itemId, { context: 'workbench_board_done' });
-      if (!reviewResult.ok) {
-        toast.error('AI-granskning misslyckades — manuell granskning krävs');
-      } else if (reviewResult.status === 'verified') {
-        toast.success('AI: ✅ Verifierad');
-      } else if (reviewResult.status === 'needs_review') {
-        toast.warning('AI: ⚠️ Behöver granskning');
-      } else if (reviewResult.status === 'incomplete') {
-        toast.error('AI: ❌ Ofullständig');
-      }
+      toast.success('Klar ✓');
       queryClient.invalidateQueries({ queryKey: ['work-items'] });
 
       setTimeout(() => {
@@ -875,13 +800,6 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
             {isEscalated && (
               <Badge variant="destructive" className="text-[9px] gap-0.5">
                 <AlertTriangle className="w-2.5 h-2.5" /> Eskalerad
-              </Badge>
-            )}
-            {getItemAutomationBadge(item.id) && (
-              <Badge variant="outline" className="text-[9px] gap-0.5 bg-purple-100 text-purple-700 border-purple-200">
-                <Bot className="w-2.5 h-2.5" />
-                {getItemAutomationBadge(item.id) === 'escalate' ? 'Auto-eskalerad' :
-                 getItemAutomationBadge(item.id) === 'reassign' ? 'Omfördelad' : 'Auto'}
               </Badge>
             )}
             {item.depends_on && item.depends_on.length > 0 && (
@@ -1139,12 +1057,6 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
               <Zap className="w-4 h-4" /> Auto-fördela ({openCount})
             </Button>
           )}
-          <Button size="sm" variant="outline" className="gap-1.5" onClick={runAutomation} disabled={runningAutomation}>
-            <Bot className="w-4 h-4" /> {runningAutomation ? 'Kör...' : 'Automation'}
-          </Button>
-          <Button size="sm" variant="outline" className="gap-1.5" onClick={runOrchestrator} disabled={runningOrchestrator}>
-            <Layers className="w-4 h-4" /> {runningOrchestrator ? 'Analyserar...' : 'AI Orchestrator'}
-          </Button>
           <Button size="sm" variant="outline" className="gap-1.5" onClick={runValidation} disabled={runningValidation}>
             <CheckCircle2 className="w-4 h-4" /> {runningValidation ? 'Validerar...' : 'Validera & Städa'}
           </Button>

@@ -8,10 +8,6 @@ const ALLOWED_FUNCTIONS = new Set([
   'create-checkout',
   'translate-product',
   'run-full-scan',
-  'automation-engine',
-  'ai-task-manager',
-  'generate-product-content',
-  'suggest-product-metadata',
   'shopify-proxy',
   'send-welcome-email',
   'notify-influencer',
@@ -25,10 +21,6 @@ const ALLOWED_FUNCTIONS = new Set([
 
 const ADMIN_ONLY_FUNCTIONS = new Set([
   'run-full-scan',
-  'automation-engine',
-  'ai-task-manager',
-  'generate-product-content',
-  'suggest-product-metadata',
   'notify-influencer',
   'notify-affiliate',
   'generate-receipt',
