@@ -207,7 +207,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const runAutomation = async () => {
     setRunningAutomation(true);
     try {
-      const { data, error } = await safeInvoke('automation-engine', { isAdmin: true });
+      const { data, error } = await safeInvoke('automation-engine');
       if (error) throw error;
       const r = data?.results;
       toast.success(`Automation klar: ${r?.escalated || 0} eskalerade, ${r?.reassigned || 0} omfördelade`);
@@ -223,7 +223,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const runOrchestrator = async () => {
     setRunningOrchestrator(true);
     try {
-      const { data, error } = await safeInvoke('ai-task-manager', { body: { action: 'orchestrate' }, isAdmin: true });
+      const { data, error } = await safeInvoke('ai-task-manager', { body: { action: 'orchestrate' } });
       if (error) throw error;
       const r = data?.results;
       const scanned = r?.orchestrator_scanned || 0;

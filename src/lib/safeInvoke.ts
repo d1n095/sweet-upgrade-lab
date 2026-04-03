@@ -4,8 +4,10 @@ import { supabase } from '@/integrations/supabase/client';
  * Single backend entry point.
  * All Supabase Edge Function calls MUST go through safeInvoke or safeFetch.
  * Direct supabase.functions.invoke() calls are prohibited outside this file.
+ * Admin privilege checks are enforced exclusively by the edge functions via
+ * auth.uid() + role lookup — not by the client.
  *
- * Architecture: UI → safeInvoke → Edge Function → DB
+ * Architecture: UI → safeInvoke → Edge Function (role check) → DB
  */
 
 const ALLOWED_FUNCTIONS = new Set([
@@ -40,26 +42,54 @@ const ALLOWED_FUNCTIONS = new Set([
   'stripe-webhook',
 ]);
 
-const ADMIN_ONLY_FUNCTIONS = new Set([
-  'run-full-scan',
-  'apply-fix',
-  'access-control-scan',
-  'permission-fix',
-  'access-flow-validate',
-  'ai-user-management',
-  'data-sync',
-  'process-bug-report',
-  'generate-receipt',
-  'automation-engine',
-  'ai-task-manager',
-  'generate-product-content',
-  'suggest-product-metadata',
-]);
+// ── API call log ─────────────────────────────────────────────────────────────
+
+export type ApiLogEntry = {
+  traceId: string;
+  functionName: string;
+  requestedAt: string;
+  respondedAt: string | null;
+  durationMs: number | null;
+  attempt: number;
+  status: 'ok' | 'error' | 'blocked';
+  error: string | null;
+};
+
+const MAX_LOG_ENTRIES = 50;
+const _apiLog: ApiLogEntry[] = [];
+
+/** Read-only snapshot of the last 50 API calls. Newest first. */
+export function getApiLog(): ReadonlyArray<ApiLogEntry> {
+  return _apiLog;
+}
+
+function pushLog(entry: ApiLogEntry) {
+  _apiLog.unshift(entry);
+  if (_apiLog.length > MAX_LOG_ENTRIES) _apiLog.length = MAX_LOG_ENTRIES;
+}
+
+// ── Retry helper ─────────────────────────────────────────────────────────────
+
+const MAX_ATTEMPTS = 3;
+const RETRY_DELAY_MS = 300;
+
+function isRetryable(error: any): boolean {
+  if (!error) return false;
+  const msg: string = error?.message ?? String(error);
+  // Don't retry auth/blocked errors; do retry network/timeout errors
+  if (msg.startsWith('BLOCKED') || msg.includes('Unauthorized') || msg.includes('403')) return false;
+  return true;
+}
+
+async function delay(ms: number) {
+  return new Promise<void>((res) => setTimeout(res, ms));
+}
+
+// ── safeInvoke ───────────────────────────────────────────────────────────────
 
 type SafeInvokeOptions = {
   body?: Record<string, any>;
   headers?: Record<string, string>;
-  isAdmin?: boolean;
 };
 
 type SafeInvokeResult<T> = {
@@ -70,6 +100,8 @@ type SafeInvokeResult<T> = {
 
 /**
  * safeInvoke — call an edge function through the enforced whitelist.
+ * Retries up to 3 times on transient failures.
+ * Logs every attempt to the in-memory API log (last 50).
  * Returns { data, error, traceId }.
  */
 export async function safeInvoke<T = any>(
@@ -77,29 +109,51 @@ export async function safeInvoke<T = any>(
   options?: SafeInvokeOptions
 ): Promise<SafeInvokeResult<T>> {
   const traceId = crypto.randomUUID();
+  const requestedAt = new Date().toISOString();
 
   if (!ALLOWED_FUNCTIONS.has(functionName)) {
     const err = new Error(`BLOCKED: '${functionName}' is not in the allowed functions list`);
+    pushLog({
+      traceId, functionName, requestedAt, respondedAt: new Date().toISOString(),
+      durationMs: 0, attempt: 1, status: 'blocked', error: err.message,
+    });
     return { data: null, error: err, traceId };
   }
 
-  if (ADMIN_ONLY_FUNCTIONS.has(functionName) && !options?.isAdmin) {
-    const err = new Error(`BLOCKED: '${functionName}' requires admin privileges`);
-    return { data: null, error: err, traceId };
+  const body = { ...(options?.body ?? {}), request_trace_id: traceId };
+
+  let lastError: any = null;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const attemptStart = Date.now();
+    const { data, error } = await supabase.functions.invoke<T>(functionName, {
+      body,
+      headers: options?.headers,
+    });
+    const respondedAt = new Date().toISOString();
+    const durationMs = Date.now() - attemptStart;
+
+    if (!error) {
+      pushLog({ traceId, functionName, requestedAt, respondedAt, durationMs, attempt, status: 'ok', error: null });
+      return { data, error: null, traceId };
+    }
+
+    lastError = error;
+    pushLog({
+      traceId, functionName, requestedAt, respondedAt, durationMs,
+      attempt, status: 'error', error: error?.message ?? String(error),
+    });
+
+    if (attempt < MAX_ATTEMPTS && isRetryable(error)) {
+      await delay(RETRY_DELAY_MS * attempt);
+    } else {
+      break;
+    }
   }
 
-  const body = {
-    ...(options?.body || {}),
-    request_trace_id: traceId,
-  };
-
-  const { data, error } = await supabase.functions.invoke<T>(functionName, {
-    body,
-    headers: options?.headers,
-  });
-
-  return { data, error, traceId };
+  return { data: null, error: lastError, traceId };
 }
+
+// ── safeFetch ────────────────────────────────────────────────────────────────
 
 type SafeFetchOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
@@ -107,7 +161,6 @@ type SafeFetchOptions = {
   params?: Record<string, string>;
   headers?: Record<string, string>;
   signal?: AbortSignal;
-  isAdmin?: boolean;
 };
 
 /**
@@ -122,14 +175,6 @@ export async function safeFetch(
     const traceId = crypto.randomUUID();
     return new Response(
       JSON.stringify({ success: false, error: `BLOCKED: '${functionName}'`, traceId }),
-      { status: 403, headers: { 'Content-Type': 'application/json' } }
-    );
-  }
-
-  if (ADMIN_ONLY_FUNCTIONS.has(functionName) && !options?.isAdmin) {
-    const traceId = crypto.randomUUID();
-    return new Response(
-      JSON.stringify({ success: false, error: `BLOCKED: admin required`, traceId }),
       { status: 403, headers: { 'Content-Type': 'application/json' } }
     );
   }

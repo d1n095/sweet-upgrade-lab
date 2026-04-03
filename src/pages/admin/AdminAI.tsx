@@ -98,7 +98,6 @@ const callAI = async (type: string, payload: Record<string, any> = {}) => {
   
   if (scanTypes.includes(type)) {
     const { data, error } = await safeInvoke('run-full-scan', {
-      isAdmin: true,
       body: { action: 'start', ...payload },
     });
     if (error) { toast.error(error.message || 'Skanningsfel'); return null; }

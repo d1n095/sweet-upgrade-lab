@@ -36,7 +36,6 @@ export default function AdminSecurity() {
     setLoading(true);
     try {
       const { data, error } = await safeInvoke('access-control-scan', {
-        isAdmin: true,
         body: { action: 'scan' },
       });
       if (error) throw error;
@@ -52,7 +51,6 @@ export default function AdminSecurity() {
     setLoading(true);
     try {
       const { data, error } = await safeInvoke('access-flow-validate', {
-        isAdmin: true,
         body: { action: 'validate' },
       });
       if (error) throw error;

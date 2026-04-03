@@ -10,17 +10,24 @@ const corsHeaders = {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  // Auth: require valid JWT
+  // Auth: require admin/founder/it role
   const authHeader = req.headers.get("Authorization") || "";
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   if (authHeader !== `Bearer ${serviceRoleKey}`) {
-    const { createClient: createAuthClient } = await import("https://esm.sh/@supabase/supabase-js@2");
-    const authSupabase = createAuthClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const userClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
-    const { data } = await authSupabase.auth.getClaims(authHeader.replace("Bearer ", ""));
-    if (!data?.claims?.sub) {
+    const { data: { user } } = await userClient.auth.getUser();
+    if (!user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const sb = createClient(supabaseUrl, serviceRoleKey);
+    const { data: roles } = await sb.from("user_roles").select("role").eq("user_id", user.id);
+    const isStaff = roles?.some((r: any) => ["admin", "founder", "it"].includes(r.role));
+    if (!isStaff) {
+      return new Response(JSON.stringify({ error: "Unauthorized: admin role required" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
   }
 

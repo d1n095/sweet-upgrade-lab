@@ -417,7 +417,6 @@ function AiContentGenerator({
     setGenerating(true);
     try {
       const { data, error } = await safeInvoke('generate-product-content', {
-        isAdmin: true,
         body: {
           productName: formData.title,
           category: formData.productType || null,
@@ -538,7 +537,6 @@ function AiMetadataSuggestor({
     setSuggesting(true);
     try {
       const { data, error } = await safeInvoke('suggest-product-metadata', {
-        isAdmin: true,
         body: {
           productName: formData.title,
           description: formData.description || null,
