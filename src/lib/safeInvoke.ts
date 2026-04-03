@@ -45,7 +45,6 @@ const ALLOWED_FUNCTIONS = new Set([
   'permission-fix',
   'automation-engine',
   'ai-task-manager',
-  'ai-user-management',
   'data-sync',
 ]);
 

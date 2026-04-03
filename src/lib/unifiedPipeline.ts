@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { logChange } from '@/utils/changeLogger';
-import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
+import { triggerReviewForWorkItem } from '@/lib/workItemReview';
 import { useSafeModeStore } from '@/stores/safeModeStore';
 import { recordRootCause, checkKnownPatterns } from '@/lib/rootCauseMemory';
 
@@ -267,7 +267,7 @@ export const runUnifiedPipeline = async (
 
     for (const item of (unverified || []) as any[]) {
       try {
-        const result = await triggerAiReviewForWorkItem(item.id, { context: 'unified_pipeline' });
+        const result = await triggerReviewForWorkItem(item.id, { context: 'unified_pipeline' });
         emit(makeEvent('verification', 'ai_review', item.id, 'work_item', result.ok,
           result.ok ? `Verifierat: ${result.status}` : `Granskning misslyckades: ${result.error}`,
           { work_item_id: item.id }));

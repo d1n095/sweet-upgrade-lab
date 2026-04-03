@@ -18,7 +18,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { safeInvoke } from '@/lib/safeInvoke';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
+import { triggerReviewForWorkItem } from '@/lib/workItemReview';
 import { logChange } from '@/utils/changeLogger';
 import WorkItemDetail from '@/components/admin/workbench/WorkItemDetail';
 import { useNavigate } from 'react-router-dom';
@@ -905,7 +905,7 @@ const TaskAITab = () => {
     } as any).eq('id', itemId);
 
     if (updates.status === 'done') {
-      const reviewResult = await triggerAiReviewForWorkItem(itemId, { context: 'admin_ai_override_done' });
+      const reviewResult = await triggerReviewForWorkItem(itemId, { context: 'admin_ai_override_done' });
       if (!reviewResult.ok) {
         toast.warning('Granskning misslyckades — satt till manuell granskning');
       }
@@ -7724,7 +7724,7 @@ const OrchestrationTab = () => {
       const { data: wi } = await supabase.from('work_items' as any).select('source_type, source_id, title').eq('id', itemId).maybeSingle();
       const linkedBugId = (wi as any)?.source_type === 'bug_report' ? (wi as any)?.source_id : null;
       const linkedScanId = ['scan', 'ai_visual_qa', 'ai_detection'].includes((wi as any)?.source_type) ? (wi as any)?.source_id : null;
-      triggerAiReviewForWorkItem(itemId, { context: 'admin_ai_detail' });
+      triggerReviewForWorkItem(itemId, { context: 'admin_ai_detail' });
       logChange({ change_type: 'fix', description: `Work item slutförd: ${(wi as any)?.title || itemId}`, source: 'manual', affected_components: ['work_items'], work_item_id: itemId, bug_report_id: linkedBugId, scan_id: linkedScanId });
       if (linkedBugId) queryClient.invalidateQueries({ queryKey: ['bug-reports'] });
     }

@@ -14,7 +14,7 @@ import { safeInvoke } from '@/lib/safeInvoke';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
+import { triggerReviewForWorkItem } from '@/lib/workItemReview';
 
 interface ActionableFix {
   blocker_statement?: string;
@@ -251,7 +251,7 @@ const AdminBugReports = () => {
       }).eq('id', id);
       if (wi) {
         await supabase.from('work_items').update({ status: 'done', completed_at: new Date().toISOString() }).eq('id', wi.id);
-        const reviewResult = await triggerAiReviewForWorkItem(wi.id, { context: 'admin_bug_reports_resolve' });
+        const reviewResult = await triggerReviewForWorkItem(wi.id, { context: 'admin_bug_reports_resolve' });
         if (!reviewResult.ok) {
           toast.warning('AI-granskning misslyckades — kräver manuell kontroll');
         }
