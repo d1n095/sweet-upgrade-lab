@@ -67,13 +67,12 @@ import AdminDatabase from "./pages/admin/AdminDatabase";
 import AdminData from "./pages/admin/AdminData";
 import AdminOps from "./pages/admin/AdminOps";
 import AdminGrowth from "./pages/admin/AdminGrowth";
-import AdminScanCenter from "./pages/admin/AdminScanCenter";
 import AdminHistory from "./pages/admin/AdminHistory";
 import AdminChangeHistory from "./pages/admin/AdminChangeHistory";
 import AdminPOS from "./pages/admin/AdminPOS";
 import ScanPackingMode from "./components/admin/warehouse/ScanPackingMode";
 import SystemExplorer from "./pages/admin/SystemExplorer";
-import AdminSecurity from "./pages/admin/AdminSecurity";
+import AdminAudit from "./pages/admin/AdminAudit";
 
 const queryClient = new QueryClient();
 
@@ -154,13 +153,13 @@ const App = () => (
                 <Route path="staff" element={<AdminStaff />} />
                 <Route path="insights" element={<AdminInsights />} />
                 <Route path="data" element={<AdminData />} />
-                <Route path="scan-center" element={<AdminScanCenter />} />
+                <Route path="ai" element={<Navigate to="/admin/system-explorer" replace />} />
                 <Route path="history" element={<AdminHistory />} />
                 <Route path="changes" element={<AdminChangeHistory />} />
                 <Route path="database" element={<AdminDatabase />} />
                 <Route path="warehouse" element={<ScanPackingMode />} />
                 <Route path="system-explorer" element={<SystemExplorer />} />
-                <Route path="security" element={<AdminSecurity />} />
+                <Route path="audit" element={<AdminAudit />} />
               </Route>
 
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

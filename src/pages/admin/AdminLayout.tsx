@@ -8,7 +8,7 @@ import {
   Loader2, Package, ClipboardList, BarChart3, Settings, Grid, Users,
   Handshake, Heart, Eye, LogOut, Home, Shield, Crown,
   Activity, User, Menu, X, Star, FileText, Percent, Truck, Wallet, Globe,
-  AlertTriangle, ScanLine, Sparkles, History, ShoppingCart, Radar,
+  AlertTriangle, ScanLine, Sparkles, History, ShoppingCart, Radar, Bug,
 } from 'lucide-react';
 import { useEmployeeRole } from '@/hooks/useEmployeeRole';
 import { useFounderRole } from '@/hooks/useFounderRole';
@@ -20,7 +20,6 @@ import { logAuthEvent } from '@/utils/activityLogger';
 import AdminGlobalSearch from '@/components/admin/AdminGlobalSearch';
 import AdminNotificationBell from '@/components/admin/AdminNotificationBell';
 import BugReportButton from '@/components/admin/BugReportButton';
-import ScanControlBar from '@/components/admin/ScanControlBar';
 import { AnimatePresence, motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useAdminRealtime } from '@/hooks/useAdminRealtime';
@@ -88,16 +87,14 @@ const navGroups: NavGroup[] = [
   {
     label: 'SYSTEM',
     items: [
-      { to: '/admin/scan-center', label: 'Scan Center', icon: Radar, role: 'admin' },
-      { to: '/admin/security', label: 'Säkerhet', icon: Shield, role: 'admin' },
-      { to: '/admin/system-explorer', label: 'System Explorer', icon: Eye, role: 'admin' },
+      { to: '/admin/system-explorer', label: 'Scan Center', icon: Radar, role: 'admin' },
+      { to: '/admin/audit', label: 'Audit', icon: Bug, role: 'admin' },
       { to: '/admin/history', label: 'Historik', icon: History, role: 'admin' },
-      { to: '/admin/changes', label: 'Ändringslogg', icon: Activity, role: 'admin' },
       { to: '/admin/members', label: 'Användare', icon: Users, role: 'admin' },
       { to: '/admin/content', label: 'Innehåll', icon: FileText, role: 'admin' },
       { to: '/admin/legal', label: 'Juridik', icon: Heart, role: 'admin' },
       { to: '/admin/logs', label: 'Logg', icon: Activity, role: 'admin' },
-      { to: '/admin/data', label: 'Data Center', icon: Sparkles, role: 'admin' },
+      { to: '/admin/data', label: 'Data Center', icon: Eye, role: 'admin' },
       { to: '/admin/database', label: 'Databas', icon: Grid, role: 'admin' },
       { to: '/admin/settings', label: 'Inställningar', icon: Settings, role: 'admin' },
     ],
@@ -210,7 +207,6 @@ const AdminLayout = () => {
             <AdminGlobalSearch />
           </div>
           <div className="flex items-center gap-2">
-            <ScanControlBar />
             <BugReportButton />
             <AdminNotificationBell />
             {!siteActive && (

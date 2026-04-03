@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { safeInvoke } from '@/lib/safeInvoke';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -34,8 +35,8 @@ export default function AdminSecurity() {
   const runAccessScan = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('access-control-scan', {
-        body: { action: 'scan' },
+      const { data, error } = await safeInvoke('access-control-scan', {
+        body: { action: 'scan' }, isAdmin: true,
       });
       if (error) throw error;
       setScanResult(data);
@@ -49,8 +50,8 @@ export default function AdminSecurity() {
   const runFlowValidation = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('access-flow-validate', {
-        body: { action: 'validate' },
+      const { data, error } = await safeInvoke('access-flow-validate', {
+        body: { action: 'validate' }, isAdmin: true,
       });
       if (error) throw error;
       setScanResult(data);

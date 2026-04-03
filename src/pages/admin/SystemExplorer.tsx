@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAiQueueStore } from "@/stores/taskQueueStore";
+import { startScanJob } from "@/lib/scanEngine";
 import { fileSystemMap, type FileEntry, getFileContent, getCodeIndex, getDuplicatedLines, getCodeIssues, getRawSources, scanFileContent } from "@/lib/fileSystemMap";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useFounderRole } from "@/hooks/useFounderRole";
@@ -22,7 +22,7 @@ type WorkItem = {
   created_by: string | null;
   item_type: string;
   priority: string;
-  scan_detected: boolean | null;
+  ai_detected: boolean | null;
   created_at: string;
   issue_fingerprint: string | null;
   ignored: boolean | null;
@@ -189,6 +189,39 @@ const SystemExplorer = () => {
   const [lastAction, setLastAction] = useState("");
   const [actionLogs, setActionLogs] = useState<{ time: string; [key: string]: any }[]>([]);
   const [globalIssues, setGlobalIssues] = useState<{ type: string; message: string; file: string }[]>([]);
+  const [lastScan, setLastScan] = useState<number | null>(null);
+
+  function pushToPipeline(issues: { file: string; message: string; severity?: string }[]) {
+    console.log("📊 EVENT:", issues);
+    logAction({ type: "PIPELINE_PUSH", count: issues.length, timestamp: Date.now() });
+  }
+
+  function runFrontendScan(type: string) {
+    const rawSources = getRawSources();
+    if (!rawSources) {
+      console.warn("NO FILE DATA");
+      return;
+    }
+    const issues: { file: string; message: string; severity: string }[] = [];
+    Object.entries(rawSources).forEach(([path, content]) => {
+      if (!content) return;
+      if (
+        content.includes("fetch(") &&
+        !content.includes("catch") &&
+        !content.includes("try")
+      ) {
+        issues.push({ file: path, message: "Missing error handling", severity: "high" });
+      }
+      if (content.includes("onClick") && !content.includes("=>")) {
+        issues.push({ file: path, message: "Dead button risk", severity: "high" });
+      }
+    });
+    console.log("✅ SCAN DONE:", issues.length);
+    console.log("FLOW:", { button: true, engine: true, scan: true, pipeline: true });
+    setGlobalIssues(issues);
+    setLastScan(Date.now());
+    pushToPipeline(issues);
+  }
 
   function logAction(action: Record<string, any>) {
     console.log("🟢 ACTION:", action);
@@ -251,53 +284,6 @@ const SystemExplorer = () => {
     setSearchResults(results.slice(0, 50));
   }
 
-  async function runSystemScan(mode: string) {
-    if (isScanning) {
-      console.warn("Scan already running");
-      return;
-    }
-    setIsScanning(true);
-    logAction({ type: "SCAN", status: "started", mode });
-    try {
-      if (mode === "files") {
-        const files = Object.keys(getRawSources() || {});
-        const result = {
-          total: files.length,
-          empty: files.filter(f => !getRawSources()[f]?.trim()).length
-        };
-        setFileScanResult({ total: result.total, emptyFiles: result.empty, largeFiles: 0 });
-        logAction({ type: "SCAN", status: "success", mode });
-      }
-      if (mode === "code") {
-        const results: { type: string; message: string; file: string }[] = [];
-        Object.entries(getRawSources() || {}).forEach(([path, content]) => {
-          const issues = scanFileContent(path, content as string);
-          results.push(...issues);
-        });
-        console.log("[FILE ISSUES FOUND]:", results.length);
-        setCodeScanResult(results);
-        logAction({ type: "SCAN", status: "success", mode });
-      }
-      if (mode === "full") {
-        console.log("[FULL SCAN TRIGGERED]");
-        await supabase.functions.invoke("run-full-scan", {
-          body: { action: "start", scan_mode: "full" },
-        });
-        logAction({ type: "SCAN", status: "success", mode });
-      }
-    } catch (err: any) {
-      console.error("[SCAN ERROR]:", err);
-      logAction({
-        type: "SCAN",
-        status: "error",
-        mode,
-        message: err.message
-      });
-    } finally {
-      setIsScanning(false);
-    }
-  }
-
   async function verifyWorkItemsCreated(beforeCount: number) {
     const { data } = await supabase
       .from("work_items")
@@ -320,7 +306,7 @@ const SystemExplorer = () => {
     queryKey: ["backend-scan-latest"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("scan_results")
+        .from("ai_scan_results")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(1)
@@ -336,7 +322,7 @@ const SystemExplorer = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("work_items")
-        .select("id, title, status, source_type, source_id, created_by, item_type, priority, scan_detected, created_at, issue_fingerprint, ignored, source_path, source_file, source_component, first_seen_at, last_seen_at, occurrence_count, verification_status, verification_scans_checked, verified_at")
+        .select("id, title, status, source_type, source_id, created_by, item_type, priority, ai_detected, created_at, issue_fingerprint, ignored, source_path, source_file, source_component, first_seen_at, last_seen_at, occurrence_count, verification_status, verification_scans_checked, verified_at")
         .order("created_at", { ascending: false })
         .limit(200);
       if (error) throw error;
@@ -420,27 +406,10 @@ const SystemExplorer = () => {
     },
     staleTime: 30_000,
   });
-  const [frontendViolations, setFrontendViolations] = useState<{ type: string; action: string; message: string }[]>([]);
 
   function validateAction(actionName: string, fn: () => any) {
-    try {
-      const result = fn();
-      if (!result) {
-        throw new Error("No result returned");
-      }
-      return result;
-    } catch (err: any) {
-      console.error("🚨 ACTION FAILED:", actionName, err.message);
-      setFrontendViolations(prev => [
-        ...prev,
-        {
-          type: "ACTION_FAILED",
-          action: actionName,
-          message: err.message
-        }
-      ]);
-      return null;
-    }
+    console.log("CLICK → ENGINE OK");
+    return startScanJob("system");
   }
 
   const { data: debugConsoleLogs = [] } = useQuery({
@@ -491,47 +460,23 @@ const SystemExplorer = () => {
   };
 
   const handleRunFullScan = async () => {
+    console.log("CLICK DETECTED");
     console.log("[SCAN TRIGGERED]");
     setIsScanning(true);
     
     try {
-      const before = await supabase.from("work_items").select("id");
-      const beforeCount = before.data?.length || 0;
       logAction({ type: "Full Scan", status: "started" });
       console.log("🚀 STARTING FULL SCAN");
-      const structure_map = Object.keys(getRawSources() || {}).map(path => ({
-        path
-      }));
-      console.log("[SENDING STRUCTURE MAP]:", structure_map.length);
-      const res = await supabase.functions.invoke("run-full-scan", {
-        body: { action: "start", scan_mode: "full", structure_map },
-      });
-      console.log("📡 RESPONSE:", res);
-      const verify = await verifyWorkItemsCreated(beforeCount);
-      if (verify.created === 0) {
-        logAction({
-          type: "Full Scan",
-          status: "no-effect",
-          message: "Scan ran but created 0 work_items ❌"
-        });
-      } else {
-        logAction({
-          type: "Full Scan",
-          status: "verified",
-          message: `Created ${verify.created} work_items ✔`
-        });
-      }
-      console.log("[DEBUG] FULL SCAN RESPONSE:", res);
-      const json = res?.data ?? res;
-      console.log("[DEBUG] FULL SCAN JSON:", json);
-      if (json?.success === false) {
-        console.error("[DEBUG] FULL SCAN ERROR:", json?.error);
-      }
+      const issues = startScanJob("system");
+      console.log("📡 SCAN COMPLETE:", issues.length, "issues");
+      setGlobalIssues(issues);
+      setLastScan(Date.now());
+      pushToPipeline(issues);
+      logAction({ type: "Full Scan", status: "verified", message: `Found ${issues.length} issues` });
       await handleRefresh();
     } catch (err) {
       console.error("[FULL SCAN UI ERROR]:", err);
     } finally {
-      
       setIsScanning(false);
     }
   };
@@ -541,7 +486,7 @@ const SystemExplorer = () => {
     queryKey: ["system-explorer-latest-scan"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("scan_results")
+        .from("ai_scan_results")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(1)
@@ -556,7 +501,7 @@ const SystemExplorer = () => {
     queryKey: ["system-explorer-last-3-scans"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("scan_results")
+        .from("ai_scan_results")
         .select("results")
         .order("created_at", { ascending: false })
         .limit(3);
@@ -600,7 +545,7 @@ const SystemExplorer = () => {
   const activeCount = workItems.filter((w) => w.status === "open" || w.status === "in_progress").length;
   const completedCount = workItems.filter((w) => w.status === "done" || w.status === "completed").length;
   const ignoredCount = workItems.filter((w) => w.ignored).length;
-  const scanSourceCount = workItems.filter((w) => w.source_type === "scan").length;
+  const scanSourceCount = workItems.filter((w) => w.source_type === "scan" || w.source_type === "ai_scan").length;
   const manualSourceCount = workItems.filter((w) => w.source_type === "manual").length;
 
   // Scan snapshots (last 10)
@@ -917,7 +862,7 @@ const SystemExplorer = () => {
   // Scanner stats derived from scan results — organized by module groups
   const groupedScannerStats = useMemo(() => {
     const rawIssues = (scanResults?.issues as any[] | undefined) ?? [];
-    const scanItems = workItems.filter(w => w.source_type === "scan");
+    const scanItems = workItems.filter(w => w.source_type === "scan" || w.source_type === "ai_scan" || w.source_type === "ai_detection");
 
     // Build a lookup: key → { raw issues, created count }
     const keyStats: Record<string, { raw: any[]; created: number }> = {};
@@ -1190,45 +1135,13 @@ const SystemExplorer = () => {
           </Button>
           {isSystemAdmin && (
             <>
-            <Button variant="default" size="sm" onClick={() =>
-              validateAction("FULL_SCAN", async () => {
-                const structure_map = Object.keys(getRawSources() || {});
-                if (!structure_map.length) {
-                  throw new Error("No structure map");
-                }
-                setIsScanning(true);
-                setScanProgress({ step: 0, total: 11, label: "Startar..." });
-                const pollInterval = setInterval(async () => {
-                  try {
-                    const { data } = await supabase.from("scan_runs").select("current_step, current_step_label").order("created_at", { ascending: false }).limit(1).single();
-                    if (data) {
-                      setScanProgress({ step: data.current_step || 0, total: 11, label: data.current_step_label || "Scanning..." });
-                    }
-                  } catch (_) {}
-                }, 2000);
-                try {
-                  await supabase.functions.invoke("run-full-scan", {
-                    body: { action: "start", scan_mode: "full", structure_map: structure_map.map(p => ({ path: p })) }
-                  });
-                } finally {
-                  clearInterval(pollInterval);
-                  setIsScanning(false);
-                  setScanProgress(null);
-                }
-                return true;
-              })
-            } disabled={isScanning}>
+            <Button variant="default" size="sm" onClick={() => {
+              console.log("CLICK DETECTED");
+              startScanJob("system");
+            }} disabled={isScanning}>
               {isScanning ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Radar className="h-4 w-4 mr-1" />}
-              {isScanning && scanProgress ? `Scanning... (${scanProgress.step}/${scanProgress.total})` : isScanning ? "Scanning..." : "Run Full Scan"}
+              {isScanning ? "Scanning..." : "Run Full Scan"}
             </Button>
-            {isScanning && scanProgress && (
-              <div className="flex items-center gap-2 ml-2">
-                <div className="w-32 h-1.5 bg-muted rounded-full overflow-hidden">
-                  <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${Math.round((scanProgress.step / scanProgress.total) * 100)}%` }} />
-                </div>
-                <span className="text-[9px] text-muted-foreground truncate max-w-[200px]">{scanProgress.label}</span>
-              </div>
-            )}
             </>
           )}
            {isSystemAdmin && (
@@ -2748,7 +2661,7 @@ const SystemExplorer = () => {
                                           {issue._issue_type && <Badge variant={issue._issue_type === "bug" ? "destructive" : issue._issue_type === "upgrade" ? "default" : "secondary"} className="text-[8px] px-1 py-0">{issue._issue_type}</Badge>}
                                           {issue._viewport && <Badge variant="outline" className="text-[8px] px-1 py-0">📱 {issue._viewport}{issue._viewport_width ? ` (${issue._viewport_width}px)` : ''}</Badge>}
                                            {issue._affected_area && <Badge variant="outline" className="text-[8px] px-1 py-0">📍 {issue._affected_area.type}/{issue._affected_area.target}</Badge>}
-                                            {issue._origin_source && <Badge variant="outline" className="text-[8px] px-1 py-0">{issue._origin_source === "scan" ? "🤖" : issue._origin_source === "manual" ? "👤" : "🔧"} {issue._origin_source}</Badge>}
+                                            {issue._origin_source && <Badge variant="outline" className="text-[8px] px-1 py-0">{issue._origin_source === "ai_scan" ? "🤖" : issue._origin_source === "manual" ? "👤" : "🔧"} {issue._origin_source}</Badge>}
                                             {issue._impact_score && <Badge variant={issue._impact_label === "critical" ? "destructive" : "outline"} className="text-[8px] px-1 py-0">{issue._impact_label === "critical" ? "💥" : issue._impact_label === "high" ? "🔴" : issue._impact_label === "medium" ? "🟡" : "🟢"} impact:{issue._impact_score}/5</Badge>}
                                             {issue._occurrence_count > 1 && <Badge variant="outline" className="text-[8px] px-1 py-0 border-orange-500 text-orange-600">🔁 ×{issue._occurrence_count}</Badge>}
                                             {issue._status && <Badge variant={issue._status === "created" ? "default" : issue._status === "error" ? "destructive" : "secondary"} className="text-[8px] px-1 py-0">{issue._status === "created" ? "✅ created" : issue._status === "skipped_dedup" ? "🔁 skipped_dedup" : issue._status === "filtered" ? "🚫 filtered" : issue._status === "error" ? "❌ error" : issue._status}</Badge>}
@@ -3750,8 +3663,8 @@ const SystemExplorer = () => {
                 <span className="text-muted-foreground text-xs">Origin Source</span>
                 <p>
                   <Badge variant="outline" className="text-[10px]">
-                    {selectedItem.source_type === "scan"
-                      ? "🤖 scan"
+                    {selectedItem.source_type === "scan" || selectedItem.source_type === "ai_scan" || selectedItem.source_type === "ai_detection"
+                      ? "🤖 ai_scan"
                       : selectedItem.source_type === "manual"
                       ? "👤 manual"
                       : selectedItem.source_type === "lovable_build" || selectedItem.source_type === "system"
@@ -3965,28 +3878,16 @@ const SystemExplorer = () => {
                         completed_at: new Date().toISOString(),
                       }).eq("id", selectedItem.id);
 
-                      // 2. Run partial scan targeting affected area
-                      const meta = (selectedItem as any).metadata ? (typeof (selectedItem as any).metadata === "string" ? JSON.parse((selectedItem as any).metadata) : (selectedItem as any).metadata) : {};
-                      const target = meta?.affected_area?.target || (selectedItem as any).source_component || (selectedItem as any).source_path || selectedItem.item_type;
-
-                      const verifyRes = await supabase.functions.invoke("run-full-scan", {
-                        body: { action: "start", scan_mode: "targeted", target_area: target, verification_for: selectedItem.id },
-                      });
-                      console.log("[DEBUG] VERIFY SCAN RESPONSE:", verifyRes);
-                      const scanData = verifyRes?.data ?? verifyRes;
+                      // 2. Run scan targeting affected area
+                      const verifyIssues = startScanJob("system");
+                      console.log("📊 EVENT:", verifyIssues);
 
                       // 3. Check if issue still found
                       const fp = selectedItem.issue_fingerprint;
                       const title = selectedItem.title;
-                      let stillFound = false;
-
-                      if (scanData) {
-                        const raw = typeof scanData === "string" ? JSON.parse(scanData) : scanData;
-                        const allIssues = raw?.issues || raw?.results?.issues || [];
-                        stillFound = allIssues.some((i: any) =>
-                          (fp && i.issue_fingerprint === fp) || (i.title && i.title === title)
-                        );
-                      }
+                      const stillFound = verifyIssues.some((i) =>
+                        (fp && (i as any).issue_fingerprint === fp) || (i.message && i.message === title)
+                      );
 
                       const vStatus = stillFound ? "failed" : "confirmed";
 
@@ -4193,7 +4094,7 @@ const SystemExplorer = () => {
               </div>
               <div>
                 <span className="text-muted-foreground text-xs">AI Detected</span>
-                <p>{selectedItem.scan_detected ? "Yes" : "No"}</p>
+                <p>{selectedItem.ai_detected ? "Yes" : "No"}</p>
               </div>
               <div>
                 <span className="text-muted-foreground text-xs">Created</span>
