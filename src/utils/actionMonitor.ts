@@ -1,91 +1,83 @@
 /**
  * ActionMonitor
  *
- * Modular service for collecting and tracking action/scan/test data points.
+ * Single source of truth for all action/scan/test/error events.
+ * Always logs — no toggle states, no silent disables.
  *
- * Interface:
- *   startMonitor()  — enable collection
- *   stopMonitor()   — disable collection
- *   logData(entry)  — record a data point (with automatic retry)
- *
- * Failures are persisted to localStorage under the key
- * "actionmonitor.log" (simulating /debug/logs/actionmonitor.log).
+ * Public API:
+ *   startMonitor()  — reset counters and mark as started
+ *   stopMonitor()   — mark as stopped (logging continues)
+ *   logData(event)  — record an event (retries 3×, then persists to failure log)
+ *   getStatus()     — returns "OK" | "DEGRADED" | "FAILED"
  */
 import { create } from 'zustand';
 
 // ── Types ──
 
-export type MonitorEntryType =
-  | 'scan_step'
-  | 'scan_complete'
-  | 'scan_error'
-  | 'test_result'
-  | 'endpoint_call'
-  | 'manual';
+export type MonitorEventType = 'scan' | 'test' | 'action' | 'error';
+export type MonitorEventSource = 'scanner' | 'verification' | 'ui' | 'system';
 
-export interface MonitorEntry {
+export interface MonitorEvent {
   id: string;
-  type: MonitorEntryType;
+  type: MonitorEventType;
+  source: MonitorEventSource;
   timestamp: number;
-  /** Page or component that generated this entry */
-  page?: string;
-  /** Endpoint or scan step identifier */
-  endpoint?: string;
-  /** Free-form payload */
-  data?: Record<string, any>;
-  /** Whether this entry was successfully recorded */
-  ok: boolean;
-  /** Error message when ok === false */
-  error?: string;
-  /** How many attempts were made */
+  payload: any;
+  status?: 'success' | 'failed';
+  /** How many attempts were made to record this event */
   attempts: number;
+  /** Error message when recording failed */
+  error?: string;
 }
 
+export type MonitorStatus = 'OK' | 'DEGRADED' | 'FAILED';
+
 export interface ActionMonitorState {
-  /** Whether the monitor is actively collecting data */
-  enabled: boolean;
-  /** Collected data points (capped at maxEntries) */
-  entries: MonitorEntry[];
-  /** Failure log (mirrors /debug/logs/actionmonitor.log via localStorage) */
-  failureLog: MonitorEntry[];
+  /** All recorded events (capped at maxEvents) */
+  events: MonitorEvent[];
+  /** Most recently recorded event */
+  lastEvent: MonitorEvent | null;
+  /** Events that could not be recorded after all retries */
+  failures: MonitorEvent[];
   /** Timestamp of last successful logData() call */
-  lastSuccessAt: number | null;
-  /** Total failures since last startMonitor() call */
-  failureCount: number;
-  maxEntries: number;
-  maxFailureLog: number;
+  lastSuccessTimestamp: number | null;
+  /** Whether startMonitor() has been called */
+  running: boolean;
+
+  maxEvents: number;
+  maxFailures: number;
 
   // ── Controls ──
   startMonitor: () => void;
   stopMonitor: () => void;
-  clearEntries: () => void;
-  clearFailureLog: () => void;
+  clearEvents: () => void;
+  clearFailures: () => void;
 
   // ── Internal – use logData() from outside the store ──
-  _pushEntry: (entry: MonitorEntry) => void;
-  _pushFailure: (entry: MonitorEntry) => void;
+  _pushEvent: (event: MonitorEvent) => void;
+  _pushFailure: (event: MonitorEvent) => void;
 }
 
 const FAILURE_LOG_KEY = 'actionmonitor.log';
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 500;
 
-let entryCounter = 0;
-const genId = () => `am-${++entryCounter}-${Date.now()}`;
+let eventCounter = 0;
+const genId = () => `am-${++eventCounter}-${Date.now()}`;
 
 // ── Persist / load failure log via localStorage ──
 
-function loadPersistedFailures(): MonitorEntry[] {
+function loadPersistedFailures(): MonitorEvent[] {
   try {
     const raw = localStorage.getItem(FAILURE_LOG_KEY);
     if (!raw) return [];
-    return JSON.parse(raw) as MonitorEntry[];
+    return JSON.parse(raw) as MonitorEvent[];
   } catch {
     return [];
   }
 }
 
-function persistFailures(entries: MonitorEntry[]) {
+function persistFailures(entries: MonitorEvent[]) {
   try {
     localStorage.setItem(FAILURE_LOG_KEY, JSON.stringify(entries.slice(-500)));
   } catch {
@@ -96,73 +88,73 @@ function persistFailures(entries: MonitorEntry[]) {
 // ── Store ──
 
 export const useActionMonitorStore = create<ActionMonitorState>((set, get) => ({
-  enabled: true,
-  entries: [],
-  failureLog: loadPersistedFailures(),
-  lastSuccessAt: null,
-  failureCount: 0,
-  maxEntries: 200,
-  maxFailureLog: 500,
+  events: [],
+  lastEvent: null,
+  failures: loadPersistedFailures(),
+  lastSuccessTimestamp: null,
+  running: false,
+  maxEvents: 200,
+  maxFailures: 500,
 
   startMonitor: () => {
-    set({ enabled: true, failureCount: 0 });
+    set({ running: true, events: [], failures: [], lastSuccessTimestamp: null });
     console.info('[ActionMonitor] Started');
   },
 
   stopMonitor: () => {
-    set({ enabled: false });
+    set({ running: false });
     console.info('[ActionMonitor] Stopped');
   },
 
-  clearEntries: () => set({ entries: [], lastSuccessAt: null }),
+  clearEvents: () => set({ events: [], lastEvent: null, lastSuccessTimestamp: null }),
 
-  clearFailureLog: () => {
-    set({ failureLog: [], failureCount: 0 });
+  clearFailures: () => {
+    set({ failures: [] });
     try { localStorage.removeItem(FAILURE_LOG_KEY); } catch { /* ignore */ }
   },
 
-  _pushEntry: (entry: MonitorEntry) => {
+  _pushEvent: (event: MonitorEvent) => {
     set(s => ({
-      entries: [...s.entries.slice(-(s.maxEntries - 1)), entry],
-      lastSuccessAt: entry.ok ? entry.timestamp : s.lastSuccessAt,
+      events: [...s.events.slice(-(s.maxEvents - 1)), event],
+      lastEvent: event,
+      lastSuccessTimestamp: event.timestamp,
     }));
   },
 
-  _pushFailure: (entry: MonitorEntry) => {
+  _pushFailure: (event: MonitorEvent) => {
     set(s => {
-      const next = [...s.failureLog.slice(-(s.maxFailureLog - 1)), entry];
+      const next = [...s.failures.slice(-(s.maxFailures - 1)), event];
       persistFailures(next);
-      return { failureLog: next, failureCount: s.failureCount + 1 };
+      return { failures: next, lastEvent: event };
     });
   },
 }));
 
 // ── Public API ──
 
-/** Enable ActionMonitor data collection */
+/** Enable ActionMonitor data collection and reset state */
 export function startMonitor() {
   useActionMonitorStore.getState().startMonitor();
 }
 
-/** Disable ActionMonitor data collection */
+/** Mark monitor as stopped (events continue to be stored) */
 export function stopMonitor() {
   useActionMonitorStore.getState().stopMonitor();
 }
 
 /**
- * Log a data point to ActionMonitor.
+ * Log an event to ActionMonitor.
+ * Always records — never silently discarded.
  * Retries up to MAX_RETRIES times on failure.
- * Failures are written to the persisted failure log.
+ * Persistent failures are written to localStorage (simulating /debug/logs/actionmonitor.log).
  */
 export async function logData(input: {
-  type: MonitorEntryType;
-  page?: string;
-  endpoint?: string;
-  data?: Record<string, any>;
+  type: MonitorEventType;
+  source: MonitorEventSource;
+  timestamp?: number;
+  payload: any;
+  status?: 'success' | 'failed';
 }): Promise<boolean> {
-  const store = useActionMonitorStore.getState();
-  if (!store.enabled) return false;
-
   const id = genId();
   let attempts = 0;
   let lastError: string | undefined;
@@ -170,20 +162,17 @@ export async function logData(input: {
   while (attempts < MAX_RETRIES) {
     attempts++;
     try {
-      // Simulate the "recording" operation — in a real service this would
-      // be a network call; here we record in-memory and to localStorage.
-      const entry: MonitorEntry = {
+      const event: MonitorEvent = {
         id,
         type: input.type,
-        timestamp: Date.now(),
-        page: input.page,
-        endpoint: input.endpoint,
-        data: input.data,
-        ok: true,
+        source: input.source,
+        timestamp: input.timestamp ?? Date.now(),
+        payload: input.payload,
+        status: input.status,
         attempts,
       };
 
-      useActionMonitorStore.getState()._pushEntry(entry);
+      useActionMonitorStore.getState()._pushEvent(event);
       return true;
     } catch (err: any) {
       lastError = err?.message || 'Unknown error';
@@ -194,25 +183,38 @@ export async function logData(input: {
   }
 
   // All retries exhausted — write to failure log
-  const failEntry: MonitorEntry = {
+  const failEvent: MonitorEvent = {
     id,
     type: input.type,
-    timestamp: Date.now(),
-    page: input.page,
-    endpoint: input.endpoint,
-    data: input.data,
-    ok: false,
+    source: input.source,
+    timestamp: input.timestamp ?? Date.now(),
+    payload: input.payload,
+    status: 'failed',
     error: lastError,
     attempts,
   };
-  useActionMonitorStore.getState()._pushFailure(failEntry);
+  useActionMonitorStore.getState()._pushFailure(failEvent);
   console.error('[ActionMonitor] logData failed after', attempts, 'attempts:', lastError);
   return false;
 }
 
+/**
+ * Returns the overall health status of the ActionMonitor.
+ * - OK      — no failures in current session
+ * - DEGRADED — 1–4 failures
+ * - FAILED  — 5+ failures or store is not running
+ */
+export function getStatus(): MonitorStatus {
+  const { failures, running } = useActionMonitorStore.getState();
+  if (!running) return 'FAILED';
+  if (failures.length === 0) return 'OK';
+  if (failures.length < 5) return 'DEGRADED';
+  return 'FAILED';
+}
+
 /** Check whether ActionMonitor is currently running */
 export function isMonitorRunning(): boolean {
-  return useActionMonitorStore.getState().enabled;
+  return useActionMonitorStore.getState().running;
 }
 
 // ── Helpers ──

@@ -14,6 +14,7 @@
 import { create } from 'zustand';
 import { trace } from '@/utils/deepDebugTrace';
 import { recordFailure } from '@/lib/failureMemory';
+import { logData } from '@/utils/actionMonitor';
 
 // ── Types ──
 
@@ -44,18 +45,14 @@ export interface ActionRecord {
 // ── Store ──
 
 interface ActionVerificationState {
-  enabled: boolean;
   actions: ActionRecord[];
   maxActions: number;
-  toggle: () => void;
   clear: () => void;
 }
 
 export const useActionVerificationStore = create<ActionVerificationState>((set) => ({
-  enabled: true,
   actions: [],
   maxActions: 200,
-  toggle: () => set(s => ({ enabled: !s.enabled })),
   clear: () => set({ actions: [] }),
 }));
 
@@ -111,7 +108,6 @@ export interface VerifiedResult<T = any> {
  * Each step is tracked and timed. On failure the exact step is recorded.
  */
 export async function verifyAction<T = any>(config: VerifiedActionConfig<T>): Promise<VerifiedResult<T>> {
-  const store = useActionVerificationStore.getState();
   const actionId = genId();
   const startedAt = Date.now();
 
@@ -125,13 +121,17 @@ export async function verifyAction<T = any>(config: VerifiedActionConfig<T>): Pr
     steps: [],
   };
 
-  if (store.enabled) {
-    pushAction(record);
-    trace('work_item_creating', config.component, `[AVE] Start: ${config.action}`, {
-      traceId: actionId,
-      entityType: config.entityType,
-    });
-  }
+  pushAction(record);
+  trace('work_item_creating', config.component, `[AVE] Start: ${config.action}`, {
+    traceId: actionId,
+    entityType: config.entityType,
+  });
+  logData({
+    type: 'action',
+    source: 'verification',
+    payload: { action: config.action, component: config.component, entityType: config.entityType, step: 'start' },
+    status: 'success',
+  });
 
   let lastResult: any = null;
 
@@ -150,16 +150,20 @@ export async function verifyAction<T = any>(config: VerifiedActionConfig<T>): Pr
       };
       record.steps.push(stepRecord);
 
-      if (store.enabled) {
-        const traceStep = stepDef.step === 'db_write' ? 'db_insert_sent' as const
-          : stepDef.step === 'db_confirm' ? 'db_verify_confirmed' as const
-          : stepDef.step === 'ui_update' ? 'cache_invalidated' as const
-          : 'work_item_creating' as const;
-        trace(traceStep, config.component, `[AVE] ${stepDef.step} OK (${Date.now() - stepStart}ms)`, {
-          traceId: actionId,
-          entityId: lastResult?.id || record.entityId,
-        });
-      }
+      const traceStep = stepDef.step === 'db_write' ? 'db_insert_sent' as const
+        : stepDef.step === 'db_confirm' ? 'db_verify_confirmed' as const
+        : stepDef.step === 'ui_update' ? 'cache_invalidated' as const
+        : 'work_item_creating' as const;
+      trace(traceStep, config.component, `[AVE] ${stepDef.step} OK (${Date.now() - stepStart}ms)`, {
+        traceId: actionId,
+        entityId: lastResult?.id || record.entityId,
+      });
+      logData({
+        type: 'action',
+        source: 'verification',
+        payload: { action: config.action, component: config.component, step: stepDef.step, durationMs: Date.now() - stepStart },
+        status: 'success',
+      });
 
       // Capture entity ID from first result that has one
       if (lastResult?.id && !record.entityId) {
@@ -188,15 +192,19 @@ export async function verifyAction<T = any>(config: VerifiedActionConfig<T>): Pr
       record.completedAt = Date.now();
       record.durationMs = Date.now() - startedAt;
 
-      if (store.enabled) {
-        updateAction(actionId, record);
-        trace('db_insert_failed', config.component, `[AVE] FAILED at ${stepDef.step}: ${reason}`, {
-          traceId: actionId,
-          entityId: record.entityId,
-          severity: 'error',
-          details: { action: config.action, step: stepDef.step, reason },
-        });
-      }
+      updateAction(actionId, record);
+      trace('db_insert_failed', config.component, `[AVE] FAILED at ${stepDef.step}: ${reason}`, {
+        traceId: actionId,
+        entityId: record.entityId,
+        severity: 'error',
+        details: { action: config.action, step: stepDef.step, reason },
+      });
+      logData({
+        type: 'error',
+        source: 'verification',
+        payload: { action: config.action, component: config.component, step: stepDef.step, reason, durationMs: record.durationMs },
+        status: 'failed',
+      });
 
       console.error(`[AVE] Action "${config.action}" FAILED at step "${stepDef.step}":`, reason);
 
@@ -226,13 +234,17 @@ export async function verifyAction<T = any>(config: VerifiedActionConfig<T>): Pr
   record.completedAt = Date.now();
   record.durationMs = Date.now() - startedAt;
 
-  if (store.enabled) {
-    updateAction(actionId, record);
-    trace('db_verify_confirmed', config.component, `[AVE] Complete: ${config.action} (${record.durationMs}ms)`, {
-      traceId: actionId,
-      entityId: record.entityId,
-    });
-  }
+  updateAction(actionId, record);
+  trace('db_verify_confirmed', config.component, `[AVE] Complete: ${config.action} (${record.durationMs}ms)`, {
+    traceId: actionId,
+    entityId: record.entityId,
+  });
+  logData({
+    type: 'action',
+    source: 'verification',
+    payload: { action: config.action, component: config.component, step: 'complete', durationMs: record.durationMs, entityId: record.entityId },
+    status: 'success',
+  });
 
   return {
     ok: true,

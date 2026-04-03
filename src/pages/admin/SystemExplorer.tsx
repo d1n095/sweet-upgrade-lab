@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { tracedInvoke } from "@/lib/tracedInvoke";
+import { useActionMonitorStore, getStatus as getMonitorStatus } from "@/utils/actionMonitor";
 import { fileSystemMap, type FileEntry, getFileContent, getCodeIndex, getDuplicatedLines, getCodeIssues, getRawSources, scanFileContent } from "@/lib/fileSystemMap";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useFounderRole } from "@/hooks/useFounderRole";
@@ -153,6 +154,105 @@ const RuntimeTraceSection = ({ traceId }: { traceId?: string }) => {
   );
 };
 
+// ── ActionMonitor Dashboard Panel ──
+
+const ActionMonitorPanel = () => {
+  const { events, lastEvent, failures, lastSuccessTimestamp, running, clearEvents, clearFailures, startMonitor } = useActionMonitorStore();
+  const status = getMonitorStatus();
+
+  const statusColor = status === 'OK' ? 'text-green-600' : status === 'DEGRADED' ? 'text-yellow-600' : 'text-red-600';
+  const statusBg = status === 'OK' ? 'bg-green-50 border-green-200' : status === 'DEGRADED' ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200';
+
+  const recentEvents = [...events].reverse().slice(0, 50);
+  const recentFailures = [...failures].reverse().slice(0, 20);
+
+  return (
+    <div className="space-y-4 p-2">
+      {/* Status bar */}
+      <div className={`border rounded-md p-3 flex items-center justify-between ${statusBg}`}>
+        <div className="flex items-center gap-2">
+          <Monitor className="w-4 h-4" />
+          <span className="font-semibold text-sm">ActionMonitor</span>
+          <span className={`font-bold text-sm ${statusColor}`}>{status}</span>
+          <span className="text-xs text-muted-foreground">{running ? '● Running' : '○ Stopped'}</span>
+        </div>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          {lastSuccessTimestamp && (
+            <span>Last success: {new Date(lastSuccessTimestamp).toLocaleTimeString('sv-SE')}</span>
+          )}
+          <span>{events.length} events</span>
+          <span className="text-red-500">{failures.length} failures</span>
+          {!running && (
+            <button onClick={startMonitor} className="px-2 py-0.5 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90">
+              Start
+            </button>
+          )}
+          <button onClick={clearEvents} className="px-2 py-0.5 text-xs bg-muted rounded hover:bg-muted/70">
+            Clear events
+          </button>
+          <button onClick={clearFailures} className="px-2 py-0.5 text-xs bg-muted rounded hover:bg-muted/70">
+            Clear failures
+          </button>
+        </div>
+      </div>
+
+      {/* Last event */}
+      {lastEvent && (
+        <div className="border rounded-md p-2 bg-muted/30 space-y-1">
+          <span className="text-xs font-medium text-muted-foreground">Last Event</span>
+          <div className="flex items-center gap-2 text-xs">
+            <span className="font-mono bg-muted rounded px-1">{lastEvent.type}</span>
+            <span className="text-muted-foreground">from</span>
+            <span className="font-mono bg-muted rounded px-1">{lastEvent.source}</span>
+            {lastEvent.status && (
+              <span className={`font-mono rounded px-1 ${lastEvent.status === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{lastEvent.status}</span>
+            )}
+            <span className="text-muted-foreground">{new Date(lastEvent.timestamp).toLocaleTimeString('sv-SE')}</span>
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Event stream */}
+        <div className="border rounded-md p-2 space-y-1">
+          <span className="text-xs font-medium text-muted-foreground">Latest Events ({events.length})</span>
+          <div className="max-h-64 overflow-y-auto space-y-0.5">
+            {recentEvents.length === 0 && <p className="text-xs text-muted-foreground italic">No events yet</p>}
+            {recentEvents.map(ev => (
+              <div key={ev.id} className="flex items-center gap-1.5 text-xs py-0.5 border-b border-border/40 last:border-0">
+                <span className="font-mono text-[10px] bg-muted rounded px-1 shrink-0">{ev.type}</span>
+                <span className="text-muted-foreground text-[10px] shrink-0">{ev.source}</span>
+                {ev.status && (
+                  <span className={`text-[10px] shrink-0 ${ev.status === 'success' ? 'text-green-600' : 'text-red-600'}`}>{ev.status}</span>
+                )}
+                <span className="text-[10px] text-muted-foreground truncate">{new Date(ev.timestamp).toLocaleTimeString('sv-SE')}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Failures */}
+        <div className="border rounded-md p-2 space-y-1">
+          <span className="text-xs font-medium text-red-600">Failures ({failures.length})</span>
+          <div className="max-h-64 overflow-y-auto space-y-0.5">
+            {recentFailures.length === 0 && <p className="text-xs text-muted-foreground italic">No failures</p>}
+            {recentFailures.map(ev => (
+              <div key={ev.id} className="flex flex-col gap-0.5 py-0.5 border-b border-border/40 last:border-0">
+                <div className="flex items-center gap-1.5 text-xs">
+                  <span className="font-mono text-[10px] bg-red-100 text-red-700 rounded px-1 shrink-0">{ev.type}</span>
+                  <span className="text-muted-foreground text-[10px] shrink-0">{ev.source}</span>
+                  <span className="text-[10px] text-muted-foreground shrink-0">{new Date(ev.timestamp).toLocaleTimeString('sv-SE')}</span>
+                </div>
+                {ev.error && <p className="text-[10px] text-red-600 pl-1 truncate">{ev.error}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const SystemExplorer = () => {
   const queryClient = useQueryClient();
   const { isAdmin, isLoading: adminLoading } = useAdminRole();
@@ -172,7 +272,7 @@ const SystemExplorer = () => {
   const [aiAnswer, setAiAnswer] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiFocusArea, setAiFocusArea] = useState<string | null>(null);
-  const [mainTab, setMainTab] = useState<"system" | "files" | "patch" | "codeindex" | "backendscan">("system");
+  const [mainTab, setMainTab] = useState<"system" | "files" | "patch" | "codeindex" | "backendscan" | "monitor">("system");
   const [filesFilter, setFilesFilter] = useState<"all" | "orphan" | "has_issues">("all");
   const [selectedFile, setSelectedFile] = useState<FileEntry | null>(null);
   const [patchInput, setPatchInput] = useState("");
@@ -1248,7 +1348,15 @@ const SystemExplorer = () => {
           <button onClick={() => setMainTab("backendscan")} className={`px-3 py-1.5 text-xs font-medium rounded-t-md transition-colors ${mainTab === "backendscan" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"}`}>
             Backend Scan
           </button>
+          <button onClick={() => setMainTab("monitor")} className={`px-3 py-1.5 text-xs font-medium rounded-t-md transition-colors ${mainTab === "monitor" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"}`}>
+            Monitor
+          </button>
         </div>
+
+        {/* MONITOR TAB */}
+        {mainTab === "monitor" && (
+          <ActionMonitorPanel />
+        )}
 
         {/* BACKEND SCAN TAB */}
         {mainTab === "backendscan" && (() => {

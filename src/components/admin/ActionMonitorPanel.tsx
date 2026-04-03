@@ -3,15 +3,14 @@
  *
  * Visualization for ActionMonitor data, displayed in /debug/dashboard.
  * Shows:
- *   - Current monitor status (running / stopped)
- *   - Enable / disable toggle
- *   - Last successful data point timestamp
- *   - Failure count + failure log (mirrors /debug/logs/actionmonitor.log)
- *   - Recent collected data entries
+ *   - Current monitor status (OK / DEGRADED / FAILED)
+ *   - Last successful event timestamp
+ *   - Failures (mirrors /debug/logs/actionmonitor.log)
+ *   - Recent event stream
  */
 import { useState } from 'react';
-import { Activity, AlertTriangle, CheckCircle2, Clock, RefreshCw, Trash2, Play, Square, ChevronDown, ChevronRight } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Activity, AlertTriangle, CheckCircle2, Clock, RefreshCw, Trash2, Play, ChevronDown, ChevronRight } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -19,27 +18,25 @@ import { cn } from '@/lib/utils';
 import {
   useActionMonitorStore,
   startMonitor,
-  stopMonitor,
   logData,
-  type MonitorEntry,
-  type MonitorEntryType,
+  getStatus,
+  type MonitorEvent,
+  type MonitorEventType,
 } from '@/utils/actionMonitor';
 
 // ── Helpers ──
 
-const TYPE_LABELS: Record<MonitorEntryType, string> = {
-  scan_step: 'Scan Step',
-  scan_complete: 'Scan Complete',
-  scan_error: 'Scan Error',
-  test_result: 'Test Result',
-  endpoint_call: 'Endpoint Call',
-  manual: 'Manual',
+const TYPE_LABELS: Record<MonitorEventType, string> = {
+  scan: 'Scan',
+  test: 'Test',
+  action: 'Action',
+  error: 'Error',
 };
 
-const typeVariant = (type: MonitorEntryType): 'default' | 'destructive' | 'secondary' | 'outline' => {
-  if (type === 'scan_error') return 'destructive';
-  if (type === 'scan_complete') return 'default';
-  if (type === 'test_result') return 'secondary';
+const typeVariant = (type: MonitorEventType): 'default' | 'destructive' | 'secondary' | 'outline' => {
+  if (type === 'error') return 'destructive';
+  if (type === 'scan') return 'default';
+  if (type === 'test') return 'secondary';
   return 'outline';
 };
 
@@ -49,34 +46,36 @@ function formatTs(ts: number): string {
 
 // ── Status badge ──
 
-const StatusBadge = ({ enabled }: { enabled: boolean }) => (
-  <Badge variant={enabled ? 'default' : 'outline'} className={cn('gap-1', enabled ? 'bg-green-600 hover:bg-green-600' : '')}>
-    <span className={cn('w-1.5 h-1.5 rounded-full', enabled ? 'bg-white animate-pulse' : 'bg-muted-foreground')} />
-    {enabled ? 'Running' : 'Stopped'}
+const StatusBadge = ({ running }: { running: boolean }) => (
+  <Badge variant={running ? 'default' : 'outline'} className={cn('gap-1', running ? 'bg-green-600 hover:bg-green-600' : '')}>
+    <span className={cn('w-1.5 h-1.5 rounded-full', running ? 'bg-white animate-pulse' : 'bg-muted-foreground')} />
+    {running ? 'Running' : 'Stopped'}
   </Badge>
 );
 
-// ── Entry row ──
+// ── Event row ──
 
-const EntryRow = ({ entry }: { entry: MonitorEntry }) => {
+const EventRow = ({ event }: { event: MonitorEvent }) => {
   const [open, setOpen] = useState(false);
+  const hasFailed = event.status === 'failed';
   return (
-    <div className={cn('text-[11px] border rounded p-2 space-y-1', entry.ok ? 'bg-muted/10' : 'bg-destructive/5 border-destructive/30')}>
+    <div className={cn('text-[11px] border rounded p-2 space-y-1', hasFailed ? 'bg-destructive/5 border-destructive/30' : 'bg-muted/10')}>
       <div className="flex items-center gap-2">
         <button onClick={() => setOpen(o => !o)} className="shrink-0">
           {open ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
         </button>
-        <Badge variant={typeVariant(entry.type)} className="text-[9px] shrink-0">{TYPE_LABELS[entry.type]}</Badge>
-        {entry.endpoint && <span className="font-mono text-muted-foreground truncate">{entry.endpoint}</span>}
-        <span className="ml-auto text-muted-foreground shrink-0">{formatTs(entry.timestamp)}</span>
-        {!entry.ok && <AlertTriangle className="w-3 h-3 text-destructive shrink-0" />}
-        {entry.ok && <CheckCircle2 className="w-3 h-3 text-green-600 shrink-0" />}
+        <Badge variant={typeVariant(event.type)} className="text-[9px] shrink-0">{TYPE_LABELS[event.type]}</Badge>
+        <span className="font-mono text-muted-foreground truncate text-[10px]">{event.source}</span>
+        {event.status && (
+          <span className={cn('text-[10px] shrink-0', event.status === 'success' ? 'text-green-600' : 'text-destructive')}>{event.status}</span>
+        )}
+        <span className="ml-auto text-muted-foreground shrink-0">{formatTs(event.timestamp)}</span>
+        {hasFailed ? <AlertTriangle className="w-3 h-3 text-destructive shrink-0" /> : <CheckCircle2 className="w-3 h-3 text-green-600 shrink-0" />}
       </div>
-      {entry.page && <div className="pl-5 text-muted-foreground">Page: <span className="text-foreground">{entry.page}</span></div>}
-      {!entry.ok && entry.error && <div className="pl-5 text-destructive">{entry.error} (attempts: {entry.attempts})</div>}
-      {open && entry.data && (
+      {hasFailed && event.error && <div className="pl-5 text-destructive">{event.error} (attempts: {event.attempts})</div>}
+      {open && event.payload !== undefined && (
         <pre className="pl-5 text-[9px] font-mono bg-muted/30 rounded p-1 overflow-x-auto max-h-24 whitespace-pre-wrap break-all">
-          {JSON.stringify(entry.data, null, 2)}
+          {JSON.stringify(event.payload, null, 2)}
         </pre>
       )}
     </div>
@@ -87,30 +86,27 @@ const EntryRow = ({ entry }: { entry: MonitorEntry }) => {
 
 const ActionMonitorPanel = () => {
   const {
-    enabled,
-    entries,
-    failureLog,
-    lastSuccessAt,
-    failureCount,
-    clearEntries,
-    clearFailureLog,
+    events,
+    failures,
+    lastSuccessTimestamp,
+    running,
+    clearEvents,
+    clearFailures,
   } = useActionMonitorStore();
 
-  const [tab, setTab] = useState<'entries' | 'failures'>('entries');
-  const [testLoading, setTestLoading] = useState(false);
+  const status = getStatus();
+  const statusColor = status === 'OK' ? 'text-green-600' : status === 'DEGRADED' ? 'text-yellow-600' : 'text-red-600';
 
-  const handleToggle = () => {
-    if (enabled) stopMonitor();
-    else startMonitor();
-  };
+  const [tab, setTab] = useState<'events' | 'failures'>('events');
+  const [testLoading, setTestLoading] = useState(false);
 
   const handleTestLog = async () => {
     setTestLoading(true);
     await logData({
-      type: 'manual',
-      page: 'ActionMonitorPanel',
-      endpoint: 'manual-test',
-      data: { message: 'Manual test entry', ts: Date.now() },
+      type: 'action',
+      source: 'ui',
+      payload: { message: 'Manual test event', ts: Date.now() },
+      status: 'success',
     });
     setTestLoading(false);
   };
@@ -122,17 +118,19 @@ const ActionMonitorPanel = () => {
         <div>
           <h3 className="text-sm font-semibold flex items-center gap-2">
             <Activity className="w-4 h-4" /> Action Monitor
+            <span className={cn('text-xs font-bold', statusColor)}>{status}</span>
           </h3>
           <p className="text-xs text-muted-foreground">
-            Samlar in data från skanningar, tester och endpoints i realtid
+            Centraliserat händelseflöde — skanningar, tester, actions och fel
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <StatusBadge enabled={enabled} />
-          <Button size="sm" variant="outline" className="gap-1 h-7 text-xs" onClick={handleToggle}>
-            {enabled ? <Square className="w-3 h-3" /> : <Play className="w-3 h-3" />}
-            {enabled ? 'Stop' : 'Start'}
-          </Button>
+          <StatusBadge running={running} />
+          {!running && (
+            <Button size="sm" variant="outline" className="gap-1 h-7 text-xs" onClick={startMonitor}>
+              <Play className="w-3 h-3" /> Start
+            </Button>
+          )}
         </div>
       </div>
 
@@ -140,21 +138,21 @@ const ActionMonitorPanel = () => {
       <div className="grid grid-cols-3 gap-3">
         <Card className="border-border">
           <CardContent className="py-3 px-4">
-            <div className="text-[10px] text-muted-foreground mb-1">Datapunkter</div>
-            <div className="text-lg font-bold tabular-nums">{entries.length}</div>
+            <div className="text-[10px] text-muted-foreground mb-1">Händelser</div>
+            <div className="text-lg font-bold tabular-nums">{events.length}</div>
           </CardContent>
         </Card>
         <Card className="border-border">
           <CardContent className="py-3 px-4">
             <div className="text-[10px] text-muted-foreground mb-1 flex items-center gap-1"><AlertTriangle className="w-2.5 h-2.5" /> Misslyckanden</div>
-            <div className={cn('text-lg font-bold tabular-nums', failureCount > 0 ? 'text-destructive' : '')}>{failureCount}</div>
+            <div className={cn('text-lg font-bold tabular-nums', failures.length > 0 ? 'text-destructive' : '')}>{failures.length}</div>
           </CardContent>
         </Card>
         <Card className="border-border">
           <CardContent className="py-3 px-4">
             <div className="text-[10px] text-muted-foreground mb-1 flex items-center gap-1"><Clock className="w-2.5 h-2.5" /> Senast lyckad</div>
             <div className="text-xs font-mono tabular-nums">
-              {lastSuccessAt ? formatTs(lastSuccessAt) : <span className="text-muted-foreground italic">—</span>}
+              {lastSuccessTimestamp ? formatTs(lastSuccessTimestamp) : <span className="text-muted-foreground italic">—</span>}
             </div>
           </CardContent>
         </Card>
@@ -162,7 +160,7 @@ const ActionMonitorPanel = () => {
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-border pb-1">
-        {(['entries', 'failures'] as const).map(t => (
+        {(['events', 'failures'] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -171,7 +169,7 @@ const ActionMonitorPanel = () => {
               tab === t ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
             )}
           >
-            {t === 'entries' ? `Data (${entries.length})` : `Misslyckanden (${failureLog.length})`}
+            {t === 'events' ? `Händelser (${events.length})` : `Misslyckanden (${failures.length})`}
           </button>
         ))}
 
@@ -182,44 +180,44 @@ const ActionMonitorPanel = () => {
             variant="ghost"
             className="h-6 text-[10px] gap-1"
             onClick={handleTestLog}
-            disabled={testLoading || !enabled}
+            disabled={testLoading}
           >
             {testLoading ? <RefreshCw className="w-2.5 h-2.5 animate-spin" /> : <Activity className="w-2.5 h-2.5" />}
             Test
           </Button>
-          {tab === 'entries' && entries.length > 0 && (
-            <Button size="sm" variant="ghost" className="h-6 text-[10px] gap-1 text-destructive hover:text-destructive" onClick={clearEntries}>
+          {tab === 'events' && events.length > 0 && (
+            <Button size="sm" variant="ghost" className="h-6 text-[10px] gap-1 text-destructive hover:text-destructive" onClick={clearEvents}>
               <Trash2 className="w-2.5 h-2.5" /> Rensa
             </Button>
           )}
-          {tab === 'failures' && failureLog.length > 0 && (
-            <Button size="sm" variant="ghost" className="h-6 text-[10px] gap-1 text-destructive hover:text-destructive" onClick={clearFailureLog}>
+          {tab === 'failures' && failures.length > 0 && (
+            <Button size="sm" variant="ghost" className="h-6 text-[10px] gap-1 text-destructive hover:text-destructive" onClick={clearFailures}>
               <Trash2 className="w-2.5 h-2.5" /> Rensa
             </Button>
           )}
         </div>
       </div>
 
-      {/* Entry list */}
+      {/* Event list */}
       <ScrollArea className="max-h-[420px]">
-        {tab === 'entries' && (
+        {tab === 'events' && (
           <div className="space-y-1">
-            {entries.length === 0 && (
+            {events.length === 0 && (
               <p className="text-xs text-muted-foreground text-center py-8 italic">
-                Inga datapunkter ännu — starta en skanning eller klicka Test
+                Inga händelser ännu — starta en skanning eller klicka Test
               </p>
             )}
-            {[...entries].reverse().map(e => <EntryRow key={e.id} entry={e} />)}
+            {[...events].reverse().map(e => <EventRow key={e.id} event={e} />)}
           </div>
         )}
         {tab === 'failures' && (
           <div className="space-y-1">
-            {failureLog.length === 0 && (
+            {failures.length === 0 && (
               <p className="text-xs text-muted-foreground text-center py-8 italic">
                 Inga misslyckanden loggade (/debug/logs/actionmonitor.log)
               </p>
             )}
-            {[...failureLog].reverse().map(e => <EntryRow key={e.id} entry={e} />)}
+            {[...failures].reverse().map(e => <EventRow key={e.id} event={e} />)}
           </div>
         )}
       </ScrollArea>

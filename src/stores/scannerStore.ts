@@ -116,10 +116,10 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
       console.log('[SCAN TRIGGERED FROM]: AI_CENTER — scan_run_id:', scanRunId);
 
       logData({
-        type: 'scan_complete',
-        page: 'ScannerStore',
-        endpoint: 'run-full-scan',
-        data: { source: 'AI_CENTER', scan_run_id: scanRunId, traceId: debugTraceId },
+        type: 'scan',
+        source: 'scanner',
+        payload: { source: 'AI_CENTER', scan_run_id: scanRunId, traceId: debugTraceId },
+        status: 'success',
       });
 
       // Invalidate relevant queries so UI reflects new scan results + work items
@@ -145,10 +145,10 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
     } catch (err: any) {
       observeError('Skanningsfel via run-full-scan', err, { trace_id: traceId });
       logData({
-        type: 'scan_error',
-        page: 'ScannerStore',
-        endpoint: 'run-full-scan',
-        data: { error: err?.message || 'Fel', traceId: debugTraceId },
+        type: 'error',
+        source: 'scanner',
+        payload: { error: err?.message || 'Fel', traceId: debugTraceId, endpoint: 'run-full-scan' },
+        status: 'failed',
       });
       set(state => ({
         steps: state.steps.map(s => ({ ...s, status: 'error' as const, error: err?.message || 'Fel' })),
