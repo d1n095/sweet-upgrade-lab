@@ -8,7 +8,7 @@ import { useWishlistStore } from '@/stores/wishlistStore';
 import { useCartStore } from '@/stores/cartStore';
 import { useLanguage } from '@/context/LanguageContext';
 import { useAuth } from '@/hooks/useAuth';
-import { ShopifyProduct } from '@/lib/shopify';
+import { Product } from '@/lib/catalog';
 import AuthModal from '@/components/auth/AuthModal';
 
 interface WishlistDrawerProps {
@@ -38,7 +38,7 @@ const WishlistDrawer = ({ isOpen, onClose }: WishlistDrawerProps) => {
     }).format(parseFloat(amount));
   };
 
-  const handleAddToCart = (product: ShopifyProduct) => {
+  const handleAddToCart = (product: Product) => {
     const firstVariant = product.node.variants.edges[0]?.node;
     if (!firstVariant) return;
 

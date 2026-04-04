@@ -1,10 +1,9 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { ShopifyProduct, createStorefrontCheckout } from '@/lib/shopify';
-import { trackAddToCart, trackRemoveFromCart, trackCartUpdate } from '@/utils/analyticsTracker';
+import { Product } from '@/lib/catalog';
 
 export interface CartItem {
-  product: ShopifyProduct;
+  product: Product;
   variantId: string;
   variantTitle: string;
   price: {
@@ -35,7 +34,6 @@ interface CartStore {
   setCartId: (cartId: string) => void;
   setCheckoutUrl: (url: string) => void;
   setLoading: (loading: boolean) => void;
-  createCheckout: () => Promise<void>;
   totalItems: () => number;
   totalPrice: () => number;
 }
@@ -88,9 +86,6 @@ export const useCartStore = create<CartStore>()(
       setHasHydrated: (v: boolean) => set({ isHydrated: v, _hasHydrated: v }),
 
       addItem: (item) => {
-        const productId = (item.product as any)?.dbId || item.variantId;
-        trackAddToCart(productId, item.product.node.title, Number.parseFloat(item.price.amount), item.quantity);
-
         set((state) => {
           const items = sanitizeItems(state.items);
           const existing = items.find((i) => i.variantId === item.variantId);
@@ -117,10 +112,6 @@ export const useCartStore = create<CartStore>()(
         }
 
         const existing = get().items.find((i) => i.variantId === variantId);
-        if (existing) {
-          const productId = (existing.product as any)?.dbId || variantId;
-          trackCartUpdate(productId, existing.product.node.title, existing.quantity, quantity);
-        }
 
         set((state) => ({
           items: state.items.map((item) =>
@@ -131,17 +122,6 @@ export const useCartStore = create<CartStore>()(
       },
 
       removeItem: (variantId) => {
-        const existing = get().items.find((i) => i.variantId === variantId);
-        if (existing) {
-          const productId = (existing.product as any)?.dbId || variantId;
-          trackRemoveFromCart(
-            productId,
-            existing.product.node.title,
-            Number.parseFloat(existing.price.amount),
-            existing.quantity
-          );
-        }
-
         set((state) => ({
           items: state.items.filter((item) => item.variantId !== variantId),
           lastUpdatedAt: getTimestamp(),
@@ -161,28 +141,11 @@ export const useCartStore = create<CartStore>()(
       setCheckoutUrl: (checkoutUrl) => set({ checkoutUrl, lastUpdatedAt: getTimestamp() }),
       setLoading: (isLoading) => set({ isLoading }),
 
-      createCheckout: async () => {
-        const { items, setLoading, setCheckoutUrl } = get();
-        if (items.length === 0) return;
-
-        setLoading(true);
-        try {
-          const checkoutUrl = await createStorefrontCheckout(
-            items.map((item) => ({ variantId: item.variantId, quantity: item.quantity }))
-          );
-          setCheckoutUrl(checkoutUrl);
-        } catch (error) {
-          console.error('Failed to create checkout:', error);
-        } finally {
-          setLoading(false);
-        }
-      },
-
       totalItems: () => get().items.reduce((sum, item) => sum + item.quantity, 0),
       totalPrice: () => get().items.reduce((sum, item) => sum + Number.parseFloat(item.price.amount) * item.quantity, 0),
     }),
     {
-      name: 'shopify-cart',
+      name: 'cart',
       version: 2,
       storage: createJSONStorage(() => localStorage),
       merge: (persistedState, currentState) => {
@@ -208,13 +171,14 @@ export const useCartStore = create<CartStore>()(
       onRehydrateStorage: () => (state, error) => {
         if (error) {
           console.error('Cart rehydration failed:', error);
+          return;
         }
 
-        useCartStore.setState({
-          items: sanitizeItems(state?.items || []),
-          isHydrated: true,
-          _hasHydrated: true,
-        });
+        if (state) {
+          state.items = sanitizeItems(state.items || []);
+          state.isHydrated = true;
+          state._hasHydrated = true;
+        }
       },
       partialize: (state) => ({
         items: state.items,

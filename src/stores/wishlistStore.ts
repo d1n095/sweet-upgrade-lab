@@ -1,15 +1,15 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { ShopifyProduct } from '@/lib/shopify';
+import { Product } from '@/lib/catalog';
 import { supabase } from '@/integrations/supabase/client';
 
 interface WishlistStore {
-  items: ShopifyProduct[];
+  items: Product[];
   isLoading: boolean;
   userId: string | null;
   
   // Actions
-  addItem: (product: ShopifyProduct) => Promise<void>;
+  addItem: (product: Product) => Promise<void>;
   removeItem: (productId: string) => Promise<void>;
   isInWishlist: (productId: string) => boolean;
   clearWishlist: () => Promise<void>;

@@ -8,10 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Link, useSearchParams } from 'react-router-dom';
 import { storeConfig } from '@/config/storeConfig';
 import { supabase } from '@/integrations/supabase/client';
-import { tracedInvoke } from '@/lib/tracedInvoke';
+import { safeInvoke } from '@/lib/safeInvoke';
 import { useCartStore } from '@/stores/cartStore';
 import { getOrderDisplayId } from '@/utils/orderDisplay';
-import { trackCheckoutComplete } from '@/utils/analyticsTracker';
+
 
 interface RecommendedProduct {
   id: string;
@@ -55,7 +55,7 @@ const OrderConfirmation = () => {
 
       for (let attempt = 0; attempt < maxRetries && !isCancelled; attempt += 1) {
         try {
-          const { data: fnData, error: fnError } = await tracedInvoke('lookup-order', {
+          const { data: fnData, error: fnError } = await safeInvoke('lookup-order', {
             body: { session_id: sessionId },
           });
 
@@ -71,8 +71,6 @@ const OrderConfirmation = () => {
               id: order.id,
             }));
             if (order.order_email) setOrderEmail(order.order_email);
-            // Track purchase completion for analytics funnel
-            trackCheckoutComplete(order.id, order.total_amount || 0);
             setIsLoading(false);
             return;
           }
