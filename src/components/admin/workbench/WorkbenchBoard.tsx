@@ -29,6 +29,7 @@ import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
 import { createAndVerify } from '@/utils/createVerifyLoop';
 import { trace, newTraceId, traceUIFetch } from '@/utils/deepDebugTrace';
 import { verifyAction } from '@/utils/actionVerificationEngine';
+import { safeInvoke } from '@/lib/safeInvoke';
 
 // ── AI kill-switch ─────────────────────────────────────────────────────────
 // Set to true to re-enable AI calls once credits are available.
@@ -232,7 +233,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
         toast.info('AI är inaktiverat');
         return;
       }
-      const { data, error } = await safeInvoke('ai-task-manager', { body: { action: 'orchestrate' } });
+      const { data, error } = await safeInvoke('ai-task-manager', { action: 'orchestrate' });
       if (error) throw error;
       const r = data?.results;
       const scanned = r?.orchestrator_scanned || 0;

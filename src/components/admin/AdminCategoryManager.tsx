@@ -27,6 +27,7 @@ import {
   DbCategory,
 } from '@/lib/categories';
 import type { LucideIcon } from 'lucide-react';
+import { safeInvoke } from '@/lib/safeInvoke';
 
 // ── AI kill-switch ─────────────────────────────────────────────────────────
 // Set to true to re-enable AI calls once credits are available.

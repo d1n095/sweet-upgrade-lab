@@ -14,6 +14,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { logActivity } from '@/utils/activityLogger';
 import { getOrderDisplayId } from '@/utils/orderDisplay';
+import { safeInvoke } from '@/lib/safeInvoke';
 
 interface ShippingFormDialogProps {
   open: boolean;

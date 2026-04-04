@@ -15,6 +15,7 @@ import { format } from "date-fns";
 import { Database, Activity, Bug, CheckCircle, AlertTriangle, Clock, Shield, ChevronRight, ChevronDown, X, Folder, FolderOpen, FileText, RefreshCw, Cpu, ArrowRight, Filter, Layers, History, Radar, Eye, Send, Loader2, Lock, Monitor } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { safeInvoke } from "@/lib/safeInvoke";
 
 type WorkItem = {
   id: string;

@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/context/LanguageContext';
 import { toast } from 'sonner';
+import { safeInvoke } from '@/lib/safeInvoke';
 
 interface ReviewFormProps {
   productId: string;

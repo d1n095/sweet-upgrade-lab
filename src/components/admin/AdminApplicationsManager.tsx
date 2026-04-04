@@ -18,6 +18,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/context/LanguageContext';
 import { toast } from 'sonner';
+import { safeInvoke } from '@/lib/safeInvoke';
 
 interface Application {
   id: string;

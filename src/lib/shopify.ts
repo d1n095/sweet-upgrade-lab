@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 // Shopify proxy endpoint - token is now stored server-side
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SHOPIFY_ENABLED = false;
 
 export interface ShopifyProduct {
   node: {
@@ -147,6 +148,9 @@ const CART_CREATE_MUTATION = `
 `;
 
 export async function storefrontApiRequest(query: string, variables: Record<string, unknown> = {}) {
+  if (!SHOPIFY_ENABLED) {
+    return { products: [], pageInfo: { hasNextPage: false, endCursor: null } };
+  }
   const { data: sessionData } = await supabase.auth.getSession();
   
   const response = await fetch(`${SUPABASE_URL}/functions/v1/shopify-proxy`, {

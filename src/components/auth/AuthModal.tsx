@@ -16,6 +16,7 @@ import {
   SheetTitle,
   SheetDescription,
 } from '@/components/ui/sheet';
+import { safeInvoke } from '@/lib/safeInvoke';
 
 interface AuthModalProps {
   isOpen: boolean;
