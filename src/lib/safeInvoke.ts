@@ -38,9 +38,6 @@ const ADMIN_ONLY_FUNCTIONS = new Set([
   'access-flow-validate',
 ]);
 
-console.log('[CONTROL LAYER ACTIVE]');
-console.log('SYSTEM LOCKED', { singleEntry: true, noLegacy: true, buildOk: true });
-
 /**
  * Single approved entry point for all Supabase edge function calls.
  * Validates against the approved allowlist, enforces admin-only guards,

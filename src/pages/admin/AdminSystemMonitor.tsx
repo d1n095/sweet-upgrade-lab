@@ -126,7 +126,7 @@ const FUNCTION_INVENTORY: FunctionDef[] = [
   },
   {
     function_name: 'run-full-scan',
-    where_called_from: ['SystemExplorer', 'fullScanOrchestrator'],
+    where_called_from: ['SystemExplorer'],
     has_ui: true,
     trigger_type: 'button',
     risk_level: 'medium',
