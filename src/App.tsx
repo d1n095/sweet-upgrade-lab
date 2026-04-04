@@ -67,7 +67,6 @@ import AdminDatabase from "./pages/admin/AdminDatabase";
 import AdminData from "./pages/admin/AdminData";
 import AdminOps from "./pages/admin/AdminOps";
 import AdminGrowth from "./pages/admin/AdminGrowth";
-import AdminAI from "./pages/admin/AdminAI";
 import AdminHistory from "./pages/admin/AdminHistory";
 import AdminChangeHistory from "./pages/admin/AdminChangeHistory";
 import AdminPOS from "./pages/admin/AdminPOS";
@@ -154,7 +153,7 @@ const App = () => (
                 <Route path="staff" element={<AdminStaff />} />
                 <Route path="insights" element={<AdminInsights />} />
                 <Route path="data" element={<AdminData />} />
-                <Route path="ai" element={<AdminAI />} />
+                <Route path="ai" element={<Navigate to="/admin/system-explorer" replace />} />
                 <Route path="history" element={<AdminHistory />} />
                 <Route path="changes" element={<AdminChangeHistory />} />
                 <Route path="database" element={<AdminDatabase />} />

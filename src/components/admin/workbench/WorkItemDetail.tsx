@@ -18,7 +18,7 @@ import {
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';
+import { triggerReviewForWorkItem } from '@/lib/workItemReview';
 
 interface WorkItemDetailProps {
   item: {
@@ -198,7 +198,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
       toast.success('Markerad som klar — AI verifierar...');
 
       // Auto-trigger AI verification after marking as done
-      triggerAiReviewForWorkItem(item.id, { context: 'auto_verify_on_resolve' }).then(reviewResult => {
+      triggerReviewForWorkItem(item.id, { context: 'auto_verify_on_resolve' }).then(reviewResult => {
         if (reviewResult.ok) {
           if (reviewResult.status === 'incomplete') {
             toast.error('⚠️ AI: Fixens verifiering misslyckades — uppgiften återöppnad', { duration: 6000 });
@@ -673,7 +673,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                           metadata: { ai_confidence: item.ai_pre_verify_result?.confidence, action: 'confirm' },
                         });
                         // 4. Trigger post-verify review
-                        triggerAiReviewForWorkItem(item.id, { context: 'human_confirmed_pre_verify' });
+                        triggerReviewForWorkItem(item.id, { context: 'human_confirmed_pre_verify' });
                         toast.success('✅ Bekräftad och verifierad');
                         onRefresh?.();
                         onOpenChange(false);
@@ -787,7 +787,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                 onClick={async () => {
                   setRunningReview(true);
                   try {
-                    const reviewResult = await triggerAiReviewForWorkItem(item.id, { context: 'work_item_detail_manual' });
+                    const reviewResult = await triggerReviewForWorkItem(item.id, { context: 'work_item_detail_manual' });
                     if (!reviewResult.ok) toast.error('AI-granskning misslyckades');
                     else {
                       const s = reviewResult.status;

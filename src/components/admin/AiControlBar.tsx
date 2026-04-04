@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Radar, Bug, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
-import { useScannerStore } from '@/stores/scannerStore';
+import { startScanJob, onScanComplete } from '@/lib/scanEngine';
+import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 
 interface ScanControlBarProps {
@@ -18,9 +19,9 @@ const ScanControlBar = ({ onNavigateTab, compact = false }: ScanControlBarProps)
   const location = useLocation();
   const queryClient = useQueryClient();
   const [bugCount, setBugCount] = useState(0);
-  const { scanning, runAllScans } = useScannerStore();
+  const [scanning, setScanning] = useState(false);
 
-  const isOnScanPage = location.pathname === '/admin/ai';
+  const isOnScanPage = location.pathname === '/admin/system-explorer';
 
   useEffect(() => {
     const fetchBugCount = async () => {
@@ -42,21 +43,38 @@ const ScanControlBar = ({ onNavigateTab, compact = false }: ScanControlBarProps)
     return () => { supabase.removeChannel(channel); };
   }, []);
 
+  useEffect(() => {
+    return onScanComplete((result) => {
+      setScanning(false);
+      toast.success(`Skanning klar — ${result.systemHealthScore}/100`, { duration: 5000 });
+      for (const key of ['admin-scan-results', 'admin-work-items', 'admin-bugs', 'mini-workbench-items', 'scan-history', 'work-items']) {
+        queryClient.invalidateQueries({ queryKey: [key] });
+      }
+    });
+  }, [queryClient]);
+
   const goToTab = (tab: string) => {
     if (onNavigateTab) {
       onNavigateTab(tab);
     } else if (isOnScanPage) {
-      navigate(`/admin/ai?tab=${tab}`, { replace: true });
+      navigate(`/admin/system-explorer?tab=${tab}`, { replace: true });
       window.dispatchEvent(new CustomEvent('scan-center-navigate', { detail: tab }));
     } else {
-      navigate(`/admin/ai?tab=${tab}`);
+      navigate(`/admin/system-explorer?tab=${tab}`);
     }
   };
 
-  const handleQuickScan = async () => {
+  const handleQuickScan = useCallback(async () => {
     if (scanning) return;
-    await runAllScans(queryClient);
-  };
+    setScanning(true);
+    try {
+      await startScanJob();
+      toast.info('Skanning startad', { duration: 3000 });
+    } catch (err: any) {
+      toast.error(err.message || 'Kunde inte starta skanning');
+      setScanning(false);
+    }
+  }, [scanning]);
 
   return (
     <div className={cn(
@@ -96,8 +114,7 @@ const ScanControlBar = ({ onNavigateTab, compact = false }: ScanControlBarProps)
             variant="ghost"
             size="sm"
             className="gap-1.5 h-7 text-xs px-2"
-            onClick={() => goToTab('scan')}
-          >
+            onClick={() => goToTab('scan')}          >
             <Radar className="w-3.5 h-3.5" />
             <span className="hidden lg:inline">Scan Center</span>
           </Button>
