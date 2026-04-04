@@ -13,7 +13,7 @@ import CartReservationTimer from './CartReservationTimer';
 import LoginIncentives from '@/components/auth/LoginIncentives';
 import AuthModal from '@/components/auth/AuthModal';
 
-interface ShopifyCartDrawerProps {
+interface CartDrawerProps {
   isOpen: boolean;
   onClose: () => void;
 }
@@ -26,7 +26,7 @@ interface RecommendedProduct {
   image_urls: string[] | null;
 }
 
-const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
+const CartDrawer = ({ isOpen, onClose }: CartDrawerProps) => {
   const { language } = useLanguage();
   const cl = getContentLang(language);
   const { user } = useAuth();
@@ -271,4 +271,4 @@ const ShopifyCartDrawer = ({ isOpen, onClose }: ShopifyCartDrawerProps) => {
   );
 };
 
-export default ShopifyCartDrawer;
+export default CartDrawer;

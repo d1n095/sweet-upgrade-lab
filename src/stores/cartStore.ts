@@ -4,7 +4,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 /**
  * Product shape used inside CartItem.
  * The nested `node.*` structure is intentional — it matches what DbProductCard constructs
- * when adding items to the cart, and what ShopifyCartDrawer reads when rendering cart items
+ * when adding items to the cart, and what CartDrawer reads when rendering cart items
  * (e.g. `item.product.node.title`, `item.product.node.images.edges[0].node.url`).
  * Changing this shape would break localStorage cart deserialization for existing users.
  */
@@ -176,7 +176,7 @@ export const useCartStore = create<CartStore>()(
       totalPrice: () => get().items.reduce((sum, item) => sum + Number.parseFloat(item.price.amount) * item.quantity, 0),
     }),
     {
-      name: 'shopify-cart',
+      name: 'cart',
       version: 2,
       storage: createJSONStorage(() => localStorage),
       merge: (persistedState, currentState) => {
