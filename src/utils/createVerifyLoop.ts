@@ -5,7 +5,7 @@
  * Pattern: INSERT → FETCH → COMPARE → (retry | alert)
  */
 import { supabase } from '@/integrations/supabase/client';
-import { observe } from '@/utils/observabilityLogger';
+import { logData } from '@/utils/actionMonitor';
 
 interface CreateVerifyOptions {
   /** Table name to insert into */
@@ -65,17 +65,11 @@ export async function createAndVerify(options: CreateVerifyOptions): Promise<Cre
       lastError = `INSERT failed: ${insertError.message}`;
       console.error(`[create-verify] ${table} INSERT failed (attempt ${attempts}):`, insertError);
 
-      observe({
-        event_type: 'error',
-        severity: 'error',
-        message: `Create-verify INSERT failed: ${table} (attempt ${attempts})`,
-        component: traceContext.component || 'create-verify',
-        details: { table, error: insertError.message, attempt: attempts, payload_keys: Object.keys(payload) },
-        trace_id: traceContext.traceId,
-        scan_id: traceContext.scanId,
-        bug_id: traceContext.bugId,
-        work_item_id: traceContext.workItemId,
-        duration_ms: Date.now() - attemptStart,
+      logData({
+        type: 'error',
+        source: 'system',
+        payload: { table, error: insertError.message, attempt: attempts, payload_keys: Object.keys(payload) },
+        status: 'failed',
       });
 
       if (attempts <= maxRetries) {
@@ -90,14 +84,11 @@ export async function createAndVerify(options: CreateVerifyOptions): Promise<Cre
       lastError = 'INSERT returned no ID';
       console.error(`[create-verify] ${table} INSERT returned no ID (attempt ${attempts})`);
 
-      observe({
-        event_type: 'error',
-        severity: 'error',
-        message: `Create-verify no ID returned: ${table}`,
-        component: traceContext.component || 'create-verify',
-        details: { table, attempt: attempts, returned: insertedRow },
-        trace_id: traceContext.traceId,
-        duration_ms: Date.now() - attemptStart,
+      logData({
+        type: 'error',
+        source: 'system',
+        payload: { table, attempt: attempts, returned: insertedRow, error: 'no ID returned' },
+        status: 'failed',
       });
 
       if (attempts <= maxRetries) {
@@ -118,16 +109,11 @@ export async function createAndVerify(options: CreateVerifyOptions): Promise<Cre
       lastError = fetchError ? `VERIFY fetch failed: ${fetchError.message}` : `VERIFY: row ${insertedId} not found in DB`;
       console.error(`[create-verify] ${table} VERIFY failed (attempt ${attempts}):`, lastError);
 
-      observe({
-        event_type: 'error',
-        severity: 'critical',
-        message: `Create-verify MISMATCH: ${table} id=${insertedId} — inserted but not found`,
-        component: traceContext.component || 'create-verify',
-        details: { table, insertedId, attempt: attempts, fetchError: fetchError?.message },
-        trace_id: traceContext.traceId,
-        scan_id: traceContext.scanId,
-        duration_ms: Date.now() - attemptStart,
-        error_code: 'CREATE_VERIFY_MISMATCH',
+      logData({
+        type: 'error',
+        source: 'system',
+        payload: { table, insertedId, attempt: attempts, fetchError: fetchError?.message, error: 'VERIFY_MISMATCH' },
+        status: 'failed',
       });
 
       if (attempts <= maxRetries) {
@@ -143,16 +129,11 @@ export async function createAndVerify(options: CreateVerifyOptions): Promise<Cre
 
     console.log(`[create-verify] ✅ ${table} VERIFIED: id=${insertedId} (${durationMs}ms, attempt ${attempts})`);
 
-    observe({
-      event_type: 'action',
-      severity: 'info',
-      message: `Create-verify OK: ${table} id=${insertedId}`,
-      component: traceContext.component || 'create-verify',
-      details: { table, id: insertedId, attempt: attempts, verified },
-      trace_id: traceContext.traceId,
-      scan_id: traceContext.scanId,
-      work_item_id: insertedId,
-      duration_ms: durationMs,
+    logData({
+      type: 'action',
+      source: 'system',
+      payload: { table, id: insertedId, attempt: attempts, verified, duration_ms: durationMs },
+      status: 'success',
     });
 
     return {
@@ -167,15 +148,11 @@ export async function createAndVerify(options: CreateVerifyOptions): Promise<Cre
   // All retries exhausted
   console.error(`[create-verify] ❌ ${table} FAILED after ${attempts} attempts: ${lastError}`);
 
-  observe({
-    event_type: 'error',
-    severity: 'critical',
-    message: `Create-verify FAILED: ${table} after ${attempts} attempts`,
-    component: traceContext.component || 'create-verify',
-    details: { table, error: lastError, attempts, payload_keys: Object.keys(payload) },
-    trace_id: traceContext.traceId,
-    scan_id: traceContext.scanId,
-    error_code: 'CREATE_VERIFY_EXHAUSTED',
+  logData({
+    type: 'error',
+    source: 'system',
+    payload: { table, error: lastError, attempts, payload_keys: Object.keys(payload), error_code: 'CREATE_VERIFY_EXHAUSTED' },
+    status: 'failed',
   });
 
   return {

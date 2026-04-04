@@ -4,7 +4,6 @@ import { toast } from 'sonner';
 import { useExecutionLockStore } from './executionLockStore';
 import { useFeedbackLoopStore } from './feedbackLoopStore';
 import { QueryClient } from '@tanstack/react-query';
-import { createTraceId, observeError, observeAction, flushObservabilityBuffer } from '@/utils/observabilityLogger';
 import { trace, newTraceId as newDebugTraceId } from '@/utils/deepDebugTrace';
 import { logData } from '@/utils/actionMonitor';
 
@@ -99,10 +98,13 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
     // Global trace log — single source of truth
     console.log('[SCAN TRIGGERED FROM]: AI_CENTER', { steps: toRun.map(s => s.type) });
 
-    const traceId = createTraceId('quick-scan');
     const debugTraceId = newDebugTraceId('scan');
     trace('issue_detected', 'ScannerStore', `Starting scan via run-full-scan (${toRun.length} steps)`, { traceId: debugTraceId, details: { steps: toRun.map(s => s.type) } });
-    observeAction(`Startar skanning via run-full-scan (${toRun.length} steg)`, { trace_id: traceId, source: 'scanner' });
+    logData({
+      type: 'scan',
+      source: 'scanner',
+      payload: { event: 'start', steps: toRun.map(s => s.type), traceId: debugTraceId },
+    });
 
     try {
       // All scans go through run-full-scan — no ai-assistant calls
@@ -143,7 +145,6 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
         steps: state.steps.map(s => ({ ...s, status: 'done' as const })),
       }));
     } catch (err: any) {
-      observeError('Skanningsfel via run-full-scan', err, { trace_id: traceId });
       logData({
         type: 'error',
         source: 'scanner',
@@ -155,8 +156,12 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
       }));
       toast.error(err?.message || 'Kunde inte starta skanning');
     } finally {
-      observeAction('Skanning via run-full-scan klar', { trace_id: traceId, source: 'scanner' });
-      flushObservabilityBuffer();
+      logData({
+        type: 'scan',
+        source: 'scanner',
+        payload: { event: 'end', traceId: debugTraceId },
+        status: 'success',
+      });
       lockStore.release(lockId);
       set({ scanning: false });
     }
