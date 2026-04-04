@@ -1,11 +1,10 @@
 import { create } from 'zustand';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useExecutionLockStore } from './executionLockStore';
 import { useFeedbackLoopStore } from './feedbackLoopStore';
 import { QueryClient } from '@tanstack/react-query';
-import { trace, newTraceId as newDebugTraceId } from '@/utils/deepDebugTrace';
 import { logData } from '@/utils/actionMonitor';
+import { safeInvoke } from '@/lib/safeInvoke';
 
 export type ScanStepStatus = 'pending' | 'running' | 'done' | 'error';
 
@@ -96,31 +95,26 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
     });
 
     // Global trace log — single source of truth
-    console.log('[SCAN TRIGGERED FROM]: AI_CENTER', { steps: toRun.map(s => s.type) });
-
-    const debugTraceId = newDebugTraceId('scan');
-    trace('issue_detected', 'ScannerStore', `Starting scan via run-full-scan (${toRun.length} steps)`, { traceId: debugTraceId, details: { steps: toRun.map(s => s.type) } });
     logData({
       type: 'scan',
       source: 'scanner',
-      payload: { event: 'start', steps: toRun.map(s => s.type), traceId: debugTraceId },
+      payload: { event: 'start', steps: toRun.map(s => s.type) },
     });
 
     try {
       // All scans go through run-full-scan — no ai-assistant calls
-      const { data, error } = await supabase.functions.invoke('run-full-scan', {
-        body: { action: 'start', scan_mode: 'full', source: 'AI_CENTER' },
+      const { data, error } = await safeInvoke('run-full-scan', {
+        action: 'start', scan_mode: 'full', source: 'AI_CENTER',
       });
 
       if (error) throw error;
 
       const scanRunId = data?.scan_id || data?.scan_run_id;
-      console.log('[SCAN TRIGGERED FROM]: AI_CENTER — scan_run_id:', scanRunId);
 
       logData({
         type: 'scan',
         source: 'scanner',
-        payload: { source: 'AI_CENTER', scan_run_id: scanRunId, traceId: debugTraceId },
+        payload: { source: 'AI_CENTER', scan_run_id: scanRunId },
         status: 'success',
       });
 
@@ -148,7 +142,7 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
       logData({
         type: 'error',
         source: 'scanner',
-        payload: { error: err?.message || 'Fel', traceId: debugTraceId, endpoint: 'run-full-scan' },
+        payload: { error: err?.message || 'Fel', endpoint: 'run-full-scan' },
         status: 'failed',
       });
       set(state => ({
@@ -159,7 +153,7 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
       logData({
         type: 'scan',
         source: 'scanner',
-        payload: { event: 'end', traceId: debugTraceId },
+        payload: { event: 'end' },
         status: 'success',
       });
       lockStore.release(lockId);

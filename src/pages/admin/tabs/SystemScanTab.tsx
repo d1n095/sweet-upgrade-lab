@@ -9,7 +9,9 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { logChange } from '@/utils/changeLogger';
 import { createAndVerify } from '@/utils/createVerifyLoop';
-import { trace, newTraceId } from '@/utils/deepDebugTrace';
+import { newTraceId } from '@/utils/deepDebugTrace';
+import { logData } from '@/utils/actionMonitor';
+import { safeInvoke } from '@/lib/safeInvoke';
 import { copyToClipboard, applyFix, useDetailContext } from './_shared';
 
 export const SystemScanTab = () => {
@@ -71,8 +73,8 @@ export const SystemScanTab = () => {
     if (!session) return;
 
     const createTraceId = newTraceId('scan-wi');
-    trace('issue_detected', 'AdminAI', `Creating WI from scan issue: ${issue.title}`, { traceId: createTraceId, details: { severity: issue.severity, category: issue.category } });
-    trace('db_insert_sent', 'AdminAI', 'Sending INSERT via createAndVerify', { traceId: createTraceId });
+    logData({ type: 'action', source: 'scanner', payload: { event: 'issue_detected', title: issue.title, severity: issue.severity, traceId: createTraceId } });
+    logData({ type: 'action', source: 'scanner', payload: { event: 'db_insert_sent', component: 'AdminAI', traceId: createTraceId } });
 
     const result = await createAndVerify({
       table: 'work_items',
@@ -92,16 +94,14 @@ export const SystemScanTab = () => {
     });
 
     if (!result.success) {
-      trace('db_insert_failed', 'AdminAI', `CREATE-VERIFY FAILED: ${result.error}`, { traceId: createTraceId, details: { attempts: result.attempts } });
-      console.error('[AdminAI] CREATE-VERIFY FAILED:', result.error);
+      logData({ type: 'error', source: 'scanner', payload: { event: 'db_insert_failed', error: result.error, attempts: result.attempts, traceId: createTraceId }, status: 'failed' });
       toast.error(`Kunde inte skapa ärende: ${result.error}`);
       return;
     }
 
     const newItem = result.data as any;
     const wiId = newItem?.id || null;
-    trace('db_verify_confirmed', 'AdminAI', `Work item verified: ${wiId}`, { traceId: createTraceId, entityId: wiId });
-    console.log('[AdminAI] CREATED & VERIFIED:', newItem);
+    logData({ type: 'action', source: 'scanner', payload: { event: 'db_verify_confirmed', wiId, traceId: createTraceId }, status: 'success' });
     logChange({ change_type: 'task_created', description: `Work item skapat från scan: ${issue.title}`, source: 'ai', affected_components: ['work_items', 'scan'], scan_id: currentScanId || lastScan?.id || null, work_item_id: wiId });
 
     // Remove issue from detected list and add to master list
@@ -197,8 +197,6 @@ export const SystemScanTab = () => {
           optional,
           total: scanWorkItems.length,
         };
-        console.log('[MasterList] Hydrated from DB:', scanWorkItems.length, 'items');
-      }
 
       setScanResult(results);
     }
@@ -206,15 +204,15 @@ export const SystemScanTab = () => {
 
   const runScan = async () => {
     setLoading(true);
-    console.log('[SCAN TRIGGERED FROM]: AI_CENTER');
+    logData({ type: 'scan', source: 'scanner', payload: { event: 'start', source: 'AI_CENTER' } });
     try {
       // All scans go through run-full-scan — no ai-assistant calls
-      const { data, error } = await supabase.functions.invoke('run-full-scan', {
-        body: { action: 'start', scan_mode: 'full', source: 'AI_CENTER' },
+      const { data, error } = await safeInvoke('run-full-scan', {
+        action: 'start', scan_mode: 'full', source: 'AI_CENTER',
       });
       if (error) throw error;
       const scanRunId = data?.scan_id || data?.scan_run_id;
-      console.log('[SCAN TRIGGERED FROM]: AI_CENTER — scan_run_id:', scanRunId);
+      logData({ type: 'scan', source: 'scanner', payload: { source: 'AI_CENTER', scan_run_id: scanRunId }, status: 'success' });
       toast.success('Skanning startad via run-full-scan');
       queryClient.invalidateQueries({ queryKey: ['last-scan-result'] });
       queryClient.invalidateQueries({ queryKey: ['scan-history'] });

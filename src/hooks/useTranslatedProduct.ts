@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/context/LanguageContext';
 import type { DbProduct } from '@/lib/products';
+import { safeInvoke } from '@/lib/safeInvoke';
 
 interface TranslatedFields {
   title: string;
@@ -73,8 +74,8 @@ export function useTranslatedProduct(product: DbProduct | null) {
 
     (async () => {
       try {
-        const { data, error } = await supabase.functions.invoke('translate-product', {
-          body: { texts: textsToTranslate, targetLang: lang, productId: product.id },
+        const { data, error } = await safeInvoke('translate-product', {
+          texts: textsToTranslate, targetLang: lang, productId: product.id,
         });
 
         // Only update if this is still the active request

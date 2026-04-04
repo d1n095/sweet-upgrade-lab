@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { logAuthEvent } from '@/utils/activityLogger';
 import { useLoginRateLimit } from '@/hooks/useLoginRateLimit';
 import { useStoreSettings } from '@/stores/storeSettingsStore';
+import { safeInvoke } from '@/lib/safeInvoke';
 import {
   Sheet,
   SheetContent,
@@ -195,9 +196,7 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
         }
         
         // Send welcome email in background
-        supabase.functions.invoke('send-welcome-email', {
-          body: { email, language }
-        }).catch(err => console.error('Welcome email failed:', err));
+        safeInvoke('send-welcome-email', { email, language }).catch(() => {});
         
         logAuthEvent('login', email, { type: 'signup' });
         

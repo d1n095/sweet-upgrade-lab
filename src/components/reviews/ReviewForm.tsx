@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/context/LanguageContext';
 import { toast } from 'sonner';
+import { safeInvoke } from '@/lib/safeInvoke';
 
 interface ReviewFormProps {
   productId: string;
@@ -180,14 +181,12 @@ const ReviewForm = ({ productId, productHandle, productTitle, onReviewSubmitted 
       }
 
       // Notify admin
-      supabase.functions.invoke('notify-review', {
-        body: {
-          productTitle,
-          rating,
-          comment: comment.trim(),
-          userEmail: user.email,
-        }
-      }).catch(err => console.error('Failed to notify admin:', err));
+      safeInvoke('notify-review', {
+        productTitle,
+        rating,
+        comment: comment.trim(),
+        userEmail: user.email,
+      }).catch(() => {});
 
       // Create reward
       const discountCode = `REV${Date.now().toString(36).toUpperCase()}`;

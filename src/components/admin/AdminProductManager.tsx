@@ -28,6 +28,7 @@ import { toast } from 'sonner';
 import { fetchProducts, ShopifyProduct } from '@/lib/shopify';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { safeInvoke } from '@/lib/safeInvoke';
 import {
   AdminProductForm,
   type AdminProductFormStrings,
@@ -504,11 +505,9 @@ const AdminProductManager = () => {
 
       // Load current inventory/policy via Admin API (non-blocking, silent on failure)
       if (variantNumericId) {
-        supabase.functions.invoke('shopify-proxy', {
-          body: {
+        safeInvoke('shopify-proxy', {
             action: 'getVariant',
             data: { variantId: Number(variantNumericId) },
-          },
         }).then((res) => {
           if (res.error) {
             console.warn('Failed to load variant inventory:', res.error);
@@ -556,8 +555,7 @@ const AdminProductManager = () => {
     setIsSubmitting(true);
 
     try {
-      const response = await supabase.functions.invoke('shopify-proxy', {
-        body: {
+      const response = await safeInvoke('shopify-proxy', {
           action: 'createProduct',
           data: {
             title: formData.title,
@@ -572,7 +570,6 @@ const AdminProductManager = () => {
               inventory_policy: formData.allowOverselling ? 'continue' : 'deny',
             }],
           },
-        },
       });
 
       if (response.error) throw response.error;
@@ -607,8 +604,7 @@ const AdminProductManager = () => {
       const targetQuantity = formData.isVisible ? formData.inventory : 0;
       const targetOversell = formData.isVisible ? formData.allowOverselling : false;
 
-      const response = await supabase.functions.invoke('shopify-proxy', {
-        body: {
+      const response = await safeInvoke('shopify-proxy', {
           action: 'updateProduct',
           productId: productNumericId,
           data: {
@@ -626,19 +622,16 @@ const AdminProductManager = () => {
               },
             ],
           },
-        },
       });
 
       if (response.error) throw response.error;
 
-      const inventoryRes = await supabase.functions.invoke('shopify-proxy', {
-        body: {
+      const inventoryRes = await safeInvoke('shopify-proxy', {
           action: 'updateInventory',
           data: {
             variantId: Number(variantNumericId),
             quantity: targetQuantity,
           },
-        },
       });
 
       if (inventoryRes.error) throw inventoryRes.error;
@@ -666,11 +659,9 @@ const AdminProductManager = () => {
       const gid = selectedProduct.node.id;
       const numericId = gid.split('/').pop();
 
-      const response = await supabase.functions.invoke('shopify-proxy', {
-        body: {
+      const response = await safeInvoke('shopify-proxy', {
           action: 'deleteProduct',
           productId: numericId,
-        },
       });
 
       if (response.error) throw response.error;

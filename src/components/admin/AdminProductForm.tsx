@@ -4,6 +4,7 @@ import { DollarSign, Tag, Save, Eye, EyeOff, Boxes, Minus, Plus, Upload, X, Imag
 import { RecipeTemplatePicker } from './RecipeTemplatePicker';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
+import { safeInvoke } from '@/lib/safeInvoke';
 import { fetchCategories, DbCategory } from '@/lib/categories';
 import { fetchTags, DbTag } from '@/lib/tags';
 import { Button } from '@/components/ui/button';
@@ -415,25 +416,23 @@ function AiContentGenerator({
     }
     setGenerating(true);
     try {
-      const { data, error } = await supabase.functions.invoke('generate-product-content', {
-        body: {
-          productName: formData.title,
-          category: formData.productType || null,
-          ingredients: formData.ingredients || null,
-          existingData: {
-            description: formData.description,
-            feeling: formData.feeling,
-            effects: formData.effects,
-            usage: formData.usage,
-            shelfLife: formData.shelfLife,
-            material: formData.material,
-            specialEffects: formData.specialEffects,
+      const { data, error } = await safeInvoke('suggest-product-metadata', {
+        productName: formData.title,
+        category: formData.productType || null,
+        ingredients: formData.ingredients || null,
+        existingData: {
+          description: formData.description,
+          feeling: formData.feeling,
+          effects: formData.effects,
+          usage: formData.usage,
+          shelfLife: formData.shelfLife,
+          material: formData.material,
+          specialEffects: formData.specialEffects,
             usageArea: formData.usageArea,
             usageSteps: [formData.usageStep1, formData.usageStep2, formData.usageStep3].filter(Boolean),
             isConcentrate: formData.isConcentrate,
           },
           language: sv ? 'sv' : 'en',
-        },
       });
 
       if (error) throw error;

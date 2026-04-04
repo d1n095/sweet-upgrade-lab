@@ -26,6 +26,7 @@ import { toast } from 'sonner';
 import { logActivity } from '@/utils/activityLogger';
 import { getOrderDisplayId } from '@/utils/orderDisplay';
 import ShippingFormDialog from '@/components/admin/ShippingFormDialog';
+import { safeInvoke } from '@/lib/safeInvoke';
 
 interface Order {
   id: string;
@@ -310,8 +311,8 @@ const AdminOrderManager = () => {
       // Trigger status update email for meaningful status changes
       if (editData.status !== order.status && ['processing', 'shipped', 'delivered', 'returned', 'lost'].includes(editData.status)) {
         try {
-          await supabase.functions.invoke('send-order-email', {
-            body: { order_id: order.id, email_type: 'status_update' },
+          await safeInvoke('send-order-email', {
+            order_id: order.id, email_type: 'status_update',
           });
           toast.success(`${content.updated} — mail skickat till ${order.order_email}`);
         } catch {
@@ -383,8 +384,8 @@ const AdminOrderManager = () => {
     try {
       toast.loading(language === 'sv' ? 'Skapar förfrågan...' : 'Creating request...', { id: 'refund' });
 
-      const { data, error } = await supabase.functions.invoke('process-refund', {
-        body: { action: 'create_request', order_id: order.id, reason: refundReason },
+      const { data, error } = await safeInvoke('process-refund', {
+        action: 'create_request', order_id: order.id, reason: refundReason,
       });
 
       if (error) throw error;

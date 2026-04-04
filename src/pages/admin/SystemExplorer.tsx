@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { tracedInvoke } from "@/lib/tracedInvoke";
+import { safeInvoke } from "@/lib/safeInvoke";
+import { logData } from "@/utils/actionMonitor";
 import ActionMonitorPanel from "@/components/admin/ActionMonitorPanel";
 import { fileSystemMap, type FileEntry, getFileContent, getCodeIndex, getDuplicatedLines, getCodeIssues, getRawSources, scanFileContent } from "@/lib/fileSystemMap";
 import { useAdminRole } from "@/hooks/useAdminRole";
@@ -192,7 +193,6 @@ const SystemExplorer = () => {
   const [globalIssues, setGlobalIssues] = useState<{ type: string; message: string; file: string }[]>([]);
 
   function logAction(action: Record<string, any>) {
-    console.log("🟢 ACTION:", action);
     setActionLogs(prev => [
       {
         time: new Date().toISOString(),
@@ -210,15 +210,12 @@ const SystemExplorer = () => {
       console.warn("❌ NO rawSources — cannot scan");
       return;
     }
-    console.log("RAW SOURCES COUNT:", Object.keys(rawSources).length);
-    console.log("🔍 AUTO SCAN START");
     const allIssues: { type: string; message: string; file: string }[] = [];
     Object.entries(rawSources).forEach(([path, content]) => {
       if (!content) return;
       const issues = scanFileContent(path, content as string);
       allIssues.push(...issues);
     });
-    console.log("🚨 AUTO SCAN FOUND:", allIssues.length);
     setCodeScanResult(allIssues);
     setGlobalIssues(allIssues);
   }, []);
@@ -275,15 +272,11 @@ const SystemExplorer = () => {
           const issues = scanFileContent(path, content as string);
           results.push(...issues);
         });
-        console.log("[FILE ISSUES FOUND]:", results.length);
         setCodeScanResult(results);
         logAction({ type: "SCAN", status: "success", mode });
       }
       if (mode === "full") {
-        console.log("[FULL SCAN TRIGGERED]");
-        await tracedInvoke("run-full-scan", {
-          body: { action: "start", scan_mode: "full" },
-        });
+        await safeInvoke("run-full-scan", { action: "start", scan_mode: "full" });
         logAction({ type: "SCAN", status: "success", mode });
       }
     } catch (err: any) {
@@ -492,23 +485,16 @@ const SystemExplorer = () => {
   };
 
   const handleRunFullScan = async () => {
-    console.log("[SCAN TRIGGERED FROM]: EXPLORER");
-    console.log("[SCAN TRIGGERED]");
     setIsScanning(true);
     
     try {
       const before = await supabase.from("work_items").select("id");
       const beforeCount = before.data?.length || 0;
       logAction({ type: "Full Scan", status: "started" });
-      console.log("🚀 STARTING FULL SCAN");
       const rawPaths = Object.keys(getRawSources() || {});
       // Structure map failsafe: use fallback if empty — do NOT abort
       const structure_map = rawPaths.length > 0 ? rawPaths.map(path => ({ path })) : [{ path: "/" }];
-      console.log("[SENDING STRUCTURE MAP]:", structure_map.length);
-      const res = await tracedInvoke("run-full-scan", {
-        body: { action: "start", scan_mode: "full", source: "EXPLORER", structure_map },
-      });
-      console.log("📡 RESPONSE:", res);
+      const res = await safeInvoke("run-full-scan", { action: "start", scan_mode: "full", source: "EXPLORER", structure_map });
       const verify = await verifyWorkItemsCreated(beforeCount);
       if (verify.created === 0) {
         logAction({
@@ -523,9 +509,7 @@ const SystemExplorer = () => {
           message: `Created ${verify.created} work_items ✔`
         });
       }
-      console.log("[DEBUG] FULL SCAN RESPONSE:", res);
       const json = res?.data ?? res;
-      console.log("[DEBUG] FULL SCAN JSON:", json);
       if (json?.success === false) {
         console.error("[DEBUG] FULL SCAN ERROR:", json?.error);
       }
@@ -1080,7 +1064,6 @@ const SystemExplorer = () => {
         <div className="text-[10px] font-mono text-muted-foreground">Last action: {lastAction || "none"}</div>
 
         <button onClick={() => {
-          console.log("🧪 TEST BUTTON CLICK");
           setActionLogs(prev => [
             {
               time: new Date().toISOString(),
@@ -1188,7 +1171,6 @@ const SystemExplorer = () => {
                 const rawPaths = Object.keys(getRawSources() || {});
                 // Structure map failsafe: use fallback if empty — do NOT abort
                 const structure_map = rawPaths.length > 0 ? rawPaths.map(p => ({ path: p })) : [{ path: "/" }];
-                console.log("[SCAN TRIGGERED FROM]: EXPLORER", { structure_map_size: structure_map.length });
                 setIsScanning(true);
                 setScanProgress({ step: 0, total: 11, label: "Startar..." });
                 const pollInterval = setInterval(async () => {
@@ -1200,8 +1182,8 @@ const SystemExplorer = () => {
                   } catch (_) {}
                 }, 2000);
                 try {
-                  await supabase.functions.invoke("run-full-scan", {
-                    body: { action: "start", scan_mode: "full", source: "EXPLORER", structure_map }
+                  await safeInvoke("run-full-scan", {
+                    action: "start", scan_mode: "full", source: "EXPLORER", structure_map,
                   });
                 } finally {
                   clearInterval(pollInterval);
@@ -1440,7 +1422,6 @@ const SystemExplorer = () => {
                     if (!results || results.length === 0) {
                       throw new Error("Code index empty");
                     }
-                    console.log("[FILE ISSUES FOUND]:", results.length);
                     setCodeScanResult(results);
                     return true;
                   })
@@ -1694,7 +1675,6 @@ const SystemExplorer = () => {
                     throw new Error("No files available");
                   }
                   const result = files.length;
-                  console.log("[FILES FOUND]:", result);
                   setFileScanResult({ total: result, emptyFiles: files.filter(f => !getRawSources()[f]?.trim()).length, largeFiles: 0 });
                   return true;
                 })
@@ -3970,10 +3950,9 @@ const SystemExplorer = () => {
                       const meta = (selectedItem as any).metadata ? (typeof (selectedItem as any).metadata === "string" ? JSON.parse((selectedItem as any).metadata) : (selectedItem as any).metadata) : {};
                       const target = meta?.affected_area?.target || (selectedItem as any).source_component || (selectedItem as any).source_path || selectedItem.item_type;
 
-                      const verifyRes = await tracedInvoke("run-full-scan", {
-                        body: { action: "start", scan_mode: "targeted", target_area: target, verification_for: selectedItem.id },
+                      const verifyRes = await safeInvoke("run-full-scan", {
+                        action: "start", scan_mode: "targeted", target_area: target, verification_for: selectedItem.id,
                       });
-                      console.log("[DEBUG] VERIFY SCAN RESPONSE:", verifyRes);
                       const scanData = verifyRes?.data ?? verifyRes;
 
                       // 3. Check if issue still found

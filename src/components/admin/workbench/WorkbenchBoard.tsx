@@ -26,8 +26,10 @@ import { getOrderDisplayId } from '@/utils/orderDisplay';
 import WorkItemDetail from './WorkItemDetail';
 import { useNavigate } from 'react-router-dom';
 import { createAndVerify } from '@/utils/createVerifyLoop';
-import { trace, newTraceId, traceUIFetch } from '@/utils/deepDebugTrace';
+import { newTraceId } from '@/utils/deepDebugTrace';
 import { verifyAction } from '@/utils/actionVerificationEngine';
+import { safeInvoke } from '@/lib/safeInvoke';
+import { logData } from '@/utils/actionMonitor';
 
 interface WorkItem {
   id: string;
@@ -204,7 +206,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const runAutomation = async () => {
     setRunningAutomation(true);
     try {
-      const { data, error } = await supabase.functions.invoke('automation-engine');
+      const { data, error } = await safeInvoke('automation-engine');
       if (error) throw error;
       const r = data?.results;
       toast.success(`Automation klar: ${r?.escalated || 0} eskalerade, ${r?.reassigned || 0} omfördelade`);
@@ -359,7 +361,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
         supabase.from('work_items' as any)
           .update({ status: 'cancelled', updated_at: new Date().toISOString() } as any)
           .in('id', orphanIds)
-          .then(() => console.log(`[Workbench] Auto-cancelled ${orphanIds.length} orphan tasks`));
+          .then(() => { /* orphan tasks cancelled */ });
       }
     })();
 
@@ -513,7 +515,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
         {
           step: 'action_start',
           run: async () => {
-            trace('work_item_creating', 'WorkbenchBoard', `Creating: ${newTitle.trim()}`, { traceId: createTraceId, details: { type: newType, priority: newPriority } });
+            logData({ type: 'action', source: 'ui', payload: { event: 'work_item_creating', title: newTitle.trim(), type: newType, priority: newPriority, traceId: createTraceId } });
             const { data: bestUser } = await supabase.rpc('auto_assign_work_item', { p_item_type: newType });
             return { bestUser };
           },
@@ -521,7 +523,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
         {
           step: 'db_write',
           run: async (prev: any) => {
-            trace('db_insert_sent', 'WorkbenchBoard', 'Sending INSERT to work_items', { traceId: createTraceId });
+            logData({ type: 'action', source: 'ui', payload: { event: 'db_insert_sent', component: 'WorkbenchBoard', traceId: createTraceId } });
             const insertPayload = {
               title: newTitle.trim(),
               description: newDesc.trim() || null,
@@ -540,7 +542,6 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
               traceContext: { component: 'WorkbenchBoard' },
             });
             if (!cvResult.success) throw new Error(cvResult.error || 'Insert failed');
-            console.log('CREATED ITEM:', cvResult.data);
             return { ...prev, item: cvResult.data };
           },
         },
@@ -551,14 +552,14 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
             if (!id) throw new Error('No ID returned from insert');
             const { data, error } = await supabase.from('work_items' as any).select('id, title, status').eq('id', id).maybeSingle();
             if (error || !data) throw new Error(`Verify failed: ${error?.message || 'not found'}`);
-            trace('db_verify_confirmed', 'WorkbenchBoard', `Verified in DB: ${id}`, { traceId: createTraceId, entityId: id });
+            logData({ type: 'action', source: 'ui', payload: { event: 'db_verify_confirmed', id, traceId: createTraceId }, status: 'success' });
             return prev;
           },
         },
         {
           step: 'ui_update',
           run: async (prev: any) => {
-            trace('cache_invalidated', 'WorkbenchBoard', 'Invalidating work-items cache', { traceId: createTraceId, entityId: (prev.item as any)?.id });
+            logData({ type: 'action', source: 'ui', payload: { event: 'cache_invalidated', id: (prev.item as any)?.id, traceId: createTraceId } });
             await queryClient.invalidateQueries({ queryKey: ['work-items'] });
             await queryClient.invalidateQueries({ queryKey: ['admin-work-items'] });
             return prev;

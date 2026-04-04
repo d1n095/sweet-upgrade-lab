@@ -14,6 +14,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { logActivity } from '@/utils/activityLogger';
 import { getOrderDisplayId } from '@/utils/orderDisplay';
+import { safeInvoke } from '@/lib/safeInvoke';
 
 interface ShippingFormDialogProps {
   open: boolean;
@@ -119,8 +120,8 @@ const ShippingFormDialog = ({ open, onOpenChange, order, onShipped }: ShippingFo
       let emailSent = false;
       if (deliveryMethod === 'shipping') {
         try {
-          const { error: emailError } = await supabase.functions.invoke('send-order-email', {
-            body: { order_id: order.id, email_type: 'status_update' },
+          const { error: emailError } = await safeInvoke('send-order-email', {
+            order_id: order.id, email_type: 'status_update',
           });
           emailSent = !emailError;
         } catch {}
