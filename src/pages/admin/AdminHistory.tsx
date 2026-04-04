@@ -90,7 +90,7 @@ const AdminHistory = () => {
       <div>
         <h1 className="text-2xl font-semibold">Historik</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Alla avslutade uppgifter med AI-verifiering och spårbarhet
+          Alla avslutade uppgifter med verifiering och spårbarhet
         </p>
       </div>
 
@@ -121,7 +121,7 @@ const AdminHistory = () => {
         </Select>
         <Select value={reviewFilter} onValueChange={setReviewFilter}>
           <SelectTrigger className="w-40 h-9">
-            <SelectValue placeholder="AI Review" />
+            <SelectValue placeholder="Granskning" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Alla</SelectItem>

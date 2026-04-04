@@ -568,7 +568,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
               </div>
             </div>
 
-            {/* AI Pre-Verification Suggestion */}
+            {/* Pre-Verification Suggestion */}
             {item.ai_pre_verify_status && item.ai_pre_verify_status !== 'not_fixed' && item.ai_pre_verify_status !== 'dismissed' && (isOpen || item.ai_pre_verify_status === 'confirmed' || item.ai_pre_verify_status === 'rejected') && (
               <div className={cn('rounded-lg p-3 space-y-2.5 border', {
                 'bg-accent/10 border-accent/30': item.ai_pre_verify_status === 'appears_fixed' || item.ai_pre_verify_status === 'confirmed',
@@ -695,7 +695,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
               </Button>
             )}
 
-            {/* AI Review Results */}
+            {/* Review Results */}
             {item.ai_review_status && (
               <div className={cn('rounded-lg p-3 space-y-2 border', {
                 'bg-accent/5 border-accent/20': item.ai_review_status === 'verified',

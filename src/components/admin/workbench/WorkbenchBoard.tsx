@@ -671,16 +671,16 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     if (newStatus === 'done') {
       setCompletedCount(prev => prev + 1);
       setJustCompleted(itemId);
-      toast.success('Klar ✓ — AI granskar...');
+      toast.success('Klar ✓ — Granskar...');
       const reviewResult = await triggerReviewForWorkItem(itemId, { context: 'workbench_board_done' });
       if (!reviewResult.ok) {
         toast.error('Granskning misslyckades — manuell granskning krävs');
       } else if (reviewResult.status === 'verified') {
-        toast.success('AI: ✅ Verifierad');
+        toast.success('✅ Verifierad');
       } else if (reviewResult.status === 'needs_review') {
-        toast.warning('AI: ⚠️ Behöver granskning');
+        toast.warning('⚠️ Behöver granskning');
       } else if (reviewResult.status === 'incomplete') {
-        toast.error('AI: ❌ Ofullständig');
+        toast.error('❌ Ofullständig');
       }
       queryClient.invalidateQueries({ queryKey: ['work-items'] });
 

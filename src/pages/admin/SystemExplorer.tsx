@@ -2067,7 +2067,7 @@ const SystemExplorer = () => {
             <CardTitle className="text-sm flex items-center gap-2">
               {expandedSections.aiAssistant ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
               <Bot className="h-4 w-4 text-primary" />
-              AI Assistant
+              Assistent
               <Badge variant="outline" className="text-[10px]">READ-ONLY</Badge>
             </CardTitle>
           </CardHeader>
@@ -2217,7 +2217,7 @@ const SystemExplorer = () => {
           <Card>
             <CardContent className="p-4 flex items-center gap-2 text-sm text-muted-foreground">
               <Lock className="h-4 w-4" />
-              Viewer-läge — du har läsbehörighet. AI Assistant och kontrollåtgärder kräver System Admin-behörighet.
+              Viewer-läge — du har läsbehörighet. Assistent och kontrollåtgärder kräver System Admin-behörighet.
             </CardContent>
           </Card>
         )}
@@ -2280,13 +2280,13 @@ const SystemExplorer = () => {
           </CardContent>
         </Card>
 
-        {/* AI FLOW */}
+        {/* FLOW */}
         <Card>
           <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("aiFlow")}>
             <CardTitle className="text-sm flex items-center gap-2">
               {expandedSections.aiFlow ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
               <Cpu className="h-4 w-4 text-primary" />
-              AI Flow
+              Flöde
             </CardTitle>
           </CardHeader>
           {expandedSections.aiFlow && (
