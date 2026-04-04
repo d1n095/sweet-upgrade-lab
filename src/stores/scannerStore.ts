@@ -1,13 +1,10 @@
 import { create } from 'zustand';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useExecutionLockStore } from './executionLockStore';
 import { useFeedbackLoopStore } from './feedbackLoopStore';
 import { QueryClient } from '@tanstack/react-query';
 import { createTraceId, observeScanStep, observeError, observeAction, flushObservabilityBuffer } from '@/utils/observabilityLogger';
-import { trace, newTraceId as newDebugTraceId } from '@/utils/deepDebugTrace';
-import { SYSTEM_FLAGS } from '@/config/systemFlags';
-import { recordAiViolation } from '@/ai/aiIsolationGuard';
+import { safeInvoke } from '@/lib/safeInvoke';
 
 export type ScanStepStatus = 'pending' | 'running' | 'done' | 'error';
 
@@ -107,16 +104,15 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
 
     // Run all scans in parallel for speed
     const traceId = createTraceId('quick-scan');
-    const debugTraceId = newDebugTraceId('scan');
-    trace('issue_detected', 'ScannerStore', `Starting scan (${toRun.length} steps)`, { traceId: debugTraceId, details: { steps: toRun.map(s => s.type) } });
     observeAction(`Startar snabbskanning (${toRun.length} steg)`, { trace_id: traceId, source: 'scanner' });
 
     await Promise.allSettled(
       toRun.map(async (step, i) => {
         const start = Date.now();
         try {
-          const { data: res, error } = await supabase.functions.invoke('run-full-scan', {
+          const { data: res, error } = await safeInvoke('run-full-scan', {
             body: { action: 'start', scan_type: step.type },
+            isAdmin: true,
           });
 
           const duration_ms = Date.now() - start;
@@ -127,7 +123,6 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
               steps: state.steps.map((s, idx) => idx === i ? { ...s, status: 'error' as const, error: errMsg, duration_ms } : s),
             }));
           } else {
-            trace('scan_update', 'ScannerStore', `Step done: ${step.label} (${duration_ms}ms)`, { traceId: debugTraceId, details: { stepType: step.type, duration_ms } });
             observeScanStep(`Steg klart: ${step.label}`, { trace_id: traceId, component: step.type, duration_ms });
             set(state => ({
               steps: state.steps.map((s, idx) => idx === i ? { ...s, status: 'done' as const, result: res, duration_ms } : s),

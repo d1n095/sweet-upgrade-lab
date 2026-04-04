@@ -1,6 +1,7 @@
 /**
- * Debug Logger — Global DEBUG mode (TASK 3).
- * Log ALL errors with: file, function, stack trace. Detect silent failures.
+ * Debug Logger — in-memory log for the current session.
+ * Logs are NOT persisted locally. For API-level call history use getApiLog()
+ * from @/lib/safeInvoke (last 50 edge-function calls).
  */
 import { create } from 'zustand';
 
@@ -17,18 +18,9 @@ export interface LogEntry {
   timestamp: number;
 }
 
-const STORAGE_KEY = 'debug_log';
-const MAX_ENTRIES = 1000;
+const MAX_ENTRIES = 500;
 let idCounter = 0;
 const genId = () => `log-${Date.now()}-${++idCounter}`;
-
-function persistToStorage(entries: LogEntry[]) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(entries.slice(-MAX_ENTRIES))); } catch { /* ignore */ }
-}
-
-function loadFromStorage(): LogEntry[] {
-  try { const raw = localStorage.getItem(STORAGE_KEY); return raw ? JSON.parse(raw) : []; } catch { return []; }
-}
 
 interface DebugLoggerState {
   enabled: boolean;
@@ -46,18 +38,17 @@ interface DebugLoggerState {
 
 export const useDebugLoggerStore = create<DebugLoggerState>((set, get) => ({
   enabled: false,
-  entries: loadFromStorage(),
+  entries: [],
   silentFailures: [],
   toggle: () => set(s => ({ enabled: !s.enabled })),
   enable: () => set({ enabled: true }),
   disable: () => set({ enabled: false }),
-  clear: () => { set({ entries: [], silentFailures: [] }); try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ } },
+  clear: () => set({ entries: [], silentFailures: [] }),
   addEntry: (entry) => {
     if (!get().enabled) return;
     const full: LogEntry = { ...entry, id: genId(), timestamp: Date.now() };
     set(s => {
       const entries = [...s.entries, full].slice(-MAX_ENTRIES);
-      persistToStorage(entries);
       const silentFailures = entry.level === 'error' && !entry.message.toLowerCase().includes('toast')
         ? [...s.silentFailures, full].slice(-200) : s.silentFailures;
       return { entries, silentFailures };
