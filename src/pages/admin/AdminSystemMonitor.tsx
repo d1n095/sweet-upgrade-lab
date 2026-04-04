@@ -234,16 +234,16 @@ const FUNCTION_INVENTORY: FunctionDef[] = [
     invisible: false,
     description: 'Receives Stripe payment webhook events (external trigger)',
   },
-  // ── BLOCKED / DISABLED AI FUNCTIONS ──
+  // ── BLOCKED / DISABLED FUNCTIONS ──
   {
     function_name: 'ai-assistant',
-    where_called_from: ['AdminAI (disabled)', 'SystemExplorer (disabled)'],
-    has_ui: true,
+    where_called_from: ['AdminAI (deleted)', 'SystemExplorer (deleted)'],
+    has_ui: false,
     trigger_type: 'button',
     risk_level: 'high',
     status: 'blocked',
     invisible: false,
-    description: 'General-purpose AI assistant — DISABLED to prevent credit usage',
+    description: 'General-purpose AI assistant — DELETED, no edge function exists',
   },
   {
     function_name: 'automation-engine',
@@ -257,13 +257,13 @@ const FUNCTION_INVENTORY: FunctionDef[] = [
   },
   {
     function_name: 'generate-product-content',
-    where_called_from: ['AdminProductForm (disabled)'],
-    has_ui: true,
+    where_called_from: ['AdminProductForm (deleted)'],
+    has_ui: false,
     trigger_type: 'button',
     risk_level: 'high',
     status: 'blocked',
     invisible: false,
-    description: 'AI product content generator — DISABLED',
+    description: 'AI product content generator — DELETED, edge function removed',
   },
 ];
 
@@ -900,11 +900,11 @@ const DebugPanelTab = ({ log }: { log: InvokeLogEntry[] }) => {
         </CardHeader>
         <CardContent className="p-3 pt-0 space-y-2">
           {[
-            { label: 'Global invoke-guard', value: 'AKTIV', ok: true },
-            { label: 'AI-blocklista', value: 'ai, generate, suggest, task, review', ok: true },
+            { label: 'Global invoke-guard', value: 'safeInvoke (single entrypoint)', ok: true },
+            { label: 'AI-isolation', value: 'APPROVED_FUNCTIONS allowlist only', ok: true },
             { label: 'run-full-scan (deterministisk)', value: 'AKTIV — ai_skipped: true', ok: true },
             { label: 'Invoke-logg (session)', value: `${log.length} poster`, ok: true },
-            { label: 'supabase.functions.invoke guard', value: 'Patched i client.ts', ok: true },
+            { label: 'Global monkey-patch', value: 'Borttagen — safeInvoke ansvarar', ok: true },
           ].map(({ label, value, ok }) => (
             <div key={label} className="flex items-center justify-between py-1 border-b last:border-0 text-sm">
               <span className="text-muted-foreground">{label}</span>

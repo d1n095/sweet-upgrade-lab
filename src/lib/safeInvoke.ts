@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { logInvokeStart, logInvokeEnd, logInvokeBlocked } from '@/lib/invokeLogger';
 
 /**
  * Approved Supabase edge function names — must match FUNCTION_INVENTORY status: 'active'
@@ -58,24 +59,30 @@ export async function safeInvoke<T = any>(
   const request_trace_id = crypto.randomUUID();
 
   if (!APPROVED_FUNCTIONS.has(functionName)) {
+    const blockedMsg = `safeInvoke: function "${functionName}" is not in the approved list`;
     console.error('[safeInvoke] BLOCKED — unapproved function:', functionName, { request_trace_id });
+    logInvokeBlocked(functionName, blockedMsg);
     return {
       data: null,
-      error: new Error(`safeInvoke: function "${functionName}" is not in the approved list`),
+      error: new Error(blockedMsg),
       request_trace_id,
     };
   }
 
   if (ADMIN_ONLY_FUNCTIONS.has(functionName) && !options?.isAdmin) {
+    const blockedMsg = `safeInvoke: function "${functionName}" requires admin access`;
     console.error('[safeInvoke] BLOCKED — admin access required for:', functionName, { request_trace_id });
+    logInvokeBlocked(functionName, blockedMsg);
     return {
       data: null,
-      error: new Error(`safeInvoke: function "${functionName}" requires admin access`),
+      error: new Error(blockedMsg),
       request_trace_id,
     };
   }
 
   console.log('[safeInvoke]', functionName, { request_trace_id });
+  const callId = logInvokeStart(functionName, options?.body);
+  const t0 = Date.now();
 
   const body = {
     ...(options?.body || {}),
@@ -87,6 +94,7 @@ export async function safeInvoke<T = any>(
     body,
   });
 
+  logInvokeEnd(callId, error ? 'error' : 'success', Date.now() - t0, error?.message);
   return { data, error, request_trace_id };
 }
 
