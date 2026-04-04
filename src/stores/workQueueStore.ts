@@ -73,7 +73,7 @@ const MAX_CONCURRENT = 2;
 /** If _isProcessing is stuck longer than this, force-release it */
 const PROCESSING_TIMEOUT_MS = 60_000;
 
-interface AiQueueState {
+interface WorkQueueState {
   tasks: QueueTask[];
   maxConcurrent: number;
   failureLog: FailureReport[];
@@ -265,8 +265,8 @@ export async function backfillChangeLog() {
 async function runPostChecks(
   task: QueueTask,
   result: any,
-  set: (fn: (s: AiQueueState) => Partial<AiQueueState>) => void,
-  get: () => AiQueueState
+  set: (fn: (s: WorkQueueState) => Partial<WorkQueueState>) => void,
+  get: () => WorkQueueState
 ) {
   // 1. Standard validation
   const validate = task.validator || defaultValidator;
@@ -436,7 +436,7 @@ async function runPostChecks(
   });
 }
 
-export const useAiQueueStore = create<AiQueueState>((set, get) => ({
+export const useWorkQueueStore = create<WorkQueueState>((set, get) => ({
   tasks: [],
   maxConcurrent: MAX_CONCURRENT,
   failureLog: [],
@@ -492,7 +492,7 @@ export const useAiQueueStore = create<AiQueueState>((set, get) => ({
     // Deadlock protection: if _isProcessing has been stuck for too long, force-release
     if (state._isProcessing) {
       if (state._processingStartedAt && Date.now() - state._processingStartedAt > PROCESSING_TIMEOUT_MS) {
-        console.warn('[AiQueue] Processing lock stuck for >60s, force-releasing');
+        console.warn('[WorkQueue] Processing lock stuck for >60s, force-releasing');
         set({ _isProcessing: false, _processingStartedAt: null });
       } else {
         return;

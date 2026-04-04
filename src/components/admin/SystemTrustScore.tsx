@@ -10,7 +10,7 @@ import {
   TrendingUp, Loader2, RefreshCw, Bug, GitMerge, Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAiQueueStore } from '@/stores/aiQueueStore';
+import { useWorkQueueStore } from '@/stores/workQueueStore';
 
 type TrustLabel = 'unstable' | 'improving' | 'stable' | 'production_ready';
 
@@ -38,7 +38,7 @@ function getLabel(score: number): TrustLabel {
 }
 
 const SystemTrustScore = () => {
-  const queueStore = useAiQueueStore();
+  const queueStore = useWorkQueueStore();
 
   const { data: breakdown, isLoading, refetch } = useQuery({
     queryKey: ['system-trust-score'],
