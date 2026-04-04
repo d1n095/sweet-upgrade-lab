@@ -367,7 +367,7 @@ const AdminStaff = () => {
     <div className="flex items-center justify-center py-20 text-muted-foreground">Laddar...</div>
   );
 
-  console.log("FOUNDER MODE ACTIVE");
+  if (!isFounder) return <div className="flex items-center justify-center py-20 text-muted-foreground">Access denied</div>;
 
   return (
     <div className="space-y-6">

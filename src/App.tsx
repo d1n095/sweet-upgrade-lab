@@ -1,3 +1,4 @@
+import RequirePermission from '@/components/guards/RequirePermission';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -126,39 +127,39 @@ const App = () => (
 
               <Route path="/admin" element={<AdminLayout />}>
                 <Route index element={<AdminOverview />} />
-                <Route path="ops" element={<AdminOps />} />
-                <Route path="growth" element={<AdminGrowth />} />
-                <Route path="orders" element={<AdminOrders />} />
-                <Route path="pos" element={<AdminPOS />} />
-                <Route path="products" element={<AdminProducts />} />
-                <Route path="categories" element={<AdminCategories />} />
-                <Route path="members" element={<AdminMembers />} />
-                <Route path="partners" element={<AdminPartners />} />
+                <Route path="ops" element={<RequirePermission module="system"><AdminOps /></RequirePermission>} />
+                <Route path="growth" element={<RequirePermission module="system"><AdminGrowth /></RequirePermission>} />
+                <Route path="orders" element={<RequirePermission module="orders"><AdminOrders /></RequirePermission>} />
+                <Route path="pos" element={<RequirePermission module="orders"><AdminPOS /></RequirePermission>} />
+                <Route path="products" element={<RequirePermission module="inventory"><AdminProducts /></RequirePermission>} />
+                <Route path="categories" element={<RequirePermission module="inventory"><AdminCategories /></RequirePermission>} />
+                <Route path="members" element={<RequirePermission module="users"><AdminMembers /></RequirePermission>} />
+                <Route path="partners" element={<RequirePermission module="users"><AdminPartners /></RequirePermission>} />
                 <Route path="communication" element={<Navigate to="/admin/content" replace />} />
                 <Route path="updates" element={<Navigate to="/admin/content" replace />} />
                 <Route path="visibility" element={<Navigate to="/admin/settings" replace />} />
-                <Route path="content" element={<AdminContent />} />
-                <Route path="campaigns" element={<AdminCampaigns />} />
-                <Route path="shipping" element={<AdminShipping />} />
-                <Route path="seo" element={<AdminSEO />} />
-                <Route path="legal" element={<AdminLegal />} />
-                <Route path="settings" element={<AdminSettingsPage />} />
-                <Route path="stats" element={<AdminStats />} />
-                <Route path="reviews" element={<AdminReviews />} />
-                <Route path="logs" element={<AdminLogs />} />
-                <Route path="incidents" element={<AdminIncidents />} />
-                <Route path="finance" element={<AdminPayments />} />
-                <Route path="payments" element={<AdminPayments />} />
-                <Route path="donations" element={<AdminDonations />} />
+                <Route path="content" element={<RequirePermission module="content"><AdminContent /></RequirePermission>} />
+                <Route path="campaigns" element={<RequirePermission module="content"><AdminCampaigns /></RequirePermission>} />
+                <Route path="shipping" element={<RequirePermission module="system"><AdminShipping /></RequirePermission>} />
+                <Route path="seo" element={<RequirePermission module="content"><AdminSEO /></RequirePermission>} />
+                <Route path="legal" element={<RequirePermission module="content"><AdminLegal /></RequirePermission>} />
+                <Route path="settings" element={<RequirePermission module="system"><AdminSettingsPage /></RequirePermission>} />
+                <Route path="stats" element={<RequirePermission module="statistics"><AdminStats /></RequirePermission>} />
+                <Route path="reviews" element={<RequirePermission module="reviews"><AdminReviews /></RequirePermission>} />
+                <Route path="logs" element={<RequirePermission module="system"><AdminLogs /></RequirePermission>} />
+                <Route path="incidents" element={<RequirePermission module="system"><AdminIncidents /></RequirePermission>} />
+                <Route path="finance" element={<RequirePermission module="finance"><AdminPayments /></RequirePermission>} />
+                <Route path="payments" element={<RequirePermission module="finance"><AdminPayments /></RequirePermission>} />
+                <Route path="donations" element={<RequirePermission module="donations"><AdminDonations /></RequirePermission>} />
                 <Route path="staff" element={<AdminStaff />} />
                 <Route path="roles" element={<AdminRoles />} />
-                <Route path="insights" element={<AdminInsights />} />
-                <Route path="data" element={<AdminData />} />
-                <Route path="history" element={<AdminHistory />} />
-                <Route path="changes" element={<AdminChangeHistory />} />
-                <Route path="database" element={<AdminDatabase />} />
-                <Route path="warehouse" element={<ScanPackingMode />} />
-                <Route path="system-explorer" element={<SystemExplorer />} />
+                <Route path="insights" element={<RequirePermission module="statistics"><AdminInsights /></RequirePermission>} />
+                <Route path="data" element={<RequirePermission module="system"><AdminData /></RequirePermission>} />
+                <Route path="history" element={<RequirePermission module="system"><AdminHistory /></RequirePermission>} />
+                <Route path="changes" element={<RequirePermission module="system"><AdminChangeHistory /></RequirePermission>} />
+                <Route path="database" element={<RequirePermission module="system"><AdminDatabase /></RequirePermission>} />
+                <Route path="warehouse" element={<RequirePermission module="orders"><ScanPackingMode /></RequirePermission>} />
+                <Route path="system-explorer" element={<RequirePermission module="system"><SystemExplorer /></RequirePermission>} />
               </Route>
 
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

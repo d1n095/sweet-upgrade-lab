@@ -123,7 +123,7 @@ const AdminRoles = () => {
 
   // ─── Guards ───
   if (founderLoading) return <div className="flex items-center justify-center py-20 text-muted-foreground">Laddar...</div>;
-  console.log("FOUNDER MODE ACTIVE");
+  if (!isFounder) return <div className="flex items-center justify-center py-20 text-muted-foreground">Access denied</div>;
   if (!templates && !isLoading) return null; // deny-by-default
 
   if (isLoading) return <p className="text-center text-muted-foreground py-8">Laddar...</p>;

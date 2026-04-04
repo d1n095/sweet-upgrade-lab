@@ -85,5 +85,10 @@ export const useModulePermissions = () => {
     };
   }, [permissions]);
 
-  return { can, permissions, isLoading: authLoading || isLoading };
+  const allowedModules = useMemo(
+    () => permissions.filter(p => p.can_read).map(p => p.module),
+    [permissions]
+  );
+
+  return { can, permissions, isLoading: authLoading || isLoading, allowedModules };
 };

@@ -556,7 +556,7 @@ const AdminMemberManager = ({ roleFilter = 'all', onStatsUpdate }: AdminMemberMa
       return;
     }
     const currentRole = userRoles[userId];
-    console.log("FOUNDER MODE ACTIVE");
+    if (!isFounder) { toast.error('Access denied'); return; }
     const member = members.find(m => m.user_id === userId);
     setPendingRoleChange({ userId, role, username: member?.username || member?.email || userId.slice(0, 8) });
   };
