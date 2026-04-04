@@ -3501,9 +3501,9 @@ export type Database = {
       }
       system_history: {
         Row: {
-          ai_review_at: string | null
-          ai_review_result: Json | null
-          ai_review_status: string | null
+          review_at: string | null
+          review_result: Json | null
+          review_status: string | null
           archived_at: string | null
           assigned_to: string | null
           claimed_by: string | null
@@ -3524,9 +3524,9 @@ export type Database = {
           work_item_id: string
         }
         Insert: {
-          ai_review_at?: string | null
-          ai_review_result?: Json | null
-          ai_review_status?: string | null
+          review_at?: string | null
+          review_result?: Json | null
+          review_status?: string | null
           archived_at?: string | null
           assigned_to?: string | null
           claimed_by?: string | null
@@ -3547,9 +3547,9 @@ export type Database = {
           work_item_id: string
         }
         Update: {
-          ai_review_at?: string | null
-          ai_review_result?: Json | null
-          ai_review_status?: string | null
+          review_at?: string | null
+          review_result?: Json | null
+          review_status?: string | null
           archived_at?: string | null
           assigned_to?: string | null
           claimed_by?: string | null
@@ -3845,9 +3845,9 @@ export type Database = {
           ai_pre_verify_result: Json | null
           ai_pre_verify_status: string | null
           ai_resolution_notes: string | null
-          ai_review_at: string | null
-          ai_review_result: Json | null
-          ai_review_status: string | null
+          review_at: string | null
+          review_result: Json | null
+          review_status: string | null
           ai_root_causes: Json | null
           ai_type_classification: string | null
           ai_type_reason: string | null
@@ -3904,9 +3904,9 @@ export type Database = {
           ai_pre_verify_result?: Json | null
           ai_pre_verify_status?: string | null
           ai_resolution_notes?: string | null
-          ai_review_at?: string | null
-          ai_review_result?: Json | null
-          ai_review_status?: string | null
+          review_at?: string | null
+          review_result?: Json | null
+          review_status?: string | null
           ai_root_causes?: Json | null
           ai_type_classification?: string | null
           ai_type_reason?: string | null
@@ -3963,9 +3963,9 @@ export type Database = {
           ai_pre_verify_result?: Json | null
           ai_pre_verify_status?: string | null
           ai_resolution_notes?: string | null
-          ai_review_at?: string | null
-          ai_review_result?: Json | null
-          ai_review_status?: string | null
+          review_at?: string | null
+          review_result?: Json | null
+          review_status?: string | null
           ai_root_causes?: Json | null
           ai_type_classification?: string | null
           ai_type_reason?: string | null

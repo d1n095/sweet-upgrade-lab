@@ -164,13 +164,13 @@ export async function runCriticalPathCheck(): Promise<CriticalPathReport> {
   try {
     const { data: resolvedItems } = await supabase
       .from('work_items' as any)
-      .select('id, ai_review_status')
+      .select('id, review_status')
       .eq('status', 'done')
       .order('completed_at', { ascending: false })
       .limit(15);
 
     const unverified = (resolvedItems || []).filter(
-      (i: any) => !i.ai_review_status || i.ai_review_status === 'pending'
+      (i: any) => !i.review_status || i.review_status === 'pending'
     ).length;
 
     const total = (resolvedItems || []).length;

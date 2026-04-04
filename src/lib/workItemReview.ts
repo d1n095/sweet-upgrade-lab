@@ -54,9 +54,9 @@ export const triggerReviewForWorkItem = async (
     await supabase
       .from('work_items')
       .update({
-        ai_review_status: reviewResult.status,
-        ai_review_result: reviewResult,
-        ai_review_at: new Date().toISOString(),
+        review_status: reviewResult.status,
+        review_result: reviewResult,
+        review_at: new Date().toISOString(),
       } as any)
       .eq('id', workItemId);
 
@@ -69,14 +69,14 @@ export const triggerReviewForWorkItem = async (
     await supabase
       .from('work_items')
       .update({
-        ai_review_status: 'needs_review',
-        ai_review_result: {
+        review_status: 'needs_review',
+        review_result: {
           status: 'needs_review',
           verdict: `Granskning misslyckades (${context})`,
           confidence: 0,
           error: message,
         },
-        ai_review_at: new Date().toISOString(),
+        review_at: new Date().toISOString(),
       } as any)
       .eq('id', workItemId);
 

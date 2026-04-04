@@ -35,9 +35,9 @@ interface WorkItemDetailProps {
     assigned_to: string | null;
     claimed_by: string | null;
     created_by: string | null;
-    ai_review_status?: string;
-    ai_review_result?: any;
-    ai_review_at?: string;
+    review_status?: string;
+    review_result?: any;
+    review_at?: string;
     ai_pre_verify_status?: string;
     ai_pre_verify_result?: any;
     ai_pre_verify_at?: string;
@@ -736,45 +736,45 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
               </Button>
             )}
 
-            {/* AI Review Results */}
-            {item.ai_review_status && (
+            {/* Review Results */}
+            {item.review_status && (
               <div className={cn('rounded-lg p-3 space-y-2 border', {
-                'bg-accent/5 border-accent/20': item.ai_review_status === 'verified',
-                'bg-yellow-50 border-yellow-200': item.ai_review_status === 'needs_review',
-                'bg-destructive/5 border-destructive/20': item.ai_review_status === 'incomplete',
+                'bg-accent/5 border-accent/20': item.review_status === 'verified',
+                'bg-yellow-50 border-yellow-200': item.review_status === 'needs_review',
+                'bg-destructive/5 border-destructive/20': item.review_status === 'incomplete',
               })}>
                 <div className="flex items-center gap-1.5 text-xs font-semibold">
                   <Bot className="w-3.5 h-3.5" />
-                  AI-granskning
+                  Granskning
                   <Badge variant="outline" className={cn('text-[9px] ml-auto', {
-                    'border-accent/30 text-accent': item.ai_review_status === 'verified',
-                    'border-yellow-300 text-yellow-700': item.ai_review_status === 'needs_review',
-                    'border-destructive/30 text-destructive': item.ai_review_status === 'incomplete',
+                    'border-accent/30 text-accent': item.review_status === 'verified',
+                    'border-yellow-300 text-yellow-700': item.review_status === 'needs_review',
+                    'border-destructive/30 text-destructive': item.review_status === 'incomplete',
                   })}>
-                    {item.ai_review_status === 'verified' ? '✅ Verifierad' :
-                     item.ai_review_status === 'needs_review' ? '⚠️ Behöver granskning' : '❌ Ofullständig'}
+                    {item.review_status === 'verified' ? '✅ Verifierad' :
+                     item.review_status === 'needs_review' ? '⚠️ Behöver granskning' : '❌ Ofullständig'}
                   </Badge>
                 </div>
-                {item.ai_review_result?.verdict && <p className="text-xs">{item.ai_review_result.verdict}</p>}
-                {item.ai_review_result?.confidence != null && (
+                {item.review_result?.verdict && <p className="text-xs">{item.review_result.verdict}</p>}
+                {item.review_result?.confidence != null && (
                   <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                    <span>Konfidens: {item.ai_review_result.confidence}%</span>
-                    {item.ai_review_at && <span>• {fmtFull(item.ai_review_at).relative}</span>}
+                    <span>Konfidens: {item.review_result.confidence}%</span>
+                    {item.review_at && <span>• {fmtFull(item.review_at).relative}</span>}
                   </div>
                 )}
-                {item.ai_review_result?.risks?.length > 0 && (
+                {item.review_result?.risks?.length > 0 && (
                   <div className="text-xs">
                     <span className="font-medium text-destructive">Risker:</span>
                     <ul className="list-disc pl-4 mt-0.5 space-y-0.5">
-                      {item.ai_review_result.risks.map((r: string, i: number) => <li key={i}>{r}</li>)}
+                      {item.review_result.risks.map((r: string, i: number) => <li key={i}>{r}</li>)}
                     </ul>
                   </div>
                 )}
-                {item.ai_review_result?.edge_cases?.length > 0 && (
+                {item.review_result?.edge_cases?.length > 0 && (
                   <div className="text-xs">
                     <span className="font-medium text-yellow-700">Edge cases:</span>
                     <ul className="list-disc pl-4 mt-0.5 space-y-0.5">
-                      {item.ai_review_result.edge_cases.map((e: string, i: number) => <li key={i}>{e}</li>)}
+                      {item.review_result.edge_cases.map((e: string, i: number) => <li key={i}>{e}</li>)}
                     </ul>
                   </div>
                 )}
@@ -799,7 +799,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                 }}
               >
                 {runningReview ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Bot className="w-3.5 h-3.5" />}
-                {item.ai_review_status ? 'Kör AI-granskning igen' : 'Kör AI-granskning'}
+                {item.review_status ? 'Kör granskning igen' : 'Kör granskning'}
               </Button>
             )}
 
