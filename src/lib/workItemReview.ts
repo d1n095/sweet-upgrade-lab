@@ -1,31 +1,30 @@
 import { supabase } from '@/integrations/supabase/client';
 
-type AiReviewStatus = 'verified' | 'needs_review' | 'incomplete' | 'pending' | null;
+type ReviewStatus = 'verified' | 'needs_review' | 'incomplete' | 'pending' | null;
 
-interface TriggerAiReviewOptions {
+interface TriggerReviewOptions {
   context?: string;
 }
 
-interface TriggerAiReviewResult {
+interface TriggerReviewResult {
   ok: boolean;
-  status: AiReviewStatus;
+  status: ReviewStatus;
   review?: any;
   error?: string;
 }
 
 /**
- * AI-FREE review: Uses rule-based verification instead of AI gateway.
- * Simply marks items as 'needs_review' for manual verification.
+ * Rule-based review: marks items as 'verified' if completed, otherwise 'needs_review'.
+ * No AI gateway — purely deterministic based on work item state.
  */
-export const triggerAiReviewForWorkItem = async (
+export const triggerReviewForWorkItem = async (
   workItemId: string,
-  options: TriggerAiReviewOptions = {}
-): Promise<TriggerAiReviewResult> => {
+  options: TriggerReviewOptions = {}
+): Promise<TriggerReviewResult> => {
   const context = options.context || 'unknown';
   console.info('[review] trigger (rule-based)', { workItemId, context });
 
   try {
-    // Fetch work item to check if it has resolution notes
     const { data: item, error: fetchError } = await supabase
       .from('work_items')
       .select('id, title, resolution_notes, status, completed_at')
@@ -36,15 +35,11 @@ export const triggerAiReviewForWorkItem = async (
       throw new Error(fetchError?.message || 'Work item not found');
     }
 
-    // Rule-based verification:
-    // - Has resolution notes → verified
-    // - Status is done and has completed_at → verified
-    // - Otherwise → needs_review
     const hasResolution = !!item.resolution_notes && item.resolution_notes.trim().length > 0;
     const isDone = item.status === 'done' && !!item.completed_at;
 
     const reviewResult = {
-      status: (hasResolution || isDone) ? 'verified' : 'needs_review' as AiReviewStatus,
+      status: (hasResolution || isDone) ? 'verified' : 'needs_review' as ReviewStatus,
       verdict: hasResolution
         ? 'Regelbaserad verifiering: resolution notes finns'
         : isDone
@@ -65,7 +60,7 @@ export const triggerAiReviewForWorkItem = async (
       .eq('id', workItemId);
 
     console.info('[review] complete (rule-based)', { workItemId, context, status: reviewResult.status });
-    return { ok: true, status: reviewResult.status as AiReviewStatus, review: reviewResult };
+    return { ok: true, status: reviewResult.status as ReviewStatus, review: reviewResult };
   } catch (err: any) {
     const message = err?.message || 'Unknown review error';
     console.error('[review] failed', { workItemId, context, message });
