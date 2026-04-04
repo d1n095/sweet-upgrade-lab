@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { ShoppingCart, Check, Crown, Flame } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ShopifyProduct } from '@/lib/shopify';
+import { ShopifyProduct } from '@/lib/storefrontApi';
 import { useCartStore } from '@/stores/cartStore';
 import { useMemberPrices } from '@/hooks/useMemberPrices';
 import { useAuth } from '@/hooks/useAuth';

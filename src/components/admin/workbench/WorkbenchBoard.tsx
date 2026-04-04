@@ -26,7 +26,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { getOrderDisplayId } from '@/utils/orderDisplay';
 import WorkItemDetail from './WorkItemDetail';
 import { useNavigate } from 'react-router-dom';
-import { triggerAiReviewForWorkItem } from '@/lib/workItemAiReview';import { createAndVerify } from '@/utils/createVerifyLoop';
+import { createAndVerify } from '@/utils/createVerifyLoop';
 import { trace, newTraceId, traceUIFetch } from '@/utils/deepDebugTrace';
 import { verifyAction } from '@/utils/actionVerificationEngine';
 
@@ -55,11 +55,6 @@ interface WorkItem {
   conflict_flag?: boolean;
   execution_order?: number;
   orchestrator_result?: any;
-  ai_type_classification?: string;
-  ai_type_reason?: string;
-  ai_review_status?: string;
-  ai_review_result?: any;
-  ai_review_at?: string;
   resolution_notes?: string;
 }
 

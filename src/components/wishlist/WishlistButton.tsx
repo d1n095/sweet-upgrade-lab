@@ -1,7 +1,7 @@
 import { Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useWishlistStore } from '@/stores/wishlistStore';
-import { ShopifyProduct } from '@/lib/shopify';
+import { ShopifyProduct } from '@/lib/storefrontApi';
 import { cn } from '@/lib/utils';
 
 interface WishlistButtonProps {

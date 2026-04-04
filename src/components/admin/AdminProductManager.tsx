@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useLanguage } from '@/context/LanguageContext';
 import { toast } from 'sonner';
-import { fetchProducts, ShopifyProduct } from '@/lib/shopify';
+import { fetchProducts, ShopifyProduct } from '@/lib/storefrontApi';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { safeInvoke } from '@/lib/safeInvoke';

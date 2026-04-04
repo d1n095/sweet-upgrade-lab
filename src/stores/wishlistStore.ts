@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { ShopifyProduct } from '@/lib/shopify';
+import { ShopifyProduct } from '@/lib/storefrontApi';
 import { supabase } from '@/integrations/supabase/client';
 
 interface WishlistStore {

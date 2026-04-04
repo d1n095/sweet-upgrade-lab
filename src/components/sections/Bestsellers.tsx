@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { TrendingUp, ArrowRight } from 'lucide-react';
 import { useLanguage, getContentLang } from '@/context/LanguageContext';
-import { fetchProducts, ShopifyProduct } from '@/lib/shopify';
+import { fetchProducts, ShopifyProduct } from '@/lib/storefrontApi';
 import ShopifyProductCard from '@/components/product/ShopifyProductCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';

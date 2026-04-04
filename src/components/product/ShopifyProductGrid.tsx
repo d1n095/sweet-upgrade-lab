@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Package, Loader2, ArrowUpDown } from 'lucide-react';
 import ShopifyProductCard from '@/components/product/ShopifyProductCard';
-import { fetchProducts, ShopifyProduct } from '@/lib/shopify';
+import { fetchProducts, ShopifyProduct } from '@/lib/storefrontApi';
 import { useDbCategories, type FrontendCategory } from '@/hooks/useDbCategories';
 import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import { cn } from '@/lib/utils';

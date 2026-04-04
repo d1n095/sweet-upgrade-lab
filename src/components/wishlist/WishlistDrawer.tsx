@@ -8,7 +8,7 @@ import { useWishlistStore } from '@/stores/wishlistStore';
 import { useCartStore } from '@/stores/cartStore';
 import { useLanguage } from '@/context/LanguageContext';
 import { useAuth } from '@/hooks/useAuth';
-import { ShopifyProduct } from '@/lib/shopify';
+import { ShopifyProduct } from '@/lib/storefrontApi';
 import AuthModal from '@/components/auth/AuthModal';
 
 interface WishlistDrawerProps {
