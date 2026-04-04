@@ -236,16 +236,6 @@ const FUNCTION_INVENTORY: FunctionDef[] = [
   },
   // ── BLOCKED / DISABLED FUNCTIONS ──
   {
-    function_name: 'ai-assistant',
-    where_called_from: ['AdminAI (deleted)', 'SystemExplorer (deleted)'],
-    has_ui: false,
-    trigger_type: 'button',
-    risk_level: 'high',
-    status: 'blocked',
-    invisible: false,
-    description: 'General-purpose AI assistant — DELETED, no edge function exists',
-  },
-  {
     function_name: 'automation-engine',
     where_called_from: ['WorkbenchBoard (disabled)'],
     has_ui: true,
@@ -254,16 +244,6 @@ const FUNCTION_INVENTORY: FunctionDef[] = [
     status: 'blocked',
     invisible: false,
     description: 'General automation orchestrator — DISABLED',
-  },
-  {
-    function_name: 'generate-product-content',
-    where_called_from: ['AdminProductForm (deleted)'],
-    has_ui: false,
-    trigger_type: 'button',
-    risk_level: 'high',
-    status: 'blocked',
-    invisible: false,
-    description: 'AI product content generator — DELETED, edge function removed',
   },
 ];
 
