@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { tracedInvoke } from "@/lib/tracedInvoke";
+import { safeInvoke } from "@/lib/safeInvoke";
+import { ScanViewer, LogsViewer, ErrorViewer } from "@/pages/admin/system";
+import { ActionMonitorPanel } from "@/components/admin/ActionMonitorPanel";
+import { logEvent } from "@/lib/actionMonitor";
 import { useAiQueueStore } from "@/stores/aiQueueStore";
 import { fileSystemMap, type FileEntry, getFileContent, getCodeIndex, getDuplicatedLines, getCodeIssues, getRawSources, scanFileContent } from "@/lib/fileSystemMap";
 import { useAdminRole } from "@/hooks/useAdminRole";
@@ -401,7 +404,7 @@ const SystemExplorer = () => {
       }
       if (mode === "full") {
         console.log("[FULL SCAN TRIGGERED]");
-        await tracedInvoke("run-full-scan", {
+        await safeInvoke("run-full-scan", {
           body: { action: "start", scan_mode: "full" },
         });
         logAction({ type: "SCAN", status: "success", mode });
@@ -624,9 +627,10 @@ const SystemExplorer = () => {
       const beforeCount = before.data?.length || 0;
       logAction({ type: "Full Scan", status: "started" });
       console.log("🚀 STARTING FULL SCAN");
-      const res = await tracedInvoke("run-full-scan", {
+      const res = await safeInvoke("run-full-scan", {
         body: { action: "start", scan_mode: "full" },
       });
+      logEvent({ type: "scan", source: "scanner", label: `Scan complete: ${res.data ? "success" : "failed"}`, status: res.error ? "error" : "ok", payload: res.data });
       console.log("📡 RESPONSE:", res);
       const verify = await verifyWorkItemsCreated(beforeCount);
       if (verify.created === 0) {
@@ -1202,6 +1206,7 @@ const SystemExplorer = () => {
         <div className="text-[10px] font-mono text-muted-foreground">Last action: {lastAction || "none"}</div>
 
         {/* Action Monitor */}
+        <ActionMonitorPanel />
         <details className="border border-border rounded-md">
           <summary className="px-3 py-1.5 text-[10px] font-semibold cursor-pointer bg-muted/30 hover:bg-muted/50 transition-colors">
             Action Monitor ({actionLogs.length})
@@ -1305,7 +1310,7 @@ const SystemExplorer = () => {
               try {
                 logAction({ type: "Full Scan", status: "started", message: "invoke dispatched" });
                 console.log("[UI INVOKE] run-full-scan called");
-                const { data, error } = await tracedInvoke("run-full-scan", {
+                const { data, error } = await safeInvoke("run-full-scan", {
                   body: { action: "start", scan_mode: "full" },
                 });
                 console.log("[UI RESPONSE]", data, error);
@@ -1804,7 +1809,7 @@ const SystemExplorer = () => {
                 </button>
               ))}
               <Button variant="outline" size="sm" className="text-[10px] h-6 ml-auto" onClick={() => {
-                tracedInvoke("run-full-scan", {
+                safeInvoke("run-full-scan", {
                   body: { action: "start", scan_mode: "full" },
                 }).catch((err: any) => console.error("[SCAN FILES ERROR]:", err));
               }}>
@@ -4128,7 +4133,7 @@ const SystemExplorer = () => {
                       const meta = (selectedItem as any).metadata ? (typeof (selectedItem as any).metadata === "string" ? JSON.parse((selectedItem as any).metadata) : (selectedItem as any).metadata) : {};
                       const target = meta?.affected_area?.target || (selectedItem as any).source_component || (selectedItem as any).source_path || selectedItem.item_type;
 
-                      const verifyRes = await tracedInvoke("run-full-scan", {
+                      const verifyRes = await safeInvoke("run-full-scan", {
                         body: { action: "start", scan_mode: "targeted", target_area: target, verification_for: selectedItem.id },
                       });
                       console.log("[DEBUG] VERIFY SCAN RESPONSE:", verifyRes);
