@@ -172,7 +172,7 @@ export const useCartStore = create<CartStore>()(
           );
           setCheckoutUrl(checkoutUrl);
         } catch (error) {
-          console.error('Failed to create checkout:', error);
+
         } finally {
           setLoading(false);
         }
@@ -207,7 +207,7 @@ export const useCartStore = create<CartStore>()(
       },
       onRehydrateStorage: () => (state, error) => {
         if (error) {
-          console.error('Cart rehydration failed:', error);
+
         }
 
         useCartStore.setState({

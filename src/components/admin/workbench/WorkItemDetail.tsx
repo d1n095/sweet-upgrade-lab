@@ -205,7 +205,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
       toast.success('Ignorerad ✓');
       onRefresh?.();
       onOpenChange(false);
-    } catch (e) { toast.error('Fel vid ignorering'); console.error(e); }
+    } catch (_) { toast.error('Fel vid ignorering'); }
     finally { setIgnoreSaving(false); }
   };
 
@@ -213,7 +213,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
     const { error } = await supabase.from('work_items').update({
       ignored: false, ignored_reason: null, ignored_at: null, status: 'open',
     } as any).eq('id', item.id);
-    if (error) { toast.error('Fel vid återöppning'); console.error(error); return; }
+    if (error) { toast.error('Fel vid återöppning'); return; }
     toast.success('Återöppnad');
     onRefresh?.();
   };

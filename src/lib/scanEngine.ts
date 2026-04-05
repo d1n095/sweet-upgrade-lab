@@ -34,7 +34,7 @@ function persistJob(job: ScanJob | null) {
 async function runFrontendScan(type: ScanJobType): Promise<void> {
   // All scan types run through the unified full-scan orchestrator
   const orchestrator = useFullScanOrchestrator.getState();
-  console.log("ENGINE STATE:", currentJob);
+
   await orchestrator.runOrchestrated();
 }
 
@@ -44,7 +44,7 @@ async function runFrontendScan(type: ScanJobType): Promise<void> {
  */
 export const startScanJob = async (type: ScanJobType): Promise<void> => {
   if (currentJob) {
-    console.warn("⚠️ SCAN BLOCKED — JOB RUNNING");
+
     return;
   }
 
@@ -55,15 +55,15 @@ export const startScanJob = async (type: ScanJobType): Promise<void> => {
   };
 
   persistJob(currentJob);
-  console.log("🚀 START JOB:", type);
-  console.log("ENGINE STATE:", currentJob);
+
+
 
   try {
     await runFrontendScan(type);
     currentJob.status = 'done';
     persistJob(currentJob);
   } catch (err) {
-    console.error("❌ JOB FAIL:", err);
+
     if (currentJob) {
       currentJob.status = 'error';
       persistJob(currentJob);
@@ -91,7 +91,7 @@ export function resumeInterruptedJob(): void {
     const job: ScanJob = JSON.parse(saved);
 
     if (job.status === 'running') {
-      console.log("♻️ RESUMING JOB", job.type);
+
       // Small delay so stores are initialised before the scan starts
       setTimeout(() => startScanJob(job.type), 500);
     } else {

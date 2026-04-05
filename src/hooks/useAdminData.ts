@@ -138,8 +138,8 @@ export const useAdminWorkItems = (options?: { enabled?: boolean }) =>
         .order('created_at', { ascending: false })
         .limit(500);
       if (error) throw error;
-      console.log('[useAdminWorkItems] DB ITEMS:', (data || []).length, 'items fetched');
-      console.log('FETCHED WORK ITEMS:', data);
+
+
       return (data || []) as any[];
     },
     staleTime: 5_000,

@@ -133,7 +133,7 @@ const AdminLegalDocuments = () => {
         selectDocument(data[0] as LegalDocument);
       }
     } catch (error) {
-      console.error('Failed to load documents:', error);
+
     } finally {
       setIsLoading(false);
     }
@@ -159,7 +159,7 @@ const AdminLegalDocuments = () => {
       
       setVersions((data || []) as DocumentVersion[]);
     } catch (error) {
-      console.error('Failed to load versions:', error);
+
     }
   };
 
@@ -200,7 +200,7 @@ const AdminLegalDocuments = () => {
       setIsEditing(false);
       loadDocuments();
     } catch (error) {
-      console.error('Failed to save document:', error);
+
       toast.error('Error saving document');
     } finally {
       setIsSaving(false);

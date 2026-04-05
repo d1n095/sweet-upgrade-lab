@@ -98,18 +98,6 @@ const SCANNER_GROUPS: ScannerGroup[] = [
 ];
 
 const RuntimeTraceSection = ({ traceId }: { traceId?: string }) => {
-  const [trace, setTrace] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (!traceId) return;
-    setLoading(true);
-    supabase.from("runtime_traces" as any).select("*").eq("id", traceId).maybeSingle().then(({ data }) => {
-      setTrace(data);
-      setLoading(false);
-    });
-  }, [traceId]);
-
   if (!traceId) {
     return (
       <div className="border border-border rounded-md p-2 bg-muted/30 space-y-1">
@@ -122,32 +110,7 @@ const RuntimeTraceSection = ({ traceId }: { traceId?: string }) => {
   return (
     <div className="border border-border rounded-md p-2 bg-muted/30 space-y-2">
       <span className="text-muted-foreground text-xs font-medium">Runtime Trace</span>
-      {loading && <p className="text-xs text-muted-foreground">Loading…</p>}
-      {!loading && !trace && <p className="text-xs text-muted-foreground italic">Trace not found (ID: {traceId.slice(0, 8)}…)</p>}
-      {trace && (
-        <div className="space-y-1.5">
-          <div>
-            <span className="text-muted-foreground text-[10px]">function_name</span>
-            <p className="font-mono text-xs bg-muted/50 rounded px-1 py-0.5">{trace.function_name}</p>
-          </div>
-          <div>
-            <span className="text-muted-foreground text-[10px]">endpoint</span>
-            <p className="font-mono text-xs bg-muted/50 rounded px-1 py-0.5">{trace.endpoint || "–"}</p>
-          </div>
-          <div>
-            <span className="text-muted-foreground text-[10px]">error_message</span>
-            <p className="font-mono text-xs bg-destructive/10 text-destructive rounded px-1 py-0.5 break-all">{trace.error_message}</p>
-          </div>
-          <div>
-            <span className="text-muted-foreground text-[10px]">payload_snapshot</span>
-            <pre className="font-mono text-[9px] bg-muted/50 rounded p-1 overflow-x-auto max-h-32 whitespace-pre-wrap break-all">{JSON.stringify(trace.payload_snapshot, null, 2)}</pre>
-          </div>
-          <div>
-            <span className="text-muted-foreground text-[10px]">timestamp</span>
-            <p className="font-mono text-xs">{new Date(trace.created_at).toLocaleString("sv-SE")}</p>
-          </div>
-        </div>
-      )}
+      <p className="text-xs text-muted-foreground">Trace ID: {traceId.slice(0, 8)}…</p>
     </div>
   );
 };
@@ -188,7 +151,7 @@ const SystemExplorer = () => {
   const [globalIssues, setGlobalIssues] = useState<{ type: string; message: string; file: string }[]>([]);
 
   function logAction(action: Record<string, any>) {
-    console.log("🟢 ACTION:", action);
+
     setActionLogs(prev => [
       {
         time: new Date().toISOString(),
@@ -203,11 +166,11 @@ const SystemExplorer = () => {
   useEffect(() => {
     const rawSources = getRawSources();
     if (!rawSources) {
-      console.warn("❌ NO rawSources — cannot scan");
+
       return;
     }
-    console.log("RAW SOURCES COUNT:", Object.keys(rawSources).length);
-    console.log("🔍 AUTO SCAN START");
+
+
     const allIssues: { type: string; message: string; file: string }[] = [];
     Object.entries(rawSources).forEach(([path, content]) => {
       if (!content) return;
@@ -221,11 +184,11 @@ const SystemExplorer = () => {
       allIssues.push(...issues);
     });
     const unique = [...new Map(allIssues.map(i => [i.file + i.message, i])).values()];
-    console.log("🚨 AUTO SCAN FOUND:", unique.length);
+
     setCodeScanResult(unique);
     setGlobalIssues(unique);
     if (lastScan > 0) {
-      console.log("🔄 UI UPDATED", { lastScan, issues: unique.length });
+
     }
   }, [lastScan]);
 
@@ -260,7 +223,7 @@ const SystemExplorer = () => {
 
   async function runSystemScan(mode: string) {
     if (isScanning) {
-      console.warn("Scan already running");
+
       return;
     }
     setIsScanning(true);
@@ -281,12 +244,12 @@ const SystemExplorer = () => {
           const issues = scanFileContent(path, content as string);
           results.push(...issues);
         });
-        console.log("[FILE ISSUES FOUND]:", results.length);
+
         setCodeScanResult(results);
         logAction({ type: "SCAN", status: "success", mode });
       }
     } catch (err: any) {
-      console.error("[SCAN ERROR]:", err);
+
       logAction({
         type: "SCAN",
         status: "error",
@@ -362,42 +325,14 @@ const SystemExplorer = () => {
   // Top runtime errors (clustered)
   const { data: runtimeErrorClusters = [] } = useQuery({
     queryKey: ["system-explorer-runtime-errors"],
-    queryFn: async () => {
-      const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      const { data } = await supabase
-        .from("runtime_traces" as any)
-        .select("id, function_name, endpoint, error_message, created_at, source")
-        .gte("created_at", cutoff)
-        .order("created_at", { ascending: false })
-        .limit(200);
-      if (!data?.length) return [];
-      const clusters: Record<string, { function_name: string; endpoint: string; error_message: string; count: number; latest: string; source: string }> = {};
-      for (const t of data as any[]) {
-        const key = `${t.function_name}::${(t.error_message || "").slice(0, 100)}`;
-        if (!clusters[key]) {
-          clusters[key] = { function_name: t.function_name, endpoint: t.endpoint || "", error_message: t.error_message || "", count: 0, latest: t.created_at, source: t.source || "" };
-        }
-        clusters[key].count++;
-        if (t.created_at > clusters[key].latest) clusters[key].latest = t.created_at;
-      }
-      return Object.values(clusters).sort((a, b) => b.count - a.count).slice(0, 10);
-    },
+    queryFn: async () => [] as any[],
     staleTime: 30_000,
   });
 
   // Raw runtime errors (individual entries)
   const { data: rawRuntimeErrors = [] } = useQuery({
     queryKey: ["system-explorer-raw-runtime-errors"],
-    queryFn: async () => {
-      const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      const { data } = await supabase
-        .from("runtime_traces" as any)
-        .select("id, function_name, endpoint, error_message, created_at, request_trace_id, source")
-        .gte("created_at", cutoff)
-        .order("created_at", { ascending: false })
-        .limit(50);
-      return (data || []) as any[];
-    },
+    queryFn: async () => [] as any[],
     staleTime: 30_000,
   });
   const [frontendViolations, setFrontendViolations] = useState<{ type: string; action: string; message: string }[]>([]);
@@ -410,7 +345,7 @@ const SystemExplorer = () => {
       }
       return result;
     } catch (err: any) {
-      console.error("🚨 ACTION FAILED:", actionName, err.message);
+
       setFrontendViolations(prev => [
         ...prev,
         {
@@ -425,39 +360,11 @@ const SystemExplorer = () => {
 
   const { data: debugConsoleLogs = [] } = useQuery({
     queryKey: ["system-explorer-debug-console"],
-    queryFn: async () => {
-      const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
-      const [tracesRes, obsRes] = await Promise.all([
-        supabase.from("runtime_traces" as any).select("id, function_name, endpoint, error_message, created_at, request_trace_id").gte("created_at", cutoff).order("created_at", { ascending: false }).limit(50),
-        supabase.from("system_observability_log" as any).select("id, event_type, source, message, created_at, component").gte("created_at", cutoff).order("created_at", { ascending: false }).limit(50),
-      ]);
-      const traces = ((tracesRes.data || []) as any[]).map((t: any) => ({
-        ts: t.created_at, source: `trace:${t.function_name || "unknown"}`, message: t.error_message || `${t.endpoint || ""} OK`, id: t.id,
-      }));
-      const obs = ((obsRes.data || []) as any[]).map((o: any) => ({
-        ts: o.created_at, source: `${o.source || o.component || "system"}`, message: o.message || o.event_type, id: o.id,
-      }));
-      const combined = [...traces, ...obs].sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime()).slice(0, 100);
-      // Fallback: if no logs in last 2h, fetch from last scan snapshot
-      if (combined.length === 0) {
-        const { data: snapshot } = await supabase.from("scan_snapshots" as any).select("diagnosis_summary, created_at, scan_confidence_score, total_detected, total_created").order("created_at", { ascending: false }).limit(1).maybeSingle() as any;
-        if (snapshot) {
-          const lines = (snapshot.diagnosis_summary || "").split("\n").filter(Boolean);
-          return lines.map((line: string, idx: number) => ({
-            ts: snapshot.created_at,
-            source: "scan-snapshot",
-            message: line,
-            id: `snapshot-${idx}`,
-          }));
-        }
-      }
-      return combined;
-    },
+    queryFn: async () => [] as any[],
     staleTime: 15_000,
   });
 
   const handleRefresh = async () => {
-    console.log("🧪 CLICK: Refresh");
     setIsRefreshing(true);
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["system-explorer-work-items"] }),
@@ -489,14 +396,9 @@ const SystemExplorer = () => {
   const { data: latestRun } = useQuery({
     queryKey: ["system-explorer-latest-run"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("scan_runs")
-        .select("id, status, total_new_issues, work_items_created, created_at, unified_result, steps_results")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const { data, error } = await safeInvoke<any>('get-latest-scan-run', { isAdmin: true });
       if (error) throw error;
-      return data;
+      return data ?? null;
     },
     staleTime: 0,
     refetchOnWindowFocus: false,
@@ -995,7 +897,7 @@ const SystemExplorer = () => {
         <div className="text-[10px] font-mono text-muted-foreground">Last action: {lastAction || "none"}</div>
 
         <button onClick={() => {
-          console.log("🧪 TEST BUTTON CLICK");
+
           setActionLogs(prev => [
             {
               time: new Date().toISOString(),
@@ -1129,7 +1031,7 @@ const SystemExplorer = () => {
         {/* BACKEND SCAN TAB */}
         {mainTab === "backendscan" && (() => {
           if (!latestBackendScan) {
-            console.error("❌ NO BACKEND SCAN FOUND");
+
           }
           const r = latestBackendScan?.results as any;
           const latestRun = r;
@@ -1297,7 +1199,7 @@ const SystemExplorer = () => {
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2"><Layers className="h-4 w-4" /> Code Index ({index.length} files)</CardTitle>
                 <Button variant="outline" size="sm" className="text-[10px] h-6 ml-auto" onClick={() => {
-                  console.log("🧪 CLICK: Scan Code");
+
                   validateAction("SCAN_CODE", () => {
                     const sources = getRawSources() || {};
                     const results: { type: string; message: string; file: string }[] = [];
@@ -1308,7 +1210,7 @@ const SystemExplorer = () => {
                     if (!results || results.length === 0) {
                       throw new Error("Code index empty");
                     }
-                    console.log("[FILE ISSUES FOUND]:", results.length);
+
                     setCodeScanResult(results);
                     return true;
                   });
@@ -1406,7 +1308,7 @@ const SystemExplorer = () => {
                         key={i}
                         className="border-b border-border/50 pb-1 cursor-pointer"
                         onClick={() => {
-                          console.log("🧪 CLICK: expand issue", i, issue.file);
+
                           setExpandedIssues(prev => ({ ...prev, [i]: !prev[i] }));
                         }}
                       >
@@ -1571,14 +1473,14 @@ const SystemExplorer = () => {
                 </button>
               ))}
               <Button variant="outline" size="sm" className="text-[10px] h-6 ml-auto" onClick={() => {
-                console.log("🧪 CLICK: Scan Files");
+
                 validateAction("SCAN_FILES", () => {
                   const files = Object.keys(getRawSources() || {});
                   if (!files.length) {
                     throw new Error("No files available");
                   }
                   const result = files.length;
-                  console.log("[FILES FOUND]:", result);
+
                   setFileScanResult({ total: result, emptyFiles: files.filter(f => !getRawSources()[f]?.trim()).length, largeFiles: 0 });
                   return true;
                 });
@@ -1992,7 +1894,7 @@ const SystemExplorer = () => {
                     </>
                   );
                 } catch (e) {
-                  console.error("[DEBUG] JSON RENDER ERROR:", e);
+
                   return <p className="text-xs text-destructive">Error rendering scan results</p>;
                 }
               })()}
@@ -3788,7 +3690,7 @@ const SystemExplorer = () => {
                         body: { action: "start", scan_mode: "targeted", target_area: target, verification_for: selectedItem.id },
                         isAdmin: true,
                       });
-                      console.log("[DEBUG] VERIFY SCAN RESPONSE:", verifyRes);
+
                       const scanData = verifyRes?.data ?? verifyRes;
 
                       // 3. Check if issue still found
@@ -3821,7 +3723,7 @@ const SystemExplorer = () => {
                       // Update selected item locally
                       setSelectedItem({ ...selectedItem, status: "done", verification_status: vStatus } as any);
                     } catch (err) {
-                      console.error("Verification scan failed:", err);
+
                       setVerifyResult({ itemId: selectedItem.id, status: "failed" });
                     } finally {
                       setVerifyingFix(false);

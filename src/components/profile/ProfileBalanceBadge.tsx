@@ -38,7 +38,7 @@ const ProfileBalanceBadge = () => {
           }
         }
       } catch (error) {
-        console.error('Failed to fetch balance:', error);
+
       }
     };
 

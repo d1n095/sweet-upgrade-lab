@@ -11,7 +11,7 @@ export function useScanRunner(onScanComplete?: () => void) {
     // Block if engine already has a running job
     if (getCurrentJob()) {
       toast.info("En skanning körs redan");
-      console.warn("⚠️ SCAN BLOCKED — JOB RUNNING");
+
       return;
     }
 
@@ -26,7 +26,7 @@ export function useScanRunner(onScanComplete?: () => void) {
 
       onScanComplete?.();
     } catch (err: any) {
-      console.error("❌ FULL SCAN FAIL:", err);
+
       toast.error(err?.message || "Skanning misslyckades");
     } finally {
       setIsScanning(false);

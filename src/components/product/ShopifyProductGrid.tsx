@@ -95,7 +95,7 @@ const ShopifyProductGrid = () => {
           setProducts(data);
         }
       } catch (err) {
-        console.error('Failed to load products:', err);
+
         setError(t('products.error'));
       } finally {
         setIsLoading(false);

@@ -137,7 +137,7 @@ const AdminDonationManager = () => {
       if (projectsRes.data) setProjects(projectsRes.data);
       if (donationsRes.data) setDonations(donationsRes.data);
     } catch (error) {
-      console.error('Failed to load donation data:', error);
+
     } finally {
       setIsLoading(false);
     }
@@ -177,7 +177,7 @@ const AdminDonationManager = () => {
       setEditingProject(null);
       loadData();
     } catch (error) {
-      console.error('Failed to save project:', error);
+
       toast.error(t.error);
     } finally {
       setIsSaving(false);
@@ -202,7 +202,7 @@ const AdminDonationManager = () => {
       setNewProject({ name: '', name_en: '', description: '', description_en: '', goal_amount: 5000 });
       loadData();
     } catch (error) {
-      console.error('Failed to add project:', error);
+
       toast.error(t.error);
     } finally {
       setIsSaving(false);
@@ -217,7 +217,7 @@ const AdminDonationManager = () => {
         .eq('id', project.id);
       loadData();
     } catch (error) {
-      console.error('Failed to toggle project:', error);
+
     }
   };
 

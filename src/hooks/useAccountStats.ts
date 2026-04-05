@@ -40,7 +40,7 @@ export const useAccountStats = () => {
           totalDonated,
         });
       } catch (error) {
-        console.error('Failed to load account stats:', error);
+
       } finally {
         setIsLoading(false);
       }

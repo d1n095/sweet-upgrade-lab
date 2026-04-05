@@ -513,7 +513,7 @@ const AdminProductManager = () => {
           isAdmin: true,
         }).then((res) => {
           if (res.error) {
-            console.warn('Failed to load variant inventory:', res.error);
+
             return;
           }
           const variant = (res.data as { variant?: { inventory_quantity?: number; inventory_policy?: string } } | null)?.variant;
@@ -525,11 +525,11 @@ const AdminProductManager = () => {
             }));
           }
         }).catch((err) => {
-          console.warn('Failed to load variant inventory:', err);
+
         });
       }
     } catch (err) {
-      console.error('Error opening edit dialog:', err);
+
       toast.error(t.error);
     }
   };
@@ -586,7 +586,7 @@ const AdminProductManager = () => {
       queryClient.invalidateQueries({ queryKey: ['admin-products'] });
       queryClient.invalidateQueries({ queryKey: ['shopify-products'] });
     } catch (error) {
-      console.error('Failed to create product:', error);
+
       toast.error(t.error);
     } finally {
       setIsSubmitting(false);
@@ -654,7 +654,7 @@ const AdminProductManager = () => {
       queryClient.invalidateQueries({ queryKey: ['admin-products'] });
       queryClient.invalidateQueries({ queryKey: ['shopify-products'] });
     } catch (error) {
-      console.error('Failed to update product:', error);
+
       toast.error(t.error, {
         description: error instanceof Error ? error.message : undefined,
       });
@@ -687,7 +687,7 @@ const AdminProductManager = () => {
       queryClient.invalidateQueries({ queryKey: ['admin-products'] });
       queryClient.invalidateQueries({ queryKey: ['shopify-products'] });
     } catch (error) {
-      console.error('Failed to delete product:', error);
+
       toast.error(t.error);
     } finally {
       setIsSubmitting(false);

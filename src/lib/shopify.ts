@@ -210,7 +210,7 @@ export async function createStorefrontCheckout(items: Array<{ variantId: string;
     url.searchParams.set('channel', 'online_store');
     return url.toString();
   } catch (error) {
-    console.error('Error creating storefront checkout:', error);
+
     throw error;
   }
 }

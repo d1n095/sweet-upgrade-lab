@@ -13,11 +13,14 @@ const ALLOWED_FUNCTIONS = new Set([
   'create-checkout',
   'translate-product',
   'run-full-scan',
+  'get-latest-scan-run',
+  'get-scan-run-by-id',
   'apply-fix',
   'access-control-scan',
   'permission-fix',
   'access-flow-validate',
   'data-sync',
+  'stripe-webhook',
   'process-bug-report',
   'generate-receipt',
   'automation-engine',
@@ -32,11 +35,14 @@ const ALLOWED_FUNCTIONS = new Set([
 
 const ADMIN_ONLY_FUNCTIONS = new Set([
   'run-full-scan',
+  'get-latest-scan-run',
+  'get-scan-run-by-id',
   'apply-fix',
   'access-control-scan',
   'permission-fix',
   'access-flow-validate',
   'data-sync',
+  'stripe-webhook',
   'process-bug-report',
   'generate-receipt',
   'automation-engine',
@@ -73,13 +79,13 @@ export async function safeInvoke<T = unknown>(
 
   if (!ALLOWED_FUNCTIONS.has(functionName)) {
     const err = new Error(`BLOCKED: function "${functionName}" is not in ALLOWED_FUNCTIONS`);
-    console.error(`[safeInvoke][${traceId}]`, err.message);
+
     return { data: null, error: err, traceId };
   }
 
   if (ADMIN_ONLY_FUNCTIONS.has(functionName) && !options.isAdmin) {
     const err = new Error(`BLOCKED: function "${functionName}" requires isAdmin:true`);
-    console.error(`[safeInvoke][${traceId}]`, err.message);
+
     return { data: null, error: err, traceId };
   }
 
@@ -88,7 +94,7 @@ export async function safeInvoke<T = unknown>(
   });
 
   if (error) {
-    console.error(`[safeInvoke][${traceId}] ${functionName} error:`, error);
+
   }
 
   return { data: data ?? null, error: error ?? null, traceId };

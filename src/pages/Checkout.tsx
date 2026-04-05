@@ -307,7 +307,7 @@ const Checkout = () => {
     } catch (err: any) {
       setIsCheckingOut(false);
       setCheckoutStage('idle');
-      console.error('Checkout failed:', err);
+
 
       const message = err?.name === 'AbortError'
         ? t.checkoutTimeout

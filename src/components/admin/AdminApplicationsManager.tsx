@@ -101,7 +101,7 @@ const AdminApplicationsManager = () => {
       if (error) throw error;
       setApplications((data || []) as Application[]);
     } catch (error) {
-      console.error('Failed to load applications:', error);
+
     } finally {
       setIsLoading(false);
     }
@@ -157,7 +157,7 @@ const AdminApplicationsManager = () => {
           isAdmin: true,
         });
       } catch (emailError) {
-        console.error('Failed to send welcome email:', emailError);
+
       }
 
       toast.success(t.affiliateCreated);
@@ -166,7 +166,7 @@ const AdminApplicationsManager = () => {
       setCommissionPercent('10');
       loadApplications();
     } catch (error) {
-      console.error('Failed to approve application:', error);
+
       toast.error('Error approving application');
     } finally {
       setProcessingId(null);
@@ -194,7 +194,7 @@ const AdminApplicationsManager = () => {
       setAdminNotes('');
       loadApplications();
     } catch (error) {
-      console.error('Failed to reject application:', error);
+
       toast.error('Error rejecting application');
     } finally {
       setProcessingId(null);

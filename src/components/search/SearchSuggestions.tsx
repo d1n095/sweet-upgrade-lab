@@ -244,7 +244,7 @@ const SearchSuggestions = () => {
         }
         setShowSuggestions(true);
       } catch (error) {
-        console.error('Failed to fetch suggestions:', error);
+
       } finally {
         setIsLoading(false);
       }

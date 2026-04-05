@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { QueryClient } from '@tanstack/react-query';
-import { getCodeIssues } from '@/lib/fileSystemMap';
+import { safeInvoke } from '@/lib/safeInvoke';
 
 export type OrchestratorStepStatus = 'pending' | 'running' | 'done' | 'error' | 'skipped';
 
@@ -195,14 +195,9 @@ export const useFullScanOrchestrator = create<FullScanOrchestratorState>((set, g
 
   loadLatestScanRun: async () => {
     try {
-      const { data } = await supabase
-        .from('scan_runs' as any)
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
+      const { data, error } = await safeInvoke<any>('get-latest-scan-run', { isAdmin: true });
 
-      if (!data) return;
+      if (error || !data) return;
 
       const scanRun = data as any;
 
@@ -233,7 +228,7 @@ export const useFullScanOrchestrator = create<FullScanOrchestratorState>((set, g
         });
       }
     } catch (e) {
-      console.warn('Failed to load latest scan run:', e);
+      // silently ignore load failure
     }
   },
 
@@ -259,35 +254,22 @@ export const useFullScanOrchestrator = create<FullScanOrchestratorState>((set, g
 
     try {
       // Call the server-side edge function to start the scan
-      console.log("[START SCAN CLICK]", { action: "start", url: `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/run-full-scan` });
-      console.log("[INVOKE SENT]", "run-full-scan (fetch)");
-      const resp = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/run-full-scan`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ action: 'start' }),
+      const { data: result, error: invokeErr } = await safeInvoke<any>('run-full-scan', {
+        body: { action: 'start' },
+        isAdmin: true,
+      });
+
+      if (invokeErr) {
+        const errMsg = invokeErr.message || '';
+        if (errMsg.includes('409') || errMsg.toLowerCase().includes('already running')) {
+          toast.error('En skanning körs redan');
+          set({ running: false, steps: [] });
+          return;
         }
-      );
-      console.log("[INVOKE RESPONSE]", "run-full-scan (fetch)", { status: resp.status, ok: resp.ok });
-
-      if (resp.status === 409) {
-        const err = await resp.json();
-        toast.error(err.error || 'En skanning körs redan');
-        set({ running: false, steps: [] });
-        return;
+        throw invokeErr;
       }
 
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({}));
-        throw new Error(err.error || `Fel ${resp.status}`);
-      }
-
-      const result = await resp.json();
-      const scanRunId = result.scan_id;
+      const scanRunId = result?.scan_id;
 
       set({ scanRunId });
 
@@ -298,73 +280,11 @@ export const useFullScanOrchestrator = create<FullScanOrchestratorState>((set, g
 
       toast.info('Skanning startad i bakgrunden — du kan navigera bort', { duration: 5000 });
     } catch (err: any) {
-      // If the edge function is unreachable (not deployed / no VITE_SUPABASE_URL),
-      // fall back to a fully client-side scan so the button always does something useful.
-      const isNetworkErr =
-        !import.meta.env.VITE_SUPABASE_URL ||
-        err instanceof TypeError ||
-        String(err?.message).toLowerCase().includes('fetch') ||
-        String(err?.message).toLowerCase().includes('edge function') ||
-        String(err?.message).toLowerCase().includes('failed to send');
-
-      if (isNetworkErr) {
-        toast.info('Edge function inte tillgänglig — kör lokal skanning...', { duration: 4000 });
-        try {
-          await runLocalScan(set, queryClient);
-        } catch (localErr: any) {
-          toast.error(localErr.message || 'Lokal skanning misslyckades');
-          set({ running: false, steps: [] });
-        }
-        return;
-      }
-
       toast.error(err.message || 'Kunde inte starta skanning');
       set({ running: false, steps: [] });
     }
   },
 }));
-
-/**
- * Client-side scan fallback — runs when the edge function is unavailable.
- * Uses getCodeIssues() from fileSystemMap and writes results to work_items.
- */
-async function runLocalScan(set: any, queryClient?: QueryClient) {
-  set({ running: true, currentStepLabel: 'Lokal skanning pågår...' });
-
-  const issues = getCodeIssues();
-  let created = 0;
-
-  for (const issue of issues.slice(0, 100)) {
-    const raw = issue.path + ':' + issue.message;
-    const fingerprint = btoa(encodeURIComponent(raw)).replace(/[^a-zA-Z0-9]/g, '').slice(0, 64);
-    const { error } = await (supabase as any).from('work_items').upsert(
-      {
-        title: issue.message,
-        item_type: 'scan',
-        status: 'open',
-        priority: (issue.analysis_confidence ?? 0) >= 4 ? 'high' : 'medium',
-        source_type: 'scan',
-        source_id: issue.path,
-        issue_fingerprint: fingerprint,
-        created_by: 'local_scan',
-      },
-      { onConflict: 'issue_fingerprint', ignoreDuplicates: true }
-    );
-    if (!error) created++;
-  }
-
-  set({
-    running: false,
-    steps: [],
-    postScanStatus: 'done',
-    workItemsCreated: created,
-  });
-
-  toast.success(`Lokal skanning klar — ${created} nya uppgifter skapade`, { duration: 6000 });
-
-  queryClient?.invalidateQueries({ queryKey: ['admin-work-items'] });
-  queryClient?.invalidateQueries({ queryKey: ['system-explorer-work-items'] });
-}
 
 /** Poll a scan run for progress */
 async function pollScanRun(
@@ -374,13 +294,12 @@ async function pollScanRun(
   queryClient?: QueryClient
 ) {
   try {
-    const { data } = await supabase
-      .from('scan_runs' as any)
-      .select('*')
-      .eq('id', scanRunId)
-      .single();
+    const { data, error } = await safeInvoke<any>('get-scan-run-by-id', {
+      body: { id: scanRunId },
+      isAdmin: true,
+    });
 
-    if (!data) return;
+    if (error || !data) return;
     const scanRun = data as any;
 
     const steps = buildStepsFromScanRun(scanRun);
@@ -423,7 +342,7 @@ async function pollScanRun(
         currentStepLabel: scanRun.current_step_label || '',
       });
     }
-  } catch (e) {
-    console.warn('Poll error:', e);
+  } catch (_) {
+    // silently ignore poll errors
   }
 }
