@@ -166,7 +166,6 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const [newType, setNewType] = useState('general');
   const [creating, setCreating] = useState(false);
   const [autoAssigning, setAutoAssigning] = useState(false);
-  const [runningOrchestrator, setRunningOrchestrator] = useState(false);
   const [runningAutomation, setRunningAutomation] = useState(false);
   const [runningValidation, setRunningValidation] = useState(false);
   const [viewFilter, setViewFilter] = useState<ViewFilter>('active');
@@ -217,31 +216,6 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
       toast.error('Automation misslyckades: ' + e.message);
     } finally {
       setRunningAutomation(false);
-    }
-  };
-
-  const runOrchestrator = async () => {
-    setRunningOrchestrator(true);
-    try {
-      const { data, error } = await safeInvoke('ai-task-manager', { body: { action: 'orchestrate' } });
-      if (error) throw error;
-      const r = data?.results;
-      const scanned = r?.orchestrator_scanned || 0;
-      const orchestrated = r?.orchestrated || 0;
-
-      if (scanned === 0) {
-        toast.info('Orchestrator: inga aktiva uppgifter hittades');
-      } else if (orchestrated === 0) {
-        toast.warning(`Orchestrator skannade ${scanned} uppgifter men kunde inte ordna dem automatiskt`);
-      } else {
-        toast.success(`Orchestrator klar: ${orchestrated}/${scanned} uppgifter ordnade (${r?.orchestrator_mode || 'ai'})`);
-      }
-
-      queryClient.invalidateQueries({ queryKey: ['work-items'] });
-    } catch (e: any) {
-      toast.error('Orchestrator misslyckades: ' + e.message);
-    } finally {
-      setRunningOrchestrator(false);
     }
   };
 
@@ -1136,9 +1110,6 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
           )}
           <Button size="sm" variant="outline" className="gap-1.5" onClick={runAutomation} disabled={runningAutomation}>
             <Bot className="w-4 h-4" /> {runningAutomation ? 'Kör...' : 'Automation'}
-          </Button>
-          <Button size="sm" variant="outline" className="gap-1.5" onClick={runOrchestrator} disabled={runningOrchestrator}>
-            <Layers className="w-4 h-4" /> {runningOrchestrator ? 'Analyserar...' : 'AI Orchestrator'}
           </Button>
           <Button size="sm" variant="outline" className="gap-1.5" onClick={runValidation} disabled={runningValidation}>
             <CheckCircle2 className="w-4 h-4" /> {runningValidation ? 'Validerar...' : 'Validera & Städa'}

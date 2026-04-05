@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Sparkles } from 'lucide-react';
-import { DollarSign, Tag, Save, Eye, EyeOff, Boxes, Minus, Plus, Upload, X, Image, FlaskConical, ChefHat, Weight, Wand2, Loader2, Check } from 'lucide-react';
+import { DollarSign, Tag, Save, Eye, EyeOff, Boxes, Minus, Plus, Upload, X, Image, FlaskConical, ChefHat, Weight, Loader2, Check } from 'lucide-react';
 import { RecipeTemplatePicker } from './RecipeTemplatePicker';
 import { supabase } from '@/integrations/supabase/client';
 import { safeInvoke } from '@/lib/safeInvoke';
@@ -394,126 +394,6 @@ function parseTags(value: string): string[] {
     .split(',')
     .map((t) => t.trim())
     .filter(Boolean);
-}
-
-// ─── AI Content Generator ───
-function AiContentGenerator({
-  language,
-  formData,
-  setFormData,
-}: {
-  language: string;
-  formData: ProductFormData;
-  setFormData: React.Dispatch<React.SetStateAction<ProductFormData>>;
-}) {
-  const [generating, setGenerating] = React.useState(false);
-  const sv = language === 'sv';
-
-  const handleGenerate = async () => {
-    if (!formData.title.trim()) {
-      toast.error(sv ? 'Ange ett produktnamn först' : 'Enter a product name first');
-      return;
-    }
-    setGenerating(true);
-    try {
-      const { data, error } = await safeInvoke('generate-product-content', {
-        body: {
-          productName: formData.title,
-          category: formData.productType || null,
-          ingredients: formData.ingredients || null,
-          existingData: {
-            description: formData.description,
-            feeling: formData.feeling,
-            effects: formData.effects,
-            usage: formData.usage,
-            shelfLife: formData.shelfLife,
-            material: formData.material,
-            specialEffects: formData.specialEffects,
-            usageArea: formData.usageArea,
-            usageSteps: [formData.usageStep1, formData.usageStep2, formData.usageStep3].filter(Boolean),
-            isConcentrate: formData.isConcentrate,
-          },
-          language: sv ? 'sv' : 'en',
-        },
-      });
-
-      if (error) throw error;
-      const content = data?.content;
-      if (!content) throw new Error('No content returned');
-
-      // Build hook + description combo
-      const hookLine = content.hook ? content.hook : '';
-      const descWithHook = hookLine
-        ? `${hookLine}\n\n${content.description || ''}`
-        : (content.description || '');
-
-      // Build extended description with trust + upsell
-      let extDesc = content.extended_description || '';
-      if (content.trust_badges) {
-        extDesc += `\n\n🛡️ ${content.trust_badges}`;
-      }
-      if (content.upsell_text) {
-        extDesc += `\n\n💡 ${content.upsell_text}`;
-      }
-
-      setFormData(prev => ({
-        ...prev,
-        description: prev.description || descWithHook,
-        extendedDescription: prev.extendedDescription || extDesc,
-        effects: prev.effects || content.effects || '',
-        feeling: prev.feeling || content.feeling || '',
-        usage: prev.usage || content.usage || '',
-        hook: prev.hook || content.hook || '',
-        dosage: prev.dosage || content.dosage || '',
-        variants: prev.variants || content.variants || '',
-        storage: prev.storage || content.storage || '',
-        safety: prev.safety || content.safety || '',
-        specifications: prev.specifications || (typeof content.specifications === 'object' ? JSON.stringify(content.specifications) : content.specifications || ''),
-        metaTitle: prev.metaTitle || content.seo_title || '',
-        metaDescription: prev.metaDescription || content.meta_description || '',
-        metaKeywords: prev.metaKeywords || content.meta_keywords || '',
-      }));
-
-      toast.success(sv ? 'Innehåll genererat! Redigera efter behov.' : 'Content generated! Edit as needed.');
-    } catch (err: any) {
-      console.error('AI generation failed:', err);
-      toast.error(sv ? 'Kunde inte generera innehåll' : 'Failed to generate content');
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  const hasEmptyFields = !formData.description || !formData.extendedDescription || !formData.effects || !formData.feeling || !formData.usage;
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-          {sv ? '🤖 AI-assistent' : '🤖 AI Assistant'}
-        </p>
-        {hasEmptyFields && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="gap-1.5 text-xs h-7"
-            onClick={handleGenerate}
-            disabled={generating || !formData.title.trim()}
-          >
-            {generating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
-            {generating
-              ? (sv ? 'Genererar...' : 'Generating...')
-              : (sv ? 'Generera innehåll med AI' : 'Generate content with AI')}
-          </Button>
-        )}
-      </div>
-      <p className="text-xs text-muted-foreground">
-        {sv
-          ? 'Fyll tomma fält automatiskt baserat på produktnamn, kategori och ingredienser.'
-          : 'Auto-fill empty fields based on product name, category and ingredients.'}
-      </p>
-    </div>
-  );
 }
 
 // ─── AI Metadata Suggestor (auto-categorize) ───
@@ -1316,15 +1196,6 @@ export function AdminProductForm({
             {language === 'sv' ? 'Ladda upp en JSON-fil med produktdata' : 'Upload a JSON file with product data'}
           </p>
         </div>
-      </div>
-
-      {/* ── AI Content Generation ── */}
-      <div className="border-t border-border pt-4 mt-2">
-        <AiContentGenerator
-          language={language}
-          formData={formData}
-          setFormData={setFormData}
-        />
       </div>
 
       {/* ── Standardized Product Content ── */}
