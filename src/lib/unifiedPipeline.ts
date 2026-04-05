@@ -1,6 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
 import { logChange } from '@/utils/changeLogger';
-import { triggerReviewForWorkItem } from '@/lib/workItemReview';
 import { useSafeModeStore } from '@/stores/safeModeStore';
 import { recordRootCause, checkKnownPatterns } from '@/lib/rootCauseMemory';
 
@@ -79,37 +78,13 @@ export const runUnifiedPipeline = async (
 
   try {
     // ─── STAGE 1: SCAN → ISSUES ───
-    // Find recent scan results that created tasks but haven't been linked
-    const { data: recentScans } = await supabase
-      .from('ai_scan_results')
-      .select('id, scan_type, issues_count, tasks_created, created_at')
-      .order('created_at', { ascending: false })
-      .limit(10);
-
-    for (const scan of recentScans || []) {
-      emit(makeEvent('scan', 'check', scan.id, 'ai_scan_results', true,
-        `Scan ${scan.scan_type}: ${scan.issues_count || 0} issues, ${scan.tasks_created || 0} tasks`));
-
-      // Check if scan has linked work items
-      const { data: linkedItems } = await supabase
-        .from('work_items' as any)
-        .select('id')
-        .in('source_type', ['ai_scan', 'ai_detection'])
-        .eq('source_id', scan.id)
-        .limit(5);
-
-      if ((scan.tasks_created || 0) > 0 && (!linkedItems || linkedItems.length === 0)) {
-        emit(makeEvent('scan', 'gap_detected', scan.id, 'ai_scan_results', false,
-          `Scan skapade ${scan.tasks_created} uppgifter men inga work_items finns länkade`,
-          { scan_id: scan.id }));
-      }
-    }
+    // Skip scan stage
 
     // ─── STAGE 2: ISSUES → WORK ITEMS ───
     // Find bugs without work items
     const { data: unlinkedBugs } = await supabase
       .from('bug_reports')
-      .select('id, description, ai_severity, status')
+      .select('id, description, status')
       .in('status', ['open', 'new', 'triaged'])
       .limit(50);
 
@@ -126,25 +101,14 @@ export const runUnifiedPipeline = async (
         const patterns = await checkKnownPatterns(bug.description || '');
         const knownFix = patterns.matches.length > 0 ? patterns.matches[0] : null;
 
-        const priority = bug.ai_severity === 'critical' ? 'critical' :
-          bug.ai_severity === 'high' ? 'high' : 'medium';
+        const priority = 'medium';
 
         const description = knownFix
           ? `${bug.description}\n\n🧠 Känt mönster (sett ${knownFix.recurrence_count}x): ${knownFix.root_cause}\n💡 Tidigare fix: ${knownFix.fix_applied}`
           : bug.description;
 
-        // Try match runtime_trace within 60s
+        // traceId is no longer fetched directly from DB
         let traceId: string | undefined;
-        try {
-          const cutoff = new Date(Date.now() - 60_000).toISOString();
-          const { data: traces } = await supabase
-            .from('runtime_traces')
-            .select('id')
-            .gte('created_at', cutoff)
-            .order('created_at', { ascending: false })
-            .limit(1);
-          if (traces?.length) traceId = traces[0].id;
-        } catch (_) {}
 
         const { data: newWI, error } = await (supabase.from('work_items' as any) as any)
           .insert({
@@ -255,27 +219,6 @@ export const runUnifiedPipeline = async (
       }
     }
 
-    // ─── STAGE 5: VERIFICATION ───
-    // Trigger AI review on recently completed work items that lack verification
-    const { data: unverified } = await supabase
-      .from('work_items' as any)
-      .select('id, title, ai_review_status')
-      .eq('status', 'done')
-      .in('ai_review_status', ['pending', null as any])
-      .order('completed_at', { ascending: false })
-      .limit(5);
-
-    for (const item of (unverified || []) as any[]) {
-      try {
-        const result = await triggerReviewForWorkItem(item.id, { context: 'unified_pipeline' });
-        emit(makeEvent('verification', 'ai_review', item.id, 'work_item', result.ok,
-          result.ok ? `Verifierat: ${result.status}` : `Granskning misslyckades: ${result.error}`,
-          { work_item_id: item.id }));
-      } catch (err: any) {
-        emit(makeEvent('verification', 'review_error', item.id, 'work_item', false,
-          err?.message || 'AI review kraschade'));
-      }
-    }
   } catch (err: any) {
     emit(makeEvent('scan', 'pipeline_error', runId, 'pipeline', false, err?.message || 'Pipeline kraschade'));
     useSafeModeStore.getState().activate('critical_error', `Pipeline kraschade: ${err?.message}`, 'pipeline');

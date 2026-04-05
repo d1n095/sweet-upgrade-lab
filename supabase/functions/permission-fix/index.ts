@@ -296,16 +296,6 @@ serve(async (req) => {
         throw new Error(`Unknown action: ${body.action}`);
     }
 
-    // Log the fix action
-    await sb.from("ai_read_log").insert({
-      action_type: "permission_fix",
-      target_type: "security",
-      result: results.every(r => r.success) ? "fixed" : "partial",
-      summary: `Permission fix: ${body.action} — ${results.filter(r => r.success).length}/${results.length} succeeded`,
-      triggered_by: user.id,
-      metadata: { action: body.action, results },
-    });
-
     console.log(`[permission-fix] Done: ${results.length} results`);
 
     return new Response(JSON.stringify({ success: true, results }), {

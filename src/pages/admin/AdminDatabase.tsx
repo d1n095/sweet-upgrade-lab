@@ -138,7 +138,7 @@ const AdminDatabase = () => {
       setData(rows || []);
       setTotalCount(count || 0);
     } catch (e) {
-      console.error('DB fetch error:', e);
+
       toast.error('Kunde inte ladda data');
     } finally {
       setLoading(false);

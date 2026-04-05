@@ -114,7 +114,7 @@ const WhatsNew = () => {
       if (error) throw error;
       setUpdates(data || []);
     } catch (err) {
-      console.error('Failed to fetch updates:', err);
+
     } finally {
       setIsLoading(false);
     }

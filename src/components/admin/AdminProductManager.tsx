@@ -25,9 +25,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useLanguage } from '@/context/LanguageContext';
 import { toast } from 'sonner';
-import { fetchProducts, Product } from '@/lib/catalog';
-import { createDbProduct, updateDbProduct, deleteDbProduct } from '@/lib/products';
+import { fetchProducts, ShopifyProduct } from '@/lib/shopify';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { safeInvoke } from '@/lib/safeInvoke';
 import {
   AdminProductForm,
   type AdminProductFormStrings,
@@ -53,6 +54,11 @@ const suggestedTags = [
   'handgjord', 'svensktillverkad', 'nyhet', 'bästsäljare', 'limited'
 ];
 
+const gidToNumericId = (gid: string | undefined | null) => {
+  if (!gid) return null;
+  const id = gid.split('/').pop();
+  return id || null;
+};
 
 const AdminProductManager = () => {
   const { language } = useLanguage();
@@ -60,7 +66,7 @@ const AdminProductManager = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<ShopifyProduct | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<ProductFormData>({
     ...DEFAULT_PRODUCT_FORM_DATA,
@@ -472,38 +478,63 @@ const AdminProductManager = () => {
     setSelectedProduct(null);
   };
 
-  const handleEditClick = (product: Product) => {
+  const handleEditClick = (product: ShopifyProduct) => {
     try {
       setSelectedProduct(product);
 
-      const node = product.node;
-      const firstVariant = node.variants.edges[0]?.node;
+      const node = product.node as Record<string, unknown>;
+      const variants = (node.variants as { edges: Array<{ node: { id?: string } }> })?.edges;
+
+      const firstVariantGid = variants?.[0]?.node?.id;
+      const variantNumericId = gidToNumericId(firstVariantGid);
+
+      const rawTags = node.tags;
+      const tags = Array.isArray(rawTags) ? rawTags.join(', ') : (typeof rawTags === 'string' ? rawTags : '');
 
       setFormData({
         ...DEFAULT_PRODUCT_FORM_DATA,
-        title: node.title || '',
-        description: node.description || '',
-        price: node.priceRange.minVariantPrice.amount || '0',
-        currency: 'SEK',
-        productType: node.productType || '',
-        categoryIds: [],
-        tagIds: [],
-        tags: '',
-        vendor: '4ThePeople',
-        isVisible: firstVariant?.availableForSale !== false,
-        inventory: firstVariant?.quantityAvailable ?? 0,
-        allowOverselling: false,
-        imageUrls: node.images.edges.map((e) => e.node.url),
+        title: (node.title as string) || '', description: (node.description as string) || '',
+        price: ((node.priceRange as any)?.minVariantPrice?.amount as string) || '0',
+        currency: 'SEK', productType: (node.productType as string) || '', categoryIds: [], tagIds: [], tags,
+        vendor: (node.vendor as string) || '4ThePeople',
+        isVisible: (node.availableForSale as boolean) !== false,
+        inventory: 0, allowOverselling: false, imageUrls: [],
       });
 
       setIsEditDialogOpen(true);
+
+      // Load current inventory/policy via Admin API (non-blocking, silent on failure)
+      if (variantNumericId) {
+        safeInvoke('shopify-proxy', {
+          body: {
+            action: 'getVariant',
+            data: { variantId: Number(variantNumericId) },
+          },
+          isAdmin: true,
+        }).then((res) => {
+          if (res.error) {
+
+            return;
+          }
+          const variant = (res.data as { variant?: { inventory_quantity?: number; inventory_policy?: string } } | null)?.variant;
+          if (variant) {
+            setFormData((prev) => ({
+              ...prev,
+              inventory: typeof variant.inventory_quantity === 'number' ? variant.inventory_quantity : prev.inventory,
+              allowOverselling: variant.inventory_policy === 'continue',
+            }));
+          }
+        }).catch((err) => {
+
+        });
+      }
     } catch (err) {
-      console.error('Error opening edit dialog:', err);
+
       toast.error(t.error);
     }
   };
 
-  const handleDeleteClick = (product: Product) => {
+  const handleDeleteClick = (product: ShopifyProduct) => {
     setSelectedProduct(product);
     setIsDeleteDialogOpen(true);
   };
@@ -527,30 +558,35 @@ const AdminProductManager = () => {
     setIsSubmitting(true);
 
     try {
-      await createDbProduct({
-        title_sv: formData.title,
-        title_en: null,
-        description_sv: formData.description || null,
-        description_en: null,
-        price: parseFloat(formData.price) || 0,
-        original_price: null,
-        category: formData.productType || null,
-        vendor: formData.vendor || null,
-        is_visible: formData.isVisible,
-        stock: formData.inventory,
-        allow_overselling: formData.allowOverselling,
-        image_urls: formData.imageUrls.length > 0 ? formData.imageUrls : null,
-        display_order: 0,
-        badge: null,
-        tags: formData.tags ? formData.tags.split(',').map((tag) => tag.trim()).filter(Boolean) : null,
+      const response = await safeInvoke('shopify-proxy', {
+        body: {
+          action: 'createProduct',
+          data: {
+            title: formData.title,
+            body_html: formData.description,
+            product_type: formData.productType,
+            tags: formData.tags,
+            vendor: formData.vendor,
+            variants: [{
+              price: formData.price,
+              inventory_quantity: formData.inventory,
+              inventory_management: 'shopify',
+              inventory_policy: formData.allowOverselling ? 'continue' : 'deny',
+            }],
+          },
+        },
+        isAdmin: true,
       });
+
+      if (response.error) throw response.error;
 
       toast.success(t.productAdded);
       resetForm();
       setIsAddDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+      queryClient.invalidateQueries({ queryKey: ['shopify-products'] });
     } catch (error) {
-      console.error('Failed to create product:', error);
+
       toast.error(t.error);
     } finally {
       setIsSubmitting(false);
@@ -563,29 +599,62 @@ const AdminProductManager = () => {
     setIsSubmitting(true);
 
     try {
-      const productId = selectedProduct.node.id;
+      const productNumericId = gidToNumericId(selectedProduct.node.id);
+      const firstVariantGid = selectedProduct.node.variants.edges[0]?.node.id;
+      const variantNumericId = gidToNumericId(firstVariantGid);
+
+      if (!productNumericId) throw new Error('Missing product id');
+      if (!variantNumericId) throw new Error('Missing variant id');
+
+      // If hidden, force not sellable.
       const targetQuantity = formData.isVisible ? formData.inventory : 0;
       const targetOversell = formData.isVisible ? formData.allowOverselling : false;
 
-      await updateDbProduct(productId, {
-        title_sv: formData.title,
-        description_sv: formData.description || null,
-        price: parseFloat(formData.price) || 0,
-        category: formData.productType || null,
-        vendor: formData.vendor || null,
-        is_visible: formData.isVisible,
-        stock: targetQuantity,
-        allow_overselling: targetOversell,
-        image_urls: formData.imageUrls.length > 0 ? formData.imageUrls : null,
-        tags: formData.tags ? formData.tags.split(',').map((tag) => tag.trim()).filter(Boolean) : null,
+      const response = await safeInvoke('shopify-proxy', {
+        body: {
+          action: 'updateProduct',
+          productId: productNumericId,
+          data: {
+            id: Number(productNumericId),
+            title: formData.title,
+            body_html: formData.description,
+            product_type: formData.productType,
+            tags: formData.tags,
+            vendor: formData.vendor,
+            variants: [
+              {
+                id: Number(variantNumericId),
+                inventory_management: 'shopify',
+                inventory_policy: targetOversell ? 'continue' : 'deny',
+              },
+            ],
+          },
+        },
+        isAdmin: true,
       });
+
+      if (response.error) throw response.error;
+
+      const inventoryRes = await safeInvoke('shopify-proxy', {
+        body: {
+          action: 'updateInventory',
+          data: {
+            variantId: Number(variantNumericId),
+            quantity: targetQuantity,
+          },
+        },
+        isAdmin: true,
+      });
+
+      if (inventoryRes.error) throw inventoryRes.error;
 
       toast.success(t.productUpdated);
       resetForm();
       setIsEditDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+      queryClient.invalidateQueries({ queryKey: ['shopify-products'] });
     } catch (error) {
-      console.error('Failed to update product:', error);
+
       toast.error(t.error, {
         description: error instanceof Error ? error.message : undefined,
       });
@@ -599,14 +668,26 @@ const AdminProductManager = () => {
     setIsSubmitting(true);
 
     try {
-      await deleteDbProduct(selectedProduct.node.id);
+      const gid = selectedProduct.node.id;
+      const numericId = gid.split('/').pop();
+
+      const response = await safeInvoke('shopify-proxy', {
+        body: {
+          action: 'deleteProduct',
+          productId: numericId,
+        },
+        isAdmin: true,
+      });
+
+      if (response.error) throw response.error;
 
       toast.success(t.productDeleted);
       setSelectedProduct(null);
       setIsDeleteDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+      queryClient.invalidateQueries({ queryKey: ['shopify-products'] });
     } catch (error) {
-      console.error('Failed to delete product:', error);
+
       toast.error(t.error);
     } finally {
       setIsSubmitting(false);
@@ -679,7 +760,7 @@ const AdminProductManager = () => {
         ) : products.length === 0 ? (
           <p className="text-center text-muted-foreground py-4">{t.noProducts}</p>
         ) : (
-          products.slice(0, 10).map((product: Product) => (
+          products.slice(0, 10).map((product: ShopifyProduct) => (
             <motion.div
               key={product.node.id}
               initial={{ opacity: 0 }}

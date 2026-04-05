@@ -31,7 +31,7 @@ export const useInsightLogger = () => {
         });
       } catch (error) {
         // Silently fail - logging should not affect UX
-        console.error('Failed to log search:', error);
+
       }
     }, 1000); // 1 second debounce
   }, []);
@@ -55,7 +55,7 @@ export const useInsightLogger = () => {
       });
     } catch (error) {
       // Silently fail
-      console.error('Failed to log interest:', error);
+
     }
   }, []);
 
@@ -79,7 +79,7 @@ export const logSearchStandalone = async (searchTerm: string, resultsCount: numb
       session_id: sessionId,
     });
   } catch (error) {
-    console.error('Failed to log search:', error);
+
   }
 };
 
@@ -106,6 +106,6 @@ export const logInterestStandalone = async (
       session_id: sessionId,
     });
   } catch (error) {
-    console.error('Failed to log interest:', error);
+
   }
 };

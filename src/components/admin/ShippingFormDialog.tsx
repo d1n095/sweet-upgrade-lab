@@ -9,6 +9,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import { safeInvoke } from '@/lib/safeInvoke';
 import { supabase } from '@/integrations/supabase/client';
 import { safeInvoke } from '@/lib/safeInvoke';
 import { useAuth } from '@/hooks/useAuth';
@@ -147,7 +148,7 @@ const ShippingFormDialog = ({ open, onOpenChange, order, onShipped }: ShippingFo
       setCarrier('postnord');
       setDeliveryMethod('shipping');
     } catch (err: any) {
-      console.error(err);
+
       toast.error(err.message || 'Kunde inte uppdatera order');
     } finally {
       setIsSaving(false);

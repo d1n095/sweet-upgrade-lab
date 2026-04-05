@@ -94,7 +94,7 @@ const RelatedProducts = ({ productId, limit = 4 }: Props) => {
 
         setProducts((prods || []) as RelatedProduct[]);
       } catch (err) {
-        console.error('Failed to load related products:', err);
+
       } finally {
         setLoading(false);
       }

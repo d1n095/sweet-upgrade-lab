@@ -109,7 +109,7 @@ const AdminPayments = () => {
         recentPayouts: (recentPayoutsRes.data || []) as any,
       });
     } catch (e) {
-      console.error('Failed to load finance data:', e);
+
     } finally {
       setLoading(false);
     }

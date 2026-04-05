@@ -31,6 +31,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
+import { safeInvoke } from '@/lib/safeInvoke';
 import { useLanguage } from '@/context/LanguageContext';
 import { toast } from 'sonner';
 
@@ -149,7 +150,7 @@ const AdminAffiliateManager = () => {
       if (error) throw error;
       setAffiliates((data || []) as unknown as Affiliate[]);
     } catch (error) {
-      console.error('Failed to load affiliates:', error);
+
     } finally {
       setIsLoading(false);
     }
@@ -214,25 +215,17 @@ const AdminAffiliateManager = () => {
 
       // Send welcome email
       try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-affiliate`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            ...(sessionData?.session?.access_token && {
-              'Authorization': `Bearer ${sessionData.session.access_token}`
-            })
-          },
-          body: JSON.stringify({
+        await safeInvoke('notify-affiliate', {
+          body: {
             email: formData.email.toLowerCase(),
             name: formData.name,
             code,
             commissionPercent: parseFloat(formData.commissionPercent),
-          }),
+          },
+          isAdmin: true,
         });
       } catch (emailError) {
-        console.error('Failed to send email:', emailError);
+
       }
 
       toast.success(t.affiliateAdded);
@@ -240,7 +233,7 @@ const AdminAffiliateManager = () => {
       setIsAddDialogOpen(false);
       loadAffiliates();
     } catch (error) {
-      console.error('Failed to create affiliate:', error);
+
       toast.error(t.error);
     } finally {
       setIsSubmitting(false);
@@ -257,7 +250,7 @@ const AdminAffiliateManager = () => {
       if (error) throw error;
       loadAffiliates();
     } catch (error) {
-      console.error('Failed to update:', error);
+
       toast.error(t.error);
     }
   };

@@ -144,7 +144,7 @@ const ProfileInfoForm = () => {
       if (error) throw error;
       toast.success(t.saved);
     } catch (error) {
-      console.error('Profile save error:', error);
+
       toast.error(t.error);
     } finally {
       setIsSaving(false);

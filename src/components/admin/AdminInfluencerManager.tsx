@@ -25,6 +25,7 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { supabase } from '@/integrations/supabase/client';
+import { safeInvoke } from '@/lib/safeInvoke';
 import { useLanguage } from '@/context/LanguageContext';
 import { toast } from 'sonner';
 
@@ -161,7 +162,7 @@ const AdminInfluencerManager = () => {
       if (error) throw error;
       setInfluencers((data || []) as unknown as Influencer[]);
     } catch (error) {
-      console.error('Failed to load influencers:', error);
+
     } finally {
       setIsLoading(false);
     }
@@ -189,7 +190,7 @@ const AdminInfluencerManager = () => {
       
       setProductStats(stats);
     } catch (error) {
-      console.error('Failed to load product stats:', error);
+
     }
   };
 
@@ -207,7 +208,7 @@ const AdminInfluencerManager = () => {
         [influencerId]: (data || []) as InfluencerProduct[]
       }));
     } catch (error) {
-      console.error('Failed to load history:', error);
+
     }
   };
 
@@ -250,28 +251,20 @@ const AdminInfluencerManager = () => {
 
       // Send notification email
       try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-influencer`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            ...(sessionData?.session?.access_token && {
-              'Authorization': `Bearer ${sessionData.session.access_token}`
-            })
-          },
-          body: JSON.stringify({
+        await safeInvoke('notify-influencer', {
+          body: {
             email: formData.email.toLowerCase(),
             name: formData.name,
             code,
             maxProducts: parseInt(formData.maxProducts),
             validUntil: formData.validUntil || null,
             isUpdate: false,
-          }),
+          },
+          isAdmin: true,
         });
         toast.success(language === 'sv' ? 'Email skickad till influencer!' : 'Email sent to influencer!');
       } catch (emailError) {
-        console.error('Failed to send email:', emailError);
+
         // Don't fail the whole operation if email fails
       }
 
@@ -280,7 +273,7 @@ const AdminInfluencerManager = () => {
       setIsAddDialogOpen(false);
       loadInfluencers();
     } catch (error) {
-      console.error('Failed to create influencer:', error);
+
       toast.error(t.error);
     } finally {
       setIsSubmitting(false);
@@ -298,7 +291,7 @@ const AdminInfluencerManager = () => {
       toast.success(t.influencerUpdated);
       loadInfluencers();
     } catch (error) {
-      console.error('Failed to update:', error);
+
       toast.error(t.error);
     }
   };
@@ -316,35 +309,27 @@ const AdminInfluencerManager = () => {
       toast.success(t.influencerDeleted);
       loadInfluencers();
     } catch (error) {
-      console.error('Failed to delete:', error);
+
       toast.error(t.error);
     }
   };
 
   const resendEmail = async (influencer: Influencer) => {
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-influencer`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          ...(sessionData?.session?.access_token && {
-            'Authorization': `Bearer ${sessionData.session.access_token}`
-          })
-        },
-        body: JSON.stringify({
+      await safeInvoke('notify-influencer', {
+        body: {
           email: influencer.email,
           name: influencer.name,
           code: influencer.code,
           maxProducts: influencer.max_products,
           validUntil: influencer.valid_until,
           isUpdate: true,
-        }),
+        },
+        isAdmin: true,
       });
       toast.success(t.emailSent);
     } catch (error) {
-      console.error('Failed to resend email:', error);
+
       toast.error(t.error);
     }
   };

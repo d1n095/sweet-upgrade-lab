@@ -100,7 +100,7 @@ const Business = () => {
       setIsSubmitted(true);
       toast.success(t.success);
     } catch (error) {
-      console.error('Error submitting inquiry:', error);
+
       toast.error(language === 'sv' ? 'Kunde inte skicka förfrågan' : 'Could not submit inquiry');
     } finally {
       setIsSubmitting(false);

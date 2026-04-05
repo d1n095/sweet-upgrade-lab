@@ -53,7 +53,7 @@ const AdminDeletedOrders = () => {
       });
       toast.success('Order återställd');
     } catch (error) {
-      console.error('Failed to restore order:', error);
+
       toast.error('Kunde inte återställa order');
     }
   };
