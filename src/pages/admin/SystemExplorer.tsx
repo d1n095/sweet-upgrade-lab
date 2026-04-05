@@ -572,7 +572,7 @@ const SystemExplorer = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("scan_runs")
-        .select("id, status, total_new_issues, work_items_created, created_at, started_at, completed_at, unified_result, steps_results")
+        .select("id, status, total_new_issues, work_items_created, created_at, started_at, completed_at, unified_result, steps_results, step_logs, executive_summary, system_health_score")
         .in("status", ["done", "completed"])
         .order("completed_at", { ascending: false })
         .limit(1)
@@ -1262,75 +1262,107 @@ const SystemExplorer = () => {
 
         {/* BACKEND SCAN TAB */}
         {mainTab === "backendscan" && (() => {
-          const r = latestBackendScan?.results as any;
-          const latestRun = r;
+          // Primary: scan_runs (latestRun). Secondary: ai_scan_results (latestBackendScan).
+          const run = latestRun as any;
+          const stepLogs: Array<{ ts: string; msg: string; step: string }> = Array.isArray(run?.step_logs) ? run.step_logs : [];
+          const stepsResults: Record<string, any> = run?.steps_results && typeof run.steps_results === "object" ? run.steps_results : {};
+          const unifiedResult: any = run?.unified_result ?? null;
+          const noRun = !run;
           return (
             <div className="space-y-3">
-            {latestBackendScan && latestRun && latestRun.work_items_created === 0 && (
+            {run && (run.work_items_created ?? 0) === 0 && (
               <p className="text-[10px] text-yellow-500 font-mono">⚠ Scan produced no work_items (possible over-filtering / dedup block)</p>
             )}
+
+            {/* Backend Scan Summary — data from scan_runs */}
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2"><Radar className="h-4 w-4" /> Backend Scan <span className="text-[9px] text-green-500/80 font-mono ml-2">✔ Real scan (Supabase)</span></CardTitle>
+                <CardTitle className="text-sm flex items-center gap-2"><Radar className="h-4 w-4" /> Backend Scan <span className="text-[9px] text-green-500/80 font-mono ml-2">✔ Real scan (scan_runs)</span></CardTitle>
               </CardHeader>
               <CardContent className="p-3">
-                {backendScanLoading ? (
-                  <p className="text-[10px] text-muted-foreground">Loading...</p>
-                ) : !latestBackendScan ? (
-                  <p className="text-[10px] text-muted-foreground">No backend scan found</p>
+                {noRun ? (
+                  <p className="text-[10px] text-muted-foreground">No completed scan run found</p>
                 ) : (
                   <div className="space-y-2">
                     <div className="grid grid-cols-2 gap-2 text-[10px]">
-                      <div><span className="text-muted-foreground">Scan ID:</span> <span className="font-mono text-foreground">{latestBackendScan.id?.slice(0, 8)}</span></div>
-                      <div><span className="text-muted-foreground">Created:</span> <span className="text-foreground">{format(new Date(latestBackendScan.created_at), "yyyy-MM-dd HH:mm")}</span></div>
-                      <div><span className="text-muted-foreground">Detected:</span> <span className="text-foreground">{r?.detected_count ?? latestBackendScan.issues_count ?? "—"}</span></div>
-                      <div><span className="text-muted-foreground">Created:</span> <span className="text-foreground">{r?.created_count ?? latestBackendScan.tasks_created ?? "—"}</span></div>
-                      <div><span className="text-muted-foreground">Filtered:</span> <span className="text-foreground">{r?.filtered_count ?? "—"}</span></div>
-                      <div><span className="text-muted-foreground">Skipped:</span> <span className="text-foreground">{r?.skipped_count ?? "—"}</span></div>
+                      <div><span className="text-muted-foreground">Scan ID:</span> <span className="font-mono text-foreground">{run.id?.slice(0, 8)}</span></div>
+                      <div><span className="text-muted-foreground">Completed:</span> <span className="text-foreground">{run.completed_at ? format(new Date(run.completed_at), "yyyy-MM-dd HH:mm") : "—"}</span></div>
+                      <div><span className="text-muted-foreground">Health Score:</span> <span className="font-bold text-foreground">{run.system_health_score ?? "—"}/100</span></div>
+                      <div><span className="text-muted-foreground">Work Items Created:</span> <span className="text-foreground">{run.work_items_created ?? "—"}</span></div>
+                      <div><span className="text-muted-foreground">Total New Issues:</span> <span className="text-foreground">{run.total_new_issues ?? "—"}</span></div>
+                      <div><span className="text-muted-foreground">Steps Logged:</span> <span className="text-foreground">{stepLogs.length}</span></div>
                     </div>
-                    {latestBackendScan.overall_status && (
-                      <Badge className={`text-[8px] ${latestBackendScan.overall_status === "healthy" ? "bg-green-500/20 text-green-500 border-green-500/30" : "bg-yellow-500/20 text-yellow-500 border-yellow-500/30"}`}>{latestBackendScan.overall_status}</Badge>
+                    {run.executive_summary && (
+                      <p className="text-[9px] text-muted-foreground mt-1 border-t border-border/40 pt-1">{run.executive_summary}</p>
                     )}
-                    {latestBackendScan.executive_summary && (
-                      <p className="text-[9px] text-muted-foreground mt-1">{latestBackendScan.executive_summary}</p>
-                    )}
-                    {(r?.detected_count ?? latestBackendScan.issues_count ?? 0) === 0 && (
-                      <p className="text-[10px] text-yellow-500 mt-1">⚠ Scan returned no data — check input or scanner connection</p>
+                    {latestBackendScan?.overall_status && (
+                      <Badge className={`text-[8px] mt-1 ${latestBackendScan.overall_status === "healthy" ? "bg-green-500/20 text-green-500 border-green-500/30" : "bg-yellow-500/20 text-yellow-500 border-yellow-500/30"}`}>{latestBackendScan.overall_status}</Badge>
                     )}
                   </div>
                 )}
               </CardContent>
             </Card>
 
-            {/* Scanner Execution */}
+            {/* Scanner Execution — step_logs timeline + steps_results per-step */}
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2"><Activity className="h-4 w-4" /> Scanner Execution</CardTitle>
               </CardHeader>
-              <CardContent className="p-3">
-                {(() => {
-                  const stepResults = r?.step_results || r?.steps_results || r?.scanners || null;
-                  if (!stepResults || typeof stepResults !== "object" || Object.keys(stepResults).length === 0) {
-                    return <p className="text-[10px] text-muted-foreground">No scanner execution data</p>;
-                  }
-                  return (
-                    <div className="space-y-1">
-                      {Object.entries(stepResults).map(([name, result]: [string, any]) => {
-                        const failed = result?.failed || result?.error;
-                        const issuesFound = result?.issues_found ?? result?.issues_count ?? result?.count ?? "—";
-                        const status = failed ? "failed" : (result && !result?.skipped) ? "success" : "no data";
-                        const statusColor = status === "success" ? "text-green-500" : status === "failed" ? "text-red-500" : "text-muted-foreground";
+              <CardContent className="p-3 space-y-3">
+                {/* Step Logs timeline */}
+                <div>
+                  <p className="text-[10px] font-semibold text-muted-foreground mb-1">Step Logs ({stepLogs.length})</p>
+                  {stepLogs.length === 0 ? (
+                    <p className="text-[10px] text-muted-foreground">No step logs — run a scan to populate</p>
+                  ) : (
+                    <div className="max-h-[240px] overflow-auto space-y-0.5">
+                      {stepLogs.map((log, i) => (
+                        <div key={i} className="flex items-start gap-2 text-[9px] font-mono py-0.5 border-b border-border/30">
+                          <span className="text-muted-foreground shrink-0 w-[130px]">{log.ts ? format(new Date(log.ts), "HH:mm:ss.SSS") : "—"}</span>
+                          <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0">{log.step ?? "?"}</Badge>
+                          <span className="text-foreground flex-1 break-all">{log.msg}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {/* Steps Results per-scanner */}
+                <div>
+                  <p className="text-[10px] font-semibold text-muted-foreground mb-1">Steps Results ({Object.keys(stepsResults).filter(k => k !== "_scan_input").length} scanners)</p>
+                  {Object.keys(stepsResults).filter(k => k !== "_scan_input").length === 0 ? (
+                    <p className="text-[10px] text-muted-foreground">No steps_results — run a scan to populate</p>
+                  ) : (
+                    <div className="space-y-1 max-h-[280px] overflow-auto">
+                      {Object.entries(stepsResults).filter(([k]) => k !== "_scan_input").map(([name, result]: [string, any]) => {
+                        const failed = result?.failed || !!result?.error;
+                        const executed = result?._executed !== false;
+                        const issuesFound = result?.issues?.length ?? result?.issues_found ?? result?.issues_count ?? result?.count ?? 0;
+                        const durationMs = result?._duration_ms;
+                        const statusLabel = failed ? "failed" : !executed ? "skipped" : "ok";
+                        const statusColor = failed ? "text-red-500" : !executed ? "text-yellow-500" : "text-green-500";
                         return (
-                          <div key={name} className="flex items-center gap-2 text-[10px] py-1 border-b border-border/50">
-                            <span className="font-mono text-foreground flex-1">{name}</span>
-                            <span className={`font-medium ${statusColor}`}>{status}</span>
-                            <span className="text-muted-foreground min-w-[60px] text-right">issues: {issuesFound}</span>
-                          </div>
+                          <details key={name} className="border border-border/50 rounded-md p-1.5 text-[9px]">
+                            <summary className="cursor-pointer flex items-center gap-2">
+                              <span className="font-mono text-foreground flex-1">{name}</span>
+                              <span className={`font-medium ${statusColor}`}>{statusLabel}</span>
+                              <span className="text-muted-foreground">issues: {issuesFound}</span>
+                              {durationMs && <span className="text-muted-foreground">{durationMs}ms</span>}
+                            </summary>
+                            {result?.error && <p className="mt-1 text-red-400 break-all">{result.error}</p>}
+                            {Array.isArray(result?.issues) && result.issues.length > 0 && (
+                              <div className="mt-1 space-y-0.5">
+                                {result.issues.slice(0, 5).map((iss: any, j: number) => (
+                                  <p key={j} className="text-muted-foreground truncate">{iss.title || iss.description || JSON.stringify(iss).slice(0, 80)}</p>
+                                ))}
+                                {result.issues.length > 5 && <p className="text-muted-foreground">…+{result.issues.length - 5} more</p>}
+                              </div>
+                            )}
+                          </details>
                         );
                       })}
                     </div>
-                  );
-                })()}
+                  )}
+                </div>
               </CardContent>
             </Card>
 
@@ -1341,25 +1373,19 @@ const SystemExplorer = () => {
               </CardHeader>
               <CardContent className="p-3">
                 {(() => {
-                  const scanned = r?.detected_count ?? r?.scanned ?? latestBackendScan?.issues_count ?? 0;
-                  const afterFilter = r?.after_filter ?? r?.filtered_count ?? "—";
-                  const skippedDedup = r?.skipped_dedup ?? r?.skipped_count ?? r?.deduplicated ?? "—";
-                  const created = r?.created_count ?? latestBackendScan?.tasks_created ?? 0;
+                  const totalDetected = run?.total_new_issues ?? latestBackendScan?.issues_count ?? 0;
+                  const created = run?.work_items_created ?? latestBackendScan?.tasks_created ?? 0;
+                  const skipped = Math.max(0, totalDetected - created);
                   return (
-                    <div className="flex items-center gap-1 text-[10px]">
+                    <div className="flex items-center gap-1 text-[10px] flex-wrap">
                       <div className="flex flex-col items-center px-3 py-2 rounded-md bg-muted/30 border border-border">
-                        <span className="text-muted-foreground">scanned</span>
-                        <span className="text-lg font-bold text-foreground">{scanned}</span>
-                      </div>
-                      <span className="text-muted-foreground">→</span>
-                      <div className="flex flex-col items-center px-3 py-2 rounded-md bg-muted/30 border border-border">
-                        <span className="text-muted-foreground">after_filter</span>
-                        <span className="text-lg font-bold text-foreground">{afterFilter}</span>
+                        <span className="text-muted-foreground">detected</span>
+                        <span className="text-lg font-bold text-foreground">{totalDetected}</span>
                       </div>
                       <span className="text-muted-foreground">→</span>
                       <div className="flex flex-col items-center px-3 py-2 rounded-md bg-muted/30 border border-border">
                         <span className="text-muted-foreground">skipped_dedup</span>
-                        <span className="text-lg font-bold text-foreground">{skippedDedup}</span>
+                        <span className="text-lg font-bold text-foreground">{skipped}</span>
                       </div>
                       <span className="text-muted-foreground">→</span>
                       <div className="flex flex-col items-center px-3 py-2 rounded-md bg-green-500/10 border border-green-500/20">
@@ -1372,7 +1398,7 @@ const SystemExplorer = () => {
               </CardContent>
             </Card>
 
-            {/* View Backend Raw */}
+            {/* Backend Raw Output — unified_result + steps_results from scan_runs */}
             <Card>
               <CardHeader className="pb-2 flex flex-row items-center justify-between">
                 <CardTitle className="text-sm flex items-center gap-2"><Database className="h-4 w-4" /> Backend Raw Output</CardTitle>
@@ -1381,30 +1407,43 @@ const SystemExplorer = () => {
                 </Button>
               </CardHeader>
               {showBackendRaw && (
-                <CardContent className="p-3">
-                  {!latestBackendScan?.results ? (
-                    <p className="text-[10px] text-muted-foreground">No raw data available</p>
-                  ) : (() => {
-                    const raw = latestBackendScan.results as any;
-                    const issues = raw?.issues || raw?.broken_flows || raw?.data_issues || raw?.fake_features || raw?.interaction_failures || [];
-                    const allIssues = Array.isArray(issues) ? issues.slice(0, 50) : [];
-                    return allIssues.length === 0 ? (
+                <CardContent className="p-3 space-y-3">
+                  {noRun ? (
+                    <p className="text-[10px] text-muted-foreground">No raw data available — run a scan first</p>
+                  ) : (
+                    <>
+                      {/* unified_result — top-level issues */}
+                      {unifiedResult && (() => {
+                        const issues: any[] = unifiedResult?.issues ?? [];
+                        return (
+                          <div>
+                            <p className="text-[10px] font-semibold text-muted-foreground mb-1">unified_result — {issues.length} issues (scan_id: {run.id?.slice(0, 8)})</p>
+                            {issues.length === 0 ? (
+                              <pre className="text-[9px] font-mono bg-muted/30 border border-border rounded-md p-2 max-h-[200px] overflow-auto whitespace-pre-wrap text-foreground">{JSON.stringify(unifiedResult, null, 2).slice(0, 3000)}</pre>
+                            ) : (
+                              <div className="space-y-1 max-h-[300px] overflow-auto">
+                                <p className="text-[10px] text-muted-foreground mb-1">Showing {Math.min(issues.length, 50)} of {issues.length}</p>
+                                {issues.slice(0, 50).map((issue: any, i: number) => (
+                                  <details key={i} className="border border-border/50 rounded-md p-1.5 text-[9px]">
+                                    <summary className="cursor-pointer font-mono text-foreground truncate flex items-center gap-1">
+                                      {issue.title || issue.description || issue.message || JSON.stringify(issue).slice(0, 100)}
+                                      {issue._status && <Badge variant={issue._status === "created" ? "default" : issue._status === "error" ? "destructive" : "secondary"} className="text-[8px] px-1 py-0 ml-1">{issue._status}</Badge>}
+                                    </summary>
+                                    <pre className="mt-1 font-mono text-[8px] text-muted-foreground whitespace-pre-wrap">{JSON.stringify(issue, null, 2)}</pre>
+                                  </details>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                      {/* steps_results raw dump */}
                       <div>
-                        <p className="text-[10px] text-muted-foreground mb-2">No issue array found. Raw keys: {Object.keys(raw).join(", ")}</p>
-                        <pre className="text-[9px] font-mono bg-muted/30 border border-border rounded-md p-2 max-h-[300px] overflow-auto whitespace-pre-wrap text-foreground">{JSON.stringify(raw, null, 2).slice(0, 5000)}</pre>
+                        <p className="text-[10px] font-semibold text-muted-foreground mb-1">steps_results — {Object.keys(stepsResults).filter(k => k !== "_scan_input").length} steps</p>
+                        <pre className="text-[9px] font-mono bg-muted/30 border border-border rounded-md p-2 max-h-[300px] overflow-auto whitespace-pre-wrap text-foreground">{JSON.stringify(stepsResults, null, 2).slice(0, 8000)}</pre>
                       </div>
-                    ) : (
-                      <div className="space-y-1 max-h-[400px] overflow-auto">
-                        <p className="text-[10px] text-muted-foreground mb-1">Showing {allIssues.length} of {Array.isArray(issues) ? issues.length : "?"} issues</p>
-                        {allIssues.map((issue: any, i: number) => (
-                          <details key={i} className="border border-border/50 rounded-md p-1.5 text-[9px]">
-                            <summary className="cursor-pointer font-mono text-foreground truncate flex items-center gap-1">{issue.title || issue.description || issue.message || JSON.stringify(issue).slice(0, 100)}{issue._status && <Badge variant={issue._status === "created" ? "default" : issue._status === "error" ? "destructive" : "secondary"} className="text-[8px] px-1 py-0 ml-1">{issue._status}</Badge>}</summary>
-                            <pre className="mt-1 font-mono text-[8px] text-muted-foreground whitespace-pre-wrap">{JSON.stringify(issue, null, 2)}</pre>
-                          </details>
-                        ))}
-                      </div>
-                    );
-                  })()}
+                    </>
+                  )}
                 </CardContent>
               )}
             </Card>
