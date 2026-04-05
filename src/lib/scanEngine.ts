@@ -3,6 +3,19 @@ import { safeInvoke } from '@/lib/safeInvoke';
 
 export type ScanStatus = 'idle' | 'running' | 'done' | 'error';
 
+export interface ScanJob {
+  id: string;
+  type: string;
+  status: 'running' | 'done' | 'error' | 'idle';
+}
+
+let _currentJob: ScanJob | null = null;
+
+/** Returns the currently active scan job, or null if no scan is running. */
+export function getCurrentJob(): ScanJob | null {
+  return _currentJob;
+}
+
 export interface ScanStep {
   id: string;
   label: string;
@@ -50,6 +63,7 @@ function stopPolling() {
     clearInterval(_pollInterval);
     _pollInterval = null;
   }
+  _currentJob = null;
 }
 
 async function pollScanRun(scanRunId: string, onProgress?: (steps: ScanStep[]) => void) {
@@ -158,8 +172,33 @@ export async function startScanJob(options?: StartScanOptions): Promise<string> 
     throw new Error(data?.error ?? 'Inget scan_run_id returnerades');
   }
 
+  _currentJob = { id: scanRunId, type: 'full', status: 'running' };
   _pollInterval = setInterval(() => pollScanRun(scanRunId, options?.onProgress), 2000);
   return scanRunId;
+}
+
+/**
+ * On page load, check if there was an interrupted (running) scan job and
+ * resume polling for it so the UI stays in sync.
+ */
+export async function resumeInterruptedJob(): Promise<void> {
+  try {
+    const { data } = await supabase
+      .from('scan_runs' as any)
+      .select('id')
+      .eq('status', 'running')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!data) return;
+    const scanRunId = (data as any).id as string;
+    _currentJob = { id: scanRunId, type: 'full', status: 'running' };
+    stopPolling();
+    _pollInterval = setInterval(() => pollScanRun(scanRunId), 2000);
+  } catch {
+    // noop — non-critical on startup
+  }
 }
 
 /** Load the latest scan run from the DB (e.g. on page load to restore state).
