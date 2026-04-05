@@ -277,10 +277,13 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
   const handleRunRootCause = async () => {
     setAnalyzingFix(true);
     try {
-      // ── HARD BLOCK: direct ai-assistant calls are disabled ──────────
-      console.log("[AI COST CALL BLOCKED FROM]: WorkItemDetail.tsx — handleRunRootCause");
-      toast.error('AI_DISABLED: direktanrop till ai-assistant är blockerat');
-      // ─────────────────────────────────────────────────────────────────
+      toast.error('AI-analys är inte tillgänglig');
+    } catch {
+      // noop
+    } finally {
+      setAnalyzingFix(false);
+    }
+  };
 
   const dt = fmtFull(item.created_at);
   const reanalysis = (item.ai_root_causes as any)?.refined_diagnosis ? item.ai_root_causes as any : null;
