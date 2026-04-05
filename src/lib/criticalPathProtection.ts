@@ -40,7 +40,7 @@ export async function runCriticalPathCheck(): Promise<CriticalPathReport> {
   // 1. scan → issue: Recent scans should create tasks
   try {
     const { data: recentScans } = await supabase
-      .from('ai_scan_results')
+      .from('scan_results')
       .select('id, issues_count, tasks_created')
       .order('created_at', { ascending: false })
       .limit(5);

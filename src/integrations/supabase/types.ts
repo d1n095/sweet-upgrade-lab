@@ -449,7 +449,7 @@ export type Database = {
         }
         Relationships: []
       }
-      ai_scan_results: {
+      scan_results: {
         Row: {
           created_at: string
           executive_summary: string | null
