@@ -57,7 +57,7 @@ const ReviewList = ({ productHandle, limit = 10, showProductTitle = false }: Rev
           .limit(limit);
 
         if (productHandle) {
-          query = query.eq('shopify_product_handle', productHandle);
+          query = query.eq('product_handle', productHandle);
         }
 
         const { data, error } = await query;

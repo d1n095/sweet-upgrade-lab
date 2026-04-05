@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
-import { safeInvoke, safeFetch } from '@/lib/safeInvoke';
+import { safeInvoke } from '@/lib/safeInvoke';
 import { useLanguage } from '@/context/LanguageContext';
 import { toast } from 'sonner';
 import { logActivity } from '@/utils/activityLogger';
@@ -40,7 +40,7 @@ interface Order {
   notes: string | null;
   created_at: string;
   updated_at: string;
-  shopify_order_number: string | null;
+  external_order_number: string | null;
   order_number: string | null;
   items: any;
   shipping_address: any;
@@ -243,7 +243,7 @@ const AdminOrderManager = () => {
       if (error) throw error;
       setOrders(data || []);
     } catch (error) {
-
+      console.error('Failed to fetch orders:', error);
     } finally {
       setIsLoading(false);
     }
@@ -323,7 +323,7 @@ const AdminOrderManager = () => {
         toast.success(content.updated);
       }
     } catch (error) {
-
+      console.error('Failed to update order:', error);
       toast.error(content.error);
     } finally {
       setIsSaving(false);
@@ -368,7 +368,7 @@ const AdminOrderManager = () => {
 
       toast.success(language === 'sv' ? 'Order markerad som betald' : 'Order marked as paid');
     } catch (error) {
-
+      console.error('Failed to mark as paid:', error);
       toast.error(content.error);
     }
   };
@@ -387,7 +387,6 @@ const AdminOrderManager = () => {
 
       const { data, error } = await safeInvoke('process-refund', {
         body: { action: 'create_request', order_id: order.id, reason: refundReason },
-        isAdmin: true,
       });
 
       if (error) throw error;
@@ -399,7 +398,7 @@ const AdminOrderManager = () => {
         { id: 'refund' }
       );
     } catch (error: any) {
-
+      console.error('Failed to create refund request:', error);
       toast.error(error?.message || (language === 'sv' ? 'Kunde inte skapa förfrågan' : 'Failed to create request'), { id: 'refund' });
     }
   };
@@ -433,7 +432,7 @@ const AdminOrderManager = () => {
       });
       toast.success(language === 'sv' ? 'Order raderad' : 'Order deleted');
     } catch (error) {
-
+      console.error('Failed to delete order:', error);
       toast.error(content.error);
     }
   };
@@ -504,7 +503,7 @@ const AdminOrderManager = () => {
 
       toast.success('Order markerad som köpt på plats ✓');
     } catch (err) {
-
+      console.error(err);
       toast.error(content.error);
     }
   };
@@ -550,7 +549,7 @@ const AdminOrderManager = () => {
       logActivity({ log_type: 'success', category: 'fulfillment', message: `Order ${getOrderDisplayId(order)} packad — väntar på postning`, order_id: order.id });
       toast.success(language === 'sv' ? 'Order markerad som packad ✓' : 'Order marked as packed ✓');
     } catch (err) {
-
+      console.error(err);
       toast.error(content.error);
     }
   };
@@ -619,7 +618,7 @@ const AdminOrderManager = () => {
           } : o));
         }
       } catch (err) {
-
+        console.error(`Batch pack error for ${order.id}:`, err);
       }
       setBatchProgress({ done: i + 1, total: eligible.length });
     }
@@ -716,13 +715,11 @@ const AdminOrderManager = () => {
   const handleDownloadReceipt = async (order: Order) => {
     toast.loading('Genererar kvitto...', { id: 'receipt' });
     try {
-      const resp = await safeFetch('generate-receipt', {
+      const { data: result, error } = await safeInvoke('generate-receipt', {
         body: { order_id: order.id },
-        isAdmin: true,
       });
 
-      if (!resp.ok) throw new Error('Kunde inte generera kvitto');
-      const result = await resp.json();
+      if (error) throw new Error('Kunde inte generera kvitto');
 
       // Open in new window for print/PDF save
       const win = window.open('', '_blank');
@@ -741,12 +738,11 @@ const AdminOrderManager = () => {
   const handleResendReceipt = async (order: Order) => {
     toast.loading('Skickar kvitto...', { id: 'resend-receipt' });
     try {
-      const resp = await safeFetch('generate-receipt', {
+      const { error } = await safeInvoke('generate-receipt', {
         body: { order_id: order.id, action: 'resend_email' },
-        isAdmin: true,
       });
 
-      if (!resp.ok) throw new Error('Kunde inte skicka kvitto');
+      if (error) throw new Error('Kunde inte skicka kvitto');
       toast.success(`Kvitto skickat till ${order.order_email}`, { id: 'resend-receipt' });
     } catch (err: any) {
       toast.error(err.message || 'Fel vid kvittoutskick', { id: 'resend-receipt' });

@@ -1,14 +1,13 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Heart, Trash2, ShoppingCart, Lightbulb, LogIn } from 'lucide-react';
+import { X, Heart, Trash2, ShoppingCart, LogIn } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useWishlistStore } from '@/stores/wishlistStore';
-import { useCartStore } from '@/stores/cartStore';
+import { useWishlistStore, WishlistItem } from '@/stores/wishlistStore';
+import { useCartStore, dbVariantId } from '@/stores/cartStore';
 import { useLanguage } from '@/context/LanguageContext';
 import { useAuth } from '@/hooks/useAuth';
-import { Product } from '@/lib/catalog';
 import AuthModal from '@/components/auth/AuthModal';
 
 interface WishlistDrawerProps {
@@ -30,33 +29,53 @@ const WishlistDrawer = ({ isOpen, onClose }: WishlistDrawerProps) => {
     navigate('/produkter');
   };
 
-  const formatPrice = (amount: string, currency: string) => {
-    return new Intl.NumberFormat('sv-SE', {
+  const formatPrice = (price: number) =>
+    new Intl.NumberFormat('sv-SE', {
       style: 'currency',
-      currency: currency,
+      currency: 'SEK',
       minimumFractionDigits: 0,
-    }).format(parseFloat(amount));
-  };
+    }).format(price);
 
-  const handleAddToCart = (product: Product) => {
-    const firstVariant = product.node.variants.edges[0]?.node;
-    if (!firstVariant) return;
-
+  const handleAddToCart = (item: WishlistItem) => {
+    const variantId = dbVariantId(item.id);
     addToCart({
-      product,
-      variantId: firstVariant.id,
-      variantTitle: firstVariant.title,
-      price: firstVariant.price,
+      product: {
+        dbId: item.id,
+        node: {
+          id: item.id,
+          title: item.title,
+          handle: item.handle,
+          description: '',
+          productType: '',
+          tags: [],
+          priceRange: { minVariantPrice: { amount: item.price.toString(), currencyCode: 'SEK' } },
+          images: { edges: item.imageUrl ? [{ node: { url: item.imageUrl, altText: item.title } }] : [] },
+          variants: {
+            edges: [{
+              node: {
+                id: variantId,
+                title: 'Default',
+                availableForSale: true,
+                price: { amount: item.price.toString(), currencyCode: 'SEK' },
+                selectedOptions: [],
+              },
+            }],
+          },
+        },
+      },
+      variantId,
+      variantTitle: 'Default',
+      price: { amount: item.price.toString(), currencyCode: 'SEK' },
       quantity: 1,
-      selectedOptions: firstVariant.selectedOptions || []
+      selectedOptions: [],
     });
 
-    setAddedItems(prev => new Set(prev).add(product.node.id));
+    setAddedItems(prev => new Set(prev).add(item.id));
     setTimeout(() => {
       setAddedItems(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(product.node.id);
-        return newSet;
+        const next = new Set(prev);
+        next.delete(item.id);
+        return next;
       });
     }, 1500);
   };
@@ -65,7 +84,6 @@ const WishlistDrawer = ({ isOpen, onClose }: WishlistDrawerProps) => {
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -74,7 +92,6 @@ const WishlistDrawer = ({ isOpen, onClose }: WishlistDrawerProps) => {
             className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50"
           />
 
-          {/* Drawer */}
           <motion.div
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
@@ -109,10 +126,9 @@ const WishlistDrawer = ({ isOpen, onClose }: WishlistDrawerProps) => {
                     {language === 'sv' ? 'Din önskelista är tom' : 'Your wishlist is empty'}
                   </h3>
                   <p className="text-sm text-muted-foreground mb-4">
-                    {language === 'sv' 
+                    {language === 'sv'
                       ? 'Spara produkter du gillar för att hitta dem enkelt senare'
-                      : 'Save products you like to find them easily later'
-                    }
+                      : 'Save products you like to find them easily later'}
                   </p>
                   <div className="flex flex-col gap-2">
                     <Button onClick={handleExploreProducts} variant="outline">
@@ -133,29 +149,25 @@ const WishlistDrawer = ({ isOpen, onClose }: WishlistDrawerProps) => {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {items.map((product) => {
-                    const imageUrl = product.node.images.edges[0]?.node.url;
-                    const price = product.node.priceRange.minVariantPrice;
-                    const isAdded = addedItems.has(product.node.id);
-
+                  {items.map((item) => {
+                    const isAdded = addedItems.has(item.id);
                     return (
                       <motion.div
-                        key={product.node.id}
+                        key={item.id}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, x: 50 }}
                         className="glass-card p-3 flex gap-3"
                       >
-                        {/* Image */}
-                        <Link 
-                          to={`/product/${product.node.handle}`} 
+                        <Link
+                          to={`/product/${item.handle}`}
                           onClick={onClose}
                           className="relative w-20 h-20 rounded-lg overflow-hidden bg-secondary/50 flex-shrink-0"
                         >
-                          {imageUrl ? (
+                          {item.imageUrl ? (
                             <img
-                              src={imageUrl}
-                              alt={product.node.title}
+                              src={item.imageUrl}
+                              alt={item.title}
                               className="w-full h-full object-cover"
                             />
                           ) : (
@@ -165,24 +177,20 @@ const WishlistDrawer = ({ isOpen, onClose }: WishlistDrawerProps) => {
                           )}
                         </Link>
 
-                        {/* Content */}
                         <div className="flex-1 min-w-0">
-                          <Link 
-                            to={`/product/${product.node.handle}`} 
+                          <Link
+                            to={`/product/${item.handle}`}
                             onClick={onClose}
                             className="font-semibold text-sm hover:text-primary transition-colors line-clamp-2"
                           >
-                            {product.node.title}
+                            {item.title}
                           </Link>
-                          <p className="text-primary font-bold mt-1">
-                            {formatPrice(price.amount, price.currencyCode)}
-                          </p>
-                          
-                          {/* Actions */}
+                          <p className="text-primary font-bold mt-1">{formatPrice(item.price)}</p>
+
                           <div className="flex items-center gap-2 mt-2">
                             <Button
                               size="sm"
-                              onClick={() => handleAddToCart(product)}
+                              onClick={() => handleAddToCart(item)}
                               className={`h-7 text-xs flex-1 transition-all ${isAdded ? 'bg-green-600 hover:bg-green-600' : ''}`}
                             >
                               {isAdded ? (
@@ -197,7 +205,7 @@ const WishlistDrawer = ({ isOpen, onClose }: WishlistDrawerProps) => {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => removeItem(product.node.id)}
+                              onClick={() => removeItem(item.id)}
                               className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
                             >
                               <Trash2 className="w-3 h-3" />

@@ -6,7 +6,6 @@ import { useSearchStore } from '@/stores/searchStore';
 import { useLanguage } from '@/context/LanguageContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-
 import { logSearchStandalone } from '@/hooks/useInsightLogger';
 
 interface DbProductResult {
@@ -234,7 +233,7 @@ const SearchSuggestions = () => {
         }
         setShowSuggestions(true);
       } catch (error) {
-
+        console.error('Failed to fetch suggestions:', error);
       } finally {
         setIsLoading(false);
       }

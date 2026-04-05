@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { MapPin } from 'lucide-react';
-import { safeFetch } from '@/lib/safeInvoke';
+import { safeInvoke } from '@/lib/safeInvoke';
 
 interface Prediction {
   place_id: string;
@@ -55,13 +55,13 @@ const AddressAutocomplete = ({
 
     setIsLoading(true);
     try {
-      const res = await safeFetch('google-places', {
+      const { data, error } = await safeInvoke<{ predictions: Prediction[] }>('google-places', {
         method: 'GET',
         params: { action: 'autocomplete', input },
       });
-      const data = await res.json();
-      setPredictions(data.predictions || []);
-      setIsOpen((data.predictions || []).length > 0);
+      if (error) throw error;
+      setPredictions(data?.predictions || []);
+      setIsOpen((data?.predictions || []).length > 0);
     } catch {
       setPredictions([]);
       setIsOpen(false);
@@ -86,17 +86,18 @@ const AddressAutocomplete = ({
     suppressRef.current = true;
 
     try {
-      const res = await safeFetch('google-places', {
+      const { data, error } = await safeInvoke<{ address?: string; postal_code?: string; city?: string }>('google-places', {
         method: 'GET',
         params: { action: 'details', place_id: prediction.place_id },
       });
-      const data = await res.json();
-      if (data.address) {
+      if (!error && data?.address) {
         onSelect({
           address: data.address,
           postal_code: data.postal_code || '',
           city: data.city || '',
         });
+      } else {
+        onChange(prediction.description);
       }
     } catch {
       // Fallback: just use the description

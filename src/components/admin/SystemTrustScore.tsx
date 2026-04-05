@@ -10,6 +10,7 @@ import {
   TrendingUp, Loader2, RefreshCw, Bug, GitMerge, Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useWorkQueueStore } from '@/stores/workQueueStore';
 
 type TrustLabel = 'unstable' | 'improving' | 'stable' | 'production_ready';
 
@@ -37,43 +38,51 @@ function getLabel(score: number): TrustLabel {
 }
 
 const SystemTrustScore = () => {
+  const queueStore = useWorkQueueStore();
 
   const { data: breakdown, isLoading, refetch } = useQuery({
     queryKey: ['system-trust-score'],
     queryFn: async (): Promise<TrustBreakdown> => {
       // Parallel DB queries
-      const [workItemsRes, bugsRes, changeLogRes] = await Promise.all([
-        supabase.from('work_items' as any).select('status, priority').limit(500),
-        supabase.from('bug_reports').select('status').limit(500),
+      const [workItemsRes, bugsRes, scansRes, changeLogRes] = await Promise.all([
+        supabase.from('work_items' as any).select('status, review_status, priority').limit(500),
+        supabase.from('bug_reports').select('status, ai_severity').limit(500),
+        supabase.from('scan_results').select('overall_score, issues_count, tasks_created').order('created_at', { ascending: false }).limit(20),
         supabase.from('change_log').select('change_type, source').order('created_at', { ascending: false }).limit(200),
       ]);
 
       const workItems = (workItemsRes.data || []) as any[];
       const bugs = bugsRes.data || [];
+      const scans = scansRes.data || [];
       const changes = changeLogRes.data || [];
 
-      // ─── 1. Working Features (% of work items done) ───
+      // ─── 1. Working Features (% of work items done / verified) ───
       const totalItems = workItems.length || 1;
       const doneItems = workItems.filter((w: any) => w.status === 'done').length;
-      const workingPct = Math.round((doneItems / totalItems) * 100);
+      const verifiedItems = workItems.filter((w: any) => w.review_status === 'verified').length;
+      const workingPct = Math.round(((doneItems + verifiedItems * 0.5) / totalItems) * 100);
 
-      // ─── 2. Failed Actions (% of bugs open) ───
+      // ─── 2. Failed Actions (% of bugs open or critical) ───
       const totalBugs = bugs.length || 1;
       const openBugs = bugs.filter(b => b.status === 'open' || b.status === 'new').length;
-      const failedPct = Math.round((openBugs / totalBugs) * 100);
+      const criticalBugs = bugs.filter(b => b.ai_severity === 'critical' || b.ai_severity === 'high').length;
+      const failedPct = Math.round(((openBugs + criticalBugs * 0.5) / totalBugs) * 100);
 
-      // ─── 3. Verified Fixes (% of done items) ───
+      // ─── 3. Verified Fixes (% of done items with AI verification) ───
       const fixItems = workItems.filter((w: any) => w.status === 'done');
-      const verifiedPct = fixItems.length > 0 ? 100 : 100;
+      const verifiedFixes = fixItems.filter((w: any) => w.review_status === 'verified').length;
+      const verifiedPct = fixItems.length > 0 ? Math.round((verifiedFixes / fixItems.length) * 100) : 100;
 
       // ─── 4. Regression Rate (from queue store + work items) ───
-      const queueRegressions = 0;
+      const queueRegressions = queueStore.regressionLog.length;
       const regressedItems = workItems.filter((w: any) => w.status === 'regressed' || w.status === 'reopened').length;
       const totalCompleted = doneItems + regressedItems || 1;
       const regressionPct = Math.round(((regressedItems + queueRegressions) / totalCompleted) * 100);
 
       // ─── 5. Scan health bonus ───
-      const avgScanScore = 50;
+      const avgScanScore = scans.length > 0
+        ? scans.reduce((sum, s) => sum + (s.overall_score || 0), 0) / scans.length
+        : 50;
 
       // ─── COMPOSITE SCORE ───
       const score = Math.max(0, Math.min(100, Math.round(

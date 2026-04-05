@@ -39,11 +39,23 @@ export async function runCriticalPathCheck(): Promise<CriticalPathReport> {
 
   // 1. scan → issue: Recent scans should create tasks
   try {
+    const { data: recentScans } = await supabase
+      .from('scan_results')
+      .select('id, issues_count, tasks_created')
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    const scansWithIssues = (recentScans || []).filter((s: any) => (s.issues_count || 0) > 0);
+    const scansWithTasks = (recentScans || []).filter((s: any) => (s.tasks_created || 0) > 0);
+    const ok = scansWithIssues.length === 0 || scansWithTasks.length > 0;
+
     checks.push({
       stage: 'scan_to_issue',
-      ok: true,
-      detail: 'Skanningskontroll ej tillgänglig',
-      count: 0,
+      ok,
+      detail: ok
+        ? `${scansWithTasks.length} skanningar genererade uppgifter`
+        : `${scansWithIssues.length} skanningar med problem men 0 uppgifter skapade`,
+      count: scansWithTasks.length,
     });
   } catch {
     checks.push({ stage: 'scan_to_issue', ok: false, detail: 'Kunde inte läsa skanningar' });
@@ -148,21 +160,28 @@ export async function runCriticalPathCheck(): Promise<CriticalPathReport> {
     checks.push({ stage: 'change_log_to_bug', ok: false, detail: 'Kunde inte verifiera bugg-resolution' });
   }
 
-  // 5. bug → verification: All done work items count as verified
+  // 5. bug → verification: Resolved bugs should have AI review
   try {
     const { data: resolvedItems } = await supabase
       .from('work_items' as any)
-      .select('id')
+      .select('id, review_status')
       .eq('status', 'done')
       .order('completed_at', { ascending: false })
       .limit(15);
 
+    const unverified = (resolvedItems || []).filter(
+      (i: any) => !i.review_status || i.review_status === 'pending'
+    ).length;
+
     const total = (resolvedItems || []).length;
+    const ok = unverified <= 2 || total === 0; // Allow small buffer
     checks.push({
       stage: 'bug_to_verification',
-      ok: true,
-      detail: `${total}/${total} uppgifter klara`,
-      count: 0,
+      ok,
+      detail: ok
+        ? `${total - unverified}/${total} uppgifter verifierade`
+        : `${unverified}/${total} uppgifter saknar verifiering`,
+      count: unverified,
     });
   } catch {
     checks.push({ stage: 'bug_to_verification', ok: false, detail: 'Kunde inte kontrollera verifiering' });
@@ -227,7 +246,7 @@ async function handleCriticalBreak(report: CriticalPathReport): Promise<void> {
       });
     }
   } catch (e) {
-
+    console.warn('[CriticalPath] Failed to create work item:', e);
   }
 
   // Pause non-critical work items
@@ -237,7 +256,7 @@ async function handleCriticalBreak(report: CriticalPathReport): Promise<void> {
       .in('priority', ['low', 'medium'])
       .eq('status', 'open');
   } catch (e) {
-
+    console.warn('[CriticalPath] Failed to pause non-critical items:', e);
   }
 
   toast.error(

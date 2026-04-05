@@ -78,7 +78,7 @@ const InfluencerCodeInput = ({
     setIsExpanded(false);
   };
 
-  const receivedProductIds = receivedProducts.map(p => p.shopify_product_id);
+  const receivedProductIds = receivedProducts.map(p => p.product_id);
 
   return (
     <div className="border-t border-border/50 pt-3">

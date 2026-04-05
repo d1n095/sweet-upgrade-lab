@@ -1,9 +1,9 @@
 import { motion } from 'framer-motion';
-import { Clock, ShoppingCart, Plus } from 'lucide-react';
+import { Clock, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { useRecentlyViewedStore } from '@/stores/recentlyViewedStore';
-import { useCartStore } from '@/stores/cartStore';
+import { useRecentlyViewedStore, RecentlyViewedItem } from '@/stores/recentlyViewedStore';
+import { useCartStore, dbVariantId } from '@/stores/cartStore';
 import { useLanguage } from '@/context/LanguageContext';
 import { useState } from 'react';
 
@@ -15,30 +15,46 @@ const RecentlyViewed = () => {
 
   if (products.length === 0) return null;
 
-  const formatPrice = (amount: string, currency: string) => {
-    return new Intl.NumberFormat('sv-SE', {
-      style: 'currency',
-      currency: currency,
-      minimumFractionDigits: 0,
-    }).format(parseFloat(amount));
-  };
+  const formatPrice = (price: number) =>
+    new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK', minimumFractionDigits: 0 }).format(price);
 
-  const handleQuickAdd = (product: typeof products[0]) => {
-    const variant = product.node.variants.edges[0]?.node;
-    if (!variant) return;
-
+  const handleQuickAdd = (item: RecentlyViewedItem) => {
+    const variantId = dbVariantId(item.id);
     addItem({
-      product,
-      variantId: variant.id,
-      variantTitle: variant.title,
-      price: variant.price,
+      product: {
+        dbId: item.id,
+        node: {
+          id: item.id,
+          title: item.title,
+          handle: item.handle,
+          description: '',
+          productType: '',
+          tags: [],
+          priceRange: { minVariantPrice: { amount: item.price.toString(), currencyCode: 'SEK' } },
+          images: { edges: item.imageUrl ? [{ node: { url: item.imageUrl, altText: item.title } }] : [] },
+          variants: {
+            edges: [{
+              node: {
+                id: variantId,
+                title: 'Default',
+                availableForSale: true,
+                price: { amount: item.price.toString(), currencyCode: 'SEK' },
+                selectedOptions: [],
+              },
+            }],
+          },
+        },
+      },
+      variantId,
+      variantTitle: 'Default',
+      price: { amount: item.price.toString(), currencyCode: 'SEK' },
       quantity: 1,
-      selectedOptions: variant.selectedOptions || [],
+      selectedOptions: [],
     });
 
-    setAddedIds(prev => [...prev, product.node.id]);
+    setAddedIds(prev => [...prev, item.id]);
     setTimeout(() => {
-      setAddedIds(prev => prev.filter(id => id !== product.node.id));
+      setAddedIds(prev => prev.filter(id => id !== item.id));
     }, 1500);
   };
 
@@ -53,26 +69,23 @@ const RecentlyViewed = () => {
         </div>
 
         <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
-          {products.slice(0, 6).map((product, index) => {
-            const variant = product.node.variants.edges[0]?.node;
-            const imageUrl = product.node.images.edges[0]?.node.url;
-            const isAdded = addedIds.includes(product.node.id);
-
+          {products.slice(0, 6).map((item, index) => {
+            const isAdded = addedIds.includes(item.id);
             return (
               <motion.div
-                key={product.node.id}
+                key={item.id}
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.05 }}
                 className="flex-shrink-0 w-40"
               >
-                <Link to={`/product/${product.node.handle}`}>
+                <Link to={`/product/${item.handle}`}>
                   <div className="glass-card p-3 group hover:border-primary/30 transition-all">
                     <div className="aspect-square rounded-lg overflow-hidden bg-secondary/50 mb-2">
-                      {imageUrl ? (
+                      {item.imageUrl ? (
                         <img
-                          src={imageUrl}
-                          alt={product.node.title}
+                          src={item.imageUrl}
+                          alt={item.title}
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                         />
                       ) : (
@@ -82,20 +95,16 @@ const RecentlyViewed = () => {
                       )}
                     </div>
                     <h3 className="font-medium text-sm truncate group-hover:text-primary transition-colors">
-                      {product.node.title}
+                      {item.title}
                     </h3>
-                    {variant && (
-                      <p className="text-primary font-bold text-sm mt-1">
-                        {formatPrice(variant.price.amount, variant.price.currencyCode)}
-                      </p>
-                    )}
+                    <p className="text-primary font-bold text-sm mt-1">{formatPrice(item.price)}</p>
                   </div>
                 </Link>
                 <Button
                   size="sm"
                   variant="secondary"
                   className={`w-full mt-2 h-8 text-xs transition-all ${isAdded ? 'bg-green-600 hover:bg-green-600 text-white' : ''}`}
-                  onClick={() => handleQuickAdd(product)}
+                  onClick={() => handleQuickAdd(item)}
                 >
                   {isAdded ? (
                     'Tillagd!'
