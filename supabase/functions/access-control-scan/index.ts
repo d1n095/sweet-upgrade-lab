@@ -283,16 +283,6 @@ serve(async (req) => {
       low_issues: issues.filter(i => i.risk === "low").length,
     };
 
-    // Log to ai_read_log
-    await sb.from("ai_read_log").insert({
-      action_type: "access_control_scan",
-      target_type: "security",
-      result: issues.length > 0 ? "issues_found" : "clean",
-      summary: `Access scan: ${issues.length} issues (${summary.critical_issues} kritiska, ${summary.high_issues} höga)`,
-      triggered_by: user.id,
-      metadata: { summary, issues_count: issues.length },
-    });
-
     console.log(`[access-control-scan] Complete: ${issues.length} issues found`);
 
     return new Response(JSON.stringify({

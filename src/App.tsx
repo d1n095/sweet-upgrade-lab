@@ -3,6 +3,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { resumeInterruptedJob } from "@/lib/scanEngine";
+import ScanEngineStatus from "@/components/admin/ScanEngineStatus";
 import { HelmetProvider } from "react-helmet-async";
 import { LanguageProvider } from "./context/LanguageContext";
 import ScrollToTop from "./components/ScrollToTop";
@@ -49,7 +51,6 @@ import AdminDonations from "./pages/admin/AdminDonations";
 import AdminMembers from "./pages/admin/AdminMembers";
 import AdminPartners from "./pages/admin/AdminPartners";
 import AdminContent from "./pages/admin/AdminContent";
-import AdminVisibility from "./pages/admin/AdminVisibility";
 import AdminLegal from "./pages/admin/AdminLegal";
 import AdminSettingsPage from "./pages/admin/AdminSettingsPage";
 import AdminStats from "./pages/admin/AdminStats";
@@ -57,7 +58,6 @@ import AdminReviews from "./pages/admin/AdminReviews";
 import AdminLogs from "./pages/admin/AdminLogs";
 import AdminCampaigns from "./pages/admin/AdminCampaigns";
 import AdminShipping from "./pages/admin/AdminShipping";
-import AdminFinance from "./pages/admin/AdminFinance";
 import AdminSEO from "./pages/admin/AdminSEO";
 import AdminStaff from "./pages/admin/AdminStaff";
 import AdminIncidents from "./pages/admin/AdminIncidents";
@@ -73,6 +73,10 @@ import AdminPOS from "./pages/admin/AdminPOS";
 import ScanPackingMode from "./components/admin/warehouse/ScanPackingMode";
 import SystemExplorer from "./pages/admin/SystemExplorer";
 import AdminDebug from "./pages/admin/AdminDebug";
+import AdminAudit from "./pages/admin/AdminAudit";
+
+// Resume any scan job that was interrupted by a page refresh
+resumeInterruptedJob();
 
 const queryClient = new QueryClient();
 
@@ -153,12 +157,14 @@ const App = () => (
                 <Route path="staff" element={<AdminStaff />} />
                 <Route path="insights" element={<AdminInsights />} />
                 <Route path="data" element={<AdminData />} />
+                <Route path="ai" element={<Navigate to="/admin/system-explorer" replace />} />
                 <Route path="history" element={<AdminHistory />} />
                 <Route path="changes" element={<AdminChangeHistory />} />
                 <Route path="database" element={<AdminDatabase />} />
                 <Route path="warehouse" element={<ScanPackingMode />} />
                 <Route path="system-explorer" element={<SystemExplorer />} />
                 <Route path="debug" element={<AdminDebug />} />
+                <Route path="audit" element={<AdminAudit />} />
               </Route>
 
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
@@ -167,6 +173,7 @@ const App = () => (
           </MaintenanceGuard>
           <CookieBanner />
           <MiniWorkbench />
+          <ScanEngineStatus />
         </BrowserRouter>
       </TooltipProvider>
     </LanguageProvider>

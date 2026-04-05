@@ -37,7 +37,7 @@ const HomepageNewProducts = ({ getSection }: Props) => {
           .slice(0, 4);
         setProducts(newest);
       } catch (err) {
-        console.error('Failed to load new products:', err);
+
       } finally {
         setLoading(false);
       }

@@ -172,7 +172,7 @@ const AdminStats = () => {
         setRecentLogs(prev => [payload.new as LogEntry, ...prev].slice(0, 50));
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
-        console.log('[AdminStats] Order change detected, refetching stats');
+
         fetchDashboardStats();
       })
       .subscribe();
@@ -187,7 +187,7 @@ const AdminStats = () => {
         p_to: to,
       });
       if (error) {
-        console.error('RPC get_dashboard_stats failed, using fallback:', error);
+
         // Fallback: query orders directly
         const { data: orders } = await supabase
           .from('orders')
@@ -260,7 +260,7 @@ const AdminStats = () => {
         setStats(data as unknown as DashboardStats);
       }
     } catch (e) {
-      console.error('Failed to fetch dashboard stats:', e);
+
     }
   };
 
@@ -284,7 +284,7 @@ const AdminStats = () => {
         .limit(50);
       setRecentLogs((data || []) as LogEntry[]);
     } catch (e) {
-      console.error('Failed to fetch logs:', e);
+
     }
   };
 
@@ -325,7 +325,7 @@ const AdminStats = () => {
       setSearchesWithProducts(all.filter(s => s.has_results).slice(0, 20));
       setDemandSearches(all.filter(s => !s.has_results).slice(0, 20));
     } catch (e) {
-      console.error('Failed to fetch searches:', e);
+
     }
   };
 
@@ -376,7 +376,7 @@ const AdminStats = () => {
         setAbandonedItems(Object.entries(abandonItemCounts).map(([title, data]) => ({ title, count: data.count, totalValue: data.totalValue })).sort((a, b) => b.count - a.count).slice(0, 15));
       }
     } catch (e) {
-      console.error('Failed to fetch analytics:', e);
+
     }
   };
 

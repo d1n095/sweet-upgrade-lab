@@ -198,7 +198,7 @@ const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
         // Send welcome email in background
         safeInvoke('send-welcome-email', {
           body: { email, language }
-        }).catch(err => console.error('Welcome email failed:', err));
+        }).catch(() => {});
         
         logAuthEvent('login', email, { type: 'signup' });
         

@@ -68,7 +68,7 @@ export const useAuth = () => {
           // Sync wishlist with database
           syncWithDatabase(userId);
         } catch (error) {
-          console.error('Failed to load profile:', error);
+
         }
       })();
     }, 0);

@@ -6,7 +6,7 @@ import { useSearchStore } from '@/stores/searchStore';
 import { useLanguage } from '@/context/LanguageContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { trackEvent } from '@/utils/analyticsTracker';
+
 import { logSearchStandalone } from '@/hooks/useInsightLogger';
 
 interface DbProductResult {
@@ -216,16 +216,6 @@ const SearchSuggestions = () => {
             if (name) matched.add(name);
           });
           setIngredientMatches([...matched].slice(0, 5));
-
-          // Track search analytics
-          trackEvent('search', {
-            query: q,
-            product_results: allResults.length,
-            tag_results: tagData?.length || 0,
-            category_results: (catData?.length || 0) + (subCatData?.length || 0),
-            ingredient_results: matched.size,
-            total_results: totalResults,
-          });
         } else {
           // Empty query — show popular products
           const { data } = await supabase
@@ -244,7 +234,7 @@ const SearchSuggestions = () => {
         }
         setShowSuggestions(true);
       } catch (error) {
-        console.error('Failed to fetch suggestions:', error);
+
       } finally {
         setIsLoading(false);
       }
@@ -256,23 +246,19 @@ const SearchSuggestions = () => {
   const handleProductClick = (handle: string | null, productId: string) => {
     setShowSuggestions(false);
     if (searchQuery.trim()) addRecentSearch(searchQuery.trim());
-    trackEvent('search_product_click', { product_id: productId, query: searchQuery });
     if (handle) navigate(`/product/${handle}`);
   };
 
   const handleIngredientClick = (ingredient: string) => {
-    trackEvent('ingredient_click', { ingredient, query: searchQuery });
     setSearchQuery(ingredient);
   };
 
   const handleTagClick = (tag: TagResult) => {
-    trackEvent('tag_click', { tag_id: tag.id, tag_name: tag.name_sv, tag_type: tag.tag_type, query: searchQuery });
     setShowSuggestions(false);
     navigate(`/produkter?tag=${tag.slug}`);
   };
 
   const handleCategoryClick = (cat: CategoryResult) => {
-    trackEvent('category_click', { category_id: cat.id, category_name: cat.name_sv, query: searchQuery });
     setShowSuggestions(false);
     navigate(`/produkter?category=${cat.slug}`);
   };

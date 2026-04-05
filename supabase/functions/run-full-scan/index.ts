@@ -12,6 +12,12 @@ async function logRuntimeTrace(source: string, function_name: string, endpoint: 
   } catch (_) {}
 }
 
+// ── Trace helper: consistent [SCAN:id] prefix for all scan-related logs ──
+function trace(scanRunId: string | undefined, msg: string, ...args: any[]) {
+  const tid = scanRunId ? scanRunId.slice(0, 8) : "??";
+  console.log(`[SCAN:${tid}] ${msg}`, ...args);
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -54,109 +60,6 @@ function computePriority(severity: string, frequency: number, ageMs: number): nu
   const sev = SEVERITY_WEIGHT[severity] ?? 1;
   const recency = Math.max(0.1, 1 - ageMs / (7 * 24 * 60 * 60 * 1000));
   return Math.round(sev * Math.max(1, frequency) * recency * 10) / 10;
-}
-
-// ── SYSTEM STAGE: Context awareness ──
-type SystemStage = "development" | "staging" | "production";
-
-async function getSystemStage(supabase: any): Promise<SystemStage> {
-  try {
-    const { data } = await supabase
-      .from("store_settings")
-      .select("key, value, text_value")
-      .eq("key", "system_stage")
-      .maybeSingle();
-    const textVal = data?.text_value;
-    if (textVal === "production" || textVal === "staging") return textVal;
-    if (data?.value === true || data?.value === "production") return "production";
-    return "development";
-  } catch {
-    return "development";
-  }
-}
-
-// ── Issue Fingerprint: deterministic identity key ──
-// Combines component, type, location, and description pattern for persistent identity across scans.
-function generateFingerprint(issue: any): string {
-  const component = (issue.component || issue.element || issue.table || issue.entity || issue.chain || "unknown").toLowerCase().replace(/[^a-z0-9]/g, "_").slice(0, 30);
-  const type = (issue.type || issue.failure_type || issue.category || issue.item_type || issue._source || "general").toLowerCase().replace(/[^a-z0-9]/g, "_").slice(0, 20);
-  const location = (issue.route || issue.page || issue.field || issue.step || "global").toLowerCase().replace(/[^a-z0-9]/g, "_").slice(0, 30);
-  // Extract a stable description pattern: first 40 chars of normalized description/title
-  const descRaw = (issue.description || issue.title || issue.fix_suggestion || "").toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();
-  const descPattern = descRaw.split(/\s+/).slice(0, 5).join("_").slice(0, 30);
-  return `${component}::${type}::${location}::${descPattern}`;
-}
-
-
-// ── Context-aware filtering: suppress false positives based on stage ──
-// DEBUG MODE: Relaxed — only suppress clearly invalid/placeholder patterns
-function filterDevFalsePositives(issues: any[], stage: SystemStage): any[] {
-  if (stage === "production") {
-    return issues.map(issue => ({ ...issue, _filter_decision: "passed" }));
-  }
-  
-  // DEBUG: Only suppress obviously invalid patterns (placeholder/dummy data)
-  const debugIgnorePatterns = [
-    /dummy|placeholder|lorem/i,
-    /saknar\s*test\s*data/i,
-  ];
-  
-  return issues.map(issue => {
-    const text = `${issue.title || ""} ${issue.description || ""}`;
-    const isDevExpected = debugIgnorePatterns.some(p => p.test(text));
-    if (isDevExpected) {
-      return { ...issue, _dev_expected: true, severity: "info", _original_severity: issue.severity, _filter_decision: "filtered_out", _filter_reason: "dev_placeholder" };
-    }
-    return { ...issue, _filter_decision: "passed" };
-  });
-}
-
-// ── SYSTEM OVERVIEW: Build structured status per domain ──
-interface SystemOverview {
-  ui_layout: { status: "healthy" | "warning" | "critical"; score: number; issues: number; summary: string };
-  interaction: { status: "healthy" | "warning" | "critical"; score: number; issues: number; summary: string };
-  data_sync: { status: "healthy" | "warning" | "critical"; score: number; issues: number; summary: string };
-  pipeline: { status: "healthy" | "warning" | "critical"; score: number; issues: number; summary: string };
-  integration: { status: "healthy" | "warning" | "critical"; score: number; issues: number; summary: string };
-  system_stage: SystemStage;
-}
-
-function buildSystemOverview(stepResults: Record<string, any>, unified: any, stage: SystemStage): SystemOverview {
-  const statusFromScore = (s: number): "healthy" | "warning" | "critical" => s >= 75 ? "healthy" : s >= 50 ? "warning" : "critical";
-  
-  // UI/Layout
-  const uiIssues = (unified.broken_flows || []).filter((f: any) => 
-    /layout|overflow|scroll|z-index|position|css|style|responsive|mobile/i.test(JSON.stringify(f))
-  ).length + (unified.fake_features || []).length;
-  const uiScore = Math.max(0, 100 - uiIssues * 10);
-  
-  // Interaction
-  const interactionIssues = (unified.interaction_failures || []).length;
-  const interactionScore = stepResults.interaction_qa?.overall_score ?? stepResults.human_test?.overall_score ?? Math.max(0, 100 - interactionIssues * 8);
-  
-  // Data/Sync
-  const dataIssues = (unified.data_issues || []).filter((d: any) => !d._dev_expected).length;
-  const dataScore = stepResults.ui_data_binding?.overall_score ?? stepResults.data_flow_validation?.overall_score ?? Math.max(0, 100 - dataIssues * 5);
-  
-  // Pipeline (work items, triggers, automation)
-  const behaviorIssues = (unified.behavior_failures || []).length;
-  const integrityIssues = (unified.integrity_issues || []).length;
-  const pipelineScore = Math.max(0, 100 - (behaviorIssues + integrityIssues) * 6);
-  
-  // Integration (affiliates, email, payments)
-  const integrationIssues = (unified.data_issues || []).filter((d: any) => 
-    /affiliate|influencer|email|payment|stripe|webhook/i.test(JSON.stringify(d))
-  ).length;
-  const integrationScore = Math.max(0, 100 - integrationIssues * 8);
-  
-  return {
-    ui_layout: { status: statusFromScore(uiScore), score: uiScore, issues: uiIssues, summary: uiIssues === 0 ? "Inga layout-problem" : `${uiIssues} UI/layout-problem` },
-    interaction: { status: statusFromScore(interactionScore), score: interactionScore, issues: interactionIssues, summary: interactionIssues === 0 ? "Alla interaktioner OK" : `${interactionIssues} interaktionsproblem` },
-    data_sync: { status: statusFromScore(dataScore), score: dataScore, issues: dataIssues, summary: dataIssues === 0 ? "Data konsistent" : `${dataIssues} synk-/dataproblem` },
-    pipeline: { status: statusFromScore(pipelineScore), score: pipelineScore, issues: behaviorIssues + integrityIssues, summary: behaviorIssues + integrityIssues === 0 ? "Pipeline fungerar" : `${behaviorIssues + integrityIssues} pipeline-problem` },
-    integration: { status: statusFromScore(integrationScore), score: integrationScore, issues: integrationIssues, summary: integrationIssues === 0 ? "Integrationer OK" : `${integrationIssues} integrationsproblem` },
-    system_stage: stage,
-  };
 }
 
 
@@ -904,8 +807,8 @@ async function runRealSystemScan(supabase: any, scanRunId: string): Promise<any>
       issues.push({ title: `Eskalerat ärende >24h: "${wi.title}"`, severity: "high", component: "work_items", entity_id: wi.id });
     }
 
-    // Score trend
-    const { data: recentScans } = await supabase.from("ai_scan_results").select("overall_score, created_at, scan_type").eq("scan_type", "full_orchestrated").order("created_at", { ascending: false }).limit(3);
+    // Score trend - skipped
+    const recentScans: any[] = [];
     if (recentScans?.length >= 2) {
       const current = recentScans[0].overall_score || 0;
       const previous = recentScans[1].overall_score || 0;
@@ -1559,23 +1462,6 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     flow._affected_area = flow.category === "flow_ui" ? { type: "flow", target: "ui_flows" } : CATEGORY_AREA_MAP.broken_flows;
     flow._origin_source = "scanner";
     allWorkIssues.push({
-      title: `Broken flow: ${flow.description || flow.route || flow.issue || "unknown"}`.slice(0, 120),
-      priority: "high", item_type: "bug", description: flow.fix_suggestion || flow.detail || "",
-      fingerprint: fp, issue_type: issueType, suggested_fix: suggestedFixForType(issueType),
-      source_path: flow.route || flow.page || null, source_file: flow.file || flow.source_file || null, source_component: flow.component || flow.element || null,
-      affected_area: flow.category === "flow_ui" ? { type: "flow", target: "ui_flows" } : CATEGORY_AREA_MAP.broken_flows,
-    });
-  }
-
-  const actionableFake = tagActionable(unified.fake_features || []).filter(isActionable);
-  for (const fake of actionableFake.slice(0, 15)) {
-    const fp = generateFingerprint(fake);
-    const issueType = classifyIssueType(fake, "fake_features");
-    fake._issue_type = issueType;
-    fake._suggested_fix = suggestedFixForType(issueType);
-    fake._affected_area = CATEGORY_AREA_MAP.fake_features;
-    fake._origin_source = "scanner";
-    allWorkIssues.push({
       title: `Fake feature: ${fake.name || fake.component || fake.description || "unknown"}`.slice(0, 120),
       priority: "high", item_type: "improvement", description: fake.reason || fake.detail || "",
       fingerprint: fp, issue_type: issueType, suggested_fix: suggestedFixForType(issueType),
@@ -1593,24 +1479,6 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     fail._affected_area = CATEGORY_AREA_MAP.interaction_failures;
     fail._origin_source = "scanner";
     allWorkIssues.push({
-      title: `Interaction: ${fail.title || fail.element || fail.description || "unknown"}`.slice(0, 120),
-      priority: fail.severity === "critical" ? "critical" : "high", item_type: "bug",
-      description: fail.fix_suggestion || fail.detail || fail.issue || "",
-      fingerprint: fp, issue_type: issueType, suggested_fix: suggestedFixForType(issueType),
-      source_path: fail.route || fail.page || null, source_file: fail.file || fail.source_file || null, source_component: fail.component || fail.element || null,
-      affected_area: CATEGORY_AREA_MAP.interaction_failures,
-    });
-  }
-
-  const actionableData = tagActionable(unified.data_issues || []).filter(isActionable);
-  for (const issue of actionableData.slice(0, 15)) {
-    const fp = generateFingerprint(issue);
-    const issueType = classifyIssueType(issue, "data_issues");
-    issue._issue_type = issueType;
-    issue._suggested_fix = suggestedFixForType(issueType);
-    issue._affected_area = issue.category === "ui_visual" ? { type: "ui", target: "components" } : CATEGORY_AREA_MAP.data_issues;
-    issue._origin_source = "scanner";
-    allWorkIssues.push({
       title: `Data: ${issue.title || issue.field || issue.description || "unknown"}`.slice(0, 120),
       priority: issue.severity === "critical" ? "critical" : "medium", item_type: "bug",
       description: issue.fix_suggestion || issue.detail || "",
@@ -1625,225 +1493,13 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     (issue as any)._origin_source = "scanner";
   }
 
-  // ── IMPACT SCORING: classify each issue 1–5 ──
-  const FLOW_KEYWORDS = ["checkout", "login", "order", "payment", "auth", "signup", "cart"];
-  const ACTION_KEYWORDS = ["button", "click", "submit", "form", "action", "interaction", "navigation"];
-  const DATA_KEYWORDS = ["data", "mismatch", "inconsisten", "sync", "orphan", "missing", "duplicate", "stale"];
-
-  for (const issue of allWorkIssues) {
-    const text = `${issue.title || ""} ${issue.description || ""} ${(issue as any).source_component || ""} ${(issue as any).source_path || ""}`.toLowerCase();
-    const isFlow = FLOW_KEYWORDS.some(k => text.includes(k));
-    const isAction = ACTION_KEYWORDS.some(k => text.includes(k));
-    const isData = DATA_KEYWORDS.some(k => text.includes(k));
-    const sevCritical = issue.priority === "critical";
-    const sevHigh = issue.priority === "high";
-
-    let impact_score = 1;
-    let impact_label = "low";
-
-    if (sevCritical || (isFlow && (sevHigh || sevCritical))) {
-      impact_score = 5; impact_label = "critical";
-    } else if (isFlow || (isAction && sevHigh)) {
-      impact_score = 4; impact_label = "high";
-    } else if (isData) {
-      impact_score = 3; impact_label = "medium";
-    } else if (isAction || issue.item_type === "improvement") {
-      impact_score = 2; impact_label = "low";
-    }
-
-    (issue as any)._impact_score = impact_score;
-    (issue as any)._impact_label = impact_label;
-  }
-
-  // ── CONSISTENCY GUARD: Build fingerprint map of current scan issues ──
-  const currentFingerprints = new Map<string, { title: string; priority: string; item_type: string; description?: string }>();
-  for (const issue of allWorkIssues) {
-    currentFingerprints.set(issue.fingerprint, { title: issue.title, priority: issue.priority, item_type: issue.item_type, description: issue.description });
-  }
-
-  // Run guard: resolve disappeared issues, get existing map
-  const existingByFp = await runConsistencyGuard(supabase, currentFingerprints);
-
-  // ── PROCESS EACH ISSUE with consistency logic ──
-  for (const issue of allWorkIssues) {
-    // Validation checks
-    if (!issue.title || issue.title.trim().length === 0) {
-      createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'skipped_validation', _validation_reason: 'missing_title', issue_type: issue.issue_type || 'bug', affected_area: issue.affected_area });
-      continue;
-    }
-    if (!issue.item_type || issue.item_type.trim().length === 0) {
-      createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'skipped_validation', _validation_reason: 'missing_type', issue_type: issue.issue_type || 'bug', affected_area: issue.affected_area });
-      continue;
-    }
-
-    const existingItem = existingByFp.get(issue.fingerprint);
-
-    if (existingItem) {
-      // 24h window: only block if created within last 24 hours
-      const itemAge = Date.now() - new Date(existingItem.created_at).getTime();
-      const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
-      if (itemAge <= TWENTY_FOUR_HOURS) {
-        // REAPPEARING ISSUE within 24h — do NOT create new, but update occurrence tracking
-        const updatePayload: Record<string, any> = {
-          last_seen_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-        if (existingItem.priority !== issue.priority) {
-          updatePayload.priority = issue.priority;
-        }
-        await supabase.from("work_items").update(updatePayload).eq("id", existingItem.id);
-        // Increment occurrence_count via raw increment
-        await supabase.rpc("increment_work_item_occurrence", { p_work_item_id: existingItem.id }).catch(() => {
-          // Fallback if RPC doesn't exist yet
-          console.log(`[occurrence] RPC fallback for ${existingItem.id.slice(0, 8)}`);
-        });
-
-        if (existingItem.priority !== issue.priority) {
-          await supabase.from("system_observability_log").insert({
-            event_type: "action", severity: "info", source: "consistency_guard",
-            message: `Severity ändrad: "${issue.title.slice(0, 60)}" ${existingItem.priority} → ${issue.priority}`,
-            details: { work_item_id: existingItem.id, old_priority: existingItem.priority, new_priority: issue.priority },
-            component: "scan-consistency-guard",
-          });
-          console.log(`[consistency-guard] SEVERITY UPDATED: ${existingItem.id.slice(0, 8)} ${existingItem.priority} → ${issue.priority}`);
-        } else {
-          console.log(`[consistency-guard] LINKED (unchanged, <24h): ${existingItem.id.slice(0, 8)} "${issue.title.slice(0, 40)}"`);
-        }
-        createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'skipped_dedup', _dedup_reason: 'fingerprint_match', existing_item_id: existingItem.id, issue_type: issue.issue_type || 'bug', affected_area: issue.affected_area });
-        continue;
-      } else {
-        console.log(`[consistency-guard] ALLOW re-creation (>24h old): "${issue.title.slice(0, 40)}" (existing ${existingItem.id.slice(0, 8)})`);
-      }
-    }
-
-    // Fallback: fuzzy title match — DEBUG: narrowed to first 20 chars for less aggressive dedup
-    const searchTitle = issue.title.substring(0, 20);
-    const { data: existingByTitle } = await supabase
-      .from("work_items")
-      .select("id, priority")
-      .ilike("title", `%${searchTitle}%`)
-      .in("status", ["open", "claimed", "in_progress", "escalated", "new", "pending", "detected"])
-      .limit(1);
-
-    if (existingByTitle?.length) {
-      await supabase.from("work_items").update({
-        issue_fingerprint: issue.fingerprint,
-        last_seen_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }).eq("id", existingByTitle[0].id);
-      await supabase.rpc("increment_work_item_occurrence", { p_work_item_id: existingByTitle[0].id }).catch(() => {});
-      console.log(`[consistency-guard] LINKED by title: ${existingByTitle[0].id.slice(0, 8)} "${issue.title.slice(0, 40)}"`);
-      createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'skipped_dedup', _dedup_reason: 'title_match', existing_item_id: existingByTitle[0].id, issue_type: issue.issue_type || 'bug', affected_area: issue.affected_area });
-      continue;
-    }
-
-    // NEW ISSUE — create
-    const now = new Date().toISOString();
-    // Try match a recent runtime_trace (within 60s)
-    let matchedTraceId: string | null = null;
-    let matchedTraceFn: string | null = null;
-    let matchedTraceEndpoint: string | null = null;
-    if (issue.issue_type === "bug" || issue.affected_area === "data" || issue.title?.toLowerCase().includes("missing") || issue.title?.toLowerCase().includes("mismatch") || issue.title?.toLowerCase().includes("null") || issue.title?.toLowerCase().includes("lost")) {
-      try {
-        const cutoff = new Date(Date.now() - 60_000).toISOString();
-        const keywords = (issue.title || "").split(/\s+/).filter((w: string) => w.length > 4).slice(0, 3);
-        let traceQuery = supabase.from("runtime_traces").select("id, error_message, function_name, endpoint").gte("created_at", cutoff).order("created_at", { ascending: false }).limit(5);
-        const { data: traces } = await traceQuery;
-        if (traces?.length) {
-          const match = traces.find((t: any) => keywords.some((kw: string) => t.error_message?.toLowerCase().includes(kw.toLowerCase())));
-          matchedTraceId = match?.id || traces[0]?.id || null;
-          if (match) { matchedTraceFn = match.function_name || null; matchedTraceEndpoint = match.endpoint || null; }
-          else if (traces[0]) { matchedTraceFn = traces[0].function_name || null; matchedTraceEndpoint = traces[0].endpoint || null; }
-        }
-      } catch (_) {}
-    }
-
-    // Suggested fix generation
-    let suggested_fix_code: string | null = null;
-    let suggested_fix_type: "sql" | "logic" | "mapping" | null = null;
-    const titleLower = (issue.title || "").toLowerCase();
-    const descLower = (issue.description || "").toLowerCase();
-    const traceContext = matchedTraceFn ? ` in ${matchedTraceFn}${matchedTraceEndpoint ? ` (${matchedTraceEndpoint})` : ""}` : "";
-
-    if (titleLower.includes("id lost") || titleLower.includes("persisted") || descLower.includes("id lost")) {
-      suggested_fix_type = "sql";
-      suggested_fix_code = `Ensure DB insert returns id and is awaited properly${traceContext}. Check that .select("id").single() is chained after insert.`;
-    } else if (titleLower.includes("no data found") || titleLower.includes("missing") || descLower.includes("no data found where expected")) {
-      suggested_fix_type = "logic";
-      suggested_fix_code = `Check insert logic or missing trigger for entity creation${traceContext}. Verify the row exists after write and RLS allows read-back.`;
-    } else if (titleLower.includes("mismatch") || titleLower.includes("data mismatch") || descLower.includes("mismatch")) {
-      suggested_fix_type = "mapping";
-      suggested_fix_code = `Align frontend expected fields with backend response${traceContext}. Compare request payload keys with DB column names.`;
-    } else if (titleLower.includes("null") || titleLower.includes("undefined")) {
-      suggested_fix_type = "logic";
-      suggested_fix_code = `Check for null/undefined values before DB write${traceContext}. Add default values or NOT NULL constraints.`;
-    } else if (titleLower.includes("rls") || titleLower.includes("row-level") || titleLower.includes("policy")) {
-      suggested_fix_type = "sql";
-      suggested_fix_code = `Review RLS policies${traceContext}. Ensure user_id is set correctly and policy allows the operation.`;
-    } else if (matchedTraceFn) {
-      suggested_fix_type = "logic";
-      suggested_fix_code = `Runtime error detected in ${matchedTraceFn}${matchedTraceEndpoint ? ` (${matchedTraceEndpoint})` : ""}. Check error handling and input validation.`;
-    }
-
-    // Fix confidence scoring (1-5)
-    let fix_confidence = 1;
-    if (matchedTraceFn && suggested_fix_type === "sql") {
-      fix_confidence = 5; // direct runtime error + clear fix
-    } else if (matchedTraceFn && suggested_fix_code) {
-      fix_confidence = 4; // runtime error with suggested fix
-    } else if (titleLower.includes("missing") || titleLower.includes("no data found") || descLower.includes("missing")) {
-      fix_confidence = 4; // data missing with clear source
-    } else if (suggested_fix_type === "mapping" || titleLower.includes("mismatch")) {
-      fix_confidence = 3; // mapping issue
-    } else if (titleLower.includes("ui") || titleLower.includes("layout") || titleLower.includes("display") || titleLower.includes("render")) {
-      fix_confidence = 2; // UI issue
-    } else if (suggested_fix_code) {
-      fix_confidence = 3; // has a fix suggestion but not strongly categorized
-    }
-
-    // Resolve source_file_path from runtime trace or component name
-    let source_file_path: string | null = issue.source_file || issue.source_path || null;
-    if (!source_file_path && matchedTraceFn) {
-      // Map runtime trace function name to file path
-      source_file_path = `src/${matchedTraceFn.includes("/") ? matchedTraceFn : matchedTraceFn}`;
-    }
-    if (!source_file_path && issue.source_component) {
-      // Map component name to likely file path
-      const comp = issue.source_component;
-      source_file_path = `src/components/${comp.includes(".") ? comp : comp + ".tsx"}`;
-    }
-    if (!source_file_path && issue.affected_area?.target) {
-      const target = issue.affected_area.target;
-      if (target.includes("/") || target.includes(".")) {
-        source_file_path = target.startsWith("src/") ? target : `src/${target}`;
-      }
-    }
-
-    const insertPayload: Record<string, any> = {
-      title: issue.title,
-      description: (issue.description || "Auto-generated from scan") + (suggested_fix_code ? `\n\n💡 Suggested fix (${suggested_fix_type}): ${suggested_fix_code}` : "") + `\n\n🎯 Fix confidence: ${fix_confidence}/5` + (source_file_path ? `\n📁 Source File: ${source_file_path}` : ""),
-      status: "open",
-      priority: issue.priority,
-      item_type: issue.item_type,
-      source_type: "scanner",
-      issue_fingerprint: issue.fingerprint,
-      source_path: source_file_path || issue.source_path || null,
-      source_file: source_file_path || issue.source_file || null,
-      source_component: issue.source_component || null,
-      first_seen_at: now,
-      last_seen_at: now,
-      occurrence_count: 1,
-      ...(matchedTraceId ? { runtime_trace_id: matchedTraceId } : {}),
-    };
-
-    console.log("[SCAN STEP] Creating work item: %s", issue.title?.slice(0, 60));
     let verified = false;
     let lastInsertError: string | null = null;
     for (let attempt = 1; attempt <= 2; attempt++) {
       const { data: created, error } = await supabase.from("work_items").insert(insertPayload).select("id, title, status").single();
       if (error) {
         lastInsertError = error.message || JSON.stringify(error);
-        console.error(`[create-verify] INSERT failed (attempt ${attempt}):`, error.message);
+        console.error(`[create-verify] INSERT failed (attempt ${attempt}): "${issue.title.slice(0, 40)}"`, error.message);
         continue;
       }
       const { data: fetched } = await supabase.from("work_items").select("id").eq("id", created.id).maybeSingle();
@@ -1893,10 +1549,9 @@ async function persistStepResults(supabase: any, steps: typeof STEPS, results: R
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  console.log("EDGE FUNCTION HIT");
 
   try {
-    console.log("🚨 SCAN STARTED");
-    console.log("[SCAN START]");
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
@@ -1911,9 +1566,7 @@ serve(async (req) => {
       }
     } catch (_) {}
 
-    console.log("[SCAN] parsing body");
     const body = await req.json();
-    console.log("FULL SCAN BODY:", body);
     const { action, scan_run_id, step_index, iteration, request_trace_id, scan_mode, target_area, verification_for } = body;
     const source = body.source || "unknown";
     console.log("[SCAN SOURCE]:", source);
@@ -1921,8 +1574,6 @@ serve(async (req) => {
 
     // ── START ──
     if (action === "start") {
-      console.log("[FULL SCAN START]");
-      console.log("[SCAN] authenticating user");
       const authHeader = req.headers.get("authorization");
       if (!authHeader) return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
@@ -1931,10 +1582,8 @@ serve(async (req) => {
       if (userError || !user?.id) return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       const userId = user.id;
 
-      console.log("[SCAN] user authenticated, checking role:", userId);
       const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
       const isStaff = roles?.some((r: any) => ["admin", "founder", "it", "support", "moderator"].includes(r.role));
-      console.log("[SCAN] roles:", roles, "isStaff:", isStaff);
       if (!isStaff) return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
       // Check running scan lock
@@ -1958,7 +1607,6 @@ serve(async (req) => {
         ? STEPS.filter((s: any) => targetedStepIds.includes(s.id))
         : STEPS;
 
-      console.log("[SCAN] creating scan_run in DB");
       const { data: scanRun, error: insertError } = await supabase.from("scan_runs").insert({
         status: "running", started_by: userId, current_step: 0, total_steps: prioritizedSteps.length,
         current_step_label: prioritizedSteps[0].label, steps_results: {},
@@ -1968,30 +1616,23 @@ serve(async (req) => {
         ...(isTargeted ? { scan_mode: "targeted", target_area, verification_for } : { scan_mode: "full" }),
       }).select("id").single();
 
-      console.log("[SCAN] insert result:", scanRun, "error:", insertError);
       if (insertError || !scanRun) return new Response(JSON.stringify({ success: false, error: "Failed to create scan run", detail: insertError?.message }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-      // Input debug
+      const tid = scanRun.id.slice(0, 8);
+
+      // Input snapshot
       const { data: structure_map } = await supabase.from("system_structure_map").select("entity_type, entity_name").limit(500);
       const routes = (structure_map || []).filter((e: any) => e.entity_type === "page");
       const components = (structure_map || []).filter((e: any) => e.entity_type === "component");
       const dataEntities = (structure_map || []).filter((e: any) => e.entity_type !== "page" && e.entity_type !== "component");
-      const scanInput = {
-        components_count: components.length,
-        routes_count: routes.length,
-        data_entities_count: dataEntities.length,
-      };
-      console.log("[SCAN INPUT]", scanInput);
-
-      // Store scan_input on the scan_run
+      const scanInput = { components_count: components.length, routes_count: routes.length, data_entities_count: dataEntities.length };
       await supabase.from("scan_runs").update({ steps_results: { _scan_input: scanInput } }).eq("id", scanRun.id);
 
       // Log scan start to runtime_traces for full system visibility
       await logRuntimeTrace("scan", "run-full-scan", "start", null as any, { scanRunId: scanRun.id }, scanRun.id);
 
       if (!structure_map || structure_map.length === 0) {
-        console.error("❌ SCAN ABORT: NO STRUCTURE MAP");
-        return new Response(JSON.stringify({ success: false, error: "NO_INPUT_DATA" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        console.warn(`[SCAN:${tid}] ⚠ No structure map — using fallback`);
       }
 
       console.log("[SCAN START] scan_id=%s stage=%s mode=%s steps=%d", scanRun.id, systemStage, isTargeted ? "targeted" : "full", prioritizedSteps.length);
@@ -2009,12 +1650,11 @@ serve(async (req) => {
 
     // ── PROCESS_STEP ──
     if (action === "process_step" && scan_run_id && step_index !== undefined) {
-      console.log("[SCAN] running scanners — step:", step_index, "iteration:", iteration);
       const currentIteration = iteration || 1;
       const { data: scanRun } = await supabase.from("scan_runs").select("*").eq("id", scan_run_id).single();
       if (!scanRun || scanRun.status !== "running") return new Response(JSON.stringify({ success: false, error: "Scan not running" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-      const step = currentIteration === 1 ? STEPS[step_index] : (scanRun._targeted_steps || STEPS)[step_index];
+      const step = STEPS[step_index];
       if (!step) return new Response(JSON.stringify({ success: false, error: "Invalid step index" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
       await supabase.from("scan_runs").update({ current_step: step_index, current_step_label: step.label, iteration: currentIteration }).eq("id", scan_run_id);
@@ -2022,8 +1662,8 @@ serve(async (req) => {
       let stepResult: any = { error: "unknown", failed: true };
       const stepStart = Date.now();
 
+      trace(scan_run_id, `process_step[${step_index}] start id=${step.id} scanner=${step.scanType}`);
       try {
-        const STEP_TIMEOUT_MS = 30000;
         const realScanner = REAL_DB_SCANNERS[step.scanType];
         if (realScanner) {
           console.log(`[scan] Running REAL DB scanner for ${step.scanType}`);
@@ -2039,6 +1679,9 @@ serve(async (req) => {
       } catch (e: any) { console.error("❌ SCAN STEP FAILED:", step.id, e.message); stepResult = { error: e.message, failed: true, _timed_out: e.name === "AbortError" }; }
 
       const duration_ms = Date.now() - stepStart;
+      const issueCount = stepResult.issues?.length ?? 0;
+      trace(scan_run_id, `process_step[${step_index}] done id=${step.id} issues=${issueCount} duration_ms=${duration_ms}${stepResult.failed ? ` ERROR=${stepResult.error}` : ""}`);
+
       const scanFinishedAt = new Date().toISOString();
       const scanStartedAt = new Date(Date.now() - duration_ms).toISOString();
 
@@ -2053,8 +1696,6 @@ serve(async (req) => {
       } else {
         stepResult.issues = stepResult.issues ?? [];
       }
-
-      console.log("🚨 TOTAL ISSUES:", stepResult.issues.length);
 
       // ── Extended metadata ──
       stepResult._execution_time_ms = duration_ms;
@@ -2114,16 +1755,16 @@ serve(async (req) => {
       stepResult._step_id = step.id;
       stepResult._iteration = currentIteration;
 
+      const traceId = `full-scan-${scan_run_id.slice(0, 8)}`;
       await supabase.from("system_observability_log").insert({
         event_type: "scan_step", severity: stepResult.failed ? "error" : "info", source: "scanner",
         message: stepResult.failed ? `Steg misslyckades: ${step.label}` : `Steg klart: ${step.label}`,
-        details: { step_id: step.id, iteration: currentIteration, failed: !!stepResult.failed },
-        scan_id: scan_run_id, trace_id: `full-scan-${scan_run_id.slice(0, 8)}`, component: step.scanType, duration_ms,
+        details: { step_id: step.id, step_index, issues: issueCount, duration_ms, failed: !!stepResult.failed },
+        scan_id: scan_run_id, trace_id: traceId, component: step.scanType, duration_ms,
       }).catch(() => {});
 
       const updatedResults = { ...(scanRun.steps_results || {}), [step.id]: stepResult };
-      const stepsForIteration = currentIteration === 1 ? STEPS : (scanRun._targeted_steps || STEPS);
-      const isLastStep = step_index + 1 >= stepsForIteration.length;
+      const isLastStep = step_index + 1 >= STEPS.length;
 
       if (!isLastStep) {
         const nextStep = stepsForIteration[step_index + 1];
@@ -2131,13 +1772,14 @@ serve(async (req) => {
         fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
           method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
           body: JSON.stringify({ action: "process_step", scan_run_id, step_index: step_index + 1, iteration: currentIteration }),
-        }).catch((e) => console.error("Failed to chain next step:", e));
+        }).catch((e) => console.error(`[SCAN:${scan_run_id.slice(0, 8)}] Failed to chain process_step[${step_index + 1}]:`, e));
       } else {
         await supabase.from("scan_runs").update({ steps_results: updatedResults }).eq("id", scan_run_id);
+        trace(scan_run_id, `→ chain: evaluate_iteration (all ${STEPS.length} steps done)`);
         fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
           method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
           body: JSON.stringify({ action: "evaluate_iteration", scan_run_id, iteration: currentIteration }),
-        }).catch((e) => console.error("Failed to chain evaluation:", e));
+        }).catch((e) => console.error(`[SCAN:${scan_run_id.slice(0, 8)}] Failed to chain evaluate_iteration:`, e));
       }
 
       return new Response(JSON.stringify({ success: true, ok: true, step: step.id, step_index, iteration: currentIteration }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
@@ -2307,20 +1949,21 @@ serve(async (req) => {
 
       await supabase.from("scan_runs").update({ coverage_score: coverageScore, total_new_issues: unified.broken_flows.length + unified.fake_features.length + unified.interaction_failures.length + unified.data_issues.length }).eq("id", scan_run_id);
 
+      trace(scan_run_id, `→ chain: finalize coverage=${coverageScore}%`);
       fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
         body: JSON.stringify({ action: "finalize", scan_run_id }),
-      }).catch((e) => console.error("Failed to chain finalize:", e));
+      }).catch((e) => console.error(`[SCAN:${scan_run_id.slice(0, 8)}] Failed to chain finalize:`, e));
 
       return new Response(JSON.stringify({ success: true, ok: true, action: "finalizing" }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
     }
 
     // ── FINALIZE ──
     if (action === "finalize" && scan_run_id) {
-      console.log("[SCAN] creating work items — finalize phase");
       const { data: scanRun } = await supabase.from("scan_runs").select("*").eq("id", scan_run_id).single();
       if (!scanRun || scanRun.status !== "running") return new Response(JSON.stringify({ success: false, error: "Scan not running" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
+      trace(scan_run_id, `finalize start`);
       const systemStage: SystemStage = scanRun.system_stage || await getSystemStage(supabase);
 
       await supabase.from("scan_runs").update({ current_step_label: "Kör dataintegritetskontroll..." }).eq("id", scan_run_id);
@@ -2366,6 +2009,7 @@ serve(async (req) => {
         ...unified.data_issues.filter((i: any) => !i._dev_expected),
       ];
       const issuesCount = actionableIssues.length;
+      console.log(`TOTAL ISSUES: ${issuesCount} scan_id=${scan_run_id}`);
 
       // ── PRIORITY MODEL: score = severity × recency ──
       const now = Date.now();
@@ -2381,6 +2025,11 @@ serve(async (req) => {
 
       // ── BUILD SYSTEM OVERVIEW ──
       const systemOverview = buildSystemOverview(updatedResults, unified, systemStage);
+
+      // ── BUILD SYSTEM INSIGHT ──
+      const systemInsight = buildSystemInsight(unified, structure_map || [], updatedResults);
+      trace(scan_run_id, `system_insight score=${systemInsight?.system_health_score ?? "-"}`);
+      await supabase.from("scan_runs").update({ system_insight: systemInsight }).eq("id", scan_run_id);
 
       // ── HIGH ATTENTION AREA DETECTION ──
       const highAttentionAreas: { type: string; target: string; reason: string }[] = [];
@@ -2479,8 +2128,7 @@ serve(async (req) => {
       const createResult = await createWorkItems(supabase, unified, systemStage);
       let workItemsCreated = createResult.created;
       unified._create_trace = createResult.createTrace;
-      console.log("[ISSUES FOUND]:", issuesCount);
-      console.log("[WORK ITEMS CREATED]:", workItemsCreated);
+      trace(scan_run_id, `createWorkItems: detected=${issuesCount} created=${workItemsCreated}`);
 
       // ── SUSPICIOUS AREA RULE 3: High issues but low creation (post-createWorkItems) ──
       for (const [, entry] of Object.entries(targetIssueCounts)) {
@@ -2804,7 +2452,7 @@ serve(async (req) => {
           ...typeof v === "string" ? { message: v } : v,
           explanation: explainViolation(typeof v === "string" ? { message: v } : v, scanContext)
         }));
-        console.error("🚨 SYSTEM VIOLATIONS:", enrichedViolations);
+        console.error(`[SCAN:${scan_run_id.slice(0, 8)}] SYSTEM VIOLATIONS:`, enrichedViolations);
         return new Response(JSON.stringify({ success: false, violations: enrichedViolations, context: scanContext, scan_id: scan_run_id }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
       }
 
@@ -2836,11 +2484,10 @@ serve(async (req) => {
       return new Response(JSON.stringify({ success: true, ...(data || {}) }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
     }
 
-    console.log("INVALID ACTION RECEIVED:", body.action);
+    console.warn(`[SCAN DISPATCH] Invalid action: "${body.action ?? "undefined"}"`);
     return new Response(JSON.stringify({ success: false, error: "Invalid action" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
-    console.error("run-full-scan error:", e);
-    console.error("[FULL SCAN ERROR]:", e?.message || e);
+    console.error(`[SCAN ERROR] ${e?.message || e}`);
     try { await logRuntimeTrace("api", "run-full-scan", "/run-full-scan", e?.message || "Unknown", { stack: e?.stack?.slice(0, 500) }); } catch (_) {}
     return new Response(JSON.stringify({ success: false, error: e?.message || "Unknown error" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }

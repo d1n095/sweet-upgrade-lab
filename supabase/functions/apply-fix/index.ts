@@ -42,6 +42,14 @@ const BLOCKED_SQL = [
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  // Global AI kill-switch
+  const AI_ENABLED = false;
+  if (!AI_ENABLED) {
+    return new Response(JSON.stringify({ skipped: true, reason: "AI_DISABLED" }), {
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Unauthorized");
@@ -267,7 +275,7 @@ ${body.fix_text}`,
     await adminClient.from("change_log").insert({
       change_type: "auto_fix",
       description: `⚡ Auto-fix: ${fixPlan.description} (${body.issue_title})`,
-      source: "ai_apply_fix",
+      source: "apply_fix",
       affected_components: ["auto_fix", fixPlan.fix_type],
       work_item_id: body.source_work_item_id || null,
       bug_report_id: body.source_bug_id || null,
@@ -277,18 +285,6 @@ ${body.fix_text}`,
         applied_by: user.id,
         issue_severity: body.issue_severity,
       },
-    });
-
-    // ── Step 7: Log to AI read log ──
-    await adminClient.from("ai_read_log").insert({
-      action_type: "apply_fix",
-      target_type: fixPlan.fix_type,
-      result: allSuccess ? "success" : "partial_failure",
-      summary: `Auto-fix: ${fixPlan.description}`,
-      triggered_by: user.id,
-      linked_work_item_id: body.source_work_item_id || null,
-      linked_bug_id: body.source_bug_id || null,
-      metadata: { plan: fixPlan, results: executionResults },
     });
 
     console.log(`[apply-fix] Complete: ${allSuccess ? "SUCCESS" : "PARTIAL"} — ${executionResults.length} steps`);

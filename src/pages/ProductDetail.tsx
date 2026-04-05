@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { trackProductView } from '@/utils/analyticsTracker';
 import { motion } from 'framer-motion';
 import { ShoppingCart, Check, Loader2, Minus, Plus, Shield, RotateCcw, Truck, Share2, Languages, Sparkles, Droplets, Heart, Users, Star, Eye, Clock, Package, AlertTriangle } from 'lucide-react';
 import { useProductVariants } from '@/hooks/useProductVariants';
@@ -81,7 +80,7 @@ const ProductDetail = () => {
         const data = await fetchDbProductByHandle(handle);
         setProduct(data);
       } catch (err) {
-        console.error('Failed to load product:', err);
+
       } finally {
         setIsLoading(false);
       }
@@ -90,7 +89,7 @@ const ProductDetail = () => {
   }, [handle]);
 
   useEffect(() => {
-    if (product) trackProductView(product.id, product.title_sv, product.price);
+    if (product) { /* product loaded */ }
   }, [product]);
 
   const formatPrice = (amount: number) =>

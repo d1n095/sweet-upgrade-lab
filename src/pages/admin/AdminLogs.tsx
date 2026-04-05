@@ -30,7 +30,7 @@ const AccessAuditLogTab = () => {
         .limit(200);
       setLogs(data || []);
     } catch (e) {
-      console.error('Failed to load audit log:', e);
+
     }
     setLoading(false);
   };

@@ -35,6 +35,212 @@ const iconOptions = Object.keys(iconMap);
 
 const getIcon = (name: string | null): LucideIcon => iconMap[name || 'Tag'] || Tag;
 
+const content: Record<string, {
+  title: string;
+  subtitle_categories: string;
+  subtitle_subcategories: string;
+  validate: string;
+  validating: string;
+  aiSync: string;
+  analyzing: string;
+  newCategory: string;
+  nameSv: string;
+  nameEn: string;
+  slug: string;
+  icon: string;
+  parentCategory: string;
+  noParent: string;
+  cancel: string;
+  create: string;
+  update: string;
+  visible: string;
+  hidden: string;
+  subcategories: string;
+  noCategories: string;
+  editCategory: string;
+  deleteCategory: string;
+  deleteDescription: string;
+  categoryCreated: string;
+  categoryUpdated: string;
+  categoryDeleted: string;
+  categoryHidden: string;
+  categoryVisible: string;
+  error: string;
+  close: string;
+  delete: string;
+}> = {
+  sv: {
+    title: 'Kategorihantering',
+    subtitle_categories: 'kategorier',
+    subtitle_subcategories: 'underkategorier',
+    validate: 'Validera',
+    validating: 'Validerar...',
+    aiSync: 'AI-synk',
+    analyzing: 'Analyserar...',
+    newCategory: 'Ny kategori',
+    nameSv: 'Namn (svenska) *',
+    nameEn: 'Namn (engelska)',
+    slug: 'Slug',
+    icon: 'Ikon',
+    parentCategory: 'Förälder-kategori',
+    noParent: 'Ingen (toppnivå)',
+    cancel: 'Avbryt',
+    create: 'Skapa',
+    update: 'Uppdatera',
+    visible: 'Synlig',
+    hidden: 'Dold',
+    subcategories: 'under',
+    noCategories: 'Inga kategorier ännu',
+    editCategory: 'Redigera kategori',
+    deleteCategory: 'Ta bort kategori?',
+    deleteDescription: 'tas bort. Underkategorier flyttas till toppnivå. Produktkopplingar tas bort.',
+    categoryCreated: 'Kategori skapad!',
+    categoryUpdated: 'Kategori uppdaterad!',
+    categoryDeleted: 'Kategori borttagen!',
+    categoryHidden: 'Kategori dold',
+    categoryVisible: 'Kategori synlig',
+    error: 'Fel',
+    close: 'Stäng',
+    delete: 'Ta bort',
+  },
+  en: {
+    title: 'Category Management',
+    subtitle_categories: 'categories',
+    subtitle_subcategories: 'subcategories',
+    validate: 'Validate',
+    validating: 'Validating...',
+    aiSync: 'AI Sync',
+    analyzing: 'Analyzing...',
+    newCategory: 'New category',
+    nameSv: 'Name (Swedish) *',
+    nameEn: 'Name (English)',
+    slug: 'Slug',
+    icon: 'Icon',
+    parentCategory: 'Parent category',
+    noParent: 'None (top level)',
+    cancel: 'Cancel',
+    create: 'Create',
+    update: 'Update',
+    visible: 'Visible',
+    hidden: 'Hidden',
+    subcategories: 'sub',
+    noCategories: 'No categories yet',
+    editCategory: 'Edit category',
+    deleteCategory: 'Delete category?',
+    deleteDescription: 'will be deleted. Subcategories are moved to top level. Product links are removed.',
+    categoryCreated: 'Category created!',
+    categoryUpdated: 'Category updated!',
+    categoryDeleted: 'Category deleted!',
+    categoryHidden: 'Category hidden',
+    categoryVisible: 'Category visible',
+    error: 'Error',
+    close: 'Close',
+    delete: 'Delete',
+  },
+  no: {
+    title: 'Kategorihåndtering',
+    subtitle_categories: 'kategorier',
+    subtitle_subcategories: 'underkategorier',
+    validate: 'Valider',
+    validating: 'Validerer...',
+    aiSync: 'AI-synk',
+    analyzing: 'Analyserer...',
+    newCategory: 'Ny kategori',
+    nameSv: 'Navn (svensk) *',
+    nameEn: 'Navn (engelsk)',
+    slug: 'Slug',
+    icon: 'Ikon',
+    parentCategory: 'Foreldrekategori',
+    noParent: 'Ingen (toppnivå)',
+    cancel: 'Avbryt',
+    create: 'Opprett',
+    update: 'Oppdater',
+    visible: 'Synlig',
+    hidden: 'Skjult',
+    subcategories: 'under',
+    noCategories: 'Ingen kategorier ennå',
+    editCategory: 'Rediger kategori',
+    deleteCategory: 'Slett kategori?',
+    deleteDescription: 'slettes. Underkategorier flyttes til toppnivå. Produktkoblinger fjernes.',
+    categoryCreated: 'Kategori opprettet!',
+    categoryUpdated: 'Kategori oppdatert!',
+    categoryDeleted: 'Kategori slettet!',
+    categoryHidden: 'Kategori skjult',
+    categoryVisible: 'Kategori synlig',
+    error: 'Feil',
+    close: 'Lukk',
+    delete: 'Slett',
+  },
+  da: {
+    title: 'Kategorihåndtering',
+    subtitle_categories: 'kategorier',
+    subtitle_subcategories: 'underkategorier',
+    validate: 'Validér',
+    validating: 'Validerer...',
+    aiSync: 'AI-synk',
+    analyzing: 'Analyserer...',
+    newCategory: 'Ny kategori',
+    nameSv: 'Navn (svensk) *',
+    nameEn: 'Navn (engelsk)',
+    slug: 'Slug',
+    icon: 'Ikon',
+    parentCategory: 'Forældrekategori',
+    noParent: 'Ingen (topniveau)',
+    cancel: 'Annuller',
+    create: 'Opret',
+    update: 'Opdater',
+    visible: 'Synlig',
+    hidden: 'Skjult',
+    subcategories: 'under',
+    noCategories: 'Ingen kategorier endnu',
+    editCategory: 'Rediger kategori',
+    deleteCategory: 'Slet kategori?',
+    deleteDescription: 'slettes. Underkategorier flyttes til topniveau. Produktlinks fjernes.',
+    categoryCreated: 'Kategori oprettet!',
+    categoryUpdated: 'Kategori opdateret!',
+    categoryDeleted: 'Kategori slettet!',
+    categoryHidden: 'Kategori skjult',
+    categoryVisible: 'Kategori synlig',
+    error: 'Fejl',
+    close: 'Luk',
+    delete: 'Slet',
+  },
+  de: {
+    title: 'Kategorieverwaltung',
+    subtitle_categories: 'Kategorien',
+    subtitle_subcategories: 'Unterkategorien',
+    validate: 'Validieren',
+    validating: 'Validiert...',
+    aiSync: 'KI-Sync',
+    analyzing: 'Analysiert...',
+    newCategory: 'Neue Kategorie',
+    nameSv: 'Name (Schwedisch) *',
+    nameEn: 'Name (Englisch)',
+    slug: 'Slug',
+    icon: 'Symbol',
+    parentCategory: 'Übergeordnete Kategorie',
+    noParent: 'Keine (oberste Ebene)',
+    cancel: 'Abbrechen',
+    create: 'Erstellen',
+    update: 'Aktualisieren',
+    visible: 'Sichtbar',
+    hidden: 'Versteckt',
+    subcategories: 'unter',
+    noCategories: 'Noch keine Kategorien',
+    editCategory: 'Kategorie bearbeiten',
+    deleteCategory: 'Kategorie löschen?',
+    deleteDescription: 'wird gelöscht. Unterkategorien werden auf die oberste Ebene verschoben. Produktverknüpfungen werden entfernt.',
+    categoryCreated: 'Kategorie erstellt!',
+    categoryUpdated: 'Kategorie aktualisiert!',
+    categoryDeleted: 'Kategorie gelöscht!',
+    categoryHidden: 'Kategorie versteckt',
+    categoryVisible: 'Kategorie sichtbar',
+    error: 'Fehler',
+    close: 'Schließen',
+    delete: 'Löschen',
+  },
+};
+
 const AdminCategoryManager = () => {
   const { language } = useLanguage();
   const queryClient = useQueryClient();

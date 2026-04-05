@@ -187,7 +187,7 @@ const AdminGlobalSearch = () => {
         setResults([...pageResults, ...dbResults].slice(0, 12));
         setIsOpen(true);
       } catch (err) {
-        console.error('Admin search error:', err);
+
       } finally {
         setIsLoading(false);
       }

@@ -6,7 +6,7 @@ import { useStoreSettings } from '@/stores/storeSettingsStore';
 import { useAdminSession } from '@/hooks/useAdminSession';
 import {
   Loader2, Package, ClipboardList, BarChart3, Settings, Grid, Users,
-  Handshake, Heart, Eye, LogOut, Home, Shield, Crown,
+  Handshake, Heart, LogOut, Home, Shield, Crown,
   Activity, User, Menu, X, Star, FileText, Percent, Truck, Wallet, Globe,
   AlertTriangle, ScanLine, History, ShoppingCart,
 } from 'lucide-react';
@@ -41,47 +41,39 @@ interface NavGroup {
 
 const navGroups: NavGroup[] = [
   {
-    label: '',
+    label: 'DASHBOARD',
     items: [
-      { to: '/admin', label: 'Dashboard', icon: BarChart3, end: true, role: 'all' },
-    ],
-  },
-  {
-    label: 'DRIFT',
-    items: [
-      { to: '/admin/ops', label: 'Operations', icon: ClipboardList, role: 'all' },
-      { to: '/admin/orders', label: 'Ordrar', icon: ClipboardList, role: 'all' },
-      { to: '/admin/pos', label: 'Kassa (POS)', icon: ShoppingCart, role: 'all' },
-      { to: '/admin/incidents', label: 'Ärenden', icon: AlertTriangle, role: 'all' },
-      { to: '/admin/warehouse', label: 'Warehouse', icon: ScanLine, role: 'all' },
-      { to: '/admin/shipping', label: 'Frakt', icon: Truck, role: 'admin' },
-      { to: '/admin/staff', label: 'Workbench', icon: Crown, role: 'founder' },
-    ],
-  },
-  {
-    label: 'LAGER',
-    items: [
-      { to: '/admin/products', label: 'Produkter', icon: Package, role: 'all' },
-      { to: '/admin/categories', label: 'Kategorier', icon: Grid, role: 'admin' },
-      { to: '/admin/reviews', label: 'Recensioner', icon: Star, role: 'all' },
-    ],
-  },
-  {
-    label: 'TILLVÄXT',
-    items: [
-      { to: '/admin/growth', label: 'Tillväxt', icon: Activity, role: 'admin' },
-      { to: '/admin/stats', label: 'Statistik', icon: BarChart3, role: 'admin' },
+      { to: '/admin', label: 'Overview', icon: BarChart3, end: true, role: 'all' },
+      { to: '/admin/stats', label: 'Stats', icon: TrendingUp, role: 'admin' },
       { to: '/admin/insights', label: 'Insights', icon: Activity, role: 'admin' },
-      { to: '/admin/campaigns', label: 'Kampanjer', icon: Percent, role: 'admin' },
-      { to: '/admin/seo', label: 'SEO', icon: Globe, role: 'admin' },
+      { to: '/admin/growth', label: 'Growth', icon: Activity, role: 'admin' },
     ],
   },
   {
-    label: 'EKONOMI',
+    label: 'ORDERS',
     items: [
-      { to: '/admin/finance', label: 'Ekonomi', icon: Wallet, role: 'admin' },
-      { to: '/admin/donations', label: 'Donationer', icon: Heart, role: 'admin' },
+      { to: '/admin/orders', label: 'Orders', icon: ClipboardList, role: 'all' },
+      { to: '/admin/ops', label: 'Operations', icon: ClipboardList, role: 'all' },
+      { to: '/admin/pos', label: 'POS', icon: ShoppingCart, role: 'all' },
+      { to: '/admin/warehouse', label: 'Warehouse', icon: ScanLine, role: 'all' },
+      { to: '/admin/incidents', label: 'Incidents', icon: AlertTriangle, role: 'all' },
+      { to: '/admin/campaigns', label: 'Campaigns', icon: Percent, role: 'admin' },
+    ],
+  },
+  {
+    label: 'PRODUCTS',
+    items: [
+      { to: '/admin/products', label: 'Products', icon: Package, role: 'all' },
+      { to: '/admin/categories', label: 'Categories', icon: Grid, role: 'admin' },
+      { to: '/admin/reviews', label: 'Reviews', icon: Star, role: 'all' },
+    ],
+  },
+  {
+    label: 'CUSTOMERS',
+    items: [
+      { to: '/admin/members', label: 'Customers', icon: Users, role: 'admin' },
       { to: '/admin/partners', label: 'Partners', icon: Handshake, role: 'admin' },
+      { to: '/admin/donations', label: 'Donations', icon: Heart, role: 'admin' },
     ],
   },
   {
@@ -113,6 +105,15 @@ const AdminLayout = () => {
   const location = useLocation();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [recentErrorCount, setRecentErrorCount] = useState(0);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+
+  const toggleGroup = (label: string) => {
+    setCollapsedGroups(prev => {
+      const next = new Set(prev);
+      next.has(label) ? next.delete(label) : next.add(label);
+      return next;
+    });
+  };
 
   // Centralized realtime sync for all admin queries
   useAdminRealtime();
@@ -298,33 +299,47 @@ const AdminLayout = () => {
 
                 <ScrollArea className="flex-1 py-2">
                   <nav className="space-y-4 px-3">
-                    {visibleGroups.map((group, gi) => (
-                      <div key={gi}>
-                        {group.label && (
-                          <p className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider px-3 mb-1">{group.label}</p>
-                        )}
-                        <div className="space-y-0.5">
-                          {group.items.map((item) => (
-                            <NavLink
-                              key={item.to}
-                              to={item.to}
-                              end={item.end}
-                              className={({ isActive }) =>
-                                cn(
-                                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors min-h-[44px]',
-                                  isActive
-                                    ? 'bg-primary/10 text-primary'
-                                    : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
-                                )
-                              }
+                    {visibleGroups.map((group, gi) => {
+                      const isCollapsed = group.label ? collapsedGroups.has(group.label) : false;
+                      return (
+                        <div key={gi}>
+                          {group.label && (
+                            <button
+                              onClick={() => toggleGroup(group.label)}
+                              className="w-full flex items-center justify-between px-3 mb-1 group"
                             >
-                              <item.icon className="w-4 h-4 shrink-0" />
-                              {item.label}
-                            </NavLink>
-                          ))}
+                              <p className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider">{group.label}</p>
+                              {isCollapsed
+                                ? <ChevronRight className="w-3 h-3 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
+                                : <ChevronDown className="w-3 h-3 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
+                              }
+                            </button>
+                          )}
+                          {!isCollapsed && (
+                            <div className="space-y-0.5">
+                              {group.items.map((item) => (
+                                <NavLink
+                                  key={item.to}
+                                  to={item.to}
+                                  end={item.end}
+                                  className={({ isActive }) =>
+                                    cn(
+                                      'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors min-h-[44px]',
+                                      isActive
+                                        ? 'bg-primary/10 text-primary'
+                                        : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
+                                    )
+                                  }
+                                >
+                                  <item.icon className="w-4 h-4 shrink-0" />
+                                  {item.label}
+                                </NavLink>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </nav>
                 </ScrollArea>
 

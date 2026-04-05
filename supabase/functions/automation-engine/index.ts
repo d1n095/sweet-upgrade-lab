@@ -29,11 +29,25 @@ Deno.serve(async (req) => {
   const isCronCall = cronSecret && req.headers.get("x-cron-secret") === cronSecret;
 
   if (!isServiceRole && !isCronCall) {
+    // Accept an authenticated admin/founder/it user from the frontend
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
-    const isAnonCron = authHeader === `Bearer ${anonKey}`;
-    if (!isAnonCron) {
+    const userClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user } } = await userClient.auth.getUser();
+    if (!user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const sb = createClient(supabaseUrl, serviceRoleKey);
+    const { data: roles } = await sb.from("user_roles").select("role").eq("user_id", user.id);
+    const isStaff = roles?.some((r: any) => ["admin", "founder", "it"].includes(r.role));
+    if (!isStaff) {
+      return new Response(JSON.stringify({ error: "Unauthorized: admin role required" }), {
+        status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

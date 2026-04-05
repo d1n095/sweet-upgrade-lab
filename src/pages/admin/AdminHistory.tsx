@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Search, CheckCircle2, Clock, Package, Headphones, RotateCcw,
-  ShieldAlert, Bug, Wrench, FileText, AlertTriangle, Bot, ChevronDown, ChevronUp,
+  ShieldAlert, Bug, Wrench, FileText, AlertTriangle, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -26,7 +26,7 @@ const TYPE_META: Record<string, { label: string; icon: typeof Package; color: st
   bug: { label: 'Bugg', icon: Bug, color: 'text-red-600 bg-red-600/10' },
   manual: { label: 'Manuell', icon: Wrench, color: 'text-muted-foreground bg-secondary' },
   general: { label: 'Allmänt', icon: FileText, color: 'text-muted-foreground bg-secondary' },
-  insight: { label: 'AI Insight', icon: Bot, color: 'text-purple-600 bg-purple-600/10' },
+  insight: { label: 'Insight', icon: FileText, color: 'text-muted-foreground bg-secondary' },
 };
 
 const REVIEW_STATUS_COLORS: Record<string, string> = {
@@ -39,11 +39,10 @@ const REVIEW_STATUS_COLORS: Record<string, string> = {
 const AdminHistory = () => {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
-  const [reviewFilter, setReviewFilter] = useState('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const { data: history = [], isLoading } = useQuery({
-    queryKey: ['system-history', typeFilter, reviewFilter],
+    queryKey: ['system-history', typeFilter],
     queryFn: async () => {
       let query = supabase
         .from('system_history' as any)
@@ -53,9 +52,6 @@ const AdminHistory = () => {
 
       if (typeFilter !== 'all') {
         query = query.eq('item_type', typeFilter);
-      }
-      if (reviewFilter !== 'all') {
-        query = query.eq('ai_review_status', reviewFilter);
       }
 
       const { data } = await query;
@@ -90,7 +86,7 @@ const AdminHistory = () => {
       <div>
         <h1 className="text-2xl font-semibold">Historik</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Alla avslutade uppgifter med AI-verifiering och spårbarhet
+          Alla avslutade uppgifter med spårbarhet
         </p>
       </div>
 
@@ -119,18 +115,6 @@ const AdminHistory = () => {
             <SelectItem value="manual">Manuell</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={reviewFilter} onValueChange={setReviewFilter}>
-          <SelectTrigger className="w-40 h-9">
-            <SelectValue placeholder="AI Review" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Alla</SelectItem>
-            <SelectItem value="verified">✅ Verifierade</SelectItem>
-            <SelectItem value="needs_review">⚠️ Behöver granskning</SelectItem>
-            <SelectItem value="incomplete">❌ Ofullständiga</SelectItem>
-            <SelectItem value="pending">⏳ Väntar</SelectItem>
-          </SelectContent>
-        </Select>
         <Badge variant="secondary" className="h-9 px-3 flex items-center">
           {filtered.length} poster
         </Badge>
@@ -148,7 +132,6 @@ const AdminHistory = () => {
               const meta = TYPE_META[item.item_type] || TYPE_META.general;
               const TypeIcon = meta.icon;
               const isExpanded = expandedId === item.id;
-              const aiResult = item.ai_review_result;
 
               return (
                 <Card key={item.id} className="border-border">
@@ -174,14 +157,6 @@ const AdminHistory = () => {
                             <Badge variant="outline" className={cn('text-[9px]', meta.color)}>
                               {meta.label}
                             </Badge>
-                            <Badge
-                              variant="outline"
-                              className={cn('text-[9px]', REVIEW_STATUS_COLORS[item.ai_review_status || 'pending'])}
-                            >
-                              {item.ai_review_status === 'verified' ? '✅ Verifierad' :
-                               item.ai_review_status === 'needs_review' ? '⚠️ Granskas' :
-                               item.ai_review_status === 'incomplete' ? '❌ Ofullständig' : '⏳ Väntar'}
-                            </Badge>
                           </div>
                         </div>
                       </div>
@@ -203,42 +178,6 @@ const AdminHistory = () => {
                           <div>
                             <p className="text-xs font-medium text-muted-foreground mb-1">Fix-anteckningar</p>
                             <p className="text-sm bg-secondary/30 rounded-md p-2">{item.resolution_notes}</p>
-                          </div>
-                        )}
-
-                        {aiResult && (
-                          <div className="bg-secondary/20 rounded-lg p-3 space-y-2">
-                            <p className="text-xs font-bold flex items-center gap-1">
-                              <Bot className="w-3.5 h-3.5" /> AI-granskning
-                            </p>
-                            {aiResult.verdict && (
-                              <p className="text-sm">{aiResult.verdict}</p>
-                            )}
-                            {aiResult.risks && aiResult.risks.length > 0 && (
-                              <div>
-                                <p className="text-xs font-medium text-muted-foreground">Risker:</p>
-                                <ul className="text-xs list-disc ml-4 space-y-0.5">
-                                  {aiResult.risks.map((r: string, i: number) => (
-                                    <li key={i}>{r}</li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
-                            {aiResult.edge_cases && aiResult.edge_cases.length > 0 && (
-                              <div>
-                                <p className="text-xs font-medium text-muted-foreground">Edge cases:</p>
-                                <ul className="text-xs list-disc ml-4 space-y-0.5">
-                                  {aiResult.edge_cases.map((e: string, i: number) => (
-                                    <li key={i}>{e}</li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
-                            {aiResult.confidence !== undefined && (
-                              <p className="text-xs text-muted-foreground">
-                                Konfidens: {aiResult.confidence}%
-                              </p>
-                            )}
                           </div>
                         )}
 

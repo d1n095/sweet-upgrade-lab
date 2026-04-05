@@ -9,10 +9,9 @@ import { useFounderRole } from "@/hooks/useFounderRole";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { Database, Activity, Bug, CheckCircle, AlertTriangle, Clock, Shield, ChevronRight, ChevronDown, X, Folder, FolderOpen, FileText, RefreshCw, Cpu, ArrowRight, Filter, Layers, History, Radar, Eye, Bot, Send, Loader2, Lock, Monitor } from "lucide-react";
+import { Database, Activity, Bug, CheckCircle, AlertTriangle, Clock, Shield, ChevronRight, ChevronDown, X, Folder, FolderOpen, FileText, RefreshCw, Cpu, ArrowRight, Filter, Layers, History, Radar, Eye, Send, Loader2, Lock, Monitor } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import ReactMarkdown from "react-markdown";
 
 type WorkItem = {
   id: string;
@@ -23,7 +22,6 @@ type WorkItem = {
   created_by: string | null;
   item_type: string;
   priority: string;
-  ai_detected: boolean | null;
   created_at: string;
   issue_fingerprint: string | null;
   ignored: boolean | null;
@@ -100,18 +98,6 @@ const SCANNER_GROUPS: ScannerGroup[] = [
 ];
 
 const RuntimeTraceSection = ({ traceId }: { traceId?: string }) => {
-  const [trace, setTrace] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (!traceId) return;
-    setLoading(true);
-    supabase.from("runtime_traces" as any).select("*").eq("id", traceId).maybeSingle().then(({ data }) => {
-      setTrace(data);
-      setLoading(false);
-    });
-  }, [traceId]);
-
   if (!traceId) {
     return (
       <div className="border border-border rounded-md p-2 bg-muted/30 space-y-1">
@@ -124,32 +110,7 @@ const RuntimeTraceSection = ({ traceId }: { traceId?: string }) => {
   return (
     <div className="border border-border rounded-md p-2 bg-muted/30 space-y-2">
       <span className="text-muted-foreground text-xs font-medium">Runtime Trace</span>
-      {loading && <p className="text-xs text-muted-foreground">Loading…</p>}
-      {!loading && !trace && <p className="text-xs text-muted-foreground italic">Trace not found (ID: {traceId.slice(0, 8)}…)</p>}
-      {trace && (
-        <div className="space-y-1.5">
-          <div>
-            <span className="text-muted-foreground text-[10px]">function_name</span>
-            <p className="font-mono text-xs bg-muted/50 rounded px-1 py-0.5">{trace.function_name}</p>
-          </div>
-          <div>
-            <span className="text-muted-foreground text-[10px]">endpoint</span>
-            <p className="font-mono text-xs bg-muted/50 rounded px-1 py-0.5">{trace.endpoint || "–"}</p>
-          </div>
-          <div>
-            <span className="text-muted-foreground text-[10px]">error_message</span>
-            <p className="font-mono text-xs bg-destructive/10 text-destructive rounded px-1 py-0.5 break-all">{trace.error_message}</p>
-          </div>
-          <div>
-            <span className="text-muted-foreground text-[10px]">payload_snapshot</span>
-            <pre className="font-mono text-[9px] bg-muted/50 rounded p-1 overflow-x-auto max-h-32 whitespace-pre-wrap break-all">{JSON.stringify(trace.payload_snapshot, null, 2)}</pre>
-          </div>
-          <div>
-            <span className="text-muted-foreground text-[10px]">timestamp</span>
-            <p className="font-mono text-xs">{new Date(trace.created_at).toLocaleString("sv-SE")}</p>
-          </div>
-        </div>
-      )}
+      <p className="text-xs text-muted-foreground">Trace ID: {traceId.slice(0, 8)}…</p>
     </div>
   );
 };
@@ -170,11 +131,7 @@ const SystemExplorer = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [showRawScan, setShowRawScan] = useState(false);
-  const [aiQuery, setAiQuery] = useState("");
-  const [aiAnswer, setAiAnswer] = useState<string | null>(null);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiFocusArea, setAiFocusArea] = useState<string | null>(null);
-  const [mainTab, setMainTab] = useState<"system" | "files" | "patch" | "codeindex" | "backendscan">("system");
+  const [mainTab, setMainTab] = useState<"system" | "files" | "patch" | "codeindex" | "backendscan" | "analysis">("system");
   const [filesFilter, setFilesFilter] = useState<"all" | "orphan" | "has_issues">("all");
   const [selectedFile, setSelectedFile] = useState<FileEntry | null>(null);
   const [patchInput, setPatchInput] = useState("");
@@ -183,6 +140,9 @@ const SystemExplorer = () => {
   const [patchSubmitted, setPatchSubmitted] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [showBackendRaw, setShowBackendRaw] = useState(false);
+  const [selectedAnalysisFile, setSelectedAnalysisFile] = useState<string | null>(null);
+  const [generatedPrompt, setGeneratedPrompt] = useState<string | null>(null);
+  const [promptCopied, setPromptCopied] = useState(false);
   const [fileScanResult, setFileScanResult] = useState<{ total: number; emptyFiles: number; largeFiles: number } | null>(null);
   const [codeScanResult, setCodeScanResult] = useState<{ type: string; message: string; file: string }[] | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -261,7 +221,7 @@ const SystemExplorer = () => {
 
   async function runSystemScan(mode: string) {
     if (isScanning) {
-      console.warn("Scan already running");
+
       return;
     }
     setIsScanning(true);
@@ -300,309 +260,30 @@ const SystemExplorer = () => {
         console.log("[SCAN STEP]", { step: "full", status: "done" });
         logAction({ type: "SCAN", status: "success", mode });
       }
-    } catch (err: any) {
-      console.error("[SCAN ERROR]:", err);
-      logAction({
-        type: "SCAN",
-        status: "error",
-        mode,
-        message: err.message
-      });
-    } finally {
-      console.log("[SCAN TOTAL]", { mode, durationMs: Date.now() - scanStart });
-      setIsScanning(false);
-    }
-  }
-
-  async function verifyWorkItemsCreated(beforeCount: number) {
-    const { data } = await supabase
-      .from("work_items")
-      .select("id")
-      .limit(1000);
-    const afterCount = data?.length || 0;
-    return {
-      before: beforeCount,
-      after: afterCount,
-      created: afterCount - beforeCount
-    };
-  }
-
-  const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | null>(null);
-  const [verifyingFix, setVerifyingFix] = useState(false);
-  const [verifyResult, setVerifyResult] = useState<{ itemId: string; status: "confirmed" | "failed"; scanId?: string } | null>(null);
-
-  // Backend scan latest
-  const { data: latestBackendScan, isLoading: backendScanLoading } = useQuery({
-    queryKey: ["backend-scan-latest"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("ai_scan_results")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  // 1. ALL work_items
-  const { data: workItems = [], isLoading: wiLoading } = useQuery({
-    queryKey: ["system-explorer-work-items"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("work_items")
-        .select("id, title, status, source_type, source_id, created_by, item_type, priority, ai_detected, created_at, issue_fingerprint, ignored, source_path, source_file, source_component, first_seen_at, last_seen_at, occurrence_count, verification_status, verification_scans_checked, verified_at")
-        .order("created_at", { ascending: false })
-        .limit(200);
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  // Structure map for unscanned areas
-  const { data: structureMap = [] } = useQuery({
-    queryKey: ["system-explorer-structure-map"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("system_structure_map" as any)
-        .select("entity_type, entity_name, last_seen_at, scan_count")
-        .order("last_seen_at", { ascending: false })
-        .limit(200);
-      if (error) throw error;
-      return (data || []) as any[];
-    },
-  });
-
-  // System expectations for gap detection
-  const { data: systemExpectations = [] } = useQuery({
-    queryKey: ["system-explorer-expectations"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("system_expectations" as any)
-        .select("entity_type, entity_name, required")
-        .eq("required", true);
-      if (error) throw error;
-      return (data || []) as any[];
-    },
-  });
-
-  // Missing required parts: expected but not in structure_map
-  const missingExpectations = useMemo(() => {
-    const structureKeys = new Set(structureMap.map((s: any) => `${s.entity_type}::${s.entity_name}`));
-    return systemExpectations.filter((exp: any) =>
-      exp.required && !structureKeys.has(`${exp.entity_type}::${exp.entity_name}`)
-    );
-  }, [systemExpectations, structureMap]);
-
-  // Top runtime errors (clustered)
-  const { data: runtimeErrorClusters = [] } = useQuery({
-    queryKey: ["system-explorer-runtime-errors"],
-    queryFn: async () => {
-      const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      const { data } = await supabase
-        .from("runtime_traces" as any)
-        .select("id, function_name, endpoint, error_message, created_at, source")
-        .gte("created_at", cutoff)
-        .order("created_at", { ascending: false })
-        .limit(200);
-      if (!data?.length) return [];
-      const clusters: Record<string, { function_name: string; endpoint: string; error_message: string; count: number; latest: string; source: string }> = {};
-      for (const t of data as any[]) {
-        const key = `${t.function_name}::${(t.error_message || "").slice(0, 100)}`;
-        if (!clusters[key]) {
-          clusters[key] = { function_name: t.function_name, endpoint: t.endpoint || "", error_message: t.error_message || "", count: 0, latest: t.created_at, source: t.source || "" };
-        }
-        clusters[key].count++;
-        if (t.created_at > clusters[key].latest) clusters[key].latest = t.created_at;
-      }
-      return Object.values(clusters).sort((a, b) => b.count - a.count).slice(0, 10);
-    },
-    staleTime: 30_000,
-  });
-
-  // Raw runtime errors (individual entries)
-  const { data: rawRuntimeErrors = [] } = useQuery({
-    queryKey: ["system-explorer-raw-runtime-errors"],
-    queryFn: async () => {
-      const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      const { data } = await supabase
-        .from("runtime_traces" as any)
-        .select("id, function_name, endpoint, error_message, created_at, request_trace_id, source")
-        .gte("created_at", cutoff)
-        .order("created_at", { ascending: false })
-        .limit(50);
-      return (data || []) as any[];
-    },
-    staleTime: 30_000,
-  });
-
-  // System Activity: all runtime_traces, latest 50, live-refreshed every 5s
-  const { data: systemActivityTraces = [] } = useQuery({
-    queryKey: ["system-explorer-system-activity"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("runtime_traces" as any)
-        .select("id, function_name, endpoint, error_message, created_at, source, request_trace_id")
-        .order("created_at", { ascending: false })
-        .limit(50);
-      return (data || []) as any[];
-    },
-    refetchInterval: 5_000,
-    staleTime: 0,
-  });
-
-  const [frontendViolations, setFrontendViolations] = useState<{ type: string; action: string; message: string }[]>([]);
-
-  function validateAction(actionName: string, fn: () => any) {
-    try {
-      const result = fn();
-      if (!result) {
-        throw new Error("No result returned");
-      }
-      return result;
-    } catch (err: any) {
-      console.error("🚨 ACTION FAILED:", actionName, err.message);
-      setFrontendViolations(prev => [
-        ...prev,
-        {
-          type: "ACTION_FAILED",
-          action: actionName,
-          message: err.message
-        }
-      ]);
-      return null;
-    }
-  }
-
-  const { data: debugConsoleLogs = [] } = useQuery({
-    queryKey: ["system-explorer-debug-console"],
-    queryFn: async () => {
-      const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
-      const [tracesRes, obsRes] = await Promise.all([
-        supabase.from("runtime_traces" as any).select("id, function_name, endpoint, error_message, created_at, request_trace_id").gte("created_at", cutoff).order("created_at", { ascending: false }).limit(50),
-        supabase.from("system_observability_log" as any).select("id, event_type, source, message, created_at, component").gte("created_at", cutoff).order("created_at", { ascending: false }).limit(50),
-      ]);
-      const traces = ((tracesRes.data || []) as any[]).map((t: any) => ({
-        ts: t.created_at, source: `trace:${t.function_name || "unknown"}`, message: t.error_message || `${t.endpoint || ""} OK`, id: t.id,
-      }));
-      const obs = ((obsRes.data || []) as any[]).map((o: any) => ({
-        ts: o.created_at, source: `${o.source || o.component || "system"}`, message: o.message || o.event_type, id: o.id,
-      }));
-      const combined = [...traces, ...obs].sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime()).slice(0, 100);
-      // Fallback: if no logs in last 2h, fetch from last scan snapshot
-      if (combined.length === 0) {
-        const { data: snapshot } = await supabase.from("scan_snapshots" as any).select("diagnosis_summary, created_at, scan_confidence_score, total_detected, total_created").order("created_at", { ascending: false }).limit(1).maybeSingle() as any;
-        if (snapshot) {
-          const lines = (snapshot.diagnosis_summary || "").split("\n").filter(Boolean);
-          return lines.map((line: string, idx: number) => ({
-            ts: snapshot.created_at,
-            source: "scan-snapshot",
-            message: line,
-            id: `snapshot-${idx}`,
-          }));
-        }
-      }
-      return combined;
-    },
-    staleTime: 15_000,
-  });
-
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["system-explorer-work-items"] }),
-      queryClient.invalidateQueries({ queryKey: ["system-explorer-latest-scan"] }),
-      queryClient.invalidateQueries({ queryKey: ["system-explorer-structure-map"] }),
-      queryClient.invalidateQueries({ queryKey: ["admin-work-items"] }),
-      queryClient.invalidateQueries({ queryKey: ["system-explorer-runtime-errors"] }),
-      queryClient.invalidateQueries({ queryKey: ["system-explorer-debug-console"] }),
-      queryClient.invalidateQueries({ queryKey: ["system-explorer-raw-runtime-errors"] }),
-      queryClient.invalidateQueries({ queryKey: ["system-explorer-system-activity"] }),
-      queryClient.invalidateQueries({ queryKey: ["system-explorer-execution-traces"] }),
-    ]);
-    setIsRefreshing(false);
-  };
-
-  const handleRunFullScan = async () => {
-    setIsScanning(true);
-    const scanStart = Date.now();
-    console.log("[SCAN START]", { mode: "full-scan", ts: new Date().toISOString() });
-    try {
-      const before = await supabase.from("work_items").select("id");
-      const beforeCount = before.data?.length || 0;
-      logAction({ type: "Full Scan", status: "started" });
-      console.log("[SCAN STEP]", { step: "invoke", status: "running" });
-      const structure_map = Object.keys(getRawSources() || {}).map(path => ({ path }));
-      const res = await safeInvoke("run-full-scan", {
-        body: { action: "start", scan_mode: "full", structure_map },
-        isAdmin: true,
-      });
-      console.log("[SCAN STEP]", { step: "invoke", status: "done" });
-      console.log("[SCAN STEP]", { step: "verify", status: "running" });
-      const verify = await verifyWorkItemsCreated(beforeCount);
-      console.log("[SCAN STEP]", { step: "verify", status: "done", created: verify.created });
-      if (verify.created === 0) {
-        logAction({ type: "Full Scan", status: "no-effect", message: "Scan ran but created 0 work_items" });
-      } else {
-        logAction({ type: "Full Scan", status: "verified", message: `Created ${verify.created} work_items` });
-      }
-      const json = res?.data ?? res;
-      if (json?.success === false) {
-        logAction({ type: "Full Scan", status: "error", message: json?.error });
-      }
-      await handleRefresh();
-    } catch (err) {
-      console.error("[Full Scan error]:", err);
-      logAction({ type: "Full Scan", status: "error", message: (err as any)?.message });
-    } finally {
-      console.log("[SCAN TOTAL]", { mode: "full-scan", durationMs: Date.now() - scanStart });
-      setIsScanning(false);
-    }
-  };
-
   // 2. Latest scan
   const { data: latestScan, isLoading: scanLoading } = useQuery({
     queryKey: ["system-explorer-latest-scan"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("ai_scan_results")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
+    queryFn: async () => null,
+    staleTime: 0,
+    refetchOnWindowFocus: false,
   });
 
   // 2c. Last 3 scans for no-issue detection
   const { data: last3Scans = [] } = useQuery({
     queryKey: ["system-explorer-last-3-scans"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("ai_scan_results")
-        .select("results")
-        .order("created_at", { ascending: false })
-        .limit(3);
-      if (error) throw error;
-      return (data || []) as any[];
-    },
+    queryFn: async () => [] as any[],
   });
 
-  // 2b. Latest scan_run for pipeline data
+  // 2b. Latest completed scan_run for pipeline data
   const { data: latestRun } = useQuery({
     queryKey: ["system-explorer-latest-run"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("scan_runs")
-        .select("id, status, total_new_issues, work_items_created, created_at, unified_result, steps_results")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const { data, error } = await safeInvoke<any>('get-latest-scan-run', { isAdmin: true });
       if (error) throw error;
-      return data;
+      return data ?? null;
     },
+    staleTime: 0,
+    refetchOnWindowFocus: false,
   });
 
   // Execution traces for the latest scan run (linked via request_trace_id = scan_run.id)
@@ -641,7 +322,7 @@ const SystemExplorer = () => {
   const activeCount = workItems.filter((w) => w.status === "open" || w.status === "in_progress").length;
   const completedCount = workItems.filter((w) => w.status === "done" || w.status === "completed").length;
   const ignoredCount = workItems.filter((w) => w.ignored).length;
-  const scanSourceCount = workItems.filter((w) => w.source_type === "scan" || w.source_type === "ai_scan").length;
+  const scanSourceCount = workItems.filter((w) => w.source_type === "scan").length;
   const manualSourceCount = workItems.filter((w) => w.source_type === "manual").length;
 
   // Scan snapshots (last 10)
@@ -958,7 +639,7 @@ const SystemExplorer = () => {
   // Scanner stats derived from scan results — organized by module groups
   const groupedScannerStats = useMemo(() => {
     const rawIssues = (scanResults?.issues as any[] | undefined) ?? [];
-    const scanItems = workItems.filter(w => w.source_type === "scan" || w.source_type === "ai_scan" || w.source_type === "ai_detection");
+    const scanItems = workItems.filter(w => w.source_type === "scan");
 
     // Build a lookup: key → { raw issues, created count }
     const keyStats: Record<string, { raw: any[]; created: number }> = {};
@@ -1095,39 +776,6 @@ const SystemExplorer = () => {
     }
   };
 
-  const priorityColor = (p: string) => {
-    switch (p) {
-      case "critical": return "destructive";
-      case "high": return "default";
-      case "medium": return "secondary";
-      default: return "outline";
-    }
-  };
-
-  const statusColor = (s: string) => {
-    switch (s) {
-      case "open": return "default";
-      case "in_progress": return "secondary";
-      case "done":
-      case "completed": return "outline";
-      default: return "outline";
-    }
-  };
-
-  const systemTruth = {
-    scanWorking: latestBackendScan && (latestRun as any)?.total_new_issues > 0,
-    workItemsCreated: (latestRun as any)?.work_items_created > 0,
-  };
-
-  return (
-    <div className="flex h-full min-h-0">
-      {/* Main tree panel */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {!systemTruth.scanWorking && <p className="text-[10px] text-red-500 font-mono">❌ SCAN NOT PRODUCING DATA</p>}
-        {!systemTruth.workItemsCreated && <p className="text-[10px] text-red-500 font-mono">❌ PIPELINE BLOCKED</p>}
-        <p className="text-xs text-green-500 font-mono">TEST BUILD OK — Files detected: {fileSystemMap.length}</p>
-        <div className="text-[10px] font-mono text-muted-foreground">Last action: {lastAction || "none"}</div>
-
         {/* Action Monitor */}
         <details className="border border-border rounded-md">
           <summary className="px-3 py-1.5 text-[10px] font-semibold cursor-pointer bg-muted/30 hover:bg-muted/50 transition-colors">
@@ -1248,6 +896,9 @@ const SystemExplorer = () => {
           <button onClick={() => setMainTab("backendscan")} className={`px-3 py-1.5 text-xs font-medium rounded-t-md transition-colors ${mainTab === "backendscan" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"}`}>
             Backend Scan
           </button>
+          <button onClick={() => setMainTab("analysis")} className={`px-3 py-1.5 text-xs font-medium rounded-t-md transition-colors ${mainTab === "analysis" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"}`}>
+            Analysis
+          </button>
         </div>
 
         {/* BACKEND SCAN TAB */}
@@ -1256,71 +907,99 @@ const SystemExplorer = () => {
           const latestRun = r;
           return (
             <div className="space-y-3">
-            {latestBackendScan && latestRun && latestRun.work_items_created === 0 && (
+            {run && (run.work_items_created ?? 0) === 0 && (
               <p className="text-[10px] text-yellow-500 font-mono">⚠ Scan produced no work_items (possible over-filtering / dedup block)</p>
             )}
+
+            {/* Backend Scan Summary — data from scan_runs */}
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2"><Radar className="h-4 w-4" /> Backend Scan <span className="text-[9px] text-green-500/80 font-mono ml-2">✔ Real scan (Supabase)</span></CardTitle>
+                <CardTitle className="text-sm flex items-center gap-2"><Radar className="h-4 w-4" /> Backend Scan <span className="text-[9px] text-green-500/80 font-mono ml-2">✔ Real scan (scan_runs)</span></CardTitle>
               </CardHeader>
               <CardContent className="p-3">
-                {backendScanLoading ? (
-                  <p className="text-[10px] text-muted-foreground">Loading...</p>
-                ) : !latestBackendScan ? (
-                  <p className="text-[10px] text-muted-foreground">No backend scan found</p>
+                {noRun ? (
+                  <p className="text-[10px] text-muted-foreground">No completed scan run found</p>
                 ) : (
                   <div className="space-y-2">
                     <div className="grid grid-cols-2 gap-2 text-[10px]">
-                      <div><span className="text-muted-foreground">Scan ID:</span> <span className="font-mono text-foreground">{latestBackendScan.id?.slice(0, 8)}</span></div>
-                      <div><span className="text-muted-foreground">Created:</span> <span className="text-foreground">{format(new Date(latestBackendScan.created_at), "yyyy-MM-dd HH:mm")}</span></div>
-                      <div><span className="text-muted-foreground">Detected:</span> <span className="text-foreground">{r?.detected_count ?? latestBackendScan.issues_count ?? "—"}</span></div>
-                      <div><span className="text-muted-foreground">Created:</span> <span className="text-foreground">{r?.created_count ?? latestBackendScan.tasks_created ?? "—"}</span></div>
-                      <div><span className="text-muted-foreground">Filtered:</span> <span className="text-foreground">{r?.filtered_count ?? "—"}</span></div>
-                      <div><span className="text-muted-foreground">Skipped:</span> <span className="text-foreground">{r?.skipped_count ?? "—"}</span></div>
+                      <div><span className="text-muted-foreground">Scan ID:</span> <span className="font-mono text-foreground">{run.id?.slice(0, 8)}</span></div>
+                      <div><span className="text-muted-foreground">Completed:</span> <span className="text-foreground">{run.completed_at ? format(new Date(run.completed_at), "yyyy-MM-dd HH:mm") : "—"}</span></div>
+                      <div><span className="text-muted-foreground">Health Score:</span> <span className="font-bold text-foreground">{run.system_health_score ?? "—"}/100</span></div>
+                      <div><span className="text-muted-foreground">Work Items Created:</span> <span className="text-foreground">{run.work_items_created ?? "—"}</span></div>
+                      <div><span className="text-muted-foreground">Total New Issues:</span> <span className="text-foreground">{run.total_new_issues ?? "—"}</span></div>
+                      <div><span className="text-muted-foreground">Steps Logged:</span> <span className="text-foreground">{stepLogs.length}</span></div>
                     </div>
-                    {latestBackendScan.overall_status && (
-                      <Badge className={`text-[8px] ${latestBackendScan.overall_status === "healthy" ? "bg-green-500/20 text-green-500 border-green-500/30" : "bg-yellow-500/20 text-yellow-500 border-yellow-500/30"}`}>{latestBackendScan.overall_status}</Badge>
+                    {run.executive_summary && (
+                      <p className="text-[9px] text-muted-foreground mt-1 border-t border-border/40 pt-1">{run.executive_summary}</p>
                     )}
-                    {latestBackendScan.executive_summary && (
-                      <p className="text-[9px] text-muted-foreground mt-1">{latestBackendScan.executive_summary}</p>
-                    )}
-                    {(r?.detected_count ?? latestBackendScan.issues_count ?? 0) === 0 && (
-                      <p className="text-[10px] text-yellow-500 mt-1">⚠ Scan returned no data — check input or scanner connection</p>
+                    {latestBackendScan?.overall_status && (
+                      <Badge className={`text-[8px] mt-1 ${latestBackendScan.overall_status === "healthy" ? "bg-green-500/20 text-green-500 border-green-500/30" : "bg-yellow-500/20 text-yellow-500 border-yellow-500/30"}`}>{latestBackendScan.overall_status}</Badge>
                     )}
                   </div>
                 )}
               </CardContent>
             </Card>
 
-            {/* Scanner Execution */}
+            {/* Scanner Execution — step_logs timeline + steps_results per-step */}
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2"><Activity className="h-4 w-4" /> Scanner Execution</CardTitle>
               </CardHeader>
-              <CardContent className="p-3">
-                {(() => {
-                  const stepResults = r?.step_results || r?.steps_results || r?.scanners || null;
-                  if (!stepResults || typeof stepResults !== "object" || Object.keys(stepResults).length === 0) {
-                    return <p className="text-[10px] text-muted-foreground">No scanner execution data</p>;
-                  }
-                  return (
-                    <div className="space-y-1">
-                      {Object.entries(stepResults).map(([name, result]: [string, any]) => {
-                        const failed = result?.failed || result?.error;
-                        const issuesFound = result?.issues_found ?? result?.issues_count ?? result?.count ?? "—";
-                        const status = failed ? "failed" : (result && !result?.skipped) ? "success" : "no data";
-                        const statusColor = status === "success" ? "text-green-500" : status === "failed" ? "text-red-500" : "text-muted-foreground";
+              <CardContent className="p-3 space-y-3">
+                {/* Step Logs timeline */}
+                <div>
+                  <p className="text-[10px] font-semibold text-muted-foreground mb-1">Step Logs ({stepLogs.length})</p>
+                  {stepLogs.length === 0 ? (
+                    <p className="text-[10px] text-muted-foreground">No step logs — run a scan to populate</p>
+                  ) : (
+                    <div className="max-h-[240px] overflow-auto space-y-0.5">
+                      {stepLogs.map((log, i) => (
+                        <div key={i} className="flex items-start gap-2 text-[9px] font-mono py-0.5 border-b border-border/30">
+                          <span className="text-muted-foreground shrink-0 w-[130px]">{log.ts ? format(new Date(log.ts), "HH:mm:ss.SSS") : "—"}</span>
+                          <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0">{log.step ?? "?"}</Badge>
+                          <span className="text-foreground flex-1 break-all">{log.msg}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {/* Steps Results per-scanner */}
+                <div>
+                  <p className="text-[10px] font-semibold text-muted-foreground mb-1">Steps Results ({Object.keys(stepsResults).filter(k => k !== "_scan_input").length} scanners)</p>
+                  {Object.keys(stepsResults).filter(k => k !== "_scan_input").length === 0 ? (
+                    <p className="text-[10px] text-muted-foreground">No steps_results — run a scan to populate</p>
+                  ) : (
+                    <div className="space-y-1 max-h-[280px] overflow-auto">
+                      {Object.entries(stepsResults).filter(([k]) => k !== "_scan_input").map(([name, result]: [string, any]) => {
+                        const failed = result?.failed || !!result?.error;
+                        const executed = result?._executed !== false;
+                        const issuesFound = result?.issues?.length ?? result?.issues_found ?? result?.issues_count ?? result?.count ?? 0;
+                        const durationMs = result?._duration_ms;
+                        const statusLabel = failed ? "failed" : !executed ? "skipped" : "ok";
+                        const statusColor = failed ? "text-red-500" : !executed ? "text-yellow-500" : "text-green-500";
                         return (
-                          <div key={name} className="flex items-center gap-2 text-[10px] py-1 border-b border-border/50">
-                            <span className="font-mono text-foreground flex-1">{name}</span>
-                            <span className={`font-medium ${statusColor}`}>{status}</span>
-                            <span className="text-muted-foreground min-w-[60px] text-right">issues: {issuesFound}</span>
-                          </div>
+                          <details key={name} className="border border-border/50 rounded-md p-1.5 text-[9px]">
+                            <summary className="cursor-pointer flex items-center gap-2">
+                              <span className="font-mono text-foreground flex-1">{name}</span>
+                              <span className={`font-medium ${statusColor}`}>{statusLabel}</span>
+                              <span className="text-muted-foreground">issues: {issuesFound}</span>
+                              {durationMs && <span className="text-muted-foreground">{durationMs}ms</span>}
+                            </summary>
+                            {result?.error && <p className="mt-1 text-red-400 break-all">{result.error}</p>}
+                            {Array.isArray(result?.issues) && result.issues.length > 0 && (
+                              <div className="mt-1 space-y-0.5">
+                                {result.issues.slice(0, 5).map((iss: any, j: number) => (
+                                  <p key={j} className="text-muted-foreground truncate">{iss.title || iss.description || JSON.stringify(iss).slice(0, 80)}</p>
+                                ))}
+                                {result.issues.length > 5 && <p className="text-muted-foreground">…+{result.issues.length - 5} more</p>}
+                              </div>
+                            )}
+                          </details>
                         );
                       })}
                     </div>
-                  );
-                })()}
+                  )}
+                </div>
               </CardContent>
             </Card>
 
@@ -1331,25 +1010,19 @@ const SystemExplorer = () => {
               </CardHeader>
               <CardContent className="p-3">
                 {(() => {
-                  const scanned = r?.detected_count ?? r?.scanned ?? latestBackendScan?.issues_count ?? 0;
-                  const afterFilter = r?.after_filter ?? r?.filtered_count ?? "—";
-                  const skippedDedup = r?.skipped_dedup ?? r?.skipped_count ?? r?.deduplicated ?? "—";
-                  const created = r?.created_count ?? latestBackendScan?.tasks_created ?? 0;
+                  const totalDetected = run?.total_new_issues ?? latestBackendScan?.issues_count ?? 0;
+                  const created = run?.work_items_created ?? latestBackendScan?.tasks_created ?? 0;
+                  const skipped = Math.max(0, totalDetected - created);
                   return (
-                    <div className="flex items-center gap-1 text-[10px]">
+                    <div className="flex items-center gap-1 text-[10px] flex-wrap">
                       <div className="flex flex-col items-center px-3 py-2 rounded-md bg-muted/30 border border-border">
-                        <span className="text-muted-foreground">scanned</span>
-                        <span className="text-lg font-bold text-foreground">{scanned}</span>
-                      </div>
-                      <span className="text-muted-foreground">→</span>
-                      <div className="flex flex-col items-center px-3 py-2 rounded-md bg-muted/30 border border-border">
-                        <span className="text-muted-foreground">after_filter</span>
-                        <span className="text-lg font-bold text-foreground">{afterFilter}</span>
+                        <span className="text-muted-foreground">detected</span>
+                        <span className="text-lg font-bold text-foreground">{totalDetected}</span>
                       </div>
                       <span className="text-muted-foreground">→</span>
                       <div className="flex flex-col items-center px-3 py-2 rounded-md bg-muted/30 border border-border">
                         <span className="text-muted-foreground">skipped_dedup</span>
-                        <span className="text-lg font-bold text-foreground">{skippedDedup}</span>
+                        <span className="text-lg font-bold text-foreground">{skipped}</span>
                       </div>
                       <span className="text-muted-foreground">→</span>
                       <div className="flex flex-col items-center px-3 py-2 rounded-md bg-green-500/10 border border-green-500/20">
@@ -1362,7 +1035,7 @@ const SystemExplorer = () => {
               </CardContent>
             </Card>
 
-            {/* View Backend Raw */}
+            {/* Backend Raw Output — unified_result + steps_results from scan_runs */}
             <Card>
               <CardHeader className="pb-2 flex flex-row items-center justify-between">
                 <CardTitle className="text-sm flex items-center gap-2"><Database className="h-4 w-4" /> Backend Raw Output</CardTitle>
@@ -1371,33 +1044,419 @@ const SystemExplorer = () => {
                 </Button>
               </CardHeader>
               {showBackendRaw && (
-                <CardContent className="p-3">
-                  {!latestBackendScan?.results ? (
-                    <p className="text-[10px] text-muted-foreground">No raw data available</p>
-                  ) : (() => {
-                    const raw = latestBackendScan.results as any;
-                    const issues = raw?.issues || raw?.broken_flows || raw?.data_issues || raw?.fake_features || raw?.interaction_failures || [];
-                    const allIssues = Array.isArray(issues) ? issues.slice(0, 50) : [];
-                    return allIssues.length === 0 ? (
+                <CardContent className="p-3 space-y-3">
+                  {noRun ? (
+                    <p className="text-[10px] text-muted-foreground">No raw data available — run a scan first</p>
+                  ) : (
+                    <>
+                      {/* unified_result — top-level issues */}
+                      {unifiedResult && (() => {
+                        const issues: any[] = unifiedResult?.issues ?? [];
+                        return (
+                          <div>
+                            <p className="text-[10px] font-semibold text-muted-foreground mb-1">unified_result — {issues.length} issues (scan_id: {run.id?.slice(0, 8)})</p>
+                            {issues.length === 0 ? (
+                              <pre className="text-[9px] font-mono bg-muted/30 border border-border rounded-md p-2 max-h-[200px] overflow-auto whitespace-pre-wrap text-foreground">{JSON.stringify(unifiedResult, null, 2).slice(0, 3000)}</pre>
+                            ) : (
+                              <div className="space-y-1 max-h-[300px] overflow-auto">
+                                <p className="text-[10px] text-muted-foreground mb-1">Showing {Math.min(issues.length, 50)} of {issues.length}</p>
+                                {issues.slice(0, 50).map((issue: any, i: number) => (
+                                  <details key={i} className="border border-border/50 rounded-md p-1.5 text-[9px]">
+                                    <summary className="cursor-pointer font-mono text-foreground truncate flex items-center gap-1">
+                                      {issue.title || issue.description || issue.message || JSON.stringify(issue).slice(0, 100)}
+                                      {issue._status && <Badge variant={issue._status === "created" ? "default" : issue._status === "error" ? "destructive" : "secondary"} className="text-[8px] px-1 py-0 ml-1">{issue._status}</Badge>}
+                                    </summary>
+                                    <pre className="mt-1 font-mono text-[8px] text-muted-foreground whitespace-pre-wrap">{JSON.stringify(issue, null, 2)}</pre>
+                                  </details>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                      {/* steps_results raw dump */}
                       <div>
-                        <p className="text-[10px] text-muted-foreground mb-2">No issue array found. Raw keys: {Object.keys(raw).join(", ")}</p>
-                        <pre className="text-[9px] font-mono bg-muted/30 border border-border rounded-md p-2 max-h-[300px] overflow-auto whitespace-pre-wrap text-foreground">{JSON.stringify(raw, null, 2).slice(0, 5000)}</pre>
+                        <p className="text-[10px] font-semibold text-muted-foreground mb-1">steps_results — {Object.keys(stepsResults).filter(k => k !== "_scan_input").length} steps</p>
+                        <pre className="text-[9px] font-mono bg-muted/30 border border-border rounded-md p-2 max-h-[300px] overflow-auto whitespace-pre-wrap text-foreground">{JSON.stringify(stepsResults, null, 2).slice(0, 8000)}</pre>
                       </div>
-                    ) : (
-                      <div className="space-y-1 max-h-[400px] overflow-auto">
-                        <p className="text-[10px] text-muted-foreground mb-1">Showing {allIssues.length} of {Array.isArray(issues) ? issues.length : "?"} issues</p>
-                        {allIssues.map((issue: any, i: number) => (
-                          <details key={i} className="border border-border/50 rounded-md p-1.5 text-[9px]">
-                            <summary className="cursor-pointer font-mono text-foreground truncate flex items-center gap-1">{issue.title || issue.description || issue.message || JSON.stringify(issue).slice(0, 100)}{issue._status && <Badge variant={issue._status === "created" ? "default" : issue._status === "error" ? "destructive" : "secondary"} className="text-[8px] px-1 py-0 ml-1">{issue._status}</Badge>}</summary>
-                            <pre className="mt-1 font-mono text-[8px] text-muted-foreground whitespace-pre-wrap">{JSON.stringify(issue, null, 2)}</pre>
-                          </details>
-                        ))}
-                      </div>
-                    );
-                  })()}
+                    </>
+                  )}
                 </CardContent>
               )}
             </Card>
+            </div>
+          );
+        })()}
+
+        {/* CODE INDEX TAB */}
+        {/* ANALYSIS TAB */}
+        {mainTab === "analysis" && (() => {
+          const ANALYSIS_MAX_PROMPT_FILES = 20;
+          const ANALYSIS_BAR_MAX_PX = 120;
+          const ANALYSIS_PROMPT_RULES = [
+            "Do not change architecture",
+            "Follow existing patterns",
+            "Use same scan_id",
+            "Keep logic consistent",
+          ];
+          // ── Root-cause / fix / strategy engines ────────────────────────────
+          function generateRootCause(issue: any): string {
+            const text = `${issue.type || ""} ${issue.category || ""} ${issue._source || ""} ${issue.title || ""} ${issue.description || ""}`.toLowerCase();
+            if (text.includes("unused") || text.includes("dead_code") || text.includes("dead code"))
+              return "Dead code increases bundle size and indicates missing cleanup";
+            if (text.includes("route") || text.includes("navigation") || text.includes("broken_flow") || text.includes("broken flow"))
+              return "Broken navigation creates user dead-ends and blocks critical flows";
+            if (text.includes("data") || text.includes("state") || text.includes("sync") || text.includes("binding") || text.includes("data_issue"))
+              return "State/data mismatch causes UI to display incorrect or stale information";
+            if (text.includes("interaction") || text.includes("event") || text.includes("handler") || text.includes("click") || text.includes("interaction_failure"))
+              return "Event binding or handler failure breaks user interaction entirely";
+            if (text.includes("fake") || text.includes("placeholder") || text.includes("stub") || text.includes("fake_feature"))
+              return "Feature appears implemented but lacks real backend logic or data";
+            return "System inconsistency indicates a missing connection between components";
+          }
+
+          function generateFix(issue: any): string {
+            if (issue.fix_suggestion || issue.suggested_fix)
+              return issue.fix_suggestion || issue.suggested_fix;
+            const text = `${issue.type || ""} ${issue._source || ""} ${issue.title || ""} ${issue.description || ""}`.toLowerCase();
+            if (text.includes("unused") || text.includes("dead_code"))
+              return "Remove unused import or unreachable code";
+            if (text.includes("route") || text.includes("navigation") || text.includes("broken_flow"))
+              return "Fix route path or ensure the navigation target exists and is exported";
+            if (text.includes("data") || text.includes("state") || text.includes("sync") || text.includes("data_issue"))
+              return "Connect the correct state/store or fix the query to use the latest scan_id";
+            if (text.includes("interaction") || text.includes("event") || text.includes("handler") || text.includes("interaction_failure"))
+              return "Fix event handler or binding; verify component mounts before attaching listeners";
+            if (text.includes("fake") || text.includes("placeholder") || text.includes("fake_feature"))
+              return "Implement backend logic or remove placeholder; do not ship stub UI as complete";
+            return "Refactor logic to align with existing system patterns";
+          }
+
+          function generateStrategy(issue: any): string {
+            const text = `${issue.type || ""} ${issue._source || ""} ${issue.title || ""} ${issue.description || ""}`.toLowerCase();
+            const lines: string[] = ["Follow existing architecture"];
+            if (text.includes("state") || text.includes("store") || text.includes("data"))
+              lines.push("Reuse existing hooks / stores — do not create new state containers");
+            if (text.includes("route") || text.includes("navigation"))
+              lines.push("Use existing router patterns; verify guard and lazy-load configuration");
+            if (text.includes("interaction") || text.includes("event"))
+              lines.push("Wire event using the same pattern as adjacent components");
+            lines.push("Avoid introducing new abstractions");
+            lines.push("Ensure consistency with latestRun data flow (scan_id: same run)");
+            return lines.join(" · ");
+          }
+
+          // ── Issue normalizer ────────────────────────────────────────────────
+          function hashStr(s: string): string {
+            // 31 is a standard polynomial hash multiplier (widely used in Java/JS)
+            let h = 0;
+            for (let i = 0; i < s.length; i++) { h = (Math.imul(31, h) + s.charCodeAt(i)) | 0; }
+            return Math.abs(h).toString(16).padStart(8, "0");
+          }
+
+          function normalizeIssue(raw: any, idx: number) {
+            const filePath = raw.source_path || raw.source_file || raw.component || raw.route || raw.target || raw.element || raw.area || raw.page || "unknown";
+            const issueType = raw.type || raw.category || raw._source || "general";
+            const severity = raw.severity || "medium";
+            const location = raw.line ? `line ${raw.line}` : raw.route || raw.component || raw.element || "unknown";
+            const description = raw.description || raw.title || "No description";
+            const why = generateRootCause(raw);
+            const fix = generateFix(raw);
+            const strategy = generateStrategy(raw);
+            return {
+              id: hashStr(`${filePath}${issueType}${description}${idx}`),
+              file_path: filePath,
+              issue_type: issueType,
+              severity,
+              location,
+              description,
+              why_this_is_a_problem: why,
+              suggested_fix: fix,
+              fix_strategy: strategy,
+              _raw: raw,
+            };
+          }
+
+          // ── Helper fns ──────────────────────────────────────────────────────
+          function getFolder(fileKey: string): string {
+            const parts = fileKey.split("/");
+            // Files with a path separator → use the directory portion
+            if (parts.length > 1) return parts.slice(0, -1).join("/");
+            // Everything else (bare name with or without extension) → "root"
+            return "root";
+          }
+          function severityOrder(s: string): number {
+            return s === "critical" ? 0 : s === "high" ? 1 : s === "medium" ? 2 : 3;
+          }
+          const sevColor = (s: string) =>
+            s === "critical" ? "text-red-500" : s === "high" ? "text-orange-500" : s === "medium" ? "text-yellow-500" : "text-muted-foreground";
+          const sevBadge = (s: string) =>
+            s === "critical" ? "bg-red-500/10 text-red-500 border-red-500/20" :
+            s === "high" ? "bg-orange-500/10 text-orange-500 border-orange-500/20" :
+            s === "medium" ? "bg-yellow-500/10 text-yellow-500 border-yellow-500/20" :
+            "bg-muted/30 text-muted-foreground border-border";
+
+          // ── Build ALL_ISSUES from unified_result sub-arrays ─────────────────
+          const run = latestRun as any;
+          const scanId = run?.id;
+          const ur = run?.unified_result ?? {};
+          const rawAll: any[] = [
+            ...(ur.broken_flows || []).map((i: any) => ({ ...i, _source: i._source || "broken_flow" })),
+            ...(ur.interaction_failures || []).map((i: any) => ({ ...i, _source: i._source || "interaction_failure" })),
+            ...(ur.data_issues || []).map((i: any) => ({ ...i, _source: i._source || "data_issue" })),
+            ...(ur.fake_features || []).map((i: any) => ({ ...i, _source: i._source || "fake_feature" })),
+            // also include top-level issues array if none of the above are populated
+            ...((ur.broken_flows?.length || ur.interaction_failures?.length || ur.data_issues?.length || ur.fake_features?.length)
+              ? []
+              : (ur.issues || [])),
+          ];
+          const ALL_ISSUES = rawAll.map((raw, idx) => normalizeIssue(raw, idx));
+
+          // ── Group by file_path ──────────────────────────────────────────────
+          const fileMap = new Map<string, typeof ALL_ISSUES>();
+          for (const ni of ALL_ISSUES) {
+            if (!fileMap.has(ni.file_path)) fileMap.set(ni.file_path, []);
+            fileMap.get(ni.file_path)!.push(ni);
+          }
+          const sortedFiles = [...fileMap.entries()].sort((a, b) => b[1].length - a[1].length);
+
+          // ── Group by folder ─────────────────────────────────────────────────
+          const folderMap = new Map<string, { files: string[]; issueCount: number }>();
+          for (const [file, issues] of sortedFiles) {
+            const folder = getFolder(file);
+            if (!folderMap.has(folder)) folderMap.set(folder, { files: [], issueCount: 0 });
+            folderMap.get(folder)!.files.push(file);
+            folderMap.get(folder)!.issueCount += issues.length;
+          }
+          const sortedFolders = [...folderMap.entries()].sort((a, b) => b[1].issueCount - a[1].issueCount);
+
+          // ── Aggregated stats ────────────────────────────────────────────────
+          const bySeverity: Record<string, number> = {};
+          const byType: Record<string, number> = {};
+          for (const ni of ALL_ISSUES) {
+            bySeverity[ni.severity] = (bySeverity[ni.severity] || 0) + 1;
+            byType[ni.issue_type] = (byType[ni.issue_type] || 0) + 1;
+          }
+          const topTypes = Object.entries(byType).sort((a, b) => b[1] - a[1]).slice(0, 5);
+          const topFolders = sortedFolders.slice(0, 5);
+
+          const selectedNormalized = selectedAnalysisFile
+            ? (fileMap.get(selectedAnalysisFile) ?? []).slice().sort((a, b) => severityOrder(a.severity) - severityOrder(b.severity))
+            : [];
+
+          // ── Prompt generator ────────────────────────────────────────────────
+          function generatePrompt(): string {
+            const filesToInclude = selectedAnalysisFile
+              ? [[selectedAnalysisFile, fileMap.get(selectedAnalysisFile) ?? []] as [string, typeof ALL_ISSUES]]
+              : sortedFiles.slice(0, ANALYSIS_MAX_PROMPT_FILES) as [string, typeof ALL_ISSUES][];
+
+            let prompt = `FIX THESE ISSUES:\n(scan_id: ${scanId ?? "unknown"})\n\n`;
+            for (const [file, issues] of filesToInclude) {
+              prompt += `[File: ${file}]\n\n`;
+              issues.forEach((ni, i) => {
+                prompt += `Issue ${i + 1}:\n`;
+                prompt += `Problem:\n${ni.description}\n\n`;
+                prompt += `Why:\n${ni.why_this_is_a_problem}\n\n`;
+                prompt += `Suggested fix:\n${ni.suggested_fix}\n\n`;
+                prompt += `Fix strategy:\n${ni.fix_strategy}\n\n`;
+                prompt += `---\n\n`;
+              });
+            }
+            prompt += `RULES:\n${ANALYSIS_PROMPT_RULES.map(r => `- ${r}`).join("\n")}\n`;
+            return prompt;
+          }
+
+          return (
+            <div className="space-y-3">
+              {!run ? (
+                <p className="text-[10px] text-muted-foreground">No completed scan run — run a scan first</p>
+              ) : (
+                <>
+                  {/* SECTION 1 – AGGREGATED ANALYSIS */}
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <Activity className="h-4 w-4" /> Aggregated Analysis
+                        <span className="text-[9px] font-mono text-muted-foreground ml-1">(scan_id: {scanId?.slice(0, 8)})</span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-3 space-y-3">
+                      <div className="grid grid-cols-2 gap-2 text-[10px]">
+                        <div className="rounded-md bg-muted/30 border border-border p-2">
+                          <p className="text-muted-foreground">Total Issues</p>
+                          <p className="text-xl font-bold text-foreground">{ALL_ISSUES.length}</p>
+                        </div>
+                        <div className="rounded-md bg-muted/30 border border-border p-2">
+                          <p className="text-muted-foreground">Affected Files / Components</p>
+                          <p className="text-xl font-bold text-foreground">{fileMap.size}</p>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-semibold text-muted-foreground mb-1">Issues by Severity</p>
+                        <div className="flex gap-2 flex-wrap">
+                          {Object.entries(bySeverity).sort((a, b) => severityOrder(a[0]) - severityOrder(b[0])).map(([sev, count]) => (
+                            <span key={sev} className={`text-[10px] px-2 py-0.5 rounded-md border font-medium ${sevBadge(sev)}`}>{sev}: {count}</span>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-semibold text-muted-foreground mb-1">Most Common Issue Types</p>
+                        <div className="space-y-0.5">
+                          {topTypes.map(([type, count]) => (
+                            <div key={type} className="flex items-center gap-2 text-[9px]">
+                              <span className="font-mono text-foreground flex-1">{type}</span>
+                              <div className="bg-primary/20 h-1.5 rounded-full" style={{ width: ALL_ISSUES.length ? `${Math.round((count / ALL_ISSUES.length) * ANALYSIS_BAR_MAX_PX)}px` : "0px" }} />
+                              <span className="text-muted-foreground w-6 text-right">{count}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-semibold text-muted-foreground mb-1">Most Problematic Areas</p>
+                        <div className="space-y-0.5">
+                          {topFolders.map(([folder, data]) => (
+                            <div key={folder} className="flex items-center gap-2 text-[9px]">
+                              <span className="font-mono text-foreground flex-1 truncate">{folder}</span>
+                              <span className="text-muted-foreground">{data.files.length} file{data.files.length !== 1 ? "s" : ""}</span>
+                              <span className="text-orange-500 font-medium">{data.issueCount} issues</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* SECTION 2 – FILE LIST + SECTION 3 – ISSUE BREAKDOWN */}
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* SECTION 2 – FILE LIST */}
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Database className="h-4 w-4" /> Files / Components ({sortedFiles.length})
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-2">
+                        {sortedFiles.length === 0 ? (
+                          <p className="text-[10px] text-muted-foreground p-1">No issues found in scan</p>
+                        ) : (
+                          <div className="max-h-[420px] overflow-auto space-y-0.5">
+                            {sortedFolders.map(([folder, folderData]) => (
+                              <div key={folder}>
+                                <p className="text-[9px] text-muted-foreground font-semibold px-1 py-0.5 bg-muted/20 rounded sticky top-0">
+                                  📁 {folder} — {folderData.issueCount} issues
+                                </p>
+                                {folderData.files.map(file => {
+                                  const issues = fileMap.get(file) ?? [];
+                                  const isSelected = selectedAnalysisFile === file;
+                                  const maxSev = issues.reduce((best, ni) => severityOrder(ni.severity) < severityOrder(best) ? ni.severity : best, "low");
+                                  return (
+                                    <button
+                                      key={file}
+                                      onClick={() => { setSelectedAnalysisFile(isSelected ? null : file); setGeneratedPrompt(null); }}
+                                      className={`w-full text-left flex items-center gap-2 text-[9px] px-2 py-1 rounded cursor-pointer border-b border-border/30 transition-colors ${isSelected ? "bg-primary/10 text-primary" : "hover:bg-muted/30 text-foreground"}`}
+                                    >
+                                      <span className="flex-1 font-mono truncate" title={file}>{file}</span>
+                                      <span className={`font-medium shrink-0 ${sevColor(maxSev)}`}>{maxSev}</span>
+                                      <span className="text-muted-foreground shrink-0 ml-1">{issues.length}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    {/* SECTION 3 – ISSUE BREAKDOWN */}
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Radar className="h-4 w-4" />
+                          {selectedAnalysisFile
+                            ? <span className="truncate max-w-[200px]" title={selectedAnalysisFile}>{selectedAnalysisFile}</span>
+                            : "Issue Breakdown"}
+                          {selectedAnalysisFile && <span className="text-[9px] text-muted-foreground ml-1">({selectedNormalized.length})</span>}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-2">
+                        {!selectedAnalysisFile ? (
+                          <p className="text-[10px] text-muted-foreground p-1">← Select a file to see issue breakdown</p>
+                        ) : selectedNormalized.length === 0 ? (
+                          <p className="text-[10px] text-muted-foreground p-1">No issues for this file</p>
+                        ) : (
+                          <div className="max-h-[420px] overflow-auto space-y-1.5">
+                            {selectedNormalized.map((ni, i) => (
+                              <details key={ni.id} className="border border-border/50 rounded-md p-1.5 text-[9px]" open={i === 0}>
+                                <summary className="cursor-pointer flex items-center gap-1.5">
+                                  <Badge className={`text-[8px] px-1 py-0 shrink-0 ${sevBadge(ni.severity)}`}>{ni.severity}</Badge>
+                                  <span className="font-mono text-foreground flex-1 truncate">{ni.description}</span>
+                                </summary>
+                                <div className="mt-1.5 space-y-1 pl-1 border-l border-border/40">
+                                  <p className="text-muted-foreground">
+                                    <span className="text-foreground font-semibold">Type:</span> {ni.issue_type}
+                                  </p>
+                                  <p className="text-muted-foreground">
+                                    <span className="text-foreground font-semibold">Location:</span> {ni.location}
+                                  </p>
+                                  <p className="text-muted-foreground">
+                                    <span className="text-foreground font-semibold">Description:</span> {ni.description}
+                                  </p>
+                                  <p className="text-yellow-400">
+                                    <span className="text-foreground font-semibold">WHY THIS IS A PROBLEM:</span> {ni.why_this_is_a_problem}
+                                  </p>
+                                  <p className="text-green-400">
+                                    <span className="text-foreground font-semibold">SUGGESTED FIX:</span> {ni.suggested_fix}
+                                  </p>
+                                  <p className="text-blue-400">
+                                    <span className="text-foreground font-semibold">FIX STRATEGY:</span> {ni.fix_strategy}
+                                  </p>
+                                  {ni._raw?.root_cause && (
+                                    <p className="text-orange-400">
+                                      <span className="text-foreground font-semibold">Root cause:</span> {ni._raw.root_cause}
+                                    </p>
+                                  )}
+                                </div>
+                              </details>
+                            ))}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* PROMPT GENERATOR */}
+                  <Card>
+                    <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <ArrowRight className="h-4 w-4" /> Fix Prompt Generator
+                      </CardTitle>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline" size="sm" className="text-[10px] h-6"
+                          onClick={() => { setGeneratedPrompt(generatePrompt()); setPromptCopied(false); }}
+                        >
+                          👉 Generate Fix Prompt {selectedAnalysisFile ? "(selected file)" : `(all ${ALL_ISSUES.length} issues)`}
+                        </Button>
+                        {generatedPrompt && (
+                          <Button
+                            variant="outline" size="sm"
+                            className={`text-[10px] h-6 ${promptCopied ? "text-green-500 border-green-500/40" : ""}`}
+                            onClick={() => { navigator.clipboard.writeText(generatedPrompt); setPromptCopied(true); setTimeout(() => setPromptCopied(false), 2000); }}
+                          >
+                            {promptCopied ? "✓ Copied" : "Copy Prompt"}
+                          </Button>
+                        )}
+                      </div>
+                    </CardHeader>
+                    {generatedPrompt && (
+                      <CardContent className="p-3">
+                        <pre className="text-[9px] font-mono bg-muted/30 border border-border rounded-md p-2 max-h-[400px] overflow-auto whitespace-pre-wrap text-foreground">{generatedPrompt}</pre>
+                      </CardContent>
+                    )}
+                  </Card>
+                </>
+              )}
             </div>
           );
         })()}
@@ -2139,76 +2198,6 @@ const SystemExplorer = () => {
             ))}
           </div>
         )}
-        {isSystemAdmin && (
-        <Card>
-          <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("aiAssistant")}>
-            <CardTitle className="text-sm flex items-center gap-2">
-              {expandedSections.aiAssistant ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-              <Bot className="h-4 w-4 text-primary" />
-              AI Assistant
-              <Badge variant="outline" className="text-[10px]">READ-ONLY</Badge>
-            </CardTitle>
-          </CardHeader>
-          {expandedSections.aiAssistant && (
-            <CardContent className="space-y-3">
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Ask about system state, scanners, work items..."
-                  value={aiQuery}
-                  onChange={(e) => setAiQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleAiAnalyze()}
-                  className="text-sm"
-                />
-                <Button size="sm" onClick={handleAiAnalyze} disabled={aiLoading || !aiQuery.trim()}>
-                  {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  Analyze
-                </Button>
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {["Why was this created?", "Which scanners failed?", "What is broken?", "Summarize system state"].map((q) => (
-                  <button
-                    key={q}
-                    onClick={() => { setAiQuery(q); }}
-                    className="text-[10px] px-2 py-1 rounded-md border border-border hover:bg-muted/50 transition-colors text-muted-foreground"
-                  >
-                    {q}
-                  </button>
-                ))}
-              </div>
-              <div className="flex items-center gap-1 flex-wrap">
-                <span className="text-[10px] text-muted-foreground font-medium mr-1">Focus Area:</span>
-                {[
-                  { key: "UI", label: "UI" },
-                  { key: "Data", label: "Data" },
-                  { key: "Flow", label: "Flow" },
-                  { key: "Business", label: "Business" },
-                ].map((area) => (
-                  <button
-                    key={area.key}
-                    onClick={() => setAiFocusArea(aiFocusArea === area.key ? null : area.key)}
-                    className={`text-[10px] px-2 py-1 rounded-md border transition-colors ${
-                      aiFocusArea === area.key
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "border-border hover:bg-muted/50 text-muted-foreground"
-                    }`}
-                  >
-                    {area.label}
-                  </button>
-                ))}
-                {aiFocusArea && (
-                  <span className="text-[10px] text-muted-foreground ml-1">Active: {aiFocusArea}</span>
-                )}
-              </div>
-              {aiAnswer && (
-                <div className="border border-border rounded-md p-3 bg-muted/30 text-sm prose prose-sm max-w-none dark:prose-invert">
-                  <ReactMarkdown>{aiAnswer}</ReactMarkdown>
-                </div>
-              )}
-            </CardContent>
-          )}
-        </Card>
-        )}
-
         {/* DEBUG CONSOLE */}
         {isSystemAdmin && (
         <Card>
@@ -2295,7 +2284,7 @@ const SystemExplorer = () => {
           <Card>
             <CardContent className="p-4 flex items-center gap-2 text-sm text-muted-foreground">
               <Lock className="h-4 w-4" />
-              Viewer-läge — du har läsbehörighet. AI Assistant och kontrollåtgärder kräver System Admin-behörighet.
+              Viewer-läge — du har läsbehörighet. Assistent och kontrollåtgärder kräver System Admin-behörighet.
             </CardContent>
           </Card>
         )}
@@ -2389,7 +2378,7 @@ const SystemExplorer = () => {
             <CardTitle className="text-sm flex items-center gap-2">
               {expandedSections.aiFlow ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
               <Cpu className="h-4 w-4 text-primary" />
-              AI Flow
+              Flöde
             </CardTitle>
           </CardHeader>
           {expandedSections.aiFlow && (
@@ -2397,20 +2386,56 @@ const SystemExplorer = () => {
               {/* 1. Last Scan Info */}
               <div>
                 <h3 className="text-xs font-semibold text-muted-foreground mb-1">Last Scan</h3>
-                <div className="grid grid-cols-3 gap-2 text-sm">
-                  <div>
-                    <span className="text-muted-foreground text-xs">Scan ID</span>
-                    <p className="font-mono text-xs">{latestScan?.id?.slice(0, 8) ?? "–"}…</p>
+                {latestRun ? (
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] text-muted-foreground">
+                      Visar resultat från: <span className="font-medium text-foreground">{latestRun.completed_at ? format(new Date((latestRun as any).completed_at), "yyyy-MM-dd HH:mm:ss") : "–"}</span>
+                    </p>
+                    <div className="grid grid-cols-3 gap-2 text-sm">
+                      <div>
+                        <span className="text-muted-foreground text-xs">Scan ID</span>
+                        <p className="font-mono text-xs">{latestRun.id?.slice(0, 8) ?? "–"}…</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground text-xs">Started</span>
+                        <p className="text-xs">{(latestRun as any).started_at ? format(new Date((latestRun as any).started_at), "MM-dd HH:mm") : "–"}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground text-xs">Completed</span>
+                        <p className="text-xs">{(latestRun as any).completed_at ? format(new Date((latestRun as any).completed_at), "MM-dd HH:mm") : "–"}</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-sm">
+                      <div>
+                        <span className="text-muted-foreground text-xs">Scan ID (ai)</span>
+                        <p className="font-mono text-xs">{latestScan?.id?.slice(0, 8) ?? "–"}…</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground text-xs">Created</span>
+                        <p className="text-xs">{latestScan ? format(new Date(latestScan.created_at), "MM-dd HH:mm") : "–"}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground text-xs">Detected</span>
+                        <p className="text-xs font-bold">{detectedIssues}</p>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-muted-foreground text-xs">Created</span>
-                    <p className="text-xs">{latestScan ? format(new Date(latestScan.created_at), "MM-dd HH:mm") : "–"}</p>
+                ) : (
+                  <div className="grid grid-cols-3 gap-2 text-sm">
+                    <div>
+                      <span className="text-muted-foreground text-xs">Scan ID</span>
+                      <p className="font-mono text-xs">{latestScan?.id?.slice(0, 8) ?? "–"}…</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground text-xs">Created</span>
+                      <p className="text-xs">{latestScan ? format(new Date(latestScan.created_at), "MM-dd HH:mm") : "–"}</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground text-xs">Detected</span>
+                      <p className="text-xs font-bold">{detectedIssues}</p>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-muted-foreground text-xs">Detected</span>
-                    <p className="text-xs font-bold">{detectedIssues}</p>
-                  </div>
-                </div>
+                )}
               </div>
 
               {/* 2. Pipeline Counts */}
@@ -2818,7 +2843,7 @@ const SystemExplorer = () => {
                                           {issue._issue_type && <Badge variant={issue._issue_type === "bug" ? "destructive" : issue._issue_type === "upgrade" ? "default" : "secondary"} className="text-[8px] px-1 py-0">{issue._issue_type}</Badge>}
                                           {issue._viewport && <Badge variant="outline" className="text-[8px] px-1 py-0">📱 {issue._viewport}{issue._viewport_width ? ` (${issue._viewport_width}px)` : ''}</Badge>}
                                            {issue._affected_area && <Badge variant="outline" className="text-[8px] px-1 py-0">📍 {issue._affected_area.type}/{issue._affected_area.target}</Badge>}
-                                            {issue._origin_source && <Badge variant="outline" className="text-[8px] px-1 py-0">{issue._origin_source === "ai_scan" ? "🤖" : issue._origin_source === "manual" ? "👤" : "🔧"} {issue._origin_source}</Badge>}
+                                            {issue._origin_source && <Badge variant="outline" className="text-[8px] px-1 py-0">{issue._origin_source === "manual" ? "👤" : "🔧"} {issue._origin_source}</Badge>}
                                             {issue._impact_score && <Badge variant={issue._impact_label === "critical" ? "destructive" : "outline"} className="text-[8px] px-1 py-0">{issue._impact_label === "critical" ? "💥" : issue._impact_label === "high" ? "🔴" : issue._impact_label === "medium" ? "🟡" : "🟢"} impact:{issue._impact_score}/5</Badge>}
                                             {issue._occurrence_count > 1 && <Badge variant="outline" className="text-[8px] px-1 py-0 border-orange-500 text-orange-600">🔁 ×{issue._occurrence_count}</Badge>}
                                             {issue._status && <Badge variant={issue._status === "created" ? "default" : issue._status === "error" ? "destructive" : "secondary"} className="text-[8px] px-1 py-0">{issue._status === "created" ? "✅ created" : issue._status === "skipped_dedup" ? "🔁 skipped_dedup" : issue._status === "filtered" ? "🚫 filtered" : issue._status === "error" ? "❌ error" : issue._status}</Badge>}
@@ -3880,8 +3905,8 @@ const SystemExplorer = () => {
                 <span className="text-muted-foreground text-xs">Origin Source</span>
                 <p>
                   <Badge variant="outline" className="text-[10px]">
-                    {selectedItem.source_type === "scan" || selectedItem.source_type === "ai_scan" || selectedItem.source_type === "ai_detection"
-                      ? "🤖 ai_scan"
+                    {selectedItem.source_type === "scan"
+                      ? "🔧 scan"
                       : selectedItem.source_type === "manual"
                       ? "👤 manual"
                       : selectedItem.source_type === "lovable_build" || selectedItem.source_type === "system"
@@ -4135,7 +4160,7 @@ const SystemExplorer = () => {
                       // Update selected item locally
                       setSelectedItem({ ...selectedItem, status: "done", verification_status: vStatus } as any);
                     } catch (err) {
-                      console.error("Verification scan failed:", err);
+
                       setVerifyResult({ itemId: selectedItem.id, status: "failed" });
                     } finally {
                       setVerifyingFix(false);
@@ -4320,10 +4345,6 @@ const SystemExplorer = () => {
               <div>
                 <span className="text-muted-foreground text-xs">Created By</span>
                 <p className="font-mono text-xs break-all">{selectedItem.created_by ?? "–"}</p>
-              </div>
-              <div>
-                <span className="text-muted-foreground text-xs">AI Detected</span>
-                <p>{selectedItem.ai_detected ? "Yes" : "No"}</p>
               </div>
               <div>
                 <span className="text-muted-foreground text-xs">Created</span>

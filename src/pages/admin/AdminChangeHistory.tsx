@@ -8,14 +8,14 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  Search, GitCommit, Bug, Wrench, Bot, Zap, FileCode, Clock,
+  Search, GitCommit, Bug, Wrench, Zap, FileCode, Clock,
   ChevronDown, ChevronUp, Link2, AlertTriangle, CheckCircle2, RefreshCw,
 } from 'lucide-react';
 import { format, subDays, isAfter } from 'date-fns';
 import { cn } from '@/lib/utils';
 
-const SOURCE_META: Record<string, { label: string; icon: typeof Bot; color: string }> = {
-  lovable: { label: 'Lovable', icon: Bot, color: 'text-purple-600 bg-purple-600/10' },
+const SOURCE_META: Record<string, { label: string; icon: typeof Wrench; color: string }> = {
+  lovable: { label: 'Lovable', icon: GitCommit, color: 'text-purple-600 bg-purple-600/10' },
   ai: { label: 'AI', icon: Zap, color: 'text-blue-600 bg-blue-600/10' },
   manual: { label: 'Manuell', icon: Wrench, color: 'text-muted-foreground bg-secondary' },
   automation: { label: 'Automation', icon: RefreshCw, color: 'text-orange-600 bg-orange-600/10' },
@@ -74,7 +74,7 @@ const AdminChangeHistory = () => {
       if (!entry?.bug_report_id) return [];
       const { data } = await supabase
         .from('bug_reports')
-        .select('id, description, status, ai_severity, ai_category, created_at')
+        .select('id, description, status, created_at')
         .eq('id', entry.bug_report_id);
       return data || [];
     },
@@ -272,12 +272,6 @@ const AdminChangeHistory = () => {
                                     {bug.status === 'resolved' ? <CheckCircle2 className="w-3 h-3 mr-0.5" /> : <AlertTriangle className="w-3 h-3 mr-0.5" />}
                                     {bug.status}
                                   </Badge>
-                                  {bug.ai_severity && (
-                                    <span>Allvarlighet: {bug.ai_severity}</span>
-                                  )}
-                                  {bug.ai_category && (
-                                    <span>Kategori: {bug.ai_category}</span>
-                                  )}
                                 </div>
                               </div>
                             ))}
