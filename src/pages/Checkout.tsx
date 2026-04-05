@@ -14,7 +14,7 @@ import { safeFetch } from '@/lib/safeInvoke';
 import { toast } from 'sonner';
 import { useStoreSettings } from '@/stores/storeSettingsStore';
 import { logActivity } from '@/utils/activityLogger';
-import { trackCheckoutStart, trackCheckoutAbandon, trackEvent } from '@/utils/analyticsTracker';
+
 import { useAuth } from '@/hooks/useAuth';
 
 
@@ -328,18 +328,7 @@ const Checkout = () => {
 
   // Track checkout page view
   useEffect(() => {
-    if (items.length > 0) {
-      trackCheckoutStart(items.length, total);
-      trackEvent('checkout_start_detail', {
-        items: items.map(item => ({ title: item.product.node.title, price: parseFloat(item.price.amount), quantity: item.quantity })),
-        total,
-      });
-    }
-    return () => {
-      if (items.length > 0 && !completedRef.current) {
-        trackCheckoutAbandon('checkout_page', items.length, total);
-      }
-    };
+    return () => {};
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!checkoutEnabled) {

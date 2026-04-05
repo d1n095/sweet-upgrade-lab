@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { TrendingUp, ArrowRight } from 'lucide-react';
 import { useLanguage, getContentLang } from '@/context/LanguageContext';
-import { fetchProducts, ShopifyProduct } from '@/lib/shopify';
-import ShopifyProductCard from '@/components/product/ShopifyProductCard';
+import { fetchProducts, Product } from '@/lib/catalog';
+import ProductCard from '@/components/product/ProductCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
@@ -11,7 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 const Bestsellers = () => {
   const { language } = useLanguage();
-  const [products, setProducts] = useState<ShopifyProduct[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
   const content = {
@@ -47,11 +47,11 @@ const Bestsellers = () => {
         if (salesData && salesData.length > 0 && !salesError) {
           // Sort products by sales data
           const productMap = new Map(allProducts.map(p => [
-            p.node.id.replace('gid://shopify/Product/', ''),
+            p.node.id,
             p
           ]));
 
-          const sortedBestsellers: ShopifyProduct[] = [];
+          const sortedBestsellers: Product[] = [];
           
           // Add products in order of sales
           for (const sale of salesData) {
@@ -137,7 +137,7 @@ const Bestsellers = () => {
               viewport={{ once: true }}
               transition={{ delay: index * 0.1 }}
             >
-              <ShopifyProductCard product={product} index={index} compact isBestseller />
+              <ProductCard product={product} index={index} compact isBestseller />
             </motion.div>
           ))}
         </div>

@@ -81,9 +81,7 @@ export const useProductSales = () => {
   }, []);
 
   const getSoldCount = useCallback((productId: string): number => {
-    // Handle both full GID and numeric ID formats
-    const numericId = productId.replace('gid://shopify/Product/', '');
-    return salesData[numericId] || salesData[productId] || 0;
+    return salesData[productId] || 0;
   }, [salesData]);
 
   const getStatus = useCallback((productId: string): { status: string; count: number } | null => {

@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { fetchProducts, ShopifyProduct } from '@/lib/shopify';
+import { fetchProducts, Product } from '@/lib/catalog';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/context/LanguageContext';
@@ -174,7 +174,7 @@ const AdminInventoryManager = () => {
         {products.length === 0 ? (
           <p className="text-center text-muted-foreground py-4">{t.noProducts}</p>
         ) : (
-          products.map((product: ShopifyProduct) => {
+          products.map((product: Product) => {
             const inventory = getProductInventory(product.node.id);
             const isEditing = editingStock === product.node.id;
 
