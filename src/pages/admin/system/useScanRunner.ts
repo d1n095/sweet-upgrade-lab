@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
-import { startScanJob, loadLatestScanRun, onScanComplete } from '@/lib/scanEngine';
-import type { ScanStep, ScanResult } from '@/lib/scanEngine';
+import { startScanJob, loadLatestScanRun, onScanComplete, type ScanStep, type ScanResult } from '@/lib/scanEngine';
 
 export type { ScanStep, ScanResult };
 

@@ -1,11 +1,10 @@
 import { useState, useMemo, useCallback } from 'react';
-import { Search, AlertTriangle, CheckCircle2, Edit2, Save, X, Globe, ToggleLeft, ToggleRight, Wand2 } from 'lucide-react';
+import { Search, AlertTriangle, CheckCircle2, Edit2, Save, X, Globe, ToggleLeft, ToggleRight, Wand2, Plus } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
