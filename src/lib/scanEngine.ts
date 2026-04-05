@@ -20,6 +20,8 @@ export interface ScanResult {
   unifiedResult: any | null;
   workItemsCreated: number;
   systemHealthScore: number;
+  startedAt?: string;
+  completedAt?: string;
 }
 
 type ScanCompleteCallback = (result: ScanResult) => void;
@@ -72,6 +74,8 @@ async function pollScanRun(scanRunId: string, onProgress?: (steps: ScanStep[]) =
         unifiedResult: run.unified_result ?? null,
         workItemsCreated: run.work_items_created ?? 0,
         systemHealthScore: run.system_health_score ?? 0,
+        startedAt: run.started_at ?? undefined,
+        completedAt: run.completed_at ?? undefined,
       });
     } else if (run.status === 'error' || run.status === 'failed') {
       stopPolling();
@@ -158,31 +162,64 @@ export async function startScanJob(options?: StartScanOptions): Promise<string> 
   return scanRunId;
 }
 
-/** Load the latest scan run from the DB (e.g. on page load to restore state). */
-export async function loadLatestScanRun(): Promise<{ running: boolean; steps: ScanStep[]; unifiedResult: any | null; scanRunId: string | null }> {
+/** Load the latest scan run from the DB (e.g. on page load to restore state).
+ * Returns the running scan if one exists, otherwise the latest completed scan. */
+export async function loadLatestScanRun(): Promise<{
+  running: boolean;
+  steps: ScanStep[];
+  unifiedResult: any | null;
+  scanRunId: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+}> {
+  const empty = { running: false, steps: [], unifiedResult: null, scanRunId: null, startedAt: null, completedAt: null };
   try {
-    const { data } = await supabase
+    // 1. Check for an in-progress scan first
+    const { data: runningRow } = await supabase
       .from('scan_runs' as any)
-      .select('*')
+      .select('id, status, started_at, completed_at, steps_results, unified_result, work_items_created, system_health_score, current_step')
+      .eq('status', 'running')
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    if (!data) return { running: false, steps: [], unifiedResult: null, scanRunId: null };
+    if (runningRow) {
+      const run = runningRow as any;
+      console.log('[scanEngine] loadLatestScanRun — running scan_id:', run.id, 'started_at:', run.started_at);
+      return {
+        running: true,
+        steps: buildStepsFromRun(run),
+        unifiedResult: null,
+        scanRunId: run.id,
+        startedAt: run.started_at ?? null,
+        completedAt: null,
+      };
+    }
 
-    const run = data as any;
-    const steps = buildStepsFromRun(run);
-    const isRunning = run.status === 'running';
-    const isDone = run.status === 'done' || run.status === 'completed';
+    // 2. Fetch the latest completed scan
+    const { data: completedRow } = await supabase
+      .from('scan_runs' as any)
+      .select('id, status, started_at, completed_at, steps_results, unified_result, work_items_created, system_health_score, current_step')
+      .in('status', ['done', 'completed'])
+      .order('completed_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
+    if (!completedRow) return empty;
+
+    const run = completedRow as any;
+    const issueCount = run.work_items_created ?? 0;
+    console.log('[scanEngine] loadLatestScanRun — scan_id:', run.id, 'completed_at:', run.completed_at, 'issues:', issueCount);
     return {
-      running: isRunning,
-      steps,
-      unifiedResult: isDone ? (run.unified_result ?? null) : null,
+      running: false,
+      steps: buildStepsFromRun(run),
+      unifiedResult: run.unified_result ?? null,
       scanRunId: run.id,
+      startedAt: run.started_at ?? null,
+      completedAt: run.completed_at ?? null,
     };
   } catch (e) {
     console.warn('[scanEngine] loadLatestScanRun error', e);
-    return { running: false, steps: [], unifiedResult: null, scanRunId: null };
+    return empty;
   }
 }

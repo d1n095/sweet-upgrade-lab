@@ -566,14 +566,15 @@ const SystemExplorer = () => {
     },
   });
 
-  // 2b. Latest scan_run for pipeline data
+  // 2b. Latest completed scan_run for pipeline data
   const { data: latestRun } = useQuery({
     queryKey: ["system-explorer-latest-run"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("scan_runs")
-        .select("id, status, total_new_issues, work_items_created, created_at, unified_result, steps_results")
-        .order("created_at", { ascending: false })
+        .select("id, status, total_new_issues, work_items_created, created_at, started_at, completed_at, unified_result, steps_results")
+        .in("status", ["done", "completed"])
+        .order("completed_at", { ascending: false })
         .limit(1)
         .maybeSingle();
       if (error) throw error;
@@ -1261,9 +1262,6 @@ const SystemExplorer = () => {
 
         {/* BACKEND SCAN TAB */}
         {mainTab === "backendscan" && (() => {
-          if (!latestBackendScan) {
-            console.error("❌ NO BACKEND SCAN FOUND");
-          }
           const r = latestBackendScan?.results as any;
           const latestRun = r;
           return (
@@ -2382,20 +2380,56 @@ const SystemExplorer = () => {
               {/* 1. Last Scan Info */}
               <div>
                 <h3 className="text-xs font-semibold text-muted-foreground mb-1">Last Scan</h3>
-                <div className="grid grid-cols-3 gap-2 text-sm">
-                  <div>
-                    <span className="text-muted-foreground text-xs">Scan ID</span>
-                    <p className="font-mono text-xs">{latestScan?.id?.slice(0, 8) ?? "–"}…</p>
+                {latestRun ? (
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] text-muted-foreground">
+                      Visar resultat från: <span className="font-medium text-foreground">{latestRun.completed_at ? format(new Date((latestRun as any).completed_at), "yyyy-MM-dd HH:mm:ss") : "–"}</span>
+                    </p>
+                    <div className="grid grid-cols-3 gap-2 text-sm">
+                      <div>
+                        <span className="text-muted-foreground text-xs">Scan ID</span>
+                        <p className="font-mono text-xs">{latestRun.id?.slice(0, 8) ?? "–"}…</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground text-xs">Started</span>
+                        <p className="text-xs">{(latestRun as any).started_at ? format(new Date((latestRun as any).started_at), "MM-dd HH:mm") : "–"}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground text-xs">Completed</span>
+                        <p className="text-xs">{(latestRun as any).completed_at ? format(new Date((latestRun as any).completed_at), "MM-dd HH:mm") : "–"}</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-sm">
+                      <div>
+                        <span className="text-muted-foreground text-xs">Scan ID (ai)</span>
+                        <p className="font-mono text-xs">{latestScan?.id?.slice(0, 8) ?? "–"}…</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground text-xs">Created</span>
+                        <p className="text-xs">{latestScan ? format(new Date(latestScan.created_at), "MM-dd HH:mm") : "–"}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground text-xs">Detected</span>
+                        <p className="text-xs font-bold">{detectedIssues}</p>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-muted-foreground text-xs">Created</span>
-                    <p className="text-xs">{latestScan ? format(new Date(latestScan.created_at), "MM-dd HH:mm") : "–"}</p>
+                ) : (
+                  <div className="grid grid-cols-3 gap-2 text-sm">
+                    <div>
+                      <span className="text-muted-foreground text-xs">Scan ID</span>
+                      <p className="font-mono text-xs">{latestScan?.id?.slice(0, 8) ?? "–"}…</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground text-xs">Created</span>
+                      <p className="text-xs">{latestScan ? format(new Date(latestScan.created_at), "MM-dd HH:mm") : "–"}</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground text-xs">Detected</span>
+                      <p className="text-xs font-bold">{detectedIssues}</p>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-muted-foreground text-xs">Detected</span>
-                    <p className="text-xs font-bold">{detectedIssues}</p>
-                  </div>
-                </div>
+                )}
               </div>
 
               {/* 2. Pipeline Counts */}

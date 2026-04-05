@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Loader2, CheckCircle, XCircle, Clock, AlertTriangle } from 'lucide-react';
+import { Play, Loader2, CheckCircle, XCircle, Clock, AlertTriangle, CalendarClock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -15,8 +15,17 @@ function StepIcon({ status }: { status: ScanStep['status'] }) {
   return <Clock className="w-4 h-4 text-muted-foreground" />;
 }
 
+function formatTs(iso: string | null | undefined): string {
+  if (!iso) return '–';
+  try {
+    return new Date(iso).toLocaleString('sv-SE', { dateStyle: 'short', timeStyle: 'medium' });
+  } catch {
+    return iso;
+  }
+}
+
 export function ScanControls() {
-  const { running, steps, lastResult, run } = useScanRunner();
+  const { running, steps, lastResult, scanRunId, startedAt, completedAt, run } = useScanRunner();
 
   const done = steps.filter(s => s.status === 'done').length;
   const total = steps.length;
@@ -24,7 +33,7 @@ export function ScanControls() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <Button onClick={run} disabled={running} size="sm">
           {running ? (
             <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Skannar...</>
@@ -32,12 +41,28 @@ export function ScanControls() {
             <><Play className="w-4 h-4 mr-2" />Kör skanning</>
           )}
         </Button>
-        {lastResult && (
+        {!running && lastResult && (
           <Badge variant="outline">
             {lastResult.systemHealthScore}/100 · {lastResult.workItemsCreated} uppgifter
           </Badge>
         )}
       </div>
+
+      {/* Scan identification — shown when not running */}
+      {!running && completedAt && (
+        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground border border-border rounded-md px-2 py-1.5 bg-muted/30 w-fit">
+          <CalendarClock className="w-3 h-3 shrink-0" />
+          <span>Visar resultat från: <span className="font-medium text-foreground">{formatTs(completedAt)}</span></span>
+          {scanRunId && (
+            <span className="ml-2 font-mono text-muted-foreground/70">id:{scanRunId.slice(0, 8)}</span>
+          )}
+        </div>
+      )}
+
+      {/* Fallback when no completed scan exists */}
+      {!running && !completedAt && !lastResult && (
+        <p className="text-xs text-muted-foreground">Inga slutförda skanningar tillgängliga</p>
+      )}
 
       {running && total > 0 && (
         <div className="space-y-2">
@@ -46,6 +71,7 @@ export function ScanControls() {
         </div>
       )}
 
+      {/* Only show step list when running or when it's the current scan's steps */}
       {steps.length > 0 && (
         <div className="space-y-1">
           {steps.map(step => (

@@ -11,6 +11,8 @@ export interface ScanRunnerState {
   steps: ScanStep[];
   lastResult: ScanResult | null;
   scanRunId: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
 }
 
 export function useScanRunner() {
@@ -20,18 +22,22 @@ export function useScanRunner() {
     steps: [],
     lastResult: null,
     scanRunId: null,
+    startedAt: null,
+    completedAt: null,
   });
 
   useEffect(() => {
-    loadLatestScanRun().then(({ running, steps, unifiedResult, scanRunId }) => {
+    loadLatestScanRun().then(({ running, steps, unifiedResult, scanRunId, startedAt, completedAt }) => {
       if (running || steps.length > 0) {
         setState(prev => ({
           ...prev,
           running,
           steps,
           scanRunId,
+          startedAt,
+          completedAt,
           lastResult: unifiedResult
-            ? { scanRunId: scanRunId!, steps, unifiedResult, workItemsCreated: 0, systemHealthScore: 0 }
+            ? { scanRunId: scanRunId!, steps, unifiedResult, workItemsCreated: 0, systemHealthScore: 0, startedAt: startedAt ?? undefined, completedAt: completedAt ?? undefined }
             : prev.lastResult,
         }));
       }
@@ -40,10 +46,11 @@ export function useScanRunner() {
 
   useEffect(() => {
     return onScanComplete((result) => {
-      setState({ running: false, steps: result.steps, lastResult: result, scanRunId: result.scanRunId });
+      setState({ running: false, steps: result.steps, lastResult: result, scanRunId: result.scanRunId, startedAt: result.startedAt ?? null, completedAt: result.completedAt ?? null });
       const score = result.systemHealthScore;
+      console.log(`[scan] id=${result.scanRunId} completed_at=${result.completedAt} issues=${result.workItemsCreated}`);
       toast.success(`Skanning klar — ${score}/100 — ${result.workItemsCreated} nya uppgifter`, { duration: 6000 });
-      for (const key of ['admin-scan-results', 'admin-work-items', 'admin-bugs', 'mini-workbench-items', 'scan-history', 'work-items']) {
+      for (const key of ['admin-scan-results', 'admin-work-items', 'admin-bugs', 'mini-workbench-items', 'scan-history', 'work-items', 'system-explorer-latest-run', 'system-explorer-latest-scan', 'backend-scan-latest']) {
         queryClient.invalidateQueries({ queryKey: [key] });
       }
     });
