@@ -82,7 +82,7 @@ export function useTranslatedProduct(product: DbProduct | null) {
         if (activeRequestRef.current !== cacheKey) return;
 
         if (error || !data?.translations) {
-          console.error('Translation failed:', error);
+
           setTranslated(fields);
         } else {
           const result: TranslatedFields = {
@@ -100,7 +100,7 @@ export function useTranslatedProduct(product: DbProduct | null) {
         }
       } catch (err) {
         if (activeRequestRef.current === cacheKey) {
-          console.error('Translation error:', err);
+
           setTranslated(fields);
         }
       } finally {

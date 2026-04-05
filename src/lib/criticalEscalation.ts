@@ -40,7 +40,7 @@ export async function runCriticalEscalation(): Promise<EscalationReport> {
       );
     }
   } catch (e) {
-    console.warn('[CriticalEscalation] Failed:', e);
+
   }
 
   return report;

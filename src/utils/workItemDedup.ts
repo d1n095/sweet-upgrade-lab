@@ -18,10 +18,7 @@ interface WorkItemPayload {
   status?: string;
   source_type?: string;
   source_id?: string | null;
-  ai_detected?: boolean;
-  ai_confidence?: string;
-  ai_category?: string;
-  ai_type_classification?: string;
+
   issue_fingerprint?: string;
   created_by?: string;
   assigned_to?: string;
@@ -82,7 +79,7 @@ export async function createWorkItemWithDedup(payload: WorkItemPayload): Promise
       const itemAge = Date.now() - new Date((byFp[0] as any).created_at).getTime();
       const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
       if (itemAge <= TWENTY_FOUR_HOURS) {
-        console.log(`[dedup] Fingerprint match (<24h): "${title.slice(0, 40)}" → existing ${(byFp[0] as any).id.slice(0, 8)}`);
+
         return {
           created: false,
           duplicate: true,
@@ -92,7 +89,7 @@ export async function createWorkItemWithDedup(payload: WorkItemPayload): Promise
           dedup_reason: 'fingerprint_match',
         };
       } else {
-        console.log(`[dedup] Fingerprint match but >24h old, allowing re-creation: "${title.slice(0, 40)}"`);
+
       }
     }
   }
@@ -112,7 +109,7 @@ export async function createWorkItemWithDedup(payload: WorkItemPayload): Promise
       .limit(1);
 
     if (byTitle?.length) {
-      console.log(`[dedup] Title match: "${title.slice(0, 40)}" ≈ "${(byTitle[0] as any).title.slice(0, 40)}"`);
+
       return {
         created: false,
         duplicate: true,

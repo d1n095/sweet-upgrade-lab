@@ -68,7 +68,7 @@ const Produkter = () => {
           setPriceRange([0, max]);
         }
       } catch (err) {
-        console.error('Failed to load products:', err);
+
         setError(t('products.error'));
       } finally {
         setIsLoading(false);

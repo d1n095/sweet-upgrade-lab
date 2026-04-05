@@ -47,7 +47,7 @@ export const storeConfig = {
     veryLowStockThreshold: 2,
   },
 
-  // Categories - matching Shopify product_type values
+  // Categories - matching product_type values in the products table
   categories: [
     {
       id: 'bestsaljare',

@@ -63,7 +63,7 @@ export function useUiStateSync({
 
       if (error || !data) {
         // Item no longer exists
-        console.warn(`[ui-sync] Selected item ${selectedItem.id.slice(0, 8)} no longer exists — clearing`);
+
         clearSelection();
         return false;
       }
@@ -81,7 +81,7 @@ export function useUiStateSync({
           .maybeSingle();
 
         if (fullItem) {
-          console.log(`[ui-sync] Selected item ${selectedItem.id.slice(0, 8)} was stale — refreshed`);
+
           updateSelection(fullItem as any);
         }
         return false;
@@ -108,7 +108,7 @@ export function useUiStateSync({
       // Allow small variance (±5) to avoid unnecessary refetches during active use
       const diff = Math.abs(count - listItems.length);
       if (diff > 5) {
-        console.warn(`[ui-sync] List count mismatch: UI has ${listItems.length}, DB has ${count} — refetching`);
+
         queryClient.invalidateQueries({ queryKey });
         return false;
       }
@@ -134,12 +134,12 @@ export function useUiStateSync({
       for (const uiItem of sample) {
         const dbItem = dbMap.get(uiItem.id);
         if (!dbItem) {
-          console.warn(`[ui-sync] Item ${uiItem.id.slice(0, 8)} in UI but missing from DB — refetching`);
+
           hasMismatch = true;
           break;
         }
         if (dbItem.status !== uiItem.status || dbItem.priority !== uiItem.priority) {
-          console.warn(`[ui-sync] Item ${uiItem.id.slice(0, 8)} mismatch: UI(${uiItem.status}/${uiItem.priority}) vs DB(${dbItem.status}/${dbItem.priority}) — refetching`);
+
           hasMismatch = true;
           break;
         }

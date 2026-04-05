@@ -28,6 +28,6 @@ export const logChange = async (entry: ChangeLogEntry) => {
       created_by: session?.user?.id || null,
     });
   } catch (e) {
-    console.warn('Change log write failed:', e);
+
   }
 };

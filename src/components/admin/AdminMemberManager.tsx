@@ -491,7 +491,7 @@ const AdminMemberManager = ({ roleFilter = 'all', onStatsUpdate }: AdminMemberMa
         warehouse: roleCounts['warehouse'] || 0,
       });
     } catch (error) {
-      console.error('Failed to load members:', error);
+
     } finally {
       setIsLoading(false);
     }
@@ -534,7 +534,7 @@ const AdminMemberManager = ({ roleFilter = 'all', onStatsUpdate }: AdminMemberMa
       setMemberOrders(ordersRes.data || []);
       setMemberReviews(reviewsRes.data || []);
     } catch (error) {
-      console.error('Failed to load member details:', error);
+
     } finally {
       setLoadingDetails(false);
     }
@@ -617,7 +617,7 @@ const AdminMemberManager = ({ roleFilter = 'all', onStatsUpdate }: AdminMemberMa
       // Reload data to sync counts
       loadMembers();
     } catch (error) {
-      console.error('Failed to assign role:', error);
+
       toast.error(t.error);
     } finally {
       setAssigningRole(false);
@@ -643,7 +643,7 @@ const AdminMemberManager = ({ roleFilter = 'all', onStatsUpdate }: AdminMemberMa
       setMembers(prev => prev.map(m => m.user_id === selectedMember.user_id ? { ...m, username: trimmed } : m));
       setEditingUsername(false);
     } catch (error) {
-      console.error('Failed to update username:', error);
+
       toast.error('Kunde inte uppdatera användarnamnet');
     }
   };

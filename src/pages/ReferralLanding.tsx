@@ -7,7 +7,6 @@ const ReferralLanding = () => {
 
   useEffect(() => {
     if (code) {
-      // Store referral code in sessionStorage for attribution
       sessionStorage.setItem('referral_code', code);
     }
     navigate('/', { replace: true });
