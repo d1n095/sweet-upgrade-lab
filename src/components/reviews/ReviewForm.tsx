@@ -158,8 +158,8 @@ const ReviewForm = ({ productId, productHandle, productTitle, onReviewSubmitted 
         .from('reviews')
         .insert({
           user_id: user.id,
-          shopify_product_id: productId,
-          shopify_product_handle: productHandle,
+          product_id: productId,
+          product_handle: productHandle,
           product_title: productTitle,
           rating,
           comment: comment.trim(),

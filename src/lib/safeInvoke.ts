@@ -33,7 +33,6 @@ const ALLOWED_FUNCTIONS = new Set([
   'notify-influencer',
   'notify-affiliate',
   'generate-receipt',
-  'generate-product-content',
   'suggest-product-metadata',
   'google-places',
   'stripe-webhook',
@@ -44,7 +43,6 @@ const ALLOWED_FUNCTIONS = new Set([
   'access-flow-validate',
   'permission-fix',
   'automation-engine',
-  'ai-task-manager',
   'data-sync',
 ]);
 

@@ -44,8 +44,8 @@ export const useWishlistStore = create<WishlistStore>()(
           try {
             await supabase.from('wishlists').insert({
               user_id: userId,
-              shopify_product_id: item.id,
-              shopify_product_handle: item.handle,
+              product_id: item.id,
+              product_handle: item.handle,
             });
           } catch (error) {
             console.error('Failed to sync wishlist item to database:', error);
@@ -64,7 +64,7 @@ export const useWishlistStore = create<WishlistStore>()(
               .from('wishlists')
               .delete()
               .eq('user_id', userId)
-              .eq('shopify_product_id', productId);
+              .eq('product_id', productId);
           } catch (error) {
             console.error('Failed to remove wishlist item from database:', error);
           }
@@ -93,22 +93,22 @@ export const useWishlistStore = create<WishlistStore>()(
         try {
           const { data: dbWishlist, error } = await supabase
             .from('wishlists')
-            .select('shopify_product_id, shopify_product_handle')
+            .select('product_id, product_handle')
             .eq('user_id', userId);
 
           if (error) throw error;
 
           const { items: localItems } = get();
-          const dbIds = new Set((dbWishlist || []).map(w => w.shopify_product_id));
+          const dbIds = new Set((dbWishlist || []).map(w => w.product_id));
 
           // Sync local items not yet in DB
           for (const item of localItems) {
             if (!dbIds.has(item.id)) {
               const { error: insertError } = await supabase.from('wishlists').upsert({
                 user_id: userId,
-                shopify_product_id: item.id,
-                shopify_product_handle: item.handle,
-              }, { onConflict: 'user_id,shopify_product_id' });
+                product_id: item.id,
+                product_handle: item.handle,
+              }, { onConflict: 'user_id,product_id' });
               if (insertError) console.error('Failed to sync item:', insertError);
             }
           }

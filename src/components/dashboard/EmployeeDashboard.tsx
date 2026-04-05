@@ -20,7 +20,7 @@ interface Order {
   total_amount: number;
   currency: string;
   created_at: string;
-  shopify_order_number: string | null;
+  external_order_number: string | null;
 }
 
 interface Review {
@@ -125,7 +125,7 @@ const EmployeeDashboard = () => {
       // Load recent orders
       const { data: ordersData } = await supabase
         .from('orders')
-        .select('id, order_email, status, total_amount, currency, created_at, shopify_order_number')
+        .select('id, order_email, status, total_amount, currency, created_at, external_order_number')
         .is('deleted_at', null)
         .order('created_at', { ascending: false })
         .limit(20);
@@ -192,7 +192,7 @@ const EmployeeDashboard = () => {
 
   const filteredOrders = orders.filter(order => 
     order.order_email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.shopify_order_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    order.external_order_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     order.id.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -300,7 +300,7 @@ const EmployeeDashboard = () => {
                       >
                         <div>
                           <p className="font-medium">
-                            {order.shopify_order_number || order.id.slice(0, 8)}
+                            {order.external_order_number || order.id.slice(0, 8)}
                           </p>
                           <p className="text-sm text-muted-foreground">{order.order_email}</p>
                           <p className="text-xs text-muted-foreground">{formatDate(order.created_at)}</p>
