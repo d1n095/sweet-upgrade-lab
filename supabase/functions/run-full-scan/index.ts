@@ -2172,7 +2172,7 @@ function classifyIssueType(issue: any, category: string): "bug" | "improvement" 
 }
 
 async function createWorkItems(supabase: any, unified: any, stage: SystemStage): Promise<{ created: number; createTrace: any[] }> {
-  console.log("[DEBUG] createWorkItems START", allWorkIssues?.length || 0, "unified keys:", Object.keys(unified || {}));
+  console.log("[DEBUG] createWorkItems START, unified keys:", Object.keys(unified || {}));
   console.log("[DEBUG] SUPABASE TEST START");
   const test = await supabase.from("work_items").select("id").limit(1);
   console.log("[DEBUG] SUPABASE TEST RESULT:", test);
