@@ -776,81 +776,6 @@ const SystemExplorer = () => {
     }
   };
 
-        {/* Action Monitor */}
-        <details className="border border-border rounded-md">
-          <summary className="px-3 py-1.5 text-[10px] font-semibold cursor-pointer bg-muted/30 hover:bg-muted/50 transition-colors">
-            Action Monitor ({actionLogs.length})
-          </summary>
-          <div className="max-h-48 overflow-y-auto">
-            {actionLogs.length === 0 ? (
-              <p className="text-[10px] text-muted-foreground px-3 py-2">No actions logged yet</p>
-            ) : (
-              <table className="w-full text-[10px]">
-                <thead>
-                  <tr className="border-b border-border text-muted-foreground">
-                    <th className="px-3 py-1 text-left">Time</th>
-                    <th className="px-3 py-1 text-left">Type</th>
-                    <th className="px-3 py-1 text-left">Status</th>
-                    <th className="px-3 py-1 text-left">Message</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {actionLogs.slice(0, 10).map((log, i) => (
-                    <tr key={i} className="border-b border-border/50 hover:bg-muted/20">
-                      <td className="px-3 py-1 font-mono text-muted-foreground">{log.time?.split("T")[1]?.slice(0, 8)}</td>
-                      <td className="px-3 py-1 font-medium text-foreground">{log.type}</td>
-                      <td className="px-3 py-1">
-                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${
-                          log.status === "success" ? "bg-green-500/20 text-green-400" :
-                          log.status === "error" || log.status === "no-data" ? "bg-red-500/20 text-red-400" :
-                          log.status === "started" ? "bg-blue-500/20 text-blue-400" :
-                          "bg-yellow-500/20 text-yellow-400"
-                        }`}>{log.status}</span>
-                      </td>
-                      <td className="px-3 py-1 text-muted-foreground truncate max-w-[200px]">{log.message || "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </details>
-        <div className="flex gap-2 items-center">
-          <Input
-            placeholder="Search code..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-            className="h-7 text-[10px] max-w-[250px]"
-          />
-          <Button variant="outline" size="sm" className="text-[10px] h-7" onClick={handleSearch}>Search</Button>
-          <span className="text-[9px] text-yellow-500/70 font-mono">⚠ Frontend scan (static / debug only)</span>
-        </div>
-        {searchResults.length > 0 && (
-          <div>
-            <h3 className="text-sm font-semibold mb-1">Search Results ({searchResults.length})</h3>
-            {searchResults.map((r, i) => (
-              <div
-                key={i}
-                style={{
-                  padding: "8px",
-                  borderBottom: "1px solid hsl(var(--border))",
-                  cursor: "pointer"
-                }}
-                onClick={() => {
-                  const entry = fileSystemMap.find(f => f.path === r.path);
-                  if (entry) setSelectedFile(entry);
-                }}
-              >
-                <div><strong>{r.path}</strong></div>
-                <div className="text-muted-foreground">Line {r.lineNumber}</div>
-                <div style={{ fontFamily: "monospace" }} className="text-xs">
-                  {r.line}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
         <div className="flex items-center gap-2 flex-wrap">
           <Database className="h-6 w-6 text-primary" />
           <h1 className="text-2xl font-bold text-foreground">System Explorer</h1>
@@ -1671,6 +1596,82 @@ const SystemExplorer = () => {
                 </Card>
               );
             })()}
+
+            {/* Action Monitor */}
+            <details className="border border-border rounded-md">
+              <summary className="px-3 py-1.5 text-[10px] font-semibold cursor-pointer bg-muted/30 hover:bg-muted/50 transition-colors">
+                Action Monitor ({actionLogs.length})
+              </summary>
+              <div className="max-h-48 overflow-y-auto">
+                {actionLogs.length === 0 ? (
+                  <p className="text-[10px] text-muted-foreground px-3 py-2">No actions logged yet</p>
+                ) : (
+                  <table className="w-full text-[10px]">
+                    <thead>
+                      <tr className="border-b border-border text-muted-foreground">
+                        <th className="px-3 py-1 text-left">Time</th>
+                        <th className="px-3 py-1 text-left">Type</th>
+                        <th className="px-3 py-1 text-left">Status</th>
+                        <th className="px-3 py-1 text-left">Message</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {actionLogs.slice(0, 10).map((log, i) => (
+                        <tr key={i} className="border-b border-border/50 hover:bg-muted/20">
+                          <td className="px-3 py-1 font-mono text-muted-foreground">{log.time?.split("T")[1]?.slice(0, 8)}</td>
+                          <td className="px-3 py-1 font-medium text-foreground">{log.type}</td>
+                          <td className="px-3 py-1">
+                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${
+                              log.status === "success" ? "bg-green-500/20 text-green-400" :
+                              log.status === "error" || log.status === "no-data" ? "bg-red-500/20 text-red-400" :
+                              log.status === "started" ? "bg-blue-500/20 text-blue-400" :
+                              "bg-yellow-500/20 text-yellow-400"
+                            }`}>{log.status}</span>
+                          </td>
+                          <td className="px-3 py-1 text-muted-foreground truncate max-w-[200px]">{log.message || "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </details>
+            <div className="flex gap-2 items-center">
+              <Input
+                placeholder="Search code..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                className="h-7 text-[10px] max-w-[250px]"
+              />
+              <Button variant="outline" size="sm" className="text-[10px] h-7" onClick={handleSearch}>Search</Button>
+              <span className="text-[9px] text-yellow-500/70 font-mono">⚠ Frontend scan (static / debug only)</span>
+            </div>
+            {searchResults.length > 0 && (
+              <div>
+                <h3 className="text-sm font-semibold mb-1">Search Results ({searchResults.length})</h3>
+                {searchResults.map((r, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      padding: "8px",
+                      borderBottom: "1px solid hsl(var(--border))",
+                      cursor: "pointer"
+                    }}
+                    onClick={() => {
+                      const entry = fileSystemMap.find(f => f.path === r.path);
+                      if (entry) setSelectedFile(entry);
+                    }}
+                  >
+                    <div><strong>{r.path}</strong></div>
+                    <div className="text-muted-foreground">Line {r.lineNumber}</div>
+                    <div style={{ fontFamily: "monospace" }} className="text-xs">
+                      {r.line}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* All Code Issues with Analysis */}
             {(() => {
