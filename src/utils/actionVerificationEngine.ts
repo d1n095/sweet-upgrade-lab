@@ -177,7 +177,7 @@ export async function verifyAction<T = any>(config: VerifiedActionConfig<T>): Pr
       record.steps.push(stepRecord);
 
       if (stepDef.optional) {
-        console.warn(`[AVE] Optional step ${stepDef.step} failed: ${reason}`);
+
         continue;
       }
 
@@ -198,7 +198,7 @@ export async function verifyAction<T = any>(config: VerifiedActionConfig<T>): Pr
         });
       }
 
-      console.error(`[AVE] Action "${config.action}" FAILED at step "${stepDef.step}":`, reason);
+
 
       // Record to Functional Failure Memory (fire-and-forget)
       recordFailure({

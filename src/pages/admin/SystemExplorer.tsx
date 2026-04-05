@@ -2,17 +2,16 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { safeInvoke } from "@/lib/safeInvoke";
-import { useAiQueueStore } from "@/stores/aiQueueStore";
+import { ScanControls } from "./system/ScanControls";
 import { fileSystemMap, type FileEntry, getFileContent, getCodeIndex, getDuplicatedLines, getCodeIssues, getRawSources, scanFileContent } from "@/lib/fileSystemMap";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useFounderRole } from "@/hooks/useFounderRole";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { Database, Activity, Bug, CheckCircle, AlertTriangle, Clock, Shield, ChevronRight, ChevronDown, X, Folder, FolderOpen, FileText, RefreshCw, Cpu, ArrowRight, Filter, Layers, History, Radar, Eye, Bot, Send, Loader2, Lock, Monitor } from "lucide-react";
+import { Database, Activity, Bug, CheckCircle, AlertTriangle, Clock, Shield, ChevronRight, ChevronDown, X, Folder, FolderOpen, FileText, RefreshCw, Cpu, ArrowRight, Filter, Layers, History, Radar, Eye, Send, Loader2, Lock, Monitor } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import ReactMarkdown from "react-markdown";
 
 type WorkItem = {
   id: string;
@@ -23,7 +22,6 @@ type WorkItem = {
   created_by: string | null;
   item_type: string;
   priority: string;
-  ai_detected: boolean | null;
   created_at: string;
   issue_fingerprint: string | null;
   ignored: boolean | null;
@@ -100,18 +98,6 @@ const SCANNER_GROUPS: ScannerGroup[] = [
 ];
 
 const RuntimeTraceSection = ({ traceId }: { traceId?: string }) => {
-  const [trace, setTrace] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (!traceId) return;
-    setLoading(true);
-    supabase.from("runtime_traces" as any).select("*").eq("id", traceId).maybeSingle().then(({ data }) => {
-      setTrace(data);
-      setLoading(false);
-    });
-  }, [traceId]);
-
   if (!traceId) {
     return (
       <div className="border border-border rounded-md p-2 bg-muted/30 space-y-1">
@@ -124,32 +110,7 @@ const RuntimeTraceSection = ({ traceId }: { traceId?: string }) => {
   return (
     <div className="border border-border rounded-md p-2 bg-muted/30 space-y-2">
       <span className="text-muted-foreground text-xs font-medium">Runtime Trace</span>
-      {loading && <p className="text-xs text-muted-foreground">Loading…</p>}
-      {!loading && !trace && <p className="text-xs text-muted-foreground italic">Trace not found (ID: {traceId.slice(0, 8)}…)</p>}
-      {trace && (
-        <div className="space-y-1.5">
-          <div>
-            <span className="text-muted-foreground text-[10px]">function_name</span>
-            <p className="font-mono text-xs bg-muted/50 rounded px-1 py-0.5">{trace.function_name}</p>
-          </div>
-          <div>
-            <span className="text-muted-foreground text-[10px]">endpoint</span>
-            <p className="font-mono text-xs bg-muted/50 rounded px-1 py-0.5">{trace.endpoint || "–"}</p>
-          </div>
-          <div>
-            <span className="text-muted-foreground text-[10px]">error_message</span>
-            <p className="font-mono text-xs bg-destructive/10 text-destructive rounded px-1 py-0.5 break-all">{trace.error_message}</p>
-          </div>
-          <div>
-            <span className="text-muted-foreground text-[10px]">payload_snapshot</span>
-            <pre className="font-mono text-[9px] bg-muted/50 rounded p-1 overflow-x-auto max-h-32 whitespace-pre-wrap break-all">{JSON.stringify(trace.payload_snapshot, null, 2)}</pre>
-          </div>
-          <div>
-            <span className="text-muted-foreground text-[10px]">timestamp</span>
-            <p className="font-mono text-xs">{new Date(trace.created_at).toLocaleString("sv-SE")}</p>
-          </div>
-        </div>
-      )}
+      <p className="text-xs text-muted-foreground">Trace ID: {traceId.slice(0, 8)}…</p>
     </div>
   );
 };
@@ -169,10 +130,6 @@ const SystemExplorer = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [showRawScan, setShowRawScan] = useState(false);
-  const [aiQuery, setAiQuery] = useState("");
-  const [aiAnswer, setAiAnswer] = useState<string | null>(null);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiFocusArea, setAiFocusArea] = useState<string | null>(null);
   const [mainTab, setMainTab] = useState<"system" | "files" | "patch" | "codeindex" | "backendscan" | "analysis">("system");
   const [filesFilter, setFilesFilter] = useState<"all" | "orphan" | "has_issues">("all");
   const [selectedFile, setSelectedFile] = useState<FileEntry | null>(null);
@@ -187,7 +144,9 @@ const SystemExplorer = () => {
   const [promptCopied, setPromptCopied] = useState(false);
   const [fileScanResult, setFileScanResult] = useState<{ total: number; emptyFiles: number; largeFiles: number } | null>(null);
   const [codeScanResult, setCodeScanResult] = useState<{ type: string; message: string; file: string }[] | null>(null);
-  const [scanProgress, setScanProgress] = useState<{ step: number; total: number; label: string } | null>(null);
+  const [lastScan, setLastScan] = useState(0);
+  const [expandedIssues, setExpandedIssues] = useState<Record<number, boolean>>({});
+
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<{ path: string; lineNumber: number; line: string }[]>([]);
   const [lastAction, setLastAction] = useState("");
@@ -195,7 +154,7 @@ const SystemExplorer = () => {
   const [globalIssues, setGlobalIssues] = useState<{ type: string; message: string; file: string }[]>([]);
 
   function logAction(action: Record<string, any>) {
-    console.log("🟢 ACTION:", action);
+
     setActionLogs(prev => [
       {
         time: new Date().toISOString(),
@@ -210,21 +169,31 @@ const SystemExplorer = () => {
   useEffect(() => {
     const rawSources = getRawSources();
     if (!rawSources) {
-      console.warn("❌ NO rawSources — cannot scan");
+
       return;
     }
-    console.log("RAW SOURCES COUNT:", Object.keys(rawSources).length);
-    console.log("🔍 AUTO SCAN START");
+
+
     const allIssues: { type: string; message: string; file: string }[] = [];
     Object.entries(rawSources).forEach(([path, content]) => {
       if (!content) return;
+      if ((content as string).includes("fetch(") && !(content as string).includes("catch")) {
+        allIssues.push({ type: "no-catch", message: "fetch() without error handling", file: path });
+      }
+      if ((content as string).length < 15) {
+        allIssues.push({ type: "empty-file", message: "empty file", file: path });
+      }
       const issues = scanFileContent(path, content as string);
       allIssues.push(...issues);
     });
-    console.log("🚨 AUTO SCAN FOUND:", allIssues.length);
-    setCodeScanResult(allIssues);
-    setGlobalIssues(allIssues);
-  }, []);
+    const unique = [...new Map(allIssues.map(i => [i.file + i.message, i])).values()];
+
+    setCodeScanResult(unique);
+    setGlobalIssues(unique);
+    if (lastScan > 0) {
+
+    }
+  }, [lastScan]);
 
   function handleSearch() {
     logAction({ type: "Search", status: "started" });
@@ -257,7 +226,7 @@ const SystemExplorer = () => {
 
   async function runSystemScan(mode: string) {
     if (isScanning) {
-      console.warn("Scan already running");
+
       return;
     }
     setIsScanning(true);
@@ -278,19 +247,12 @@ const SystemExplorer = () => {
           const issues = scanFileContent(path, content as string);
           results.push(...issues);
         });
-        console.log("[FILE ISSUES FOUND]:", results.length);
+
         setCodeScanResult(results);
         logAction({ type: "SCAN", status: "success", mode });
       }
-      if (mode === "full") {
-        console.log("[FULL SCAN TRIGGERED]");
-        await safeInvoke("run-full-scan", {
-          body: { action: "start", scan_mode: "full" },
-        });
-        logAction({ type: "SCAN", status: "success", mode });
-      }
     } catch (err: any) {
-      console.error("[SCAN ERROR]:", err);
+
       logAction({
         type: "SCAN",
         status: "error",
@@ -302,19 +264,6 @@ const SystemExplorer = () => {
     }
   }
 
-  async function verifyWorkItemsCreated(beforeCount: number) {
-    const { data } = await supabase
-      .from("work_items")
-      .select("id")
-      .limit(1000);
-    const afterCount = data?.length || 0;
-    return {
-      before: beforeCount,
-      after: afterCount,
-      created: afterCount - beforeCount
-    };
-  }
-
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | null>(null);
   const [verifyingFix, setVerifyingFix] = useState(false);
   const [verifyResult, setVerifyResult] = useState<{ itemId: string; status: "confirmed" | "failed"; scanId?: string } | null>(null);
@@ -322,16 +271,9 @@ const SystemExplorer = () => {
   // Backend scan latest
   const { data: latestBackendScan, isLoading: backendScanLoading } = useQuery({
     queryKey: ["backend-scan-latest"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("ai_scan_results")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
+    queryFn: async () => null,
+    staleTime: 0,
+    refetchOnWindowFocus: false,
   });
 
   // 1. ALL work_items
@@ -340,7 +282,7 @@ const SystemExplorer = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("work_items")
-        .select("id, title, status, source_type, source_id, created_by, item_type, priority, ai_detected, created_at, issue_fingerprint, ignored, source_path, source_file, source_component, first_seen_at, last_seen_at, occurrence_count, verification_status, verification_scans_checked, verified_at")
+        .select("id, title, status, source_type, source_id, created_by, item_type, priority, created_at, issue_fingerprint, ignored, source_path, source_file, source_component, first_seen_at, last_seen_at, occurrence_count, verification_status, verification_scans_checked, verified_at")
         .order("created_at", { ascending: false })
         .limit(200);
       if (error) throw error;
@@ -386,42 +328,14 @@ const SystemExplorer = () => {
   // Top runtime errors (clustered)
   const { data: runtimeErrorClusters = [] } = useQuery({
     queryKey: ["system-explorer-runtime-errors"],
-    queryFn: async () => {
-      const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      const { data } = await supabase
-        .from("runtime_traces" as any)
-        .select("id, function_name, endpoint, error_message, created_at, source")
-        .gte("created_at", cutoff)
-        .order("created_at", { ascending: false })
-        .limit(200);
-      if (!data?.length) return [];
-      const clusters: Record<string, { function_name: string; endpoint: string; error_message: string; count: number; latest: string; source: string }> = {};
-      for (const t of data as any[]) {
-        const key = `${t.function_name}::${(t.error_message || "").slice(0, 100)}`;
-        if (!clusters[key]) {
-          clusters[key] = { function_name: t.function_name, endpoint: t.endpoint || "", error_message: t.error_message || "", count: 0, latest: t.created_at, source: t.source || "" };
-        }
-        clusters[key].count++;
-        if (t.created_at > clusters[key].latest) clusters[key].latest = t.created_at;
-      }
-      return Object.values(clusters).sort((a, b) => b.count - a.count).slice(0, 10);
-    },
+    queryFn: async () => [] as any[],
     staleTime: 30_000,
   });
 
   // Raw runtime errors (individual entries)
   const { data: rawRuntimeErrors = [] } = useQuery({
     queryKey: ["system-explorer-raw-runtime-errors"],
-    queryFn: async () => {
-      const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      const { data } = await supabase
-        .from("runtime_traces" as any)
-        .select("id, function_name, endpoint, error_message, created_at, request_trace_id, source")
-        .gte("created_at", cutoff)
-        .order("created_at", { ascending: false })
-        .limit(50);
-      return (data || []) as any[];
-    },
+    queryFn: async () => [] as any[],
     staleTime: 30_000,
   });
   const [frontendViolations, setFrontendViolations] = useState<{ type: string; action: string; message: string }[]>([]);
@@ -434,7 +348,7 @@ const SystemExplorer = () => {
       }
       return result;
     } catch (err: any) {
-      console.error("🚨 ACTION FAILED:", actionName, err.message);
+
       setFrontendViolations(prev => [
         ...prev,
         {
@@ -449,34 +363,7 @@ const SystemExplorer = () => {
 
   const { data: debugConsoleLogs = [] } = useQuery({
     queryKey: ["system-explorer-debug-console"],
-    queryFn: async () => {
-      const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
-      const [tracesRes, obsRes] = await Promise.all([
-        supabase.from("runtime_traces" as any).select("id, function_name, endpoint, error_message, created_at, request_trace_id").gte("created_at", cutoff).order("created_at", { ascending: false }).limit(50),
-        supabase.from("system_observability_log" as any).select("id, event_type, source, message, created_at, component").gte("created_at", cutoff).order("created_at", { ascending: false }).limit(50),
-      ]);
-      const traces = ((tracesRes.data || []) as any[]).map((t: any) => ({
-        ts: t.created_at, source: `trace:${t.function_name || "unknown"}`, message: t.error_message || `${t.endpoint || ""} OK`, id: t.id,
-      }));
-      const obs = ((obsRes.data || []) as any[]).map((o: any) => ({
-        ts: o.created_at, source: `${o.source || o.component || "system"}`, message: o.message || o.event_type, id: o.id,
-      }));
-      const combined = [...traces, ...obs].sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime()).slice(0, 100);
-      // Fallback: if no logs in last 2h, fetch from last scan snapshot
-      if (combined.length === 0) {
-        const { data: snapshot } = await supabase.from("scan_snapshots" as any).select("diagnosis_summary, created_at, scan_confidence_score, total_detected, total_created").order("created_at", { ascending: false }).limit(1).maybeSingle() as any;
-        if (snapshot) {
-          const lines = (snapshot.diagnosis_summary || "").split("\n").filter(Boolean);
-          return lines.map((line: string, idx: number) => ({
-            ts: snapshot.created_at,
-            source: "scan-snapshot",
-            message: line,
-            id: `snapshot-${idx}`,
-          }));
-        }
-      }
-      return combined;
-    },
+    queryFn: async () => [] as any[],
     staleTime: 15_000,
   });
 
@@ -494,95 +381,30 @@ const SystemExplorer = () => {
     setIsRefreshing(false);
   };
 
-  const handleRunFullScan = async () => {
-    console.log("[SCAN TRIGGERED]");
-    setIsScanning(true);
-    
-    try {
-      const before = await supabase.from("work_items").select("id");
-      const beforeCount = before.data?.length || 0;
-      logAction({ type: "Full Scan", status: "started" });
-      console.log("🚀 STARTING FULL SCAN");
-      const structure_map = Object.keys(getRawSources() || {}).map(path => ({
-        path
-      }));
-      console.log("[SENDING STRUCTURE MAP]:", structure_map.length);
-      const res = await safeInvoke("run-full-scan", {
-        body: { action: "start", scan_mode: "full", structure_map },
-      });
-      console.log("📡 RESPONSE:", res);
-      const verify = await verifyWorkItemsCreated(beforeCount);
-      if (verify.created === 0) {
-        logAction({
-          type: "Full Scan",
-          status: "no-effect",
-          message: "Scan ran but created 0 work_items ❌"
-        });
-      } else {
-        logAction({
-          type: "Full Scan",
-          status: "verified",
-          message: `Created ${verify.created} work_items ✔`
-        });
-      }
-      console.log("[DEBUG] FULL SCAN RESPONSE:", res);
-      const json = res?.data ?? res;
-      console.log("[DEBUG] FULL SCAN JSON:", json);
-      if (json?.success === false) {
-        console.error("[DEBUG] FULL SCAN ERROR:", json?.error);
-      }
-      await handleRefresh();
-    } catch (err) {
-      console.error("[FULL SCAN UI ERROR]:", err);
-    } finally {
-      
-      setIsScanning(false);
-    }
-  };
-
   // 2. Latest scan
   const { data: latestScan, isLoading: scanLoading } = useQuery({
     queryKey: ["system-explorer-latest-scan"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("ai_scan_results")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
+    queryFn: async () => null,
+    staleTime: 0,
+    refetchOnWindowFocus: false,
   });
 
   // 2c. Last 3 scans for no-issue detection
   const { data: last3Scans = [] } = useQuery({
     queryKey: ["system-explorer-last-3-scans"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("ai_scan_results")
-        .select("results")
-        .order("created_at", { ascending: false })
-        .limit(3);
-      if (error) throw error;
-      return (data || []) as any[];
-    },
+    queryFn: async () => [] as any[],
   });
 
   // 2b. Latest completed scan_run for pipeline data
   const { data: latestRun } = useQuery({
     queryKey: ["system-explorer-latest-run"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("scan_runs")
-        .select("id, status, total_new_issues, work_items_created, created_at, started_at, completed_at, unified_result, steps_results, step_logs, executive_summary, system_health_score")
-        .in("status", ["done", "completed"])
-        .order("completed_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const { data, error } = await safeInvoke<any>('get-latest-scan-run', { isAdmin: true });
       if (error) throw error;
-      return data;
+      return data ?? null;
     },
+    staleTime: 0,
+    refetchOnWindowFocus: false,
   });
 
   // 3b. History for selected item
@@ -605,7 +427,7 @@ const SystemExplorer = () => {
   const activeCount = workItems.filter((w) => w.status === "open" || w.status === "in_progress").length;
   const completedCount = workItems.filter((w) => w.status === "done" || w.status === "completed").length;
   const ignoredCount = workItems.filter((w) => w.ignored).length;
-  const scanSourceCount = workItems.filter((w) => w.source_type === "scan" || w.source_type === "ai_scan").length;
+  const scanSourceCount = workItems.filter((w) => w.source_type === "scan").length;
   const manualSourceCount = workItems.filter((w) => w.source_type === "manual").length;
 
   // Scan snapshots (last 10)
@@ -922,7 +744,7 @@ const SystemExplorer = () => {
   // Scanner stats derived from scan results — organized by module groups
   const groupedScannerStats = useMemo(() => {
     const rawIssues = (scanResults?.issues as any[] | undefined) ?? [];
-    const scanItems = workItems.filter(w => w.source_type === "scan" || w.source_type === "ai_scan" || w.source_type === "ai_detection");
+    const scanItems = workItems.filter(w => w.source_type === "scan");
 
     // Build a lookup: key → { raw issues, created count }
     const keyStats: Record<string, { raw: any[]; created: number }> = {};
@@ -1044,20 +866,6 @@ const SystemExplorer = () => {
   const toggleSection = (key: string) => setExpandedSections((prev) => ({ ...prev, [key]: !prev[key] }));
   const toggleGroup = (key: string) => setExpandedGroups((prev) => ({ ...prev, [key]: !prev[key] }));
 
-  const handleAiAnalyze = async () => {
-    if (!aiQuery.trim() || aiLoading) return;
-    setAiLoading(true);
-    setAiAnswer(null);
-    try {
-      // AI is disabled — show manual guidance instead
-      setAiAnswer("Använd skanningsknapparna för regelbaserad systemanalys, eller granska Work Items manuellt.");
-    } catch (e: any) {
-      setAiAnswer(`Fel: ${e.message || "Kunde inte analysera."}`);
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
   const priorityColor = (p: string) => {
     switch (p) {
       case "critical": return "destructive";
@@ -1092,7 +900,7 @@ const SystemExplorer = () => {
         <div className="text-[10px] font-mono text-muted-foreground">Last action: {lastAction || "none"}</div>
 
         <button onClick={() => {
-          console.log("🧪 TEST BUTTON CLICK");
+
           setActionLogs(prev => [
             {
               time: new Date().toISOString(),
@@ -1194,47 +1002,7 @@ const SystemExplorer = () => {
             Refresh
           </Button>
           {isSystemAdmin && (
-            <>
-            <Button variant="default" size="sm" onClick={() =>
-              validateAction("FULL_SCAN", async () => {
-                const structure_map = Object.keys(getRawSources() || {});
-                if (!structure_map.length) {
-                  throw new Error("No structure map");
-                }
-                setIsScanning(true);
-                setScanProgress({ step: 0, total: 11, label: "Startar..." });
-                const pollInterval = setInterval(async () => {
-                  try {
-                    const { data } = await supabase.from("scan_runs").select("current_step, current_step_label").order("created_at", { ascending: false }).limit(1).single();
-                    if (data) {
-                      setScanProgress({ step: data.current_step || 0, total: 11, label: data.current_step_label || "Scanning..." });
-                    }
-                  } catch (_) {}
-                }, 2000);
-                try {
-                  await safeInvoke("run-full-scan", {
-                    body: { action: "start", scan_mode: "full", structure_map: structure_map.map(p => ({ path: p })) },
-                  });
-                } finally {
-                  clearInterval(pollInterval);
-                  setIsScanning(false);
-                  setScanProgress(null);
-                }
-                return true;
-              })
-            } disabled={isScanning}>
-              {isScanning ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Radar className="h-4 w-4 mr-1" />}
-              {isScanning && scanProgress ? `Scanning... (${scanProgress.step}/${scanProgress.total})` : isScanning ? "Scanning..." : "Run Full Scan"}
-            </Button>
-            {isScanning && scanProgress && (
-              <div className="flex items-center gap-2 ml-2">
-                <div className="w-32 h-1.5 bg-muted rounded-full overflow-hidden">
-                  <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${Math.round((scanProgress.step / scanProgress.total) * 100)}%` }} />
-                </div>
-                <span className="text-[9px] text-muted-foreground truncate max-w-[200px]">{scanProgress.label}</span>
-              </div>
-            )}
-            </>
+            <ScanControls onScanComplete={() => setLastScan(Date.now())} />
           )}
            {isSystemAdmin && (
              <Button variant="outline" size="sm" onClick={() => setShowRawScan(!showRawScan)}>
@@ -1845,7 +1613,8 @@ const SystemExplorer = () => {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2"><Layers className="h-4 w-4" /> Code Index ({index.length} files)</CardTitle>
-                <Button variant="outline" size="sm" className="text-[10px] h-6 ml-auto" onClick={() =>
+                <Button variant="outline" size="sm" className="text-[10px] h-6 ml-auto" onClick={() => {
+
                   validateAction("SCAN_CODE", () => {
                     const sources = getRawSources() || {};
                     const results: { type: string; message: string; file: string }[] = [];
@@ -1856,11 +1625,11 @@ const SystemExplorer = () => {
                     if (!results || results.length === 0) {
                       throw new Error("Code index empty");
                     }
-                    console.log("[FILE ISSUES FOUND]:", results.length);
+
                     setCodeScanResult(results);
                     return true;
-                  })
-                }>
+                  });
+                }}>
                   Scan Code
                 </Button>
               </CardHeader>
@@ -1946,13 +1715,28 @@ const SystemExplorer = () => {
                     <Bug className="h-4 w-4" /> Live Code Issues ({globalIssues.length})
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="pt-0 max-h-[300px] overflow-y-auto space-y-1">
-                  {globalIssues.map((issue, i) => (
-                    <div key={i} className="text-xs border-b border-border/50 pb-1">
-                      <div className="font-semibold text-foreground">{issue.file}</div>
-                      <div className="text-muted-foreground">{issue.message}</div>
-                    </div>
-                  ))}
+                <CardContent className="pt-0 max-h-[400px] overflow-y-auto space-y-1">
+                  {globalIssues.map((issue, i) => {
+                    const isOpen = expandedIssues[i] ?? false;
+                    return (
+                      <div
+                        key={i}
+                        className="border-b border-border/50 pb-1 cursor-pointer"
+                        onClick={() => {
+
+                          setExpandedIssues(prev => ({ ...prev, [i]: !prev[i] }));
+                        }}
+                      >
+                        <div className="flex items-center gap-1 text-xs">
+                          {isOpen ? <ChevronDown className="h-3 w-3 shrink-0" /> : <ChevronRight className="h-3 w-3 shrink-0" />}
+                          <span className="font-semibold text-foreground truncate">{issue.file}</span>
+                        </div>
+                        {isOpen && (
+                          <div className="ml-4 mt-0.5 text-[10px] text-muted-foreground break-words">{issue.message}</div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </CardContent>
               </Card>
             )}
@@ -2103,18 +1887,19 @@ const SystemExplorer = () => {
                   {f === "all" ? `All (${fileSystemMap.length})` : f === "orphan" ? `Orphan (${fileSystemMap.filter(fi => fi.used_in.length === 0 && fi.type !== "page" && fi.type !== "edge_function").length})` : `Has Issues (${fileSystemMap.filter(fi => structureIssues.some(si => si.path === fi.path)).length})`}
                 </button>
               ))}
-              <Button variant="outline" size="sm" className="text-[10px] h-6 ml-auto" onClick={() =>
+              <Button variant="outline" size="sm" className="text-[10px] h-6 ml-auto" onClick={() => {
+
                 validateAction("SCAN_FILES", () => {
                   const files = Object.keys(getRawSources() || {});
                   if (!files.length) {
                     throw new Error("No files available");
                   }
                   const result = files.length;
-                  console.log("[FILES FOUND]:", result);
+
                   setFileScanResult({ total: result, emptyFiles: files.filter(f => !getRawSources()[f]?.trim()).length, largeFiles: 0 });
                   return true;
-                })
-              }>
+                });
+              }}>
                 Scan Files
               </Button>
             </div>
@@ -2524,7 +2309,7 @@ const SystemExplorer = () => {
                     </>
                   );
                 } catch (e) {
-                  console.error("[DEBUG] JSON RENDER ERROR:", e);
+
                   return <p className="text-xs text-destructive">Error rendering scan results</p>;
                 }
               })()}
@@ -2565,76 +2350,6 @@ const SystemExplorer = () => {
             ))}
           </div>
         )}
-        {isSystemAdmin && (
-        <Card>
-          <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("aiAssistant")}>
-            <CardTitle className="text-sm flex items-center gap-2">
-              {expandedSections.aiAssistant ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-              <Bot className="h-4 w-4 text-primary" />
-              AI Assistant
-              <Badge variant="outline" className="text-[10px]">READ-ONLY</Badge>
-            </CardTitle>
-          </CardHeader>
-          {expandedSections.aiAssistant && (
-            <CardContent className="space-y-3">
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Ask about system state, scanners, work items..."
-                  value={aiQuery}
-                  onChange={(e) => setAiQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleAiAnalyze()}
-                  className="text-sm"
-                />
-                <Button size="sm" onClick={handleAiAnalyze} disabled={aiLoading || !aiQuery.trim()}>
-                  {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  Analyze
-                </Button>
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {["Why was this created?", "Which scanners failed?", "What is broken?", "Summarize system state"].map((q) => (
-                  <button
-                    key={q}
-                    onClick={() => { setAiQuery(q); }}
-                    className="text-[10px] px-2 py-1 rounded-md border border-border hover:bg-muted/50 transition-colors text-muted-foreground"
-                  >
-                    {q}
-                  </button>
-                ))}
-              </div>
-              <div className="flex items-center gap-1 flex-wrap">
-                <span className="text-[10px] text-muted-foreground font-medium mr-1">Focus Area:</span>
-                {[
-                  { key: "UI", label: "UI" },
-                  { key: "Data", label: "Data" },
-                  { key: "Flow", label: "Flow" },
-                  { key: "Business", label: "Business" },
-                ].map((area) => (
-                  <button
-                    key={area.key}
-                    onClick={() => setAiFocusArea(aiFocusArea === area.key ? null : area.key)}
-                    className={`text-[10px] px-2 py-1 rounded-md border transition-colors ${
-                      aiFocusArea === area.key
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "border-border hover:bg-muted/50 text-muted-foreground"
-                    }`}
-                  >
-                    {area.label}
-                  </button>
-                ))}
-                {aiFocusArea && (
-                  <span className="text-[10px] text-muted-foreground ml-1">Active: {aiFocusArea}</span>
-                )}
-              </div>
-              {aiAnswer && (
-                <div className="border border-border rounded-md p-3 bg-muted/30 text-sm prose prose-sm max-w-none dark:prose-invert">
-                  <ReactMarkdown>{aiAnswer}</ReactMarkdown>
-                </div>
-              )}
-            </CardContent>
-          )}
-        </Card>
-        )}
-
         {/* DEBUG CONSOLE */}
         {isSystemAdmin && (
         <Card>
@@ -2721,7 +2436,7 @@ const SystemExplorer = () => {
           <Card>
             <CardContent className="p-4 flex items-center gap-2 text-sm text-muted-foreground">
               <Lock className="h-4 w-4" />
-              Viewer-läge — du har läsbehörighet. AI Assistant och kontrollåtgärder kräver System Admin-behörighet.
+              Viewer-läge — du har läsbehörighet. Assistent och kontrollåtgärder kräver System Admin-behörighet.
             </CardContent>
           </Card>
         )}
@@ -2784,13 +2499,13 @@ const SystemExplorer = () => {
           </CardContent>
         </Card>
 
-        {/* AI FLOW */}
+        {/* FLOW */}
         <Card>
           <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("aiFlow")}>
             <CardTitle className="text-sm flex items-center gap-2">
               {expandedSections.aiFlow ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
               <Cpu className="h-4 w-4 text-primary" />
-              AI Flow
+              Flöde
             </CardTitle>
           </CardHeader>
           {expandedSections.aiFlow && (
@@ -3201,7 +2916,7 @@ const SystemExplorer = () => {
                                           {issue._issue_type && <Badge variant={issue._issue_type === "bug" ? "destructive" : issue._issue_type === "upgrade" ? "default" : "secondary"} className="text-[8px] px-1 py-0">{issue._issue_type}</Badge>}
                                           {issue._viewport && <Badge variant="outline" className="text-[8px] px-1 py-0">📱 {issue._viewport}{issue._viewport_width ? ` (${issue._viewport_width}px)` : ''}</Badge>}
                                            {issue._affected_area && <Badge variant="outline" className="text-[8px] px-1 py-0">📍 {issue._affected_area.type}/{issue._affected_area.target}</Badge>}
-                                            {issue._origin_source && <Badge variant="outline" className="text-[8px] px-1 py-0">{issue._origin_source === "ai_scan" ? "🤖" : issue._origin_source === "manual" ? "👤" : "🔧"} {issue._origin_source}</Badge>}
+                                            {issue._origin_source && <Badge variant="outline" className="text-[8px] px-1 py-0">{issue._origin_source === "manual" ? "👤" : "🔧"} {issue._origin_source}</Badge>}
                                             {issue._impact_score && <Badge variant={issue._impact_label === "critical" ? "destructive" : "outline"} className="text-[8px] px-1 py-0">{issue._impact_label === "critical" ? "💥" : issue._impact_label === "high" ? "🔴" : issue._impact_label === "medium" ? "🟡" : "🟢"} impact:{issue._impact_score}/5</Badge>}
                                             {issue._occurrence_count > 1 && <Badge variant="outline" className="text-[8px] px-1 py-0 border-orange-500 text-orange-600">🔁 ×{issue._occurrence_count}</Badge>}
                                             {issue._status && <Badge variant={issue._status === "created" ? "default" : issue._status === "error" ? "destructive" : "secondary"} className="text-[8px] px-1 py-0">{issue._status === "created" ? "✅ created" : issue._status === "skipped_dedup" ? "🔁 skipped_dedup" : issue._status === "filtered" ? "🚫 filtered" : issue._status === "error" ? "❌ error" : issue._status}</Badge>}
@@ -4203,8 +3918,8 @@ const SystemExplorer = () => {
                 <span className="text-muted-foreground text-xs">Origin Source</span>
                 <p>
                   <Badge variant="outline" className="text-[10px]">
-                    {selectedItem.source_type === "scan" || selectedItem.source_type === "ai_scan" || selectedItem.source_type === "ai_detection"
-                      ? "🤖 ai_scan"
+                    {selectedItem.source_type === "scan"
+                      ? "🔧 scan"
                       : selectedItem.source_type === "manual"
                       ? "👤 manual"
                       : selectedItem.source_type === "lovable_build" || selectedItem.source_type === "system"
@@ -4424,8 +4139,9 @@ const SystemExplorer = () => {
 
                       const verifyRes = await safeInvoke("run-full-scan", {
                         body: { action: "start", scan_mode: "targeted", target_area: target, verification_for: selectedItem.id },
+                        isAdmin: true,
                       });
-                      console.log("[DEBUG] VERIFY SCAN RESPONSE:", verifyRes);
+
                       const scanData = verifyRes?.data ?? verifyRes;
 
                       // 3. Check if issue still found
@@ -4458,7 +4174,7 @@ const SystemExplorer = () => {
                       // Update selected item locally
                       setSelectedItem({ ...selectedItem, status: "done", verification_status: vStatus } as any);
                     } catch (err) {
-                      console.error("Verification scan failed:", err);
+
                       setVerifyResult({ itemId: selectedItem.id, status: "failed" });
                     } finally {
                       setVerifyingFix(false);
@@ -4643,10 +4359,6 @@ const SystemExplorer = () => {
               <div>
                 <span className="text-muted-foreground text-xs">Created By</span>
                 <p className="font-mono text-xs break-all">{selectedItem.created_by ?? "–"}</p>
-              </div>
-              <div>
-                <span className="text-muted-foreground text-xs">AI Detected</span>
-                <p>{selectedItem.ai_detected ? "Yes" : "No"}</p>
               </div>
               <div>
                 <span className="text-muted-foreground text-xs">Created</span>

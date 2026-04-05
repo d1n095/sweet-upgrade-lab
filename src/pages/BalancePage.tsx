@@ -253,7 +253,7 @@ const BalancePage = () => {
         recentPayouts,
       });
     } catch (error) {
-      console.error('Failed to load balance data:', error);
+
     } finally {
       setIsLoading(false);
     }

@@ -1,14 +1,9 @@
 import { supabase } from '@/integrations/supabase/client';
 
-/**
- * Single backend entry point.
- * All Supabase Edge Function calls MUST go through safeInvoke or safeFetch.
- * Direct supabase.functions.invoke() calls are prohibited outside this file.
- * Admin privilege checks are enforced exclusively by the edge functions via
- * auth.uid() + role lookup — not by the client.
- *
- * Architecture: UI → safeInvoke → Edge Function (role check) → DB
- */
+// ── SYSTEM LOCKED ───────────────────────────────────────────────────────────
+// All Supabase Edge Function calls MUST go through safeInvoke or safeFetch.
+// Direct supabase.functions.invoke() calls outside this file are prohibited.
+// ────────────────────────────────────────────────────────────────────────────
 
 const ALLOWED_FUNCTIONS = new Set([
   'process-refund',
@@ -18,190 +13,141 @@ const ALLOWED_FUNCTIONS = new Set([
   'create-checkout',
   'translate-product',
   'run-full-scan',
+  'get-latest-scan-run',
+  'get-scan-run-by-id',
   'apply-fix',
   'access-control-scan',
   'permission-fix',
   'access-flow-validate',
   'data-sync',
+  'stripe-webhook',
   'process-bug-report',
   'generate-receipt',
-  'notify-affiliate',
-  'notify-influencer',
-  'create-shipment',
-  'google-places',
-  'send-welcome-email',
-  'send-review-reminder',
-  'send-retention-email',
-  'process-email-queue',
   'automation-engine',
+  'generate-product-content',
   'suggest-product-metadata',
-  'sitemap',
-  'stripe-webhook',
+  'shopify-proxy',
+  'send-welcome-email',
+  'notify-influencer',
+  'notify-affiliate',
+  'google-places',
 ]);
 
-// ── API call log ─────────────────────────────────────────────────────────────
+const ADMIN_ONLY_FUNCTIONS = new Set([
+  'run-full-scan',
+  'get-latest-scan-run',
+  'get-scan-run-by-id',
+  'apply-fix',
+  'access-control-scan',
+  'permission-fix',
+  'access-flow-validate',
+  'data-sync',
+  'stripe-webhook',
+  'process-bug-report',
+  'generate-receipt',
+  'automation-engine',
+  'generate-product-content',
+  'suggest-product-metadata',
+  'shopify-proxy',
+  'notify-influencer',
+  'notify-affiliate',
+  'process-refund',
+]);
 
-export type ApiLogEntry = {
-  traceId: string;
-  functionName: string;
-  requestedAt: string;
-  respondedAt: string | null;
-  durationMs: number | null;
-  attempt: number;
-  status: 'ok' | 'error' | 'blocked';
-  error: string | null;
-};
-
-const MAX_LOG_ENTRIES = 50;
-const _apiLog: ApiLogEntry[] = [];
-
-/** Read-only snapshot of the last 50 API calls. Newest first. */
-export function getApiLog(): ReadonlyArray<ApiLogEntry> {
-  return _apiLog;
+let _traceCounter = 0;
+function newTraceId(): string {
+  return `t-${Date.now()}-${++_traceCounter}`;
 }
 
-function pushLog(entry: ApiLogEntry) {
-  _apiLog.unshift(entry);
-  if (_apiLog.length > MAX_LOG_ENTRIES) _apiLog.length = MAX_LOG_ENTRIES;
+interface InvokeOptions {
+  body?: Record<string, unknown>;
+  isAdmin?: boolean;
 }
 
-// ── Retry helper ─────────────────────────────────────────────────────────────
-
-const MAX_ATTEMPTS = 3;
-const RETRY_DELAY_MS = 300;
-
-function isRetryable(error: any): boolean {
-  if (!error) return false;
-  const msg: string = error?.message ?? String(error);
-  // Don't retry auth/blocked errors; do retry network/timeout errors
-  if (msg.startsWith('BLOCKED') || msg.includes('Unauthorized') || msg.includes('403')) return false;
-  return true;
-}
-
-async function delay(ms: number) {
-  return new Promise<void>((res) => setTimeout(res, ms));
-}
-
-// ── safeInvoke ───────────────────────────────────────────────────────────────
-
-type SafeInvokeOptions = {
-  body?: Record<string, any>;
-  headers?: Record<string, string>;
-};
-
-type SafeInvokeResult<T> = {
+interface InvokeResult<T = unknown> {
   data: T | null;
-  error: any;
+  error: Error | null;
   traceId: string;
-};
+}
 
-/**
- * safeInvoke — call an edge function through the enforced whitelist.
- * Retries up to 3 times on transient failures.
- * Logs every attempt to the in-memory API log (last 50).
- * Returns { data, error, traceId }.
- */
-export async function safeInvoke<T = any>(
+/** Invoke an edge function by name, with whitelist + admin guard. */
+export async function safeInvoke<T = unknown>(
   functionName: string,
-  options?: SafeInvokeOptions
-): Promise<SafeInvokeResult<T>> {
-  const traceId = crypto.randomUUID();
-  const requestedAt = new Date().toISOString();
+  options: InvokeOptions = {}
+): Promise<InvokeResult<T>> {
+  const traceId = newTraceId();
 
   if (!ALLOWED_FUNCTIONS.has(functionName)) {
-    const err = new Error(`BLOCKED: '${functionName}' is not in the allowed functions list`);
-    pushLog({
-      traceId, functionName, requestedAt, respondedAt: new Date().toISOString(),
-      durationMs: 0, attempt: 1, status: 'blocked', error: err.message,
-    });
+    const err = new Error(`BLOCKED: function "${functionName}" is not in ALLOWED_FUNCTIONS`);
+
     return { data: null, error: err, traceId };
   }
 
-  const body = { ...(options?.body ?? {}), request_trace_id: traceId };
+  if (ADMIN_ONLY_FUNCTIONS.has(functionName) && !options.isAdmin) {
+    const err = new Error(`BLOCKED: function "${functionName}" requires isAdmin:true`);
 
-  let lastError: any = null;
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    const attemptStart = Date.now();
-    const { data, error } = await supabase.functions.invoke<T>(functionName, {
-      body,
-      headers: options?.headers,
-    });
-    const respondedAt = new Date().toISOString();
-    const durationMs = Date.now() - attemptStart;
-
-    if (!error) {
-      pushLog({ traceId, functionName, requestedAt, respondedAt, durationMs, attempt, status: 'ok', error: null });
-      return { data, error: null, traceId };
-    }
-
-    lastError = error;
-    pushLog({
-      traceId, functionName, requestedAt, respondedAt, durationMs,
-      attempt, status: 'error', error: error?.message ?? String(error),
-    });
-
-    if (attempt < MAX_ATTEMPTS && isRetryable(error)) {
-      await delay(RETRY_DELAY_MS * attempt);
-    } else {
-      break;
-    }
+    return { data: null, error: err, traceId };
   }
 
-  return { data: null, error: lastError, traceId };
+  const { data, error } = await supabase.functions.invoke<T>(functionName, {
+    body: options.body,
+  });
+
+  if (error) {
+
+  }
+
+  return { data: data ?? null, error: error ?? null, traceId };
 }
 
-// ── safeFetch ────────────────────────────────────────────────────────────────
-
-type SafeFetchOptions = {
-  method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
-  body?: Record<string, any>;
+interface FetchOptions {
+  method?: string;
   params?: Record<string, string>;
-  headers?: Record<string, string>;
+  body?: unknown;
   signal?: AbortSignal;
-};
+  isAdmin?: boolean;
+  headers?: Record<string, string>;
+}
 
 /**
- * safeFetch — call an edge function and return the raw Response.
- * Use when you need HTTP status codes, HTML responses, or GET requests.
+ * Fetch an edge function URL directly, returning the raw Response.
+ * Use this when you need the raw HTTP status, streaming, or AbortSignal.
  */
 export async function safeFetch(
   functionName: string,
-  options?: SafeFetchOptions
+  options: FetchOptions = {}
 ): Promise<Response> {
+  const traceId = newTraceId();
+
   if (!ALLOWED_FUNCTIONS.has(functionName)) {
-    const traceId = crypto.randomUUID();
-    return new Response(
-      JSON.stringify({ success: false, error: `BLOCKED: '${functionName}'`, traceId }),
-      { status: 403, headers: { 'Content-Type': 'application/json' } }
-    );
+    throw new Error(`[safeFetch][${traceId}] BLOCKED: function "${functionName}" is not in ALLOWED_FUNCTIONS`);
   }
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  if (ADMIN_ONLY_FUNCTIONS.has(functionName) && !options.isAdmin) {
+    throw new Error(`[safeFetch][${traceId}] BLOCKED: function "${functionName}" requires isAdmin:true`);
+  }
 
-  const baseUrl = (supabase as any).functionsUrl ?? `${(supabase as any).supabaseUrl}/functions/v1`;
-  const traceId = crypto.randomUUID();
+  const base = import.meta.env.VITE_SUPABASE_URL as string;
+  const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
 
-  let url = `${baseUrl}/${functionName}`;
-  if (options?.params && Object.keys(options.params).length > 0) {
+  let url = `${base}/functions/v1/${functionName}`;
+  if (options.params && Object.keys(options.params).length > 0) {
     url += '?' + new URLSearchParams(options.params).toString();
   }
 
-  const method = options?.method ?? (options?.body ? 'POST' : 'GET');
-  const body =
-    method !== 'GET' && options?.body
-      ? JSON.stringify({ ...options.body, request_trace_id: traceId })
-      : undefined;
+  const { data: { session } } = await supabase.auth.getSession();
 
-  return fetch(url, {
-    method,
-    body,
-    signal: options?.signal,
+  const resp = await fetch(url, {
+    method: options.method ?? (options.body !== undefined ? 'POST' : 'GET'),
     headers: {
       'Content-Type': 'application/json',
+      apikey: anonKey,
       ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-      ...(options?.headers ?? {}),
+      ...options.headers,
     },
+    ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
+    ...(options.signal ? { signal: options.signal } : {}),
   });
+
+  return resp;
 }

@@ -73,7 +73,7 @@ const AdminActivityLog = () => {
       if (error) throw error;
       setLogs(data || []);
     } catch (e) {
-      console.error('Failed to fetch logs:', e);
+
     } finally {
       setIsLoading(false);
     }

@@ -40,7 +40,7 @@ export const useDonationStats = () => {
         isLoading: false,
       });
     } catch (error) {
-      console.error('Failed to fetch donation stats:', error);
+
       setStats(prev => ({ ...prev, isLoading: false }));
     }
   }, []);

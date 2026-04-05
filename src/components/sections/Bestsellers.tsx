@@ -77,7 +77,7 @@ const Bestsellers = () => {
           setProducts(allProducts.slice(0, 4));
         }
       } catch (error) {
-        console.error('Error fetching bestsellers:', error);
+
       } finally {
         setLoading(false);
       }

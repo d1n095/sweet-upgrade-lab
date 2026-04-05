@@ -183,7 +183,7 @@ const MemberProfile = () => {
 
       setRewards(rewardsData || []);
     } catch (error) {
-      console.error('Failed to load user data:', error);
+
     } finally {
       setIsLoading(false);
     }

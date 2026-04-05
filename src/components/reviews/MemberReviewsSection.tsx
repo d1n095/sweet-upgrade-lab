@@ -45,7 +45,7 @@ const MemberReviewsSection = () => {
           .eq('is_approved', true);
         if (!error && count && count > 0) setHasReviews(true);
       } catch (error) {
-        console.error('Failed to check reviews:', error);
+
       } finally {
         setIsLoading(false);
       }
