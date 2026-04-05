@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { setProductCategories } from '@/lib/categories';
 import { setProductTags, fetchProductTagIds } from '@/lib/tags';
-import { setProductIngredients, fetchProductIngredients } from '@/lib/products';
+import { setProductIngredients, fetchProductIngredients, fetchDbProducts, createDbProduct, updateDbProduct, deleteDbProduct, DbProduct, ProductStatus } from '@/lib/products';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, Package, Edit, Trash2, Loader2, AlertTriangle,
@@ -32,7 +32,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AdminProductForm, ProductFormData, DEFAULT_PRODUCT_FORM_DATA
 } from '@/components/admin/AdminProductForm';
-import { fetchDbProducts, createDbProduct, updateDbProduct, deleteDbProduct, DbProduct, ProductStatus } from '@/lib/products';
 
 const productCategories = [
   { value: 'Kroppsvård', label: { sv: 'Kroppsvård', en: 'Body Care' } },

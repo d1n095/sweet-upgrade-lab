@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import {
   Grid, Plus, Eye, EyeOff, Trash2, Loader2, Save, ChevronRight, ChevronDown,
   Cpu, Shirt, Droplets, Flame, Sparkles, Gem, Bed, Tag, Leaf, GripVertical, Pencil,
-  Wand2, CheckCircle, AlertTriangle, Info, XCircle, ShieldCheck,
+  Wand2, CheckCircle, AlertTriangle, Info, XCircle, ShieldCheck, type LucideIcon,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/context/LanguageContext';
@@ -27,7 +27,6 @@ import {
   fetchCategories, buildCategoryTree, createCategory, updateCategory, deleteCategory,
   DbCategory,
 } from '@/lib/categories';
-import type { LucideIcon } from 'lucide-react';
 
 const iconMap: Record<string, LucideIcon> = {
   Cpu, Shirt, Droplets, Flame, Sparkles, Gem, Bed, Grid, Tag, Leaf,

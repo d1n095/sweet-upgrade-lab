@@ -1,11 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import type { CartItem } from '@/stores/cartStore';
+import { useCartStore, type CartItem } from '@/stores/cartStore';
 
 // ── Mocks ──────────────────────────────────────────────────────────────────
 vi.mock('@/lib/catalog', () => ({}));
 
 // ── Helpers ────────────────────────────────────────────────────────────────
-import { useCartStore } from '@/stores/cartStore';
 
 function makeItem(variantId: string, quantity = 1, amount = '100'): CartItem {
   return {

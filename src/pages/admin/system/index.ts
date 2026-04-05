@@ -1,3 +1,2 @@
 export { ScanControls } from './ScanControls';
-export { useScanRunner } from './useScanRunner';
-export type { ScanRunnerState, ScanStep, ScanResult } from './useScanRunner';
+export { useScanRunner, type ScanRunnerState, type ScanStep, type ScanResult } from './useScanRunner';

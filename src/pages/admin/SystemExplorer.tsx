@@ -13,6 +13,7 @@ import { Database, Activity, Bug, CheckCircle, AlertTriangle, Clock, Shield, Che
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import ReactMarkdown from "react-markdown";
+import { ScanControls } from "./system";
 
 type WorkItem = {
   id: string;
@@ -167,7 +168,6 @@ const SystemExplorer = () => {
   const [selectedItem, setSelectedItem] = useState<WorkItem | null>(null);
   const [detailTab, setDetailTab] = useState<"info" | "history">("info");
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isScanning, setIsScanning] = useState(false);
   const [showRawScan, setShowRawScan] = useState(false);
   const [aiQuery, setAiQuery] = useState("");
   const [aiAnswer, setAiAnswer] = useState<string | null>(null);
@@ -184,7 +184,6 @@ const SystemExplorer = () => {
   const [showBackendRaw, setShowBackendRaw] = useState(false);
   const [fileScanResult, setFileScanResult] = useState<{ total: number; emptyFiles: number; largeFiles: number } | null>(null);
   const [codeScanResult, setCodeScanResult] = useState<{ type: string; message: string; file: string }[] | null>(null);
-  const [scanProgress, setScanProgress] = useState<{ step: number; total: number; label: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<{ path: string; lineNumber: number; line: string }[]>([]);
   const [lastAction, setLastAction] = useState("");
@@ -192,7 +191,6 @@ const SystemExplorer = () => {
   const [globalIssues, setGlobalIssues] = useState<{ type: string; message: string; file: string }[]>([]);
 
   function logAction(action: Record<string, any>) {
-    console.log("🟢 ACTION:", action);
     setActionLogs(prev => [
       {
         time: new Date().toISOString(),
@@ -207,18 +205,14 @@ const SystemExplorer = () => {
   useEffect(() => {
     const rawSources = getRawSources();
     if (!rawSources) {
-      console.warn("❌ NO rawSources — cannot scan");
       return;
     }
-    console.log("RAW SOURCES COUNT:", Object.keys(rawSources).length);
-    console.log("🔍 AUTO SCAN START");
     const allIssues: { type: string; message: string; file: string }[] = [];
     Object.entries(rawSources).forEach(([path, content]) => {
       if (!content) return;
       const issues = scanFileContent(path, content as string);
       allIssues.push(...issues);
     });
-    console.log("🚨 AUTO SCAN FOUND:", allIssues.length);
     setCodeScanResult(allIssues);
     setGlobalIssues(allIssues);
   }, []);
@@ -250,54 +244,6 @@ const SystemExplorer = () => {
       count: results.length
     });
     setSearchResults(results.slice(0, 50));
-  }
-
-  async function runSystemScan(mode: string) {
-    if (isScanning) {
-      console.warn("Scan already running");
-      return;
-    }
-    setIsScanning(true);
-    logAction({ type: "SCAN", status: "started", mode });
-    try {
-      if (mode === "files") {
-        const files = Object.keys(getRawSources() || {});
-        const result = {
-          total: files.length,
-          empty: files.filter(f => !getRawSources()[f]?.trim()).length
-        };
-        setFileScanResult({ total: result.total, emptyFiles: result.empty, largeFiles: 0 });
-        logAction({ type: "SCAN", status: "success", mode });
-      }
-      if (mode === "code") {
-        const results: { type: string; message: string; file: string }[] = [];
-        Object.entries(getRawSources() || {}).forEach(([path, content]) => {
-          const issues = scanFileContent(path, content as string);
-          results.push(...issues);
-        });
-        console.log("[FILE ISSUES FOUND]:", results.length);
-        setCodeScanResult(results);
-        logAction({ type: "SCAN", status: "success", mode });
-      }
-      if (mode === "full") {
-        console.log("[FULL SCAN TRIGGERED]");
-        await safeInvoke("run-full-scan", {
-          body: { action: "start", scan_mode: "full" },
-          isAdmin: true,
-        });
-        logAction({ type: "SCAN", status: "success", mode });
-      }
-    } catch (err: any) {
-      console.error("[SCAN ERROR]:", err);
-      logAction({
-        type: "SCAN",
-        status: "error",
-        mode,
-        message: err.message
-      });
-    } finally {
-      setIsScanning(false);
-    }
   }
 
   async function verifyWorkItemsCreated(beforeCount: number) {
@@ -432,7 +378,6 @@ const SystemExplorer = () => {
       }
       return result;
     } catch (err: any) {
-      console.error("🚨 ACTION FAILED:", actionName, err.message);
       setFrontendViolations(prev => [
         ...prev,
         {
@@ -493,23 +438,17 @@ const SystemExplorer = () => {
   };
 
   const handleRunFullScan = async () => {
-    console.log("[SCAN TRIGGERED]");
-    setIsScanning(true);
-    
     try {
       const before = await supabase.from("work_items").select("id");
       const beforeCount = before.data?.length || 0;
       logAction({ type: "Full Scan", status: "started" });
-      console.log("🚀 STARTING FULL SCAN");
       const structure_map = Object.keys(getRawSources() || {}).map(path => ({
         path
       }));
-      console.log("[SENDING STRUCTURE MAP]:", structure_map.length);
       const res = await safeInvoke("run-full-scan", {
         body: { action: "start", scan_mode: "full", structure_map },
         isAdmin: true,
       });
-      console.log("📡 RESPONSE:", res);
       const verify = await verifyWorkItemsCreated(beforeCount);
       if (verify.created === 0) {
         logAction({
@@ -524,18 +463,13 @@ const SystemExplorer = () => {
           message: `Created ${verify.created} work_items ✔`
         });
       }
-      console.log("[DEBUG] FULL SCAN RESPONSE:", res);
       const json = res?.data ?? res;
-      console.log("[DEBUG] FULL SCAN JSON:", json);
       if (json?.success === false) {
-        console.error("[DEBUG] FULL SCAN ERROR:", json?.error);
+        logAction({ type: "Full Scan", status: "error", message: json?.error });
       }
       await handleRefresh();
     } catch (err) {
-      console.error("[FULL SCAN UI ERROR]:", err);
-    } finally {
-      
-      setIsScanning(false);
+      logAction({ type: "Full Scan", status: "error", message: String(err) });
     }
   };
 
@@ -1090,7 +1024,6 @@ const SystemExplorer = () => {
         <div className="text-[10px] font-mono text-muted-foreground">Last action: {lastAction || "none"}</div>
 
         <button onClick={() => {
-          console.log("🧪 TEST BUTTON CLICK");
           setActionLogs(prev => [
             {
               time: new Date().toISOString(),
@@ -1192,48 +1125,7 @@ const SystemExplorer = () => {
             Refresh
           </Button>
           {isSystemAdmin && (
-            <>
-            <Button variant="default" size="sm" onClick={() =>
-              validateAction("FULL_SCAN", async () => {
-                const structure_map = Object.keys(getRawSources() || {});
-                if (!structure_map.length) {
-                  throw new Error("No structure map");
-                }
-                setIsScanning(true);
-                setScanProgress({ step: 0, total: 11, label: "Startar..." });
-                const pollInterval = setInterval(async () => {
-                  try {
-                    const { data } = await supabase.from("scan_runs").select("current_step, current_step_label").order("created_at", { ascending: false }).limit(1).single();
-                    if (data) {
-                      setScanProgress({ step: data.current_step || 0, total: 11, label: data.current_step_label || "Scanning..." });
-                    }
-                  } catch (_) {}
-                }, 2000);
-                try {
-                  await safeInvoke("run-full-scan", {
-                    body: { action: "start", scan_mode: "full", structure_map: structure_map.map(p => ({ path: p })) },
-                    isAdmin: true,
-                  });
-                } finally {
-                  clearInterval(pollInterval);
-                  setIsScanning(false);
-                  setScanProgress(null);
-                }
-                return true;
-              })
-            } disabled={isScanning}>
-              {isScanning ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Radar className="h-4 w-4 mr-1" />}
-              {isScanning && scanProgress ? `Scanning... (${scanProgress.step}/${scanProgress.total})` : isScanning ? "Scanning..." : "Run Full Scan"}
-            </Button>
-            {isScanning && scanProgress && (
-              <div className="flex items-center gap-2 ml-2">
-                <div className="w-32 h-1.5 bg-muted rounded-full overflow-hidden">
-                  <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${Math.round((scanProgress.step / scanProgress.total) * 100)}%` }} />
-                </div>
-                <span className="text-[9px] text-muted-foreground truncate max-w-[200px]">{scanProgress.label}</span>
-              </div>
-            )}
-            </>
+            <ScanControls />
           )}
            {isSystemAdmin && (
              <Button variant="outline" size="sm" onClick={() => setShowRawScan(!showRawScan)}>
@@ -1264,9 +1156,6 @@ const SystemExplorer = () => {
 
         {/* BACKEND SCAN TAB */}
         {mainTab === "backendscan" && (() => {
-          if (!latestBackendScan) {
-            console.error("❌ NO BACKEND SCAN FOUND");
-          }
           const r = latestBackendScan?.results as any;
           const latestRun = r;
           return (
@@ -1443,7 +1332,6 @@ const SystemExplorer = () => {
                     if (!results || results.length === 0) {
                       throw new Error("Code index empty");
                     }
-                    console.log("[FILE ISSUES FOUND]:", results.length);
                     setCodeScanResult(results);
                     return true;
                   })
@@ -1697,7 +1585,6 @@ const SystemExplorer = () => {
                     throw new Error("No files available");
                   }
                   const result = files.length;
-                  console.log("[FILES FOUND]:", result);
                   setFileScanResult({ total: result, emptyFiles: files.filter(f => !getRawSources()[f]?.trim()).length, largeFiles: 0 });
                   return true;
                 })
@@ -2111,7 +1998,6 @@ const SystemExplorer = () => {
                     </>
                   );
                 } catch (e) {
-                  console.error("[DEBUG] JSON RENDER ERROR:", e);
                   return <p className="text-xs text-destructive">Error rendering scan results</p>;
                 }
               })()}
@@ -3977,7 +3863,6 @@ const SystemExplorer = () => {
                         body: { action: "start", scan_mode: "targeted", target_area: target, verification_for: selectedItem.id },
                         isAdmin: true,
                       });
-                      console.log("[DEBUG] VERIFY SCAN RESPONSE:", verifyRes);
                       const scanData = verifyRes?.data ?? verifyRes;
 
                       // 3. Check if issue still found
@@ -4010,7 +3895,6 @@ const SystemExplorer = () => {
                       // Update selected item locally
                       setSelectedItem({ ...selectedItem, status: "done", verification_status: vStatus } as any);
                     } catch (err) {
-                      console.error("Verification scan failed:", err);
                       setVerifyResult({ itemId: selectedItem.id, status: "failed" });
                     } finally {
                       setVerifyingFix(false);
