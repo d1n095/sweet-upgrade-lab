@@ -81,7 +81,6 @@ export const flushObservabilityBuffer = async () => {
 
     await supabase.from('system_observability_log' as any).insert(rows);
   } catch (e) {
-    console.warn('[observability] flush failed:', e);
   }
 };
 

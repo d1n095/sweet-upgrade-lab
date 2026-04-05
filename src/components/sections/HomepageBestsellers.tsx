@@ -41,7 +41,6 @@ const HomepageBestsellers = ({ getSection }: Props) => {
           .slice(0, 4);
         setProducts(bestsellers);
       } catch (err) {
-        console.error('Failed to load bestsellers:', err);
       } finally {
         setLoading(false);
       }

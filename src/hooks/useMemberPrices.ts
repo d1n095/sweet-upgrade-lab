@@ -81,7 +81,6 @@ export const useMemberPrices = () => {
           setBundles(bundlesWithProducts);
         }
       } catch (error) {
-        console.error('Error fetching pricing data:', error);
       } finally {
         setLoading(false);
       }

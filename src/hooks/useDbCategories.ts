@@ -65,7 +65,7 @@ export const useDbCategories = (adminView = false) => {
       const { data, error } = await categoryQuery;
 
       if (error || cancelled) {
-        if (error) console.error('Failed to load categories:', error);
+ if (error) 
         setLoading(false);
         return;
       }

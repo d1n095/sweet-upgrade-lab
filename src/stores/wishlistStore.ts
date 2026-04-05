@@ -44,7 +44,6 @@ export const useWishlistStore = create<WishlistStore>()(
               shopify_product_handle: product.node.handle
             });
           } catch (error) {
-            console.error('Failed to sync wishlist item to database:', error);
           }
         }
       },
@@ -64,7 +63,6 @@ export const useWishlistStore = create<WishlistStore>()(
               .eq('user_id', userId)
               .eq('shopify_product_id', productId);
           } catch (error) {
-            console.error('Failed to remove wishlist item from database:', error);
           }
         }
       },
@@ -86,7 +84,6 @@ export const useWishlistStore = create<WishlistStore>()(
               .delete()
               .eq('user_id', userId);
           } catch (error) {
-            console.error('Failed to clear wishlist from database:', error);
           }
         }
       },
@@ -124,7 +121,6 @@ export const useWishlistStore = create<WishlistStore>()(
             }, { onConflict: 'user_id,shopify_product_id' });
             
             if (insertError) {
-              console.error('Failed to sync item:', insertError);
             }
           }
 
@@ -132,7 +128,6 @@ export const useWishlistStore = create<WishlistStore>()(
           // The database just tracks which products are in the wishlist
 
         } catch (error) {
-          console.error('Failed to sync wishlist with database:', error);
         } finally {
           set({ isLoading: false });
         }

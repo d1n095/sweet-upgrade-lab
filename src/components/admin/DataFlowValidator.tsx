@@ -388,7 +388,6 @@ const DataFlowValidator = () => {
       setStatus('done');
       toast.success(`Dataflödesvalidering klar: ${allTraces.length} spår kontrollerade`);
     } catch (err) {
-      console.error('Data flow validation error:', err);
       toast.error('Validering misslyckades');
       setStatus('done');
     }

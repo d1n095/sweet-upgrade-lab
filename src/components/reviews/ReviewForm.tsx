@@ -110,7 +110,6 @@ const ReviewForm = ({ productId, productHandle, productTitle, onReviewSubmitted 
           setCanReview(false);
         }
       } catch (err) {
-        console.error('Failed to check review eligibility:', err);
         setCanReview(false);
       } finally {
         setIsCheckingEligibility(false);
@@ -199,14 +198,13 @@ const ReviewForm = ({ productId, productHandle, productTitle, onReviewSubmitted 
           discount_percent: 10,
         })
         .then(({ error }) => {
-          if (error) console.error('Failed to create reward:', error);
+ if (error) 
         });
 
       setIsSubmitted(true);
       toast.success(t.success);
       onReviewSubmitted?.();
     } catch (error) {
-      console.error('Failed to submit review:', error);
       toast.error(t.errorSubmit);
     } finally {
       setIsSubmitting(false);

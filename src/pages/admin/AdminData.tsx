@@ -142,7 +142,7 @@ const EventExplorer = () => {
     if (typeFilter !== 'all') query = query.eq('event_type', typeFilter);
 
     const { data, count, error } = await query;
-    if (error) { console.error(error); toast.error('Kunde inte ladda events'); }
+ if (error) { toast.error('Kunde inte ladda events'); }
     setEvents(data || []);
     setTotal(count || 0);
     setLoading(false);

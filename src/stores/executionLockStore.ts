@@ -77,7 +77,6 @@ export const useExecutionLockStore = create<ExecutionLockState>((set, get) => ({
     const now = Date.now();
     const freshLocks = get().locks.filter(l => {
       if (isStale(l)) {
-        console.warn(`[ExecutionLock] Auto-released stale lock: area=${l.area} task=${l.lockedBy} age=${Math.round((now - new Date(l.lockedAt).getTime()) / 1000)}s`);
         return false;
       }
       return true;
@@ -129,7 +128,6 @@ export const useExecutionLockStore = create<ExecutionLockState>((set, get) => ({
   getHolder: (area) => {
     const lock = get().locks.find(l => l.area === area);
     if (lock && isStale(lock)) {
-      console.warn(`[ExecutionLock] Stale lock detected for area=${area}, auto-releasing`);
       set(s => ({ locks: s.locks.filter(l => l.area !== area) }));
       return undefined;
     }
@@ -152,7 +150,6 @@ export const useExecutionLockStore = create<ExecutionLockState>((set, get) => ({
   releaseStale: () => {
     const stale = get().locks.filter(isStale);
     if (stale.length > 0) {
-      console.warn(`[ExecutionLock] Releasing ${stale.length} stale lock(s):`, stale.map(l => `${l.area}:${l.lockedBy}`));
       set(s => ({
         locks: s.locks.filter(l => !isStale(l)),
         conflicts: s.conflicts.map(c =>

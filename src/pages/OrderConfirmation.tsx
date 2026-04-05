@@ -77,7 +77,6 @@ const OrderConfirmation = () => {
             return;
           }
         } catch (err) {
-          console.error('[order-confirmation] lookup failed:', err);
         }
 
         if (attempt < maxRetries - 1) {

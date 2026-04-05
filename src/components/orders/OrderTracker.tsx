@@ -152,7 +152,6 @@ const OrderTracker = () => {
       // Cast the data to match our Order interface
       setOrders((data || []) as unknown as Order[]);
     } catch (error) {
-      console.error('Failed to load orders:', error);
     } finally {
       setIsLoading(false);
     }

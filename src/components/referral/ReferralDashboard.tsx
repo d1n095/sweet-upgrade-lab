@@ -76,7 +76,6 @@ const ReferralDashboard = () => {
         });
       }
     } catch (err) {
-      console.error('Failed to load referral data:', err);
     } finally {
       setIsLoading(false);
     }

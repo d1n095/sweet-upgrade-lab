@@ -83,7 +83,6 @@ const AccountSettings = () => {
       toast.success(t.emailSuccess);
       setNewEmail('');
     } catch (error) {
-      console.error('Email update error:', error);
       toast.error(t.emailError);
     } finally {
       setIsUpdatingEmail(false);
@@ -115,7 +114,6 @@ const AccountSettings = () => {
       setNewPassword('');
       setConfirmPassword('');
     } catch (error) {
-      console.error('Password update error:', error);
       toast.error(t.passwordError);
     } finally {
       setIsUpdatingPassword(false);

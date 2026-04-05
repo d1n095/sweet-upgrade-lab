@@ -573,7 +573,6 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
       toast.success(bestUser ? `Skapad & verifierad → tilldelad ${getStaffName(bestUser as string)}` : 'Skapad & verifierad ✓');
       setNewTitle(''); setNewDesc(''); setShowCreate(false);
     } else {
-      console.error('[WorkbenchBoard] CREATE FAILED at', result.failedStep, result.failReason);
       toast.error(`Kunde inte skapa: ${result.failReason}`);
     }
     setCreating(false);

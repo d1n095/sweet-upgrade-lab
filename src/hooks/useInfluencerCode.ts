@@ -77,7 +77,6 @@ export const useInfluencerCode = () => {
         return null;
       }
     } catch (error) {
-      console.error('Failed to validate code:', error);
       toast.error(t.error);
       return null;
     } finally {
@@ -142,7 +141,6 @@ export const useInfluencerCode = () => {
       toast.success(t.productAdded);
       return true;
     } catch (error) {
-      console.error('Failed to register free product:', error);
       toast.error(t.error);
       return false;
     }

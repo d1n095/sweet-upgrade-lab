@@ -49,7 +49,6 @@ const ReviewSummary = ({ productHandle }: ReviewSummaryProps) => {
           });
         }
       } catch (error) {
-        console.error('Failed to load review stats:', error);
       } finally {
         setIsLoading(false);
       }

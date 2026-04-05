@@ -42,7 +42,6 @@ const HomepageReviews = ({ getSection }: Props) => {
 
         setReviews(data || []);
       } catch (err) {
-        console.error('Failed to load reviews:', err);
       } finally {
         setLoading(false);
       }

@@ -232,7 +232,6 @@ export const useFullScanOrchestrator = create<FullScanOrchestratorState>((set, g
         });
       }
     } catch (e) {
-      console.warn('Failed to load latest scan run:', e);
     }
   },
 
@@ -358,6 +357,5 @@ async function pollScanRun(
       });
     }
   } catch (e) {
-    console.warn('Poll error:', e);
   }
 }

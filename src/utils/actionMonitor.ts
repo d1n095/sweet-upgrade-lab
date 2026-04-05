@@ -98,12 +98,10 @@ export const useActionMonitorStore = create<ActionMonitorState>((set, get) => ({
 
   startMonitor: () => {
     set({ running: true, events: [], failures: [], lastSuccessTimestamp: null });
-    console.info('[ActionMonitor] Started');
   },
 
   stopMonitor: () => {
     set({ running: false });
-    console.info('[ActionMonitor] Stopped');
   },
 
   clearEvents: () => set({ events: [], lastEvent: null, lastSuccessTimestamp: null }),
@@ -194,7 +192,6 @@ export async function logData(input: {
     attempts,
   };
   useActionMonitorStore.getState()._pushFailure(failEvent);
-  console.error('[ActionMonitor] logData failed after', attempts, 'attempts:', lastError);
   return false;
 }
 

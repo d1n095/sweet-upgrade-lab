@@ -23,13 +23,11 @@ export const useEmployeeRole = () => {
           .in('role', ['moderator', 'support', 'warehouse', 'marketing']);
 
         if (error) {
-          console.error('Error checking employee role:', error);
           setIsEmployee(false);
         } else {
           setIsEmployee((data || []).length > 0);
         }
       } catch (err) {
-        console.error('Failed to check employee role:', err);
         setIsEmployee(false);
       } finally {
         setIsLoading(false);

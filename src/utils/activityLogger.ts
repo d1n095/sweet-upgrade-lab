@@ -22,7 +22,6 @@ const safeLog = async (logType: string, category: string, message: string, detai
       p_order_id: orderId || null,
     });
   } catch (e) {
-    console.error('Failed to log activity:', e);
   }
 };
 

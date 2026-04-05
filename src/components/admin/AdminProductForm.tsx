@@ -474,7 +474,6 @@ function AiContentGenerator({
 
       toast.success(sv ? 'Innehåll genererat! Redigera efter behov.' : 'Content generated! Edit as needed.');
     } catch (err: any) {
-      console.error('AI generation failed:', err);
       toast.error(sv ? 'Kunde inte generera innehåll' : 'Failed to generate content');
     } finally {
       setGenerating(false);

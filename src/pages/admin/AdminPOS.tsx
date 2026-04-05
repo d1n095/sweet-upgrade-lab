@@ -161,7 +161,6 @@ const AdminPOS = () => {
       setCustomerEmail('');
       toast.success(`Order skapad — ${subtotal} kr`);
     } catch (err: any) {
-      console.error('POS order error:', err);
       toast.error('Kunde inte skapa order: ' + (err?.message || 'Okänt fel'));
     } finally {
       setProcessing(false);

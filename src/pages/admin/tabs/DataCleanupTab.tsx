@@ -202,7 +202,6 @@ export const DataCleanupTab = () => {
           }
         }
       } catch (err) {
-        console.warn('Cleanup error for finding', finding.id, err);
       }
     }
 

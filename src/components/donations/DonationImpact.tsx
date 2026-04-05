@@ -91,7 +91,6 @@ const DonationImpact = () => {
         setProjects(projectsData);
       }
     } catch (error) {
-      console.error('Failed to load donation data:', error);
     } finally {
       setIsLoading(false);
     }

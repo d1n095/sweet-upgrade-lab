@@ -91,7 +91,6 @@ const ReorderButton = ({ orderId, items, size = 'sm' }: ReorderButtonProps) => {
         );
       }
     } catch (err) {
-      console.error('Reorder failed:', err);
       toast.error(language === 'sv' ? 'Kunde inte lägga om order' : 'Failed to reorder');
     } finally {
       setLoading(false);

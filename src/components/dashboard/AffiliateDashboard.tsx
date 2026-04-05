@@ -304,7 +304,6 @@ const AffiliateDashboard = () => {
 
       setPayoutRequests((requests || []) as unknown as PayoutRequest[]);
     } catch (error) {
-      console.error('Failed to load affiliate data:', error);
     } finally {
       setIsLoading(false);
     }
@@ -362,7 +361,6 @@ const AffiliateDashboard = () => {
       setWithdrawAmount('');
       loadAffiliateData();
     } catch (error) {
-      console.error('Failed to submit payout request:', error);
       toast.error('Error submitting request');
     } finally {
       setIsSubmitting(false);

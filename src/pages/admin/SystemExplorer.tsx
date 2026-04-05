@@ -207,7 +207,6 @@ const SystemExplorer = () => {
   useEffect(() => {
     const rawSources = getRawSources();
     if (!rawSources) {
-      console.warn("❌ NO rawSources — cannot scan");
       return;
     }
     const allIssues: { type: string; message: string; file: string }[] = [];
@@ -251,7 +250,6 @@ const SystemExplorer = () => {
 
   async function runSystemScan(mode: string) {
     if (isScanning) {
-      console.warn("Scan already running");
       return;
     }
     setIsScanning(true);
@@ -280,7 +278,6 @@ const SystemExplorer = () => {
         logAction({ type: "SCAN", status: "success", mode });
       }
     } catch (err: any) {
-      console.error("[SCAN ERROR]:", err);
       logAction({
         type: "SCAN",
         status: "error",
@@ -424,7 +421,6 @@ const SystemExplorer = () => {
       }
       return result;
     } catch (err: any) {
-      console.error("🚨 ACTION FAILED:", actionName, err.message);
       setFrontendViolations(prev => [
         ...prev,
         {
@@ -511,11 +507,9 @@ const SystemExplorer = () => {
       }
       const json = res?.data ?? res;
       if (json?.success === false) {
-        console.error("[DEBUG] FULL SCAN ERROR:", json?.error);
       }
       await handleRefresh();
     } catch (err) {
-      console.error("[FULL SCAN UI ERROR]:", err);
     } finally {
       
       setIsScanning(false);
@@ -1767,7 +1761,6 @@ const SystemExplorer = () => {
                     </>
                   );
                 } catch (e) {
-                  console.error("[DEBUG] JSON RENDER ERROR:", e);
                   return <p className="text-xs text-destructive">Error rendering scan results</p>;
                 }
               })()}
@@ -3664,7 +3657,6 @@ const SystemExplorer = () => {
                       // Update selected item locally
                       setSelectedItem({ ...selectedItem, status: "done", verification_status: vStatus } as any);
                     } catch (err) {
-                      console.error("Verification scan failed:", err);
                       setVerifyResult({ itemId: selectedItem.id, status: "failed" });
                     } finally {
                       setVerifyingFix(false);

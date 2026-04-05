@@ -147,7 +147,6 @@ const ShippingFormDialog = ({ open, onOpenChange, order, onShipped }: ShippingFo
       setCarrier('postnord');
       setDeliveryMethod('shipping');
     } catch (err: any) {
-      console.error(err);
       toast.error(err.message || 'Kunde inte uppdatera order');
     } finally {
       setIsSaving(false);

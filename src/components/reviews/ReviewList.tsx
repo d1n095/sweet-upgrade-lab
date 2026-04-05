@@ -65,7 +65,6 @@ const ReviewList = ({ productHandle, limit = 10, showProductTitle = false }: Rev
         if (error) throw error;
         setReviews(data || []);
       } catch (error) {
-        console.error('Failed to load reviews:', error);
       } finally {
         setIsLoading(false);
       }

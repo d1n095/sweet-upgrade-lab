@@ -120,7 +120,6 @@ const AdminPayoutManager = () => {
 
       setRequests(requestsWithAffiliates);
     } catch (error) {
-      console.error('Failed to load payout requests:', error);
     } finally {
       setIsLoading(false);
     }
@@ -151,7 +150,6 @@ const AdminPayoutManager = () => {
       setAdminNotes('');
       loadRequests();
     } catch (error) {
-      console.error('Failed to update status:', error);
       toast.error('Error updating status');
     } finally {
       setProcessingId(null);

@@ -150,7 +150,6 @@ const EmployeeDashboard = () => {
 
       setAuditLogs(logsData || []);
     } catch (error) {
-      console.error('Failed to load employee data:', error);
     } finally {
       setIsLoading(false);
     }
@@ -168,7 +167,6 @@ const EmployeeDashboard = () => {
       setPendingReviews(prev => prev.filter(r => r.id !== reviewId));
       toast.success(t.reviews.approved);
     } catch (error) {
-      console.error('Failed to approve review:', error);
       toast.error('Failed to approve review');
     }
   };
@@ -185,7 +183,6 @@ const EmployeeDashboard = () => {
       setPendingReviews(prev => prev.filter(r => r.id !== reviewId));
       toast.success(t.reviews.rejected);
     } catch (error) {
-      console.error('Failed to reject review:', error);
       toast.error('Failed to reject review');
     }
   };

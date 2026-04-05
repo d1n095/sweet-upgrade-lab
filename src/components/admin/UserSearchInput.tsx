@@ -55,7 +55,6 @@ const UserSearchInput = ({ onSelect, placeholder, selectedUser, onClear }: UserS
         setResults((data || []) as UserResult[]);
         setShowDropdown(true);
       } catch (err) {
-        console.error('User search failed:', err);
         setResults([]);
       } finally {
         setIsLoading(false);

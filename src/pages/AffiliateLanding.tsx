@@ -129,7 +129,6 @@ const AffiliateLanding = () => {
       if (error) throw error;
       setIsSubmitted(true);
     } catch (error) {
-      console.error('Failed to submit application:', error);
       toast.error(language === 'sv' ? 'Något gick fel' : 'Something went wrong');
     } finally {
       setIsSubmitting(false);

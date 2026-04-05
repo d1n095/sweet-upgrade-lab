@@ -85,7 +85,6 @@ const LiveDonationFeed = () => {
       if (error) throw error;
       setDonations(data || []);
     } catch (error) {
-      console.error('Failed to fetch donations:', error);
     }
   };
 

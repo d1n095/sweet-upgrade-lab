@@ -67,7 +67,6 @@ export function useCartDiscounts() {
           })));
         }
       } catch (error) {
-        console.error('Error fetching discount rules:', error);
       } finally {
         setIsLoading(false);
       }

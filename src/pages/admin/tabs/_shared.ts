@@ -54,12 +54,10 @@ export interface UnifiedReport {
 }
 
 export const callAI = async (_type: string, _payload: Record<string, any> = {}): Promise<any> => {
-  console.warn('[AI DISABLED] callAI blocked:', _type);
   return null;
 };
 
 export const callTaskManager = async (_action: string): Promise<any> => {
-  console.warn('[AI DISABLED] callTaskManager blocked:', _action);
   return null;
 };
 

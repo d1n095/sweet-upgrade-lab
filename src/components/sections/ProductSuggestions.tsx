@@ -547,7 +547,6 @@ const ProductSuggestions = () => {
       setFormData({ productCategory: '', productName: '', properties: [], customProperties: '', usage: '', certifications: [], email: '' });
       toast.success(t.success);
     } catch (error) {
-      console.error('Error submitting suggestion:', error);
       toast.error(lang === 'sv' ? 'Kunde inte skicka förslaget' : 'Could not submit suggestion');
     } finally {
       setIsSubmitting(false);

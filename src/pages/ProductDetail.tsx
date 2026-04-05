@@ -85,7 +85,6 @@ const ProductDetail = () => {
         const data = await fetchDbProductByHandle(handle);
         setProduct(data);
       } catch (err) {
-        console.error('Failed to load product:', err);
       } finally {
         setIsLoading(false);
       }

@@ -72,7 +72,6 @@ export async function recordFailure(opts: {
     });
     return { ok: true, isRecurrence: false, count: 1 };
   } catch (e) {
-    console.warn('[FailureMemory] Record failed:', e);
     return { ok: false, isRecurrence: false, count: 0 };
   }
 }
