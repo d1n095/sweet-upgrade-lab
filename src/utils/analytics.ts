@@ -1,91 +1,14 @@
-// Analytics utility for tracking page views and events
-// Can be extended with Google Analytics, Meta Pixel, etc.
+// Analytics utility — no-op stubs (tracking removed)
 
-type EventCategory = 'page' | 'product' | 'cart' | 'checkout' | 'engagement';
+export const trackPageView = (_pageName: string, _language?: string) => {};
 
-interface TrackEventParams {
-  category: EventCategory;
-  action: string;
-  label?: string;
-  value?: number;
-}
+export const trackEvent = (_params: { category: string; action: string; label?: string; value?: number }) => {};
 
-// Track page views
-export const trackPageView = (pageName: string, language: string) => {
-  const data = {
-    page: pageName,
-    language,
-    timestamp: new Date().toISOString(),
-    url: window.location.href,
-  };
+export const trackProductView = (_productId: string, _productName: string, _price: number) => {};
 
-  // Log for development
-  if (import.meta.env.DEV) {
-    console.log('[Analytics] Page View:', data);
-  }
+export const trackAddToCart = (_productId: string, _productName: string, _price: number, _quantity: number) => {};
 
-  // Google Analytics
-  if (typeof window !== 'undefined' && (window as any).gtag) {
-    (window as any).gtag('event', 'page_view', { page_title: pageName, page_location: data.url });
-  }
-  // Meta Pixel
-  if (typeof window !== 'undefined' && (window as any).fbq) {
-    (window as any).fbq('track', 'PageView');
-  }
-};
+export const trackCheckoutStart = (_cartTotal: number, _itemCount: number) => {};
 
-// Track custom events
-export const trackEvent = ({ category, action, label, value }: TrackEventParams) => {
-  const data = {
-    category,
-    action,
-    label,
-    value,
-    timestamp: new Date().toISOString(),
-  };
+export const trackNewsletterSignup = (_email: string) => {};
 
-  if (import.meta.env.DEV) {
-    console.log('[Analytics] Event:', data);
-  }
-
-  // Google Analytics
-  if (typeof window !== 'undefined' && (window as any).gtag) {
-    (window as any).gtag('event', action, { event_category: category, event_label: label, value });
-  }
-};
-
-// E-commerce specific tracking
-export const trackProductView = (productId: string, productName: string, price: number) => {
-  trackEvent({
-    category: 'product',
-    action: 'view',
-    label: `${productName} (${productId})`,
-    value: price,
-  });
-};
-
-export const trackAddToCart = (productId: string, productName: string, price: number, quantity: number) => {
-  trackEvent({
-    category: 'cart',
-    action: 'add',
-    label: `${productName} (${productId})`,
-    value: price * quantity,
-  });
-};
-
-export const trackCheckoutStart = (cartTotal: number, itemCount: number) => {
-  trackEvent({
-    category: 'checkout',
-    action: 'start',
-    label: `${itemCount} items`,
-    value: cartTotal,
-  });
-};
-
-export const trackNewsletterSignup = (email: string) => {
-  trackEvent({
-    category: 'engagement',
-    action: 'newsletter_signup',
-    label: email.split('@')[1], // Track domain only for privacy
-  });
-};

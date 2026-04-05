@@ -1,11 +1,5 @@
-// ⚠️ COPILOT / AI TOOLS WARNING:
-// This orchestrator polls and maps server-side scan results.
-// AI fields (ai_suggestions, ai_summary, _ai_disabled) are stripped before
-// exposing results to the frontend — do NOT re-add or depend on them.
-//
-// Only analyze one step at a time. Do NOT simulate full scan loops.
+import { safeInvoke } from '@/lib/safeInvoke';
 import { create } from 'zustand';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { QueryClient } from '@tanstack/react-query';
 
@@ -206,12 +200,7 @@ export const useFullScanOrchestrator = create<FullScanOrchestratorState>((set, g
 
   loadLatestScanRun: async () => {
     try {
-      const { data } = await supabase
-        .from('scan_runs' as any)
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
+      const { data } = await safeInvoke<any>('get-latest-scan-run');
 
       if (!data) return;
 

@@ -12,6 +12,35 @@ const ALLOWED_FUNCTIONS = new Set([
   "process-bug-report",
   "generate-receipt",
   "data-sync",
+  "apply-fix",
+  "access-control-scan",
+  "permission-fix",
+  "access-flow-validate",
+  "notify-affiliate",
+  "notify-influencer",
+  "create-shipment",
+  "google-places",
+  "send-welcome-email",
+  "send-review-reminder",
+  "send-retention-email",
+  "process-email-queue",
+  "automation-engine",
+  "suggest-product-metadata",
+  "sitemap",
+  "stripe-webhook",
+  "get-latest-scan-run",
+  "get-scan-run-by-id",
+]);
+
+const ADMIN_ONLY_FUNCTIONS = new Set([
+  "get-latest-scan-run",
+  "get-scan-run-by-id",
+  "stripe-webhook",
+  "apply-fix",
+  "access-control-scan",
+  "permission-fix",
+  "access-flow-validate",
+  "run-full-scan",
 ]);
 
 export async function safeInvoke<T = any>(
@@ -47,6 +76,8 @@ export async function safeInvoke<T = any>(
   logEvent({ type: "error", source: "safeInvoke", label: `✗ ${functionName}`, status: "error", payload: { traceId, error: lastError } });
   return { data: null, error: lastError, traceId };
 }
+
+export { ADMIN_ONLY_FUNCTIONS };
 
 // Backward-compat alias (deprecated)
 export const tracedInvoke = safeInvoke;

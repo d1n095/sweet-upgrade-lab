@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import ReviewStars from './ReviewStars';
 import { supabase } from '@/integrations/supabase/client';
+import { safeInvoke } from '@/lib/safeInvoke';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/context/LanguageContext';
 import { toast } from 'sonner';
@@ -108,8 +109,7 @@ const ReviewForm = ({ productId, productHandle, productTitle, onReviewSubmitted 
         } else {
           setCanReview(false);
         }
-      } catch (err) {
-        console.error('Failed to check review eligibility:', err);
+      } catch (_err) {
         setCanReview(false);
       } finally {
         setIsCheckingEligibility(false);
@@ -180,14 +180,14 @@ const ReviewForm = ({ productId, productHandle, productTitle, onReviewSubmitted 
       }
 
       // Notify admin
-      supabase.functions.invoke('notify-review', {
+      safeInvoke('notify-review', {
         body: {
           productTitle,
           rating,
           comment: comment.trim(),
           userEmail: user.email,
         }
-      }).catch(err => console.error('Failed to notify admin:', err));
+      }).catch(() => {});
 
       // Create reward
       const discountCode = `REV${Date.now().toString(36).toUpperCase()}`;
@@ -199,15 +199,12 @@ const ReviewForm = ({ productId, productHandle, productTitle, onReviewSubmitted 
           discount_code: discountCode,
           discount_percent: 10,
         })
-        .then(({ error }) => {
-          if (error) console.error('Failed to create reward:', error);
-        });
+        .then(({ error: _err }) => {});
 
       setIsSubmitted(true);
       toast.success(t.success);
       onReviewSubmitted?.();
     } catch (error) {
-      console.error('Failed to submit review:', error);
       toast.error(t.errorSubmit);
     } finally {
       setIsSubmitting(false);
