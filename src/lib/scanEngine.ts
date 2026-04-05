@@ -30,8 +30,8 @@ function persistJob(job: ScanJob | null) {
   }
 }
 
-/** Execute the underlying scan for a given type */
-async function runFrontendScan(_type: ScanJobType): Promise<void> {
+/** Execute the underlying scan (all types use the same unified endpoint) */
+async function runFrontendScan(): Promise<void> {
   await safeInvoke('run-full-scan', { isAdmin: true });
 }
 
@@ -56,7 +56,7 @@ export const startScanJob = async (type: ScanJobType): Promise<void> => {
 
 
   try {
-    await runFrontendScan(type);
+    await runFrontendScan();
     currentJob.status = 'done';
     persistJob(currentJob);
   } catch (err) {
