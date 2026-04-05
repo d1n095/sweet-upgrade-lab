@@ -1460,45 +1460,84 @@ const SystemExplorer = () => {
         {/* CODE INDEX TAB */}
         {/* ANALYSIS TAB */}
         {mainTab === "analysis" && (() => {
-          // ── Helpers ────────────────────────────────────────────────────────
-          const ISSUE_WHY: Record<string, string> = {
-            broken_flow: "Broken flow → navigation failure and potential user dead-end",
-            interaction_failure: "Interaction failure → button/form not responding, blocks user actions",
-            data_issue: "Data issue → UI not reflecting backend state, stale or missing data",
-            fake_feature: "Fake feature → incomplete implementation that deceives users",
-            failed_insert: "Failed DB insert → data loss and inconsistent state",
-            data_loss: "Orphaned reference → data integrity violation",
-            stale_state: "Duplicate entries → inconsistent state and wasted resources",
-            component_type: "Component-level pattern failure → systemic UI breakage",
-            layout: "Layout problem → broken visual hierarchy affecting usability",
-            sync: "Sync failure → frontend and backend out of sync",
-            default: "Issue detected by scanner → may degrade reliability or user experience",
-          };
-          const ISSUE_FIX: Record<string, string> = {
-            broken_flow: "Trace the route/store chain; verify navigation guard and handler binding",
-            interaction_failure: "Check event handler binding; verify component mounts and callback wiring",
-            data_issue: "Verify query uses latest scan_id; check state update and subscription",
-            fake_feature: "Implement the actual business logic; remove placeholder UI or complete it",
-            failed_insert: "Add source_id before INSERT; validate required FK fields",
-            data_loss: "Add CASCADE or cleanup logic when deleting parent records",
-            stale_state: "Strengthen dedup fingerprint; add unique constraint on issue_fingerprint",
-            component_type: "Audit all components of this type; apply consistent fix pattern",
-            layout: "Review CSS overflow/flex/grid; test on mobile and constrained viewports",
-            sync: "Wire real-time subscription or add polling; check store hydration order",
-            default: "Investigate the root cause; add guard or validation for the failing case",
-          };
+          // ── Root-cause / fix / strategy engines ────────────────────────────
+          function generateRootCause(issue: any): string {
+            const text = `${issue.type || ""} ${issue.category || ""} ${issue._source || ""} ${issue.title || ""} ${issue.description || ""}`.toLowerCase();
+            if (text.includes("unused") || text.includes("dead_code") || text.includes("dead code"))
+              return "Dead code increases bundle size and indicates missing cleanup";
+            if (text.includes("route") || text.includes("navigation") || text.includes("broken_flow") || text.includes("broken flow"))
+              return "Broken navigation creates user dead-ends and blocks critical flows";
+            if (text.includes("data") || text.includes("state") || text.includes("sync") || text.includes("binding") || text.includes("data_issue"))
+              return "State/data mismatch causes UI to display incorrect or stale information";
+            if (text.includes("interaction") || text.includes("event") || text.includes("handler") || text.includes("click") || text.includes("interaction_failure"))
+              return "Event binding or handler failure breaks user interaction entirely";
+            if (text.includes("fake") || text.includes("placeholder") || text.includes("stub") || text.includes("fake_feature"))
+              return "Feature appears implemented but lacks real backend logic or data";
+            return "System inconsistency indicates a missing connection between components";
+          }
 
-          function getWhy(issue: any): string {
-            const src = issue._source || issue.failure_type || issue.type || "";
-            return ISSUE_WHY[src] ?? ISSUE_WHY["default"];
+          function generateFix(issue: any): string {
+            if (issue.fix_suggestion || issue.suggested_fix)
+              return issue.fix_suggestion || issue.suggested_fix;
+            const text = `${issue.type || ""} ${issue._source || ""} ${issue.title || ""} ${issue.description || ""}`.toLowerCase();
+            if (text.includes("unused") || text.includes("dead_code"))
+              return "Remove unused import or unreachable code";
+            if (text.includes("route") || text.includes("navigation") || text.includes("broken_flow"))
+              return "Fix route path or ensure the navigation target exists and is exported";
+            if (text.includes("data") || text.includes("state") || text.includes("sync") || text.includes("data_issue"))
+              return "Connect the correct state/store or fix the query to use the latest scan_id";
+            if (text.includes("interaction") || text.includes("event") || text.includes("handler") || text.includes("interaction_failure"))
+              return "Fix event handler or binding; verify component mounts before attaching listeners";
+            if (text.includes("fake") || text.includes("placeholder") || text.includes("fake_feature"))
+              return "Implement backend logic or remove placeholder; do not ship stub UI as complete";
+            return "Refactor logic to align with existing system patterns";
           }
-          function getFix(issue: any): string {
-            const src = issue._source || issue.failure_type || issue.type || "";
-            return issue.fix_suggestion || issue.suggested_fix || ISSUE_FIX[src] ?? ISSUE_FIX["default"];
+
+          function generateStrategy(issue: any): string {
+            const text = `${issue.type || ""} ${issue._source || ""} ${issue.title || ""} ${issue.description || ""}`.toLowerCase();
+            const lines: string[] = ["Follow existing architecture"];
+            if (text.includes("state") || text.includes("store") || text.includes("data"))
+              lines.push("Reuse existing hooks / stores — do not create new state containers");
+            if (text.includes("route") || text.includes("navigation"))
+              lines.push("Use existing router patterns; verify guard and lazy-load configuration");
+            if (text.includes("interaction") || text.includes("event"))
+              lines.push("Wire event using the same pattern as adjacent components");
+            lines.push("Avoid introducing new abstractions");
+            lines.push("Ensure consistency with latestRun data flow (scan_id: same run)");
+            return lines.join(" · ");
           }
-          function getFileKey(issue: any): string {
-            return issue.source_path || issue.source_file || issue.component || issue.route || issue.target || issue.element || issue.area || issue.page || "unknown";
+
+          // ── Issue normalizer ────────────────────────────────────────────────
+          function hashStr(s: string): string {
+            let h = 0;
+            for (let i = 0; i < s.length; i++) { h = (Math.imul(31, h) + s.charCodeAt(i)) | 0; }
+            return Math.abs(h).toString(16).padStart(8, "0");
           }
+
+          function normalizeIssue(raw: any, idx: number) {
+            const filePath = raw.source_path || raw.source_file || raw.component || raw.route || raw.target || raw.element || raw.area || raw.page || "unknown";
+            const issueType = raw.type || raw.category || raw._source || "general";
+            const severity = raw.severity || "medium";
+            const location = raw.line ? `line ${raw.line}` : raw.route || raw.component || raw.element || "unknown";
+            const description = raw.description || raw.title || "No description";
+            const why = generateRootCause(raw);
+            const fix = generateFix(raw);
+            const strategy = generateStrategy(raw);
+            return {
+              id: hashStr(`${filePath}${issueType}${description}${idx}`),
+              file_path: filePath,
+              issue_type: issueType,
+              severity,
+              location,
+              description,
+              why_this_is_a_problem: why,
+              suggested_fix: fix,
+              fix_strategy: strategy,
+              _raw: raw,
+            };
+          }
+
+          // ── Helper fns ──────────────────────────────────────────────────────
           function getFolder(fileKey: string): string {
             const parts = fileKey.split("/");
             if (parts.length > 1) return parts.slice(0, -1).join("/");
@@ -1507,24 +1546,39 @@ const SystemExplorer = () => {
           function severityOrder(s: string): number {
             return s === "critical" ? 0 : s === "high" ? 1 : s === "medium" ? 2 : 3;
           }
+          const sevColor = (s: string) =>
+            s === "critical" ? "text-red-500" : s === "high" ? "text-orange-500" : s === "medium" ? "text-yellow-500" : "text-muted-foreground";
+          const sevBadge = (s: string) =>
+            s === "critical" ? "bg-red-500/10 text-red-500 border-red-500/20" :
+            s === "high" ? "bg-orange-500/10 text-orange-500 border-orange-500/20" :
+            s === "medium" ? "bg-yellow-500/10 text-yellow-500 border-yellow-500/20" :
+            "bg-muted/30 text-muted-foreground border-border";
 
-          // ── Data ───────────────────────────────────────────────────────────
+          // ── Build ALL_ISSUES from unified_result sub-arrays ─────────────────
           const run = latestRun as any;
           const scanId = run?.id;
-          const allIssues: any[] = run?.unified_result?.issues ?? [];
+          const ur = run?.unified_result ?? {};
+          const rawAll: any[] = [
+            ...(ur.broken_flows || []).map((i: any) => ({ ...i, _source: i._source || "broken_flow" })),
+            ...(ur.interaction_failures || []).map((i: any) => ({ ...i, _source: i._source || "interaction_failure" })),
+            ...(ur.data_issues || []).map((i: any) => ({ ...i, _source: i._source || "data_issue" })),
+            ...(ur.fake_features || []).map((i: any) => ({ ...i, _source: i._source || "fake_feature" })),
+            // also include top-level issues array if none of the above are populated
+            ...((ur.broken_flows?.length || ur.interaction_failures?.length || ur.data_issues?.length || ur.fake_features?.length)
+              ? []
+              : (ur.issues || [])),
+          ];
+          const ALL_ISSUES = rawAll.map((raw, idx) => normalizeIssue(raw, idx));
 
-          // Group by file/component
-          const fileMap = new Map<string, any[]>();
-          for (const issue of allIssues) {
-            const key = getFileKey(issue);
-            if (!fileMap.has(key)) fileMap.set(key, []);
-            fileMap.get(key)!.push(issue);
+          // ── Group by file_path ──────────────────────────────────────────────
+          const fileMap = new Map<string, typeof ALL_ISSUES>();
+          for (const ni of ALL_ISSUES) {
+            if (!fileMap.has(ni.file_path)) fileMap.set(ni.file_path, []);
+            fileMap.get(ni.file_path)!.push(ni);
           }
-
-          // Sort files by issue count desc
           const sortedFiles = [...fileMap.entries()].sort((a, b) => b[1].length - a[1].length);
 
-          // Group by folder
+          // ── Group by folder ─────────────────────────────────────────────────
           const folderMap = new Map<string, { files: string[]; issueCount: number }>();
           for (const [file, issues] of sortedFiles) {
             const folder = getFolder(file);
@@ -1534,51 +1588,41 @@ const SystemExplorer = () => {
           }
           const sortedFolders = [...folderMap.entries()].sort((a, b) => b[1].issueCount - a[1].issueCount);
 
-          // Aggregated stats
+          // ── Aggregated stats ────────────────────────────────────────────────
           const bySeverity: Record<string, number> = {};
           const byType: Record<string, number> = {};
-          for (const issue of allIssues) {
-            const sev = issue.severity || "unknown";
-            bySeverity[sev] = (bySeverity[sev] || 0) + 1;
-            const typ = issue._source || issue.type || issue.failure_type || "unknown";
-            byType[typ] = (byType[typ] || 0) + 1;
+          for (const ni of ALL_ISSUES) {
+            bySeverity[ni.severity] = (bySeverity[ni.severity] || 0) + 1;
+            byType[ni.issue_type] = (byType[ni.issue_type] || 0) + 1;
           }
           const topTypes = Object.entries(byType).sort((a, b) => b[1] - a[1]).slice(0, 5);
           const topFolders = sortedFolders.slice(0, 5);
 
-          const selectedIssues = selectedAnalysisFile ? (fileMap.get(selectedAnalysisFile) ?? []).slice().sort((a, b) => severityOrder(a.severity) - severityOrder(b.severity)) : [];
+          const selectedNormalized = selectedAnalysisFile
+            ? (fileMap.get(selectedAnalysisFile) ?? []).slice().sort((a, b) => severityOrder(a.severity) - severityOrder(b.severity))
+            : [];
 
-          // ── Prompt generator ───────────────────────────────────────────────
+          // ── Prompt generator ────────────────────────────────────────────────
           function generatePrompt(): string {
             const filesToInclude = selectedAnalysisFile
-              ? [[selectedAnalysisFile, fileMap.get(selectedAnalysisFile) ?? []] as [string, any[]]]
-              : sortedFiles.slice(0, 20);
+              ? [[selectedAnalysisFile, fileMap.get(selectedAnalysisFile) ?? []] as [string, typeof ALL_ISSUES]]
+              : sortedFiles.slice(0, 20) as [string, typeof ALL_ISSUES][];
 
             let prompt = `FIX THESE ISSUES:\n(scan_id: ${scanId ?? "unknown"})\n\n`;
             for (const [file, issues] of filesToInclude) {
               prompt += `[File: ${file}]\n\n`;
-              issues.forEach((issue, i) => {
+              issues.forEach((ni, i) => {
                 prompt += `Issue ${i + 1}:\n`;
-                prompt += `- Type: ${issue._source || issue.type || "unknown"}\n`;
-                prompt += `- Severity: ${issue.severity || "unknown"}\n`;
-                prompt += `- Problem: ${issue.title || issue.description || "No description"}\n`;
-                prompt += `- Why: ${getWhy(issue)}\n`;
-                prompt += `- Suggested fix: ${getFix(issue)}\n`;
-                if (issue.root_cause) prompt += `- Root cause: ${issue.root_cause}\n`;
-                prompt += "\n";
+                prompt += `Problem:\n${ni.description}\n\n`;
+                prompt += `Why:\n${ni.why_this_is_a_problem}\n\n`;
+                prompt += `Suggested fix:\n${ni.suggested_fix}\n\n`;
+                prompt += `Fix strategy:\n${ni.fix_strategy}\n\n`;
+                prompt += `---\n\n`;
               });
             }
-            prompt += `RULES:\n- Do not change architecture\n- Follow existing patterns\n- Keep logic consistent\n`;
+            prompt += `RULES:\n- Do not change architecture\n- Follow existing patterns\n- Use same scan_id\n- Keep logic consistent\n`;
             return prompt;
           }
-
-          const sevColor = (s: string) =>
-            s === "critical" ? "text-red-500" : s === "high" ? "text-orange-500" : s === "medium" ? "text-yellow-500" : "text-muted-foreground";
-          const sevBadge = (s: string) =>
-            s === "critical" ? "bg-red-500/10 text-red-500 border-red-500/20" :
-            s === "high" ? "bg-orange-500/10 text-orange-500 border-orange-500/20" :
-            s === "medium" ? "bg-yellow-500/10 text-yellow-500 border-yellow-500/20" :
-            "bg-muted/30 text-muted-foreground border-border";
 
           return (
             <div className="space-y-3">
@@ -1586,23 +1630,25 @@ const SystemExplorer = () => {
                 <p className="text-[10px] text-muted-foreground">No completed scan run — run a scan first</p>
               ) : (
                 <>
-                  {/* Aggregated Summary */}
+                  {/* SECTION 1 – AGGREGATED ANALYSIS */}
                   <Card>
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-sm flex items-center gap-2"><Activity className="h-4 w-4" /> Aggregated Analysis <span className="text-[9px] font-mono text-muted-foreground ml-1">(scan_id: {scanId?.slice(0, 8)})</span></CardTitle>
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <Activity className="h-4 w-4" /> Aggregated Analysis
+                        <span className="text-[9px] font-mono text-muted-foreground ml-1">(scan_id: {scanId?.slice(0, 8)})</span>
+                      </CardTitle>
                     </CardHeader>
                     <CardContent className="p-3 space-y-3">
                       <div className="grid grid-cols-2 gap-2 text-[10px]">
                         <div className="rounded-md bg-muted/30 border border-border p-2">
                           <p className="text-muted-foreground">Total Issues</p>
-                          <p className="text-xl font-bold text-foreground">{allIssues.length}</p>
+                          <p className="text-xl font-bold text-foreground">{ALL_ISSUES.length}</p>
                         </div>
                         <div className="rounded-md bg-muted/30 border border-border p-2">
-                          <p className="text-muted-foreground">Affected Files/Components</p>
+                          <p className="text-muted-foreground">Affected Files / Components</p>
                           <p className="text-xl font-bold text-foreground">{fileMap.size}</p>
                         </div>
                       </div>
-                      {/* By Severity */}
                       <div>
                         <p className="text-[10px] font-semibold text-muted-foreground mb-1">Issues by Severity</p>
                         <div className="flex gap-2 flex-wrap">
@@ -1611,27 +1657,25 @@ const SystemExplorer = () => {
                           ))}
                         </div>
                       </div>
-                      {/* Most Common Types */}
                       <div>
                         <p className="text-[10px] font-semibold text-muted-foreground mb-1">Most Common Issue Types</p>
                         <div className="space-y-0.5">
                           {topTypes.map(([type, count]) => (
                             <div key={type} className="flex items-center gap-2 text-[9px]">
                               <span className="font-mono text-foreground flex-1">{type}</span>
-                              <div className="bg-primary/20 h-1.5 rounded-full" style={{ width: `${Math.round((count / allIssues.length) * 100)}px` }} />
+                              <div className="bg-primary/20 h-1.5 rounded-full" style={{ width: ALL_ISSUES.length ? `${Math.round((count / ALL_ISSUES.length) * 120)}px` : "0px" }} />
                               <span className="text-muted-foreground w-6 text-right">{count}</span>
                             </div>
                           ))}
                         </div>
                       </div>
-                      {/* Most Problematic Folders */}
                       <div>
                         <p className="text-[10px] font-semibold text-muted-foreground mb-1">Most Problematic Areas</p>
                         <div className="space-y-0.5">
                           {topFolders.map(([folder, data]) => (
                             <div key={folder} className="flex items-center gap-2 text-[9px]">
                               <span className="font-mono text-foreground flex-1 truncate">{folder}</span>
-                              <span className="text-muted-foreground">{data.files.length} files</span>
+                              <span className="text-muted-foreground">{data.files.length} file{data.files.length !== 1 ? "s" : ""}</span>
                               <span className="text-orange-500 font-medium">{data.issueCount} issues</span>
                             </div>
                           ))}
@@ -1640,34 +1684,38 @@ const SystemExplorer = () => {
                     </CardContent>
                   </Card>
 
-                  {/* File List + Issue Detail */}
+                  {/* SECTION 2 – FILE LIST + SECTION 3 – ISSUE BREAKDOWN */}
                   <div className="grid grid-cols-2 gap-3">
-                    {/* File List */}
+                    {/* SECTION 2 – FILE LIST */}
                     <Card>
                       <CardHeader className="pb-2">
-                        <CardTitle className="text-sm flex items-center gap-2"><Database className="h-4 w-4" /> Files / Components ({sortedFiles.length})</CardTitle>
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Database className="h-4 w-4" /> Files / Components ({sortedFiles.length})
+                        </CardTitle>
                       </CardHeader>
                       <CardContent className="p-2">
                         {sortedFiles.length === 0 ? (
                           <p className="text-[10px] text-muted-foreground p-1">No issues found in scan</p>
                         ) : (
-                          <div className="max-h-[400px] overflow-auto space-y-0.5">
+                          <div className="max-h-[420px] overflow-auto space-y-0.5">
                             {sortedFolders.map(([folder, folderData]) => (
                               <div key={folder}>
-                                <p className="text-[9px] text-muted-foreground font-semibold px-1 py-0.5 bg-muted/20 rounded">{folder} ({folderData.issueCount})</p>
+                                <p className="text-[9px] text-muted-foreground font-semibold px-1 py-0.5 bg-muted/20 rounded sticky top-0">
+                                  📁 {folder} — {folderData.issueCount} issues
+                                </p>
                                 {folderData.files.map(file => {
-                                  const count = fileMap.get(file)?.length ?? 0;
+                                  const issues = fileMap.get(file) ?? [];
                                   const isSelected = selectedAnalysisFile === file;
-                                  const maxSev = (fileMap.get(file) ?? []).reduce((best, iss) => severityOrder(iss.severity) < severityOrder(best) ? iss.severity : best, "low");
+                                  const maxSev = issues.reduce((best, ni) => severityOrder(ni.severity) < severityOrder(best) ? ni.severity : best, "low");
                                   return (
                                     <button
                                       key={file}
                                       onClick={() => { setSelectedAnalysisFile(isSelected ? null : file); setGeneratedPrompt(null); }}
                                       className={`w-full text-left flex items-center gap-2 text-[9px] px-2 py-1 rounded cursor-pointer border-b border-border/30 transition-colors ${isSelected ? "bg-primary/10 text-primary" : "hover:bg-muted/30 text-foreground"}`}
                                     >
-                                      <span className="flex-1 font-mono truncate">{file.split("/").pop() ?? file}</span>
-                                      <span className={`font-medium ${sevColor(maxSev)}`}>{maxSev}</span>
-                                      <span className="text-muted-foreground shrink-0">{count}</span>
+                                      <span className="flex-1 font-mono truncate" title={file}>{file}</span>
+                                      <span className={`font-medium shrink-0 ${sevColor(maxSev)}`}>{maxSev}</span>
+                                      <span className="text-muted-foreground shrink-0 ml-1">{issues.length}</span>
                                     </button>
                                   );
                                 })}
@@ -1678,39 +1726,53 @@ const SystemExplorer = () => {
                       </CardContent>
                     </Card>
 
-                    {/* Issue Detail */}
+                    {/* SECTION 3 – ISSUE BREAKDOWN */}
                     <Card>
                       <CardHeader className="pb-2">
-                        <CardTitle className="text-sm flex items-center gap-2"><Radar className="h-4 w-4" />
-                          {selectedAnalysisFile ? (
-                            <span className="truncate max-w-[200px]">{selectedAnalysisFile.split("/").pop()}</span>
-                          ) : "Issue Detail"}
-                          {selectedAnalysisFile && <span className="text-[9px] text-muted-foreground">({selectedIssues.length})</span>}
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Radar className="h-4 w-4" />
+                          {selectedAnalysisFile
+                            ? <span className="truncate max-w-[200px]" title={selectedAnalysisFile}>{selectedAnalysisFile}</span>
+                            : "Issue Breakdown"}
+                          {selectedAnalysisFile && <span className="text-[9px] text-muted-foreground ml-1">({selectedNormalized.length})</span>}
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="p-2">
                         {!selectedAnalysisFile ? (
-                          <p className="text-[10px] text-muted-foreground p-1">Select a file to see issue breakdown</p>
-                        ) : selectedIssues.length === 0 ? (
+                          <p className="text-[10px] text-muted-foreground p-1">← Select a file to see issue breakdown</p>
+                        ) : selectedNormalized.length === 0 ? (
                           <p className="text-[10px] text-muted-foreground p-1">No issues for this file</p>
                         ) : (
-                          <div className="max-h-[400px] overflow-auto space-y-1.5">
-                            {selectedIssues.map((issue: any, i: number) => (
-                              <details key={i} className="border border-border/50 rounded-md p-1.5 text-[9px]" open={i === 0}>
+                          <div className="max-h-[420px] overflow-auto space-y-1.5">
+                            {selectedNormalized.map((ni, i) => (
+                              <details key={ni.id} className="border border-border/50 rounded-md p-1.5 text-[9px]" open={i === 0}>
                                 <summary className="cursor-pointer flex items-center gap-1.5">
-                                  <Badge className={`text-[8px] px-1 py-0 shrink-0 ${sevBadge(issue.severity)}`}>{issue.severity || "?"}</Badge>
-                                  <span className="font-mono text-foreground flex-1 truncate">{issue.title || issue.description || "No title"}</span>
+                                  <Badge className={`text-[8px] px-1 py-0 shrink-0 ${sevBadge(ni.severity)}`}>{ni.severity}</Badge>
+                                  <span className="font-mono text-foreground flex-1 truncate">{ni.description}</span>
                                 </summary>
-                                <div className="mt-1.5 space-y-0.5 pl-1 border-l border-border/40">
-                                  <p className="text-muted-foreground"><span className="text-foreground font-semibold">Type:</span> {issue._source || issue.type || issue.failure_type || "—"}</p>
-                                  {(issue.component || issue.route || issue.target) && (
-                                    <p className="text-muted-foreground"><span className="text-foreground font-semibold">Location:</span> {issue.component || issue.route || issue.target}</p>
-                                  )}
-                                  <p className="text-muted-foreground"><span className="text-foreground font-semibold">Description:</span> {issue.description || issue.title || "—"}</p>
-                                  <p className="text-yellow-500"><span className="text-foreground font-semibold">Why:</span> {getWhy(issue)}</p>
-                                  <p className="text-green-500"><span className="text-foreground font-semibold">Fix:</span> {getFix(issue)}</p>
-                                  {issue.root_cause && (
-                                    <p className="text-orange-400"><span className="text-foreground font-semibold">Root cause:</span> {issue.root_cause}</p>
+                                <div className="mt-1.5 space-y-1 pl-1 border-l border-border/40">
+                                  <p className="text-muted-foreground">
+                                    <span className="text-foreground font-semibold">Type:</span> {ni.issue_type}
+                                  </p>
+                                  <p className="text-muted-foreground">
+                                    <span className="text-foreground font-semibold">Location:</span> {ni.location}
+                                  </p>
+                                  <p className="text-muted-foreground">
+                                    <span className="text-foreground font-semibold">Description:</span> {ni.description}
+                                  </p>
+                                  <p className="text-yellow-400">
+                                    <span className="text-foreground font-semibold">WHY THIS IS A PROBLEM:</span> {ni.why_this_is_a_problem}
+                                  </p>
+                                  <p className="text-green-400">
+                                    <span className="text-foreground font-semibold">SUGGESTED FIX:</span> {ni.suggested_fix}
+                                  </p>
+                                  <p className="text-blue-400">
+                                    <span className="text-foreground font-semibold">FIX STRATEGY:</span> {ni.fix_strategy}
+                                  </p>
+                                  {ni._raw?.root_cause && (
+                                    <p className="text-orange-400">
+                                      <span className="text-foreground font-semibold">Root cause:</span> {ni._raw.root_cause}
+                                    </p>
                                   )}
                                 </div>
                               </details>
@@ -1721,20 +1783,23 @@ const SystemExplorer = () => {
                     </Card>
                   </div>
 
-                  {/* Prompt Generator */}
+                  {/* PROMPT GENERATOR */}
                   <Card>
                     <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                      <CardTitle className="text-sm flex items-center gap-2"><ArrowRight className="h-4 w-4" /> Fix Prompt Generator</CardTitle>
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <ArrowRight className="h-4 w-4" /> Fix Prompt Generator
+                      </CardTitle>
                       <div className="flex gap-2">
                         <Button
                           variant="outline" size="sm" className="text-[10px] h-6"
                           onClick={() => { setGeneratedPrompt(generatePrompt()); setPromptCopied(false); }}
                         >
-                          👉 Generate Fix Prompt {selectedAnalysisFile ? "(selected file)" : "(all issues)"}
+                          👉 Generate Fix Prompt {selectedAnalysisFile ? "(selected file)" : `(all ${ALL_ISSUES.length} issues)`}
                         </Button>
                         {generatedPrompt && (
                           <Button
-                            variant="outline" size="sm" className={`text-[10px] h-6 ${promptCopied ? "text-green-500 border-green-500/40" : ""}`}
+                            variant="outline" size="sm"
+                            className={`text-[10px] h-6 ${promptCopied ? "text-green-500 border-green-500/40" : ""}`}
                             onClick={() => { navigator.clipboard.writeText(generatedPrompt); setPromptCopied(true); setTimeout(() => setPromptCopied(false), 2000); }}
                           >
                             {promptCopied ? "✓ Copied" : "Copy Prompt"}
