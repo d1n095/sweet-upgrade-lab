@@ -15,6 +15,7 @@ const TABLE_QUERY_MAP: Record<string, string[]> = {
   products: ['admin-products'],
   analytics_events: ['admin-analytics'],
   change_log: ['admin-change-log', 'change-log'],
+  scan_results: ['admin-scan-results', 'last-scan-result', 'scan-history', 'autopilot-scan-runs'],
   reviews: ['admin-reviews'],
   donations: ['admin-donations'],
   donation_projects: ['admin-donations'],

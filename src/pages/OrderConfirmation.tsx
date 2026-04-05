@@ -12,7 +12,6 @@ import { safeInvoke } from '@/lib/safeInvoke';
 import { useCartStore } from '@/stores/cartStore';
 import { getOrderDisplayId } from '@/utils/orderDisplay';
 
-
 interface RecommendedProduct {
   id: string;
   title_sv: string;
@@ -75,7 +74,7 @@ const OrderConfirmation = () => {
             return;
           }
         } catch (err) {
-
+          console.error('[order-confirmation] lookup failed:', err);
         }
 
         if (attempt < maxRetries - 1) {

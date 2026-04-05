@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import Hero from '@/components/sections/Hero';
@@ -14,7 +13,6 @@ import HomepageTimeline from '@/components/sections/HomepageTimeline';
 import FloatingContactButton from '@/components/trust/FloatingContactButton';
 import SEOHead from '@/components/seo/SEOHead';
 import { useLanguage, getContentLang } from '@/context/LanguageContext';
-
 import { usePageSections, PageSection } from '@/hooks/usePageSections';
 
 // Block registry: maps section_key to component
@@ -38,10 +36,6 @@ const Index = () => {
   const { language } = useLanguage();
   const lang = getContentLang(language);
   const { sections, getSection, isSectionVisible } = usePageSections('home');
-
-  useEffect(() => {
-    // page loaded
-  }, [language]);
 
   // Sort blocks by display_order from DB, only render visible main blocks
   const orderedBlocks = sections

@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, CheckCircle2, XCircle, AlertTriangle, Wifi, Clock } from 'lucide-react';
-import { safeFetch } from '@/lib/safeInvoke';
+import { safeInvoke } from '@/lib/safeInvoke';
 
 interface WebhookHealth {
   status: string;
@@ -30,12 +30,10 @@ const AdminWebhookStatus = () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await safeFetch('stripe-webhook', {
+      const { data, error: invokeError } = await safeInvoke<WebhookHealth>('stripe-webhook', {
         method: 'GET',
-        isAdmin: true,
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      if (invokeError) throw new Error(invokeError.message || 'Kunde inte nå webhook');
       setHealth(data);
     } catch (err: any) {
       setError(err.message || 'Kunde inte nå webhook');
@@ -132,7 +130,7 @@ const AdminWebhookStatus = () => {
                 <p className="text-xs font-semibold">Setup-guide:</p>
                 <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
                   <li>Gå till <span className="font-medium">Stripe Dashboard → Developers → Webhooks</span></li>
-                  <li>Lägg till endpoint: <code className="text-[10px] bg-muted px-1 py-0.5 rounded">[SUPABASE_URL]/functions/v1/stripe-webhook</code></li>
+                  <li>Lägg till endpoint: <code className="text-[10px] bg-muted px-1 py-0.5 rounded">{import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-webhook</code></li>
                   <li>Välj events: <code className="text-[10px]">checkout.session.completed</code>, <code className="text-[10px]">checkout.session.expired</code>, <code className="text-[10px]">payment_intent.payment_failed</code>, <code className="text-[10px]">charge.refunded</code></li>
                   <li>Kopiera "Signing secret" (whsec_...) och lägg in som <span className="font-medium">STRIPE_WEBHOOK_SECRET</span></li>
                 </ol>

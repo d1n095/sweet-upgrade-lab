@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Plus, Minus, Trash2, ShoppingBag, Loader2, Tag, Package, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useCartStore } from '@/stores/cartStore';
+import { useCartStore, dbVariantId } from '@/stores/cartStore';
 import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import { useCartDiscounts } from '@/hooks/useCartDiscounts';
 import { useAuth } from '@/hooks/useAuth';
@@ -114,10 +114,10 @@ const CartDrawer = ({ isOpen, onClose }: CartDrawerProps) => {
         tags: [],
         priceRange: { minVariantPrice: { amount: product.price.toString(), currencyCode: 'SEK' } },
         images: { edges: product.image_urls?.[0] ? [{ node: { url: product.image_urls[0], altText: product.title_sv } }] : [] },
-        variants: { edges: [{ node: { id: product.id + '-variant', title: 'Default', availableForSale: true, price: { amount: product.price.toString(), currencyCode: 'SEK' }, selectedOptions: [] } }] },
+        variants: { edges: [{ node: { id: dbVariantId(product.id), title: 'Default', availableForSale: true, price: { amount: product.price.toString(), currencyCode: 'SEK' }, selectedOptions: [] } }] },
       }
     } as any;
-    addItem({ product: cartProduct, variantId: product.id + '-variant', variantTitle: 'Default', price: { amount: product.price.toString(), currencyCode: 'SEK' }, quantity: 1, selectedOptions: [] });
+    addItem({ product: cartProduct, variantId: dbVariantId(product.id), variantTitle: 'Default', price: { amount: product.price.toString(), currencyCode: 'SEK' }, quantity: 1, selectedOptions: [] });
   };
 
   return (

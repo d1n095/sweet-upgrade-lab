@@ -1,4 +1,5 @@
 import { useSafeModeStore } from '@/stores/safeModeStore';
+import { useWorkQueueStore } from '@/stores/workQueueStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -41,10 +42,11 @@ export const SafeModeBanner = () => {
 /** Full Safe Mode dashboard tab */
 const SafeModePanel = () => {
   const { active, activatedAt, events, isolatedAreas, deactivate, activate, clearEvents } = useSafeModeStore();
+  const queueTasks = useWorkQueueStore(s => s.tasks);
 
-  const pausedTasks: any[] = [];
-  const failedTasks: any[] = [];
-  const regressedTasks: any[] = [];
+  const pausedTasks = active ? queueTasks.filter(t => t.status === 'queued' && t.priority !== 'critical') : [];
+  const failedTasks = queueTasks.filter(t => t.status === 'failed');
+  const regressedTasks = queueTasks.filter(t => t.status === 'regressed');
 
   return (
     <div className="space-y-4">

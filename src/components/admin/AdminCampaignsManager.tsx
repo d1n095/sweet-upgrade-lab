@@ -26,7 +26,7 @@ interface VolumeDiscount {
   id: string;
   min_quantity: number;
   discount_percent: number;
-  shopify_product_id: string | null;
+  product_id: string | null;
   is_global: boolean;
   excluded_product_ids: string[];
   stackable: boolean;
@@ -66,7 +66,7 @@ interface Bundle {
 interface BundleItem {
   id: string;
   bundle_id: string;
-  shopify_product_id: string;
+  product_id: string;
   quantity: number;
 }
 
@@ -147,9 +147,9 @@ const VolumeDiscountsTab = () => {
   };
 
   const openEdit = (d: VolumeDiscount) => {
-    const isProduct = !d.is_global && !!d.shopify_product_id;
+    const isProduct = !d.is_global && !!d.product_id;
     setMode(isProduct ? 'product' : 'global');
-    setSelectedProductId(d.shopify_product_id);
+    setSelectedProductId(d.product_id);
     setForm({
       label: d.label || '', stackable: d.stackable, excluded_product_ids: d.excluded_product_ids || [],
       requires_account: d.requires_account || false,
@@ -160,10 +160,10 @@ const VolumeDiscountsTab = () => {
       max_uses_per_user: d.max_uses_per_user ? String(d.max_uses_per_user) : '',
     });
 
-    if (isProduct && d.shopify_product_id) {
+    if (isProduct && d.product_id) {
       // Load all tiers for this product
       const productTiers = discounts
-        .filter(dd => dd.shopify_product_id === d.shopify_product_id)
+        .filter(dd => dd.product_id === d.product_id)
         .sort((a, b) => a.min_quantity - b.min_quantity)
         .map(dd => ({ min_quantity: String(dd.min_quantity), discount_percent: String(dd.discount_percent) }));
       setTiers(productTiers.length > 0 ? productTiers : [{ min_quantity: String(d.min_quantity), discount_percent: String(d.discount_percent) }]);
@@ -205,7 +205,7 @@ const VolumeDiscountsTab = () => {
 
     // For product-specific: delete all existing tiers for this product, then insert new ones
     if (mode === 'product' && productId) {
-      await supabase.from('volume_discounts').delete().eq('shopify_product_id', productId);
+      await supabase.from('volume_discounts').delete().eq('product_id', productId);
     } else if (editingId) {
       // For global edits: update or delete+recreate
       // If single tier, just update
@@ -214,7 +214,7 @@ const VolumeDiscountsTab = () => {
           min_quantity: parseInt(validTiers[0].min_quantity),
           discount_percent: parseFloat(validTiers[0].discount_percent),
           is_global: true,
-          shopify_product_id: null,
+          product_id: null,
           label: form.label || null,
           stackable: form.stackable,
           excluded_product_ids: form.excluded_product_ids,
@@ -247,7 +247,7 @@ const VolumeDiscountsTab = () => {
       min_quantity: parseInt(t.min_quantity),
       discount_percent: parseFloat(t.discount_percent),
       is_global: isGlobal,
-      shopify_product_id: productId,
+      product_id: productId,
       label: form.label || null,
       stackable: form.stackable,
       excluded_product_ids: isGlobal ? form.excluded_product_ids : [],
@@ -274,7 +274,7 @@ const VolumeDiscountsTab = () => {
 
   const deleteAllProductTiers = async (productId: string) => {
     if (!confirm('Ta bort alla nivåer för denna produkt?')) return;
-    await supabase.from('volume_discounts').delete().eq('shopify_product_id', productId);
+    await supabase.from('volume_discounts').delete().eq('product_id', productId);
     toast.success('Alla nivåer borttagna');
     resetForm();
     fetchData();
@@ -283,12 +283,12 @@ const VolumeDiscountsTab = () => {
   if (loading) return <div className="flex justify-center py-8"><RefreshCw className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
 
   // Group product-specific discounts
-  const globalDiscounts = discounts.filter(d => d.is_global || !d.shopify_product_id);
+  const globalDiscounts = discounts.filter(d => d.is_global || !d.product_id);
   const productDiscountsMap = new Map<string, VolumeDiscount[]>();
-  discounts.filter(d => !d.is_global && d.shopify_product_id).forEach(d => {
-    const list = productDiscountsMap.get(d.shopify_product_id!) || [];
+  discounts.filter(d => !d.is_global && d.product_id).forEach(d => {
+    const list = productDiscountsMap.get(d.product_id!) || [];
     list.push(d);
-    productDiscountsMap.set(d.shopify_product_id!, list);
+    productDiscountsMap.set(d.product_id!, list);
   });
 
   const getProductName = (pid: string) => allProducts.find(p => p.id === pid)?.title_sv || pid;
@@ -682,7 +682,7 @@ const BundlesTab = () => {
       max_uses_per_user: b.max_uses_per_user ? String(b.max_uses_per_user) : '',
     });
     const items = bundleItems[b.id] || [];
-    setSelectedProducts(items.map(i => ({ productId: i.shopify_product_id, quantity: i.quantity })));
+    setSelectedProducts(items.map(i => ({ productId: i.product_id, quantity: i.quantity })));
     setShowForm(true);
   };
 
@@ -724,7 +724,7 @@ const BundlesTab = () => {
       await supabase.from('bundle_items').delete().eq('bundle_id', editingBundle.id);
       if (selectedProducts.length > 0) {
         await supabase.from('bundle_items').insert(
-          selectedProducts.map(sp => ({ bundle_id: editingBundle.id, shopify_product_id: sp.productId, quantity: sp.quantity }))
+          selectedProducts.map(sp => ({ bundle_id: editingBundle.id, product_id: sp.productId, quantity: sp.quantity }))
         );
       }
       toast.success('Paket uppdaterat');
@@ -739,7 +739,7 @@ const BundlesTab = () => {
       if (error || !newBundle) { toast.error('Kunde inte skapa: ' + (error?.message || '')); setSaving(false); return; }
 
       await supabase.from('bundle_items').insert(
-        selectedProducts.map(sp => ({ bundle_id: newBundle.id, shopify_product_id: sp.productId, quantity: sp.quantity }))
+        selectedProducts.map(sp => ({ bundle_id: newBundle.id, product_id: sp.productId, quantity: sp.quantity }))
       );
       toast.success('Paket skapat');
     }
@@ -751,8 +751,8 @@ const BundlesTab = () => {
 
   const addProductToBundle = async (bundleId: string, productId: string) => {
     const existing = bundleItems[bundleId] || [];
-    if (existing.find(i => i.shopify_product_id === productId)) { toast.error('Finns redan'); return; }
-    await supabase.from('bundle_items').insert({ bundle_id: bundleId, shopify_product_id: productId, quantity: 1 });
+    if (existing.find(i => i.product_id === productId)) { toast.error('Finns redan'); return; }
+    await supabase.from('bundle_items').insert({ bundle_id: bundleId, product_id: productId, quantity: 1 });
     toast.success('Tillagd');
     fetchData();
   };
@@ -782,7 +782,7 @@ const BundlesTab = () => {
 
   const calcBundleTotal = (bundleId: string, discountPct: number) => {
     const items = bundleItems[bundleId] || [];
-    const total = items.reduce((s, i) => s + getProductPrice(i.shopify_product_id) * i.quantity, 0);
+    const total = items.reduce((s, i) => s + getProductPrice(i.product_id) * i.quantity, 0);
     return { original: total, discounted: total * (1 - discountPct / 100) };
   };
 
@@ -1009,8 +1009,8 @@ const BundlesTab = () => {
                       <p className="text-xs font-medium">Produkter i paketet:</p>
                       {items.map(item => (
                         <div key={item.id} className="flex items-center gap-2 p-2 rounded-lg bg-secondary/30">
-                          <span className="text-sm flex-1 truncate">{getProductName(item.shopify_product_id)}</span>
-                          <span className="text-xs text-muted-foreground">{item.quantity}x {getProductPrice(item.shopify_product_id)} kr</span>
+                          <span className="text-sm flex-1 truncate">{getProductName(item.product_id)}</span>
+                          <span className="text-xs text-muted-foreground">{item.quantity}x {getProductPrice(item.product_id)} kr</span>
                           <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeItemFromBundle(item.id)}>
                             <X className="w-3 h-3" />
                           </Button>
@@ -1020,7 +1020,7 @@ const BundlesTab = () => {
                       <Select onValueChange={val => addProductToBundle(b.id, val)}>
                         <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="+ Lägg till produkt..." /></SelectTrigger>
                         <SelectContent>
-                          {allProducts.filter(p => !items.find(i => i.shopify_product_id === p.id)).map(p => (
+                          {allProducts.filter(p => !items.find(i => i.product_id === p.id)).map(p => (
                             <SelectItem key={p.id} value={p.id} className="text-xs">{p.title_sv} — {p.price} kr</SelectItem>
                           ))}
                         </SelectContent>

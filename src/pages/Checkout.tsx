@@ -10,11 +10,10 @@ import { useCartStore } from '@/stores/cartStore';
 import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import PaymentMethods from '@/components/trust/PaymentMethods';
 import { supabase } from '@/integrations/supabase/client';
-import { safeFetch } from '@/lib/safeInvoke';
+import { safeInvoke } from '@/lib/safeInvoke';
 import { toast } from 'sonner';
 import { useStoreSettings } from '@/stores/storeSettingsStore';
 import { logActivity } from '@/utils/activityLogger';
-
 import { useAuth } from '@/hooks/useAuth';
 
 
@@ -278,25 +277,22 @@ const Checkout = () => {
         language: cl,
       };
 
-      const { data: sessionData } = await supabase.auth.getSession();
-
       setCheckoutStage('creating');
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-      const res = await safeFetch('create-checkout', {
-        method: 'POST',
+      const { data, error: invokeError } = await safeInvoke<{ sessionUrl?: string; url?: string; error?: string }>('create-checkout', {
         body: checkoutBody,
         signal: controller.signal,
       });
 
       clearTimeout(timeoutId);
 
-      let data: any = null;
-      try { data = await res.json(); } catch { data = null; }
-
-      if (!res.ok) throw new Error(data?.error || `HTTP_${res.status}`);
+      if (invokeError) {
+        const msg = invokeError?.name === 'AbortError' ? t.checkoutTimeout : (invokeError.message || t.checkoutFailed);
+        throw Object.assign(new Error(msg), { name: invokeError?.name });
+      }
 
       const url = data?.sessionUrl || data?.url;
       if (!url) throw new Error('No Stripe URL returned');
@@ -307,7 +303,7 @@ const Checkout = () => {
     } catch (err: any) {
       setIsCheckingOut(false);
       setCheckoutStage('idle');
-
+      console.error('Checkout failed:', err);
 
       const message = err?.name === 'AbortError'
         ? t.checkoutTimeout
@@ -325,11 +321,6 @@ const Checkout = () => {
     event?.preventDefault();
     void startCheckout();
   };
-
-  // Track checkout page view
-  useEffect(() => {
-    return () => {};
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!checkoutEnabled) {
     return (

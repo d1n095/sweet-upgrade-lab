@@ -84,7 +84,7 @@ interface Order {
   created_at: string;
   total_amount: number;
   status: string;
-  shopify_order_number: string | null;
+  external_order_number: string | null;
 }
 
 interface Review {
@@ -506,7 +506,7 @@ const AdminMemberManager = ({ roleFilter = 'all', onStatsUpdate }: AdminMemberMa
       const [ordersRes, reviewsRes, emailRes] = await Promise.all([
         supabase
           .from('orders')
-          .select('id, created_at, total_amount, status, shopify_order_number')
+          .select('id, created_at, total_amount, status, external_order_number')
           .eq('user_id', member.user_id)
           .order('created_at', { ascending: false })
           .limit(10),
@@ -1062,7 +1062,7 @@ const AdminMemberManager = ({ roleFilter = 'all', onStatsUpdate }: AdminMemberMa
                       >
                         <div>
                           <p className="font-medium">
-                            {order.shopify_order_number || order.id.slice(0, 8)}
+                            {order.external_order_number || order.id.slice(0, 8)}
                           </p>
                           <p className="text-xs text-muted-foreground">
                             {formatDate(order.created_at)}

@@ -3,7 +3,7 @@ import { ACTIVE_WORK_ITEM_STATUSES, useAdminWorkItems } from '@/hooks/useAdminDa
 import { useUiStateSync } from '@/hooks/useUiStateSync';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { safeInvoke, safeFetch } from '@/lib/safeInvoke';
+import { safeInvoke } from '@/lib/safeInvoke';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  Plus, User, Clock, CheckCircle2, Circle, Play, X, Zap, UserCheck,
+  Plus, User, Clock, CheckCircle2, Circle, Play, X, Zap, UserCheck, Bot,
   AlertTriangle, Package, Headphones, RotateCcw, FileText, Wrench, ShieldAlert,
   FastForward, Pause, ArrowRight, Sparkles, Timer, ToggleRight, Bug, Link2,
   GitBranch, Copy, Layers,
@@ -26,6 +26,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { getOrderDisplayId } from '@/utils/orderDisplay';
 import WorkItemDetail from './WorkItemDetail';
 import { useNavigate } from 'react-router-dom';
+import { triggerReviewForWorkItem } from '@/lib/workItemReview';
 import { createAndVerify } from '@/utils/createVerifyLoop';
 import { trace, newTraceId, traceUIFetch } from '@/utils/deepDebugTrace';
 import { verifyAction } from '@/utils/actionVerificationEngine';
@@ -55,6 +56,11 @@ interface WorkItem {
   conflict_flag?: boolean;
   execution_order?: number;
   orchestrator_result?: any;
+  ai_type_classification?: string;
+  ai_type_reason?: string;
+  review_status?: string;
+  review_result?: any;
+  review_at?: string;
   resolution_notes?: string;
 }
 
@@ -102,6 +108,14 @@ const ITEM_TYPES = [
   { key: 'manual', label: 'Manuell' },
   { key: 'other', label: 'Övrigt' },
 ];
+
+const AI_CLASSIFICATION_META: Record<string, { label: string; icon: typeof Bug; color: string }> = {
+  bug: { label: 'Bugg', icon: Bug, color: 'text-red-600 bg-red-600/10' },
+  improvement: { label: 'Förbättring', icon: Zap, color: 'text-amber-600 bg-amber-600/10' },
+  feature: { label: 'Feature', icon: Sparkles, color: 'text-blue-600 bg-blue-600/10' },
+  upgrade: { label: 'Upgrade', icon: ShieldAlert, color: 'text-purple-600 bg-purple-600/10' },
+  task: { label: 'Uppgift', icon: Wrench, color: 'text-muted-foreground bg-secondary' },
+};
 
 type ViewFilter = 'active' | 'mine' | 'review' | 'done' | 'escalated' | 'bugs' | 'improvements' | 'features';
 
@@ -192,7 +206,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const runAutomation = async () => {
     setRunningAutomation(true);
     try {
-      const { data, error } = await safeInvoke('automation-engine', { isAdmin: true });
+      const { data, error } = await safeInvoke('automation-engine');
       if (error) throw error;
       const r = data?.results;
       toast.success(`Automation klar: ${r?.escalated || 0} eskalerade, ${r?.reassigned || 0} omfördelade`);
@@ -208,13 +222,8 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const runValidation = async () => {
     setRunningValidation(true);
     try {
-      const resp = await safeFetch('data-sync', {
-        method: 'POST',
-        body: { mode: 'repair' },
-        isAdmin: true,
-      });
-      if (resp.ok) {
-        const data = await resp.json();
+      const { data, error } = await safeInvoke('data-sync', { body: { mode: 'repair' } });
+      if (!error && data) {
         const r = data.results;
         setValidationResult(r);
         if (r.total_fixed > 0) {
@@ -342,7 +351,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
         supabase.from('work_items' as any)
           .update({ status: 'cancelled', updated_at: new Date().toISOString() } as any)
           .in('id', orphanIds)
-          .then(() => {});
+          .then(() => console.log(`[Workbench] Auto-cancelled ${orphanIds.length} orphan tasks`));
       }
     })();
 
@@ -374,7 +383,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     enabled: !!user?.id,
   });
 
-  const getClassification = (item: WorkItem) => item.item_type === 'bug' ? 'bug' : null;
+  const getClassification = (item: WorkItem) => item.ai_type_classification || (item.item_type === 'bug' ? 'bug' : null);
 
   const filteredItems = items.filter(t => {
     if (viewFilter === 'active') return !['done', 'cancelled'].includes(t.status);
@@ -383,7 +392,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
       if (isMine) return t.status !== 'done';
       return false;
     }
-    if (viewFilter === 'review') return t.status === 'done';
+    if (viewFilter === 'review') return t.status === 'done' && (t as any).review_status !== 'verified';
     if (viewFilter === 'done') return t.status === 'done';
     if (viewFilter === 'escalated') return t.status === 'escalated';
     if (viewFilter === 'bugs') return getClassification(t) === 'bug' && t.status !== 'done';
@@ -523,7 +532,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
               traceContext: { component: 'WorkbenchBoard' },
             });
             if (!cvResult.success) throw new Error(cvResult.error || 'Insert failed');
-
+            console.log('CREATED ITEM:', cvResult.data);
             return { ...prev, item: cvResult.data };
           },
         },
@@ -555,7 +564,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
       toast.success(bestUser ? `Skapad & verifierad → tilldelad ${getStaffName(bestUser as string)}` : 'Skapad & verifierad ✓');
       setNewTitle(''); setNewDesc(''); setShowCreate(false);
     } else {
-
+      console.error('[WorkbenchBoard] CREATE FAILED at', result.failedStep, result.failReason);
       toast.error(`Kunde inte skapa: ${result.failReason}`);
     }
     setCreating(false);
@@ -658,7 +667,17 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     if (newStatus === 'done') {
       setCompletedCount(prev => prev + 1);
       setJustCompleted(itemId);
-      toast.success('Klar ✓');
+      toast.success('Klar ✓ — AI granskar...');
+      const reviewResult = await triggerReviewForWorkItem(itemId, { context: 'workbench_board_done' });
+      if (!reviewResult.ok) {
+        toast.error('AI-granskning misslyckades — manuell granskning krävs');
+      } else if (reviewResult.status === 'verified') {
+        toast.success('AI: ✅ Verifierad');
+      } else if (reviewResult.status === 'needs_review') {
+        toast.warning('AI: ⚠️ Behöver granskning');
+      } else if (reviewResult.status === 'incomplete') {
+        toast.error('AI: ❌ Ofullständig');
+      }
       queryClient.invalidateQueries({ queryKey: ['work-items'] });
 
       setTimeout(() => {
@@ -733,7 +752,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const escalatedCount = items.filter(t => t.status === 'escalated').length;
   const myCount = items.filter(t => (t.assigned_to === user?.id || t.claimed_by === user?.id) && t.status !== 'done').length;
   const doneCount = items.filter(t => t.status === 'done').length;
-  const reviewCount = items.filter(t => t.status === 'done').length;
+  const reviewCount = items.filter(t => t.status === 'done' && (t as any).review_status !== 'verified').length;
   const activeCount = items.filter(t => !['done', 'cancelled'].includes(t.status)).length;
   const openCount = items.filter(t => t.status === 'open' && !t.assigned_to).length;
   const bugCount = items.filter(t => getClassification(t) === 'bug' && t.status !== 'done').length;
@@ -806,6 +825,16 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
               <TypeIcon className="w-2.5 h-2.5" />
               {typeMeta.label}
             </Badge>
+            {item.ai_type_classification && AI_CLASSIFICATION_META[item.ai_type_classification] && (() => {
+              const cls = AI_CLASSIFICATION_META[item.ai_type_classification!];
+              const ClsIcon = cls.icon;
+              return (
+                <Badge variant="outline" className={cn('text-[9px] gap-0.5', cls.color)}>
+                  <ClsIcon className="w-2.5 h-2.5" />
+                  {cls.label}
+                </Badge>
+              );
+            })()}
             {hasSource && (
               <Badge variant="outline" className="text-[9px] gap-0.5 bg-blue-50 text-blue-600 border-blue-200">
                 <Link2 className="w-2.5 h-2.5" />
@@ -819,6 +848,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
             )}
             {getItemAutomationBadge(item.id) && (
               <Badge variant="outline" className="text-[9px] gap-0.5 bg-purple-100 text-purple-700 border-purple-200">
+                <Bot className="w-2.5 h-2.5" />
                 {getItemAutomationBadge(item.id) === 'escalate' ? 'Auto-eskalerad' :
                  getItemAutomationBadge(item.id) === 'reassign' ? 'Omfördelad' : 'Auto'}
               </Badge>
@@ -1079,7 +1109,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
             </Button>
           )}
           <Button size="sm" variant="outline" className="gap-1.5" onClick={runAutomation} disabled={runningAutomation}>
-            <Zap className="w-4 h-4" /> {runningAutomation ? 'Kör...' : 'Automation'}
+            <Bot className="w-4 h-4" /> {runningAutomation ? 'Kör...' : 'Automation'}
           </Button>
           <Button size="sm" variant="outline" className="gap-1.5" onClick={runValidation} disabled={runningValidation}>
             <CheckCircle2 className="w-4 h-4" /> {runningValidation ? 'Validerar...' : 'Validera & Städa'}
