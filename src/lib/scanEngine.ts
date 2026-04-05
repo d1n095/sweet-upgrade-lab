@@ -193,8 +193,8 @@ export async function resumeInterruptedJob(): Promise<void> {
 
     if (!data) return;
     const scanRunId = (data as any).id as string;
-    _currentJob = { id: scanRunId, type: 'full', status: 'running' };
     stopPolling();
+    _currentJob = { id: scanRunId, type: 'full', status: 'running' };
     _pollInterval = setInterval(() => pollScanRun(scanRunId), 2000);
   } catch {
     // noop — non-critical on startup
