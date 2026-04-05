@@ -2060,18 +2060,20 @@ async function runHumanTestScan(supabase: any, scanRunId: string): Promise<any> 
 async function runNavScan(supabase: any, scanRunId: string): Promise<any> {
   const issues: any[] = [];
   const startMs = Date.now();
+  let sectionsCount = 0;
+  let categoriesCount = 0;
   try {
-    // Check page_sections referencing invalid pages
     const { data: sections } = await supabase.from("page_sections").select("id, page, section_key, is_visible").eq("is_visible", true).limit(100);
+    sectionsCount = (sections || []).length;
     const validPages = new Set(["home", "about", "contact", "shop", "produkter", "checkout", "profile", "donations", "whats-new", "affiliate", "business", "cbd"]);
     for (const s of sections || []) {
       if (s.page && !validPages.has(s.page.toLowerCase())) {
-        issues.push({ title: `Page section references unknown page: "${s.page}"`, severity: "medium", component: "page_sections", element: "Navigation", category: "navigation", routes_scanned: 1 });
+        issues.push({ title: `Page section references unknown page: "${s.page}"`, severity: "medium", component: "page_sections", element: "Navigation", category: "navigation" });
       }
     }
 
-    // Check categories with broken parent references
     const { data: categories } = await supabase.from("categories").select("id, name_sv, parent_id, is_visible").eq("is_visible", true).limit(100);
+    categoriesCount = (categories || []).length;
     const catIds = new Set((categories || []).map((c: any) => c.id));
     for (const c of categories || []) {
       if (c.parent_id && !catIds.has(c.parent_id)) {
@@ -2079,7 +2081,6 @@ async function runNavScan(supabase: any, scanRunId: string): Promise<any> {
       }
     }
 
-    // Check legal documents: active but empty content
     const { data: legalDocs } = await supabase.from("legal_documents").select("id, document_type, content_sv, is_active").eq("is_active", true).limit(10);
     for (const d of legalDocs || []) {
       if (!d.content_sv || d.content_sv.trim().length < 20) {
@@ -2087,10 +2088,10 @@ async function runNavScan(supabase: any, scanRunId: string): Promise<any> {
       }
     }
 
-    // Check products visible but in invisible category
-    const invisibleCats = new Set((categories || []).filter((c: any) => !c.is_visible).map((c: any) => c.id));
-    if (invisibleCats.size > 0) {
-      const { data: productCats } = await supabase.from("product_categories").select("product_id, category_id").in("category_id", [...invisibleCats]).limit(50);
+    const invisibleCats = (categories || []).filter((c: any) => !c.is_visible);
+    const invisibleCatIds = new Set(invisibleCats.map((c: any) => c.id));
+    if (invisibleCatIds.size > 0) {
+      const { data: productCats } = await supabase.from("product_categories").select("product_id, category_id").in("category_id", [...invisibleCatIds]).limit(50);
       if ((productCats || []).length > 0) {
         issues.push({ title: `${productCats!.length} products linked to invisible categories`, severity: "medium", component: "product_categories", element: "ProductNav", category: "navigation" });
       }
@@ -2100,7 +2101,7 @@ async function runNavScan(supabase: any, scanRunId: string): Promise<any> {
 
   const durationMs = Date.now() - startMs;
   const score = Math.max(0, 100 - issues.length * 5);
-  return { issues, issues_found: issues.length, broken_routes: issues, overall_score: score, routes_scanned: (sections || []).length + (categories || []).length, duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
+  return { issues, issues_found: issues.length, broken_routes: issues, overall_score: score, routes_scanned: sectionsCount + categoriesCount, duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
 }
 
 const REAL_DB_SCANNERS: Record<string, (supabase: any, scanRunId: string) => Promise<any>> = {
