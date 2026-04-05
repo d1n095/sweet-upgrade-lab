@@ -23,8 +23,6 @@ export const SystemHealthTab = () => {
 
   const run = async () => {
     setLoading(true);
-    console.log("🧪 RUN HEALTH ANALYSIS");
-    console.log("HEALTH INPUT:", globalIssues.length);
     const res = await callAI('system_health');
     if (res) {
       setData(res);
@@ -32,7 +30,6 @@ export const SystemHealthTab = () => {
       setGlobalIssues(issues);
       const result = analyzeSystemHealth(issues);
       setHealth(result);
-      console.log("HEALTH OUTPUT:", result);
     }
     setLoading(false);
   };
@@ -52,7 +49,6 @@ export const SystemHealthTab = () => {
   return (
     <div className="space-y-4">
       <Button onClick={() => {
-        console.log("🧪 RUN HEALTH ANALYSIS");
         const result = analyzeSystemHealth(globalIssues);
         setHealth(result);
         run();

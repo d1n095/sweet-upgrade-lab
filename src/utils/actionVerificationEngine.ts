@@ -12,7 +12,6 @@
  * Failures are automatically recorded to Functional Failure Memory.
  */
 import { create } from 'zustand';
-import { trace } from '@/utils/deepDebugTrace';
 import { recordFailure } from '@/lib/failureMemory';
 import { logData } from '@/utils/actionMonitor';
 
@@ -122,10 +121,6 @@ export async function verifyAction<T = any>(config: VerifiedActionConfig<T>): Pr
   };
 
   pushAction(record);
-  trace('work_item_creating', config.component, `[AVE] Start: ${config.action}`, {
-    traceId: actionId,
-    entityType: config.entityType,
-  });
   logData({
     type: 'action',
     source: 'verification',
@@ -150,14 +145,6 @@ export async function verifyAction<T = any>(config: VerifiedActionConfig<T>): Pr
       };
       record.steps.push(stepRecord);
 
-      const traceStep = stepDef.step === 'db_write' ? 'db_insert_sent' as const
-        : stepDef.step === 'db_confirm' ? 'db_verify_confirmed' as const
-        : stepDef.step === 'ui_update' ? 'cache_invalidated' as const
-        : 'work_item_creating' as const;
-      trace(traceStep, config.component, `[AVE] ${stepDef.step} OK (${Date.now() - stepStart}ms)`, {
-        traceId: actionId,
-        entityId: lastResult?.id || record.entityId,
-      });
       logData({
         type: 'action',
         source: 'verification',
@@ -181,7 +168,6 @@ export async function verifyAction<T = any>(config: VerifiedActionConfig<T>): Pr
       record.steps.push(stepRecord);
 
       if (stepDef.optional) {
-        console.warn(`[AVE] Optional step ${stepDef.step} failed: ${reason}`);
         continue;
       }
 
@@ -193,20 +179,12 @@ export async function verifyAction<T = any>(config: VerifiedActionConfig<T>): Pr
       record.durationMs = Date.now() - startedAt;
 
       updateAction(actionId, record);
-      trace('db_insert_failed', config.component, `[AVE] FAILED at ${stepDef.step}: ${reason}`, {
-        traceId: actionId,
-        entityId: record.entityId,
-        severity: 'error',
-        details: { action: config.action, step: stepDef.step, reason },
-      });
       logData({
         type: 'error',
         source: 'verification',
         payload: { action: config.action, component: config.component, step: stepDef.step, reason, durationMs: record.durationMs },
         status: 'failed',
       });
-
-      console.error(`[AVE] Action "${config.action}" FAILED at step "${stepDef.step}":`, reason);
 
       // Record to Functional Failure Memory (fire-and-forget)
       recordFailure({
@@ -235,10 +213,6 @@ export async function verifyAction<T = any>(config: VerifiedActionConfig<T>): Pr
   record.durationMs = Date.now() - startedAt;
 
   updateAction(actionId, record);
-  trace('db_verify_confirmed', config.component, `[AVE] Complete: ${config.action} (${record.durationMs}ms)`, {
-    traceId: actionId,
-    entityId: record.entityId,
-  });
   logData({
     type: 'action',
     source: 'verification',

@@ -96,16 +96,6 @@ export function trace(
     severity: opts.severity || inferSeverity(step),
   };
 
-  // Also log to console for devtools visibility
-  const prefix = `[DeepDebug][${step}][${component}]`;
-  if (entry.severity === 'error' || entry.severity === 'critical') {
-    console.error(prefix, message, opts.details || '');
-  } else if (entry.severity === 'warning') {
-    console.warn(prefix, message, opts.details || '');
-  } else {
-    console.log(prefix, message, opts.details || '');
-  }
-
   set(s => ({
     traces: [...s.traces.slice(-(s.maxTraces - 1)), entry],
   }));
