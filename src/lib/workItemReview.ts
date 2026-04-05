@@ -14,9 +14,7 @@ export const triggerReviewForWorkItem = async (
   workItemId: string,
   options: { context?: string } = {}
 ): Promise<ReviewResult> => {
-  const context = options.context || 'unknown';
-  console.info('[review] trigger manual review', { workItemId, context });
-
+  void options;
   try {
     const { error } = await supabase
       .from('work_items')
@@ -27,7 +25,6 @@ export const triggerReviewForWorkItem = async (
 
     return { ok: true, status: 'manual_review_required' };
   } catch (err: any) {
-    console.error('[review] failed', { workItemId, context, message: err?.message });
     return { ok: false, status: null, error: err?.message || 'Unknown error' };
   }
 };
