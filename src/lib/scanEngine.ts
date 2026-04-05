@@ -6,7 +6,7 @@
  * - On-load resume of interrupted jobs
  */
 
-import { useFullScanOrchestrator } from '@/stores/fullScanOrchestrator';
+import { safeInvoke } from '@/lib/safeInvoke';
 
 export type ScanJobType = 'system' | 'ux' | 'sync' | 'actions';
 export type ScanJobStatus = 'running' | 'done' | 'error';
@@ -30,12 +30,9 @@ function persistJob(job: ScanJob | null) {
   }
 }
 
-/** Execute the underlying scan for a given type */
-async function runFrontendScan(type: ScanJobType): Promise<void> {
-  // All scan types run through the unified full-scan orchestrator
-  const orchestrator = useFullScanOrchestrator.getState();
-
-  await orchestrator.runOrchestrated();
+/** Execute the underlying scan (all types use the same unified endpoint) */
+async function runFrontendScan(): Promise<void> {
+  await safeInvoke('run-full-scan', { isAdmin: true });
 }
 
 /**
@@ -59,7 +56,7 @@ export const startScanJob = async (type: ScanJobType): Promise<void> => {
 
 
   try {
-    await runFrontendScan(type);
+    await runFrontendScan();
     currentJob.status = 'done';
     persistJob(currentJob);
   } catch (err) {
