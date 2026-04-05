@@ -8,8 +8,7 @@ import {
   Loader2, Package, ClipboardList, BarChart3, Settings, Grid, Users,
   Handshake, Heart, LogOut, Home, Shield, Crown,
   Activity, User, Menu, X, Star, FileText, Percent, Truck, Wallet, Globe,
-  AlertTriangle, ScanLine, Sparkles, History, ShoppingCart, ChevronDown, ChevronRight,
-  TrendingUp, Database, Bug,
+  AlertTriangle, ScanLine, History, ShoppingCart,
 } from 'lucide-react';
 import { useEmployeeRole } from '@/hooks/useEmployeeRole';
 import { useFounderRole } from '@/hooks/useFounderRole';
@@ -80,23 +79,15 @@ const navGroups: NavGroup[] = [
   {
     label: 'SYSTEM',
     items: [
-      { to: '/admin/system-explorer', label: 'Scan Center', icon: Sparkles, role: 'admin' },
-      { to: '/admin/audit', label: 'Bug Center', icon: Bug, role: 'admin' },
-      { to: '/admin/logs', label: 'Logs', icon: Activity, role: 'admin' },
-      { to: '/admin/database', label: 'Database', icon: Database, role: 'admin' },
-      { to: '/admin/history', label: 'History', icon: History, role: 'admin' },
-      { to: '/admin/staff', label: 'Workbench', icon: Crown, role: 'founder' },
-    ],
-  },
-  {
-    label: 'SETTINGS',
-    items: [
-      { to: '/admin/settings', label: 'General', icon: Settings, role: 'admin' },
-      { to: '/admin/shipping', label: 'Shipping', icon: Truck, role: 'admin' },
-      { to: '/admin/finance', label: 'Payments', icon: Wallet, role: 'admin' },
-      { to: '/admin/content', label: 'Content', icon: FileText, role: 'admin' },
-      { to: '/admin/legal', label: 'Legal', icon: FileText, role: 'admin' },
-      { to: '/admin/seo', label: 'SEO', icon: Globe, role: 'admin' },
+      { to: '/admin/history', label: 'Historik', icon: History, role: 'admin' },
+      { to: '/admin/members', label: 'Användare', icon: Users, role: 'admin' },
+      { to: '/admin/content', label: 'Innehåll', icon: FileText, role: 'admin' },
+      { to: '/admin/legal', label: 'Juridik', icon: Heart, role: 'admin' },
+      { to: '/admin/logs', label: 'Logg', icon: Activity, role: 'admin' },
+      { to: '/admin/data', label: 'Data Center', icon: Eye, role: 'admin' },
+      { to: '/admin/database', label: 'Databas', icon: Grid, role: 'admin' },
+      { to: '/admin/settings', label: 'Inställningar', icon: Settings, role: 'admin' },
+      { to: '/admin/debug', label: 'Debug', icon: Shield, role: 'admin' },
     ],
   },
 ];

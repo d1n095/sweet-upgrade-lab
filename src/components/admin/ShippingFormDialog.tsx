@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/select';
 import { safeInvoke } from '@/lib/safeInvoke';
 import { supabase } from '@/integrations/supabase/client';
+import { safeInvoke } from '@/lib/safeInvoke';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { logActivity } from '@/utils/activityLogger';
@@ -122,6 +123,7 @@ const ShippingFormDialog = ({ open, onOpenChange, order, onShipped }: ShippingFo
         try {
           const { error: emailError } = await safeInvoke('send-order-email', {
             body: { order_id: order.id, email_type: 'status_update' },
+            isAdmin: true,
           });
           emailSent = !emailError;
         } catch {}

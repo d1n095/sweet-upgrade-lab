@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { safeInvoke } from "@/lib/safeInvoke";
-import { ScanControls } from "./system/ScanControls";
+import { useScannerStore } from "@/stores/scannerStore";
 import { fileSystemMap, type FileEntry, getFileContent, getCodeIndex, getDuplicatedLines, getCodeIssues, getRawSources, scanFileContent } from "@/lib/fileSystemMap";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useFounderRole } from "@/hooks/useFounderRole";
@@ -120,8 +120,9 @@ const SystemExplorer = () => {
   const { isAdmin, isLoading: adminLoading } = useAdminRole();
   const { isFounder, isLoading: founderLoading } = useFounderRole();
   const isSystemAdmin = isFounder || false; // founder = full access
+  const lastScan = useScannerStore(s => s.lastScan);
   const isViewerAdmin = isAdmin && !isFounder; // admin without founder = read-only viewer
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ workItems: true, scanResults: true, aiFlow: true, scanners: true, noIssueAreas: false, orphanElements: false, issueClusters: false, priorityView: true, systemDiagnosis: true, expectedVsActual: true });
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ workItems: true, scanResults: true, aiFlow: true, scanners: true, noIssueAreas: false, orphanElements: false, issueClusters: false, priorityView: true, systemDiagnosis: true, expectedVsActual: true, systemActivity: true, executionTrace: true });
   const [expandedScanners, setExpandedScanners] = useState<Record<string, boolean>>({});
   const [scannerIssueFilter, setScannerIssueFilter] = useState<"all" | "bug" | "improvement" | "upgrade">("all");
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({ open: true, in_progress: true, done: false, completed: false, cancelled: false });
@@ -144,9 +145,6 @@ const SystemExplorer = () => {
   const [promptCopied, setPromptCopied] = useState(false);
   const [fileScanResult, setFileScanResult] = useState<{ total: number; emptyFiles: number; largeFiles: number } | null>(null);
   const [codeScanResult, setCodeScanResult] = useState<{ type: string; message: string; file: string }[] | null>(null);
-  const [lastScan, setLastScan] = useState(0);
-  const [expandedIssues, setExpandedIssues] = useState<Record<number, boolean>>({});
-
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<{ path: string; lineNumber: number; line: string }[]>([]);
   const [lastAction, setLastAction] = useState("");
@@ -154,12 +152,9 @@ const SystemExplorer = () => {
   const [globalIssues, setGlobalIssues] = useState<{ type: string; message: string; file: string }[]>([]);
 
   function logAction(action: Record<string, any>) {
-
     setActionLogs(prev => [
       {
         time: new Date().toISOString(),
-        type: "TEST_ACTION",
-        message: JSON.stringify(action),
         timestamp: Date.now(),
         ...action
       },
@@ -168,31 +163,31 @@ const SystemExplorer = () => {
   }
   useEffect(() => {
     const rawSources = getRawSources();
-    if (!rawSources) {
-
-      return;
-    }
-
-
+    if (!rawSources) return;
     const allIssues: { type: string; message: string; file: string }[] = [];
     Object.entries(rawSources).forEach(([path, content]) => {
-      if (!content) return;
-      if ((content as string).includes("fetch(") && !(content as string).includes("catch")) {
-        allIssues.push({ type: "no-catch", message: "fetch() without error handling", file: path });
-      }
-      if ((content as string).length < 15) {
-        allIssues.push({ type: "empty-file", message: "empty file", file: path });
+      if (!content) {
+        allIssues.push({ type: "structure", message: "file nearly empty", file: path });
+        return;
       }
       const issues = scanFileContent(path, content as string);
       allIssues.push(...issues);
+      // Direct detection rules
+      if (content.includes("fetch(") && !content.includes(".catch(") && !content.includes("} catch")) {
+        allIssues.push({ type: "bug", message: "fetch without error handling", file: path });
+      }
+      if (content.length < 20) {
+        allIssues.push({ type: "structure", message: "file nearly empty", file: path });
+      }
     });
-    const unique = [...new Map(allIssues.map(i => [i.file + i.message, i])).values()];
+    setCodeScanResult(allIssues);
+    setGlobalIssues(allIssues);
+  }, []);
 
-    setCodeScanResult(unique);
-    setGlobalIssues(unique);
-    if (lastScan > 0) {
-
-    }
+  useEffect(() => {
+    if (lastScan === null) return;
+    handleRefresh();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastScan]);
 
   function handleSearch() {
@@ -230,157 +225,41 @@ const SystemExplorer = () => {
       return;
     }
     setIsScanning(true);
+    const scanStart = Date.now();
+    console.log("[SCAN START]", { mode, ts: new Date().toISOString() });
     logAction({ type: "SCAN", status: "started", mode });
     try {
       if (mode === "files") {
+        console.log("[SCAN STEP]", { step: "files", status: "running" });
         const files = Object.keys(getRawSources() || {});
         const result = {
           total: files.length,
           empty: files.filter(f => !getRawSources()[f]?.trim()).length
         };
         setFileScanResult({ total: result.total, emptyFiles: result.empty, largeFiles: 0 });
+        console.log("[SCAN STEP]", { step: "files", status: "done", total: result.total, empty: result.empty });
         logAction({ type: "SCAN", status: "success", mode });
       }
       if (mode === "code") {
+        console.log("[SCAN STEP]", { step: "code", status: "running" });
         const results: { type: string; message: string; file: string }[] = [];
         Object.entries(getRawSources() || {}).forEach(([path, content]) => {
           const issues = scanFileContent(path, content as string);
           results.push(...issues);
         });
-
         setCodeScanResult(results);
+        console.log("[SCAN STEP]", { step: "code", status: "done", issues: results.length });
         logAction({ type: "SCAN", status: "success", mode });
       }
-    } catch (err: any) {
-
-      logAction({
-        type: "SCAN",
-        status: "error",
-        mode,
-        message: err.message
-      });
-    } finally {
-      setIsScanning(false);
-    }
-  }
-
-  const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | null>(null);
-  const [verifyingFix, setVerifyingFix] = useState(false);
-  const [verifyResult, setVerifyResult] = useState<{ itemId: string; status: "confirmed" | "failed"; scanId?: string } | null>(null);
-
-  // Backend scan latest
-  const { data: latestBackendScan, isLoading: backendScanLoading } = useQuery({
-    queryKey: ["backend-scan-latest"],
-    queryFn: async () => null,
-    staleTime: 0,
-    refetchOnWindowFocus: false,
-  });
-
-  // 1. ALL work_items
-  const { data: workItems = [], isLoading: wiLoading } = useQuery({
-    queryKey: ["system-explorer-work-items"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("work_items")
-        .select("id, title, status, source_type, source_id, created_by, item_type, priority, created_at, issue_fingerprint, ignored, source_path, source_file, source_component, first_seen_at, last_seen_at, occurrence_count, verification_status, verification_scans_checked, verified_at")
-        .order("created_at", { ascending: false })
-        .limit(200);
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  // Structure map for unscanned areas
-  const { data: structureMap = [] } = useQuery({
-    queryKey: ["system-explorer-structure-map"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("system_structure_map" as any)
-        .select("entity_type, entity_name, last_seen_at, scan_count")
-        .order("last_seen_at", { ascending: false })
-        .limit(200);
-      if (error) throw error;
-      return (data || []) as any[];
-    },
-  });
-
-  // System expectations for gap detection
-  const { data: systemExpectations = [] } = useQuery({
-    queryKey: ["system-explorer-expectations"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("system_expectations" as any)
-        .select("entity_type, entity_name, required")
-        .eq("required", true);
-      if (error) throw error;
-      return (data || []) as any[];
-    },
-  });
-
-  // Missing required parts: expected but not in structure_map
-  const missingExpectations = useMemo(() => {
-    const structureKeys = new Set(structureMap.map((s: any) => `${s.entity_type}::${s.entity_name}`));
-    return systemExpectations.filter((exp: any) =>
-      exp.required && !structureKeys.has(`${exp.entity_type}::${exp.entity_name}`)
-    );
-  }, [systemExpectations, structureMap]);
-
-  // Top runtime errors (clustered)
-  const { data: runtimeErrorClusters = [] } = useQuery({
-    queryKey: ["system-explorer-runtime-errors"],
-    queryFn: async () => [] as any[],
-    staleTime: 30_000,
-  });
-
-  // Raw runtime errors (individual entries)
-  const { data: rawRuntimeErrors = [] } = useQuery({
-    queryKey: ["system-explorer-raw-runtime-errors"],
-    queryFn: async () => [] as any[],
-    staleTime: 30_000,
-  });
-  const [frontendViolations, setFrontendViolations] = useState<{ type: string; action: string; message: string }[]>([]);
-
-  function validateAction(actionName: string, fn: () => any) {
-    try {
-      const result = fn();
-      if (!result) {
-        throw new Error("No result returned");
+      if (mode === "full") {
+        console.log("[SCAN STEP]", { step: "full", status: "running" });
+        await safeInvoke("run-full-scan", {
+          body: { action: "start", scan_mode: "full" },
+          isAdmin: true,
+        });
+        console.log("[SCAN STEP]", { step: "full", status: "done" });
+        logAction({ type: "SCAN", status: "success", mode });
       }
-      return result;
-    } catch (err: any) {
-
-      setFrontendViolations(prev => [
-        ...prev,
-        {
-          type: "ACTION_FAILED",
-          action: actionName,
-          message: err.message
-        }
-      ]);
-      return null;
-    }
-  }
-
-  const { data: debugConsoleLogs = [] } = useQuery({
-    queryKey: ["system-explorer-debug-console"],
-    queryFn: async () => [] as any[],
-    staleTime: 15_000,
-  });
-
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["system-explorer-work-items"] }),
-      queryClient.invalidateQueries({ queryKey: ["system-explorer-latest-scan"] }),
-      queryClient.invalidateQueries({ queryKey: ["system-explorer-structure-map"] }),
-      queryClient.invalidateQueries({ queryKey: ["admin-work-items"] }),
-      queryClient.invalidateQueries({ queryKey: ["system-explorer-runtime-errors"] }),
-      queryClient.invalidateQueries({ queryKey: ["system-explorer-debug-console"] }),
-      queryClient.invalidateQueries({ queryKey: ["system-explorer-raw-runtime-errors"] }),
-    ]);
-    setIsRefreshing(false);
-  };
-
   // 2. Latest scan
   const { data: latestScan, isLoading: scanLoading } = useQuery({
     queryKey: ["system-explorer-latest-scan"],
@@ -405,6 +284,22 @@ const SystemExplorer = () => {
     },
     staleTime: 0,
     refetchOnWindowFocus: false,
+  });
+
+  // Execution traces for the latest scan run (linked via request_trace_id = scan_run.id)
+  const { data: executionTraces = [] } = useQuery({
+    queryKey: ["system-explorer-execution-traces", (latestRun as any)?.id],
+    enabled: !!(latestRun as any)?.id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("runtime_traces" as any)
+        .select("id, function_name, endpoint, error_message, created_at, source")
+        .eq("request_trace_id", (latestRun as any).id)
+        .order("created_at", { ascending: true });
+      return (data || []) as any[];
+    },
+    refetchInterval: 5_000,
+    staleTime: 0,
   });
 
   // 3b. History for selected item
@@ -866,129 +761,21 @@ const SystemExplorer = () => {
   const toggleSection = (key: string) => setExpandedSections((prev) => ({ ...prev, [key]: !prev[key] }));
   const toggleGroup = (key: string) => setExpandedGroups((prev) => ({ ...prev, [key]: !prev[key] }));
 
-  const priorityColor = (p: string) => {
-    switch (p) {
-      case "critical": return "destructive";
-      case "high": return "default";
-      case "medium": return "secondary";
-      default: return "outline";
+  const handleAiAnalyze = async () => {
+    if (!aiQuery.trim() || aiLoading) return;
+    setAiLoading(true);
+    setAiAnswer(null);
+    try {
+      // ── HARD BLOCK: direct ai-assistant calls are disabled ──────────
+      setAiAnswer('AI_DISABLED: direktanrop till ai-assistant är blockerat. Använd run-full-scan som enda ingångspunkt.');
+      // ─────────────────────────────────────────────────────────────────
+    } catch (e: any) {
+      setAiAnswer(`Fel: ${e.message || "Kunde inte analysera."}`);
+    } finally {
+      setAiLoading(false);
     }
   };
 
-  const statusColor = (s: string) => {
-    switch (s) {
-      case "open": return "default";
-      case "in_progress": return "secondary";
-      case "done":
-      case "completed": return "outline";
-      default: return "outline";
-    }
-  };
-
-  const systemTruth = {
-    scanWorking: latestBackendScan && (latestRun as any)?.total_new_issues > 0,
-    workItemsCreated: (latestRun as any)?.work_items_created > 0,
-  };
-
-  return (
-    <div className="flex h-full min-h-0">
-      {/* Main tree panel */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {!systemTruth.scanWorking && <p className="text-[10px] text-red-500 font-mono">❌ SCAN NOT PRODUCING DATA</p>}
-        {!systemTruth.workItemsCreated && <p className="text-[10px] text-red-500 font-mono">❌ PIPELINE BLOCKED</p>}
-        <p className="text-xs text-green-500 font-mono">TEST BUILD OK — Files detected: {fileSystemMap.length}</p>
-        <div className="text-[10px] font-mono text-muted-foreground">Last action: {lastAction || "none"}</div>
-
-        <button onClick={() => {
-
-          setActionLogs(prev => [
-            {
-              time: new Date().toISOString(),
-              type: "MANUAL_TEST",
-              message: "Button clicked",
-              timestamp: Date.now()
-            },
-            ...prev
-          ]);
-        }} className="px-3 py-1 text-xs bg-primary text-primary-foreground rounded">
-          TEST ACTION
-        </button>
-
-        {/* Action Monitor */}
-        <details className="border border-border rounded-md">
-          <summary className="px-3 py-1.5 text-[10px] font-semibold cursor-pointer bg-muted/30 hover:bg-muted/50 transition-colors">
-            Action Monitor ({actionLogs.length})
-          </summary>
-          <div className="max-h-48 overflow-y-auto">
-            {actionLogs.length === 0 ? (
-              <p className="text-[10px] text-muted-foreground px-3 py-2">No actions logged yet</p>
-            ) : (
-              <table className="w-full text-[10px]">
-                <thead>
-                  <tr className="border-b border-border text-muted-foreground">
-                    <th className="px-3 py-1 text-left">Time</th>
-                    <th className="px-3 py-1 text-left">Type</th>
-                    <th className="px-3 py-1 text-left">Status</th>
-                    <th className="px-3 py-1 text-left">Message</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {actionLogs.slice(0, 10).map((log, i) => (
-                    <tr key={i} className="border-b border-border/50 hover:bg-muted/20">
-                      <td className="px-3 py-1 font-mono text-muted-foreground">{log.time?.split("T")[1]?.slice(0, 8)}</td>
-                      <td className="px-3 py-1 font-medium text-foreground">{log.type}</td>
-                      <td className="px-3 py-1">
-                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${
-                          log.status === "success" ? "bg-green-500/20 text-green-400" :
-                          log.status === "error" || log.status === "no-data" ? "bg-red-500/20 text-red-400" :
-                          log.status === "started" ? "bg-blue-500/20 text-blue-400" :
-                          "bg-yellow-500/20 text-yellow-400"
-                        }`}>{log.status}</span>
-                      </td>
-                      <td className="px-3 py-1 text-muted-foreground truncate max-w-[200px]">{log.message || "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </details>
-        <div className="flex gap-2 items-center">
-          <Input
-            placeholder="Search code..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-            className="h-7 text-[10px] max-w-[250px]"
-          />
-          <Button variant="outline" size="sm" className="text-[10px] h-7" onClick={handleSearch}>Search</Button>
-          <span className="text-[9px] text-yellow-500/70 font-mono">⚠ Frontend scan (static / debug only)</span>
-        </div>
-        {searchResults.length > 0 && (
-          <div>
-            <h3 className="text-sm font-semibold mb-1">Search Results ({searchResults.length})</h3>
-            {searchResults.map((r, i) => (
-              <div
-                key={i}
-                style={{
-                  padding: "8px",
-                  borderBottom: "1px solid hsl(var(--border))",
-                  cursor: "pointer"
-                }}
-                onClick={() => {
-                  const entry = fileSystemMap.find(f => f.path === r.path);
-                  if (entry) setSelectedFile(entry);
-                }}
-              >
-                <div><strong>{r.path}</strong></div>
-                <div className="text-muted-foreground">Line {r.lineNumber}</div>
-                <div style={{ fontFamily: "monospace" }} className="text-xs">
-                  {r.line}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
         <div className="flex items-center gap-2 flex-wrap">
           <Database className="h-6 w-6 text-primary" />
           <h1 className="text-2xl font-bold text-foreground">System Explorer</h1>
@@ -1002,7 +789,12 @@ const SystemExplorer = () => {
             Refresh
           </Button>
           {isSystemAdmin && (
-            <ScanControls onScanComplete={() => setLastScan(Date.now())} />
+            <>
+            <Button variant="default" size="sm" onClick={handleRunFullScan} disabled={isScanning}>
+              {isScanning ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Radar className="h-4 w-4 mr-1" />}
+              {isScanning ? "Scanning..." : "Run Full Scan"}
+            </Button>
+            </>
           )}
            {isSystemAdmin && (
              <Button variant="outline" size="sm" onClick={() => setShowRawScan(!showRawScan)}>
@@ -1036,12 +828,8 @@ const SystemExplorer = () => {
 
         {/* BACKEND SCAN TAB */}
         {mainTab === "backendscan" && (() => {
-          // Primary: scan_runs (latestRun). Secondary: ai_scan_results (latestBackendScan).
-          const run = latestRun as any;
-          const stepLogs: Array<{ ts: string; msg: string; step: string }> = Array.isArray(run?.step_logs) ? run.step_logs : [];
-          const stepsResults: Record<string, any> = run?.steps_results && typeof run.steps_results === "object" ? run.steps_results : {};
-          const unifiedResult: any = run?.unified_result ?? null;
-          const noRun = !run;
+          const r = latestBackendScan?.results as any;
+          const latestRun = r;
           return (
             <div className="space-y-3">
             {run && (run.work_items_created ?? 0) === 0 && (
@@ -1614,7 +1402,6 @@ const SystemExplorer = () => {
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2"><Layers className="h-4 w-4" /> Code Index ({index.length} files)</CardTitle>
                 <Button variant="outline" size="sm" className="text-[10px] h-6 ml-auto" onClick={() => {
-
                   validateAction("SCAN_CODE", () => {
                     const sources = getRawSources() || {};
                     const results: { type: string; message: string; file: string }[] = [];
@@ -1625,7 +1412,6 @@ const SystemExplorer = () => {
                     if (!results || results.length === 0) {
                       throw new Error("Code index empty");
                     }
-
                     setCodeScanResult(results);
                     return true;
                   });
@@ -1710,34 +1496,23 @@ const SystemExplorer = () => {
             {/* Live Code Issues */}
             {globalIssues.length > 0 && (
               <Card className="mt-3">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Bug className="h-4 w-4" /> Live Code Issues ({globalIssues.length})
-                  </CardTitle>
+                <CardHeader className="pb-0">
+                  <details open>
+                    <summary className="flex items-center gap-2 text-sm font-semibold cursor-pointer list-none select-none py-2">
+                      <Bug className="h-4 w-4" /> Live Code Issues ({globalIssues.length})
+                    </summary>
+                    <div className="max-h-[400px] overflow-y-auto space-y-1 pt-2">
+                      {globalIssues.map((issue, i) => (
+                        <details key={i} className="border-b border-border/50 pb-1">
+                          <summary className="text-xs font-semibold text-foreground cursor-pointer list-none hover:text-primary transition-colors truncate">
+                            {issue.file}
+                          </summary>
+                          <div className="text-[11px] text-muted-foreground pl-2 pt-0.5">{issue.message}</div>
+                        </details>
+                      ))}
+                    </div>
+                  </details>
                 </CardHeader>
-                <CardContent className="pt-0 max-h-[400px] overflow-y-auto space-y-1">
-                  {globalIssues.map((issue, i) => {
-                    const isOpen = expandedIssues[i] ?? false;
-                    return (
-                      <div
-                        key={i}
-                        className="border-b border-border/50 pb-1 cursor-pointer"
-                        onClick={() => {
-
-                          setExpandedIssues(prev => ({ ...prev, [i]: !prev[i] }));
-                        }}
-                      >
-                        <div className="flex items-center gap-1 text-xs">
-                          {isOpen ? <ChevronDown className="h-3 w-3 shrink-0" /> : <ChevronRight className="h-3 w-3 shrink-0" />}
-                          <span className="font-semibold text-foreground truncate">{issue.file}</span>
-                        </div>
-                        {isOpen && (
-                          <div className="ml-4 mt-0.5 text-[10px] text-muted-foreground break-words">{issue.message}</div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </CardContent>
               </Card>
             )}
 
@@ -1822,6 +1597,82 @@ const SystemExplorer = () => {
               );
             })()}
 
+            {/* Action Monitor */}
+            <details className="border border-border rounded-md">
+              <summary className="px-3 py-1.5 text-[10px] font-semibold cursor-pointer bg-muted/30 hover:bg-muted/50 transition-colors">
+                Action Monitor ({actionLogs.length})
+              </summary>
+              <div className="max-h-48 overflow-y-auto">
+                {actionLogs.length === 0 ? (
+                  <p className="text-[10px] text-muted-foreground px-3 py-2">No actions logged yet</p>
+                ) : (
+                  <table className="w-full text-[10px]">
+                    <thead>
+                      <tr className="border-b border-border text-muted-foreground">
+                        <th className="px-3 py-1 text-left">Time</th>
+                        <th className="px-3 py-1 text-left">Type</th>
+                        <th className="px-3 py-1 text-left">Status</th>
+                        <th className="px-3 py-1 text-left">Message</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {actionLogs.slice(0, 10).map((log, i) => (
+                        <tr key={i} className="border-b border-border/50 hover:bg-muted/20">
+                          <td className="px-3 py-1 font-mono text-muted-foreground">{log.time?.split("T")[1]?.slice(0, 8)}</td>
+                          <td className="px-3 py-1 font-medium text-foreground">{log.type}</td>
+                          <td className="px-3 py-1">
+                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${
+                              log.status === "success" ? "bg-green-500/20 text-green-400" :
+                              log.status === "error" || log.status === "no-data" ? "bg-red-500/20 text-red-400" :
+                              log.status === "started" ? "bg-blue-500/20 text-blue-400" :
+                              "bg-yellow-500/20 text-yellow-400"
+                            }`}>{log.status}</span>
+                          </td>
+                          <td className="px-3 py-1 text-muted-foreground truncate max-w-[200px]">{log.message || "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </details>
+            <div className="flex gap-2 items-center">
+              <Input
+                placeholder="Search code..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                className="h-7 text-[10px] max-w-[250px]"
+              />
+              <Button variant="outline" size="sm" className="text-[10px] h-7" onClick={handleSearch}>Search</Button>
+              <span className="text-[9px] text-yellow-500/70 font-mono">⚠ Frontend scan (static / debug only)</span>
+            </div>
+            {searchResults.length > 0 && (
+              <div>
+                <h3 className="text-sm font-semibold mb-1">Search Results ({searchResults.length})</h3>
+                {searchResults.map((r, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      padding: "8px",
+                      borderBottom: "1px solid hsl(var(--border))",
+                      cursor: "pointer"
+                    }}
+                    onClick={() => {
+                      const entry = fileSystemMap.find(f => f.path === r.path);
+                      if (entry) setSelectedFile(entry);
+                    }}
+                  >
+                    <div><strong>{r.path}</strong></div>
+                    <div className="text-muted-foreground">Line {r.lineNumber}</div>
+                    <div style={{ fontFamily: "monospace" }} className="text-xs">
+                      {r.line}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {/* All Code Issues with Analysis */}
             {(() => {
               const ratingOrder = { good: 0, neutral: 1, bad: 2 } as const;
@@ -1888,14 +1739,12 @@ const SystemExplorer = () => {
                 </button>
               ))}
               <Button variant="outline" size="sm" className="text-[10px] h-6 ml-auto" onClick={() => {
-
                 validateAction("SCAN_FILES", () => {
                   const files = Object.keys(getRawSources() || {});
                   if (!files.length) {
                     throw new Error("No files available");
                   }
                   const result = files.length;
-
                   setFileScanResult({ total: result, emptyFiles: files.filter(f => !getRawSources()[f]?.trim()).length, largeFiles: 0 });
                   return true;
                 });
@@ -2309,7 +2158,7 @@ const SystemExplorer = () => {
                     </>
                   );
                 } catch (e) {
-
+                  console.error("[SCAN ERROR] JSON render failed:", e);
                   return <p className="text-xs text-destructive">Error rendering scan results</p>;
                 }
               })()}
@@ -2499,7 +2348,32 @@ const SystemExplorer = () => {
           </CardContent>
         </Card>
 
-        {/* FLOW */}
+        {/* DEBUG PANEL — live state snapshot */}
+        {isSystemAdmin && (
+          <Card>
+            <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("debugPanel")}>
+              <CardTitle className="text-sm flex items-center gap-2">
+                {expandedSections.debugPanel ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                <Bug className="h-4 w-4 text-yellow-500" />
+                Debug Panel
+              </CardTitle>
+            </CardHeader>
+            {expandedSections.debugPanel && (
+              <CardContent className="pt-0">
+                <pre className="bg-muted/20 border border-border rounded-md p-2 max-h-[300px] overflow-y-auto font-mono text-[10px] whitespace-pre-wrap break-all text-foreground">
+                  {JSON.stringify({
+                    rawSources: Object.keys(getRawSources() || {}).length,
+                    globalIssues: globalIssues.length,
+                    loading: isScanning,
+                    lastScan,
+                  }, null, 2)}
+                </pre>
+              </CardContent>
+            )}
+          </Card>
+        )}
+
+        {/* AI FLOW */}
         <Card>
           <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("aiFlow")}>
             <CardTitle className="text-sm flex items-center gap-2">
@@ -2689,6 +2563,60 @@ const SystemExplorer = () => {
           )}
         </Card>
 
+        {/* SYSTEM ACTIVITY */}
+        <Card>
+          <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("systemActivity")}>
+            <CardTitle className="text-sm flex items-center gap-2">
+              {expandedSections.systemActivity ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <Activity className="h-4 w-4 text-primary" />
+              System Activity ({systemActivityTraces.length})
+              <span className="text-[9px] text-muted-foreground font-mono ml-auto">live ↻ 5s</span>
+            </CardTitle>
+          </CardHeader>
+          {expandedSections.systemActivity && (
+            <CardContent className="space-y-1 pt-0 max-h-[500px] overflow-y-auto">
+              {systemActivityTraces.length === 0 && (
+                <p className="text-xs text-muted-foreground py-2">No activity yet</p>
+              )}
+              {(systemActivityTraces as any[]).map((t: any) => {
+                const isBlocked = t.endpoint === "blocked";
+                const isError = !isBlocked && !!t.error_message;
+                const isSuccess = !isBlocked && !isError;
+                const rowColor = isBlocked
+                  ? "border-orange-500/40 bg-orange-500/5"
+                  : isError
+                  ? "border-destructive/40 bg-destructive/5"
+                  : "border-green-600/30 bg-green-500/5";
+                const badge = isBlocked
+                  ? <span className="text-[9px] font-bold text-orange-500 bg-orange-500/10 rounded px-1">BLOCKED</span>
+                  : isError
+                  ? <span className="text-[9px] font-bold text-destructive bg-destructive/10 rounded px-1">ERROR</span>
+                  : <span className="text-[9px] font-bold text-green-600 bg-green-500/10 rounded px-1">OK</span>;
+                return (
+                  <div key={t.id} className={`border rounded p-2 space-y-0.5 ${rowColor}`}>
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <span className="font-mono text-[11px] font-medium">{t.function_name || "–"}</span>
+                      <div className="flex items-center gap-1">
+                        {badge}
+                        <span className="text-muted-foreground text-[9px] shrink-0">
+                          {new Date(t.created_at).toLocaleString("sv-SE", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                      <span className="rounded bg-muted px-1">{t.source || "–"}</span>
+                      {t.endpoint && <span className="font-mono">{t.endpoint}</span>}
+                    </div>
+                    {t.error_message && (
+                      <p className="font-mono text-[10px] text-destructive break-all">{t.error_message}</p>
+                    )}
+                  </div>
+                );
+              })}
+            </CardContent>
+          )}
+        </Card>
+
         {/* FILE MAP */}
         <Card>
           <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("fileMap")}>
@@ -2862,6 +2790,7 @@ const SystemExplorer = () => {
                                 <div className="text-center">
                                   <div className="font-bold">{scanner.emptyReason || '–'}</div>
                                   <div className="text-muted-foreground">Empty?</div>
+                                </div>
                               </div>
                               {/* Scan Scope */}
                               {scanner.scanScope && (
@@ -2891,7 +2820,6 @@ const SystemExplorer = () => {
                                     return <div className="font-bold">{scanner.detected} issues / {size} scanned ({ratio}%)</div>;
                                   })()}
                                 </div>
-                              </div>
                               </div>
                               {scannerExpanded && scanner.rawIssues.length > 0 && (
                                 <div className="px-2.5 pb-2 border-t border-border/50 pt-1.5">
@@ -3228,6 +3156,66 @@ const SystemExplorer = () => {
               ) : (
                 <p className="text-sm text-muted-foreground">Ingen scan hittad.</p>
               )}
+            </CardContent>
+          )}
+        </Card>
+
+        {/* ── EXECUTION TRACE (traces linked to latest scan run) ── */}
+        <Card>
+          <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("executionTrace")}>
+            <CardTitle className="text-sm flex items-center gap-2">
+              {expandedSections.executionTrace ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <Radar className="h-4 w-4 text-primary" />
+              Execution Trace
+              {(latestRun as any)?.id && (
+                <span className="text-[9px] font-mono text-muted-foreground">scan: {(latestRun as any).id.slice(0, 8)}…</span>
+              )}
+              <span className="text-[9px] text-muted-foreground font-mono ml-auto">live ↻ 5s</span>
+            </CardTitle>
+          </CardHeader>
+          {expandedSections.executionTrace && (
+            <CardContent className="space-y-1 pt-0 max-h-[400px] overflow-y-auto">
+              {!(latestRun as any)?.id && (
+                <p className="text-xs text-muted-foreground py-2">No scan run found</p>
+              )}
+              {(latestRun as any)?.id && executionTraces.length === 0 && (
+                <p className="text-xs text-muted-foreground py-2">No execution traces for this scan yet</p>
+              )}
+              {(executionTraces as any[]).map((t: any) => {
+                const isBlocked = t.endpoint === "blocked";
+                const isError = !isBlocked && !!t.error_message;
+                const isSuccess = !isBlocked && !isError;
+                const rowColor = isBlocked
+                  ? "border-orange-500/40 bg-orange-500/5"
+                  : isError
+                  ? "border-destructive/40 bg-destructive/5"
+                  : "border-green-600/30 bg-green-500/5";
+                return (
+                  <div key={t.id} className={`border rounded p-2 space-y-0.5 ${rowColor}`}>
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <span className="font-mono text-[11px] font-medium">{t.function_name || "–"}</span>
+                      <div className="flex items-center gap-1">
+                        {isBlocked
+                          ? <span className="text-[9px] font-bold text-orange-500 bg-orange-500/10 rounded px-1">BLOCKED</span>
+                          : isError
+                          ? <span className="text-[9px] font-bold text-destructive bg-destructive/10 rounded px-1">ERROR</span>
+                          : <span className="text-[9px] font-bold text-green-600 bg-green-500/10 rounded px-1">OK</span>
+                        }
+                        <span className="text-muted-foreground text-[9px] shrink-0">
+                          {new Date(t.created_at).toLocaleString("sv-SE", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                      <span className="rounded bg-muted px-1">{t.source || "–"}</span>
+                      {t.endpoint && <span className="font-mono">{t.endpoint}</span>}
+                    </div>
+                    {t.error_message && (
+                      <p className="font-mono text-[10px] text-destructive break-all">{t.error_message}</p>
+                    )}
+                  </div>
+                );
+              })}
             </CardContent>
           )}
         </Card>
@@ -4141,7 +4129,6 @@ const SystemExplorer = () => {
                         body: { action: "start", scan_mode: "targeted", target_area: target, verification_for: selectedItem.id },
                         isAdmin: true,
                       });
-
                       const scanData = verifyRes?.data ?? verifyRes;
 
                       // 3. Check if issue still found

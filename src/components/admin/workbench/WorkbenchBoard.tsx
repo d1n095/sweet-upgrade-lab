@@ -205,11 +205,31 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     }
   };
 
-  const runValidation = async () => {
-    setRunningValidation(true);
+  const runOrchestrator = async () => {
+    setRunningOrchestrator(true);
     try {
-      const resp = await safeFetch('data-sync', {
-        method: 'POST',
+      const { data, error } = await safeInvoke('ai-task-manager', { body: { action: 'orchestrate' }, isAdmin: true });
+      if (error) throw error;
+      const r = data?.results;
+      const scanned = r?.orchestrator_scanned || 0;
+      const orchestrated = r?.orchestrated || 0;
+
+      if (scanned === 0) {
+        toast.info('Orchestrator: inga aktiva uppgifter hittades');
+      } else if (orchestrated === 0) {
+        toast.warning(`Orchestrator skannade ${scanned} uppgifter men kunde inte ordna dem automatiskt`);
+      } else {
+        toast.success(`Orchestrator klar: ${orchestrated}/${scanned} uppgifter ordnade (${r?.orchestrator_mode || 'ai'})`);
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['work-items'] });
+    } catch (e: any) {
+      toast.error('Orchestrator misslyckades: ' + e.message);
+    } finally {
+      setRunningOrchestrator(false);
+    }
+  };
+
         body: { mode: 'repair' },
         isAdmin: true,
       });
@@ -1079,7 +1099,10 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
             </Button>
           )}
           <Button size="sm" variant="outline" className="gap-1.5" onClick={runAutomation} disabled={runningAutomation}>
-            <Zap className="w-4 h-4" /> {runningAutomation ? 'Kör...' : 'Automation'}
+            <Bot className="w-4 h-4" /> {runningAutomation ? 'Kör...' : 'Automation'}
+          </Button>
+          <Button size="sm" variant="outline" className="gap-1.5" onClick={runOrchestrator} disabled={runningOrchestrator}>
+            <Layers className="w-4 h-4" /> {runningOrchestrator ? 'Analyserar...' : 'Task Organizer'}
           </Button>
           <Button size="sm" variant="outline" className="gap-1.5" onClick={runValidation} disabled={runningValidation}>
             <CheckCircle2 className="w-4 h-4" /> {runningValidation ? 'Validerar...' : 'Validera & Städa'}

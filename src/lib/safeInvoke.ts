@@ -1,153 +1,148 @@
 import { supabase } from '@/integrations/supabase/client';
 
-// ── SYSTEM LOCKED ───────────────────────────────────────────────────────────
-// All Supabase Edge Function calls MUST go through safeInvoke or safeFetch.
-// Direct supabase.functions.invoke() calls outside this file are prohibited.
-// ────────────────────────────────────────────────────────────────────────────
+// ── SYSTEM LOCKED ─────────────────────────────────────────────────────────────
+// All Edge Function invocations MUST go through safeInvoke or safeFetch.
+// Direct supabase.functions.invoke() / fetch() calls to /functions/v1/ outside
+// this file are prohibited.
+// ─────────────────────────────────────────────────────────────────────────────
 
 const ALLOWED_FUNCTIONS = new Set([
   'process-refund',
   'notify-review',
   'send-order-email',
-  'lookup-order',
-  'create-checkout',
-  'translate-product',
-  'run-full-scan',
-  'get-latest-scan-run',
-  'get-scan-run-by-id',
+  'send-welcome-email',
   'apply-fix',
   'access-control-scan',
   'permission-fix',
   'access-flow-validate',
-  'data-sync',
-  'stripe-webhook',
-  'process-bug-report',
+  'notify-influencer',
+  'notify-affiliate',
   'generate-receipt',
-  'automation-engine',
   'generate-product-content',
   'suggest-product-metadata',
   'shopify-proxy',
-  'send-welcome-email',
-  'notify-influencer',
-  'notify-affiliate',
+  'automation-engine',
+  'ai-task-manager',
+  'data-sync',
+  'process-bug-report',
   'google-places',
+  'stripe-webhook',
+  'ai-user-management',
 ]);
 
 const ADMIN_ONLY_FUNCTIONS = new Set([
   'run-full-scan',
-  'get-latest-scan-run',
-  'get-scan-run-by-id',
   'apply-fix',
   'access-control-scan',
   'permission-fix',
   'access-flow-validate',
-  'data-sync',
-  'stripe-webhook',
-  'process-bug-report',
+  'notify-influencer',
+  'notify-affiliate',
   'generate-receipt',
-  'automation-engine',
   'generate-product-content',
   'suggest-product-metadata',
   'shopify-proxy',
-  'notify-influencer',
-  'notify-affiliate',
-  'process-refund',
+  'automation-engine',
+  'ai-task-manager',
+  'data-sync',
+  'process-bug-report',
+  'send-order-email',
+  'ai-user-management',
+  'stripe-webhook',
 ]);
 
-let _traceCounter = 0;
-function newTraceId(): string {
-  return `t-${Date.now()}-${++_traceCounter}`;
-}
-
-interface InvokeOptions {
-  body?: Record<string, unknown>;
-  isAdmin?: boolean;
-}
-
-interface InvokeResult<T = unknown> {
-  data: T | null;
-  error: Error | null;
-  traceId: string;
-}
-
-/** Invoke an edge function by name, with whitelist + admin guard. */
-export async function safeInvoke<T = unknown>(
-  functionName: string,
-  options: InvokeOptions = {}
-): Promise<InvokeResult<T>> {
-  const traceId = newTraceId();
-
+function assertAllowed(functionName: string, isAdmin: boolean | undefined): void {
   if (!ALLOWED_FUNCTIONS.has(functionName)) {
-    const err = new Error(`BLOCKED: function "${functionName}" is not in ALLOWED_FUNCTIONS`);
-
-    return { data: null, error: err, traceId };
+    throw new Error(`[safeInvoke] BLOCKED: '${functionName}' is not in ALLOWED_FUNCTIONS`);
   }
-
-  if (ADMIN_ONLY_FUNCTIONS.has(functionName) && !options.isAdmin) {
-    const err = new Error(`BLOCKED: function "${functionName}" requires isAdmin:true`);
-
-    return { data: null, error: err, traceId };
+  if (ADMIN_ONLY_FUNCTIONS.has(functionName) && !isAdmin) {
+    throw new Error(`[safeInvoke] BLOCKED: '${functionName}' requires isAdmin: true`);
   }
-
-  const { data, error } = await supabase.functions.invoke<T>(functionName, {
-    body: options.body,
-  });
-
-  if (error) {
-
-  }
-
-  return { data: data ?? null, error: error ?? null, traceId };
-}
-
-interface FetchOptions {
-  method?: string;
-  params?: Record<string, string>;
-  body?: unknown;
-  signal?: AbortSignal;
-  isAdmin?: boolean;
-  headers?: Record<string, string>;
 }
 
 /**
- * Fetch an edge function URL directly, returning the raw Response.
- * Use this when you need the raw HTTP status, streaming, or AbortSignal.
+ * Canonical wrapper for all Supabase Edge Function calls.
+ * Enforces that admin-only functions are called with isAdmin: true.
+ * Attaches a request_trace_id for end-to-end tracing.
+ * Returns { data, error, request_trace_id }.
+ */
+export async function safeInvoke<T = any>(
+  functionName: string,
+  options?: {
+    body?: Record<string, any>;
+    headers?: Record<string, string>;
+    isAdmin?: boolean;
+  }
+): Promise<{ data: T | null; error: any; request_trace_id: string }> {
+  try {
+    assertAllowed(functionName, options?.isAdmin);
+  } catch (err: any) {
+    console.error(err.message);
+    return { data: null, error: err, request_trace_id: '' };
+  }
+
+  const request_trace_id = crypto.randomUUID();
+
+  const body = {
+    ...(options?.body ?? {}),
+    request_trace_id,
+  };
+
+  const { data, error } = await supabase.functions.invoke(functionName, {
+    headers: options?.headers,
+    body,
+  });
+
+  return { data, error, request_trace_id };
+}
+
+/**
+ * Variant of safeInvoke that returns the raw fetch Response.
+ * Use when you need HTTP status codes, HTML bodies, AbortSignal, or GET requests.
  */
 export async function safeFetch(
   functionName: string,
-  options: FetchOptions = {}
+  options?: {
+    method?: 'GET' | 'POST';
+    body?: Record<string, any>;
+    params?: Record<string, string>;
+    headers?: Record<string, string>;
+    isAdmin?: boolean;
+    signal?: AbortSignal;
+  }
 ): Promise<Response> {
-  const traceId = newTraceId();
+  assertAllowed(functionName, options?.isAdmin);
 
-  if (!ALLOWED_FUNCTIONS.has(functionName)) {
-    throw new Error(`[safeFetch][${traceId}] BLOCKED: function "${functionName}" is not in ALLOWED_FUNCTIONS`);
+  const traceId = crypto.randomUUID();
+  const method = options?.method ?? 'POST';
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+  let url = `${supabaseUrl}/functions/v1/${functionName}`;
+  if (method === 'GET' && options?.params) {
+    url += `?${new URLSearchParams(options.params).toString()}`;
   }
 
-  if (ADMIN_ONLY_FUNCTIONS.has(functionName) && !options.isAdmin) {
-    throw new Error(`[safeFetch][${traceId}] BLOCKED: function "${functionName}" requires isAdmin:true`);
-  }
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData?.session?.access_token;
 
-  const base = import.meta.env.VITE_SUPABASE_URL as string;
-  const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
-
-  let url = `${base}/functions/v1/${functionName}`;
-  if (options.params && Object.keys(options.params).length > 0) {
-    url += '?' + new URLSearchParams(options.params).toString();
-  }
-
-  const { data: { session } } = await supabase.auth.getSession();
-
-  const resp = await fetch(url, {
-    method: options.method ?? (options.body !== undefined ? 'POST' : 'GET'),
+  const fetchOptions: RequestInit = {
+    method,
     headers: {
-      'Content-Type': 'application/json',
+      ...(method !== 'GET' && { 'Content-Type': 'application/json' }),
       apikey: anonKey,
-      ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-      ...options.headers,
+      ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
+      ...options?.headers,
     },
-    ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
-    ...(options.signal ? { signal: options.signal } : {}),
-  });
+    signal: options?.signal,
+  };
 
-  return resp;
+  if (method !== 'GET') {
+    fetchOptions.body = JSON.stringify({
+      ...(options?.body ?? {}),
+      request_trace_id: traceId,
+    });
+  }
+
+  return fetch(url, fetchOptions);
 }

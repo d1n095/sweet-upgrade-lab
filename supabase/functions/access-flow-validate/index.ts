@@ -15,6 +15,8 @@ interface FlowTest {
   passed: boolean;
   detail: string;
   risk: "critical" | "high" | "medium" | "low";
+  severity?: "critical" | "high" | "medium" | "low" | "info";
+  type?: string;
 }
 
 serve(async (req) => {
@@ -310,6 +312,84 @@ serve(async (req) => {
           detail: `Användare har ${highCount} högnivåroller — onödigt`,
           risk: "medium",
         });
+      }
+    }
+
+    // ── IGNORE RULE: admin saknar behörighet + role-based access ──
+    // IF issue.detail includes "admin saknar behörighet"
+    // AND system uses role-based access (role_module_permissions in use)
+    // THEN severity = "low", type = "info"
+    const usesRoleBased = (allPerms || []).length > 0;
+    for (const test of tests) {
+      if (test.detail.includes("admin saknar behörighet") && usesRoleBased) {
+        test.risk = "low";
+        test.severity = "low";
+        test.type = "info";
+      }
+    }
+
+    // ── RULE: admin access FAILS → CRITICAL endpoint = HIGH, else = IGNORE ──
+    // IF admin access FAILS AND endpoint is CRITICAL → risk = "high"
+    // ELSE (admin access fails, non-critical endpoint) → IGNORE (severity = "low", type = "info")
+    const criticalAdminEndpoints = ["orders", "finance", "users", "members", "system", "settings", "staff"];
+    const adminRoles = ["admin", "founder", "it"];
+    for (const test of tests) {
+      if (!test.passed && adminRoles.some(r => test.role.includes(r))) {
+        const onCritical = criticalAdminEndpoints.some(ep => test.target.includes(ep));
+        if (onCritical) {
+          test.risk = "high";
+          test.severity = "high";
+          test.type = undefined;
+        } else {
+          test.risk = "low";
+          test.severity = "low";
+          test.type = "info";
+        }
+      }
+    }
+
+    // ── RULE: staff DELETE on sensitive module → CRITICAL (privilege escalation) ──
+    // IF a staff role has DELETE on orders/users/finance
+    // THEN severity = "critical", type = "privilege_escalation"
+    for (const test of tests) {
+      if (
+        !test.passed &&
+        test.category === "api" &&
+        /^(orders|users|finance):DELETE$/.test(test.target)
+      ) {
+        test.risk = "critical";
+        test.severity = "critical";
+        test.type = "privilege_escalation";
+      }
+    }
+
+    // ── RULE: orphaned role entries → CRITICAL (abandoned access) ──
+    // IF roles exist for a user not in auth.users (deleted account)
+    // THEN severity = "critical", type = "orphan_role"
+    for (const test of tests) {
+      if (
+        !test.passed &&
+        test.category === "rls" &&
+        test.detail.includes("borttagen användare")
+      ) {
+        test.risk = "critical";
+        test.severity = "critical";
+        test.type = "orphan_role";
+      }
+    }
+
+    // ── RULE: cross-role segregation violation → HIGH ──
+    // IF finance + warehouse are assigned to the same user (segregation of duties)
+    // THEN severity = "high", type = "segregation_violation"
+    for (const test of tests) {
+      if (
+        !test.passed &&
+        test.category === "api" &&
+        test.detail.includes("finance + warehouse")
+      ) {
+        test.risk = "high";
+        test.severity = "high";
+        test.type = "segregation_violation";
       }
     }
 

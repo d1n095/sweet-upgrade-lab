@@ -42,9 +42,9 @@ export const SafeModeBanner = () => {
 const SafeModePanel = () => {
   const { active, activatedAt, events, isolatedAreas, deactivate, activate, clearEvents } = useSafeModeStore();
 
-  const pausedTasks: any[] = [];
-  const failedTasks: any[] = [];
-  const regressedTasks: any[] = [];
+  const pausedTasks: never[] = [];
+  const failedTasks: never[] = [];
+  const regressedTasks: never[] = [];
 
   return (
     <div className="space-y-4">

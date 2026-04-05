@@ -246,8 +246,14 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
   };
 
   const handleRunRootCause = async () => {
-    // AI permanently removed
-    return;
+    setAnalyzingFix(true);
+    try {
+      toast.error('AI-analys är inte tillgänglig');
+    } catch {
+      // noop
+    } finally {
+      setAnalyzingFix(false);
+    }
   };
 
   const dt = fmtFull(item.created_at);
@@ -388,6 +394,211 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                 {bugData?.description || incidentData?.description || item.description || 'Ingen beskrivning'}
               </div>
             </div>
+
+            {/* AI Pre-Verification Suggestion */}
+            {item.ai_pre_verify_status && item.ai_pre_verify_status !== 'not_fixed' && item.ai_pre_verify_status !== 'dismissed' && (isOpen || item.ai_pre_verify_status === 'confirmed' || item.ai_pre_verify_status === 'rejected') && (
+              <div className={cn('rounded-lg p-3 space-y-2.5 border', {
+                'bg-accent/10 border-accent/30': item.ai_pre_verify_status === 'appears_fixed' || item.ai_pre_verify_status === 'confirmed',
+                'bg-primary/5 border-primary/20': item.ai_pre_verify_status === 'possibly_fixed',
+                'bg-destructive/5 border-destructive/20': item.ai_pre_verify_status === 'rejected',
+              })}>
+                <div className="flex items-center gap-1.5 text-xs font-semibold">
+                  <Sparkles className="w-3.5 h-3.5 text-primary" />
+                  {item.ai_pre_verify_status === 'confirmed' ? 'AI-förslag bekräftat' :
+                   item.ai_pre_verify_status === 'rejected' ? 'AI-förslag avvisat' : 'AI förslag: Verkar löst'}
+                  <Badge variant="outline" className={cn('text-[9px] ml-auto', {
+                    'border-accent/40 text-accent': item.ai_pre_verify_status === 'appears_fixed' || item.ai_pre_verify_status === 'confirmed',
+                    'border-primary/30 text-primary': item.ai_pre_verify_status === 'possibly_fixed',
+                    'border-destructive/30 text-destructive': item.ai_pre_verify_status === 'rejected',
+                  })}>
+                    {item.ai_pre_verify_status === 'confirmed' ? '✅ Bekräftad av användare' :
+                     item.ai_pre_verify_status === 'rejected' ? '❌ Avvisad — djupanalys körd' :
+                     item.ai_pre_verify_status === 'appears_fixed' ? '✅ Verkar fixat' : '🔍 Möjligen fixat'}
+                    {item.ai_pre_verify_result?.confidence != null && ` (${item.ai_pre_verify_result.confidence}%)`}
+                  </Badge>
+                </div>
+                {item.ai_pre_verify_result?.reasoning && (
+                  <p className="text-xs text-muted-foreground">{item.ai_pre_verify_result.reasoning}</p>
+                )}
+                {item.ai_pre_verify_result?.related_change && (
+                  <p className="text-[10px] text-muted-foreground">
+                    <span className="font-medium">Relaterad ändring:</span> {item.ai_pre_verify_result.related_change}
+                  </p>
+                )}
+                {item.ai_pre_verify_at && (
+                  <p className="text-[10px] text-muted-foreground">{fmtFull(item.ai_pre_verify_at).relative}</p>
+                )}
+                {isOpen && !['confirmed', 'rejected'].includes(item.ai_pre_verify_status || '') && (
+                <div className="flex gap-2 pt-1">
+                  <Button size="sm" variant="default" className="flex-1 gap-1 h-7 text-xs"
+                    disabled={runningPreVerify}
+                    onClick={async () => {
+                      setRunningPreVerify(true);
+                      try {
+                        // 1. Mark as done
+                        await onStatusChange(item.id, 'done');
+                        // 2. Log human confirmation
+                        await supabase.from('work_items').update({
+                          ai_pre_verify_status: 'confirmed',
+                          ai_pre_verify_result: {
+                            ...item.ai_pre_verify_result,
+                            human_confirmed: true,
+                            confirmed_at: new Date().toISOString(),
+                            confirmed_by: user?.id,
+                          },
+                          resolution_notes: `✅ Bekräftad via AI-förslag (${item.ai_pre_verify_result?.confidence || '?'}% konfidens)`,
+                        } as any).eq('id', item.id);
+                        // 3. Log to change_log
+                        await supabase.from('change_log').insert({
+                          change_type: 'verification',
+                          description: `Användare bekräftade AI-förslag: ${item.title}`,
+                          affected_components: [item.item_type, 'ai_pre_verify'],
+                          source: 'human_confirmation',
+                          work_item_id: item.id,
+                          bug_report_id: item.source_type === 'bug_report' ? item.source_id : null,
+                          metadata: { ai_confidence: item.ai_pre_verify_result?.confidence, action: 'confirm' },
+                        });
+                        // 4. Trigger post-verify review
+                        triggerAiReviewForWorkItem(item.id, { context: 'human_confirmed_pre_verify' });
+                        toast.success('✅ Bekräftad och verifierad');
+                        onRefresh?.();
+                        onOpenChange(false);
+                      } catch { toast.error('Fel'); }
+                      finally { setRunningPreVerify(false); }
+                    }}
+                  >
+                    {runningPreVerify ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+                    Bekräfta fixad
+                  </Button>
+                  <Button size="sm" variant="outline" className="flex-1 gap-1 h-7 text-xs text-destructive border-destructive/30"
+                    disabled={runningPreVerify}
+                    onClick={async () => {
+                      setRunningPreVerify(true);
+                      try {
+                        // 1. Escalate priority
+                        const newPriority = item.priority === 'low' ? 'medium' : item.priority === 'medium' ? 'high' : 'high';
+                        await supabase.from('work_items').update({
+                          ai_pre_verify_status: 'rejected',
+                          ai_pre_verify_result: {
+                            ...item.ai_pre_verify_result,
+                            human_rejected: true,
+                            rejected_at: new Date().toISOString(),
+                            rejected_by: user?.id,
+                          },
+                          priority: newPriority,
+                          status: 'open',
+                        } as any).eq('id', item.id);
+                        // 2. Log rejection
+                        await supabase.from('change_log').insert({
+                          change_type: 'rejection',
+                          description: `Användare avvisade AI-förslag: ${item.title} — prioritet eskalerad till ${newPriority}`,
+                          affected_components: [item.item_type, 'ai_pre_verify'],
+                          source: 'human_rejection',
+                          work_item_id: item.id,
+                          bug_report_id: item.source_type === 'bug_report' ? item.source_id : null,
+                          metadata: { ai_confidence: item.ai_pre_verify_result?.confidence, action: 'reject', escalated_to: newPriority },
+                        });
+                        toast.info('🔍 Avvisad — AI-anrop blockerat', { duration: 4000 });
+                        // ── HARD BLOCK: direct ai-assistant calls are disabled ──
+                        console.log("[AI COST CALL BLOCKED FROM]: WorkItemDetail.tsx — rejection_reanalysis");
+                        // ─────────────────────────────────────────────────────────
+                        onRefresh?.();
+                      } catch { toast.error('Fel'); }
+                      finally { setRunningPreVerify(false); }
+                    }}
+                  >
+                    {runningPreVerify ? <Loader2 className="w-3 h-3 animate-spin" /> : <AlertCircle className="w-3 h-3" />}
+                    Inte fixad
+                  </Button>
+                </div>
+                )}
+              </div>
+            )}
+
+            {/* Pre-Verify Button for open items */}
+            {isOpen && (
+              <Button size="sm" variant="outline" className="w-full gap-1.5" disabled={runningPreVerify}
+                onClick={async () => {
+                  setRunningPreVerify(true);
+                  try {
+                    // ── HARD BLOCK: direct ai-assistant calls are disabled ──
+                    console.log("[AI COST CALL BLOCKED FROM]: WorkItemDetail.tsx — pre_verify");
+                    toast.error('AI_DISABLED: direktanrop till ai-assistant är blockerat');
+                  } catch { toast.error('Fel'); }
+                  finally { setRunningPreVerify(false); }
+                }}
+              >
+                {runningPreVerify ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                AI: Kontrollera om löst
+              </Button>
+            )}
+
+            {/* AI Review Results */}
+            {item.ai_review_status && (
+              <div className={cn('rounded-lg p-3 space-y-2 border', {
+                'bg-accent/5 border-accent/20': item.ai_review_status === 'verified',
+                'bg-yellow-50 border-yellow-200': item.ai_review_status === 'needs_review',
+                'bg-destructive/5 border-destructive/20': item.ai_review_status === 'incomplete',
+              })}>
+                <div className="flex items-center gap-1.5 text-xs font-semibold">
+                  <Bot className="w-3.5 h-3.5" />
+                  AI-granskning
+                  <Badge variant="outline" className={cn('text-[9px] ml-auto', {
+                    'border-accent/30 text-accent': item.ai_review_status === 'verified',
+                    'border-yellow-300 text-yellow-700': item.ai_review_status === 'needs_review',
+                    'border-destructive/30 text-destructive': item.ai_review_status === 'incomplete',
+                  })}>
+                    {item.ai_review_status === 'verified' ? '✅ Verifierad' :
+                     item.ai_review_status === 'needs_review' ? '⚠️ Behöver granskning' : '❌ Ofullständig'}
+                  </Badge>
+                </div>
+                {item.ai_review_result?.verdict && <p className="text-xs">{item.ai_review_result.verdict}</p>}
+                {item.ai_review_result?.confidence != null && (
+                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                    <span>Konfidens: {item.ai_review_result.confidence}%</span>
+                    {item.ai_review_at && <span>• {fmtFull(item.ai_review_at).relative}</span>}
+                  </div>
+                )}
+                {item.ai_review_result?.risks?.length > 0 && (
+                  <div className="text-xs">
+                    <span className="font-medium text-destructive">Risker:</span>
+                    <ul className="list-disc pl-4 mt-0.5 space-y-0.5">
+                      {item.ai_review_result.risks.map((r: string, i: number) => <li key={i}>{r}</li>)}
+                    </ul>
+                  </div>
+                )}
+                {item.ai_review_result?.edge_cases?.length > 0 && (
+                  <div className="text-xs">
+                    <span className="font-medium text-yellow-700">Edge cases:</span>
+                    <ul className="list-disc pl-4 mt-0.5 space-y-0.5">
+                      {item.ai_review_result.edge_cases.map((e: string, i: number) => <li key={i}>{e}</li>)}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Manual AI Review button */}
+            {item.status === 'done' && (
+              <Button size="sm" variant="outline" className="w-full gap-1.5" disabled={runningReview}
+                onClick={async () => {
+                  setRunningReview(true);
+                  try {
+                    const reviewResult = await triggerAiReviewForWorkItem(item.id, { context: 'work_item_detail_manual' });
+                    if (!reviewResult.ok) toast.error('AI-granskning misslyckades');
+                    else {
+                      const s = reviewResult.status;
+                      toast.success(s === 'verified' ? 'AI: ✅ Verifierad' : s === 'needs_review' ? 'AI: ⚠️ Behöver granskning' : 'AI: Granskning klar');
+                    }
+                    onRefresh?.();
+                  } catch { toast.error('Fel vid AI-granskning'); }
+                  finally { setRunningReview(false); }
+                }}
+              >
+                {runningReview ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Bot className="w-3.5 h-3.5" />}
+                {item.ai_review_status ? 'Kör AI-granskning igen' : 'Kör AI-granskning'}
+              </Button>
+            )}
 
             {/* Resolution info */}
             {bugData?.status === 'resolved' && bugData.resolution_notes && (
