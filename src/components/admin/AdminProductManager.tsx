@@ -529,8 +529,11 @@ const AdminProductManager = () => {
     try {
       await createDbProduct({
         title_sv: formData.title,
+        title_en: null,
         description_sv: formData.description || null,
+        description_en: null,
         price: parseFloat(formData.price) || 0,
+        original_price: null,
         category: formData.productType || null,
         vendor: formData.vendor || null,
         is_visible: formData.isVisible,
