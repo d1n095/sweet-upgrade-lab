@@ -1460,6 +1460,14 @@ const SystemExplorer = () => {
         {/* CODE INDEX TAB */}
         {/* ANALYSIS TAB */}
         {mainTab === "analysis" && (() => {
+          const ANALYSIS_MAX_PROMPT_FILES = 20;
+          const ANALYSIS_BAR_MAX_PX = 120;
+          const ANALYSIS_PROMPT_RULES = [
+            "Do not change architecture",
+            "Follow existing patterns",
+            "Use same scan_id",
+            "Keep logic consistent",
+          ];
           // ── Root-cause / fix / strategy engines ────────────────────────────
           function generateRootCause(issue: any): string {
             const text = `${issue.type || ""} ${issue.category || ""} ${issue._source || ""} ${issue.title || ""} ${issue.description || ""}`.toLowerCase();
@@ -1509,6 +1517,7 @@ const SystemExplorer = () => {
 
           // ── Issue normalizer ────────────────────────────────────────────────
           function hashStr(s: string): string {
+            // 31 is a standard polynomial hash multiplier (widely used in Java/JS)
             let h = 0;
             for (let i = 0; i < s.length; i++) { h = (Math.imul(31, h) + s.charCodeAt(i)) | 0; }
             return Math.abs(h).toString(16).padStart(8, "0");
@@ -1540,8 +1549,10 @@ const SystemExplorer = () => {
           // ── Helper fns ──────────────────────────────────────────────────────
           function getFolder(fileKey: string): string {
             const parts = fileKey.split("/");
+            // Files with a path separator → use the directory portion
             if (parts.length > 1) return parts.slice(0, -1).join("/");
-            return fileKey.includes(".") ? "root" : fileKey;
+            // Everything else (bare name with or without extension) → "root"
+            return "root";
           }
           function severityOrder(s: string): number {
             return s === "critical" ? 0 : s === "high" ? 1 : s === "medium" ? 2 : 3;
@@ -1606,7 +1617,7 @@ const SystemExplorer = () => {
           function generatePrompt(): string {
             const filesToInclude = selectedAnalysisFile
               ? [[selectedAnalysisFile, fileMap.get(selectedAnalysisFile) ?? []] as [string, typeof ALL_ISSUES]]
-              : sortedFiles.slice(0, 20) as [string, typeof ALL_ISSUES][];
+              : sortedFiles.slice(0, ANALYSIS_MAX_PROMPT_FILES) as [string, typeof ALL_ISSUES][];
 
             let prompt = `FIX THESE ISSUES:\n(scan_id: ${scanId ?? "unknown"})\n\n`;
             for (const [file, issues] of filesToInclude) {
@@ -1620,7 +1631,7 @@ const SystemExplorer = () => {
                 prompt += `---\n\n`;
               });
             }
-            prompt += `RULES:\n- Do not change architecture\n- Follow existing patterns\n- Use same scan_id\n- Keep logic consistent\n`;
+            prompt += `RULES:\n${ANALYSIS_PROMPT_RULES.map(r => `- ${r}`).join("\n")}\n`;
             return prompt;
           }
 
@@ -1663,7 +1674,7 @@ const SystemExplorer = () => {
                           {topTypes.map(([type, count]) => (
                             <div key={type} className="flex items-center gap-2 text-[9px]">
                               <span className="font-mono text-foreground flex-1">{type}</span>
-                              <div className="bg-primary/20 h-1.5 rounded-full" style={{ width: ALL_ISSUES.length ? `${Math.round((count / ALL_ISSUES.length) * 120)}px` : "0px" }} />
+                              <div className="bg-primary/20 h-1.5 rounded-full" style={{ width: ALL_ISSUES.length ? `${Math.round((count / ALL_ISSUES.length) * ANALYSIS_BAR_MAX_PX)}px` : "0px" }} />
                               <span className="text-muted-foreground w-6 text-right">{count}</span>
                             </div>
                           ))}
