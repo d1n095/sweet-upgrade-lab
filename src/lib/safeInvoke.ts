@@ -225,10 +225,10 @@ export async function safeInvoke<T = any>(
       return { data, error: null, traceId };
     } catch (caught: any) {
       const durationMs = Date.now() - t0;
-      const msg = caught?.message ?? String(caught);
+      const msg = caught?.message || String(caught) || 'Nätverksfel';
       console.error(`[safeInvoke] ✗ ${functionName} (attempt ${attempt + 1}, network error)`, { traceId, error: msg });
       logStore.update(traceId, attempt, { status: 'error', durationMs, errorMessage: msg });
-      lastError = caught;
+      lastError = caught?.message ? caught : Object.assign(new Error(msg), { originalError: caught });
       if (attempt < MAX_ATTEMPTS - 1) { await sleep(backoffMs(attempt)); continue; }
     }
   }
