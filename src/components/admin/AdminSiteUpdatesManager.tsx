@@ -203,7 +203,7 @@ const AdminSiteUpdatesManager = () => {
       if (error) throw error;
       setUpdates(data || []);
     } catch (err) {
-      console.error('Failed to fetch updates:', err);
+
     } finally {
       setIsLoading(false);
     }
@@ -259,7 +259,7 @@ const AdminSiteUpdatesManager = () => {
       resetForm();
       setIsDialogOpen(false);
     } catch (err) {
-      console.error('Failed to save update:', err);
+
       toast.error(t.error);
     } finally {
       setIsSubmitting(false);
@@ -272,7 +272,7 @@ const AdminSiteUpdatesManager = () => {
       if (error) throw error;
       toast.success(t.deleted);
     } catch (err) {
-      console.error('Failed to delete:', err);
+
       toast.error(t.error);
     }
   };

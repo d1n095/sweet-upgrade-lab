@@ -138,8 +138,8 @@ export const useAdminWorkItems = (options?: { enabled?: boolean }) =>
         .order('created_at', { ascending: false })
         .limit(500);
       if (error) throw error;
-      console.log('[useAdminWorkItems] DB ITEMS:', (data || []).length, 'items fetched');
-      console.log('FETCHED WORK ITEMS:', data);
+
+
       return (data || []) as any[];
     },
     staleTime: 5_000,
@@ -155,7 +155,7 @@ export const useAdminBugs = (options?: { enabled?: boolean }) =>
     queryFn: async () => {
       const { data, error } = await supabase
         .from('bug_reports')
-        .select('id, description, status, page_url, ai_severity, ai_category, ai_summary, created_at, user_id, resolved_at')
+        .select('id, description, status, page_url, created_at, user_id, resolved_at')
         .order('created_at', { ascending: false })
         .limit(500);
       if (error) throw error;
@@ -250,7 +250,7 @@ export const useAdminReviews = (options?: { enabled?: boolean }) =>
     queryFn: async () => {
       const { data, error } = await supabase
         .from('reviews')
-        .select('id, user_id, shopify_product_id, shopify_product_handle, product_title, rating, comment, is_verified_purchase, is_approved, admin_response, created_at')
+        .select('id, user_id, product_id, product_handle, product_title, rating, comment, is_verified_purchase, is_approved, admin_response, created_at')
         .order('created_at', { ascending: false })
         .limit(500);
       if (error) throw error;

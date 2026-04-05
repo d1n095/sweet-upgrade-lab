@@ -449,7 +449,7 @@ export type Database = {
         }
         Relationships: []
       }
-      ai_scan_results: {
+      scan_results: {
         Row: {
           created_at: string
           executive_summary: string | null
@@ -655,24 +655,24 @@ export type Database = {
           created_at: string
           id: string
           quantity: number
-          shopify_product_id: string
-          shopify_variant_id: string | null
+          product_id: string
+          variant_id: string | null
         }
         Insert: {
           bundle_id: string
           created_at?: string
           id?: string
           quantity?: number
-          shopify_product_id: string
-          shopify_variant_id?: string | null
+          product_id: string
+          variant_id?: string | null
         }
         Update: {
           bundle_id?: string
           created_at?: string
           id?: string
           quantity?: number
-          shopify_product_id?: string
-          shopify_variant_id?: string | null
+          product_id?: string
+          variant_id?: string | null
         }
         Relationships: [
           {
@@ -715,20 +715,20 @@ export type Database = {
         Row: {
           bundle_id: string
           id: string
-          shopify_product_id: string
-          shopify_variant_id: string | null
+          product_id: string
+          variant_id: string | null
         }
         Insert: {
           bundle_id: string
           id?: string
-          shopify_product_id: string
-          shopify_variant_id?: string | null
+          product_id: string
+          variant_id?: string | null
         }
         Update: {
           bundle_id?: string
           id?: string
-          shopify_product_id?: string
-          shopify_variant_id?: string | null
+          product_id?: string
+          variant_id?: string | null
         }
         Relationships: [
           {
@@ -1275,8 +1275,8 @@ export type Database = {
           order_id: string | null
           product_title: string
           received_at: string
-          shopify_product_id: string
-          shopify_variant_id: string | null
+          product_id: string
+          variant_id: string | null
         }
         Insert: {
           id?: string
@@ -1284,8 +1284,8 @@ export type Database = {
           order_id?: string | null
           product_title: string
           received_at?: string
-          shopify_product_id: string
-          shopify_variant_id?: string | null
+          product_id: string
+          variant_id?: string | null
         }
         Update: {
           id?: string
@@ -1293,8 +1293,8 @@ export type Database = {
           order_id?: string | null
           product_title?: string
           received_at?: string
-          shopify_product_id?: string
-          shopify_variant_id?: string | null
+          product_id?: string
+          variant_id?: string | null
         }
         Relationships: [
           {
@@ -1476,24 +1476,24 @@ export type Database = {
           created_at: string
           id: string
           member_price: number
-          shopify_product_id: string
-          shopify_variant_id: string
+          product_id: string
+          variant_id: string
           updated_at: string
         }
         Insert: {
           created_at?: string
           id?: string
           member_price: number
-          shopify_product_id: string
-          shopify_variant_id: string
+          product_id: string
+          variant_id: string
           updated_at?: string
         }
         Update: {
           created_at?: string
           id?: string
           member_price?: number
-          shopify_product_id?: string
-          shopify_variant_id?: string
+          product_id?: string
+          variant_id?: string
           updated_at?: string
         }
         Relationships: []
@@ -1626,7 +1626,7 @@ export type Database = {
           shipping_address: Json | null
           shipping_method: string | null
           shopify_order_id: string | null
-          shopify_order_number: string | null
+          external_order_number: string | null
           status: string
           status_history: Json
           stripe_session_id: string | null
@@ -1664,7 +1664,7 @@ export type Database = {
           shipping_address?: Json | null
           shipping_method?: string | null
           shopify_order_id?: string | null
-          shopify_order_number?: string | null
+          external_order_number?: string | null
           status?: string
           status_history?: Json
           stripe_session_id?: string | null
@@ -1702,7 +1702,7 @@ export type Database = {
           shipping_address?: Json | null
           shipping_method?: string | null
           shopify_order_id?: string | null
-          shopify_order_number?: string | null
+          external_order_number?: string | null
           status?: string
           status_history?: Json
           stripe_session_id?: string | null
@@ -1839,7 +1839,7 @@ export type Database = {
           id: string
           last_sale_at: string | null
           product_title: string
-          shopify_product_id: string
+          product_id: string
           total_quantity_sold: number
           updated_at: string
         }
@@ -1848,7 +1848,7 @@ export type Database = {
           id?: string
           last_sale_at?: string | null
           product_title: string
-          shopify_product_id: string
+          product_id: string
           total_quantity_sold?: number
           updated_at?: string
         }
@@ -1857,7 +1857,7 @@ export type Database = {
           id?: string
           last_sale_at?: string | null
           product_title?: string
-          shopify_product_id?: string
+          product_id?: string
           total_quantity_sold?: number
           updated_at?: string
         }
@@ -1976,7 +1976,7 @@ export type Database = {
           description: string | null
           id: string
           language_code: string
-          shopify_product_id: string
+          product_id: string
           title: string | null
           updated_at: string
         }
@@ -1985,7 +1985,7 @@ export type Database = {
           description?: string | null
           id?: string
           language_code: string
-          shopify_product_id: string
+          product_id: string
           title?: string | null
           updated_at?: string
         }
@@ -1994,7 +1994,7 @@ export type Database = {
           description?: string | null
           id?: string
           language_code?: string
-          shopify_product_id?: string
+          product_id?: string
           title?: string | null
           updated_at?: string
         }
@@ -2644,8 +2644,8 @@ export type Database = {
           is_verified_purchase: boolean
           product_title: string
           rating: number
-          shopify_product_handle: string
-          shopify_product_id: string
+          product_handle: string
+          product_id: string
           updated_at: string
           user_id: string
         }
@@ -2660,8 +2660,8 @@ export type Database = {
           is_verified_purchase?: boolean
           product_title: string
           rating: number
-          shopify_product_handle: string
-          shopify_product_id: string
+          product_handle: string
+          product_id: string
           updated_at?: string
           user_id: string
         }
@@ -2676,8 +2676,8 @@ export type Database = {
           is_verified_purchase?: boolean
           product_title?: string
           rating?: number
-          shopify_product_handle?: string
-          shopify_product_id?: string
+          product_handle?: string
+          product_id?: string
           updated_at?: string
           user_id?: string
         }
@@ -2941,11 +2941,13 @@ export type Database = {
       scan_runs: {
         Row: {
           completed_at: string | null
+          completed_steps: number | null
           coverage_score: number | null
           created_at: string | null
           current_step: number | null
           current_step_label: string | null
           error_message: string | null
+          eta_seconds: number | null
           executive_summary: string | null
           high_risk_areas: Json | null
           id: string
@@ -2953,10 +2955,12 @@ export type Database = {
           iteration_results: Json | null
           max_iterations: number
           pattern_discoveries: Json | null
+          progress: number | null
           scan_mode: string | null
           started_at: string | null
           started_by: string | null
           status: string
+          step_logs: Json | null
           steps_results: Json | null
           system_health_score: number | null
           system_stage: string | null
@@ -2969,11 +2973,13 @@ export type Database = {
         }
         Insert: {
           completed_at?: string | null
+          completed_steps?: number | null
           coverage_score?: number | null
           created_at?: string | null
           current_step?: number | null
           current_step_label?: string | null
           error_message?: string | null
+          eta_seconds?: number | null
           executive_summary?: string | null
           high_risk_areas?: Json | null
           id?: string
@@ -2981,10 +2987,12 @@ export type Database = {
           iteration_results?: Json | null
           max_iterations?: number
           pattern_discoveries?: Json | null
+          progress?: number | null
           scan_mode?: string | null
           started_at?: string | null
           started_by?: string | null
           status?: string
+          step_logs?: Json | null
           steps_results?: Json | null
           system_health_score?: number | null
           system_stage?: string | null
@@ -2997,11 +3005,13 @@ export type Database = {
         }
         Update: {
           completed_at?: string | null
+          completed_steps?: number | null
           coverage_score?: number | null
           created_at?: string | null
           current_step?: number | null
           current_step_label?: string | null
           error_message?: string | null
+          eta_seconds?: number | null
           executive_summary?: string | null
           high_risk_areas?: Json | null
           id?: string
@@ -3009,10 +3019,12 @@ export type Database = {
           iteration_results?: Json | null
           max_iterations?: number
           pattern_discoveries?: Json | null
+          progress?: number | null
           scan_mode?: string | null
           started_at?: string | null
           started_by?: string | null
           status?: string
+          step_logs?: Json | null
           steps_results?: Json | null
           system_health_score?: number | null
           system_stage?: string | null
@@ -3489,9 +3501,9 @@ export type Database = {
       }
       system_history: {
         Row: {
-          ai_review_at: string | null
-          ai_review_result: Json | null
-          ai_review_status: string | null
+          review_at: string | null
+          review_result: Json | null
+          review_status: string | null
           archived_at: string | null
           assigned_to: string | null
           claimed_by: string | null
@@ -3512,9 +3524,9 @@ export type Database = {
           work_item_id: string
         }
         Insert: {
-          ai_review_at?: string | null
-          ai_review_result?: Json | null
-          ai_review_status?: string | null
+          review_at?: string | null
+          review_result?: Json | null
+          review_status?: string | null
           archived_at?: string | null
           assigned_to?: string | null
           claimed_by?: string | null
@@ -3535,9 +3547,9 @@ export type Database = {
           work_item_id: string
         }
         Update: {
-          ai_review_at?: string | null
-          ai_review_result?: Json | null
-          ai_review_status?: string | null
+          review_at?: string | null
+          review_result?: Json | null
+          review_status?: string | null
           archived_at?: string | null
           assigned_to?: string | null
           claimed_by?: string | null
@@ -3724,7 +3736,7 @@ export type Database = {
           repeat_discount: number | null
           requirement_type: string
           requires_account: boolean
-          shopify_product_id: string | null
+          product_id: string | null
           stackable: boolean | null
         }
         Insert: {
@@ -3741,7 +3753,7 @@ export type Database = {
           repeat_discount?: number | null
           requirement_type?: string
           requires_account?: boolean
-          shopify_product_id?: string | null
+          product_id?: string | null
           stackable?: boolean | null
         }
         Update: {
@@ -3758,7 +3770,7 @@ export type Database = {
           repeat_discount?: number | null
           requirement_type?: string
           requires_account?: boolean
-          shopify_product_id?: string | null
+          product_id?: string | null
           stackable?: boolean | null
         }
         Relationships: []
@@ -3767,22 +3779,22 @@ export type Database = {
         Row: {
           created_at: string
           id: string
-          shopify_product_handle: string
-          shopify_product_id: string
+          product_handle: string
+          product_id: string
           user_id: string
         }
         Insert: {
           created_at?: string
           id?: string
-          shopify_product_handle: string
-          shopify_product_id: string
+          product_handle: string
+          product_id: string
           user_id: string
         }
         Update: {
           created_at?: string
           id?: string
-          shopify_product_handle?: string
-          shopify_product_id?: string
+          product_handle?: string
+          product_id?: string
           user_id?: string
         }
         Relationships: []
@@ -3829,13 +3841,13 @@ export type Database = {
           ai_confidence: string | null
           ai_detected: boolean | null
           ai_overrides: Json | null
-          ai_pre_verify_at: string | null
-          ai_pre_verify_result: Json | null
-          ai_pre_verify_status: string | null
+          pre_verify_at: string | null
+          pre_verify_result: Json | null
+          pre_verify_status: string | null
           ai_resolution_notes: string | null
-          ai_review_at: string | null
-          ai_review_result: Json | null
-          ai_review_status: string | null
+          review_at: string | null
+          review_result: Json | null
+          review_status: string | null
           ai_root_causes: Json | null
           ai_type_classification: string | null
           ai_type_reason: string | null
@@ -3888,13 +3900,13 @@ export type Database = {
           ai_confidence?: string | null
           ai_detected?: boolean | null
           ai_overrides?: Json | null
-          ai_pre_verify_at?: string | null
-          ai_pre_verify_result?: Json | null
-          ai_pre_verify_status?: string | null
+          pre_verify_at?: string | null
+          pre_verify_result?: Json | null
+          pre_verify_status?: string | null
           ai_resolution_notes?: string | null
-          ai_review_at?: string | null
-          ai_review_result?: Json | null
-          ai_review_status?: string | null
+          review_at?: string | null
+          review_result?: Json | null
+          review_status?: string | null
           ai_root_causes?: Json | null
           ai_type_classification?: string | null
           ai_type_reason?: string | null
@@ -3947,13 +3959,13 @@ export type Database = {
           ai_confidence?: string | null
           ai_detected?: boolean | null
           ai_overrides?: Json | null
-          ai_pre_verify_at?: string | null
-          ai_pre_verify_result?: Json | null
-          ai_pre_verify_status?: string | null
+          pre_verify_at?: string | null
+          pre_verify_result?: Json | null
+          pre_verify_status?: string | null
           ai_resolution_notes?: string | null
-          ai_review_at?: string | null
-          ai_review_result?: Json | null
-          ai_review_status?: string | null
+          review_at?: string | null
+          review_result?: Json | null
+          review_status?: string | null
           ai_root_causes?: Json | null
           ai_type_classification?: string | null
           ai_type_reason?: string | null

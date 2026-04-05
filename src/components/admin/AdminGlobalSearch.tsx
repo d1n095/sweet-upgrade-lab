@@ -125,8 +125,8 @@ const AdminGlobalSearch = () => {
         // Search orders
         const { data: orders } = await supabase
           .from('orders')
-          .select('id, order_email, order_number, shopify_order_number, payment_intent_id, total_amount, status')
-          .or(`order_email.ilike.%${q}%,shopify_order_number.ilike.%${q}%,order_number.ilike.%${q}%,payment_intent_id.ilike.%${q}%`)
+          .select('id, order_email, order_number, external_order_number, payment_intent_id, total_amount, status')
+          .or(`order_email.ilike.%${q}%,external_order_number.ilike.%${q}%,order_number.ilike.%${q}%,payment_intent_id.ilike.%${q}%`)
           .limit(5);
 
         if (orders) {
@@ -187,7 +187,7 @@ const AdminGlobalSearch = () => {
         setResults([...pageResults, ...dbResults].slice(0, 12));
         setIsOpen(true);
       } catch (err) {
-        console.error('Admin search error:', err);
+
       } finally {
         setIsLoading(false);
       }

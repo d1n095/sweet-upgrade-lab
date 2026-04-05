@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, CheckCircle2, XCircle, AlertTriangle, Wifi, Clock } from 'lucide-react';
+import { safeInvoke } from '@/lib/safeInvoke';
 
 interface WebhookHealth {
   status: string;
@@ -29,17 +30,10 @@ const AdminWebhookStatus = () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-webhook`,
-        {
-          method: 'GET',
-          headers: {
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          },
-        }
-      );
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const { data, error: invokeError } = await safeInvoke<WebhookHealth>('stripe-webhook', {
+        method: 'GET',
+      });
+      if (invokeError) throw new Error(invokeError.message || 'Kunde inte nå webhook');
       setHealth(data);
     } catch (err: any) {
       setError(err.message || 'Kunde inte nå webhook');

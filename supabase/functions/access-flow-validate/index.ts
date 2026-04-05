@@ -334,16 +334,6 @@ serve(async (req) => {
       high_failures: tests.filter(t => !t.passed && t.risk === "high").length,
     };
 
-    // Log
-    await sb.from("ai_read_log").insert({
-      action_type: "access_flow_validate",
-      target_type: "security",
-      result: summary.failed > 0 ? "failures_found" : "all_passed",
-      summary: `Access flow: ${summary.passed}/${summary.total_tests} passed, ${summary.critical_failures} critical failures`,
-      triggered_by: user.id,
-      metadata: { summary },
-    });
-
     console.log(`[access-flow-validate] Done: ${summary.passed}/${summary.total_tests} passed`);
 
     return new Response(JSON.stringify({

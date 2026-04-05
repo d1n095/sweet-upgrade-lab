@@ -14,7 +14,7 @@ import { Link } from 'react-router-dom';
 
 interface Order {
   id: string;
-  shopify_order_number: string | null;
+  external_order_number: string | null;
   status: string;
   tracking_number: string | null;
   estimated_delivery: string | null;
@@ -152,7 +152,7 @@ const OrderTracker = () => {
       // Cast the data to match our Order interface
       setOrders((data || []) as unknown as Order[]);
     } catch (error) {
-      console.error('Failed to load orders:', error);
+
     } finally {
       setIsLoading(false);
     }
@@ -235,7 +235,7 @@ const OrderTracker = () => {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-semibold">
-                        {t.orderNumber} {(order as any).order_number || order.shopify_order_number || order.id.slice(0, 8)}
+                        {t.orderNumber} {(order as any).order_number || order.external_order_number || order.id.slice(0, 8)}
                       </span>
                       <Badge className={`${statusColor} bg-transparent border`}>
                         <StatusIcon className="w-3 h-3 mr-1" />

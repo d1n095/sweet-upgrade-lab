@@ -14,8 +14,9 @@ interface TriggerReviewResult {
 }
 
 /**
- * Rule-based review: Uses rule-based verification instead of an AI gateway.
- * Simply marks items as 'needs_review' for manual verification.
+ * Rule-based work item review. Marks items as 'needs_review' for manual
+ * verification, or 'verified' when resolution notes or a completed_at date
+ * are present.
  */
 export const triggerReviewForWorkItem = async (
   workItemId: string,
@@ -25,7 +26,6 @@ export const triggerReviewForWorkItem = async (
   console.info('[review] trigger (rule-based)', { workItemId, context });
 
   try {
-    // Fetch work item to check if it has resolution notes
     const { data: item, error: fetchError } = await supabase
       .from('work_items')
       .select('id, title, resolution_notes, status, completed_at')
@@ -36,10 +36,6 @@ export const triggerReviewForWorkItem = async (
       throw new Error(fetchError?.message || 'Work item not found');
     }
 
-    // Rule-based verification:
-    // - Has resolution notes → verified
-    // - Status is done and has completed_at → verified
-    // - Otherwise → needs_review
     const hasResolution = !!item.resolution_notes && item.resolution_notes.trim().length > 0;
     const isDone = item.status === 'done' && !!item.completed_at;
 
@@ -58,9 +54,9 @@ export const triggerReviewForWorkItem = async (
     await supabase
       .from('work_items')
       .update({
-        ai_review_status: reviewResult.status,
-        ai_review_result: reviewResult,
-        ai_review_at: new Date().toISOString(),
+        review_status: reviewResult.status,
+        review_result: reviewResult,
+        review_at: new Date().toISOString(),
       } as any)
       .eq('id', workItemId);
 
@@ -73,14 +69,14 @@ export const triggerReviewForWorkItem = async (
     await supabase
       .from('work_items')
       .update({
-        ai_review_status: 'needs_review',
-        ai_review_result: {
+        review_status: 'needs_review',
+        review_result: {
           status: 'needs_review',
           verdict: `Granskning misslyckades (${context})`,
           confidence: 0,
           error: message,
         },
-        ai_review_at: new Date().toISOString(),
+        review_at: new Date().toISOString(),
       } as any)
       .eq('id', workItemId);
 

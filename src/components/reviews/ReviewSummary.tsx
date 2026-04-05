@@ -34,7 +34,7 @@ const ReviewSummary = ({ productHandle }: ReviewSummaryProps) => {
           .eq('is_approved', true);
 
         if (productHandle) {
-          query = query.eq('shopify_product_handle', productHandle);
+          query = query.eq('product_handle', productHandle);
         }
 
         const { data, error } = await query;
@@ -49,7 +49,7 @@ const ReviewSummary = ({ productHandle }: ReviewSummaryProps) => {
           });
         }
       } catch (error) {
-        console.error('Failed to load review stats:', error);
+
       } finally {
         setIsLoading(false);
       }

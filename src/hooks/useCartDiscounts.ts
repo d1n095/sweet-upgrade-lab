@@ -6,7 +6,7 @@ interface VolumeDiscount {
   id: string;
   min_quantity: number;
   discount_percent: number;
-  shopify_product_id: string | null;
+  product_id: string | null;
   is_global: boolean;
   excluded_product_ids: string[];
   stackable: boolean;
@@ -45,7 +45,7 @@ export function useCartDiscounts() {
           supabase.from('volume_discounts').select('*').order('min_quantity', { ascending: true }),
           supabase.from('bundle_pricing').select(`
             id, name, description, discount_percent,
-            bundle_products ( shopify_product_id )
+            bundle_products ( product_id )
           `).eq('is_active', true),
         ]);
 
@@ -63,11 +63,11 @@ export function useCartDiscounts() {
             name: b.name,
             description: b.description,
             discount_percent: b.discount_percent,
-            product_ids: b.bundle_products?.map((bp: any) => bp.shopify_product_id) || [],
+            product_ids: b.bundle_products?.map((bp: any) => bp.product_id) || [],
           })));
         }
       } catch (error) {
-        console.error('Error fetching discount rules:', error);
+
       } finally {
         setIsLoading(false);
       }
@@ -85,7 +85,7 @@ export function useCartDiscounts() {
     const calculatedDiscounts: CartDiscount[] = [];
 
     // --- Volume discounts (only best applicable, no double-dipping) ---
-    const globalVDs = volumeDiscounts.filter(vd => vd.is_global && !vd.shopify_product_id);
+    const globalVDs = volumeDiscounts.filter(vd => vd.is_global && !vd.product_id);
     
     // Find best global volume discount
     const eligibleGlobal = globalVDs
@@ -128,7 +128,7 @@ export function useCartDiscounts() {
       if (globalAppliedIds.has(item.variantId) && bestGlobal && !bestGlobal.stackable) return;
       
       const productDiscount = volumeDiscounts
-        .filter(vd => vd.shopify_product_id === item.product.node.id && item.quantity >= vd.min_quantity)
+        .filter(vd => vd.product_id === item.product.node.id && item.quantity >= vd.min_quantity)
         .sort((a, b) => b.discount_percent - a.discount_percent)[0];
 
       if (productDiscount) {

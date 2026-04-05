@@ -1,10 +1,17 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { ShopifyProduct } from '@/lib/shopify';
+
+export interface RecentlyViewedItem {
+  id: string;
+  handle: string;
+  title: string;
+  price: number;
+  imageUrl: string | null;
+}
 
 interface RecentlyViewedStore {
-  products: ShopifyProduct[];
-  addProduct: (product: ShopifyProduct) => void;
+  products: RecentlyViewedItem[];
+  addProduct: (item: RecentlyViewedItem) => void;
   clearProducts: () => void;
 }
 
@@ -15,23 +22,24 @@ export const useRecentlyViewedStore = create<RecentlyViewedStore>()(
     (set, get) => ({
       products: [],
 
-      addProduct: (product) => {
+      addProduct: (item) => {
         const { products } = get();
-        
-        // Remove if already exists
-        const filtered = products.filter(p => p.node.id !== product.node.id);
-        
-        // Add to beginning and limit to MAX_PRODUCTS
-        const updated = [product, ...filtered].slice(0, MAX_PRODUCTS);
-        
-        set({ products: updated });
+        const filtered = products.filter(p => p.id !== item.id);
+        set({ products: [item, ...filtered].slice(0, MAX_PRODUCTS) });
       },
 
       clearProducts: () => set({ products: [] }),
     }),
     {
       name: 'recently-viewed',
+      version: 1,
       storage: createJSONStorage(() => localStorage),
+      migrate: (_state, version) => {
+        // Clear any pre-v1 state (was ShopifyProduct[])
+        if (version < 1) return { products: [] };
+        return _state as RecentlyViewedStore;
+      },
+      partialize: (state) => ({ products: state.products }),
     }
   )
 );

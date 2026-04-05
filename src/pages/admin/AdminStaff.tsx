@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Shield, Users, Crown, ClipboardList, LayoutDashboard, UserCog, Zap,
+  Plus, Save, X, Search, Eye, EyeOff, Trash2, ChevronDown, ChevronUp, Info, Lock, Unlock, RefreshCw,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -9,8 +10,7 @@ import WorkbenchOverview from '@/components/admin/workbench/WorkbenchOverview';
 import WorkbenchBoard from '@/components/admin/workbench/WorkbenchBoard';
 import WorkbenchStaffPanel from '@/components/admin/workbench/WorkbenchStaffPanel';
 import QuickPackMode from '@/components/admin/workbench/QuickPackMode';
-
-import { useMemo } from 'react';
+import { cn } from '@/lib/utils';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -22,10 +22,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import {
-  Plus, Save, X, Search, Eye, EyeOff, Trash2, ChevronDown, ChevronUp, Info, Lock, Unlock, RefreshCw,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 // ─── Constants ───
 const ADMIN_MODULES = [

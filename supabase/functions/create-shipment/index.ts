@@ -22,6 +22,7 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const shipmondoUser = Deno.env.get("SHIPMONDO_API_USER");
     const shipmondoKey = Deno.env.get("SHIPMONDO_API_KEY");
 
     // Verify caller is staff
@@ -119,8 +120,8 @@ Deno.serve(async (req) => {
     let carrier = "postnord";
     let shipmondo_used = false;
 
-    // Try Shipmondo API if key exists
-    if (shipmondoKey) {
+    // Try Shipmondo API if both user and key are configured
+    if (shipmondoUser && shipmondoKey) {
       try {
         const addr = order.shipping_address as any;
         const shipmentPayload = {
@@ -153,7 +154,7 @@ Deno.serve(async (req) => {
           {
             method: "POST",
             headers: {
-              Authorization: `Basic ${btoa(shipmondoKey + ":")}`,
+              Authorization: `Basic ${btoa(shipmondoUser + ":" + shipmondoKey)}`,
               "Content-Type": "application/json",
             },
             body: JSON.stringify(shipmentPayload),

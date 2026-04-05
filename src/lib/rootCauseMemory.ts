@@ -48,7 +48,7 @@ export async function recordRootCause(entry: RootCauseEntry): Promise<{ ok: bool
         change_log_id: entry.change_log_id || undefined,
       }).eq('id', record.id);
 
-      console.log(`[RootCause] Recurrence #${newCount} for pattern: ${patternKey}`);
+
       return { ok: true, isRecurrence: true, recurrenceCount: newCount };
     }
 
@@ -66,10 +66,10 @@ export async function recordRootCause(entry: RootCauseEntry): Promise<{ ok: bool
       created_by: session?.user?.id || null,
     });
 
-    console.log(`[RootCause] New pattern recorded: ${patternKey}`);
+
     return { ok: true, isRecurrence: false, recurrenceCount: 1 };
   } catch (e) {
-    console.warn('[RootCause] Failed to record:', e);
+
     return { ok: false, isRecurrence: false, recurrenceCount: 0 };
   }
 }
@@ -104,7 +104,7 @@ export async function checkKnownPatterns(description: string, system?: string): 
 
     return { matches: scored };
   } catch (e) {
-    console.warn('[RootCause] Pattern check failed:', e);
+
     return { matches: [] };
   }
 }

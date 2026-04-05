@@ -80,7 +80,7 @@ const FeedbackSurvey = ({ orderId, onSubmitted }: FeedbackSurveyProps) => {
       setIsSubmitted(true);
       onSubmitted?.();
     } catch (err) {
-      console.error('Failed to submit survey:', err);
+
       toast.error(language === 'sv' ? 'Något gick fel' : 'Something went wrong');
     } finally {
       setIsSubmitting(false);

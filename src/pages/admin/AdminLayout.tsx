@@ -6,7 +6,7 @@ import { useStoreSettings } from '@/stores/storeSettingsStore';
 import { useAdminSession } from '@/hooks/useAdminSession';
 import {
   Loader2, Package, ClipboardList, BarChart3, Settings, Grid, Users,
-  Handshake, Heart, Eye, LogOut, Home, Shield, Crown,
+  Handshake, Heart, LogOut, Home, Shield, Crown,
   Activity, User, Menu, X, Star, FileText, Percent, Truck, Wallet, Globe,
   AlertTriangle, ScanLine, Sparkles, History, ShoppingCart, Radar,
 } from 'lucide-react';
@@ -87,13 +87,15 @@ const navGroups: NavGroup[] = [
   {
     label: 'SYSTEM',
     items: [
+      { to: '/admin/security', label: 'Säkerhet', icon: Shield, role: 'admin' },
       { to: '/admin/system-explorer', label: 'Scan Center', icon: Radar, role: 'admin' },
       { to: '/admin/history', label: 'Historik', icon: History, role: 'admin' },
+      { to: '/admin/changes', label: 'Ändringslogg', icon: Activity, role: 'admin' },
       { to: '/admin/members', label: 'Användare', icon: Users, role: 'admin' },
       { to: '/admin/content', label: 'Innehåll', icon: FileText, role: 'admin' },
       { to: '/admin/legal', label: 'Juridik', icon: Heart, role: 'admin' },
       { to: '/admin/logs', label: 'Logg', icon: Activity, role: 'admin' },
-      { to: '/admin/data', label: 'Data Center', icon: Eye, role: 'admin' },
+      { to: '/admin/data', label: 'Data Center', icon: Sparkles, role: 'admin' },
       { to: '/admin/database', label: 'Databas', icon: Grid, role: 'admin' },
       { to: '/admin/settings', label: 'Inställningar', icon: Settings, role: 'admin' },
     ],

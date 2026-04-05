@@ -33,7 +33,7 @@ const AdminDashboardCharts = () => {
   const days = range === '7d' ? 7 : range === '30d' ? 30 : 90;
 
   useEffect(() => {
-    const fetch = async () => {
+    const loadData = async () => {
       setLoading(true);
       const from = new Date();
       from.setDate(from.getDate() - days);
@@ -92,7 +92,7 @@ const AdminDashboardCharts = () => {
       setData(Object.values(buckets));
       setLoading(false);
     };
-    fetch();
+    loadData();
   }, [range, days]);
 
   const conversionData = useMemo(() =>

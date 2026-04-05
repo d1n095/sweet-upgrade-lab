@@ -72,6 +72,7 @@ import AdminChangeHistory from "./pages/admin/AdminChangeHistory";
 import AdminPOS from "./pages/admin/AdminPOS";
 import ScanPackingMode from "./components/admin/warehouse/ScanPackingMode";
 import SystemExplorer from "./pages/admin/SystemExplorer";
+import AdminSecurity from "./pages/admin/AdminSecurity";
 
 const queryClient = new QueryClient();
 
@@ -152,12 +153,13 @@ const App = () => (
                 <Route path="staff" element={<AdminStaff />} />
                 <Route path="insights" element={<AdminInsights />} />
                 <Route path="data" element={<AdminData />} />
-                <Route path="ai" element={<Navigate to="/admin/system-explorer" replace />} />
                 <Route path="history" element={<AdminHistory />} />
                 <Route path="changes" element={<AdminChangeHistory />} />
                 <Route path="database" element={<AdminDatabase />} />
                 <Route path="warehouse" element={<ScanPackingMode />} />
                 <Route path="system-explorer" element={<SystemExplorer />} />
+                <Route path="ai" element={<Navigate to="/admin/system-explorer" replace />} />
+                <Route path="security" element={<AdminSecurity />} />
               </Route>
 
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

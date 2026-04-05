@@ -7,7 +7,7 @@ import { useCartStore } from '@/stores/cartStore';
 import { useWishlistStore } from '@/stores/wishlistStore';
 import { useLanguage } from '@/context/LanguageContext';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
-import ShopifyCartDrawer from '@/components/cart/ShopifyCartDrawer';
+import CartDrawer from '@/components/cart/CartDrawer';
 import WishlistDrawer from '@/components/wishlist/WishlistDrawer';
 import AuthModal from '@/components/auth/AuthModal';
 import AccountDrawer from '@/components/auth/AccountDrawer';
@@ -529,7 +529,7 @@ const Header = () => {
         </AnimatePresence>
       </header>
 
-      <ShopifyCartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
+      <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
       <WishlistDrawer isOpen={isWishlistOpen} onClose={() => setIsWishlistOpen(false)} />
       <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
       <AccountDrawer isOpen={isAccountOpen} onClose={() => setIsAccountOpen(false)} />

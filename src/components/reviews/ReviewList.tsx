@@ -57,7 +57,7 @@ const ReviewList = ({ productHandle, limit = 10, showProductTitle = false }: Rev
           .limit(limit);
 
         if (productHandle) {
-          query = query.eq('shopify_product_handle', productHandle);
+          query = query.eq('product_handle', productHandle);
         }
 
         const { data, error } = await query;
@@ -65,7 +65,7 @@ const ReviewList = ({ productHandle, limit = 10, showProductTitle = false }: Rev
         if (error) throw error;
         setReviews(data || []);
       } catch (error) {
-        console.error('Failed to load reviews:', error);
+
       } finally {
         setIsLoading(false);
       }

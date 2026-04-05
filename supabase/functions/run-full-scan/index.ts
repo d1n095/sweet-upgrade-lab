@@ -12,6 +12,12 @@ async function logRuntimeTrace(source: string, function_name: string, endpoint: 
   } catch (_) {}
 }
 
+// ── Trace helper: consistent [SCAN:id] prefix for all scan-related logs ──
+function trace(scanRunId: string | undefined, msg: string, ...args: any[]) {
+  const tid = scanRunId ? scanRunId.slice(0, 8) : "??";
+  console.log(`[SCAN:${tid}] ${msg}`, ...args);
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -30,8 +36,6 @@ const STEPS = [
   { id: "blocker_detection", scanType: "blocker_detection", label: "Söker blockerare..." },
   { id: "ui_flow_integrity", scanType: "ui_flow_integrity", label: "Verifierar UI-flödesintegritet..." },
 ];
-
-const MAX_ITERATIONS = 3;
 
 // ── SYSTEM STAGE: Context awareness ──
 type SystemStage = "development" | "staging" | "production";
@@ -95,28 +99,6 @@ function groupSimilarIssues(issues: any[]): any[] {
   }
   
   return result;
-}
-
-// ── PAYMENT ISOLATION: AI must NOT touch payment/checkout/stripe systems ──
-const PAYMENT_ISOLATION_PATTERNS = [
-  /payment/i, /checkout/i, /stripe/i, /create-checkout/i,
-  /payment_status/i, /payment_intent/i, /payment_method/i,
-  /betalning/i, /kassa/i, /betald/i, /betalad/i,
-];
-
-function isPaymentRelated(issue: any): boolean {
-  const text = JSON.stringify(issue || {});
-  return PAYMENT_ISOLATION_PATTERNS.some(p => p.test(text));
-}
-
-function filterPaymentIsolated(issues: any[]): any[] {
-  return issues.filter(issue => {
-    if (isPaymentRelated(issue)) {
-      console.log(`[PAYMENT_ISOLATION] Filtered out: ${issue.title || issue.description || "unknown"}`);
-      return false;
-    }
-    return true;
-  });
 }
 
 // ── Context-aware filtering: suppress false positives based on stage ──
@@ -190,271 +172,113 @@ function buildSystemOverview(stepResults: Record<string, any>, unified: any, sta
   };
 }
 
-// ── Helper: Load scan focus memory (historical hotspots) ──
-async function loadFocusMemory(supabase: any): Promise<any[]> {
-  const { data } = await supabase
-    .from("scan_focus_memory")
-    .select("*")
-    .order("issue_count", { ascending: false })
-    .limit(50);
-  return data || [];
-}
+// ── Helper: Build system insight layer ──
+function buildSystemInsight(unified: any, structure_map: any[], stepResults: Record<string, any>) {
+  const safeArr = (v: any): any[] => (Array.isArray(v) ? v : []);
+  const textOf = (item: any): string =>
+    `${item?.title || ""} ${item?.description || ""} ${item?.component || ""} ${item?.route || ""} ${item?.message || ""}`.toLowerCase();
 
-// ── Helper: Save/update focus memory after scan ──
-async function saveFocusMemory(supabase: any, unified: any, highRiskAreas: any[], patterns: any[]) {
-  const hotspots: Record<string, { focus_type: string; label: string; issues: number; severity: string; scan_types: Set<string> }> = {};
+  // ── SURFACE ──
+  const LAYOUT_RE = /layout|overflow|scroll|css|responsive|mobile|z-index/i;
+  const CRITICAL_PAGES = /checkout|cart|login|payment|order/i;
 
-  for (const area of highRiskAreas) {
-    const key = `component::${(area.component || "unknown").toLowerCase()}`;
-    if (!hotspots[key]) hotspots[key] = { focus_type: "component", label: area.component || "unknown", issues: 0, severity: "medium", scan_types: new Set() };
-    hotspots[key].issues += area.issue_count || 1;
-    if (area.risk_level === "critical") hotspots[key].severity = "critical";
-    else if (area.risk_level === "high" && hotspots[key].severity !== "critical") hotspots[key].severity = "high";
-  }
-
-  for (const flow of (unified.broken_flows || [])) {
-    const route = flow.route || flow.page || flow.path || "";
-    if (!route) continue;
-    const key = `page::${route.toLowerCase()}`;
-    if (!hotspots[key]) hotspots[key] = { focus_type: "page", label: route, issues: 0, severity: "medium", scan_types: new Set() };
-    hotspots[key].issues += 1;
-    hotspots[key].scan_types.add("data_integrity");
-  }
-
-  for (const fail of (unified.interaction_failures || [])) {
-    const comp = fail.component || fail.element || fail.page || "";
-    if (!comp) continue;
-    const key = `flow::${comp.toLowerCase()}`;
-    if (!hotspots[key]) hotspots[key] = { focus_type: "flow", label: comp, issues: 0, severity: "medium", scan_types: new Set() };
-    hotspots[key].issues += 1;
-    hotspots[key].scan_types.add("interaction_qa");
-    if (fail.severity === "critical") hotspots[key].severity = "critical";
-  }
-
-  for (const issue of (unified.data_issues || [])) {
-    const comp = issue.component || issue.table || issue.field || "";
-    if (!comp) continue;
-    const key = `component::${comp.toLowerCase()}`;
-    if (!hotspots[key]) hotspots[key] = { focus_type: "component", label: comp, issues: 0, severity: "medium", scan_types: new Set() };
-    hotspots[key].issues += 1;
-    hotspots[key].scan_types.add("sync_scan");
-  }
-
-  for (const [focusKey, data] of Object.entries(hotspots)) {
-    const { data: existing } = await supabase
-      .from("scan_focus_memory")
-      .select("id, issue_count, scan_count, related_scan_types")
-      .eq("focus_key", focusKey)
-      .limit(1)
-      .single();
-
-    if (existing) {
-      const mergedTypes = new Set([...(existing.related_scan_types || []), ...data.scan_types]);
-      await supabase.from("scan_focus_memory").update({
-        issue_count: existing.issue_count + data.issues,
-        scan_count: existing.scan_count + 1,
-        severity: data.severity === "critical" ? "critical" : existing.severity || data.severity,
-        last_seen_at: new Date().toISOString(),
-        related_scan_types: [...mergedTypes],
-        updated_at: new Date().toISOString(),
-      }).eq("id", existing.id);
-    } else {
-      await supabase.from("scan_focus_memory").insert({
-        focus_key: focusKey,
-        focus_type: data.focus_type,
-        label: data.label,
-        issue_count: data.issues,
-        severity: data.severity,
-        related_scan_types: [...data.scan_types],
-        last_seen_at: new Date().toISOString(),
-        first_seen_at: new Date().toISOString(),
-      });
+  const brokenPages: string[] = [];
+  const layoutIssues: string[] = [];
+  for (const f of [...safeArr(unified.broken_flows), ...safeArr(unified.fake_features)]) {
+    const t = textOf(f);
+    if (LAYOUT_RE.test(t)) {
+      layoutIssues.push(f.title || f.description || t.slice(0, 60));
+    }
+    if (CRITICAL_PAGES.test(t) && (f.route || f.page || f.component)) {
+      const page = f.route || f.page || f.component;
+      if (!brokenPages.includes(page)) brokenPages.push(page);
     }
   }
-}
+  const visualRisk: "low" | "medium" | "high" =
+    layoutIssues.length > 5 ? "high" : layoutIssues.length > 1 ? "medium" : "low";
 
-// ── Helper: Prioritize scan steps based on focus memory ──
-function prioritizeSteps(steps: typeof STEPS, focusMemory: any[]): typeof STEPS {
-  if (!focusMemory.length) return steps;
-  const scanTypeScores: Record<string, number> = {};
-  for (const mem of focusMemory) {
-    for (const st of (mem.related_scan_types || [])) {
-      scanTypeScores[st] = (scanTypeScores[st] || 0) + mem.issue_count;
+  // ── FLOWS ──
+  const CRITICAL_FLOW_RE = /checkout|cart|login|payment|order/i;
+  const DEAD_END_RE = /null|undefined|fail|error|no.continuation|not.found|404/i;
+
+  const brokenFlows: string[] = [];
+  const criticalPaths: string[] = [];
+  const deadEnds: string[] = [];
+  for (const f of [...safeArr(unified.broken_flows), ...safeArr(unified.interaction_failures)]) {
+    const t = textOf(f);
+    const label = f.title || f.description || t.slice(0, 60);
+    if (!brokenFlows.includes(label)) brokenFlows.push(label);
+    if (CRITICAL_FLOW_RE.test(t) && !criticalPaths.includes(label)) criticalPaths.push(label);
+    if (DEAD_END_RE.test(t) && !deadEnds.includes(label)) deadEnds.push(label);
+  }
+
+  // ── DATA ──
+  const MISSING_REF_RE = /missing|not.found|undefined|null|no.id|relation|foreign|reference/i;
+  const MISMATCH_RE = /mismatch|conflict|inconsistent|wrong|invalid/i;
+  const SYNC_RE = /sync|out.of.date|stale|cache|desync/i;
+
+  const inconsistentEntities: string[] = [];
+  const missingLinks: string[] = [];
+  const syncFailures: string[] = [];
+  for (const d of safeArr(unified.data_issues).filter((d: any) => !d._dev_expected)) {
+    const t = textOf(d);
+    const label = d.title || d.description || t.slice(0, 60);
+    if (MISSING_REF_RE.test(t) && !missingLinks.includes(label)) missingLinks.push(label);
+    if (MISMATCH_RE.test(t) && !inconsistentEntities.includes(label)) inconsistentEntities.push(label);
+    if (SYNC_RE.test(t) && !syncFailures.includes(label)) syncFailures.push(label);
+  }
+
+  // ── ROOT CAUSES ──
+  const KEYWORDS = ["checkout", "cart", "login", "payment", "order", "product", "api", "user", "data", "layout"];
+  const rootCauses: { issue: string; chain: string[]; confidence: number }[] = [];
+
+  const dataLabels = [...missingLinks, ...inconsistentEntities, ...syncFailures];
+  const interactionLabels = safeArr(unified.interaction_failures).map((f: any) => f.title || f.description || "");
+
+  for (const kw of KEYWORDS) {
+    const dataMatches = dataLabels.filter(l => l.toLowerCase().includes(kw));
+    const flowMatches = brokenFlows.filter(l => l.toLowerCase().includes(kw));
+    const interactionMatches = interactionLabels.filter((l: string) => l.toLowerCase().includes(kw));
+
+    if (dataMatches.length === 0 && flowMatches.length === 0) continue;
+
+    const chain: string[] = [];
+    if (dataMatches.length > 0) chain.push(dataMatches[0].slice(0, 80));
+    if (interactionMatches.length > 0) chain.push(interactionMatches[0].slice(0, 80));
+    if (flowMatches.length > 0) chain.push(flowMatches[0].slice(0, 80));
+
+    if (chain.length < 1) continue;
+
+    const confidence = Math.min(0.9, 0.3 + (chain.length - 1) * 0.2 + (dataMatches.length > 1 ? 0.1 : 0) + (flowMatches.length > 1 ? 0.1 : 0));
+    const issue = kw.charAt(0).toUpperCase() + kw.slice(1) + " flow broken";
+
+    if (!rootCauses.find(r => r.issue === issue)) {
+      rootCauses.push({ issue, chain, confidence: Math.round(confidence * 10) / 10 });
     }
   }
-  const scored = steps.map((s, i) => ({ step: s, score: scanTypeScores[s.scanType] || 0, originalIndex: i }));
-  scored.sort((a, b) => b.score - a.score || a.originalIndex - b.originalIndex);
-  return scored.map(s => s.step);
+
+  // ── SUMMARY ──
+  const totalIssues =
+    brokenFlows.length + layoutIssues.length + missingLinks.length + inconsistentEntities.length + syncFailures.length;
+
+  const hasCritical = criticalPaths.length > 0 || /checkout|payment/i.test(JSON.stringify(unified.broken_flows || []));
+  const system_status: "healthy" | "warning" | "critical" =
+    hasCritical || totalIssues > 10 ? "critical" : totalIssues > 3 || visualRisk === "medium" || visualRisk === "high" ? "warning" : "healthy";
+
+  const critical_issues = criticalPaths.length + (hasCritical ? 1 : 0);
+  const major_issues = Math.max(0, brokenFlows.length + missingLinks.length - critical_issues);
+  const minor_issues = layoutIssues.length + syncFailures.length + inconsistentEntities.length;
+
+  return {
+    surface: { broken_pages: brokenPages, layout_issues: layoutIssues, visual_risk: visualRisk },
+    flows: { broken_flows: brokenFlows, critical_paths: criticalPaths, dead_ends: deadEnds },
+    data: { inconsistent_entities: inconsistentEntities, missing_links: missingLinks, sync_failures: syncFailures },
+    root_causes: rootCauses,
+    summary: { critical_issues, major_issues, minor_issues, system_status },
+  };
 }
 
-// ── Prediction rules ──
-const PREDICTION_RULES: {
-  trigger: (ctx: PredictionContext) => boolean;
-  predict: (ctx: PredictionContext) => { problem: string; area: string; reason: string; preventive_fixes: string[] };
-}[] = [
-  {
-    trigger: (ctx) => countByCategory(ctx.issues, "scroll") >= 2,
-    predict: () => ({
-      problem: "Fler layout-/overflow-problem",
-      area: "Scroll-containers, modaler, listor",
-      reason: "Flera scroll-buggar tyder på globalt overflow-problem",
-      preventive_fixes: [
-        "Standardisera modallayout med overflow-y:auto och min-height:0",
-        "Granska alla flex-containers — säkerställ overflow-hidden på föräldrar",
-        "Lägg till globalt ScrollArea-wrapper för långa listor",
-      ],
-    }),
-  },
-  {
-    trigger: (ctx) => countByCategory(ctx.issues, "modal") >= 2 || countByCategory(ctx.issues, "dialog") >= 2,
-    predict: () => ({
-      problem: "Interaktionsfel i overlay-komponenter",
-      area: "Modaler, drawers, popovers",
-      reason: "Upprepade modal-problem tyder på z-index eller fokushanteringsfel",
-      preventive_fixes: [
-        "Centralisera z-index-skalan i design tokens",
-        "Säkerställ att alla modaler använder Radix Dialog med fokuslåsning",
-        "Testa overlay-stacking: modal-i-modal, popover-i-drawer",
-      ],
-    }),
-  },
-  {
-    trigger: (ctx) => countByCategory(ctx.issues, "form") >= 2 || countByCategory(ctx.issues, "input") >= 2,
-    predict: () => ({
-      problem: "Formulärvalidering misslyckas",
-      area: "Formulär, checkout, profilinställningar",
-      reason: "Upprepade formulärproblem pekar på bristande valideringslogik",
-      preventive_fixes: [
-        "Standardisera formulärvalidering med react-hook-form + zod-schemas",
-        "Lägg till visuell felindikering på alla obligatoriska fält",
-        "Testa edge cases: tomma fält, specialtecken, extremt långa värden",
-      ],
-    }),
-  },
-  {
-    trigger: (ctx) => ctx.unified.data_issues.length >= 3,
-    predict: () => ({
-      problem: "Synkroniseringsfel mellan UI och databas",
-      area: "Datatabeller, realtidsuppdateringar",
-      reason: "Flera dataproblem tyder på inkonsistent state-hantering",
-      preventive_fixes: [
-        "Använd React Query invalidation konsekvent efter alla mutationer",
-        "Lägg till optimistic updates med rollback vid fel",
-        "Verifiera att RLS-policys inte blockerar förväntad data",
-      ],
-    }),
-  },
-  {
-    trigger: (ctx) => ctx.focusMemory.filter(m => m.scan_count >= 3).length >= 2,
-    predict: (ctx) => {
-      const chronic = ctx.focusMemory.filter(m => m.scan_count >= 3).map(m => m.label).slice(0, 3);
-      return {
-        problem: "Kroniska problemområden som inte åtgärdats",
-        area: chronic.join(", "),
-        reason: `${chronic.length} komponenter har haft problem i 3+ skanningar`,
-        preventive_fixes: [
-          `Prioritera refaktorering av: ${chronic.join(", ")}`,
-          "Bryt ner stora komponenter till mindre, testbara enheter",
-          "Lägg till unit tests för de mest problemdrabbade komponenterna",
-        ],
-      };
-    },
-  },
-  {
-    trigger: (ctx) => ctx.rootCause.filter(r => r.recurrence_count >= 3).length >= 1,
-    predict: (ctx) => {
-      const recurring = ctx.rootCause.filter(r => r.recurrence_count >= 3)[0];
-      return {
-        problem: `Återkommande grundorsak: ${recurring.root_cause}`,
-        area: recurring.affected_system || "Systemövergripande",
-        reason: `Mönstret "${recurring.pattern_key}" har upprepats ${recurring.recurrence_count} gånger`,
-        preventive_fixes: [
-          `Åtgärda grundorsaken permanent i ${recurring.affected_system || "berört system"}`,
-          "Lägg till regression-test som fångar detta mönster",
-          "Dokumentera root cause och fix i change_log",
-        ],
-      };
-    },
-  },
-  {
-    trigger: (ctx) => ctx.unified.fake_features.length >= 3,
-    predict: () => ({
-      problem: "Fler icke-funktionella UI-element",
-      area: "Knappar, formulär, interaktiva element",
-      reason: "Många fake features tyder på inkomplett implementation i flera områden",
-      preventive_fixes: [
-        "Granska alla onClick/onSubmit-handlers — ta bort tomma/placeholder-handlers",
-        "Dölj icke-implementerade funktioner bakom feature flags",
-        "Markera WIP-funktioner visuellt med 'Kommer snart'-badges",
-      ],
-    }),
-  },
-  {
-    trigger: (ctx) => ctx.unified.interaction_failures.length >= 4,
-    predict: () => ({
-      problem: "Event-hanteringsfel i komplexa vyer",
-      area: "Interaktiva komponenter, admin-paneler",
-      reason: "Hög frekvens interaktionsfel indikerar djupare event-bindningsproblem",
-      preventive_fixes: [
-        "Standardisera event-hantering med useCallback och korrekta dependencies",
-        "Granska event.stopPropagation()-användning i nästlade interaktioner",
-        "Testa alla klickbara element med disabled/loading-states",
-      ],
-    }),
-  },
-];
 
-interface PredictionContext {
-  unified: any;
-  patterns: any[];
-  systemicIssues: any[];
-  focusMemory: any[];
-  rootCause: any[];
-  issues: string[];
-}
-
-function countByCategory(issues: string[], keyword: string): number {
-  return issues.filter(i => i.includes(keyword)).length;
-}
-
-function generatePredictions(unified: any, patterns: any[], systemicIssues: any[], focusMemory: any[], rootCause: any[]): any[] {
-  const allIssueTexts: string[] = [
-    ...(unified.broken_flows || []).map((f: any) => `${f.description || ""} ${f.route || ""} ${f.component || ""} ${f.element || ""}`.toLowerCase()),
-    ...(unified.interaction_failures || []).map((f: any) => `${f.title || ""} ${f.element || ""} ${f.component || ""} ${f.description || ""}`.toLowerCase()),
-    ...(unified.data_issues || []).map((f: any) => `${f.title || ""} ${f.field || ""} ${f.component || ""} ${f.description || ""}`.toLowerCase()),
-    ...(unified.fake_features || []).map((f: any) => `${f.name || ""} ${f.component || ""} ${f.description || ""}`.toLowerCase()),
-    ...focusMemory.map((m: any) => `${m.label || ""} ${m.focus_key || ""}`.toLowerCase()),
-  ];
-
-  const ctx: PredictionContext = { unified, patterns, systemicIssues, focusMemory, rootCause, issues: allIssueTexts };
-  const predictions: any[] = [];
-
-  for (const rule of PREDICTION_RULES) {
-    try {
-      if (rule.trigger(ctx)) {
-        const pred = rule.predict(ctx);
-        const issueCount = allIssueTexts.length;
-        const focusHits = focusMemory.filter(m => m.scan_count >= 2).length;
-        const baseConfidence = 0.55;
-        const issueBoost = Math.min(0.2, issueCount * 0.02);
-        const focusBoost = Math.min(0.15, focusHits * 0.05);
-        const confidence = Math.min(0.95, baseConfidence + issueBoost + focusBoost);
-
-        if (confidence >= 0.6) {
-          predictions.push({ ...pred, confidence: Math.round(confidence * 100), type: "prediction" });
-        }
-      }
-    } catch (_) { /* skip broken rules */ }
-  }
-
-  const seen = new Set<string>();
-  return predictions.filter(p => {
-    const key = p.problem.substring(0, 40).toLowerCase();
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  }).slice(0, 8);
-}
 
 // ── Helper: Build unified result from step results ──
 function buildUnifiedResult(stepResults: Record<string, any>, totalDuration: number) {
@@ -657,70 +481,8 @@ function extractPatterns(unified: any, rootCauseData: any[]): { patterns: any[];
 }
 
 // ── Helper: Build targeted re-scan steps based on patterns ──
-function buildTargetedSteps(patterns: any[], highRiskAreas: any[], iteration: number): typeof STEPS {
-  const targeted: typeof STEPS = [];
-  const addedTypes = new Set<string>();
-
-  for (const area of highRiskAreas) {
-    const comp = area.component?.toLowerCase() || "";
-    if ((comp.includes("modal") || comp.includes("dialog") || comp.includes("drawer") || comp.includes("scroll")) && !addedTypes.has("interaction_qa")) {
-      targeted.push({ id: `rescan_interaction_${iteration}`, scanType: "interaction_qa", label: `Djupskannar interaktioner (iteration ${iteration})...` });
-      addedTypes.add("interaction_qa");
-    }
-    if ((comp.includes("form") || comp.includes("input") || comp.includes("checkout")) && !addedTypes.has("sync_scan")) {
-      targeted.push({ id: `rescan_sync_${iteration}`, scanType: "sync_scan", label: `Djupskannar databindning (iteration ${iteration})...` });
-      addedTypes.add("sync_scan");
-    }
-    if ((comp.includes("nav") || comp.includes("route") || comp.includes("link") || comp.includes("page")) && !addedTypes.has("nav_scan")) {
-      targeted.push({ id: `rescan_nav_${iteration}`, scanType: "nav_scan", label: `Djupskannar navigering (iteration ${iteration})...` });
-      addedTypes.add("nav_scan");
-    }
-    if ((comp.includes("button") || comp.includes("click") || comp.includes("action")) && !addedTypes.has("human_test")) {
-      targeted.push({ id: `rescan_human_${iteration}`, scanType: "human_test", label: `Djupskannar användarbeteende (iteration ${iteration})...` });
-      addedTypes.add("human_test");
-    }
-  }
-
-  for (const pattern of patterns) {
-    const sys = pattern.affected_system?.toLowerCase() || "";
-    if ((sys.includes("data") || sys.includes("sync") || sys.includes("binding")) && !addedTypes.has("data_integrity")) {
-      targeted.push({ id: `rescan_data_${iteration}`, scanType: "data_integrity", label: `Djupskannar dataflöden (iteration ${iteration})...` });
-      addedTypes.add("data_integrity");
-    }
-    if ((sys.includes("feature") || sys.includes("fake") || sys.includes("ui")) && !addedTypes.has("feature_detection")) {
-      targeted.push({ id: `rescan_features_${iteration}`, scanType: "feature_detection", label: `Djupskannar funktioner (iteration ${iteration})...` });
-      addedTypes.add("feature_detection");
-    }
-    if ((sys.includes("regression") || sys.includes("system")) && !addedTypes.has("system_scan")) {
-      targeted.push({ id: `rescan_system_${iteration}`, scanType: "system_scan", label: `Djupskannar regressioner (iteration ${iteration})...` });
-      addedTypes.add("system_scan");
-    }
-  }
-
-  if (targeted.length === 0 && (highRiskAreas.length > 0 || patterns.length > 0)) {
-    targeted.push({ id: `rescan_broad_interaction_${iteration}`, scanType: "interaction_qa", label: `Bred djupskanning (iteration ${iteration})...` });
-    targeted.push({ id: `rescan_broad_system_${iteration}`, scanType: "system_scan", label: `Systemverifiering (iteration ${iteration})...` });
-  }
-
-  return targeted;
-}
-
 // ── Helper: Count new issues not seen in previous iterations ──
-function countNewIssues(currentUnified: any, previousIssueKeys: Set<string>): { newCount: number; newKeys: Set<string> } {
-  const allIssues = [
-    ...(currentUnified.broken_flows || []),
-    ...(currentUnified.fake_features || []),
-    ...(currentUnified.interaction_failures || []),
-    ...(currentUnified.data_issues || []),
-  ];
-  const newKeys = new Set<string>();
-  let newCount = 0;
-  for (const issue of allIssues) {
-    const key = (issue.title || issue.description || issue.element || issue.component || issue.route || JSON.stringify(issue)).substring(0, 80).toLowerCase();
-    if (!previousIssueKeys.has(key)) { newCount++; newKeys.add(key); }
-  }
-  return { newCount, newKeys };
-}
+
 
 // ── DATA INTEGRITY SCAN ──
 async function runDataIntegrityScan(supabase: any, scanRunId: string): Promise<any> {
@@ -1122,9 +884,14 @@ async function runFunctionalBehaviorScan(supabase: any, scanRunId: string): Prom
       }
     }
 
-    // ACTION CHAIN 6: Order → lifecycle — PAYMENT ISOLATED: skipped
-    // AI must not scan or create issues for order payment lifecycle
-    console.log("[PAYMENT_ISOLATION] Skipped order lifecycle behavior check");
+    // ACTION CHAIN 6: Order → lifecycle
+    const { data: paidOrders } = await supabase.from("orders").select("id, status, payment_status, fulfillment_status").eq("payment_status", "paid").in("fulfillment_status", ["shipped", "delivered"]).is("deleted_at", null).limit(50);
+    for (const order of paidOrders || []) {
+      const { data: activeWi } = await supabase.from("work_items").select("id, title, item_type").eq("related_order_id", order.id).in("status", ["open", "claimed", "in_progress"]).in("item_type", ["pack_order", "packing", "shipping"]).limit(1);
+      if (activeWi?.length) {
+        failures.push({ chain: "order_lifecycle", action: "Order shipped → close tasks", expected: "No active packing tasks", actual: `Active: "${activeWi[0].title}"`, failure_type: "stale_state", step: "order status → work_items", severity: "medium", entity_id: activeWi[0].id });
+      }
+    }
 
     // ACTION CHAIN 7: Notification on incident
     const { data: recentNotifIncidents } = await supabase.from("order_incidents").select("id, title, created_at").gte("created_at", new Date(Date.now() - 60 * 60 * 1000).toISOString()).order("created_at", { ascending: false }).limit(10);
@@ -1196,8 +963,13 @@ async function runRealSyncScan(supabase: any, scanRunId: string): Promise<any> {
       if (p.status === "active" && !p.handle) issues.push({ title: `Aktiv produkt utan handle: "${p.title_sv}"`, severity: "high", field: "handle", component: "products" });
     }
 
-    // Orders: status consistency — PAYMENT ISOLATED: skipped
-    console.log("[PAYMENT_ISOLATION] Skipped order status consistency check");
+    // Orders: status consistency
+    const { data: orders } = await supabase.from("orders").select("id, status, payment_status, fulfillment_status, shipped_at, delivered_at, packed_at").is("deleted_at", null).order("created_at", { ascending: false }).limit(200);
+    for (const o of orders || []) {
+      if (o.fulfillment_status === "shipped" && !o.shipped_at) issues.push({ title: `Order ${o.id.slice(0, 8)} status=shipped utan shipped_at`, severity: "high", field: "shipped_at", component: "orders" });
+      if (o.fulfillment_status === "delivered" && !o.delivered_at) issues.push({ title: `Order ${o.id.slice(0, 8)} status=delivered utan delivered_at`, severity: "high", field: "delivered_at", component: "orders" });
+      if (o.payment_status === "paid" && o.status === "cancelled") issues.push({ title: `Order ${o.id.slice(0, 8)} betalad men avbruten`, severity: "critical", field: "status", component: "orders" });
+    }
 
     // Affiliates
     const { data: affiliates } = await supabase.from("affiliates").select("id, name, code, is_active, email").eq("is_active", true).limit(100);
@@ -1275,8 +1047,8 @@ async function runRealSystemScan(supabase: any, scanRunId: string): Promise<any>
       issues.push({ title: `Eskalerat ärende >24h: "${wi.title}"`, severity: "high", component: "work_items", entity_id: wi.id });
     }
 
-    // Score trend
-    const { data: recentScans } = await supabase.from("ai_scan_results").select("overall_score, created_at, scan_type").eq("scan_type", "full_orchestrated").order("created_at", { ascending: false }).limit(3);
+    // Score trend - skipped
+    const recentScans: any[] = [];
     if (recentScans?.length >= 2) {
       const current = recentScans[0].overall_score || 0;
       const previous = recentScans[1].overall_score || 0;
@@ -1822,7 +1594,7 @@ async function runConsistencyGuard(supabase: any, currentFingerprints: Map<strin
   const { data: activeItems } = await supabase
     .from("work_items")
     .select("id, title, status, priority, issue_fingerprint, created_at")
-    .eq("source_type", "ai_scan")
+    .eq("source_type", "scanner")
     .not("issue_fingerprint", "is", null)
     .in("status", ["open", "claimed", "in_progress", "escalated", "new", "pending", "detected"])
     .limit(500);
@@ -1865,10 +1637,6 @@ function classifyIssueType(issue: any, category: string): "bug" | "improvement" 
 }
 
 async function createWorkItems(supabase: any, unified: any, stage: SystemStage): Promise<{ created: number; createTrace: any[] }> {
-  console.log("[DEBUG] createWorkItems START", allWorkIssues?.length || 0, "unified keys:", Object.keys(unified || {}));
-  console.log("[DEBUG] SUPABASE TEST START");
-  const test = await supabase.from("work_items").select("id").limit(1);
-  console.log("[DEBUG] SUPABASE TEST RESULT:", test);
   let workItemsCreated = 0;
   const createTrace: any[] = [];
   const allWorkIssues: { title: string; priority: string; item_type: string; description?: string; fingerprint: string; source_path?: string; source_file?: string; source_component?: string; issue_type?: string; suggested_fix?: string; affected_area?: { type: string; target: string } }[] = [];
@@ -1911,7 +1679,6 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     flow._issue_type = issueType;
     flow._suggested_fix = suggestedFixForType(issueType);
     flow._affected_area = flow.category === "flow_ui" ? { type: "flow", target: "ui_flows" } : CATEGORY_AREA_MAP.broken_flows;
-    flow._origin_source = "ai_scan";
     allWorkIssues.push({
       title: `Broken flow: ${flow.description || flow.route || flow.issue || "unknown"}${similarNote}`.slice(0, 120),
       priority: "high", item_type: "bug", description: flow.fix_suggestion || flow.detail || "",
@@ -1929,7 +1696,6 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     fake._issue_type = issueType;
     fake._suggested_fix = suggestedFixForType(issueType);
     fake._affected_area = CATEGORY_AREA_MAP.fake_features;
-    fake._origin_source = "ai_scan";
     allWorkIssues.push({
       title: `Fake feature: ${fake.name || fake.component || fake.description || "unknown"}${similarNote}`.slice(0, 120),
       priority: "high", item_type: "improvement", description: fake.reason || fake.detail || "",
@@ -1947,7 +1713,6 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     fail._issue_type = issueType;
     fail._suggested_fix = suggestedFixForType(issueType);
     fail._affected_area = CATEGORY_AREA_MAP.interaction_failures;
-    fail._origin_source = "ai_scan";
     allWorkIssues.push({
       title: `Interaction: ${fail.title || fail.element || fail.description || "unknown"}${similarNote}`.slice(0, 120),
       priority: fail.severity === "critical" ? "critical" : "high", item_type: "bug",
@@ -1966,7 +1731,6 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     issue._issue_type = issueType;
     issue._suggested_fix = suggestedFixForType(issueType);
     issue._affected_area = issue.category === "ui_visual" ? { type: "ui", target: "components" } : CATEGORY_AREA_MAP.data_issues;
-    issue._origin_source = "ai_scan";
     allWorkIssues.push({
       title: `Data: ${issue.title || issue.field || issue.description || "unknown"}${similarNote}`.slice(0, 120),
       priority: issue.severity === "critical" ? "critical" : "medium", item_type: "bug",
@@ -1975,11 +1739,6 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
       source_path: issue.route || issue.page || null, source_file: issue.file || issue.source_file || null, source_component: issue.component || issue.table || issue.entity || null,
       affected_area: issue.category === "ui_visual" ? { type: "ui", target: "components" } : CATEGORY_AREA_MAP.data_issues,
     });
-  }
-
-  // Tag all scanner-created issues with origin_source
-  for (const issue of allWorkIssues) {
-    (issue as any)._origin_source = "ai_scan";
   }
 
   // ── IMPACT SCORING: classify each issue 1–5 ──
@@ -2023,7 +1782,6 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
 
   // ── PROCESS EACH ISSUE with consistency logic ──
   for (const issue of allWorkIssues) {
-    console.log("[DEBUG] processing issue:", (issue as any).fingerprint);
     // Validation checks
     if (!issue.title || issue.title.trim().length === 0) {
       createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'skipped_validation', _validation_reason: 'missing_title', issue_type: issue.issue_type || 'bug', affected_area: issue.affected_area });
@@ -2183,8 +1941,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
       status: "open",
       priority: issue.priority,
       item_type: issue.item_type,
-      source_type: "ai_scan",
-      ai_detected: true,
+      source_type: "scanner",
       issue_fingerprint: issue.fingerprint,
       source_path: source_file_path || issue.source_path || null,
       source_file: source_file_path || issue.source_file || null,
@@ -2195,15 +1952,13 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
       ...(matchedTraceId ? { runtime_trace_id: matchedTraceId } : {}),
     };
 
-    console.log("[DEBUG] INSERT PAYLOAD:", insertPayload);
     let verified = false;
     let lastInsertError: string | null = null;
     for (let attempt = 1; attempt <= 2; attempt++) {
       const { data: created, error } = await supabase.from("work_items").insert(insertPayload).select("id, title, status").single();
-      console.log("[DEBUG] INSERT RESULT:", { data: created, error });
       if (error) {
         lastInsertError = error.message || JSON.stringify(error);
-        console.error(`[create-verify] INSERT failed (attempt ${attempt}):`, error.message);
+        console.error(`[create-verify] INSERT failed (attempt ${attempt}): "${issue.title.slice(0, 40)}"`, error.message);
         continue;
       }
       const { data: fetched } = await supabase.from("work_items").select("id").eq("id", created.id).maybeSingle();
@@ -2215,7 +1970,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
       console.log(`[create-verify] ✅ VERIFIED: ${created.id} "${issue.title.slice(0, 40)}"`);
       workItemsCreated++;
       verified = true;
-      createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'created', created_id: created.id, issue_type: issue.issue_type || 'bug', affected_area: issue.affected_area, _origin_source: 'ai_scan', _impact_score: (issue as any)._impact_score, _impact_label: (issue as any)._impact_label, _insert_success: true, _insert_error: null, _suggested_fix_code: suggested_fix_code, _suggested_fix_type: suggested_fix_type, _fix_confidence: fix_confidence, _source_file_path: source_file_path });
+      createTrace.push({ title: issue.title, fingerprint: issue.fingerprint, _create_decision: 'created', created_id: created.id, issue_type: issue.issue_type || 'bug', affected_area: issue.affected_area, _impact_score: (issue as any)._impact_score, _impact_label: (issue as any)._impact_label, _insert_success: true, _insert_error: null, _suggested_fix_code: suggested_fix_code, _suggested_fix_type: suggested_fix_type, _fix_confidence: fix_confidence, _source_file_path: source_file_path });
       
       break;
     }
@@ -2233,23 +1988,15 @@ async function persistStepResults(supabase: any, steps: typeof STEPS, results: R
   for (const stepDef of steps) {
     const stepRes = results[stepDef.id];
     if (!stepRes || stepRes.failed) continue;
-    const stepScore = stepRes.overall_score ?? stepRes.system_score ?? stepRes.score ?? stepRes.health_score ?? stepRes.sync_score ?? stepRes.ux_score ?? stepRes.interaction_score ?? null;
-    const stepIssues = stepRes.issues_found ?? stepRes.issues?.length ?? stepRes.dead_elements?.length ?? stepRes.mismatches?.length ?? 0;
-    await supabase.from("ai_scan_results").insert({
-      scan_type: stepDef.scanType, results: stepRes, overall_score: stepScore,
-      overall_status: stepScore != null ? (stepScore >= 75 ? "healthy" : stepScore >= 50 ? "warning" : "critical") : null,
-      executive_summary: stepRes.executive_summary || `${stepDef.id}: score ${stepScore ?? '?'}, ${stepIssues} issues`,
-      issues_count: stepIssues, tasks_created: stepRes.tasks_created || 0, scanned_by: startedBy,
-    });
+    // Step results stored in scan_snapshots instead
   }
 }
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  console.log("EDGE FUNCTION HIT");
 
   try {
-    console.log("🚨 SCAN STARTED");
-    console.log("[SCAN START]");
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
@@ -2264,16 +2011,12 @@ serve(async (req) => {
       }
     } catch (_) {}
 
-    console.log("[SCAN] parsing body");
     const body = await req.json();
-    console.log("FULL SCAN BODY:", body);
     const { action, scan_run_id, step_index, iteration, request_trace_id, scan_mode, target_area, verification_for } = body;
-    console.log("[SCAN] action:", action);
+    console.log(`[SCAN DISPATCH] action=${action} scan_run_id=${scan_run_id?.slice(0, 8) ?? "-"} step=${step_index ?? "-"}`);
 
     // ── START ──
     if (action === "start") {
-      console.log("[FULL SCAN START]");
-      console.log("[SCAN] authenticating user");
       const authHeader = req.headers.get("authorization");
       if (!authHeader) return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
@@ -2282,10 +2025,8 @@ serve(async (req) => {
       if (userError || !user?.id) return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       const userId = user.id;
 
-      console.log("[SCAN] user authenticated, checking role:", userId);
       const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
       const isStaff = roles?.some((r: any) => ["admin", "founder", "it", "support", "moderator"].includes(r.role));
-      console.log("[SCAN] roles:", roles, "isStaff:", isStaff);
       if (!isStaff) return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
       // Check running scan lock
@@ -2302,123 +2043,80 @@ serve(async (req) => {
       // Get system stage
       const systemStage = await getSystemStage(supabase);
 
-      const focusMemory = await loadFocusMemory(supabase);
-
       // Targeted mode: only run a subset of steps for fast re-scan
       const isTargeted = scan_mode === "targeted" && target_area;
       const targetedStepIds = ["data_flow_validation", "ui_data_binding", "regression_detection", "blocker_detection"];
-      const allSteps = prioritizeSteps(STEPS, focusMemory);
       const prioritizedSteps = isTargeted
-        ? allSteps.filter((s: any) => targetedStepIds.includes(s.id))
-        : allSteps;
-      const effectiveIterations = isTargeted ? 1 : MAX_ITERATIONS;
+        ? STEPS.filter((s: any) => targetedStepIds.includes(s.id))
+        : STEPS;
 
-      console.log("[SCAN] creating scan_run in DB");
       const { data: scanRun, error: insertError } = await supabase.from("scan_runs").insert({
         status: "running", started_by: userId, current_step: 0, total_steps: prioritizedSteps.length,
         current_step_label: prioritizedSteps[0].label, steps_results: {},
-        iteration: 1, max_iterations: effectiveIterations, iteration_results: [], pattern_discoveries: [],
-        high_risk_areas: focusMemory.slice(0, 10).map((m: any) => ({ component: m.label, issue_count: m.issue_count, risk_level: m.severity, source: "focus_memory" })),
+        iteration: 1, max_iterations: 1,
         coverage_score: 0, total_new_issues: 0,
         system_stage: systemStage,
         ...(isTargeted ? { scan_mode: "targeted", target_area, verification_for } : { scan_mode: "full" }),
       }).select("id").single();
 
-      console.log("[SCAN] insert result:", scanRun, "error:", insertError);
       if (insertError || !scanRun) return new Response(JSON.stringify({ success: false, error: "Failed to create scan run", detail: insertError?.message }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-      // Input debug
+      const tid = scanRun.id.slice(0, 8);
+
+      // Input snapshot
       const { data: structure_map } = await supabase.from("system_structure_map").select("entity_type, entity_name").limit(500);
       const routes = (structure_map || []).filter((e: any) => e.entity_type === "page");
       const components = (structure_map || []).filter((e: any) => e.entity_type === "component");
       const dataEntities = (structure_map || []).filter((e: any) => e.entity_type !== "page" && e.entity_type !== "component");
-      const scanInput = {
-        components_count: components.length,
-        routes_count: routes.length,
-        data_entities_count: dataEntities.length,
-      };
-      console.log("[SCAN INPUT]", scanInput);
-
-      // Store scan_input on the scan_run
+      const scanInput = { components_count: components.length, routes_count: routes.length, data_entities_count: dataEntities.length };
       await supabase.from("scan_runs").update({ steps_results: { _scan_input: scanInput } }).eq("id", scanRun.id);
 
       if (!structure_map || structure_map.length === 0) {
-        console.error("❌ SCAN ABORT: NO STRUCTURE MAP");
-        return new Response(JSON.stringify({ success: false, error: "NO_INPUT_DATA" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        console.warn(`[SCAN:${tid}] ⚠ No structure map — using fallback`);
       }
 
-      console.log("[SCAN] running scanners — chaining first step");
+      trace(scanRun.id, `start → user=${userId.slice(0, 8)} stage=${systemStage} mode=${isTargeted ? "targeted" : "full"} steps=${prioritizedSteps.length} input=`, scanInput);
+      console.log(`🚨 SCAN STARTED scan_id=${scanRun.id} stage=${systemStage} mode=${isTargeted ? "targeted" : "full"} steps=${prioritizedSteps.length}`);
+      trace(scanRun.id, `→ chain: process_step[0]`);
       fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
         body: JSON.stringify({ action: "process_step", scan_run_id: scanRun.id, step_index: 0, iteration: 1 }),
-      }).catch((e) => console.error("Failed to chain first step:", e));
+      }).catch((e) => console.error(`[SCAN:${tid}] Failed to chain process_step[0]:`, e));
 
-      return new Response(JSON.stringify({ success: true, scan_id: scanRun.id, status: "started", system_stage: systemStage, scan_mode: isTargeted ? "targeted" : "full" }), {
+      return new Response(JSON.stringify({ success: true, scan_id: scanRun.id, job_id: scanRun.id, status: "started", system_stage: systemStage, scan_mode: isTargeted ? "targeted" : "full" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
       });
     }
 
     // ── PROCESS_STEP ──
     if (action === "process_step" && scan_run_id && step_index !== undefined) {
-      console.log("[SCAN] running scanners — step:", step_index, "iteration:", iteration);
       const currentIteration = iteration || 1;
       const { data: scanRun } = await supabase.from("scan_runs").select("*").eq("id", scan_run_id).single();
       if (!scanRun || scanRun.status !== "running") return new Response(JSON.stringify({ success: false, error: "Scan not running" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-      const step = currentIteration === 1 ? STEPS[step_index] : (scanRun._targeted_steps || STEPS)[step_index];
+      const step = STEPS[step_index];
       if (!step) return new Response(JSON.stringify({ success: false, error: "Invalid step index" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-      await supabase.from("scan_runs").update({ current_step: step_index, current_step_label: `[Iteration ${currentIteration}/${MAX_ITERATIONS}] ${step.label}`, iteration: currentIteration }).eq("id", scan_run_id);
+      await supabase.from("scan_runs").update({ current_step: step_index, current_step_label: step.label, iteration: currentIteration }).eq("id", scan_run_id);
 
       let stepResult: any = { error: "unknown", failed: true };
       const stepStart = Date.now();
 
+      trace(scan_run_id, `process_step[${step_index}] start id=${step.id} scanner=${step.scanType}`);
       try {
-        const STEP_TIMEOUT_MS = 30000;
         const realScanner = REAL_DB_SCANNERS[step.scanType];
         if (realScanner) {
-          console.log(`[scan] Running REAL DB scanner for ${step.scanType}`);
           const dbResult = await realScanner(supabase, scan_run_id);
-          let aiEnrichment: any = null;
-          try {
-            const aiController = new AbortController();
-            const aiTimeout = setTimeout(() => aiController.abort(), STEP_TIMEOUT_MS);
-            const resp = await fetch(`${supabaseUrl}/functions/v1/ai-assistant`, {
-              method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
-              body: JSON.stringify({ type: step.scanType, orchestrated: true, step_index, real_db_findings: { issues_count: dbResult.issues_found || dbResult.total_issues || 0, score: dbResult.overall_score, sample_issues: (dbResult.issues || dbResult.mismatches || dbResult.features || []).slice(0, 5).map((i: any) => i.title || i.name || "") } }),
-              signal: aiController.signal,
-            });
-            clearTimeout(aiTimeout);
-            if (resp.ok) { const data = await resp.json(); aiEnrichment = data.result || data; }
-          } catch (_) {}
-          stepResult = { ...dbResult, ai_suggestions: aiEnrichment?.suggestions || aiEnrichment?.recommendations || [], ai_summary: aiEnrichment?.summary || aiEnrichment?.executive_summary || null };
+          stepResult = { ...dbResult };
         } else {
-          console.log(`[scan] Running AI-only scanner for ${step.scanType}`);
-          const previousContext: Record<string, any> = {};
-          const existingResults = scanRun.steps_results || {};
-          for (const [key, val] of Object.entries(existingResults)) {
-            const v = val as any;
-            if (v?.overall_score != null) previousContext[key] = { score: v.overall_score };
-            if (v?.issues_count != null) previousContext[key] = { ...previousContext[key], issues: v.issues_count };
-          }
-          let deepScanContext: any = undefined;
-          if (currentIteration > 1) {
-            deepScanContext = { iteration: currentIteration, previous_patterns: scanRun.pattern_discoveries || [], high_risk_areas: scanRun.high_risk_areas || [], instruction: "DEEP RE-SCAN. Focus on high_risk_areas and patterns." };
-          }
-          const stepController = new AbortController();
-          const stepTimeout = setTimeout(() => stepController.abort(), STEP_TIMEOUT_MS);
-          const resp = await fetch(`${supabaseUrl}/functions/v1/ai-assistant`, {
-            method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
-            body: JSON.stringify({ type: step.scanType, orchestrated: true, step_index, previous_context: Object.keys(previousContext).length > 0 ? previousContext : undefined, deep_scan_context: deepScanContext }),
-            signal: stepController.signal,
-          });
-          clearTimeout(stepTimeout);
-          if (resp.ok) { const data = await resp.json(); stepResult = data.result || data; }
-          else { const errBody = await resp.text().catch(() => ""); stepResult = { error: `HTTP ${resp.status}: ${errBody.substring(0, 200)}`, failed: true }; }
+          stepResult = { skipped: true, reason: "NO_SCANNER", failed: false };
         }
       } catch (e: any) { stepResult = { error: e.message, failed: true, _timed_out: e.name === "AbortError" }; }
 
       const duration_ms = Date.now() - stepStart;
+      const issueCount = stepResult.issues?.length ?? 0;
+      trace(scan_run_id, `process_step[${step_index}] done id=${step.id} issues=${issueCount} duration_ms=${duration_ms}${stepResult.failed ? ` ERROR=${stepResult.error}` : ""}`);
+
       const scanFinishedAt = new Date().toISOString();
       const scanStartedAt = new Date(Date.now() - duration_ms).toISOString();
 
@@ -2433,8 +2131,6 @@ serve(async (req) => {
       } else {
         stepResult.issues = stepResult.issues ?? [];
       }
-
-      console.log("🚨 TOTAL ISSUES:", stepResult.issues.length);
 
       // ── Extended metadata ──
       stepResult._execution_time_ms = duration_ms;
@@ -2494,30 +2190,32 @@ serve(async (req) => {
       stepResult._step_id = step.id;
       stepResult._iteration = currentIteration;
 
+      const traceId = `full-scan-${scan_run_id.slice(0, 8)}`;
       await supabase.from("system_observability_log").insert({
         event_type: "scan_step", severity: stepResult.failed ? "error" : "info", source: "scanner",
         message: stepResult.failed ? `Steg misslyckades: ${step.label}` : `Steg klart: ${step.label}`,
-        details: { step_id: step.id, iteration: currentIteration, failed: !!stepResult.failed },
-        scan_id: scan_run_id, trace_id: `full-scan-${scan_run_id.slice(0, 8)}`, component: step.scanType, duration_ms,
+        details: { step_id: step.id, step_index, issues: issueCount, duration_ms, failed: !!stepResult.failed },
+        scan_id: scan_run_id, trace_id: traceId, component: step.scanType, duration_ms,
       }).catch(() => {});
 
       const updatedResults = { ...(scanRun.steps_results || {}), [step.id]: stepResult };
-      const stepsForIteration = currentIteration === 1 ? STEPS : (scanRun._targeted_steps || STEPS);
-      const isLastStep = step_index + 1 >= stepsForIteration.length;
+      const isLastStep = step_index + 1 >= STEPS.length;
 
       if (!isLastStep) {
-        const nextStep = stepsForIteration[step_index + 1];
-        await supabase.from("scan_runs").update({ steps_results: updatedResults, current_step: step_index + 1, current_step_label: `[Iteration ${currentIteration}/${MAX_ITERATIONS}] ${nextStep.label}` }).eq("id", scan_run_id);
+        const nextStep = STEPS[step_index + 1];
+        await supabase.from("scan_runs").update({ steps_results: updatedResults, current_step: step_index + 1, current_step_label: nextStep.label }).eq("id", scan_run_id);
+        trace(scan_run_id, `→ chain: process_step[${step_index + 1}] id=${nextStep.id}`);
         fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
           method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
           body: JSON.stringify({ action: "process_step", scan_run_id, step_index: step_index + 1, iteration: currentIteration }),
-        }).catch((e) => console.error("Failed to chain next step:", e));
+        }).catch((e) => console.error(`[SCAN:${scan_run_id.slice(0, 8)}] Failed to chain process_step[${step_index + 1}]:`, e));
       } else {
         await supabase.from("scan_runs").update({ steps_results: updatedResults }).eq("id", scan_run_id);
+        trace(scan_run_id, `→ chain: evaluate_iteration (all ${STEPS.length} steps done)`);
         fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
           method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
           body: JSON.stringify({ action: "evaluate_iteration", scan_run_id, iteration: currentIteration }),
-        }).catch((e) => console.error("Failed to chain evaluation:", e));
+        }).catch((e) => console.error(`[SCAN:${scan_run_id.slice(0, 8)}] Failed to chain evaluate_iteration:`, e));
       }
 
       return new Response(JSON.stringify({ success: true, ok: true, step: step.id, step_index, iteration: currentIteration }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
@@ -2529,67 +2227,41 @@ serve(async (req) => {
       const { data: scanRun } = await supabase.from("scan_runs").select("*").eq("id", scan_run_id).single();
       if (!scanRun || scanRun.status !== "running") return new Response(JSON.stringify({ success: false, error: "Scan not running" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-      await supabase.from("scan_runs").update({ current_step_label: `[Iteration ${currentIteration}/${MAX_ITERATIONS}] Analyserar mönster...` }).eq("id", scan_run_id);
+      trace(scan_run_id, `evaluate_iteration start`);
+      await supabase.from("scan_runs").update({ current_step_label: "Analyserar mönster..." }).eq("id", scan_run_id);
 
       const updatedResults = scanRun.steps_results || {};
       const totalDuration = Object.values(updatedResults).reduce((sum: number, r: any) => sum + (r?._duration_ms || 0), 0);
       const unified = buildUnifiedResult(updatedResults, totalDuration);
 
-      const { data: rootCauseData } = await supabase.from("root_cause_memory").select("pattern_key, affected_system, root_cause, recurrence_count, severity").order("recurrence_count", { ascending: false }).limit(50);
-      const { patterns, highRiskAreas, systemicIssues } = extractPatterns(unified, rootCauseData || []);
-
-      const previousIssueKeys = new Set<string>();
-      const prevIterResults = scanRun.iteration_results || [];
-      for (const prevIter of prevIterResults) { for (const key of (prevIter.issue_keys || [])) { previousIssueKeys.add(key); } }
-
-      const { newCount, newKeys } = countNewIssues(unified, previousIssueKeys);
       const scannedScanTypes = new Set(Object.keys(updatedResults).map(k => { const step = STEPS.find(s => s.id === k); return step?.scanType || k; }));
       const baseCoverage = Math.round((scannedScanTypes.size / STEPS.length) * 100);
-      const coverageScore = Math.min(100, baseCoverage + Math.min(20, (currentIteration - 1) * 10));
+      const coverageScore = Math.min(100, baseCoverage);
 
-      const iterationResult = {
-        iteration: currentIteration, new_issues_found: newCount,
-        total_issues: unified.broken_flows.length + unified.fake_features.length + unified.interaction_failures.length + unified.data_issues.length,
-        patterns_discovered: patterns.length, high_risk_areas: highRiskAreas.length,
-        systemic_issues: systemicIssues.length, health_score: unified.system_health_score,
-        issue_keys: [...newKeys], completed_at: new Date().toISOString(),
-      };
+      await supabase.from("scan_runs").update({ coverage_score: coverageScore }).eq("id", scan_run_id);
 
-      const allIterResults = [...prevIterResults, iterationResult];
-      const allPatterns = [...(scanRun.pattern_discoveries || []), ...patterns];
-      const allHighRisk = [...(scanRun.high_risk_areas || []), ...highRiskAreas];
-      const totalNewIssues = (scanRun.total_new_issues || 0) + newCount;
+      await supabase.from("system_observability_log").insert({
+        event_type: "scan_step", severity: "info", source: "scanner",
+        message: `Iterationsutvärdering klar: coverage=${coverageScore}%`,
+        details: { coverage_score: coverageScore, health_score: unified.system_health_score, total_duration_ms: totalDuration },
+        scan_id: scan_run_id, trace_id: `full-scan-${scan_run_id.slice(0, 8)}`, component: "evaluate_iteration", duration_ms: 0,
+      }).catch(() => {});
 
-      await supabase.from("scan_runs").update({ iteration_results: allIterResults, pattern_discoveries: allPatterns, high_risk_areas: allHighRisk, coverage_score: coverageScore, total_new_issues: totalNewIssues }).eq("id", scan_run_id);
-
-      const shouldRecurse = currentIteration < MAX_ITERATIONS && newCount > 0 && (highRiskAreas.length > 0 || patterns.length > 0);
-
-      if (shouldRecurse) {
-        const targetedSteps = buildTargetedSteps(patterns, highRiskAreas, currentIteration + 1);
-        if (targetedSteps.length > 0) {
-          await supabase.from("scan_runs").update({ current_step_label: `[Iteration ${currentIteration + 1}/${MAX_ITERATIONS}] ${targetedSteps[0].label}`, current_step: 0, total_steps: STEPS.length + targetedSteps.length * currentIteration, _targeted_steps: targetedSteps }).eq("id", scan_run_id);
-          fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
-            method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
-            body: JSON.stringify({ action: "process_step", scan_run_id, step_index: 0, iteration: currentIteration + 1 }),
-          }).catch((e) => console.error("Failed to chain re-scan:", e));
-          return new Response(JSON.stringify({ success: true, ok: true, action: "recursing", iteration: currentIteration + 1 }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
-        }
-      }
-
+      trace(scan_run_id, `→ chain: finalize coverage=${coverageScore}%`);
       fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
         body: JSON.stringify({ action: "finalize", scan_run_id }),
-      }).catch((e) => console.error("Failed to chain finalize:", e));
+      }).catch((e) => console.error(`[SCAN:${scan_run_id.slice(0, 8)}] Failed to chain finalize:`, e));
 
       return new Response(JSON.stringify({ success: true, ok: true, action: "finalizing", iterations_completed: currentIteration }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
     }
 
     // ── FINALIZE ──
     if (action === "finalize" && scan_run_id) {
-      console.log("[SCAN] creating work items — finalize phase");
       const { data: scanRun } = await supabase.from("scan_runs").select("*").eq("id", scan_run_id).single();
       if (!scanRun || scanRun.status !== "running") return new Response(JSON.stringify({ success: false, error: "Scan not running" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
+      trace(scan_run_id, `finalize start`);
       const systemStage: SystemStage = scanRun.system_stage || await getSystemStage(supabase);
 
       await supabase.from("scan_runs").update({ current_step_label: "Kör dataintegritetskontroll..." }).eq("id", scan_run_id);
@@ -2611,26 +2283,6 @@ serve(async (req) => {
       unified.broken_flows = filterDevFalsePositives(unified.broken_flows, systemStage);
       unified.interaction_failures = filterDevFalsePositives(unified.interaction_failures, systemStage);
       unified.data_issues = filterDevFalsePositives(unified.data_issues, systemStage);
-
-      // ── PAYMENT ISOLATION: Remove all payment/checkout/stripe issues from scan ──
-      console.log("[PAYMENT_ISOLATION] Filtering payment-related issues from all categories...");
-      const preFilterCounts = {
-        broken_flows: unified.broken_flows.length,
-        interaction_failures: unified.interaction_failures.length,
-        data_issues: unified.data_issues.length,
-      };
-      unified.broken_flows = filterPaymentIsolated(unified.broken_flows);
-      unified.interaction_failures = filterPaymentIsolated(unified.interaction_failures);
-      unified.data_issues = filterPaymentIsolated(unified.data_issues);
-      const postFilterCounts = {
-        broken_flows: unified.broken_flows.length,
-        interaction_failures: unified.interaction_failures.length,
-        data_issues: unified.data_issues.length,
-      };
-      const totalFiltered = (preFilterCounts.broken_flows - postFilterCounts.broken_flows) +
-        (preFilterCounts.interaction_failures - postFilterCounts.interaction_failures) +
-        (preFilterCounts.data_issues - postFilterCounts.data_issues);
-      console.log(`[PAYMENT_ISOLATION] Removed ${totalFiltered} payment-related issues`);
 
       // Merge integrity issues
       for (const issue of integrityResult.issues || []) {
@@ -2698,21 +2350,21 @@ serve(async (req) => {
         ...unified.data_issues.filter((i: any) => !i._dev_expected),
       ];
       const issuesCount = actionableIssues.length;
+      console.log(`TOTAL ISSUES: ${issuesCount} scan_id=${scan_run_id}`);
 
       const iterationsCompleted = scanRun.iteration || 1;
-      const patternDiscoveries = scanRun.pattern_discoveries || [];
-      const highRiskAreas = scanRun.high_risk_areas || [];
       const coverageScore = scanRun.coverage_score || 0;
 
       const { data: finalRootCause } = await supabase.from("root_cause_memory").select("pattern_key, affected_system, root_cause, recurrence_count, severity").order("recurrence_count", { ascending: false }).limit(50);
       const { systemicIssues } = extractPatterns(unified, finalRootCause || []);
 
-      await saveFocusMemory(supabase, unified, highRiskAreas, patternDiscoveries);
-      const updatedFocusMemory = await loadFocusMemory(supabase);
-      const predictions = generatePredictions(unified, patternDiscoveries, systemicIssues, updatedFocusMemory, finalRootCause || []);
-
       // ── BUILD SYSTEM OVERVIEW ──
       const systemOverview = buildSystemOverview(updatedResults, unified, systemStage);
+
+      // ── BUILD SYSTEM INSIGHT ──
+      const systemInsight = buildSystemInsight(unified, structure_map || [], updatedResults);
+      trace(scan_run_id, `system_insight score=${systemInsight?.system_health_score ?? "-"}`);
+      await supabase.from("scan_runs").update({ system_insight: systemInsight }).eq("id", scan_run_id);
 
       // ── HIGH ATTENTION AREA DETECTION ──
       const highAttentionAreas: { type: string; target: string; reason: string }[] = [];
@@ -2790,22 +2442,17 @@ serve(async (req) => {
         system_stage: systemStage,
         high_attention_areas: highAttentionAreas,
         suspicious_areas: suspiciousAreas,
-        adaptive_scan: {
-          iterations: iterationsCompleted, new_issues_found: scanRun.total_new_issues || 0,
-          pattern_discoveries: patternDiscoveries, high_risk_areas: highRiskAreas,
-          systemic_issues: systemicIssues, coverage_score: coverageScore,
-          iteration_results: scanRun.iteration_results || [],
-          focus_memory: updatedFocusMemory.slice(0, 15).map((m: any) => ({ focus_key: m.focus_key, focus_type: m.focus_type, label: m.label, issue_count: m.issue_count, scan_count: m.scan_count, severity: m.severity, last_seen_at: m.last_seen_at })),
-          predictions,
-        },
+        coverage_score: coverageScore,
+        root_cause: (finalRootCause || []).slice(0, 10).map((r: any) => ({
+          pattern_key: r.pattern_key,
+          affected_system: r.affected_system,
+          root_cause: r.root_cause,
+          recurrence_count: r.recurrence_count,
+          severity: r.severity,
+        })),
       };
 
-      await supabase.from("ai_scan_results").insert({
-        scan_type: "full_orchestrated", results: adaptiveResult, overall_score: unified.system_health_score,
-        overall_status: unified.system_health_score >= 75 ? "healthy" : unified.system_health_score >= 50 ? "warning" : "critical",
-        executive_summary: `Adaptive scan (${iterationsCompleted} iter, ${systemStage}): ${unified.system_health_score}/100 | ${issuesCount} actionable issues | ${systemicIssues.length} systemic | ${coverageScore}%`,
-        issues_count: issuesCount, scanned_by: scanRun.started_by,
-      });
+      // Scan result stored in scan_snapshots
 
       await persistStepResults(supabase, STEPS, updatedResults, scanRun.started_by);
 
@@ -2813,8 +2460,7 @@ serve(async (req) => {
       const createResult = await createWorkItems(supabase, unified, systemStage);
       let workItemsCreated = createResult.created;
       unified._create_trace = createResult.createTrace;
-      console.log("[ISSUES FOUND]:", issuesCount);
-      console.log("[WORK ITEMS CREATED]:", workItemsCreated);
+      trace(scan_run_id, `createWorkItems: detected=${issuesCount} created=${workItemsCreated}`);
 
       // ── SUSPICIOUS AREA RULE 3: High issues but low creation (post-createWorkItems) ──
       for (const [, entry] of Object.entries(targetIssueCounts)) {
@@ -2869,18 +2515,18 @@ serve(async (req) => {
           title: `🔗 ${si.label}`.slice(0, 120),
           description: `${si.description}\n\nExempel: ${si.examples?.join(", ") || "N/A"}\nPåverkade: ${si.affected_components?.join(", ") || "N/A"}`,
           status: "open", priority: si.severity === "critical" ? "critical" : "high",
-          item_type: "bug", source_type: "ai_scan", ai_detected: true, issue_fingerprint: fp,
+          item_type: "bug", source_type: "scanner", issue_fingerprint: fp,
           ...(sysTraceId ? { runtime_trace_id: sysTraceId } : {}),
         });
         if (!error) workItemsCreated++;
       }
 
-      const execSummary = `${unified.system_health_score}/100 — ${issuesCount} issues (${systemStage}) — ${iterationsCompleted} iter — ${coverageScore}% — ${workItemsCreated} uppgifter`;
+      const execSummary = `${unified.system_health_score}/100 — ${issuesCount} issues (${systemStage}) — ${coverageScore}% — ${workItemsCreated} uppgifter`;
       await supabase.from("scan_runs").update({
         status: "done", completed_at: new Date().toISOString(), steps_results: updatedResults,
         unified_result: adaptiveResult, system_health_score: unified.system_health_score,
         executive_summary: execSummary, work_items_created: workItemsCreated,
-        current_step: STEPS.length, current_step_label: `Klar ✓ (${iterationsCompleted} iter, ${systemStage})`,
+        current_step: STEPS.length, current_step_label: `Klar ✓ (${systemStage})`,
       }).eq("id", scan_run_id);
 
       // Store scan snapshot for historical tracking
@@ -3038,7 +2684,7 @@ serve(async (req) => {
       await supabase.from("system_observability_log").insert({
         event_type: "action", severity: unified.system_health_score < 50 ? "warning" : "info",
         source: "scanner", message: `Full skanning klar: ${execSummary}`,
-        details: { iterations: iterationsCompleted, health_score: unified.system_health_score, issues_count: issuesCount, work_items_created: workItemsCreated, predictions_count: predictions.length, coverage_score: coverageScore, system_stage: systemStage },
+        details: { iterations: iterationsCompleted, health_score: unified.system_health_score, issues_count: issuesCount, work_items_created: workItemsCreated, coverage_score: coverageScore, system_stage: systemStage },
         scan_id: scan_run_id, trace_id: `full-scan-${scan_run_id.slice(0, 8)}`, component: "run-full-scan", duration_ms: totalDuration, user_id: scanRun.started_by,
       });
 
@@ -3138,11 +2784,11 @@ serve(async (req) => {
           ...typeof v === "string" ? { message: v } : v,
           explanation: explainViolation(typeof v === "string" ? { message: v } : v, scanContext)
         }));
-        console.error("🚨 SYSTEM VIOLATIONS:", enrichedViolations);
+        console.error(`[SCAN:${scan_run_id.slice(0, 8)}] SYSTEM VIOLATIONS:`, enrichedViolations);
         return new Response(JSON.stringify({ success: false, violations: enrichedViolations, context: scanContext, scan_id: scan_run_id }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
       }
 
-      console.log("[SCAN] finished — detected:", issuesCount, "created:", workItemsCreated, "scanContext:", JSON.stringify(scanContext));
+      trace(scan_run_id, `✓ scan done detected=${issuesCount} created=${workItemsCreated} health=${unified.system_health_score} stage=${systemStage}`);
       return new Response(JSON.stringify({ success: true, scan_id: scan_run_id, detected: issuesCount, created: workItemsCreated, filtered: issuesCount - workItemsCreated, skipped: skippedCount, action: "finalized", iterations: iterationsCompleted, system_stage: systemStage, scanContext }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
     }
 
@@ -3155,11 +2801,10 @@ serve(async (req) => {
       return new Response(JSON.stringify({ success: true, ...(data || {}) }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
     }
 
-    console.log("INVALID ACTION RECEIVED:", body.action);
+    console.warn(`[SCAN DISPATCH] Invalid action: "${body.action ?? "undefined"}"`);
     return new Response(JSON.stringify({ success: false, error: "Invalid action" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
-    console.error("run-full-scan error:", e);
-    console.error("[FULL SCAN ERROR]:", e?.message || e);
+    console.error(`[SCAN ERROR] ${e?.message || e}`);
     try { await logRuntimeTrace("api", "run-full-scan", "/run-full-scan", e?.message || "Unknown", { stack: e?.stack?.slice(0, 500) }); } catch (_) {}
     return new Response(JSON.stringify({ success: false, error: e?.message || "Unknown error" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }

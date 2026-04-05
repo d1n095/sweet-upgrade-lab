@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { trackProductView } from '@/utils/analyticsTracker';
 import { motion } from 'framer-motion';
 import { ShoppingCart, Check, Loader2, Minus, Plus, Shield, RotateCcw, Truck, Share2, Languages, Sparkles, Droplets, Heart, Users, Star, Eye, Clock, Package, AlertTriangle } from 'lucide-react';
 import { useProductVariants } from '@/hooks/useProductVariants';
@@ -10,7 +9,7 @@ import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { fetchDbProductByHandle, DbProduct } from '@/lib/products';
 import { useLanguage } from '@/context/LanguageContext';
-import { useCartStore } from '@/stores/cartStore';
+import { useCartStore, dbVariantId } from '@/stores/cartStore';
 import { useTranslatedProduct } from '@/hooks/useTranslatedProduct';
 import PaymentMethods from '@/components/trust/PaymentMethods';
 import { useProductReviewStats } from '@/hooks/useProductReviewStats';
@@ -89,10 +88,6 @@ const ProductDetail = () => {
     load();
   }, [handle]);
 
-  useEffect(() => {
-    if (product) trackProductView(product.id, product.title_sv, product.price);
-  }, [product]);
-
   const formatPrice = (amount: number) =>
     new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK', minimumFractionDigits: 0 }).format(amount);
 
@@ -101,7 +96,7 @@ const ProductDetail = () => {
     const variantForCart = selectedVariant;
     const effectivePrice = variantForCart ? variantForCart.price : product.price;
     const effectiveStock = variantForCart ? variantForCart.stock : (product.stock - (product.reserved_stock || 0));
-    const variantId = variantForCart ? variantForCart.id : product.id + '-variant';
+    const variantId = variantForCart ? variantForCart.id : dbVariantId(product.id);
     const variantTitle = variantForCart ? variantForCart.size : 'Default';
 
     const cartItem = cartItems.find(i => i.variantId === variantId);

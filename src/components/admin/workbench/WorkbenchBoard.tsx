@@ -3,7 +3,7 @@ import { ACTIVE_WORK_ITEM_STATUSES, useAdminWorkItems } from '@/hooks/useAdminDa
 import { useUiStateSync } from '@/hooks/useUiStateSync';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { safeInvoke, safeFetch } from '@/lib/safeInvoke';
+import { safeInvoke } from '@/lib/safeInvoke';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -58,9 +58,9 @@ interface WorkItem {
   orchestrator_result?: any;
   ai_type_classification?: string;
   ai_type_reason?: string;
-  ai_review_status?: string;
-  ai_review_result?: any;
-  ai_review_at?: string;
+  review_status?: string;
+  review_result?: any;
+  review_at?: string;
   resolution_notes?: string;
 }
 
@@ -222,12 +222,8 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const runValidation = async () => {
     setRunningValidation(true);
     try {
-      const resp = await safeFetch('data-sync', {
-        body: { mode: 'repair' },
-        isAdmin: true,
-      });
-      if (resp.ok) {
-        const data = await resp.json();
+      const { data, error } = await safeInvoke('data-sync', { body: { mode: 'repair' } });
+      if (!error && data) {
         const r = data.results;
         setValidationResult(r);
         if (r.total_fixed > 0) {
@@ -396,7 +392,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
       if (isMine) return t.status !== 'done';
       return false;
     }
-    if (viewFilter === 'review') return t.status === 'done' && (t as any).ai_review_status !== 'verified';
+    if (viewFilter === 'review') return t.status === 'done' && (t as any).review_status !== 'verified';
     if (viewFilter === 'done') return t.status === 'done';
     if (viewFilter === 'escalated') return t.status === 'escalated';
     if (viewFilter === 'bugs') return getClassification(t) === 'bug' && t.status !== 'done';
@@ -671,16 +667,16 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     if (newStatus === 'done') {
       setCompletedCount(prev => prev + 1);
       setJustCompleted(itemId);
-      toast.success('Klar ✓ — Granskar...');
+      toast.success('Klar ✓ — AI granskar...');
       const reviewResult = await triggerReviewForWorkItem(itemId, { context: 'workbench_board_done' });
       if (!reviewResult.ok) {
-        toast.error('Granskning misslyckades — manuell granskning krävs');
+        toast.error('AI-granskning misslyckades — manuell granskning krävs');
       } else if (reviewResult.status === 'verified') {
-        toast.success('✅ Verifierad');
+        toast.success('AI: ✅ Verifierad');
       } else if (reviewResult.status === 'needs_review') {
-        toast.warning('⚠️ Behöver granskning');
+        toast.warning('AI: ⚠️ Behöver granskning');
       } else if (reviewResult.status === 'incomplete') {
-        toast.error('❌ Ofullständig');
+        toast.error('AI: ❌ Ofullständig');
       }
       queryClient.invalidateQueries({ queryKey: ['work-items'] });
 
@@ -756,7 +752,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const escalatedCount = items.filter(t => t.status === 'escalated').length;
   const myCount = items.filter(t => (t.assigned_to === user?.id || t.claimed_by === user?.id) && t.status !== 'done').length;
   const doneCount = items.filter(t => t.status === 'done').length;
-  const reviewCount = items.filter(t => t.status === 'done' && (t as any).ai_review_status !== 'verified').length;
+  const reviewCount = items.filter(t => t.status === 'done' && (t as any).review_status !== 'verified').length;
   const activeCount = items.filter(t => !['done', 'cancelled'].includes(t.status)).length;
   const openCount = items.filter(t => t.status === 'open' && !t.assigned_to).length;
   const bugCount = items.filter(t => getClassification(t) === 'bug' && t.status !== 'done').length;

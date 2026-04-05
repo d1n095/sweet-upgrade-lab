@@ -35,7 +35,7 @@ export const usePurchaseHistory = () => {
         }
         setPurchasedProductIds(ids);
       } catch (err) {
-        console.error('Failed to load purchase history:', err);
+
       }
     };
 

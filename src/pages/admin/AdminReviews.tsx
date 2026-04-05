@@ -22,8 +22,8 @@ import { Link } from 'react-router-dom';
 interface Review {
   id: string;
   user_id: string;
-  shopify_product_id: string;
-  shopify_product_handle: string;
+  product_id: string;
+  product_handle: string;
   product_title: string;
   rating: number;
   comment: string;
@@ -147,7 +147,7 @@ const AdminReviews = () => {
       if (error) throw error;
       setReviews(data || []);
     } catch (error) {
-      console.error('Failed to load reviews:', error);
+
       toast.error('Kunde inte ladda recensioner');
     } finally {
       setIsLoading(false);
@@ -174,7 +174,7 @@ const AdminReviews = () => {
         setStats({ total, pending, approved, rejected, averageRating: avgRating });
       }
     } catch (error) {
-      console.error('Failed to load stats:', error);
+
     }
   };
 
@@ -191,7 +191,7 @@ const AdminReviews = () => {
       loadReviews();
       loadStats();
     } catch (error) {
-      console.error('Failed to approve review:', error);
+
       toast.error('Kunde inte godkänna recensionen');
     }
   };
@@ -209,7 +209,7 @@ const AdminReviews = () => {
       loadReviews();
       loadStats();
     } catch (error) {
-      console.error('Failed to delete review:', error);
+
       toast.error('Kunde inte ta bort recensionen');
     }
   };
@@ -234,7 +234,7 @@ const AdminReviews = () => {
       setResponse('');
       loadReviews();
     } catch (error) {
-      console.error('Failed to respond:', error);
+
       toast.error('Kunde inte skicka svar');
     } finally {
       setIsSubmitting(false);

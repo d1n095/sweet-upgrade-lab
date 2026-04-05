@@ -84,7 +84,7 @@ interface Order {
   created_at: string;
   total_amount: number;
   status: string;
-  shopify_order_number: string | null;
+  external_order_number: string | null;
 }
 
 interface Review {
@@ -491,7 +491,7 @@ const AdminMemberManager = ({ roleFilter = 'all', onStatsUpdate }: AdminMemberMa
         warehouse: roleCounts['warehouse'] || 0,
       });
     } catch (error) {
-      console.error('Failed to load members:', error);
+
     } finally {
       setIsLoading(false);
     }
@@ -506,7 +506,7 @@ const AdminMemberManager = ({ roleFilter = 'all', onStatsUpdate }: AdminMemberMa
       const [ordersRes, reviewsRes, emailRes] = await Promise.all([
         supabase
           .from('orders')
-          .select('id, created_at, total_amount, status, shopify_order_number')
+          .select('id, created_at, total_amount, status, external_order_number')
           .eq('user_id', member.user_id)
           .order('created_at', { ascending: false })
           .limit(10),
@@ -534,7 +534,7 @@ const AdminMemberManager = ({ roleFilter = 'all', onStatsUpdate }: AdminMemberMa
       setMemberOrders(ordersRes.data || []);
       setMemberReviews(reviewsRes.data || []);
     } catch (error) {
-      console.error('Failed to load member details:', error);
+
     } finally {
       setLoadingDetails(false);
     }
@@ -617,7 +617,7 @@ const AdminMemberManager = ({ roleFilter = 'all', onStatsUpdate }: AdminMemberMa
       // Reload data to sync counts
       loadMembers();
     } catch (error) {
-      console.error('Failed to assign role:', error);
+
       toast.error(t.error);
     } finally {
       setAssigningRole(false);
@@ -643,7 +643,7 @@ const AdminMemberManager = ({ roleFilter = 'all', onStatsUpdate }: AdminMemberMa
       setMembers(prev => prev.map(m => m.user_id === selectedMember.user_id ? { ...m, username: trimmed } : m));
       setEditingUsername(false);
     } catch (error) {
-      console.error('Failed to update username:', error);
+
       toast.error('Kunde inte uppdatera användarnamnet');
     }
   };
@@ -1062,7 +1062,7 @@ const AdminMemberManager = ({ roleFilter = 'all', onStatsUpdate }: AdminMemberMa
                       >
                         <div>
                           <p className="font-medium">
-                            {order.shopify_order_number || order.id.slice(0, 8)}
+                            {order.external_order_number || order.id.slice(0, 8)}
                           </p>
                           <p className="text-xs text-muted-foreground">
                             {formatDate(order.created_at)}

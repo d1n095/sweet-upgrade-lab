@@ -49,6 +49,7 @@ const AdminRefundRequests = () => {
     try {
       const { data, error } = await safeInvoke('process-refund', {
         body: { action: 'approve', refund_request_id: id },
+        isAdmin: true,
       });
       if (error) throw error;
       toast.success(`Återbetalning godkänd${data?.stripe_refund_id ? ` (Stripe: ${data.stripe_refund_id})` : ''}`);
@@ -65,6 +66,7 @@ const AdminRefundRequests = () => {
     try {
       const { error } = await safeInvoke('process-refund', {
         body: { action: 'reject', refund_request_id: id, admin_notes: rejectNotes[id] || '' },
+        isAdmin: true,
       });
       if (error) throw error;
       toast.success('Förfrågan avvisad');

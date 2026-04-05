@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
-import { safeInvoke, safeFetch } from '@/lib/safeInvoke';
+import { safeInvoke } from '@/lib/safeInvoke';
 import { useLanguage } from '@/context/LanguageContext';
 import { toast } from 'sonner';
 import { logActivity } from '@/utils/activityLogger';
@@ -40,7 +40,7 @@ interface Order {
   notes: string | null;
   created_at: string;
   updated_at: string;
-  shopify_order_number: string | null;
+  external_order_number: string | null;
   order_number: string | null;
   items: any;
   shipping_address: any;
@@ -714,13 +714,11 @@ const AdminOrderManager = () => {
   const handleDownloadReceipt = async (order: Order) => {
     toast.loading('Genererar kvitto...', { id: 'receipt' });
     try {
-      const resp = await safeFetch('generate-receipt', {
+      const { data: result, error } = await safeInvoke('generate-receipt', {
         body: { order_id: order.id },
-        isAdmin: true,
       });
 
-      if (!resp.ok) throw new Error('Kunde inte generera kvitto');
-      const result = await resp.json();
+      if (error) throw new Error('Kunde inte generera kvitto');
 
       // Open in new window for print/PDF save
       const win = window.open('', '_blank');
@@ -739,12 +737,11 @@ const AdminOrderManager = () => {
   const handleResendReceipt = async (order: Order) => {
     toast.loading('Skickar kvitto...', { id: 'resend-receipt' });
     try {
-      const resp = await safeFetch('generate-receipt', {
+      const { error } = await safeInvoke('generate-receipt', {
         body: { order_id: order.id, action: 'resend_email' },
-        isAdmin: true,
       });
 
-      if (!resp.ok) throw new Error('Kunde inte skicka kvitto');
+      if (error) throw new Error('Kunde inte skicka kvitto');
       toast.success(`Kvitto skickat till ${order.order_email}`, { id: 'resend-receipt' });
     } catch (err: any) {
       toast.error(err.message || 'Fel vid kvittoutskick', { id: 'resend-receipt' });

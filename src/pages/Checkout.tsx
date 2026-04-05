@@ -10,11 +10,10 @@ import { useCartStore } from '@/stores/cartStore';
 import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import PaymentMethods from '@/components/trust/PaymentMethods';
 import { supabase } from '@/integrations/supabase/client';
-import { safeFetch } from '@/lib/safeInvoke';
+import { safeInvoke } from '@/lib/safeInvoke';
 import { toast } from 'sonner';
 import { useStoreSettings } from '@/stores/storeSettingsStore';
 import { logActivity } from '@/utils/activityLogger';
-import { trackCheckoutStart, trackCheckoutAbandon, trackEvent } from '@/utils/analyticsTracker';
 import { useAuth } from '@/hooks/useAuth';
 
 
@@ -283,17 +282,17 @@ const Checkout = () => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-      const res = await safeFetch('create-checkout', {
+      const { data, error: invokeError } = await safeInvoke<{ sessionUrl?: string; url?: string; error?: string }>('create-checkout', {
         body: checkoutBody,
         signal: controller.signal,
       });
 
       clearTimeout(timeoutId);
 
-      let data: any = null;
-      try { data = await res.json(); } catch { data = null; }
-
-      if (!res.ok) throw new Error(data?.error || `HTTP_${res.status}`);
+      if (invokeError) {
+        const msg = invokeError?.name === 'AbortError' ? t.checkoutTimeout : (invokeError.message || t.checkoutFailed);
+        throw Object.assign(new Error(msg), { name: invokeError?.name });
+      }
 
       const url = data?.sessionUrl || data?.url;
       if (!url) throw new Error('No Stripe URL returned');
@@ -322,22 +321,6 @@ const Checkout = () => {
     event?.preventDefault();
     void startCheckout();
   };
-
-  // Track checkout page view
-  useEffect(() => {
-    if (items.length > 0) {
-      trackCheckoutStart(items.length, total);
-      trackEvent('checkout_start_detail', {
-        items: items.map(item => ({ title: item.product.node.title, price: parseFloat(item.price.amount), quantity: item.quantity })),
-        total,
-      });
-    }
-    return () => {
-      if (items.length > 0 && !completedRef.current) {
-        trackCheckoutAbandon('checkout_page', items.length, total);
-      }
-    };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!checkoutEnabled) {
     return (

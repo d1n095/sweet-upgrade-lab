@@ -1,7 +1,8 @@
 import * as React from 'react';
-import { DollarSign, Tag, Save, Eye, EyeOff, Boxes, Minus, Plus, Upload, X, Image, FlaskConical, ChefHat, Weight, Loader2, Check } from 'lucide-react';
+import { Sparkles, DollarSign, Tag, Save, Eye, EyeOff, Boxes, Minus, Plus, Upload, X, Image, FlaskConical, ChefHat, Weight, Loader2, Check } from 'lucide-react';
 import { RecipeTemplatePicker } from './RecipeTemplatePicker';
 import { supabase } from '@/integrations/supabase/client';
+import { safeInvoke } from '@/lib/safeInvoke';
 import { useQuery } from '@tanstack/react-query';
 import { fetchCategories, DbCategory } from '@/lib/categories';
 import { fetchTags, DbTag } from '@/lib/tags';
@@ -394,6 +395,78 @@ function parseTags(value: string): string[] {
     .filter(Boolean);
 }
 
+// ─── AI Metadata Suggestor (auto-categorize) ───
+function AiMetadataSuggestor({
+  language,
+  formData,
+  setFormData,
+}: {
+  language: string;
+  formData: ProductFormData;
+  setFormData: React.Dispatch<React.SetStateAction<ProductFormData>>;
+}) {
+  const [suggesting, setSuggesting] = React.useState(false);
+  const sv = language === 'sv';
+
+  const handleSuggest = async () => {
+    if (!formData.title.trim()) {
+      toast.error(sv ? 'Ange ett produktnamn först' : 'Enter a product name first');
+      return;
+    }
+    setSuggesting(true);
+    try {
+      const { data, error } = await safeInvoke('suggest-product-metadata', {
+        body: {
+          productName: formData.title,
+          description: formData.description || null,
+          ingredients: formData.ingredients || null,
+        },
+      });
+
+      if (error) throw error;
+      const s = data?.suggestions;
+      if (!s) throw new Error('No suggestions returned');
+
+      setFormData(prev => ({
+        ...prev,
+        categoryIds: s.categoryIds?.length ? s.categoryIds : prev.categoryIds,
+        tagIds: s.tagIds?.length ? s.tagIds : prev.tagIds,
+      }));
+
+      const newTagNames = s.suggestedNewTags || [];
+      if (newTagNames.length > 0) {
+        toast.info(
+          sv
+            ? `AI föreslår nya taggar: ${newTagNames.join(', ')}`
+            : `AI suggests new tags: ${newTagNames.join(', ')}`
+        );
+      }
+
+      toast.success(sv ? 'Kategorier & taggar föreslagna!' : 'Categories & tags suggested!');
+    } catch (err: any) {
+      console.error('AI suggest failed:', err);
+      toast.error(sv ? 'Kunde inte hämta förslag' : 'Failed to get suggestions');
+    } finally {
+      setSuggesting(false);
+    }
+  };
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className="gap-1.5 text-xs h-7 w-full"
+      onClick={handleSuggest}
+      disabled={suggesting || !formData.title.trim()}
+    >
+      {suggesting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+      {suggesting
+        ? (sv ? 'Analyserar...' : 'Analyzing...')
+        : (sv ? '🤖 Föreslå kategorier & taggar med AI' : '🤖 Suggest categories & tags with AI')}
+    </Button>
+  );
+}
 
 // ─── Category Multi-Select ───
 function CategoryMultiSelect({
@@ -719,6 +792,13 @@ export function AdminProductForm({
           onChange={(ids) => setFormData(prev => ({ ...prev, tagIds: ids }))}
         />
       </div>
+
+      {/* AI Auto-categorize */}
+      <AiMetadataSuggestor
+        language={language}
+        formData={formData}
+        setFormData={setFormData}
+      />
 
       {/* Free-text tags (legacy/custom) */}
       <div className="space-y-2">

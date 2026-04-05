@@ -55,7 +55,7 @@ const AdminHistory = () => {
         query = query.eq('item_type', typeFilter);
       }
       if (reviewFilter !== 'all') {
-        query = query.eq('ai_review_status', reviewFilter);
+        query = query.eq('review_status', reviewFilter);
       }
 
       const { data } = await query;
@@ -148,7 +148,7 @@ const AdminHistory = () => {
               const meta = TYPE_META[item.item_type] || TYPE_META.general;
               const TypeIcon = meta.icon;
               const isExpanded = expandedId === item.id;
-              const aiResult = item.ai_review_result;
+              const aiResult = item.review_result;
 
               return (
                 <Card key={item.id} className="border-border">
@@ -176,11 +176,11 @@ const AdminHistory = () => {
                             </Badge>
                             <Badge
                               variant="outline"
-                              className={cn('text-[9px]', REVIEW_STATUS_COLORS[item.ai_review_status || 'pending'])}
+                              className={cn('text-[9px]', REVIEW_STATUS_COLORS[item.review_status || 'pending'])}
                             >
-                              {item.ai_review_status === 'verified' ? '✅ Verifierad' :
-                               item.ai_review_status === 'needs_review' ? '⚠️ Granskas' :
-                               item.ai_review_status === 'incomplete' ? '❌ Ofullständig' : '⏳ Väntar'}
+                              {item.review_status === 'verified' ? '✅ Verifierad' :
+                               item.review_status === 'needs_review' ? '⚠️ Granskas' :
+                               item.review_status === 'incomplete' ? '❌ Ofullständig' : '⏳ Väntar'}
                             </Badge>
                           </div>
                         </div>

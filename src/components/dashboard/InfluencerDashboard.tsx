@@ -109,7 +109,7 @@ const InfluencerDashboard = () => {
 
       setReceivedProducts((products || []) as ReceivedProduct[]);
     } catch (error) {
-      console.error('Failed to load influencer data:', error);
+
     } finally {
       setIsLoading(false);
     }

@@ -1,15 +1,21 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { ShopifyProduct } from '@/lib/shopify';
 import { supabase } from '@/integrations/supabase/client';
 
+export interface WishlistItem {
+  id: string;
+  handle: string;
+  title: string;
+  price: number;
+  imageUrl: string | null;
+}
+
 interface WishlistStore {
-  items: ShopifyProduct[];
+  items: WishlistItem[];
   isLoading: boolean;
   userId: string | null;
-  
-  // Actions
-  addItem: (product: ShopifyProduct) => Promise<void>;
+
+  addItem: (item: WishlistItem) => Promise<void>;
   removeItem: (productId: string) => Promise<void>;
   isInWishlist: (productId: string) => boolean;
   clearWishlist: () => Promise<void>;
@@ -24,113 +30,88 @@ export const useWishlistStore = create<WishlistStore>()(
       items: [],
       isLoading: false,
       userId: null,
-      
+
       setUserId: (userId) => set({ userId }),
-      
-      addItem: async (product) => {
+
+      addItem: async (item) => {
         const { items, userId } = get();
-        const exists = items.some(item => item.node.id === product.node.id);
+        const exists = items.some(i => i.id === item.id);
         if (exists) return;
 
-        // Update local state immediately
-        set({ items: [...items, product] });
+        set({ items: [...items, item] });
 
-        // If logged in, sync to database
         if (userId) {
           try {
             await supabase.from('wishlists').insert({
               user_id: userId,
-              shopify_product_id: product.node.id,
-              shopify_product_handle: product.node.handle
+              product_id: item.id,
+              product_handle: item.handle,
             });
           } catch (error) {
             console.error('Failed to sync wishlist item to database:', error);
           }
         }
       },
-      
+
       removeItem: async (productId) => {
         const { items, userId } = get();
-        
-        // Update local state immediately
-        set({ items: items.filter(item => item.node.id !== productId) });
 
-        // If logged in, remove from database
+        set({ items: items.filter(i => i.id !== productId) });
+
         if (userId) {
           try {
             await supabase
               .from('wishlists')
               .delete()
               .eq('user_id', userId)
-              .eq('shopify_product_id', productId);
+              .eq('product_id', productId);
           } catch (error) {
             console.error('Failed to remove wishlist item from database:', error);
           }
         }
       },
-      
-      isInWishlist: (productId) => {
-        return get().items.some(item => item.node.id === productId);
-      },
-      
+
+      isInWishlist: (productId) => get().items.some(i => i.id === productId),
+
       clearWishlist: async () => {
         const { userId } = get();
-        
         set({ items: [] });
 
-        // If logged in, clear from database
         if (userId) {
           try {
-            await supabase
-              .from('wishlists')
-              .delete()
-              .eq('user_id', userId);
+            await supabase.from('wishlists').delete().eq('user_id', userId);
           } catch (error) {
             console.error('Failed to clear wishlist from database:', error);
           }
         }
       },
 
-      clearLocalWishlist: () => {
-        set({ items: [], userId: null });
-      },
+      clearLocalWishlist: () => set({ items: [], userId: null }),
 
       syncWithDatabase: async (userId) => {
         set({ isLoading: true, userId });
-
         try {
-          // Fetch wishlist from database
           const { data: dbWishlist, error } = await supabase
             .from('wishlists')
-            .select('*')
+            .select('product_id, product_handle')
             .eq('user_id', userId);
 
           if (error) throw error;
 
           const { items: localItems } = get();
-          
-          // If user has local items that aren't in DB, add them
-          const dbProductIds = new Set(dbWishlist?.map(w => w.shopify_product_id) || []);
-          const localItemsToSync = localItems.filter(
-            item => !dbProductIds.has(item.node.id)
-          );
+          const dbIds = new Set((dbWishlist || []).map(w => w.product_id));
 
-          // Sync local items to database (upsert style - ignore conflicts)
-          for (const item of localItemsToSync) {
-            const { error: insertError } = await supabase.from('wishlists').upsert({
-              user_id: userId,
-              shopify_product_id: item.node.id,
-              shopify_product_handle: item.node.handle
-            }, { onConflict: 'user_id,shopify_product_id' });
-            
-            if (insertError) {
-              console.error('Failed to sync item:', insertError);
+          // Sync local items not yet in DB
+          for (const item of localItems) {
+            if (!dbIds.has(item.id)) {
+              const { error: insertError } = await supabase.from('wishlists').upsert({
+                user_id: userId,
+                product_id: item.id,
+                product_handle: item.handle,
+              }, { onConflict: 'user_id,product_id' });
+              if (insertError) console.error('Failed to sync item:', insertError);
             }
           }
-
-          // Note: We keep local items as they contain the full product data
-          // The database just tracks which products are in the wishlist
-
         } catch (error) {
           console.error('Failed to sync wishlist with database:', error);
         } finally {
@@ -140,11 +121,14 @@ export const useWishlistStore = create<WishlistStore>()(
     }),
     {
       name: 'wishlist-storage',
+      version: 1,
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({ 
-        items: state.items,
-        // Don't persist userId - we'll get it from auth state
-      }),
+      migrate: (_state, version) => {
+        // Clear any pre-v1 state (was ShopifyProduct[])
+        if (version < 1) return { items: [], isLoading: false, userId: null };
+        return _state as WishlistStore;
+      },
+      partialize: (state) => ({ items: state.items }),
     }
   )
 );

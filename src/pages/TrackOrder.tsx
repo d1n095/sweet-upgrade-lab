@@ -17,7 +17,7 @@ import { getOrderDisplayId } from '@/utils/orderDisplay';
 interface OrderData {
   id: string;
   order_number: string | null;
-  shopify_order_number: string | null;
+  external_order_number: string | null;
   stripe_session_id: string | null;
   payment_intent_id: string | null;
   order_email: string;
@@ -177,7 +177,7 @@ const TrackOrder = () => {
       });
 
       if (error) {
-        console.error('Order lookup error:', error);
+
         setNotFound(true);
       } else if (data?.found && data.order) {
         setOrderData(data.order as OrderData);
@@ -185,7 +185,7 @@ const TrackOrder = () => {
         setNotFound(true);
       }
     } catch (err) {
-      console.error('Order search failed:', err);
+
       setNotFound(true);
     } finally {
       setIsSearching(false);
@@ -499,7 +499,7 @@ const TrackOrder = () => {
                         window.location.href = data.url;
                       }
                     } catch (err: any) {
-                      console.error('Retry failed:', err);
+
                       toast.error(language === 'sv' ? 'Kunde inte skapa ny betalning' : 'Could not create new payment');
                     } finally {
                       setIsRetrying(false);
