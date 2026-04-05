@@ -2004,6 +2004,105 @@ async function runRuleBasedBlockerDetection(supabase: any, scanRunId: string): P
 }
 
 // ── Map scan types to real DB functions ──
+// ── REAL DB SCAN: Human Test (user behavior simulation via DB checks) ──
+async function runHumanTestScan(supabase: any, scanRunId: string): Promise<any> {
+  const issues: any[] = [];
+  const startMs = Date.now();
+  try {
+    // Check checkout flow: orders stuck in pending with no payment
+    const { data: stuckOrders } = await supabase.from("orders").select("id, status, payment_status, created_at")
+      .eq("status", "pending").eq("payment_status", "unpaid").is("deleted_at", null)
+      .order("created_at", { ascending: false }).limit(50);
+    const now = Date.now();
+    for (const o of stuckOrders || []) {
+      const ageHours = (now - new Date(o.created_at).getTime()) / 3600000;
+      if (ageHours > 24) {
+        issues.push({ title: `Order stuck pending >24h: ${o.id.slice(0,8)}`, severity: "medium", component: "checkout", element: "OrderFlow", category: "user_flow" });
+      }
+    }
+
+    // Check profile completeness: users without basic info
+    const { data: incompleteProfiles } = await supabase.from("profiles").select("user_id, first_name, last_name, username")
+      .is("first_name", null).limit(20);
+    if ((incompleteProfiles || []).length > 10) {
+      issues.push({ title: `${incompleteProfiles!.length} profiles missing first_name`, severity: "low", component: "profiles", element: "ProfileForm", category: "user_flow" });
+    }
+
+    // Check review flow: reviews without rating
+    const { data: badReviews } = await supabase.from("reviews").select("id, rating").is("rating", null).limit(10);
+    for (const r of badReviews || []) {
+      issues.push({ title: `Review without rating: ${r.id.slice(0,8)}`, severity: "medium", component: "reviews", element: "ReviewForm", category: "user_flow" });
+    }
+
+    // Check cart abandonment signals: checkout_start without checkout_complete
+    const { data: checkoutStarts } = await supabase.from("analytics_events").select("id, session_id, created_at")
+      .eq("event_type", "checkout_start").order("created_at", { ascending: false }).limit(20);
+    let abandoned = 0;
+    for (const cs of checkoutStarts || []) {
+      if (cs.session_id) {
+        const { count } = await supabase.from("analytics_events").select("id", { count: "exact", head: true })
+          .eq("event_type", "checkout_complete").eq("session_id", cs.session_id);
+        if (!count || count === 0) abandoned++;
+      }
+    }
+    if (abandoned > 5) {
+      issues.push({ title: `High cart abandonment: ${abandoned} of ${(checkoutStarts || []).length} checkouts abandoned`, severity: "high", component: "checkout", element: "CheckoutFlow", category: "conversion" });
+    }
+
+  } catch (e: any) { issues.push({ title: `Human test error: ${e.message}`, severity: "critical", component: "human_test" }); }
+
+  const durationMs = Date.now() - startMs;
+  const score = Math.max(0, 100 - issues.length * 8);
+  return { issues, issues_found: issues.length, test_failures: issues, overall_score: score, duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
+}
+
+// ── REAL DB SCAN: Navigation Verification ──
+async function runNavScan(supabase: any, scanRunId: string): Promise<any> {
+  const issues: any[] = [];
+  const startMs = Date.now();
+  try {
+    // Check page_sections referencing invalid pages
+    const { data: sections } = await supabase.from("page_sections").select("id, page, section_key, is_visible").eq("is_visible", true).limit(100);
+    const validPages = new Set(["home", "about", "contact", "shop", "produkter", "checkout", "profile", "donations", "whats-new", "affiliate", "business", "cbd"]);
+    for (const s of sections || []) {
+      if (s.page && !validPages.has(s.page.toLowerCase())) {
+        issues.push({ title: `Page section references unknown page: "${s.page}"`, severity: "medium", component: "page_sections", element: "Navigation", category: "navigation", routes_scanned: 1 });
+      }
+    }
+
+    // Check categories with broken parent references
+    const { data: categories } = await supabase.from("categories").select("id, name_sv, parent_id, is_visible").eq("is_visible", true).limit(100);
+    const catIds = new Set((categories || []).map((c: any) => c.id));
+    for (const c of categories || []) {
+      if (c.parent_id && !catIds.has(c.parent_id)) {
+        issues.push({ title: `Category "${c.name_sv}" has broken parent reference`, severity: "high", component: "categories", element: "CategoryNav", category: "navigation" });
+      }
+    }
+
+    // Check legal documents: active but empty content
+    const { data: legalDocs } = await supabase.from("legal_documents").select("id, document_type, content_sv, is_active").eq("is_active", true).limit(10);
+    for (const d of legalDocs || []) {
+      if (!d.content_sv || d.content_sv.trim().length < 20) {
+        issues.push({ title: `Legal page "${d.document_type}" has empty/minimal content`, severity: "high", component: "legal_documents", element: "LegalPage", category: "navigation" });
+      }
+    }
+
+    // Check products visible but in invisible category
+    const invisibleCats = new Set((categories || []).filter((c: any) => !c.is_visible).map((c: any) => c.id));
+    if (invisibleCats.size > 0) {
+      const { data: productCats } = await supabase.from("product_categories").select("product_id, category_id").in("category_id", [...invisibleCats]).limit(50);
+      if ((productCats || []).length > 0) {
+        issues.push({ title: `${productCats!.length} products linked to invisible categories`, severity: "medium", component: "product_categories", element: "ProductNav", category: "navigation" });
+      }
+    }
+
+  } catch (e: any) { issues.push({ title: `Nav scan error: ${e.message}`, severity: "critical", component: "nav_scan" }); }
+
+  const durationMs = Date.now() - startMs;
+  const score = Math.max(0, 100 - issues.length * 5);
+  return { issues, issues_found: issues.length, broken_routes: issues, overall_score: score, routes_scanned: (sections || []).length + (categories || []).length, duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
+}
+
 const REAL_DB_SCANNERS: Record<string, (supabase: any, scanRunId: string) => Promise<any>> = {
   data_integrity: runDataIntegrityScan,
   sync_scan: runRealSyncScan,
@@ -2014,6 +2113,8 @@ const REAL_DB_SCANNERS: Record<string, (supabase: any, scanRunId: string) => Pro
   ui_flow_integrity: runUiFlowIntegrityScan,
   decision_engine: runRuleBasedDecisionEngine,
   blocker_detection: runRuleBasedBlockerDetection,
+  human_test: runHumanTestScan,
+  nav_scan: runNavScan,
 };
 
 // ── SCAN CONSISTENCY GUARD ──
