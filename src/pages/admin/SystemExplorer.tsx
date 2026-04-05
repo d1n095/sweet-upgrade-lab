@@ -130,7 +130,7 @@ const SystemExplorer = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [showRawScan, setShowRawScan] = useState(false);
-  const [mainTab, setMainTab] = useState<"system" | "files" | "patch" | "codeindex" | "backendscan">("system");
+  const [mainTab, setMainTab] = useState<"system" | "files" | "patch" | "codeindex" | "backendscan" | "analysis">("system");
   const [filesFilter, setFilesFilter] = useState<"all" | "orphan" | "has_issues">("all");
   const [selectedFile, setSelectedFile] = useState<FileEntry | null>(null);
   const [patchInput, setPatchInput] = useState("");
@@ -139,6 +139,9 @@ const SystemExplorer = () => {
   const [patchSubmitted, setPatchSubmitted] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [showBackendRaw, setShowBackendRaw] = useState(false);
+  const [selectedAnalysisFile, setSelectedAnalysisFile] = useState<string | null>(null);
+  const [generatedPrompt, setGeneratedPrompt] = useState<string | null>(null);
+  const [promptCopied, setPromptCopied] = useState(false);
   const [fileScanResult, setFileScanResult] = useState<{ total: number; emptyFiles: number; largeFiles: number } | null>(null);
   const [codeScanResult, setCodeScanResult] = useState<{ type: string; message: string; file: string }[] | null>(null);
   const [lastScan, setLastScan] = useState(0);
@@ -392,7 +395,7 @@ const SystemExplorer = () => {
     queryFn: async () => [] as any[],
   });
 
-  // 2b. Latest scan_run for pipeline data
+  // 2b. Latest completed scan_run for pipeline data
   const { data: latestRun } = useQuery({
     queryKey: ["system-explorer-latest-run"],
     queryFn: async () => {
@@ -1026,82 +1029,114 @@ const SystemExplorer = () => {
           <button onClick={() => setMainTab("backendscan")} className={`px-3 py-1.5 text-xs font-medium rounded-t-md transition-colors ${mainTab === "backendscan" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"}`}>
             Backend Scan
           </button>
+          <button onClick={() => setMainTab("analysis")} className={`px-3 py-1.5 text-xs font-medium rounded-t-md transition-colors ${mainTab === "analysis" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"}`}>
+            Analysis
+          </button>
         </div>
 
         {/* BACKEND SCAN TAB */}
         {mainTab === "backendscan" && (() => {
-          if (!latestBackendScan) {
-
-          }
-          const r = latestBackendScan?.results as any;
-          const latestRun = r;
+          // Primary: scan_runs (latestRun). Secondary: ai_scan_results (latestBackendScan).
+          const run = latestRun as any;
+          const stepLogs: Array<{ ts: string; msg: string; step: string }> = Array.isArray(run?.step_logs) ? run.step_logs : [];
+          const stepsResults: Record<string, any> = run?.steps_results && typeof run.steps_results === "object" ? run.steps_results : {};
+          const unifiedResult: any = run?.unified_result ?? null;
+          const noRun = !run;
           return (
             <div className="space-y-3">
-            {latestBackendScan && latestRun && latestRun.work_items_created === 0 && (
+            {run && (run.work_items_created ?? 0) === 0 && (
               <p className="text-[10px] text-yellow-500 font-mono">⚠ Scan produced no work_items (possible over-filtering / dedup block)</p>
             )}
+
+            {/* Backend Scan Summary — data from scan_runs */}
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2"><Radar className="h-4 w-4" /> Backend Scan <span className="text-[9px] text-green-500/80 font-mono ml-2">✔ Real scan (Supabase)</span></CardTitle>
+                <CardTitle className="text-sm flex items-center gap-2"><Radar className="h-4 w-4" /> Backend Scan <span className="text-[9px] text-green-500/80 font-mono ml-2">✔ Real scan (scan_runs)</span></CardTitle>
               </CardHeader>
               <CardContent className="p-3">
-                {backendScanLoading ? (
-                  <p className="text-[10px] text-muted-foreground">Loading...</p>
-                ) : !latestBackendScan ? (
-                  <p className="text-[10px] text-muted-foreground">No backend scan found</p>
+                {noRun ? (
+                  <p className="text-[10px] text-muted-foreground">No completed scan run found</p>
                 ) : (
                   <div className="space-y-2">
                     <div className="grid grid-cols-2 gap-2 text-[10px]">
-                      <div><span className="text-muted-foreground">Scan ID:</span> <span className="font-mono text-foreground">{latestBackendScan.id?.slice(0, 8)}</span></div>
-                      <div><span className="text-muted-foreground">Created:</span> <span className="text-foreground">{format(new Date(latestBackendScan.created_at), "yyyy-MM-dd HH:mm")}</span></div>
-                      <div><span className="text-muted-foreground">Detected:</span> <span className="text-foreground">{r?.detected_count ?? latestBackendScan.issues_count ?? "—"}</span></div>
-                      <div><span className="text-muted-foreground">Created:</span> <span className="text-foreground">{r?.created_count ?? latestBackendScan.tasks_created ?? "—"}</span></div>
-                      <div><span className="text-muted-foreground">Filtered:</span> <span className="text-foreground">{r?.filtered_count ?? "—"}</span></div>
-                      <div><span className="text-muted-foreground">Skipped:</span> <span className="text-foreground">{r?.skipped_count ?? "—"}</span></div>
+                      <div><span className="text-muted-foreground">Scan ID:</span> <span className="font-mono text-foreground">{run.id?.slice(0, 8)}</span></div>
+                      <div><span className="text-muted-foreground">Completed:</span> <span className="text-foreground">{run.completed_at ? format(new Date(run.completed_at), "yyyy-MM-dd HH:mm") : "—"}</span></div>
+                      <div><span className="text-muted-foreground">Health Score:</span> <span className="font-bold text-foreground">{run.system_health_score ?? "—"}/100</span></div>
+                      <div><span className="text-muted-foreground">Work Items Created:</span> <span className="text-foreground">{run.work_items_created ?? "—"}</span></div>
+                      <div><span className="text-muted-foreground">Total New Issues:</span> <span className="text-foreground">{run.total_new_issues ?? "—"}</span></div>
+                      <div><span className="text-muted-foreground">Steps Logged:</span> <span className="text-foreground">{stepLogs.length}</span></div>
                     </div>
-                    {latestBackendScan.overall_status && (
-                      <Badge className={`text-[8px] ${latestBackendScan.overall_status === "healthy" ? "bg-green-500/20 text-green-500 border-green-500/30" : "bg-yellow-500/20 text-yellow-500 border-yellow-500/30"}`}>{latestBackendScan.overall_status}</Badge>
+                    {run.executive_summary && (
+                      <p className="text-[9px] text-muted-foreground mt-1 border-t border-border/40 pt-1">{run.executive_summary}</p>
                     )}
-                    {latestBackendScan.executive_summary && (
-                      <p className="text-[9px] text-muted-foreground mt-1">{latestBackendScan.executive_summary}</p>
-                    )}
-                    {(r?.detected_count ?? latestBackendScan.issues_count ?? 0) === 0 && (
-                      <p className="text-[10px] text-yellow-500 mt-1">⚠ Scan returned no data — check input or scanner connection</p>
+                    {latestBackendScan?.overall_status && (
+                      <Badge className={`text-[8px] mt-1 ${latestBackendScan.overall_status === "healthy" ? "bg-green-500/20 text-green-500 border-green-500/30" : "bg-yellow-500/20 text-yellow-500 border-yellow-500/30"}`}>{latestBackendScan.overall_status}</Badge>
                     )}
                   </div>
                 )}
               </CardContent>
             </Card>
 
-            {/* Scanner Execution */}
+            {/* Scanner Execution — step_logs timeline + steps_results per-step */}
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2"><Activity className="h-4 w-4" /> Scanner Execution</CardTitle>
               </CardHeader>
-              <CardContent className="p-3">
-                {(() => {
-                  const stepResults = r?.step_results || r?.steps_results || r?.scanners || null;
-                  if (!stepResults || typeof stepResults !== "object" || Object.keys(stepResults).length === 0) {
-                    return <p className="text-[10px] text-muted-foreground">No scanner execution data</p>;
-                  }
-                  return (
-                    <div className="space-y-1">
-                      {Object.entries(stepResults).map(([name, result]: [string, any]) => {
-                        const failed = result?.failed || result?.error;
-                        const issuesFound = result?.issues_found ?? result?.issues_count ?? result?.count ?? "—";
-                        const status = failed ? "failed" : (result && !result?.skipped) ? "success" : "no data";
-                        const statusColor = status === "success" ? "text-green-500" : status === "failed" ? "text-red-500" : "text-muted-foreground";
+              <CardContent className="p-3 space-y-3">
+                {/* Step Logs timeline */}
+                <div>
+                  <p className="text-[10px] font-semibold text-muted-foreground mb-1">Step Logs ({stepLogs.length})</p>
+                  {stepLogs.length === 0 ? (
+                    <p className="text-[10px] text-muted-foreground">No step logs — run a scan to populate</p>
+                  ) : (
+                    <div className="max-h-[240px] overflow-auto space-y-0.5">
+                      {stepLogs.map((log, i) => (
+                        <div key={i} className="flex items-start gap-2 text-[9px] font-mono py-0.5 border-b border-border/30">
+                          <span className="text-muted-foreground shrink-0 w-[130px]">{log.ts ? format(new Date(log.ts), "HH:mm:ss.SSS") : "—"}</span>
+                          <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0">{log.step ?? "?"}</Badge>
+                          <span className="text-foreground flex-1 break-all">{log.msg}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {/* Steps Results per-scanner */}
+                <div>
+                  <p className="text-[10px] font-semibold text-muted-foreground mb-1">Steps Results ({Object.keys(stepsResults).filter(k => k !== "_scan_input").length} scanners)</p>
+                  {Object.keys(stepsResults).filter(k => k !== "_scan_input").length === 0 ? (
+                    <p className="text-[10px] text-muted-foreground">No steps_results — run a scan to populate</p>
+                  ) : (
+                    <div className="space-y-1 max-h-[280px] overflow-auto">
+                      {Object.entries(stepsResults).filter(([k]) => k !== "_scan_input").map(([name, result]: [string, any]) => {
+                        const failed = result?.failed || !!result?.error;
+                        const executed = result?._executed !== false;
+                        const issuesFound = result?.issues?.length ?? result?.issues_found ?? result?.issues_count ?? result?.count ?? 0;
+                        const durationMs = result?._duration_ms;
+                        const statusLabel = failed ? "failed" : !executed ? "skipped" : "ok";
+                        const statusColor = failed ? "text-red-500" : !executed ? "text-yellow-500" : "text-green-500";
                         return (
-                          <div key={name} className="flex items-center gap-2 text-[10px] py-1 border-b border-border/50">
-                            <span className="font-mono text-foreground flex-1">{name}</span>
-                            <span className={`font-medium ${statusColor}`}>{status}</span>
-                            <span className="text-muted-foreground min-w-[60px] text-right">issues: {issuesFound}</span>
-                          </div>
+                          <details key={name} className="border border-border/50 rounded-md p-1.5 text-[9px]">
+                            <summary className="cursor-pointer flex items-center gap-2">
+                              <span className="font-mono text-foreground flex-1">{name}</span>
+                              <span className={`font-medium ${statusColor}`}>{statusLabel}</span>
+                              <span className="text-muted-foreground">issues: {issuesFound}</span>
+                              {durationMs && <span className="text-muted-foreground">{durationMs}ms</span>}
+                            </summary>
+                            {result?.error && <p className="mt-1 text-red-400 break-all">{result.error}</p>}
+                            {Array.isArray(result?.issues) && result.issues.length > 0 && (
+                              <div className="mt-1 space-y-0.5">
+                                {result.issues.slice(0, 5).map((iss: any, j: number) => (
+                                  <p key={j} className="text-muted-foreground truncate">{iss.title || iss.description || JSON.stringify(iss).slice(0, 80)}</p>
+                                ))}
+                                {result.issues.length > 5 && <p className="text-muted-foreground">…+{result.issues.length - 5} more</p>}
+                              </div>
+                            )}
+                          </details>
                         );
                       })}
                     </div>
-                  );
-                })()}
+                  )}
+                </div>
               </CardContent>
             </Card>
 
@@ -1112,25 +1147,19 @@ const SystemExplorer = () => {
               </CardHeader>
               <CardContent className="p-3">
                 {(() => {
-                  const scanned = r?.detected_count ?? r?.scanned ?? latestBackendScan?.issues_count ?? 0;
-                  const afterFilter = r?.after_filter ?? r?.filtered_count ?? "—";
-                  const skippedDedup = r?.skipped_dedup ?? r?.skipped_count ?? r?.deduplicated ?? "—";
-                  const created = r?.created_count ?? latestBackendScan?.tasks_created ?? 0;
+                  const totalDetected = run?.total_new_issues ?? latestBackendScan?.issues_count ?? 0;
+                  const created = run?.work_items_created ?? latestBackendScan?.tasks_created ?? 0;
+                  const skipped = Math.max(0, totalDetected - created);
                   return (
-                    <div className="flex items-center gap-1 text-[10px]">
+                    <div className="flex items-center gap-1 text-[10px] flex-wrap">
                       <div className="flex flex-col items-center px-3 py-2 rounded-md bg-muted/30 border border-border">
-                        <span className="text-muted-foreground">scanned</span>
-                        <span className="text-lg font-bold text-foreground">{scanned}</span>
-                      </div>
-                      <span className="text-muted-foreground">→</span>
-                      <div className="flex flex-col items-center px-3 py-2 rounded-md bg-muted/30 border border-border">
-                        <span className="text-muted-foreground">after_filter</span>
-                        <span className="text-lg font-bold text-foreground">{afterFilter}</span>
+                        <span className="text-muted-foreground">detected</span>
+                        <span className="text-lg font-bold text-foreground">{totalDetected}</span>
                       </div>
                       <span className="text-muted-foreground">→</span>
                       <div className="flex flex-col items-center px-3 py-2 rounded-md bg-muted/30 border border-border">
                         <span className="text-muted-foreground">skipped_dedup</span>
-                        <span className="text-lg font-bold text-foreground">{skippedDedup}</span>
+                        <span className="text-lg font-bold text-foreground">{skipped}</span>
                       </div>
                       <span className="text-muted-foreground">→</span>
                       <div className="flex flex-col items-center px-3 py-2 rounded-md bg-green-500/10 border border-green-500/20">
@@ -1143,7 +1172,7 @@ const SystemExplorer = () => {
               </CardContent>
             </Card>
 
-            {/* View Backend Raw */}
+            {/* Backend Raw Output — unified_result + steps_results from scan_runs */}
             <Card>
               <CardHeader className="pb-2 flex flex-row items-center justify-between">
                 <CardTitle className="text-sm flex items-center gap-2"><Database className="h-4 w-4" /> Backend Raw Output</CardTitle>
@@ -1152,33 +1181,419 @@ const SystemExplorer = () => {
                 </Button>
               </CardHeader>
               {showBackendRaw && (
-                <CardContent className="p-3">
-                  {!latestBackendScan?.results ? (
-                    <p className="text-[10px] text-muted-foreground">No raw data available</p>
-                  ) : (() => {
-                    const raw = latestBackendScan.results as any;
-                    const issues = raw?.issues || raw?.broken_flows || raw?.data_issues || raw?.fake_features || raw?.interaction_failures || [];
-                    const allIssues = Array.isArray(issues) ? issues.slice(0, 50) : [];
-                    return allIssues.length === 0 ? (
+                <CardContent className="p-3 space-y-3">
+                  {noRun ? (
+                    <p className="text-[10px] text-muted-foreground">No raw data available — run a scan first</p>
+                  ) : (
+                    <>
+                      {/* unified_result — top-level issues */}
+                      {unifiedResult && (() => {
+                        const issues: any[] = unifiedResult?.issues ?? [];
+                        return (
+                          <div>
+                            <p className="text-[10px] font-semibold text-muted-foreground mb-1">unified_result — {issues.length} issues (scan_id: {run.id?.slice(0, 8)})</p>
+                            {issues.length === 0 ? (
+                              <pre className="text-[9px] font-mono bg-muted/30 border border-border rounded-md p-2 max-h-[200px] overflow-auto whitespace-pre-wrap text-foreground">{JSON.stringify(unifiedResult, null, 2).slice(0, 3000)}</pre>
+                            ) : (
+                              <div className="space-y-1 max-h-[300px] overflow-auto">
+                                <p className="text-[10px] text-muted-foreground mb-1">Showing {Math.min(issues.length, 50)} of {issues.length}</p>
+                                {issues.slice(0, 50).map((issue: any, i: number) => (
+                                  <details key={i} className="border border-border/50 rounded-md p-1.5 text-[9px]">
+                                    <summary className="cursor-pointer font-mono text-foreground truncate flex items-center gap-1">
+                                      {issue.title || issue.description || issue.message || JSON.stringify(issue).slice(0, 100)}
+                                      {issue._status && <Badge variant={issue._status === "created" ? "default" : issue._status === "error" ? "destructive" : "secondary"} className="text-[8px] px-1 py-0 ml-1">{issue._status}</Badge>}
+                                    </summary>
+                                    <pre className="mt-1 font-mono text-[8px] text-muted-foreground whitespace-pre-wrap">{JSON.stringify(issue, null, 2)}</pre>
+                                  </details>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                      {/* steps_results raw dump */}
                       <div>
-                        <p className="text-[10px] text-muted-foreground mb-2">No issue array found. Raw keys: {Object.keys(raw).join(", ")}</p>
-                        <pre className="text-[9px] font-mono bg-muted/30 border border-border rounded-md p-2 max-h-[300px] overflow-auto whitespace-pre-wrap text-foreground">{JSON.stringify(raw, null, 2).slice(0, 5000)}</pre>
+                        <p className="text-[10px] font-semibold text-muted-foreground mb-1">steps_results — {Object.keys(stepsResults).filter(k => k !== "_scan_input").length} steps</p>
+                        <pre className="text-[9px] font-mono bg-muted/30 border border-border rounded-md p-2 max-h-[300px] overflow-auto whitespace-pre-wrap text-foreground">{JSON.stringify(stepsResults, null, 2).slice(0, 8000)}</pre>
                       </div>
-                    ) : (
-                      <div className="space-y-1 max-h-[400px] overflow-auto">
-                        <p className="text-[10px] text-muted-foreground mb-1">Showing {allIssues.length} of {Array.isArray(issues) ? issues.length : "?"} issues</p>
-                        {allIssues.map((issue: any, i: number) => (
-                          <details key={i} className="border border-border/50 rounded-md p-1.5 text-[9px]">
-                            <summary className="cursor-pointer font-mono text-foreground truncate flex items-center gap-1">{issue.title || issue.description || issue.message || JSON.stringify(issue).slice(0, 100)}{issue._status && <Badge variant={issue._status === "created" ? "default" : issue._status === "error" ? "destructive" : "secondary"} className="text-[8px] px-1 py-0 ml-1">{issue._status}</Badge>}</summary>
-                            <pre className="mt-1 font-mono text-[8px] text-muted-foreground whitespace-pre-wrap">{JSON.stringify(issue, null, 2)}</pre>
-                          </details>
-                        ))}
-                      </div>
-                    );
-                  })()}
+                    </>
+                  )}
                 </CardContent>
               )}
             </Card>
+            </div>
+          );
+        })()}
+
+        {/* CODE INDEX TAB */}
+        {/* ANALYSIS TAB */}
+        {mainTab === "analysis" && (() => {
+          const ANALYSIS_MAX_PROMPT_FILES = 20;
+          const ANALYSIS_BAR_MAX_PX = 120;
+          const ANALYSIS_PROMPT_RULES = [
+            "Do not change architecture",
+            "Follow existing patterns",
+            "Use same scan_id",
+            "Keep logic consistent",
+          ];
+          // ── Root-cause / fix / strategy engines ────────────────────────────
+          function generateRootCause(issue: any): string {
+            const text = `${issue.type || ""} ${issue.category || ""} ${issue._source || ""} ${issue.title || ""} ${issue.description || ""}`.toLowerCase();
+            if (text.includes("unused") || text.includes("dead_code") || text.includes("dead code"))
+              return "Dead code increases bundle size and indicates missing cleanup";
+            if (text.includes("route") || text.includes("navigation") || text.includes("broken_flow") || text.includes("broken flow"))
+              return "Broken navigation creates user dead-ends and blocks critical flows";
+            if (text.includes("data") || text.includes("state") || text.includes("sync") || text.includes("binding") || text.includes("data_issue"))
+              return "State/data mismatch causes UI to display incorrect or stale information";
+            if (text.includes("interaction") || text.includes("event") || text.includes("handler") || text.includes("click") || text.includes("interaction_failure"))
+              return "Event binding or handler failure breaks user interaction entirely";
+            if (text.includes("fake") || text.includes("placeholder") || text.includes("stub") || text.includes("fake_feature"))
+              return "Feature appears implemented but lacks real backend logic or data";
+            return "System inconsistency indicates a missing connection between components";
+          }
+
+          function generateFix(issue: any): string {
+            if (issue.fix_suggestion || issue.suggested_fix)
+              return issue.fix_suggestion || issue.suggested_fix;
+            const text = `${issue.type || ""} ${issue._source || ""} ${issue.title || ""} ${issue.description || ""}`.toLowerCase();
+            if (text.includes("unused") || text.includes("dead_code"))
+              return "Remove unused import or unreachable code";
+            if (text.includes("route") || text.includes("navigation") || text.includes("broken_flow"))
+              return "Fix route path or ensure the navigation target exists and is exported";
+            if (text.includes("data") || text.includes("state") || text.includes("sync") || text.includes("data_issue"))
+              return "Connect the correct state/store or fix the query to use the latest scan_id";
+            if (text.includes("interaction") || text.includes("event") || text.includes("handler") || text.includes("interaction_failure"))
+              return "Fix event handler or binding; verify component mounts before attaching listeners";
+            if (text.includes("fake") || text.includes("placeholder") || text.includes("fake_feature"))
+              return "Implement backend logic or remove placeholder; do not ship stub UI as complete";
+            return "Refactor logic to align with existing system patterns";
+          }
+
+          function generateStrategy(issue: any): string {
+            const text = `${issue.type || ""} ${issue._source || ""} ${issue.title || ""} ${issue.description || ""}`.toLowerCase();
+            const lines: string[] = ["Follow existing architecture"];
+            if (text.includes("state") || text.includes("store") || text.includes("data"))
+              lines.push("Reuse existing hooks / stores — do not create new state containers");
+            if (text.includes("route") || text.includes("navigation"))
+              lines.push("Use existing router patterns; verify guard and lazy-load configuration");
+            if (text.includes("interaction") || text.includes("event"))
+              lines.push("Wire event using the same pattern as adjacent components");
+            lines.push("Avoid introducing new abstractions");
+            lines.push("Ensure consistency with latestRun data flow (scan_id: same run)");
+            return lines.join(" · ");
+          }
+
+          // ── Issue normalizer ────────────────────────────────────────────────
+          function hashStr(s: string): string {
+            // 31 is a standard polynomial hash multiplier (widely used in Java/JS)
+            let h = 0;
+            for (let i = 0; i < s.length; i++) { h = (Math.imul(31, h) + s.charCodeAt(i)) | 0; }
+            return Math.abs(h).toString(16).padStart(8, "0");
+          }
+
+          function normalizeIssue(raw: any, idx: number) {
+            const filePath = raw.source_path || raw.source_file || raw.component || raw.route || raw.target || raw.element || raw.area || raw.page || "unknown";
+            const issueType = raw.type || raw.category || raw._source || "general";
+            const severity = raw.severity || "medium";
+            const location = raw.line ? `line ${raw.line}` : raw.route || raw.component || raw.element || "unknown";
+            const description = raw.description || raw.title || "No description";
+            const why = generateRootCause(raw);
+            const fix = generateFix(raw);
+            const strategy = generateStrategy(raw);
+            return {
+              id: hashStr(`${filePath}${issueType}${description}${idx}`),
+              file_path: filePath,
+              issue_type: issueType,
+              severity,
+              location,
+              description,
+              why_this_is_a_problem: why,
+              suggested_fix: fix,
+              fix_strategy: strategy,
+              _raw: raw,
+            };
+          }
+
+          // ── Helper fns ──────────────────────────────────────────────────────
+          function getFolder(fileKey: string): string {
+            const parts = fileKey.split("/");
+            // Files with a path separator → use the directory portion
+            if (parts.length > 1) return parts.slice(0, -1).join("/");
+            // Everything else (bare name with or without extension) → "root"
+            return "root";
+          }
+          function severityOrder(s: string): number {
+            return s === "critical" ? 0 : s === "high" ? 1 : s === "medium" ? 2 : 3;
+          }
+          const sevColor = (s: string) =>
+            s === "critical" ? "text-red-500" : s === "high" ? "text-orange-500" : s === "medium" ? "text-yellow-500" : "text-muted-foreground";
+          const sevBadge = (s: string) =>
+            s === "critical" ? "bg-red-500/10 text-red-500 border-red-500/20" :
+            s === "high" ? "bg-orange-500/10 text-orange-500 border-orange-500/20" :
+            s === "medium" ? "bg-yellow-500/10 text-yellow-500 border-yellow-500/20" :
+            "bg-muted/30 text-muted-foreground border-border";
+
+          // ── Build ALL_ISSUES from unified_result sub-arrays ─────────────────
+          const run = latestRun as any;
+          const scanId = run?.id;
+          const ur = run?.unified_result ?? {};
+          const rawAll: any[] = [
+            ...(ur.broken_flows || []).map((i: any) => ({ ...i, _source: i._source || "broken_flow" })),
+            ...(ur.interaction_failures || []).map((i: any) => ({ ...i, _source: i._source || "interaction_failure" })),
+            ...(ur.data_issues || []).map((i: any) => ({ ...i, _source: i._source || "data_issue" })),
+            ...(ur.fake_features || []).map((i: any) => ({ ...i, _source: i._source || "fake_feature" })),
+            // also include top-level issues array if none of the above are populated
+            ...((ur.broken_flows?.length || ur.interaction_failures?.length || ur.data_issues?.length || ur.fake_features?.length)
+              ? []
+              : (ur.issues || [])),
+          ];
+          const ALL_ISSUES = rawAll.map((raw, idx) => normalizeIssue(raw, idx));
+
+          // ── Group by file_path ──────────────────────────────────────────────
+          const fileMap = new Map<string, typeof ALL_ISSUES>();
+          for (const ni of ALL_ISSUES) {
+            if (!fileMap.has(ni.file_path)) fileMap.set(ni.file_path, []);
+            fileMap.get(ni.file_path)!.push(ni);
+          }
+          const sortedFiles = [...fileMap.entries()].sort((a, b) => b[1].length - a[1].length);
+
+          // ── Group by folder ─────────────────────────────────────────────────
+          const folderMap = new Map<string, { files: string[]; issueCount: number }>();
+          for (const [file, issues] of sortedFiles) {
+            const folder = getFolder(file);
+            if (!folderMap.has(folder)) folderMap.set(folder, { files: [], issueCount: 0 });
+            folderMap.get(folder)!.files.push(file);
+            folderMap.get(folder)!.issueCount += issues.length;
+          }
+          const sortedFolders = [...folderMap.entries()].sort((a, b) => b[1].issueCount - a[1].issueCount);
+
+          // ── Aggregated stats ────────────────────────────────────────────────
+          const bySeverity: Record<string, number> = {};
+          const byType: Record<string, number> = {};
+          for (const ni of ALL_ISSUES) {
+            bySeverity[ni.severity] = (bySeverity[ni.severity] || 0) + 1;
+            byType[ni.issue_type] = (byType[ni.issue_type] || 0) + 1;
+          }
+          const topTypes = Object.entries(byType).sort((a, b) => b[1] - a[1]).slice(0, 5);
+          const topFolders = sortedFolders.slice(0, 5);
+
+          const selectedNormalized = selectedAnalysisFile
+            ? (fileMap.get(selectedAnalysisFile) ?? []).slice().sort((a, b) => severityOrder(a.severity) - severityOrder(b.severity))
+            : [];
+
+          // ── Prompt generator ────────────────────────────────────────────────
+          function generatePrompt(): string {
+            const filesToInclude = selectedAnalysisFile
+              ? [[selectedAnalysisFile, fileMap.get(selectedAnalysisFile) ?? []] as [string, typeof ALL_ISSUES]]
+              : sortedFiles.slice(0, ANALYSIS_MAX_PROMPT_FILES) as [string, typeof ALL_ISSUES][];
+
+            let prompt = `FIX THESE ISSUES:\n(scan_id: ${scanId ?? "unknown"})\n\n`;
+            for (const [file, issues] of filesToInclude) {
+              prompt += `[File: ${file}]\n\n`;
+              issues.forEach((ni, i) => {
+                prompt += `Issue ${i + 1}:\n`;
+                prompt += `Problem:\n${ni.description}\n\n`;
+                prompt += `Why:\n${ni.why_this_is_a_problem}\n\n`;
+                prompt += `Suggested fix:\n${ni.suggested_fix}\n\n`;
+                prompt += `Fix strategy:\n${ni.fix_strategy}\n\n`;
+                prompt += `---\n\n`;
+              });
+            }
+            prompt += `RULES:\n${ANALYSIS_PROMPT_RULES.map(r => `- ${r}`).join("\n")}\n`;
+            return prompt;
+          }
+
+          return (
+            <div className="space-y-3">
+              {!run ? (
+                <p className="text-[10px] text-muted-foreground">No completed scan run — run a scan first</p>
+              ) : (
+                <>
+                  {/* SECTION 1 – AGGREGATED ANALYSIS */}
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <Activity className="h-4 w-4" /> Aggregated Analysis
+                        <span className="text-[9px] font-mono text-muted-foreground ml-1">(scan_id: {scanId?.slice(0, 8)})</span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-3 space-y-3">
+                      <div className="grid grid-cols-2 gap-2 text-[10px]">
+                        <div className="rounded-md bg-muted/30 border border-border p-2">
+                          <p className="text-muted-foreground">Total Issues</p>
+                          <p className="text-xl font-bold text-foreground">{ALL_ISSUES.length}</p>
+                        </div>
+                        <div className="rounded-md bg-muted/30 border border-border p-2">
+                          <p className="text-muted-foreground">Affected Files / Components</p>
+                          <p className="text-xl font-bold text-foreground">{fileMap.size}</p>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-semibold text-muted-foreground mb-1">Issues by Severity</p>
+                        <div className="flex gap-2 flex-wrap">
+                          {Object.entries(bySeverity).sort((a, b) => severityOrder(a[0]) - severityOrder(b[0])).map(([sev, count]) => (
+                            <span key={sev} className={`text-[10px] px-2 py-0.5 rounded-md border font-medium ${sevBadge(sev)}`}>{sev}: {count}</span>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-semibold text-muted-foreground mb-1">Most Common Issue Types</p>
+                        <div className="space-y-0.5">
+                          {topTypes.map(([type, count]) => (
+                            <div key={type} className="flex items-center gap-2 text-[9px]">
+                              <span className="font-mono text-foreground flex-1">{type}</span>
+                              <div className="bg-primary/20 h-1.5 rounded-full" style={{ width: ALL_ISSUES.length ? `${Math.round((count / ALL_ISSUES.length) * ANALYSIS_BAR_MAX_PX)}px` : "0px" }} />
+                              <span className="text-muted-foreground w-6 text-right">{count}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-semibold text-muted-foreground mb-1">Most Problematic Areas</p>
+                        <div className="space-y-0.5">
+                          {topFolders.map(([folder, data]) => (
+                            <div key={folder} className="flex items-center gap-2 text-[9px]">
+                              <span className="font-mono text-foreground flex-1 truncate">{folder}</span>
+                              <span className="text-muted-foreground">{data.files.length} file{data.files.length !== 1 ? "s" : ""}</span>
+                              <span className="text-orange-500 font-medium">{data.issueCount} issues</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* SECTION 2 – FILE LIST + SECTION 3 – ISSUE BREAKDOWN */}
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* SECTION 2 – FILE LIST */}
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Database className="h-4 w-4" /> Files / Components ({sortedFiles.length})
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-2">
+                        {sortedFiles.length === 0 ? (
+                          <p className="text-[10px] text-muted-foreground p-1">No issues found in scan</p>
+                        ) : (
+                          <div className="max-h-[420px] overflow-auto space-y-0.5">
+                            {sortedFolders.map(([folder, folderData]) => (
+                              <div key={folder}>
+                                <p className="text-[9px] text-muted-foreground font-semibold px-1 py-0.5 bg-muted/20 rounded sticky top-0">
+                                  📁 {folder} — {folderData.issueCount} issues
+                                </p>
+                                {folderData.files.map(file => {
+                                  const issues = fileMap.get(file) ?? [];
+                                  const isSelected = selectedAnalysisFile === file;
+                                  const maxSev = issues.reduce((best, ni) => severityOrder(ni.severity) < severityOrder(best) ? ni.severity : best, "low");
+                                  return (
+                                    <button
+                                      key={file}
+                                      onClick={() => { setSelectedAnalysisFile(isSelected ? null : file); setGeneratedPrompt(null); }}
+                                      className={`w-full text-left flex items-center gap-2 text-[9px] px-2 py-1 rounded cursor-pointer border-b border-border/30 transition-colors ${isSelected ? "bg-primary/10 text-primary" : "hover:bg-muted/30 text-foreground"}`}
+                                    >
+                                      <span className="flex-1 font-mono truncate" title={file}>{file}</span>
+                                      <span className={`font-medium shrink-0 ${sevColor(maxSev)}`}>{maxSev}</span>
+                                      <span className="text-muted-foreground shrink-0 ml-1">{issues.length}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    {/* SECTION 3 – ISSUE BREAKDOWN */}
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Radar className="h-4 w-4" />
+                          {selectedAnalysisFile
+                            ? <span className="truncate max-w-[200px]" title={selectedAnalysisFile}>{selectedAnalysisFile}</span>
+                            : "Issue Breakdown"}
+                          {selectedAnalysisFile && <span className="text-[9px] text-muted-foreground ml-1">({selectedNormalized.length})</span>}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-2">
+                        {!selectedAnalysisFile ? (
+                          <p className="text-[10px] text-muted-foreground p-1">← Select a file to see issue breakdown</p>
+                        ) : selectedNormalized.length === 0 ? (
+                          <p className="text-[10px] text-muted-foreground p-1">No issues for this file</p>
+                        ) : (
+                          <div className="max-h-[420px] overflow-auto space-y-1.5">
+                            {selectedNormalized.map((ni, i) => (
+                              <details key={ni.id} className="border border-border/50 rounded-md p-1.5 text-[9px]" open={i === 0}>
+                                <summary className="cursor-pointer flex items-center gap-1.5">
+                                  <Badge className={`text-[8px] px-1 py-0 shrink-0 ${sevBadge(ni.severity)}`}>{ni.severity}</Badge>
+                                  <span className="font-mono text-foreground flex-1 truncate">{ni.description}</span>
+                                </summary>
+                                <div className="mt-1.5 space-y-1 pl-1 border-l border-border/40">
+                                  <p className="text-muted-foreground">
+                                    <span className="text-foreground font-semibold">Type:</span> {ni.issue_type}
+                                  </p>
+                                  <p className="text-muted-foreground">
+                                    <span className="text-foreground font-semibold">Location:</span> {ni.location}
+                                  </p>
+                                  <p className="text-muted-foreground">
+                                    <span className="text-foreground font-semibold">Description:</span> {ni.description}
+                                  </p>
+                                  <p className="text-yellow-400">
+                                    <span className="text-foreground font-semibold">WHY THIS IS A PROBLEM:</span> {ni.why_this_is_a_problem}
+                                  </p>
+                                  <p className="text-green-400">
+                                    <span className="text-foreground font-semibold">SUGGESTED FIX:</span> {ni.suggested_fix}
+                                  </p>
+                                  <p className="text-blue-400">
+                                    <span className="text-foreground font-semibold">FIX STRATEGY:</span> {ni.fix_strategy}
+                                  </p>
+                                  {ni._raw?.root_cause && (
+                                    <p className="text-orange-400">
+                                      <span className="text-foreground font-semibold">Root cause:</span> {ni._raw.root_cause}
+                                    </p>
+                                  )}
+                                </div>
+                              </details>
+                            ))}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* PROMPT GENERATOR */}
+                  <Card>
+                    <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <ArrowRight className="h-4 w-4" /> Fix Prompt Generator
+                      </CardTitle>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline" size="sm" className="text-[10px] h-6"
+                          onClick={() => { setGeneratedPrompt(generatePrompt()); setPromptCopied(false); }}
+                        >
+                          👉 Generate Fix Prompt {selectedAnalysisFile ? "(selected file)" : `(all ${ALL_ISSUES.length} issues)`}
+                        </Button>
+                        {generatedPrompt && (
+                          <Button
+                            variant="outline" size="sm"
+                            className={`text-[10px] h-6 ${promptCopied ? "text-green-500 border-green-500/40" : ""}`}
+                            onClick={() => { navigator.clipboard.writeText(generatedPrompt); setPromptCopied(true); setTimeout(() => setPromptCopied(false), 2000); }}
+                          >
+                            {promptCopied ? "✓ Copied" : "Copy Prompt"}
+                          </Button>
+                        )}
+                      </div>
+                    </CardHeader>
+                    {generatedPrompt && (
+                      <CardContent className="p-3">
+                        <pre className="text-[9px] font-mono bg-muted/30 border border-border rounded-md p-2 max-h-[400px] overflow-auto whitespace-pre-wrap text-foreground">{generatedPrompt}</pre>
+                      </CardContent>
+                    )}
+                  </Card>
+                </>
+              )}
             </div>
           );
         })()}
@@ -2098,20 +2513,56 @@ const SystemExplorer = () => {
               {/* 1. Last Scan Info */}
               <div>
                 <h3 className="text-xs font-semibold text-muted-foreground mb-1">Last Scan</h3>
-                <div className="grid grid-cols-3 gap-2 text-sm">
-                  <div>
-                    <span className="text-muted-foreground text-xs">Scan ID</span>
-                    <p className="font-mono text-xs">{latestScan?.id?.slice(0, 8) ?? "–"}…</p>
+                {latestRun ? (
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] text-muted-foreground">
+                      Visar resultat från: <span className="font-medium text-foreground">{latestRun.completed_at ? format(new Date((latestRun as any).completed_at), "yyyy-MM-dd HH:mm:ss") : "–"}</span>
+                    </p>
+                    <div className="grid grid-cols-3 gap-2 text-sm">
+                      <div>
+                        <span className="text-muted-foreground text-xs">Scan ID</span>
+                        <p className="font-mono text-xs">{latestRun.id?.slice(0, 8) ?? "–"}…</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground text-xs">Started</span>
+                        <p className="text-xs">{(latestRun as any).started_at ? format(new Date((latestRun as any).started_at), "MM-dd HH:mm") : "–"}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground text-xs">Completed</span>
+                        <p className="text-xs">{(latestRun as any).completed_at ? format(new Date((latestRun as any).completed_at), "MM-dd HH:mm") : "–"}</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-sm">
+                      <div>
+                        <span className="text-muted-foreground text-xs">Scan ID (ai)</span>
+                        <p className="font-mono text-xs">{latestScan?.id?.slice(0, 8) ?? "–"}…</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground text-xs">Created</span>
+                        <p className="text-xs">{latestScan ? format(new Date(latestScan.created_at), "MM-dd HH:mm") : "–"}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground text-xs">Detected</span>
+                        <p className="text-xs font-bold">{detectedIssues}</p>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-muted-foreground text-xs">Created</span>
-                    <p className="text-xs">{latestScan ? format(new Date(latestScan.created_at), "MM-dd HH:mm") : "–"}</p>
+                ) : (
+                  <div className="grid grid-cols-3 gap-2 text-sm">
+                    <div>
+                      <span className="text-muted-foreground text-xs">Scan ID</span>
+                      <p className="font-mono text-xs">{latestScan?.id?.slice(0, 8) ?? "–"}…</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground text-xs">Created</span>
+                      <p className="text-xs">{latestScan ? format(new Date(latestScan.created_at), "MM-dd HH:mm") : "–"}</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground text-xs">Detected</span>
+                      <p className="text-xs font-bold">{detectedIssues}</p>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-muted-foreground text-xs">Detected</span>
-                    <p className="text-xs font-bold">{detectedIssues}</p>
-                  </div>
-                </div>
+                )}
               </div>
 
               {/* 2. Pipeline Counts */}
