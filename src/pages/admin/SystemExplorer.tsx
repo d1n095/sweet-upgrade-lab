@@ -173,7 +173,7 @@ const SystemExplorer = () => {
   const [aiAnswer, setAiAnswer] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiFocusArea, setAiFocusArea] = useState<string | null>(null);
-  const [mainTab, setMainTab] = useState<"system" | "files" | "patch" | "codeindex" | "backendscan">("system");
+  const [mainTab, setMainTab] = useState<"system" | "files" | "patch" | "codeindex" | "backendscan" | "analysis">("system");
   const [filesFilter, setFilesFilter] = useState<"all" | "orphan" | "has_issues">("all");
   const [selectedFile, setSelectedFile] = useState<FileEntry | null>(null);
   const [patchInput, setPatchInput] = useState("");
@@ -182,6 +182,9 @@ const SystemExplorer = () => {
   const [patchSubmitted, setPatchSubmitted] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [showBackendRaw, setShowBackendRaw] = useState(false);
+  const [selectedAnalysisFile, setSelectedAnalysisFile] = useState<string | null>(null);
+  const [generatedPrompt, setGeneratedPrompt] = useState<string | null>(null);
+  const [promptCopied, setPromptCopied] = useState(false);
   const [fileScanResult, setFileScanResult] = useState<{ total: number; emptyFiles: number; largeFiles: number } | null>(null);
   const [codeScanResult, setCodeScanResult] = useState<{ type: string; message: string; file: string }[] | null>(null);
   const [scanProgress, setScanProgress] = useState<{ step: number; total: number; label: string } | null>(null);
@@ -1258,6 +1261,9 @@ const SystemExplorer = () => {
           <button onClick={() => setMainTab("backendscan")} className={`px-3 py-1.5 text-xs font-medium rounded-t-md transition-colors ${mainTab === "backendscan" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"}`}>
             Backend Scan
           </button>
+          <button onClick={() => setMainTab("analysis")} className={`px-3 py-1.5 text-xs font-medium rounded-t-md transition-colors ${mainTab === "analysis" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"}`}>
+            Analysis
+          </button>
         </div>
 
         {/* BACKEND SCAN TAB */}
@@ -1447,6 +1453,303 @@ const SystemExplorer = () => {
                 </CardContent>
               )}
             </Card>
+            </div>
+          );
+        })()}
+
+        {/* CODE INDEX TAB */}
+        {/* ANALYSIS TAB */}
+        {mainTab === "analysis" && (() => {
+          // ── Helpers ────────────────────────────────────────────────────────
+          const ISSUE_WHY: Record<string, string> = {
+            broken_flow: "Broken flow → navigation failure and potential user dead-end",
+            interaction_failure: "Interaction failure → button/form not responding, blocks user actions",
+            data_issue: "Data issue → UI not reflecting backend state, stale or missing data",
+            fake_feature: "Fake feature → incomplete implementation that deceives users",
+            failed_insert: "Failed DB insert → data loss and inconsistent state",
+            data_loss: "Orphaned reference → data integrity violation",
+            stale_state: "Duplicate entries → inconsistent state and wasted resources",
+            component_type: "Component-level pattern failure → systemic UI breakage",
+            layout: "Layout problem → broken visual hierarchy affecting usability",
+            sync: "Sync failure → frontend and backend out of sync",
+            default: "Issue detected by scanner → may degrade reliability or user experience",
+          };
+          const ISSUE_FIX: Record<string, string> = {
+            broken_flow: "Trace the route/store chain; verify navigation guard and handler binding",
+            interaction_failure: "Check event handler binding; verify component mounts and callback wiring",
+            data_issue: "Verify query uses latest scan_id; check state update and subscription",
+            fake_feature: "Implement the actual business logic; remove placeholder UI or complete it",
+            failed_insert: "Add source_id before INSERT; validate required FK fields",
+            data_loss: "Add CASCADE or cleanup logic when deleting parent records",
+            stale_state: "Strengthen dedup fingerprint; add unique constraint on issue_fingerprint",
+            component_type: "Audit all components of this type; apply consistent fix pattern",
+            layout: "Review CSS overflow/flex/grid; test on mobile and constrained viewports",
+            sync: "Wire real-time subscription or add polling; check store hydration order",
+            default: "Investigate the root cause; add guard or validation for the failing case",
+          };
+
+          function getWhy(issue: any): string {
+            const src = issue._source || issue.failure_type || issue.type || "";
+            return ISSUE_WHY[src] ?? ISSUE_WHY["default"];
+          }
+          function getFix(issue: any): string {
+            const src = issue._source || issue.failure_type || issue.type || "";
+            return issue.fix_suggestion || issue.suggested_fix || ISSUE_FIX[src] ?? ISSUE_FIX["default"];
+          }
+          function getFileKey(issue: any): string {
+            return issue.source_path || issue.source_file || issue.component || issue.route || issue.target || issue.element || issue.area || issue.page || "unknown";
+          }
+          function getFolder(fileKey: string): string {
+            const parts = fileKey.split("/");
+            if (parts.length > 1) return parts.slice(0, -1).join("/");
+            return fileKey.includes(".") ? "root" : fileKey;
+          }
+          function severityOrder(s: string): number {
+            return s === "critical" ? 0 : s === "high" ? 1 : s === "medium" ? 2 : 3;
+          }
+
+          // ── Data ───────────────────────────────────────────────────────────
+          const run = latestRun as any;
+          const scanId = run?.id;
+          const allIssues: any[] = run?.unified_result?.issues ?? [];
+
+          // Group by file/component
+          const fileMap = new Map<string, any[]>();
+          for (const issue of allIssues) {
+            const key = getFileKey(issue);
+            if (!fileMap.has(key)) fileMap.set(key, []);
+            fileMap.get(key)!.push(issue);
+          }
+
+          // Sort files by issue count desc
+          const sortedFiles = [...fileMap.entries()].sort((a, b) => b[1].length - a[1].length);
+
+          // Group by folder
+          const folderMap = new Map<string, { files: string[]; issueCount: number }>();
+          for (const [file, issues] of sortedFiles) {
+            const folder = getFolder(file);
+            if (!folderMap.has(folder)) folderMap.set(folder, { files: [], issueCount: 0 });
+            folderMap.get(folder)!.files.push(file);
+            folderMap.get(folder)!.issueCount += issues.length;
+          }
+          const sortedFolders = [...folderMap.entries()].sort((a, b) => b[1].issueCount - a[1].issueCount);
+
+          // Aggregated stats
+          const bySeverity: Record<string, number> = {};
+          const byType: Record<string, number> = {};
+          for (const issue of allIssues) {
+            const sev = issue.severity || "unknown";
+            bySeverity[sev] = (bySeverity[sev] || 0) + 1;
+            const typ = issue._source || issue.type || issue.failure_type || "unknown";
+            byType[typ] = (byType[typ] || 0) + 1;
+          }
+          const topTypes = Object.entries(byType).sort((a, b) => b[1] - a[1]).slice(0, 5);
+          const topFolders = sortedFolders.slice(0, 5);
+
+          const selectedIssues = selectedAnalysisFile ? (fileMap.get(selectedAnalysisFile) ?? []).slice().sort((a, b) => severityOrder(a.severity) - severityOrder(b.severity)) : [];
+
+          // ── Prompt generator ───────────────────────────────────────────────
+          function generatePrompt(): string {
+            const filesToInclude = selectedAnalysisFile
+              ? [[selectedAnalysisFile, fileMap.get(selectedAnalysisFile) ?? []] as [string, any[]]]
+              : sortedFiles.slice(0, 20);
+
+            let prompt = `FIX THESE ISSUES:\n(scan_id: ${scanId ?? "unknown"})\n\n`;
+            for (const [file, issues] of filesToInclude) {
+              prompt += `[File: ${file}]\n\n`;
+              issues.forEach((issue, i) => {
+                prompt += `Issue ${i + 1}:\n`;
+                prompt += `- Type: ${issue._source || issue.type || "unknown"}\n`;
+                prompt += `- Severity: ${issue.severity || "unknown"}\n`;
+                prompt += `- Problem: ${issue.title || issue.description || "No description"}\n`;
+                prompt += `- Why: ${getWhy(issue)}\n`;
+                prompt += `- Suggested fix: ${getFix(issue)}\n`;
+                if (issue.root_cause) prompt += `- Root cause: ${issue.root_cause}\n`;
+                prompt += "\n";
+              });
+            }
+            prompt += `RULES:\n- Do not change architecture\n- Follow existing patterns\n- Keep logic consistent\n`;
+            return prompt;
+          }
+
+          const sevColor = (s: string) =>
+            s === "critical" ? "text-red-500" : s === "high" ? "text-orange-500" : s === "medium" ? "text-yellow-500" : "text-muted-foreground";
+          const sevBadge = (s: string) =>
+            s === "critical" ? "bg-red-500/10 text-red-500 border-red-500/20" :
+            s === "high" ? "bg-orange-500/10 text-orange-500 border-orange-500/20" :
+            s === "medium" ? "bg-yellow-500/10 text-yellow-500 border-yellow-500/20" :
+            "bg-muted/30 text-muted-foreground border-border";
+
+          return (
+            <div className="space-y-3">
+              {!run ? (
+                <p className="text-[10px] text-muted-foreground">No completed scan run — run a scan first</p>
+              ) : (
+                <>
+                  {/* Aggregated Summary */}
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm flex items-center gap-2"><Activity className="h-4 w-4" /> Aggregated Analysis <span className="text-[9px] font-mono text-muted-foreground ml-1">(scan_id: {scanId?.slice(0, 8)})</span></CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-3 space-y-3">
+                      <div className="grid grid-cols-2 gap-2 text-[10px]">
+                        <div className="rounded-md bg-muted/30 border border-border p-2">
+                          <p className="text-muted-foreground">Total Issues</p>
+                          <p className="text-xl font-bold text-foreground">{allIssues.length}</p>
+                        </div>
+                        <div className="rounded-md bg-muted/30 border border-border p-2">
+                          <p className="text-muted-foreground">Affected Files/Components</p>
+                          <p className="text-xl font-bold text-foreground">{fileMap.size}</p>
+                        </div>
+                      </div>
+                      {/* By Severity */}
+                      <div>
+                        <p className="text-[10px] font-semibold text-muted-foreground mb-1">Issues by Severity</p>
+                        <div className="flex gap-2 flex-wrap">
+                          {Object.entries(bySeverity).sort((a, b) => severityOrder(a[0]) - severityOrder(b[0])).map(([sev, count]) => (
+                            <span key={sev} className={`text-[10px] px-2 py-0.5 rounded-md border font-medium ${sevBadge(sev)}`}>{sev}: {count}</span>
+                          ))}
+                        </div>
+                      </div>
+                      {/* Most Common Types */}
+                      <div>
+                        <p className="text-[10px] font-semibold text-muted-foreground mb-1">Most Common Issue Types</p>
+                        <div className="space-y-0.5">
+                          {topTypes.map(([type, count]) => (
+                            <div key={type} className="flex items-center gap-2 text-[9px]">
+                              <span className="font-mono text-foreground flex-1">{type}</span>
+                              <div className="bg-primary/20 h-1.5 rounded-full" style={{ width: `${Math.round((count / allIssues.length) * 100)}px` }} />
+                              <span className="text-muted-foreground w-6 text-right">{count}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      {/* Most Problematic Folders */}
+                      <div>
+                        <p className="text-[10px] font-semibold text-muted-foreground mb-1">Most Problematic Areas</p>
+                        <div className="space-y-0.5">
+                          {topFolders.map(([folder, data]) => (
+                            <div key={folder} className="flex items-center gap-2 text-[9px]">
+                              <span className="font-mono text-foreground flex-1 truncate">{folder}</span>
+                              <span className="text-muted-foreground">{data.files.length} files</span>
+                              <span className="text-orange-500 font-medium">{data.issueCount} issues</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* File List + Issue Detail */}
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* File List */}
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2"><Database className="h-4 w-4" /> Files / Components ({sortedFiles.length})</CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-2">
+                        {sortedFiles.length === 0 ? (
+                          <p className="text-[10px] text-muted-foreground p-1">No issues found in scan</p>
+                        ) : (
+                          <div className="max-h-[400px] overflow-auto space-y-0.5">
+                            {sortedFolders.map(([folder, folderData]) => (
+                              <div key={folder}>
+                                <p className="text-[9px] text-muted-foreground font-semibold px-1 py-0.5 bg-muted/20 rounded">{folder} ({folderData.issueCount})</p>
+                                {folderData.files.map(file => {
+                                  const count = fileMap.get(file)?.length ?? 0;
+                                  const isSelected = selectedAnalysisFile === file;
+                                  const maxSev = (fileMap.get(file) ?? []).reduce((best, iss) => severityOrder(iss.severity) < severityOrder(best) ? iss.severity : best, "low");
+                                  return (
+                                    <button
+                                      key={file}
+                                      onClick={() => { setSelectedAnalysisFile(isSelected ? null : file); setGeneratedPrompt(null); }}
+                                      className={`w-full text-left flex items-center gap-2 text-[9px] px-2 py-1 rounded cursor-pointer border-b border-border/30 transition-colors ${isSelected ? "bg-primary/10 text-primary" : "hover:bg-muted/30 text-foreground"}`}
+                                    >
+                                      <span className="flex-1 font-mono truncate">{file.split("/").pop() ?? file}</span>
+                                      <span className={`font-medium ${sevColor(maxSev)}`}>{maxSev}</span>
+                                      <span className="text-muted-foreground shrink-0">{count}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    {/* Issue Detail */}
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2"><Radar className="h-4 w-4" />
+                          {selectedAnalysisFile ? (
+                            <span className="truncate max-w-[200px]">{selectedAnalysisFile.split("/").pop()}</span>
+                          ) : "Issue Detail"}
+                          {selectedAnalysisFile && <span className="text-[9px] text-muted-foreground">({selectedIssues.length})</span>}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-2">
+                        {!selectedAnalysisFile ? (
+                          <p className="text-[10px] text-muted-foreground p-1">Select a file to see issue breakdown</p>
+                        ) : selectedIssues.length === 0 ? (
+                          <p className="text-[10px] text-muted-foreground p-1">No issues for this file</p>
+                        ) : (
+                          <div className="max-h-[400px] overflow-auto space-y-1.5">
+                            {selectedIssues.map((issue: any, i: number) => (
+                              <details key={i} className="border border-border/50 rounded-md p-1.5 text-[9px]" open={i === 0}>
+                                <summary className="cursor-pointer flex items-center gap-1.5">
+                                  <Badge className={`text-[8px] px-1 py-0 shrink-0 ${sevBadge(issue.severity)}`}>{issue.severity || "?"}</Badge>
+                                  <span className="font-mono text-foreground flex-1 truncate">{issue.title || issue.description || "No title"}</span>
+                                </summary>
+                                <div className="mt-1.5 space-y-0.5 pl-1 border-l border-border/40">
+                                  <p className="text-muted-foreground"><span className="text-foreground font-semibold">Type:</span> {issue._source || issue.type || issue.failure_type || "—"}</p>
+                                  {(issue.component || issue.route || issue.target) && (
+                                    <p className="text-muted-foreground"><span className="text-foreground font-semibold">Location:</span> {issue.component || issue.route || issue.target}</p>
+                                  )}
+                                  <p className="text-muted-foreground"><span className="text-foreground font-semibold">Description:</span> {issue.description || issue.title || "—"}</p>
+                                  <p className="text-yellow-500"><span className="text-foreground font-semibold">Why:</span> {getWhy(issue)}</p>
+                                  <p className="text-green-500"><span className="text-foreground font-semibold">Fix:</span> {getFix(issue)}</p>
+                                  {issue.root_cause && (
+                                    <p className="text-orange-400"><span className="text-foreground font-semibold">Root cause:</span> {issue.root_cause}</p>
+                                  )}
+                                </div>
+                              </details>
+                            ))}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Prompt Generator */}
+                  <Card>
+                    <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                      <CardTitle className="text-sm flex items-center gap-2"><ArrowRight className="h-4 w-4" /> Fix Prompt Generator</CardTitle>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline" size="sm" className="text-[10px] h-6"
+                          onClick={() => { setGeneratedPrompt(generatePrompt()); setPromptCopied(false); }}
+                        >
+                          👉 Generate Fix Prompt {selectedAnalysisFile ? "(selected file)" : "(all issues)"}
+                        </Button>
+                        {generatedPrompt && (
+                          <Button
+                            variant="outline" size="sm" className={`text-[10px] h-6 ${promptCopied ? "text-green-500 border-green-500/40" : ""}`}
+                            onClick={() => { navigator.clipboard.writeText(generatedPrompt); setPromptCopied(true); setTimeout(() => setPromptCopied(false), 2000); }}
+                          >
+                            {promptCopied ? "✓ Copied" : "Copy Prompt"}
+                          </Button>
+                        )}
+                      </div>
+                    </CardHeader>
+                    {generatedPrompt && (
+                      <CardContent className="p-3">
+                        <pre className="text-[9px] font-mono bg-muted/30 border border-border rounded-md p-2 max-h-[400px] overflow-auto whitespace-pre-wrap text-foreground">{generatedPrompt}</pre>
+                      </CardContent>
+                    )}
+                  </Card>
+                </>
+              )}
             </div>
           );
         })()}
