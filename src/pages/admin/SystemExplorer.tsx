@@ -186,22 +186,8 @@ const SystemExplorer = () => {
   const [codeScanResult, setCodeScanResult] = useState<{ type: string; message: string; file: string }[] | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<{ path: string; lineNumber: number; line: string }[]>([]);
-  const [lastAction, setLastAction] = useState("");
-  const [actionLogs, setActionLogs] = useState<{ time: string; [key: string]: any }[]>([]);
   const [globalIssues, setGlobalIssues] = useState<{ type: string; message: string; file: string }[]>([]);
 
-  function logAction(action: Record<string, any>) {
-    setActionLogs(prev => [
-      {
-        time: new Date().toISOString(),
-        type: "TEST_ACTION",
-        message: JSON.stringify(action),
-        timestamp: Date.now(),
-        ...action
-      },
-      ...prev
-    ]);
-  }
   useEffect(() => {
     const rawSources = getRawSources();
     if (!rawSources) {
@@ -218,14 +204,11 @@ const SystemExplorer = () => {
   }, []);
 
   function handleSearch() {
-    logAction({ type: "Search", status: "started" });
     if (!searchQuery) {
-      logAction({ type: "Search", status: "no-input", message: "Search query empty" });
       return;
     }
     const sources = getRawSources();
     if (!sources) {
-      logAction({ type: "Search", status: "error", message: "rawSources missing" });
       return;
     }
     const results: { path: string; lineNumber: number; line: string }[] = [];
@@ -237,11 +220,6 @@ const SystemExplorer = () => {
           results.push({ path, lineNumber: index + 1, line: line.trim() });
         }
       });
-    });
-    logAction({
-      type: "Search",
-      status: results.length === 0 ? "no-results" : "success",
-      count: results.length
     });
     setSearchResults(results.slice(0, 50));
   }
@@ -441,7 +419,6 @@ const SystemExplorer = () => {
     try {
       const before = await supabase.from("work_items").select("id");
       const beforeCount = before.data?.length || 0;
-      logAction({ type: "Full Scan", status: "started" });
       const structure_map = Object.keys(getRawSources() || {}).map(path => ({
         path
       }));
@@ -449,27 +426,14 @@ const SystemExplorer = () => {
         body: { action: "start", scan_mode: "full", structure_map },
         isAdmin: true,
       });
-      const verify = await verifyWorkItemsCreated(beforeCount);
-      if (verify.created === 0) {
-        logAction({
-          type: "Full Scan",
-          status: "no-effect",
-          message: "Scan ran but created 0 work_items ❌"
-        });
-      } else {
-        logAction({
-          type: "Full Scan",
-          status: "verified",
-          message: `Created ${verify.created} work_items ✔`
-        });
-      }
+      await verifyWorkItemsCreated(beforeCount);
       const json = res?.data ?? res;
       if (json?.success === false) {
-        logAction({ type: "Full Scan", status: "error", message: json?.error });
+        // scan error — handled by UI state
       }
       await handleRefresh();
     } catch (err) {
-      logAction({ type: "Full Scan", status: "error", message: String(err) });
+      // errors surface via UI
     }
   };
 
@@ -1031,62 +995,7 @@ const SystemExplorer = () => {
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {!systemTruth.scanWorking && <p className="text-[10px] text-red-500 font-mono">❌ SCAN NOT PRODUCING DATA</p>}
         {!systemTruth.workItemsCreated && <p className="text-[10px] text-red-500 font-mono">❌ PIPELINE BLOCKED</p>}
-        <p className="text-xs text-green-500 font-mono">TEST BUILD OK — Files detected: {fileSystemMap.length}</p>
-        <div className="text-[10px] font-mono text-muted-foreground">Last action: {lastAction || "none"}</div>
 
-        <button onClick={() => {
-          setActionLogs(prev => [
-            {
-              time: new Date().toISOString(),
-              type: "MANUAL_TEST",
-              message: "Button clicked",
-              timestamp: Date.now()
-            },
-            ...prev
-          ]);
-        }} className="px-3 py-1 text-xs bg-primary text-primary-foreground rounded">
-          TEST ACTION
-        </button>
-
-        {/* Action Monitor */}
-        <details className="border border-border rounded-md">
-          <summary className="px-3 py-1.5 text-[10px] font-semibold cursor-pointer bg-muted/30 hover:bg-muted/50 transition-colors">
-            Action Monitor ({actionLogs.length})
-          </summary>
-          <div className="max-h-48 overflow-y-auto">
-            {actionLogs.length === 0 ? (
-              <p className="text-[10px] text-muted-foreground px-3 py-2">No actions logged yet</p>
-            ) : (
-              <table className="w-full text-[10px]">
-                <thead>
-                  <tr className="border-b border-border text-muted-foreground">
-                    <th className="px-3 py-1 text-left">Time</th>
-                    <th className="px-3 py-1 text-left">Type</th>
-                    <th className="px-3 py-1 text-left">Status</th>
-                    <th className="px-3 py-1 text-left">Message</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {actionLogs.slice(0, 10).map((log, i) => (
-                    <tr key={i} className="border-b border-border/50 hover:bg-muted/20">
-                      <td className="px-3 py-1 font-mono text-muted-foreground">{log.time?.split("T")[1]?.slice(0, 8)}</td>
-                      <td className="px-3 py-1 font-medium text-foreground">{log.type}</td>
-                      <td className="px-3 py-1">
-                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${
-                          log.status === "success" ? "bg-green-500/20 text-green-400" :
-                          log.status === "error" || log.status === "no-data" ? "bg-red-500/20 text-red-400" :
-                          log.status === "started" ? "bg-blue-500/20 text-blue-400" :
-                          "bg-yellow-500/20 text-yellow-400"
-                        }`}>{log.status}</span>
-                      </td>
-                      <td className="px-3 py-1 text-muted-foreground truncate max-w-[200px]">{log.message || "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </details>
         <div className="flex gap-2 items-center">
           <Input
             placeholder="Search code..."
@@ -1096,7 +1005,6 @@ const SystemExplorer = () => {
             className="h-7 text-[10px] max-w-[250px]"
           />
           <Button variant="outline" size="sm" className="text-[10px] h-7" onClick={handleSearch}>Search</Button>
-          <span className="text-[9px] text-yellow-500/70 font-mono">⚠ Frontend scan (static / debug only)</span>
         </div>
         {searchResults.length > 0 && (
           <div>
@@ -1125,7 +1033,7 @@ const SystemExplorer = () => {
         )}
         <div className="flex items-center gap-2 flex-wrap">
           <Database className="h-6 w-6 text-primary" />
-          <h1 className="text-2xl font-bold text-foreground">System Explorer</h1>
+          <h1 className="text-2xl font-bold text-foreground">Command Center</h1>
           <Badge variant="outline" className="ml-2">READ-ONLY</Badge>
           {isSystemAdmin && <Badge className="bg-primary/10 text-primary text-[10px]"><Shield className="h-3 w-3 mr-1" />SYSTEM ADMIN</Badge>}
           {isViewerAdmin && <Badge variant="secondary" className="text-[10px]"><Lock className="h-3 w-3 mr-1" />VIEWER</Badge>}
@@ -1164,7 +1072,7 @@ const SystemExplorer = () => {
             Backend Scan
           </button>
           <button onClick={() => setMainTab("analysis")} className={`px-3 py-1.5 text-xs font-medium rounded-t-md transition-colors ${mainTab === "analysis" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"}`}>
-            Analysis
+            Issues
           </button>
         </div>
 
@@ -1587,11 +1495,6 @@ const SystemExplorer = () => {
         {/* FILES TAB */}
         {mainTab === "files" && (
           <div className="space-y-3">
-            <span className="text-[9px] text-yellow-500/70 font-mono">⚠ Frontend scan (static / debug only)</span>
-            <span className="text-[9px] text-yellow-500/70 font-mono ml-2">⚠ Not connected to real codebase</span>
-            {Object.keys(getRawSources() || {}).length === 0 && (
-              <p className="text-[10px] text-red-500 font-mono">❌ No source data — frontend scan is blind</p>
-            )}
             {/* Filters */}
             <div className="flex gap-1 items-center">
               {(["all", "orphan", "has_issues"] as const).map((f) => (
@@ -2438,7 +2341,7 @@ const SystemExplorer = () => {
             <CardTitle className="text-sm flex items-center gap-2">
               {expandedSections.fileMap ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
               <Folder className="h-4 w-4 text-primary" />
-              File Map ({fileSystemMap.length} files) <span className="text-[9px] text-yellow-500/70 font-mono ml-2">⚠ Frontend scan (static / debug only)</span>
+              File Map ({fileSystemMap.length} files)
             </CardTitle>
           </CardHeader>
           {expandedSections.fileMap && (

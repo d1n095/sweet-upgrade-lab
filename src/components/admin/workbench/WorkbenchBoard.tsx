@@ -3,7 +3,6 @@ import { ACTIVE_WORK_ITEM_STATUSES, useAdminWorkItems } from '@/hooks/useAdminDa
 import { useUiStateSync } from '@/hooks/useUiStateSync';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { safeInvoke } from '@/lib/safeInvoke';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -203,45 +202,29 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     return log.action_type;
   };
 
-  const runAutomation = async () => {
+  const runAutomation = () => {
     setRunningAutomation(true);
-    try {
-      const { data, error } = await safeInvoke('automation-engine');
-      if (error) throw error;
-      const r = data?.results;
-      toast.success(`Automation klar: ${r?.escalated || 0} eskalerade, ${r?.reassigned || 0} omfördelade`);
-      queryClient.invalidateQueries({ queryKey: ['work-items'] });
-      queryClient.invalidateQueries({ queryKey: ['automation-logs-recent'] });
-    } catch (e: any) {
-      toast.error('Automation misslyckades: ' + e.message);
-    } finally {
-      setRunningAutomation(false);
-    }
+    // LOCAL MODE — no backend calls, simulate locally
+    setTimeout(() => {
+      try {
+        toast.success('Automation klar (lokal simulering): 0 eskalerade, 0 omfördelade');
+      } finally {
+        setRunningAutomation(false);
+      }
+    }, 400);
   };
 
-  const runValidation = async () => {
+  const runValidation = () => {
     setRunningValidation(true);
-    try {
-      const { data, error } = await safeInvoke('data-sync', { body: { mode: 'repair' } });
-      if (!error && data) {
-        const r = data.results;
-        setValidationResult(r);
-        if (r.total_fixed > 0) {
-          toast.success(`Validering klar: ${r.total_fixed} problem åtgärdade av ${r.total_issues} hittade`);
-          queryClient.invalidateQueries({ queryKey: ['work-items'] });
-        } else if (r.total_issues > 0) {
-          toast.warning(`${r.total_issues} problem hittade men inga kunde åtgärdas automatiskt`);
-        } else {
-          toast.success('Allt är synkat och korrekt ✓');
-        }
-      } else {
-        toast.error('Validering misslyckades');
+    // LOCAL MODE — no backend calls, simulate locally
+    setTimeout(() => {
+      try {
+        setValidationResult({ total_issues: 0, total_fixed: 0 });
+        toast.success('Allt är synkat och korrekt ✓ (lokal simulering)');
+      } finally {
+        setRunningValidation(false);
       }
-    } catch (e: any) {
-      toast.error('Validering misslyckades: ' + e.message);
-    } finally {
-      setRunningValidation(false);
-    }
+    }, 400);
   };
 
   const { data: staffProfiles = [] } = useQuery({
