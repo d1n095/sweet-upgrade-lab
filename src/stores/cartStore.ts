@@ -170,9 +170,14 @@ export const useCartStore = create<CartStore>()(
       clearCart: () => {
         set({
           items: [],
+          cartId: null,
+          checkoutUrl: null,
           lastUpdatedAt: getTimestamp(),
         });
       },
+
+      setCartId: (id) => set({ cartId: id }),
+      setCheckoutUrl: (url) => set({ checkoutUrl: url }),
 
       setLoading: (isLoading) => set({ isLoading }),
 
