@@ -667,7 +667,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                         await supabase.from('change_log').insert({
                           change_type: 'verification',
                           description: `Användare bekräftade AI-förslag: ${item.title}`,
-                          affected_components: [item.item_type, 'ai_pre_verify'],
+                          affected_components: [item.item_type, 'pre_verify'],
                           source: 'human_confirmation',
                           work_item_id: item.id,
                           bug_report_id: item.source_type === 'bug_report' ? item.source_id : null,
@@ -707,7 +707,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                         await supabase.from('change_log').insert({
                           change_type: 'rejection',
                           description: `Användare avvisade AI-förslag: ${item.title} — prioritet eskalerad till ${newPriority}`,
-                          affected_components: [item.item_type, 'ai_pre_verify'],
+                          affected_components: [item.item_type, 'pre_verify'],
                           source: 'human_rejection',
                           work_item_id: item.id,
                           bug_report_id: item.source_type === 'bug_report' ? item.source_id : null,
