@@ -1,8 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Info, Layers } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Info, Layers, Loader2, PlayCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { SystemActionPanel, type ActionIssue } from './SystemActionPanel';
+import { SystemActionPanel, executeIssue, type ActionIssue } from './SystemActionPanel';
+import { toast } from 'sonner';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -34,6 +36,10 @@ const CATEGORY_KEYS: Array<{ key: string; label: string }> = [
   { key: 'master_list', label: 'Issue' },
 ];
 
+const SEVERITY_ORDER: Record<Impact, number> = {
+  critical: 0, high: 1, medium: 2, low: 3, info: 4,
+};
+
 function normalizeSeverity(v: string | undefined): ActionIssue['severity'] {
   const s = (v ?? '').toLowerCase();
   if (s === 'critical') return 'critical';
@@ -41,6 +47,13 @@ function normalizeSeverity(v: string | undefined): ActionIssue['severity'] {
   if (s === 'medium' || s === 'warning') return 'medium';
   if (s === 'low') return 'low';
   return 'info';
+}
+
+function computeImpactScore(severity: ActionIssue['severity']): number {
+  const scores: Record<ActionIssue['severity'], number> = {
+    critical: 100, high: 75, medium: 50, low: 25, info: 10,
+  };
+  return scores[severity];
 }
 
 function extractIssues(unified_result: any): ActionIssue[] {
@@ -58,15 +71,17 @@ function extractIssues(unified_result: any): ActionIssue[] {
       const _key = `${key}-${item.id || item.title || i}`;
       if (seen.has(_key)) continue;
       seen.add(_key);
+      const severity = normalizeSeverity(item.severity || item.impact);
       out.push({
         _key,
         _category: key,
         id: item.id || _key,
         title: item.title || item.name || item.issue || `${label} #${i + 1}`,
         description: item.description || item.details || item.message || '',
-        severity: normalizeSeverity(item.severity || item.impact),
+        severity,
         file: item.file || item.component || item.route || undefined,
         fix_suggestion: item.fix_suggestion || item.recommended_fix || item.fix || undefined,
+        impact_score: computeImpactScore(severity),
       });
     }
   }
@@ -79,6 +94,14 @@ function groupByImpact(issues: ActionIssue[]): ImpactGroup[] {
   for (const imp of order) map.set(imp, []);
   for (const issue of issues) {
     map.get(issue.severity)!.push(issue);
+  }
+  // Sort within each group: primary by severity order (same within group), secondary by category
+  for (const [, groupIssues] of map) {
+    groupIssues.sort((a, b) => {
+      const severityDiff = SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity];
+      if (severityDiff !== 0) return severityDiff;
+      return a._category.localeCompare(b._category);
+    });
   }
   return order
     .map((impact) => ({ impact, issues: map.get(impact)! }))
@@ -119,6 +142,9 @@ const IMPACT_STYLES: Record<Impact, { badge: string; icon: React.ReactNode; labe
 
 export function SystemSummaryPanel({ latestRun }: Props) {
   const [expandedGroups, setExpandedGroups] = useState<Set<Impact>>(new Set(['critical', 'high']));
+  const [batchExecuting, setBatchExecuting] = useState(false);
+  const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null);
+  const [batchDoneKeys, setBatchDoneKeys] = useState<Set<string>>(new Set());
 
   const groups = useMemo(() => {
     if (!latestRun?.unified_result) return [];
@@ -127,6 +153,10 @@ export function SystemSummaryPanel({ latestRun }: Props) {
   }, [latestRun]);
 
   const totalIssues = useMemo(() => groups.reduce((s, g) => s + g.issues.length, 0), [groups]);
+  const criticalIssues = useMemo(
+    () => groups.find((g) => g.impact === 'critical')?.issues ?? [],
+    [groups],
+  );
 
   const toggleGroup = (impact: Impact) => {
     setExpandedGroups((prev) => {
@@ -135,6 +165,32 @@ export function SystemSummaryPanel({ latestRun }: Props) {
       else next.add(impact);
       return next;
     });
+  };
+
+  const handleBatchExecute = async () => {
+    const pending = criticalIssues.filter((i) => !batchDoneKeys.has(i._key));
+    if (pending.length === 0) return;
+
+    setBatchExecuting(true);
+    setBatchProgress({ done: 0, total: pending.length });
+    // Ensure critical group is expanded so user can see progress spinners
+    setExpandedGroups((prev) => new Set([...prev, 'critical']));
+
+    let done = 0;
+    for (const issue of pending) {
+      try {
+        await executeIssue(issue, latestRun?.id);
+        setBatchDoneKeys((prev) => new Set([...prev, issue._key]));
+      } catch {
+        // continue on individual failure
+      }
+      done++;
+      setBatchProgress({ done, total: pending.length });
+    }
+
+    setBatchExecuting(false);
+    toast.success(`Batch utförd: ${done}/${pending.length} kritiska problem åtgärdade`);
+    setBatchProgress(null);
   };
 
   if (!latestRun) {
@@ -154,17 +210,44 @@ export function SystemSummaryPanel({ latestRun }: Props) {
     );
   }
 
+  const pendingCriticalCount = criticalIssues.filter((i) => !batchDoneKeys.has(i._key)).length;
+
   return (
     <div className="space-y-3">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2">
           <Layers className="w-4 h-4 text-muted-foreground" />
           <span className="text-sm font-semibold">Åtgärdsöversikt</span>
         </div>
-        <Badge variant="outline" className="text-xs">
-          {totalIssues} problem
-        </Badge>
+        <div className="flex items-center gap-2">
+          {batchProgress && (
+            <span className="text-xs text-muted-foreground">
+              {batchProgress.done}/{batchProgress.total}
+            </span>
+          )}
+          {pendingCriticalCount > 0 && (
+            <Button
+              size="sm"
+              variant="destructive"
+              className="h-7 text-xs gap-1.5"
+              disabled={batchExecuting}
+              onClick={handleBatchExecute}
+            >
+              {batchExecuting ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <PlayCircle className="w-3 h-3" />
+              )}
+              {batchExecuting
+                ? `Utför ${batchProgress?.done ?? 0}/${batchProgress?.total ?? pendingCriticalCount}…`
+                : `Utför alla kritiska (${pendingCriticalCount})`}
+            </Button>
+          )}
+          <Badge variant="outline" className="text-xs">
+            {totalIssues} problem
+          </Badge>
+        </div>
       </div>
 
       {/* Data source badge */}
@@ -196,7 +279,12 @@ export function SystemSummaryPanel({ latestRun }: Props) {
             {open && (
               <div className="px-3 pb-3 pt-1 space-y-2 bg-muted/10 border-t border-border">
                 {issues.map((issue) => (
-                  <SystemActionPanel key={issue._key} issue={issue} scanRunId={latestRun.id} />
+                  <SystemActionPanel
+                    key={issue._key}
+                    issue={issue}
+                    scanRunId={latestRun.id}
+                    batchExecuting={batchExecuting && impact === 'critical' && !batchDoneKeys.has(issue._key)}
+                  />
                 ))}
               </div>
             )}

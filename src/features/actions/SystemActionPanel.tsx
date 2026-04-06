@@ -19,14 +19,17 @@ export interface ActionIssue {
   severity: 'critical' | 'high' | 'medium' | 'low' | 'info';
   file?: string;
   fix_suggestion?: string;
+  impact_score?: number;
 }
 
 interface Props {
   issue: ActionIssue;
   scanRunId?: string;
+  /** When true the panel shows an executing spinner driven by a parent batch run */
+  batchExecuting?: boolean;
 }
 
-interface ExecResult {
+export interface ExecResult {
   workItemUpdated: boolean;
   workItemId: string | null;
   previousStatus: string | null;
@@ -56,9 +59,111 @@ const EFFORT_BADGE: Record<FixAction['estimated_effort'], string> = {
   high: 'bg-red-500/10 text-red-700 border-red-400/20',
 };
 
+// ── Shared execute logic (also used by batch runner) ─────────────────────────
+
+export async function executeIssue(
+  issue: ActionIssue,
+  scanRunId: string | undefined,
+  onApplyFixResolved?: (result: ExecResult) => void,
+): Promise<ExecResult> {
+  const action = buildFixAction(issue._category, issue.title);
+
+  // 1. Find work_item: prefer source_id match, fallback to title match
+  let workItem: { id: string; title: string; status: string } | null = null;
+  let matchedBySourceId = false;
+
+  const { data: bySourceId } = await supabase
+    .from('work_items')
+    .select('id, title, status')
+    .eq('source_id', issue.id)
+    .eq('source_type', 'scanner')
+    .in('status', ['open', 'claimed', 'in_progress'])
+    .limit(1);
+
+  if (bySourceId?.[0]) {
+    workItem = bySourceId[0];
+    matchedBySourceId = true;
+  } else {
+    const { data: byTitle } = await supabase
+      .from('work_items')
+      .select('id, title, status')
+      .ilike('title', issue.title)
+      .eq('source_type', 'scanner')
+      .in('status', ['open', 'claimed', 'in_progress'])
+      .limit(1);
+    workItem = byTitle?.[0] ?? null;
+  }
+
+  const previousStatus = workItem?.status ?? null;
+
+  // 2. Update work_item status to 'done' if found
+  if (workItem) {
+    await supabase
+      .from('work_items')
+      .update({ status: 'done', completed_at: new Date().toISOString() })
+      .eq('id', workItem.id);
+  }
+
+  // 3. Log execution in change_log
+  await supabase.from('change_log').insert({
+    change_type: 'fix_execution',
+    description: `Åtgärd utförd: ${action.label} — ${issue.title}`,
+    affected_components: [issue._category, action.fix_type],
+    source: 'system_action_panel',
+    work_item_id: workItem?.id ?? null,
+    scan_id: scanRunId ?? null,
+    metadata: {
+      fix_type: action.fix_type,
+      issue_id: issue.id,
+      issue_severity: issue.severity,
+      issue_category: issue._category,
+      work_item_found: !!workItem,
+      previous_status: previousStatus,
+      match_method: matchedBySourceId ? 'source_id' : 'title',
+    },
+  });
+
+  // 4. Optional: call apply-fix if fix_type is supported
+  let applyFixStatus: ExecResult['applyFixStatus'] = 'disabled';
+  if (SUPPORTED_FIX_TYPES.includes(action.fix_type)) {
+    applyFixStatus = 'skipped';
+    const result: ExecResult = {
+      workItemUpdated: !!workItem,
+      workItemId: workItem?.id ?? null,
+      previousStatus,
+      changeLogCreated: true,
+      applyFixStatus,
+    };
+    safeInvoke('apply-fix', {
+      body: {
+        fix_text: issue.fix_suggestion || action.description,
+        issue_title: issue.title,
+        issue_category: issue._category,
+        issue_severity: issue.severity,
+        source_work_item_id: workItem?.id,
+      },
+    })
+      .then((res: any) => {
+        if (!res?.skipped && onApplyFixResolved) {
+          onApplyFixResolved({ ...result, applyFixStatus: 'executed' });
+        }
+      })
+      .catch(() => {/* silently ignore */});
+    return result;
+  }
+
+  return {
+    workItemUpdated: !!workItem,
+    workItemId: workItem?.id ?? null,
+    previousStatus,
+    changeLogCreated: true,
+    applyFixStatus,
+  };
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function SystemActionPanel({ issue, scanRunId }: Props) {
+export function SystemActionPanel({ issue, scanRunId, batchExecuting = false }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [simulating, setSimulating] = useState(false);
   const [executing, setExecuting] = useState(false);
@@ -81,88 +186,11 @@ export function SystemActionPanel({ issue, scanRunId }: Props) {
     setExecuting(true);
     setSimResult(null);
     try {
-      // 1. Find work_item: prefer source_id match, fallback to title match
-      let workItem: { id: string; title: string; status: string } | null = null;
-
-      const { data: bySourceId } = await supabase
-        .from('work_items')
-        .select('id, title, status')
-        .eq('source_id', issue.id)
-        .eq('source_type', 'scanner')
-        .in('status', ['open', 'claimed', 'in_progress'])
-        .limit(1);
-
-      if (bySourceId?.[0]) {
-        workItem = bySourceId[0];
-      } else {
-        const { data: byTitle } = await supabase
-          .from('work_items')
-          .select('id, title, status')
-          .ilike('title', issue.title)
-          .eq('source_type', 'scanner')
-          .in('status', ['open', 'claimed', 'in_progress'])
-          .limit(1);
-        workItem = byTitle?.[0] ?? null;
-      }
-
-      const previousStatus = workItem?.status ?? null;
-
-      // 2. Update work_item status to 'done' if found
-      if (workItem) {
-        await supabase
-          .from('work_items')
-          .update({ status: 'done', completed_at: new Date().toISOString() })
-          .eq('id', workItem.id);
-      }
-
-      // 3. Log execution in change_log
-      await supabase.from('change_log').insert({
-        change_type: 'fix_execution',
-        description: `Åtgärd utförd: ${action.label} — ${issue.title}`,
-        affected_components: [issue._category, action.fix_type],
-        source: 'system_action_panel',
-        work_item_id: workItem?.id ?? null,
-        scan_id: scanRunId ?? null,
-        metadata: {
-          fix_type: action.fix_type,
-          issue_id: issue.id,
-          issue_severity: issue.severity,
-          issue_category: issue._category,
-          work_item_found: !!workItem,
-          previous_status: previousStatus,
-          match_method: bySourceId?.[0] ? 'source_id' : 'title',
-        },
+      const result = await executeIssue(issue, scanRunId, (updated) => {
+        setExecResult(updated);
       });
-
-      // 4. Optional: call apply-fix if fix_type is supported
-      let applyFixStatus: ExecResult['applyFixStatus'] = 'disabled';
-      if (SUPPORTED_FIX_TYPES.includes(action.fix_type)) {
-        applyFixStatus = 'skipped';
-        safeInvoke('apply-fix', {
-          body: {
-            fix_text: issue.fix_suggestion || action.description,
-            issue_title: issue.title,
-            issue_category: issue._category,
-            issue_severity: issue.severity,
-            source_work_item_id: workItem?.id,
-          },
-        })
-          .then((res: any) => {
-            if (!res?.skipped) {
-              setExecResult((prev) => prev ? { ...prev, applyFixStatus: 'executed' } : prev);
-            }
-          })
-          .catch(() => {/* silently ignore */});
-      }
-
-      setExecResult({
-        workItemUpdated: !!workItem,
-        workItemId: workItem?.id ?? null,
-        previousStatus,
-        changeLogCreated: true,
-        applyFixStatus,
-      });
-      toast.success(`Åtgärd utförd: ${action.label}`);
+      setExecResult(result);
+      toast.success(`Åtgärd utförd: ${buildFixAction(issue._category, issue.title).label}`);
     } catch (err: any) {
       setSimResult(`❌ Fel: ${err?.message || 'Okänt fel'}`);
       toast.error('Utförande misslyckades');
@@ -215,7 +243,10 @@ export function SystemActionPanel({ issue, scanRunId }: Props) {
           {issue.severity}
         </Badge>
         <span className="text-xs font-medium truncate flex-1">{issue.title}</span>
-        {isExecuted && (
+        {(executing || batchExecuting) && (
+          <Loader2 className="w-3 h-3 shrink-0 animate-spin text-muted-foreground" />
+        )}
+        {isExecuted && !executing && !batchExecuting && (
           <Badge variant="outline" className="text-[9px] shrink-0 bg-green-500/10 text-green-700 border-green-400/20">
             utförd
           </Badge>
