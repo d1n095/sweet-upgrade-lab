@@ -601,7 +601,7 @@ const SystemExplorer = () => {
         const targets = [issue.target, issue.component, issue.entity_name, issue.title, issue.category].filter(Boolean);
         for (const t of targets) issuedTargets.add(String(t).toLowerCase());
       }
-      // Also check step_results for per-step issues
+      // Also check step_results for per-step issues (scan_runs.unified_result uses step_results sub-object; {} is the correct empty fallback)
       const steps = (res.step_results ?? {}) as Record<string, any>;
       for (const [, val] of Object.entries(steps)) {
         if (Array.isArray(val?.issues)) {
@@ -758,7 +758,7 @@ const SystemExplorer = () => {
         if (issue.fingerprint) recentIssueFingerprints.add(issue.fingerprint.toLowerCase());
         if (issue.title) recentIssueTitles.add(issue.title.toLowerCase().trim());
       }
-      // Also check step_results for additional issues
+      // Also check step_results for additional issues (scan_runs.unified_result uses step_results sub-object; {} is the correct empty fallback)
       const steps = (res.step_results ?? {}) as Record<string, any>;
       for (const [, val] of Object.entries(steps)) {
         if (val?.issues && Array.isArray(val.issues)) {
