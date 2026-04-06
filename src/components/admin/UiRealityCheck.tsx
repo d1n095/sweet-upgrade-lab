@@ -1,5 +1,4 @@
 import { useState, useCallback } from 'react';
-import InteractionDebugMode from './InteractionDebugMode';
 import ResponsiveLayoutDetector from './ResponsiveLayoutDetector';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -884,9 +883,6 @@ const UiRealityCheck = () => {
 
       {/* Responsive Layout Detection */}
       <ResponsiveLayoutDetector />
-
-      {/* Interaction Debug Mode */}
-      <InteractionDebugMode />
 
       {/* Issues */}
       {issues.length > 0 && (

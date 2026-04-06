@@ -243,7 +243,7 @@ const AdminOrderManager = () => {
       if (error) throw error;
       setOrders(data || []);
     } catch (error) {
-      console.error('Failed to fetch orders:', error);
+
     } finally {
       setIsLoading(false);
     }
@@ -313,6 +313,7 @@ const AdminOrderManager = () => {
         try {
           await safeInvoke('send-order-email', {
             body: { order_id: order.id, email_type: 'status_update' },
+            isAdmin: true,
           });
           toast.success(`${content.updated} — mail skickat till ${order.order_email}`);
         } catch {
@@ -322,7 +323,7 @@ const AdminOrderManager = () => {
         toast.success(content.updated);
       }
     } catch (error) {
-      console.error('Failed to update order:', error);
+
       toast.error(content.error);
     } finally {
       setIsSaving(false);
@@ -367,7 +368,7 @@ const AdminOrderManager = () => {
 
       toast.success(language === 'sv' ? 'Order markerad som betald' : 'Order marked as paid');
     } catch (error) {
-      console.error('Failed to mark as paid:', error);
+
       toast.error(content.error);
     }
   };
@@ -397,7 +398,7 @@ const AdminOrderManager = () => {
         { id: 'refund' }
       );
     } catch (error: any) {
-      console.error('Failed to create refund request:', error);
+
       toast.error(error?.message || (language === 'sv' ? 'Kunde inte skapa förfrågan' : 'Failed to create request'), { id: 'refund' });
     }
   };
@@ -431,7 +432,7 @@ const AdminOrderManager = () => {
       });
       toast.success(language === 'sv' ? 'Order raderad' : 'Order deleted');
     } catch (error) {
-      console.error('Failed to delete order:', error);
+
       toast.error(content.error);
     }
   };
@@ -502,7 +503,7 @@ const AdminOrderManager = () => {
 
       toast.success('Order markerad som köpt på plats ✓');
     } catch (err) {
-      console.error(err);
+
       toast.error(content.error);
     }
   };
@@ -548,7 +549,7 @@ const AdminOrderManager = () => {
       logActivity({ log_type: 'success', category: 'fulfillment', message: `Order ${getOrderDisplayId(order)} packad — väntar på postning`, order_id: order.id });
       toast.success(language === 'sv' ? 'Order markerad som packad ✓' : 'Order marked as packed ✓');
     } catch (err) {
-      console.error(err);
+
       toast.error(content.error);
     }
   };
@@ -617,7 +618,7 @@ const AdminOrderManager = () => {
           } : o));
         }
       } catch (err) {
-        console.error(`Batch pack error for ${order.id}:`, err);
+
       }
       setBatchProgress({ done: i + 1, total: eligible.length });
     }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Loader2, CheckCircle, XCircle, Clock, AlertTriangle, CalendarClock } from 'lucide-react';
+import { Play, Loader2, CheckCircle, XCircle, Clock, AlertTriangle, CalendarClock, Database } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -24,11 +24,14 @@ function formatTs(iso: string | null | undefined): string {
 }
 
 export function ScanControls() {
-  const { running, steps, lastResult, scanRunId, startedAt, completedAt, run } = useScanRunner();
+  const { running, steps, lastResult, scanRunId, startedAt, completedAt, dbProgress, currentStepLabel, run } = useScanRunner();
 
-  const done = steps.filter(s => s.status === 'done').length;
-  const total = steps.length;
-  const progress = total > 0 ? Math.round((done / total) * 100) : 0;
+  const clientDone = steps.filter(s => s.status === 'done').length;
+  const clientTotal = steps.length;
+  // Prefer backend-written progress (0-100); fall back to client-computed ratio
+  const progress = running
+    ? (dbProgress > 0 ? dbProgress : (clientTotal > 0 ? Math.round((clientDone / clientTotal) * 100) : 0))
+    : 0;
 
   return (
     <div className="space-y-4">
@@ -47,14 +50,30 @@ export function ScanControls() {
         )}
       </div>
 
-      {/* Scan identification — shown when not running */}
+      {/* Active scan identity — shown while running */}
+      {running && scanRunId && (
+        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground border border-blue-200 dark:border-blue-800 rounded-md px-2 py-1.5 bg-blue-50/50 dark:bg-blue-950/30 w-fit">
+          <Loader2 className="w-3 h-3 shrink-0 animate-spin text-blue-500" />
+          <span>scan_run_id: <span className="font-mono text-foreground">{scanRunId}</span></span>
+        </div>
+      )}
+
+      {/* Completed scan identification */}
       {!running && completedAt && (
         <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground border border-border rounded-md px-2 py-1.5 bg-muted/30 w-fit">
           <CalendarClock className="w-3 h-3 shrink-0" />
           <span>Visar resultat från: <span className="font-medium text-foreground">{formatTs(completedAt)}</span></span>
           {scanRunId && (
-            <span className="ml-2 font-mono text-muted-foreground/70">id:{scanRunId.slice(0, 8)}</span>
+            <span className="ml-2 font-mono text-muted-foreground/70">id:{scanRunId}</span>
           )}
+        </div>
+      )}
+
+      {/* Data source badge — always visible when results exist */}
+      {(running || lastResult) && (
+        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground border border-border rounded-md px-2 py-1.5 bg-muted/20 w-fit">
+          <Database className="w-3 h-3 shrink-0" />
+          <span>Källdata: <span className="font-mono text-foreground">scan_runs.unified_result</span></span>
         </div>
       )}
 
@@ -63,10 +82,13 @@ export function ScanControls() {
         <p className="text-xs text-muted-foreground">Inga slutförda skanningar tillgängliga</p>
       )}
 
-      {running && total > 0 && (
+      {running && (
         <div className="space-y-2">
           <Progress value={progress} className="h-1.5" />
-          <p className="text-xs text-muted-foreground">{done}/{total} steg klara</p>
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>{currentStepLabel || `${clientDone}/${clientTotal} steg klara`}</span>
+            <span className="font-medium tabular-nums">{progress}%</span>
+          </div>
         </div>
       )}
 

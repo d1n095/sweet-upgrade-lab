@@ -2362,6 +2362,8 @@ serve(async (req) => {
       const systemOverview = buildSystemOverview(updatedResults, unified, systemStage);
 
       // ── BUILD SYSTEM INSIGHT ──
+      // structure_map is fetched here because it is only in scope in the "start" action block
+      const { data: structure_map } = await supabase.from("system_structure_map").select("entity_type, entity_name").limit(500);
       const systemInsight = buildSystemInsight(unified, structure_map || [], updatedResults);
       trace(scan_run_id, `system_insight score=${systemInsight?.system_health_score ?? "-"}`);
       await supabase.from("scan_runs").update({ system_insight: systemInsight }).eq("id", scan_run_id);

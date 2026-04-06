@@ -198,9 +198,7 @@ export const useCartStore = create<CartStore>()(
         };
       },
       onRehydrateStorage: () => (state, error) => {
-        if (error) {
-          console.error('Cart rehydration failed:', error);
-        }
+        if (error) {}
 
         useCartStore.setState({
           items: sanitizeItems(state?.items || []),

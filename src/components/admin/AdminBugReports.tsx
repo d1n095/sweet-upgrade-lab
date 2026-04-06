@@ -163,13 +163,10 @@ const AdminBugReports = () => {
       .order('created_at', { ascending: false })
       .limit(5);
     if (!unprocessed?.length) return;
-    console.log(`[BugEnrich] Auto-processing ${unprocessed.length} bugs`);
     for (const bug of unprocessed) {
       try {
         await safeInvoke('process-bug-report', { body: { bug_id: bug.id } });
-      } catch (e) {
-        console.warn(`[BugEnrich] Failed for ${bug.id}:`, e);
-      }
+      } catch (_) {}
     }
     // Reload to show enriched data
     refetch();

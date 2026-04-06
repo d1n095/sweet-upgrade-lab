@@ -351,7 +351,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
         supabase.from('work_items' as any)
           .update({ status: 'cancelled', updated_at: new Date().toISOString() } as any)
           .in('id', orphanIds)
-          .then(() => console.log(`[Workbench] Auto-cancelled ${orphanIds.length} orphan tasks`));
+          .then(() => {});
       }
     })();
 
@@ -532,7 +532,6 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
               traceContext: { component: 'WorkbenchBoard' },
             });
             if (!cvResult.success) throw new Error(cvResult.error || 'Insert failed');
-            console.log('CREATED ITEM:', cvResult.data);
             return { ...prev, item: cvResult.data };
           },
         },
@@ -564,7 +563,6 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
       toast.success(bestUser ? `Skapad & verifierad → tilldelad ${getStaffName(bestUser as string)}` : 'Skapad & verifierad ✓');
       setNewTitle(''); setNewDesc(''); setShowCreate(false);
     } else {
-      console.error('[WorkbenchBoard] CREATE FAILED at', result.failedStep, result.failReason);
       toast.error(`Kunde inte skapa: ${result.failReason}`);
     }
     setCreating(false);
