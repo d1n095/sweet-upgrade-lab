@@ -58,11 +58,11 @@ export const useWishlistStore = create<WishlistStore>()(
 
         if (userId) {
           try {
-            await supabase
-              .from('wishlists')
+            await (supabase
+              .from('wishlists') as any)
               .delete()
               .eq('user_id', userId)
-              .eq('shopify_product_id', productId);
+              .eq('product_id', productId);
           } catch (_) {}
         }
       },
