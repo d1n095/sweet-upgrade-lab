@@ -2269,10 +2269,10 @@ serve(async (req) => {
       }).catch(() => {});
 
       trace(scan_run_id, `→ chain: finalize coverage=${coverageScore}%`);
-      fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
+      chainedFetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
         body: JSON.stringify({ action: "finalize", scan_run_id }),
-      }).catch((e) => console.error(`[SCAN:${scan_run_id.slice(0, 8)}] Failed to chain finalize:`, e));
+      }, `finalize scan=${scan_run_id.slice(0, 8)}`).catch(() => {});
 
       return new Response(JSON.stringify({ success: true, ok: true, action: "finalizing", iterations_completed: currentIteration }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
     }
