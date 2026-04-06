@@ -72,6 +72,7 @@ import AdminChangeHistory from "./pages/admin/AdminChangeHistory";
 import AdminPOS from "./pages/admin/AdminPOS";
 import ScanPackingMode from "./components/admin/warehouse/ScanPackingMode";
 import SystemExplorer from "./pages/admin/SystemExplorer";
+import AdminDebug from "./pages/admin/AdminDebug";
 import AdminSecurity from "./pages/admin/AdminSecurity";
 
 const queryClient = new QueryClient();
@@ -158,6 +159,7 @@ const App = () => (
                 <Route path="database" element={<AdminDatabase />} />
                 <Route path="warehouse" element={<ScanPackingMode />} />
                 <Route path="system-explorer" element={<SystemExplorer />} />
+                <Route path="debug" element={<AdminDebug />} />
                 <Route path="ai" element={<Navigate to="/admin/system-explorer" replace />} />
                 <Route path="security" element={<AdminSecurity />} />
               </Route>
