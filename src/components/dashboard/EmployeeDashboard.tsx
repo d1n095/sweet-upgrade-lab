@@ -192,7 +192,7 @@ const EmployeeDashboard = () => {
 
   const filteredOrders = orders.filter(order => 
     order.order_email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.external_order_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    order.order_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     order.id.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
