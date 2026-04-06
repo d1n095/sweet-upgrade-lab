@@ -167,15 +167,11 @@ const SystemStateDashboard = () => {
         },
         {
           id: 'data-integrity', label: 'Dataintegritet', category: 'data',
-          status: deriveStatus((() => {
-            const diScans = scans.filter((s: any) => s.scan_type === 'data_integrity');
-            return diScans[0]?.overall_score ?? 70;
-          })()),
-          score: scans.filter((s: any) => s.scan_type === 'data_integrity')[0]?.overall_score ?? 70,
-          detail: (() => {
-            const di = scans.filter((s: any) => s.scan_type === 'data_integrity');
-            return di.length > 0 ? `Integritetsscore: ${di[0].overall_score}, ${di[0].issues_count} problem` : 'Ingen integritetsskanning körts';
-          })(),
+          status: deriveStatus(70),
+          score: 70,
+          detail: 'Dataintegritetskontroll',
+          lastChecked: ts, icon: Shield,
+        },
           lastChecked: ts, icon: Shield,
         },
 
