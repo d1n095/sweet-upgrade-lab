@@ -350,105 +350,6 @@ export type Database = {
         }
         Relationships: []
       }
-      ai_chat_messages: {
-        Row: {
-          content: string
-          conversation_id: string
-          created_at: string
-          id: string
-          metadata: Json | null
-          role: string
-          user_id: string
-        }
-        Insert: {
-          content: string
-          conversation_id?: string
-          created_at?: string
-          id?: string
-          metadata?: Json | null
-          role?: string
-          user_id: string
-        }
-        Update: {
-          content?: string
-          conversation_id?: string
-          created_at?: string
-          id?: string
-          metadata?: Json | null
-          role?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      ai_read_log: {
-        Row: {
-          action_type: string
-          affected_components: string[] | null
-          ai_suggestion: string | null
-          created_at: string
-          endpoints: string[] | null
-          file_paths: string[] | null
-          id: string
-          linked_bug_id: string | null
-          linked_scan_id: string | null
-          linked_work_item_id: string | null
-          metadata: Json | null
-          result: string
-          summary: string | null
-          target_ids: string[] | null
-          target_type: string
-          triggered_by: string | null
-          verified_at: string | null
-          verified_by: string | null
-          verify_note: string | null
-          verify_status: string | null
-        }
-        Insert: {
-          action_type?: string
-          affected_components?: string[] | null
-          ai_suggestion?: string | null
-          created_at?: string
-          endpoints?: string[] | null
-          file_paths?: string[] | null
-          id?: string
-          linked_bug_id?: string | null
-          linked_scan_id?: string | null
-          linked_work_item_id?: string | null
-          metadata?: Json | null
-          result?: string
-          summary?: string | null
-          target_ids?: string[] | null
-          target_type: string
-          triggered_by?: string | null
-          verified_at?: string | null
-          verified_by?: string | null
-          verify_note?: string | null
-          verify_status?: string | null
-        }
-        Update: {
-          action_type?: string
-          affected_components?: string[] | null
-          ai_suggestion?: string | null
-          created_at?: string
-          endpoints?: string[] | null
-          file_paths?: string[] | null
-          id?: string
-          linked_bug_id?: string | null
-          linked_scan_id?: string | null
-          linked_work_item_id?: string | null
-          metadata?: Json | null
-          result?: string
-          summary?: string | null
-          target_ids?: string[] | null
-          target_type?: string
-          triggered_by?: string | null
-          verified_at?: string | null
-          verified_by?: string | null
-          verify_note?: string | null
-          verify_status?: string | null
-        }
-        Relationships: []
-      }
       scan_results: {
         Row: {
           created_at: string
@@ -577,15 +478,6 @@ export type Database = {
       }
       bug_reports: {
         Row: {
-          ai_actionable_fix: Json | null
-          ai_approved: boolean | null
-          ai_category: string | null
-          ai_clean_prompt: string | null
-          ai_processed_at: string | null
-          ai_repro_steps: string | null
-          ai_severity: string | null
-          ai_summary: string | null
-          ai_tags: string[] | null
           created_at: string
           description: string
           id: string
@@ -598,15 +490,6 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          ai_actionable_fix?: Json | null
-          ai_approved?: boolean | null
-          ai_category?: string | null
-          ai_clean_prompt?: string | null
-          ai_processed_at?: string | null
-          ai_repro_steps?: string | null
-          ai_severity?: string | null
-          ai_summary?: string | null
-          ai_tags?: string[] | null
           created_at?: string
           description: string
           id?: string
@@ -619,15 +502,6 @@ export type Database = {
           user_id: string
         }
         Update: {
-          ai_actionable_fix?: Json | null
-          ai_approved?: boolean | null
-          ai_category?: string | null
-          ai_clean_prompt?: string | null
-          ai_processed_at?: string | null
-          ai_repro_steps?: string | null
-          ai_severity?: string | null
-          ai_summary?: string | null
-          ai_tags?: string[] | null
           created_at?: string
           description?: string
           id?: string
@@ -3836,21 +3710,12 @@ export type Database = {
       }
       work_items: {
         Row: {
-          ai_assigned: boolean | null
-          ai_category: string | null
-          ai_confidence: string | null
-          ai_detected: boolean | null
-          ai_overrides: Json | null
           pre_verify_at: string | null
           pre_verify_result: Json | null
           pre_verify_status: string | null
-          ai_resolution_notes: string | null
           review_at: string | null
           review_result: Json | null
           review_status: string | null
-          ai_root_causes: Json | null
-          ai_type_classification: string | null
-          ai_type_reason: string | null
           assigned_to: string | null
           blocks: string[] | null
           claimed_at: string | null
@@ -3895,21 +3760,12 @@ export type Database = {
           verified_at: string | null
         }
         Insert: {
-          ai_assigned?: boolean | null
-          ai_category?: string | null
-          ai_confidence?: string | null
-          ai_detected?: boolean | null
-          ai_overrides?: Json | null
           pre_verify_at?: string | null
           pre_verify_result?: Json | null
           pre_verify_status?: string | null
-          ai_resolution_notes?: string | null
           review_at?: string | null
           review_result?: Json | null
           review_status?: string | null
-          ai_root_causes?: Json | null
-          ai_type_classification?: string | null
-          ai_type_reason?: string | null
           assigned_to?: string | null
           blocks?: string[] | null
           claimed_at?: string | null
@@ -3954,21 +3810,12 @@ export type Database = {
           verified_at?: string | null
         }
         Update: {
-          ai_assigned?: boolean | null
-          ai_category?: string | null
-          ai_confidence?: string | null
-          ai_detected?: boolean | null
-          ai_overrides?: Json | null
           pre_verify_at?: string | null
           pre_verify_result?: Json | null
           pre_verify_status?: string | null
-          ai_resolution_notes?: string | null
           review_at?: string | null
           review_result?: Json | null
           review_status?: string | null
-          ai_root_causes?: Json | null
-          ai_type_classification?: string | null
-          ai_type_reason?: string | null
           assigned_to?: string | null
           blocks?: string[] | null
           claimed_at?: string | null
