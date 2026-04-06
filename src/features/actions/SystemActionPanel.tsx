@@ -1,48 +1,47 @@
 /**
  * SystemActionPanel
  *
- * UI panel for the Level 3 Auto-Fix system.
- * Accepts a list of SystemActions and provides:
- *  - "Execute Fix" button  — real execution with confirmation gate
- *  - "Simulate Fix" button — shows expected result, NO real changes
+ * Simple UI for the Level 3 fix system.
+ * Lists actions and provides:
+ *  - "Simulate Fix" — calls generateFixResult, shows expected result (no real changes)
+ *  - "Execute Fix"  — NOT yet implemented; shows the generated fix prompt only
  *
- * Safety:
- *  - Blocks execution when action.id is missing
- *  - Requires explicit confirm dialog before real execution
- *  - All errors are surfaced safely in the UI
+ * NO backend calls. NO imports from existing action/verification systems.
  */
 import { useState } from 'react';
 import {
-  executeAutoFix,
-  simulateFix,
+  generateFixResult,
   type SystemAction,
   type FixResult,
 } from './AutoFixEngine';
-import { useFixExecutionLog } from './FixExecutionLog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import {
   CheckCircle2,
-  XCircle,
   FlaskConical,
   Play,
   Trash2,
   Wrench,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+// ── Log entry (local state only) ───────────────────────────────────────────────
+
+interface LogEntry {
+  id: string;
+  ts: number;
+  action_id: string;
+  fix_type: string;
+  execution_mode: string;
+  message: string;
+  mode: 'simulate' | 'execute';
+}
+
+let _logCounter = 0;
+const mkLogId = () => `fl-${++_logCounter}-${Date.now()}`;
 
 // ── Props ──────────────────────────────────────────────────────────────────────
 
@@ -53,77 +52,40 @@ interface SystemActionPanelProps {
 // ── Component ──────────────────────────────────────────────────────────────────
 
 const SystemActionPanel = ({ actions = [] }: SystemActionPanelProps) => {
-  const { entries, log, clear } = useFixExecutionLog();
-  const [selectedAction, setSelectedAction] = useState<SystemAction | null>(null);
-  const [pendingExecute, setPendingExecute] = useState<SystemAction | null>(null);
+  const [log, setLog] = useState<LogEntry[]>([]);
   const [activeResult, setActiveResult] = useState<FixResult | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [activeAction, setActiveAction] = useState<SystemAction | null>(null);
 
-  // ── Simulate ────────────────────────────────────────────────────────────────
+  const addLog = (result: FixResult, mode: 'simulate' | 'execute') => {
+    setLog((prev) => [
+      ...prev.slice(-199),
+      {
+        id: mkLogId(),
+        ts: Date.now(),
+        action_id: result.action_id,
+        fix_type: result.fix_type,
+        execution_mode: result.execution_mode,
+        message: result.message,
+        mode,
+      },
+    ]);
+  };
 
   const handleSimulate = (action: SystemAction) => {
-    const result = simulateFix(action);
-    log(result);
-    setSelectedAction(action);
+    const result = generateFixResult(action);
+    setActiveAction(action);
     setActiveResult(result);
+    addLog(result, 'simulate');
   };
 
-  // ── Execute (with confirm gate) ─────────────────────────────────────────────
-
-  const handleExecuteRequest = (action: SystemAction) => {
-    if (!action.id) {
-      const blocked: FixResult = {
-        action_id: '',
-        success: false,
-        simulated: false,
-        fix_type: 'ui_fix',
-        execution_mode: 'manual',
-        message: 'Blocked: action.id is missing',
-        error: 'NO_ACTION_ID',
-      };
-      log(blocked);
-      setSelectedAction(action);
-      setActiveResult(blocked);
-      return;
-    }
-    setPendingExecute(action);
+  const handleExecute = (action: SystemAction) => {
+    // Real execution is not yet implemented.
+    // Generate and display the fix prompt so the operator can act manually.
+    const result = generateFixResult(action);
+    setActiveAction(action);
+    setActiveResult({ ...result, message: '[Execute] ' + result.message });
+    addLog({ ...result, message: '[Execute] ' + result.message }, 'execute');
   };
-
-  const handleExecuteConfirm = async () => {
-    if (!pendingExecute) return;
-    setPendingExecute(null);
-    setLoading(true);
-    try {
-      const result = await executeAutoFix(pendingExecute, true);
-      log(result);
-      setSelectedAction(pendingExecute);
-      setActiveResult(result);
-    } catch (err: any) {
-      const errResult: FixResult = {
-        action_id: pendingExecute.id,
-        success: false,
-        simulated: false,
-        fix_type: 'ui_fix',
-        execution_mode: 'manual',
-        message: 'Unexpected error during execution',
-        error: err?.message ?? 'Unknown error',
-      };
-      log(errResult);
-      setActiveResult(errResult);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleExecuteCancel = () => {
-    setPendingExecute(null);
-  };
-
-  // ── Render ──────────────────────────────────────────────────────────────────
-
-  const successCount = entries.filter((e) => e.success && !e.simulated).length;
-  const failedCount = entries.filter((e) => !e.success).length;
-  const simCount = entries.filter((e) => e.simulated).length;
 
   return (
     <div className="space-y-4">
@@ -133,31 +95,14 @@ const SystemActionPanel = ({ actions = [] }: SystemActionPanelProps) => {
           <Wrench className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm font-medium">System Action Panel</span>
         </div>
-        <div className="flex items-center gap-2">
-          {successCount > 0 && (
-            <Badge variant="secondary" className="text-[10px]">
-              {successCount} ✓
-            </Badge>
-          )}
-          {simCount > 0 && (
-            <Badge variant="outline" className="text-[10px] text-blue-600">
-              {simCount} sim
-            </Badge>
-          )}
-          {failedCount > 0 && (
-            <Badge variant="destructive" className="text-[10px]">
-              {failedCount} ✗
-            </Badge>
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={clear}
-            disabled={!entries.length}
-          >
-            <Trash2 className="h-3 w-3 mr-1" /> Clear log
-          </Button>
-        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => { setLog([]); setActiveResult(null); setActiveAction(null); }}
+          disabled={!log.length}
+        >
+          <Trash2 className="h-3 w-3 mr-1" /> Clear log
+        </Button>
       </div>
 
       {/* Action list */}
@@ -170,17 +115,16 @@ const SystemActionPanel = ({ actions = [] }: SystemActionPanelProps) => {
               <ActionRow
                 key={action.id || action.action}
                 action={action}
-                isSelected={selectedAction?.id === action.id}
-                loading={loading && pendingExecute?.id === action.id}
+                isSelected={activeAction?.id === action.id}
                 onSimulate={() => handleSimulate(action)}
-                onExecute={() => handleExecuteRequest(action)}
+                onExecute={() => handleExecute(action)}
               />
             ))}
           </div>
         </ScrollArea>
       )}
 
-      {/* Active result panel */}
+      {/* Active result */}
       {activeResult && (
         <>
           <Separator />
@@ -189,35 +133,12 @@ const SystemActionPanel = ({ actions = [] }: SystemActionPanelProps) => {
       )}
 
       {/* Log */}
-      {entries.length > 0 && (
+      {log.length > 0 && (
         <>
           <Separator />
-          <FixLogPanel entries={entries} />
+          <LogPanel entries={log} />
         </>
       )}
-
-      {/* Confirm dialog */}
-      <AlertDialog open={!!pendingExecute} onOpenChange={(open) => !open && handleExecuteCancel()}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Fix Execution</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will attempt to apply a real fix for:
-              <br />
-              <span className="font-medium">{pendingExecute?.action}</span>
-              {pendingExecute?.component && (
-                <span className="text-muted-foreground"> ({pendingExecute.component})</span>
-              )}
-              <br />
-              This action cannot be undone automatically. Continue?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleExecuteCancel}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleExecuteConfirm}>Execute Fix</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 };
@@ -227,18 +148,16 @@ const SystemActionPanel = ({ actions = [] }: SystemActionPanelProps) => {
 interface ActionRowProps {
   action: SystemAction;
   isSelected: boolean;
-  loading: boolean;
   onSimulate: () => void;
   onExecute: () => void;
 }
 
-function ActionRow({ action, isSelected, loading, onSimulate, onExecute }: ActionRowProps) {
+function ActionRow({ action, isSelected, onSimulate, onExecute }: ActionRowProps) {
   return (
     <Card
       className={cn(
         'border-border/50',
         isSelected && 'border-primary/40',
-        !action.id && 'opacity-60',
       )}
     >
       <CardContent className="p-2.5">
@@ -257,7 +176,6 @@ function ActionRow({ action, isSelected, loading, onSimulate, onExecute }: Actio
             size="sm"
             className="h-7 text-xs gap-1"
             onClick={onSimulate}
-            disabled={loading}
           >
             <FlaskConical className="h-3 w-3" />
             Simulate Fix
@@ -267,8 +185,6 @@ function ActionRow({ action, isSelected, loading, onSimulate, onExecute }: Actio
             size="sm"
             className="h-7 text-xs gap-1"
             onClick={onExecute}
-            disabled={loading || !action.id}
-            title={!action.id ? 'Cannot execute: action.id is missing' : undefined}
           >
             <Play className="h-3 w-3" />
             Execute Fix
@@ -281,63 +197,47 @@ function ActionRow({ action, isSelected, loading, onSimulate, onExecute }: Actio
 
 function ResultPanel({ result }: { result: FixResult }) {
   return (
-    <div
-      className={cn(
-        'rounded-md border p-3 space-y-2 text-xs',
-        result.simulated && 'border-blue-300 bg-blue-50 dark:bg-blue-950/20',
-        !result.simulated && result.success && 'border-green-300 bg-green-50 dark:bg-green-950/20',
-        !result.success && 'border-destructive/40 bg-destructive/5',
-      )}
-    >
+    <div className="rounded-md border border-blue-300 bg-blue-50 dark:bg-blue-950/20 p-3 space-y-2 text-xs">
       <div className="flex items-center gap-2">
-        {result.success ? (
-          <CheckCircle2 className={cn('h-4 w-4', result.simulated ? 'text-blue-600' : 'text-green-600')} />
-        ) : (
-          <XCircle className="h-4 w-4 text-destructive" />
-        )}
-        <span className="font-medium">{result.simulated ? 'Simulation Result' : 'Fix Result'}</span>
+        <CheckCircle2 className="h-4 w-4 text-blue-600" />
+        <span className="font-medium">Fix Result</span>
         <Badge variant="outline" className="text-[9px]">{result.fix_type}</Badge>
         <Badge variant="outline" className="text-[9px]">{result.execution_mode}</Badge>
+        <Badge variant="outline" className="text-[9px] text-blue-600">simulated</Badge>
       </div>
       <p className="text-muted-foreground">{result.message}</p>
-      {result.error && (
-        <p className="text-destructive font-mono text-[10px]">Error: {result.error}</p>
-      )}
-      {result.fix_prompt && (
-        <pre className="bg-muted rounded p-2 text-[10px] font-mono whitespace-pre-wrap overflow-x-auto">
-          {result.fix_prompt}
-        </pre>
-      )}
+      <pre className="bg-muted rounded p-2 text-[10px] font-mono whitespace-pre-wrap overflow-x-auto">
+        {result.fix_prompt}
+      </pre>
     </div>
   );
 }
 
-function FixLogPanel({ entries }: { entries: import('./FixExecutionLog').FixLogEntry[] }) {
+function LogPanel({ entries }: { entries: LogEntry[] }) {
   return (
     <div className="space-y-1">
       <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
-        Fix Execution Log
+        Fix Log
       </p>
-      <ScrollArea className="h-[20vh]">
+      <ScrollArea className="h-[16vh]">
         <div className="space-y-0.5">
           {[...entries].reverse().map((entry) => (
             <div
               key={entry.id}
               className="flex items-center gap-2 text-[10px] px-1 py-0.5 rounded hover:bg-muted/50"
             >
-              {entry.success ? (
-                <CheckCircle2 className={cn('h-3 w-3 shrink-0', entry.simulated ? 'text-blue-500' : 'text-green-500')} />
-              ) : (
-                <XCircle className="h-3 w-3 text-destructive shrink-0" />
-              )}
+              <CheckCircle2 className="h-3 w-3 shrink-0 text-blue-500" />
               <span className="font-mono text-muted-foreground w-16 shrink-0 tabular-nums">
                 {new Date(entry.ts).toLocaleTimeString('sv-SE')}
               </span>
               <Badge variant="outline" className="text-[8px] shrink-0">{entry.fix_type}</Badge>
               <span className="truncate flex-1">{entry.message}</span>
-              {entry.simulated && (
-                <Badge variant="outline" className="text-[8px] text-blue-600 shrink-0">sim</Badge>
-              )}
+              <Badge
+                variant="outline"
+                className={cn('text-[8px] shrink-0', entry.mode === 'simulate' ? 'text-blue-600' : 'text-primary')}
+              >
+                {entry.mode}
+              </Badge>
             </div>
           ))}
         </div>

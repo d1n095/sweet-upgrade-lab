@@ -1,15 +1,11 @@
 /**
  * AutoFixEngine
  *
- * Level 3 system: Action → Fix execution (semi-automation)
+ * Pure logic layer — NO React, NO side effects, NO backend calls.
  *
- * Input:  SystemAction (from SystemActionEngine)
+ * Input:  SystemAction (from SystemActionEngine / unified_result)
  * Output: FixResult
- *
- * SAFE: Does NOT call scan system.
- *       Only uses safeInvoke("apply-fix") if available, or generates a fix prompt.
  */
-import { safeInvoke } from '@/lib/safeInvoke';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -35,25 +31,23 @@ export interface FixMapping {
   execution: ExecutionMode;
 }
 
-/** Result returned by executeAutoFix or simulateFix. */
+/** Result returned by generateFixResult. */
 export interface FixResult {
   action_id: string;
   success: boolean;
-  /** True when this result came from a simulation (no real changes made). */
+  /** Always true — this engine only simulates; no real changes are made. */
   simulated: boolean;
   fix_type: FixType;
   execution_mode: ExecutionMode;
   message: string;
-  /** Generated when apply-fix is unavailable or in manual mode. */
-  fix_prompt?: string;
-  error?: string;
+  fix_prompt: string;
 }
 
-// ── Fix type mapping ───────────────────────────────────────────────────────────
+// ── Pure helpers ───────────────────────────────────────────────────────────────
 
 /**
  * Derive fix type and execution mode from the action's content.
- * Uses component/action name heuristics for categorisation.
+ * Uses component/action name heuristics for classification.
  */
 export function mapActionToFix(action: SystemAction): FixMapping {
   const comp = action.component.toLowerCase();
@@ -81,9 +75,7 @@ export function mapActionToFix(action: SystemAction): FixMapping {
   return { type: 'ui_fix', execution };
 }
 
-// ── Fix prompt generator ───────────────────────────────────────────────────────
-
-/** Produce a human-readable fix prompt for manual or fallback execution. */
+/** Produce a human-readable fix prompt. */
 export function generateFixPrompt(action: SystemAction, mapping: FixMapping): string {
   return [
     'Fix request:',
@@ -98,118 +90,17 @@ export function generateFixPrompt(action: SystemAction, mapping: FixMapping): st
     .join('\n');
 }
 
-// ── Core engine ────────────────────────────────────────────────────────────────
+// ── Core pure function ─────────────────────────────────────────────────────────
 
 /**
- * Execute a real fix via safeInvoke("apply-fix").
+ * Generate a fix result for a given action.
  *
- * Safety guards:
- *  - Blocks when action.id is missing.
- *  - Blocks when confirmed is false (requires explicit user confirmation).
- *  - Falls back to fix-prompt generation when apply-fix is unavailable.
- *  - Handles all errors safely and returns a structured FixResult.
+ * Pure function — no network calls, no side effects, no React.
+ * Always returns a simulated result with a generated fix prompt.
  */
-export async function executeAutoFix(
-  action: SystemAction,
-  confirmed: boolean,
-): Promise<FixResult> {
-  if (!action.id) {
-    return {
-      action_id: '',
-      success: false,
-      simulated: false,
-      fix_type: 'ui_fix',
-      execution_mode: 'manual',
-      message: 'Blocked: action.id is missing',
-      error: 'NO_ACTION_ID',
-    };
-  }
-
-  if (!confirmed) {
-    return {
-      action_id: action.id,
-      success: false,
-      simulated: false,
-      fix_type: 'ui_fix',
-      execution_mode: 'manual',
-      message: 'Blocked: confirmation required before execution',
-      error: 'NOT_CONFIRMED',
-    };
-  }
-
+export function generateFixResult(action: SystemAction): FixResult {
   const mapping = mapActionToFix(action);
-
-  if (mapping.execution === 'semi_auto') {
-    try {
-      const { error } = await safeInvoke('apply-fix', {
-        body: {
-          action_id: action.id,
-          action: action.action,
-          component: action.component,
-          entity_type: action.entityType,
-          entity_id: action.entityId,
-          fix_type: mapping.type,
-        },
-        isAdmin: true,
-      });
-
-      if (error) {
-        const fixPrompt = generateFixPrompt(action, mapping);
-        return {
-          action_id: action.id,
-          success: false,
-          simulated: false,
-          fix_type: mapping.type,
-          execution_mode: mapping.execution,
-          message: 'apply-fix returned an error — fix prompt generated',
-          fix_prompt: fixPrompt,
-          error: error?.error ?? String(error),
-        };
-      }
-
-      return {
-        action_id: action.id,
-        success: true,
-        simulated: false,
-        fix_type: mapping.type,
-        execution_mode: mapping.execution,
-        message: 'Fix applied via apply-fix',
-      };
-    } catch (err: any) {
-      const fixPrompt = generateFixPrompt(action, mapping);
-      return {
-        action_id: action.id,
-        success: false,
-        simulated: false,
-        fix_type: mapping.type,
-        execution_mode: mapping.execution,
-        message: 'apply-fix unavailable — fix prompt generated',
-        fix_prompt: fixPrompt,
-        error: err?.message ?? 'Unknown error',
-      };
-    }
-  }
-
-  // Manual mode: generate a fix prompt instead of calling an edge function.
-  const fixPrompt = generateFixPrompt(action, mapping);
-  return {
-    action_id: action.id,
-    success: true,
-    simulated: false,
-    fix_type: mapping.type,
-    execution_mode: 'manual',
-    message: 'Fix prompt generated for manual execution',
-    fix_prompt: fixPrompt,
-  };
-}
-
-/**
- * Simulate a fix — returns the expected outcome without making real changes.
- * Safe to call at any time; requires no confirmation.
- */
-export function simulateFix(action: SystemAction): FixResult {
-  const mapping = mapActionToFix(action);
-  const fixPrompt = generateFixPrompt(action, mapping);
+  const fix_prompt = generateFixPrompt(action, mapping);
 
   return {
     action_id: action.id || '(no-id)',
@@ -217,7 +108,7 @@ export function simulateFix(action: SystemAction): FixResult {
     simulated: true,
     fix_type: mapping.type,
     execution_mode: mapping.execution,
-    message: `[SIMULATION] Fix would be applied as ${mapping.type} (${mapping.execution})`,
-    fix_prompt: fixPrompt,
+    message: `Fix would be applied as ${mapping.type} (${mapping.execution})`,
+    fix_prompt,
   };
 }
