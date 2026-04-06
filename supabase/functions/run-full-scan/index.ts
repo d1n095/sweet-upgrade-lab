@@ -2811,6 +2811,6 @@ serve(async (req) => {
   } catch (e: any) {
     console.error("[SCAN CRASH]", e);
     try { await logRuntimeTrace("api", "run-full-scan", "/run-full-scan", e?.message || "Unknown", { stack: e?.stack?.slice(0, 500) }); } catch (_) {}
-    return new Response(JSON.stringify({ success: false, error: String(e), stack: e?.stack ?? null }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ success: false, error: e?.message || "Internal error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
