@@ -18,6 +18,27 @@ function trace(scanRunId: string | undefined, msg: string, ...args: any[]) {
   console.log(`[SCAN:${tid}] ${msg}`, ...args);
 }
 
+// ── Resilient chained fetch with retry on 502 ──
+async function chainedFetch(url: string, options: RequestInit, label: string, maxRetries = 2): Promise<void> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const res = await fetch(url, options);
+      if (res.ok || res.status < 500) return;
+      const bodyText = await res.text().catch(() => "");
+      console.error(`[CHAIN] ${label} attempt ${attempt + 1} got HTTP ${res.status}: ${bodyText.slice(0, 200)}`);
+      if (attempt < maxRetries) {
+        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+      }
+    } catch (e: any) {
+      console.error(`[CHAIN] ${label} attempt ${attempt + 1} network error: ${e?.message}`);
+      if (attempt < maxRetries) {
+        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+      }
+    }
+  }
+  console.error(`[CHAIN] ${label} FAILED after ${maxRetries + 1} attempts`);
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
