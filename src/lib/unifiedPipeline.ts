@@ -1,3 +1,14 @@
+/**
+ * CORE SYSTEM FILE
+ * DO NOT MODIFY WITHOUT EXPLICIT APPROVAL
+ * Breaking this will crash scan system
+ *
+ * FORBIDDEN:
+ * - AI modifications
+ * - refactors
+ * - renaming fields
+ * - changing data flow
+ */
 import { supabase } from '@/integrations/supabase/client';
 import { logChange } from '@/utils/changeLogger';
 import { triggerReviewForWorkItem } from '@/lib/workItemReview';

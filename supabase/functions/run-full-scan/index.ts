@@ -1,3 +1,14 @@
+/**
+ * CORE SYSTEM FILE
+ * DO NOT MODIFY WITHOUT EXPLICIT APPROVAL
+ * Breaking this will crash scan system
+ *
+ * FORBIDDEN:
+ * - AI modifications
+ * - refactors
+ * - renaming fields
+ * - changing data flow
+ */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
