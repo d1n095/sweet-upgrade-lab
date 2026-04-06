@@ -8,7 +8,7 @@ interface MemberPrice {
 }
 
 interface VolumeDiscount {
-  product_id: string | null;
+  shopify_product_id: string | null;
   min_quantity: number;
   discount_percent: number;
   is_global: boolean;
