@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Bug, CheckCircle, ChevronDown, ChevronRight, Copy, FileText, Inbox, Layers, ThumbsUp, X, Zap } from 'lucide-react';
+import { AlertTriangle, Bug, CheckCircle, ChevronDown, ChevronRight, Copy, FileText, Inbox, Layers, ThumbsUp, X, XCircle, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { createWorkItemWithDedup } from '@/utils/workItemDedup';
@@ -7,68 +7,120 @@ import { createWorkItemWithDedup } from '@/utils/workItemDedup';
 // ── Persisted fix store ────────────────────────────────────────────────────────
 
 type FixStatus = 'in_progress' | 'fixed';
-interface FixEntry { status: FixStatus; timestamp: number; }
+type VerificationStatus = 'verified_fixed' | 'still_broken';
+
+interface FixEntry {
+  status: FixStatus;
+  timestamp: number;
+  /** scan run ID at the time the issue was marked fixed */
+  fixedAtScanRunId?: string;
+  /** result of cross-scan verification */
+  verification?: VerificationStatus;
+}
+
 type FixStore = Record<string, FixEntry>;
 
-const LS_KEY_PREFIX = 'issue_fix_state_v1_';
+/** Single global key — entries survive across scan runs */
+const GLOBAL_LS_KEY = 'issue_fix_state_v1';
 
-function loadStore(scanRunId: string | null): FixStore {
-  if (!scanRunId) return {};
+function loadStore(): FixStore {
   try {
-    const raw = localStorage.getItem(LS_KEY_PREFIX + scanRunId);
+    const raw = localStorage.getItem(GLOBAL_LS_KEY);
     return raw ? (JSON.parse(raw) as FixStore) : {};
   } catch {
     return {};
   }
 }
 
-function saveStore(scanRunId: string | null, store: FixStore): void {
-  if (!scanRunId) return;
+function saveStore(store: FixStore): void {
   try {
-    localStorage.setItem(LS_KEY_PREFIX + scanRunId, JSON.stringify(store));
+    localStorage.setItem(GLOBAL_LS_KEY, JSON.stringify(store));
   } catch {
     // storage unavailable — silently ignore
   }
 }
 
 function useIssueFixStore(scanRunId: string | null) {
-  const [store, setStore] = useState<FixStore>(() => loadStore(scanRunId));
-
-  // When scanRunId changes (new scan), reload from storage
-  useEffect(() => {
-    setStore(loadStore(scanRunId));
-  }, [scanRunId]);
+  const [store, setStore] = useState<FixStore>(() => loadStore());
 
   const setInProgress = useCallback((key: string) => {
     setStore(prev => {
-      if (prev[key]?.status === 'fixed') return prev; // don't downgrade
+      const entry = prev[key];
+      // Don't downgrade a verified-fixed entry; allow re-trying a still_broken one
+      if (entry?.status === 'fixed' && entry.verification !== 'still_broken') return prev;
       const next = { ...prev, [key]: { status: 'in_progress' as const, timestamp: Date.now() } };
-      saveStore(scanRunId, next);
+      saveStore(next);
       return next;
     });
-  }, [scanRunId]);
+  }, []);
 
   const setFixed = useCallback((key: string) => {
     setStore(prev => {
-      const next = { ...prev, [key]: { status: 'fixed' as const, timestamp: Date.now() } };
-      saveStore(scanRunId, next);
+      const next = { ...prev, [key]: { status: 'fixed' as const, timestamp: Date.now(), fixedAtScanRunId: scanRunId ?? undefined } };
+      saveStore(next);
       return next;
     });
   }, [scanRunId]);
 
+  /**
+   * Called when a new scan run loads. Compares previously-fixed issues against
+   * the current scan's issue keys. Promotes to 'verified_fixed' or 'still_broken'.
+   */
+  const verifyAgainstScan = useCallback((currentScanRunId: string, currentIssueKeys: Set<string>) => {
+    setStore(prev => {
+      let changed = false;
+      const next = { ...prev };
+      for (const [key, entry] of Object.entries(next)) {
+        // Only verify entries that were fixed in a PREVIOUS scan and not yet verified
+        if (
+          entry.status === 'fixed' &&
+          entry.fixedAtScanRunId &&
+          entry.fixedAtScanRunId !== currentScanRunId &&
+          !entry.verification
+        ) {
+          const verification: VerificationStatus = currentIssueKeys.has(key) ? 'still_broken' : 'verified_fixed';
+          next[key] = { ...entry, verification };
+          changed = true;
+        }
+      }
+      if (changed) saveStore(next);
+      return changed ? next : prev;
+    });
+  }, []);
+
   const fixedKeys = useMemo(() => {
     const s = new Set<string>();
-    for (const [k, v] of Object.entries(store)) if (v.status === 'in_progress' || v.status === 'fixed') s.add(k);
+    for (const [k, v] of Object.entries(store)) {
+      if (v.verification === 'still_broken') continue; // demoted — issue returns to list
+      if (v.status === 'in_progress' || v.status === 'fixed') s.add(k);
+    }
     return s;
   }, [store]);
 
   const doneKeys = useMemo(() => {
     const s = new Set<string>();
-    for (const [k, v] of Object.entries(store)) if (v.status === 'fixed') s.add(k);
+    for (const [k, v] of Object.entries(store)) {
+      if (v.verification === 'still_broken') continue;
+      if (v.status === 'fixed') s.add(k);
+    }
     return s;
   }, [store]);
 
-  return { fixedKeys, doneKeys, setInProgress, setFixed };
+  /** Keys confirmed absent from the latest scan */
+  const verifiedKeys = useMemo(() => {
+    const s = new Set<string>();
+    for (const [k, v] of Object.entries(store)) if (v.verification === 'verified_fixed') s.add(k);
+    return s;
+  }, [store]);
+
+  /** Keys that were marked fixed but still appear in the latest scan */
+  const stillBrokenKeys = useMemo(() => {
+    const s = new Set<string>();
+    for (const [k, v] of Object.entries(store)) if (v.verification === 'still_broken') s.add(k);
+    return s;
+  }, [store]);
+
+  return { fixedKeys, doneKeys, verifiedKeys, stillBrokenKeys, setInProgress, setFixed, verifyAgainstScan };
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -454,6 +506,8 @@ function IssueDetailPanel({
   onMarkDone,
   isFixed = false,
   isDone = false,
+  isVerified = false,
+  isStillBroken = false,
   highlightFix = false,
 }: {
   issue: ParsedIssue;
@@ -462,6 +516,8 @@ function IssueDetailPanel({
   onMarkDone?: (issue: ParsedIssue) => void;
   isFixed?: boolean;
   isDone?: boolean;
+  isVerified?: boolean;
+  isStillBroken?: boolean;
   highlightFix?: boolean;
 }) {
   const [adding, setAdding] = useState(false);
@@ -503,7 +559,19 @@ function IssueDetailPanel({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <SeverityBadge severity={issue.severity} />
-            {isFixed && (
+            {isStillBroken && (
+              <span className="text-[10px] font-medium flex items-center gap-1 text-red-500">
+                <XCircle className="w-3 h-3" />
+                ❌ Still broken
+              </span>
+            )}
+            {isVerified && (
+              <span className="text-[10px] font-medium flex items-center gap-1 text-green-500">
+                <CheckCircle className="w-3 h-3" />
+                ✔ Verified fixed
+              </span>
+            )}
+            {isFixed && !isVerified && !isStillBroken && (
               <span className={cn(
                 'text-[10px] font-medium flex items-center gap-1 transition-colors',
                 isDone ? 'text-green-500' : 'text-muted-foreground',
@@ -572,7 +640,21 @@ function IssueDetailPanel({
 
       {/* Actions */}
       <div className="flex gap-2">
-        {onAddToWorkbench && !isFixed && (
+        {/* Still broken banner */}
+        {isStillBroken && (
+          <div className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-1.5 rounded-md border text-red-500 border-red-500/30 bg-red-500/10">
+            <XCircle className="w-3.5 h-3.5" />
+            Still present in latest scan — re-fix and mark again
+          </div>
+        )}
+        {/* Verified fixed banner */}
+        {isVerified && (
+          <div className="flex-1 flex items-center justify-center gap-1.5 text-sm font-medium py-1.5 rounded-md border text-green-500 border-green-500/30 bg-green-500/10">
+            <CheckCircle className="w-4 h-4" />
+            ✔ Verified fixed by latest scan
+          </div>
+        )}
+        {onAddToWorkbench && !isFixed && !isStillBroken && (
           <Button
             size="sm"
             className="flex-1 gap-1.5"
@@ -583,7 +665,7 @@ function IssueDetailPanel({
             {adding ? 'Adding…' : 'Add to Workbench'}
           </Button>
         )}
-        {isFixed && !isDone && onMarkDone && (
+        {isFixed && !isDone && !isVerified && !isStillBroken && onMarkDone && (
           <Button
             size="sm"
             variant="outline"
@@ -594,22 +676,24 @@ function IssueDetailPanel({
             Mark as fixed
           </Button>
         )}
-        {isDone && (
+        {isDone && !isVerified && !isStillBroken && (
           <div className="flex-1 flex items-center justify-center gap-1.5 text-sm font-medium py-1.5 rounded-md border text-green-500 border-green-500/30 bg-green-500/10">
             <CheckCircle className="w-4 h-4" />
             ✔ Fixed
           </div>
         )}
-        {isFixed && !isDone && !onMarkDone && (
+        {isFixed && !isDone && !isVerified && !isStillBroken && !onMarkDone && (
           <div className="flex-1 flex items-center justify-center gap-1.5 text-sm font-medium py-1.5 rounded-md border text-muted-foreground border-border bg-muted/10">
             <CheckCircle className="w-4 h-4" />
             In progress…
           </div>
         )}
-        <Button variant="outline" size="sm" className="gap-1 px-3" onClick={copyPrompt}>
-          <Copy className="w-3 h-3" />
-          {copied ? 'Copied!' : 'Copy prompt'}
-        </Button>
+        {!isStillBroken && !isVerified && (
+          <Button variant="outline" size="sm" className="gap-1 px-3" onClick={copyPrompt}>
+            <Copy className="w-3 h-3" />
+            {copied ? 'Copied!' : 'Copy prompt'}
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -625,6 +709,8 @@ function RootCauseCard({
   isTop = false,
   fixedKeys,
   doneKeys,
+  verifiedKeys,
+  stillBrokenKeys,
 }: {
   group: RootCauseGroup;
   selectedKey: string | null;
@@ -633,6 +719,8 @@ function RootCauseCard({
   isTop?: boolean;
   fixedKeys: Set<string>;
   doneKeys: Set<string>;
+  verifiedKeys: Set<string>;
+  stillBrokenKeys: Set<string>;
 }) {
   const [expanded, setExpanded] = useState(isTop);
   const [ctaPulsing, setCtaPulsing] = useState(false);
@@ -710,8 +798,10 @@ function RootCauseCard({
       {expanded && (
         <div className="border-t border-current/10 divide-y divide-current/10">
           {group.symptoms.map(issue => {
-            const fixed = fixedKeys.has(issue._key);
-            const done  = doneKeys.has(issue._key);
+            const fixed      = fixedKeys.has(issue._key);
+            const done       = doneKeys.has(issue._key);
+            const verified   = verifiedKeys.has(issue._key);
+            const stillBroken = stillBrokenKeys.has(issue._key);
             return (
               <button
                 key={issue._key}
@@ -721,23 +811,34 @@ function RootCauseCard({
                   selectedKey === issue._key
                     ? 'bg-primary/10'
                     : 'hover:bg-muted/30',
-                  done ? 'opacity-30' : fixed ? 'opacity-60' : '',
+                  verified ? 'opacity-30' : done ? 'opacity-30' : fixed ? 'opacity-60' : '',
                 )}
               >
-                {fixed
-                  ? <CheckCircle className={cn('w-3 h-3 mt-0.5 shrink-0', done ? 'text-green-500' : 'text-muted-foreground')} />
-                  : <Bug className="w-3 h-3 mt-0.5 shrink-0 opacity-50" />
+                {stillBroken
+                  ? <XCircle className="w-3 h-3 mt-0.5 shrink-0 text-red-500" />
+                  : verified
+                    ? <CheckCircle className="w-3 h-3 mt-0.5 shrink-0 text-green-500" />
+                    : fixed
+                      ? <CheckCircle className={cn('w-3 h-3 mt-0.5 shrink-0', done ? 'text-green-500' : 'text-muted-foreground')} />
+                      : <Bug className="w-3 h-3 mt-0.5 shrink-0 opacity-50" />
                 }
                 <div className="flex-1 min-w-0">
-                  <p className={cn('text-[11px] font-medium truncate', done ? 'line-through text-muted-foreground' : fixed ? 'text-muted-foreground' : 'text-foreground')}>
+                  <p className={cn(
+                    'text-[11px] font-medium truncate',
+                    verified || done ? 'line-through text-muted-foreground' : fixed ? 'text-muted-foreground' : 'text-foreground',
+                  )}>
                     {issue.title}
                   </p>
                 </div>
-                {fixed
-                  ? <span className={cn('text-[9px] font-medium shrink-0', done ? 'text-green-500' : 'text-muted-foreground')}>
-                      {done ? '✔ Fixed' : 'In progress…'}
-                    </span>
-                  : <ChevronRight className={cn('w-3 h-3 shrink-0 mt-0.5 text-muted-foreground transition-transform', selectedKey === issue._key && 'rotate-90')} />
+                {stillBroken
+                  ? <span className="text-[9px] font-medium shrink-0 text-red-500">❌ Still broken</span>
+                  : verified
+                    ? <span className="text-[9px] font-medium shrink-0 text-green-500">✔ Verified</span>
+                    : fixed
+                      ? <span className={cn('text-[9px] font-medium shrink-0', done ? 'text-green-500' : 'text-muted-foreground')}>
+                          {done ? '✔ Fixed' : 'In progress…'}
+                        </span>
+                      : <ChevronRight className={cn('w-3 h-3 shrink-0 mt-0.5 text-muted-foreground transition-transform', selectedKey === issue._key && 'rotate-90')} />
                 }
               </button>
             );
@@ -763,12 +864,23 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
   const [highlightFixKey, setHighlightFixKey] = useState<string | null>(null);
   const [celebrationMsg, setCelebrationMsg] = useState<string | null>(null);
 
-  const { fixedKeys, doneKeys, setInProgress, setFixed } = useIssueFixStore(scanRunId);
+  const { fixedKeys, doneKeys, verifiedKeys, stillBrokenKeys, setInProgress, setFixed, verifyAgainstScan } = useIssueFixStore(scanRunId);
 
   const detailRef = useRef<HTMLDivElement>(null);
   const prevCriticalDoneCount = useRef(0);
+  const prevScanRunIdRef = useRef<string | null>(null);
 
   const selectedIssue = issues.find(i => i._key === selectedKey) ?? null;
+
+  // When scanRunId changes to a new value (new scan loaded), verify previously fixed issues
+  useEffect(() => {
+    if (!scanRunId) return;
+    if (prevScanRunIdRef.current !== null && prevScanRunIdRef.current !== scanRunId) {
+      const currentIssueKeys = new Set(issues.map(i => i._key));
+      verifyAgainstScan(scanRunId, currentIssueKeys);
+    }
+    prevScanRunIdRef.current = scanRunId;
+  }, [scanRunId, issues, verifyAgainstScan]);
 
   const criticalIssues = useMemo(
     () => groups.filter(g => g.severity === 'critical').flatMap(g => g.symptoms),
@@ -920,6 +1032,8 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
                     isTop
                     fixedKeys={fixedKeys}
                     doneKeys={doneKeys}
+                    verifiedKeys={verifiedKeys}
+                    stillBrokenKeys={stillBrokenKeys}
                   />
                 </div>
               )}
@@ -945,6 +1059,8 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
                       onSelectIssue={selectIssue}
                       fixedKeys={fixedKeys}
                       doneKeys={doneKeys}
+                      verifiedKeys={verifiedKeys}
+                      stillBrokenKeys={stillBrokenKeys}
                     />
                   ))}
                 </div>
@@ -961,6 +1077,8 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
                       onSelectIssue={selectIssue}
                       fixedKeys={fixedKeys}
                       doneKeys={doneKeys}
+                      verifiedKeys={verifiedKeys}
+                      stillBrokenKeys={stillBrokenKeys}
                     />
                   ))}
                   <button
@@ -983,6 +1101,8 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
                   onMarkDone={issue => markDoneNow(issue._key)}
                   isFixed={fixedKeys.has(selectedIssue._key)}
                   isDone={doneKeys.has(selectedIssue._key)}
+                  isVerified={verifiedKeys.has(selectedIssue._key)}
+                  isStillBroken={stillBrokenKeys.has(selectedIssue._key)}
                   highlightFix={highlightFixKey === selectedIssue._key}
                 />
               </div>
