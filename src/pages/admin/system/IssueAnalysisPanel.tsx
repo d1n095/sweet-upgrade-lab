@@ -14,6 +14,8 @@ interface FixEntry {
   timestamp: number;
   /** scan run ID at the time the issue was marked fixed */
   fixedAtScanRunId?: string;
+  /** content-based signature at fix time — used for cross-scan matching */
+  sig?: string;
   /** result of cross-scan verification */
   verification?: VerificationStatus;
 }
@@ -54,9 +56,9 @@ function useIssueFixStore(scanRunId: string | null) {
     });
   }, []);
 
-  const setFixed = useCallback((key: string) => {
+  const setFixed = useCallback((key: string, sig?: string) => {
     setStore(prev => {
-      const next = { ...prev, [key]: { status: 'fixed' as const, timestamp: Date.now(), fixedAtScanRunId: scanRunId ?? undefined } };
+      const next = { ...prev, [key]: { status: 'fixed' as const, timestamp: Date.now(), fixedAtScanRunId: scanRunId ?? undefined, sig } };
       saveStore(next);
       return next;
     });
@@ -64,9 +66,13 @@ function useIssueFixStore(scanRunId: string | null) {
 
   /**
    * Called when a new scan run loads. Compares previously-fixed issues against
-   * the current scan's issue keys. Promotes to 'verified_fixed' or 'still_broken'.
+   * the current scan's issues. Signature match takes priority over key match.
    */
-  const verifyAgainstScan = useCallback((currentScanRunId: string, currentIssueKeys: Set<string>) => {
+  const verifyAgainstScan = useCallback((
+    currentScanRunId: string,
+    currentIssueKeys: Set<string>,
+    currentIssueSigs: Set<string>,
+  ) => {
     setStore(prev => {
       let changed = false;
       const next = { ...prev };
@@ -78,7 +84,11 @@ function useIssueFixStore(scanRunId: string | null) {
           entry.fixedAtScanRunId !== currentScanRunId &&
           !entry.verification
         ) {
-          const verification: VerificationStatus = currentIssueKeys.has(key) ? 'still_broken' : 'verified_fixed';
+          // Signature match is primary (stable even if _key changes); key match is fallback
+          const stillExists =
+            (entry.sig ? currentIssueSigs.has(entry.sig) : false) ||
+            currentIssueKeys.has(key);
+          const verification: VerificationStatus = stillExists ? 'still_broken' : 'verified_fixed';
           next[key] = { ...entry, verification };
           changed = true;
         }
@@ -128,6 +138,8 @@ function useIssueFixStore(scanRunId: string | null) {
 export interface ParsedIssue {
   /** stable key for React */
   _key: string;
+  /** content-based signature for cross-scan matching */
+  _sig: string;
   /** Human-readable category (broken_flows, fake_features, etc.) */
   _category: string;
   id: string;
@@ -297,7 +309,24 @@ function deriveConsequence(issue: ParsedIssue): string {
   return map[issue.type] ?? 'Leaving this unresolved may cause further instability.';
 }
 
+/**
+ * Stable cross-scan identity signature.
+ * Uses djb2 hash over normalised title + file + component + category.
+ * Same issue content → same signature even if the positional _key changes.
+ */
+function stableSignature(title: string, file: string, component: string, category: string): string {
+  const input = [title, file, component, category]
+    .map(s => (s ?? '').trim().toLowerCase())
+    .join('|');
+  let h = 5381;
+  for (let i = 0; i < input.length; i++) {
+    h = ((h << 5) + h) ^ input.charCodeAt(i);
+    h = h >>> 0; // keep unsigned 32-bit
+  }
+  return h.toString(36);
+}
 
+function parseIssues(unifiedResult: any): ParsedIssue[] {
   if (!unifiedResult || typeof unifiedResult !== 'object') return [];
 
   const CATEGORY_KEYS: Array<{ key: string; label: string }> = [
@@ -363,10 +392,12 @@ function deriveConsequence(issue: ParsedIssue): string {
 
       const partial = { _category: label, id, type, title, description, file, path, component, missing_field, severity, fix_suggestion, count, _raw: item };
       const prompt = generateFixPrompt(partial);
+      const _sig = stableSignature(title, file, component, label);
 
       parsed.push({
         ...partial,
         _key: dedup,
+        _sig,
         prompt,
       });
     }
@@ -877,7 +908,8 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
     if (!scanRunId) return;
     if (prevScanRunIdRef.current !== null && prevScanRunIdRef.current !== scanRunId) {
       const currentIssueKeys = new Set(issues.map(i => i._key));
-      verifyAgainstScan(scanRunId, currentIssueKeys);
+      const currentIssueSigs = new Set(issues.map(i => i._sig));
+      verifyAgainstScan(scanRunId, currentIssueKeys, currentIssueSigs);
     }
     prevScanRunIdRef.current = scanRunId;
   }, [scanRunId, issues, verifyAgainstScan]);
@@ -922,14 +954,14 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
   }, [criticalDone, allCriticalDone]);
 
   /** Called when "Add to Workbench" is clicked — marks in_progress immediately, fixed after 1.5s */
-  const markFixed = useCallback((key: string) => {
+  const markFixed = useCallback((key: string, sig?: string) => {
     setInProgress(key);
-    setTimeout(() => setFixed(key), 1500);
+    setTimeout(() => setFixed(key, sig), 1500);
   }, [setInProgress, setFixed]);
 
   /** Called by "Mark as fixed" button — instant fixed with no delay */
-  const markDoneNow = useCallback((key: string) => {
-    setFixed(key);
+  const markDoneNow = useCallback((key: string, sig?: string) => {
+    setFixed(key, sig);
   }, [setFixed]);
 
   async function addWorkItem(issue: ParsedIssue) {
@@ -944,7 +976,7 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
       source_file: issue.path || issue.file || null,
       source_component: issue.component || null,
     });
-    markFixed(issue._key);
+    markFixed(issue._key, issue._sig);
   }
 
   function selectIssue(key: string) {
@@ -1098,7 +1130,7 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
                   issue={selectedIssue}
                   onClose={() => { setSelectedKey(null); setHighlightFixKey(null); }}
                   onAddToWorkbench={addWorkItem}
-                  onMarkDone={issue => markDoneNow(issue._key)}
+                  onMarkDone={issue => markDoneNow(issue._key, issue._sig)}
                   isFixed={fixedKeys.has(selectedIssue._key)}
                   isDone={doneKeys.has(selectedIssue._key)}
                   isVerified={verifiedKeys.has(selectedIssue._key)}
