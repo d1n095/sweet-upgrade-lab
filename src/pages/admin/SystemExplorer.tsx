@@ -168,7 +168,8 @@ const SystemExplorer = () => {
   const [selectedItem, setSelectedItem] = useState<WorkItem | null>(null);
   const [detailTab, setDetailTab] = useState<"info" | "history">("info");
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [showBackendRaw, setShowBackendRaw] = useState(false);  const [aiQuery, setAiQuery] = useState("");
+  const [showBackendRaw, setShowBackendRaw] = useState(false);
+  const [aiQuery, setAiQuery] = useState("");
   const [aiAnswer, setAiAnswer] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiFocusArea, setAiFocusArea] = useState<string | null>(null);
@@ -180,7 +181,6 @@ const SystemExplorer = () => {
   const [safeModeEnabled, setSafeModeEnabled] = useState(true);
   const [patchSubmitted, setPatchSubmitted] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [showBackendRaw, setShowBackendRaw] = useState(false);
   const [devMode, setDevMode] = useState(false);
   const [fileScanResult, setFileScanResult] = useState<{ total: number; emptyFiles: number; largeFiles: number } | null>(null);
   const [codeScanResult, setCodeScanResult] = useState<{ type: string; message: string; file: string }[] | null>(null);
