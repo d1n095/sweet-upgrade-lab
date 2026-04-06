@@ -2813,8 +2813,22 @@ serve(async (req) => {
         return new Response(JSON.stringify({ success: false, violations: enrichedViolations, context: scanContext, scan_id: scan_run_id }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
       }
 
+      console.error("[FINALIZE COMPLETE]", scan_run_id);
       trace(scan_run_id, `✓ scan done detected=${issuesCount} created=${workItemsCreated} health=${unified.system_health_score} stage=${systemStage}`);
       return new Response(JSON.stringify({ success: true, scan_id: scan_run_id, detected: issuesCount, created: workItemsCreated, filtered: issuesCount - workItemsCreated, skipped: skippedCount, action: "finalized", iterations: iterationsCompleted, system_stage: systemStage, scanContext }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
+      } catch (finalizeError: any) {
+        console.error(`[FINALIZE CRASH] scan=${scan_run_id}`, finalizeError?.message, finalizeError?.stack?.slice(0, 500));
+        try {
+          await supabase.from("scan_runs").update({
+            status: "error",
+            error_message: `Finalize crash: ${finalizeError?.message || "unknown"}`,
+            completed_at: new Date().toISOString(),
+            current_step_label: "Kraschade under finalisering",
+          }).eq("id", scan_run_id);
+        } catch (_) {}
+        try { await logRuntimeTrace("api", "run-full-scan", "/finalize", finalizeError?.message || "Unknown", { stack: finalizeError?.stack?.slice(0, 500), scan_run_id }); } catch (_) {}
+        return new Response(JSON.stringify({ success: false, error: finalizeError?.message || "Finalize crash", stack: finalizeError?.stack?.slice(0, 500) || null, scan_id: scan_run_id }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
+      }
     }
 
     // ── STATUS ──
