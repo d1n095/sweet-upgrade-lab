@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface MemberPrice {
-  product_id: string;
-  variant_id: string;
+  shopify_product_id: string;
+  shopify_variant_id: string;
   member_price: number;
 }
 
