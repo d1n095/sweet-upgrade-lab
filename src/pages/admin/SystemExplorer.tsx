@@ -13,7 +13,7 @@ import { Database, Activity, Bug, CheckCircle, AlertTriangle, Clock, Shield, Che
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import ReactMarkdown from "react-markdown";
-import { ScanControls, IssueAnalysisPanel } from "./system";
+import { ScanControls, IssueAnalysisPanel, SystemCommandCenter } from "./system";
 
 type WorkItem = {
   id: string;
@@ -1029,6 +1029,9 @@ const SystemExplorer = () => {
     <div className="flex h-full min-h-0">
       {/* Main tree panel */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {/* COMMAND CENTER */}
+        <SystemCommandCenter latestRun={latestRun as any} />
+
         {!systemTruth.scanWorking && <p className="text-[10px] text-red-500 font-mono">❌ SCAN NOT PRODUCING DATA</p>}
         {!systemTruth.workItemsCreated && <p className="text-[10px] text-red-500 font-mono">❌ PIPELINE BLOCKED</p>}
         <p className="text-xs text-green-500 font-mono">TEST BUILD OK — Files detected: {fileSystemMap.length}</p>
