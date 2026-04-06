@@ -2,13 +2,13 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface MemberPrice {
-  shopify_product_id: string;
-  shopify_variant_id: string;
+  product_id: string;
+  variant_id: string;
   member_price: number;
 }
 
 interface VolumeDiscount {
-  shopify_product_id: string | null;
+  product_id: string | null;
   min_quantity: number;
   discount_percent: number;
   is_global: boolean;
